@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://craxit2cb7yjw"]
 
-[ext_resource type="Script" uid="uid://bhi3bmvfr2uhv" path="res://addons/gemini_agent/agent_panel.gd" id="1_jpmp7"]
+[ext_resource type="Script" uid="uid://bhi3bmvfr2uhv" path="res://addons/Godot_agent/godot_agent/agent_panel.gd" id="1_jpmp7"]
 
 [node name="AgentPanel" type="Control" unique_id=2093206737]
 layout_mode = 3
@@ -22,6 +22,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="SettingsBox" type="VBoxContainer" parent="VBoxContainer" unique_id=2007593319]
+visible = false
 layout_mode = 2
 
 [node name="KeyInput" type="LineEdit" parent="VBoxContainer/SettingsBox" unique_id=1741177091]
@@ -40,7 +41,12 @@ placeholder_text = "HTTP Прокси (например 127.0.0.1:10809) - ес�
 [node name="ChatLog" type="RichTextLabel" parent="VBoxContainer" unique_id=1688458279]
 layout_mode = 2
 size_flags_vertical = 3
+focus_mode = 2
 bbcode_enabled = true
+text = "[color=green]Система готова. Работаем через локальный Python эмулятор (G4F)![/color]
+"
+context_menu_enabled = true
+selection_enabled = true
 
 [node name="AttachCodeCheckbox" type="CheckBox" parent="VBoxContainer" unique_id=1538752049]
 layout_mode = 2
