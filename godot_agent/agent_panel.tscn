@@ -58,7 +58,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Спросите Gravepath или дайте указание (Ctrl+Enter для отправки)..."
+placeholder_text = "Спросите или дайте указание (Ctrl+Enter для отправки)..."
 wrap_mode = 1
 
 [node name="SendButton" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1184726236]

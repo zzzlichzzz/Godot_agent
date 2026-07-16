@@ -1,14 +1,12 @@
 import os
+import shutil
 
 EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__', 'node_modules', '.vs', '.vscode'}
 EXCLUDED_FILES = {'.DS_Store'}
 
 
 def build_project_tree(project_root, max_depth=8):
-    """
-    Строит текстовое дерево файлов проекта (без содержимого) —
-    отправляется модели ОДИН раз при инициализации сессии.
-    """
+    """Строит текстовое дерево файлов проекта для контекста ИИ."""
     project_root = os.path.abspath(project_root)
     lines = []
     for dirpath, dirnames, filenames in os.walk(project_root):
@@ -50,7 +48,7 @@ def read_project_file(project_root, godot_path, max_chars=50000):
 
 
 def create_project_file(project_root, godot_path, content):
-    """Создает новый файл. Если файл уже существует — возвращает ошибку."""
+    """Создает новый файл. Если файл существует — возвращает ошибку."""
     abs_path = _resolve_safe_path(project_root, godot_path)
     if os.path.exists(abs_path):
         raise FileExistsError(f"Файл уже существует: {godot_path}")
@@ -61,34 +59,42 @@ def create_project_file(project_root, godot_path, content):
 
 
 def patch_project_file(project_root, godot_path, search_code, replace_code):
-    """
-    Находит уникальный блок кода (search_code) и заменяет его на (replace_code).
-    Автоматически делает резервную копию .bak перед операцией.
-    """
+    """Точечный патч кода функции с созданием резервной копии .bak."""
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
-        raise FileNotFoundError(f"Файл для изменения не найден: {godot_path}")
+        raise FileNotFoundError(f"Файл не найден: {godot_path}")
 
     with open(abs_path, 'r', encoding='utf-8') as f:
         original_content = f.read()
 
-    # Унифицируем переносы строк (\r\n -> \n) для надежного сравнения блоков
     content = original_content.replace('\r\n', '\n')
-    search_norm = search_code.replace('\r\n', '\n').strip()
+    search_norm = search_code.replace('\r\n', '\n')
     replace_norm = replace_code.replace('\r\n', '\n')
 
     occurrences = content.count(search_norm)
     if occurrences == 0:
-        raise ValueError("Ошибка: Не удалось найти указанный блок кода в файле.")
+        raise ValueError("Ошибка: Указанный старый блок кода не найден в файле.")
     if occurrences > 1:
-        raise ValueError("Ошибка: Этот блок кода встречается в файле несколько раз. Замена отменена во избежание ошибок.")
+        raise ValueError("Ошибка: Блок кода не уникален (встречается несколько раз).")
 
-    # Создаем бэкап перед изменением
     backup_path = abs_path + ".bak"
     with open(backup_path, 'w', encoding='utf-8') as f:
         f.write(original_content)
 
-    # Применяем патч
     new_content = content.replace(search_norm, replace_norm)
     with open(abs_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
+
+
+def move_project_file(project_root, source_godot_path, dest_godot_path):
+    """Перемещает или переименовывает файл, создавая папки при необходимости."""
+    abs_source = _resolve_safe_path(project_root, source_godot_path)
+    abs_dest = _resolve_safe_path(project_root, dest_godot_path)
+
+    if not os.path.isfile(abs_source):
+        raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
+    if os.path.exists(abs_dest):
+        raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
+
+    os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
+    shutil.move(abs_source, abs_dest)
