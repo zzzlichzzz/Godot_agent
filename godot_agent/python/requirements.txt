@@ -1,0 +1,4 @@
+# Зависимости для Godot AI Agent (Python Backend)
+Flask==3.0.3
+selenium==4.22.0
+Werkzeug==3.0.3
