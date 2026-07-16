@@ -40,11 +40,14 @@ placeholder_text = "HTTP Прокси (например 127.0.0.1:10809) - ес�
 
 [node name="ChatLog" type="RichTextLabel" parent="VBoxContainer" unique_id=1688458279]
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 bbcode_enabled = true
 text = "[color=green]Система готова. Работаем через локальный Python эмулятор (G4F)![/color]
+[color=gray]Инициализация сессии, отправляю структуру проекта...[/color]
 "
+scroll_following = true
 context_menu_enabled = true
 selection_enabled = true
 
@@ -52,6 +55,28 @@ selection_enabled = true
 layout_mode = 2
 button_pressed = true
 text = "Прикреплять открытый скрипт"
+
+[node name="ReinitButton" type="Button" parent="VBoxContainer" unique_id=-1107515091]
+layout_mode = 2
+text = "🔄 Переинициализировать (переслать структуру проекта)"
+
+[node name="PendingActionBox" type="HBoxContainer" parent="VBoxContainer" unique_id=-1107515095]
+visible = false
+layout_mode = 2
+
+[node name="ActionLabel" type="Label" parent="VBoxContainer/PendingActionBox" unique_id=-1107515094]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Агент хочет выполнить действие..."
+autowrap_mode = 3
+
+[node name="ConfirmButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=-1107515093]
+layout_mode = 2
+text = "✅ Подтвердить"
+
+[node name="RejectButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=-1107515092]
+layout_mode = 2
+text = "❌ Отклонить"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=2049854953]
 layout_mode = 2
