@@ -2,3 +2,4 @@
 Flask==3.0.3
 selenium==4.22.0
 Werkzeug==3.0.3
+json-repair==0.61.5
