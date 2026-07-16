@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bhi3bmvfr2uhv" path="res://addons/Godot_agent/godot_agent/agent_panel.gd" id="1_jpmp7"]
 
-[node name="AgentPanel" type="Control" unique_id=2093206737]
+[node name="AgentPanel" type="Control" unique_id=1450016915]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,9 +11,9 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_jpmp7")
 
-[node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=982047382]
+[node name="HTTPRequest" type="HTTPRequest" parent="." unique_id=297139186]
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1687833838]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=170705465]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -21,72 +21,62 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="SettingsBox" type="VBoxContainer" parent="VBoxContainer" unique_id=2007593319]
-visible = false
-layout_mode = 2
-
-[node name="KeyInput" type="LineEdit" parent="VBoxContainer/SettingsBox" unique_id=1741177091]
-layout_mode = 2
-placeholder_text = "Введите Gemini API Key"
-secret = true
-
-[node name="UrlInput" type="LineEdit" parent="VBoxContainer/SettingsBox" unique_id=929855656]
-layout_mode = 2
-text = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key="
-
-[node name="ProxyInput" type="LineEdit" parent="VBoxContainer/SettingsBox" unique_id=210332002]
-layout_mode = 2
-placeholder_text = "HTTP Прокси (например 127.0.0.1:10809) - если нужен"
-
-[node name="ChatLog" type="RichTextLabel" parent="VBoxContainer" unique_id=1688458279]
+[node name="ChatLog" type="RichTextLabel" parent="VBoxContainer" unique_id=718770088]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 bbcode_enabled = true
-text = "[color=green]Система готова. Работаем через локальный Python эмулятор (G4F)![/color]
-[color=gray]Инициализация сессии, отправляю структуру проекта...[/color]
+text = "[color=green]Система готова. Работаем через локальный ИИ-мост Gravepath![/color]
 "
 scroll_following = true
 context_menu_enabled = true
 selection_enabled = true
 
-[node name="AttachCodeCheckbox" type="CheckBox" parent="VBoxContainer" unique_id=1538752049]
-layout_mode = 2
-button_pressed = true
-text = "Прикреплять открытый скрипт"
-
-[node name="ReinitButton" type="Button" parent="VBoxContainer" unique_id=-1107515091]
-layout_mode = 2
-text = "🔄 Переинициализировать (переслать структуру проекта)"
-
-[node name="PendingActionBox" type="HBoxContainer" parent="VBoxContainer" unique_id=-1107515095]
+[node name="PendingActionBox" type="HBoxContainer" parent="VBoxContainer" unique_id=840791717]
 visible = false
 layout_mode = 2
 
-[node name="ActionLabel" type="Label" parent="VBoxContainer/PendingActionBox" unique_id=-1107515094]
+[node name="ActionLabel" type="Label" parent="VBoxContainer/PendingActionBox" unique_id=1452643193]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Агент хочет выполнить действие..."
 autowrap_mode = 3
 
-[node name="ConfirmButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=-1107515093]
+[node name="ConfirmButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=1411869472]
 layout_mode = 2
-text = "✅ Подтвердить"
+text = "✅ Разрешить"
 
-[node name="RejectButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=-1107515092]
+[node name="RejectButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=188244827]
 layout_mode = 2
 text = "❌ Отклонить"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=2049854953]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1197960912]
 layout_mode = 2
 
-[node name="InputField" type="TextEdit" parent="VBoxContainer/HBoxContainer" unique_id=343227844]
+[node name="InputField" type="TextEdit" parent="VBoxContainer/HBoxContainer" unique_id=1866853501]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
+placeholder_text = "Спросите Gravepath или дайте указание (Ctrl+Enter для отправки)..."
+wrap_mode = 1
 
-[node name="SendButton" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=417534066]
+[node name="SendButton" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1184726236]
 layout_mode = 2
-text = "Отправить
-"
+text = "Отправить"
+
+[node name="AdvancedToggleBtn" type="Button" parent="VBoxContainer" unique_id=1865794255]
+layout_mode = 2
+text = "⚙️ Дополнительно"
+
+[node name="AdvancedBox" type="VBoxContainer" parent="VBoxContainer" unique_id=1419326811]
+visible = false
+layout_mode = 2
+
+[node name="ReinitButton" type="Button" parent="VBoxContainer/AdvancedBox" unique_id=165629525]
+layout_mode = 2
+text = "🔄 Переинициализировать (переслать структуру проекта)"
+
+[node name="RollbackButton" type="Button" parent="VBoxContainer/AdvancedBox" unique_id=549619356]
+layout_mode = 2
+text = "↩️ Откатить последнее изменение"

@@ -1,49 +1,42 @@
 @tool
 extends Control
+
 @onready var chat_log: RichTextLabel = $VBoxContainer/ChatLog
 @onready var input_field: TextEdit = $VBoxContainer/HBoxContainer/InputField
 @onready var send_button: Button = $VBoxContainer/HBoxContainer/SendButton
 @onready var http_request: HTTPRequest = $HTTPRequest
-@onready var attach_checkbox: CheckBox = $VBoxContainer/AttachCodeCheckbox
+
+# Элементы подтверждения действий ИИ
 @onready var pending_action_box: HBoxContainer = $VBoxContainer/PendingActionBox
 @onready var action_label: Label = $VBoxContainer/PendingActionBox/ActionLabel
 @onready var confirm_button: Button = $VBoxContainer/PendingActionBox/ConfirmButton
 @onready var reject_button: Button = $VBoxContainer/PendingActionBox/RejectButton
-@onready var reinit_button: Button = $VBoxContainer/ReinitButton
 
-# Ссылки на наш локальный Python-сервер
+# Панель инструментов
+@onready var advanced_toggle_btn: Button = $VBoxContainer/AdvancedToggleBtn
+@onready var advanced_box: VBoxContainer = $VBoxContainer/AdvancedBox
+@onready var reinit_button: Button = $VBoxContainer/AdvancedBox/ReinitButton
+@onready var rollback_button: Button = $VBoxContainer/AdvancedBox/RollbackButton
+
 const CHAT_URL = "http://127.0.0.1:5000/chat"
 const INIT_URL = "http://127.0.0.1:5000/init"
 const CONFIRM_URL = "http://127.0.0.1:5000/chat/confirm_action"
+const ROLLBACK_URL = "http://127.0.0.1:5000/chat/rollback"
 
-# HTTPRequest один на всю панель, а эндпоинтов несколько — помечаем, какого
-# рода запрос сейчас "в полёте", чтобы правильно обработать ответ в общем
-# колбэке _on_request_completed.
-var _pending_request_kind: String = "chat"  # "init" | "chat" | "confirm"
+var _pending_request_kind: String = "chat"  # "init" | "chat" | "confirm" | "rollback"
+var _is_network_busy: bool = false
 
 func _ready() -> void:
-	print("[AgentPanel] _ready() вызван")
-
 	chat_log.selection_enabled = true
 	chat_log.context_menu_enabled = true
-	# Явно включаем перенос по словам — без этого длинные абзацы/строки кода
-	# могут растягивать контрол по горизонтали вместо переноса на новую строку.
 	chat_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	chat_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Автопрокрутка вниз при добавлении нового текста (пока пользователь сам
-	# не проскроллит вверх — тогда Godot временно перестаёт "следовать").
 	chat_log.scroll_following = true
-	chat_log.text = "[color=green]Система готова. Работаем через локальный Python эмулятор (G4F)![/color]\n"
+	chat_log.text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]\n"
 
-	# Безопасно на случай, если сцена ещё не перезагружена (например, плагин
-	# не был выключен/включён заново после добавления PendingActionBox) —
-	# без этой проверки null-доступ ниже прервал бы весь _ready(), и
-	# инициализация сессии (отправка структуры проекта) вообще не запустилась бы.
 	if pending_action_box:
 		pending_action_box.visible = false
-	else:
-		print("PendingActionBox не найден — пересохраните/перезагрузите сцену (выключите и включите плагин).")
 
+	# Подключаем сигналы кнопок
 	if not send_button.pressed.is_connected(_on_send_pressed):
 		send_button.pressed.connect(_on_send_pressed)
 	if not http_request.request_completed.is_connected(_on_request_completed):
@@ -52,46 +45,72 @@ func _ready() -> void:
 		confirm_button.pressed.connect(_on_confirm_pressed)
 	if reject_button and not reject_button.pressed.is_connected(_on_reject_pressed):
 		reject_button.pressed.connect(_on_reject_pressed)
-	if reinit_button and not reinit_button.pressed.is_connected(_send_init_request):
-		reinit_button.pressed.connect(_send_init_request)
+	if reinit_button and not reinit_button.pressed.is_connected(_on_reinit_pressed):
+		reinit_button.pressed.connect(_on_reinit_pressed)
+		
+	# Логика кнопки "Дополнительно"
+	if advanced_toggle_btn and not advanced_toggle_btn.pressed.is_connected(_on_advanced_toggle):
+		advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
+	if rollback_button and not rollback_button.pressed.is_connected(_on_rollback_pressed):
+		rollback_button.pressed.connect(_on_rollback_pressed)
 
-	# Нам больше не нужны настройки API-ключей, поэтому мы просто скрываем верхний блок
+	# Отправка по Ctrl+Enter
+	if not input_field.gui_input.is_connected(_on_input_field_gui_input):
+		input_field.gui_input.connect(_on_input_field_gui_input)
+
 	if has_node("VBoxContainer/SettingsBox"):
 		$VBoxContainer/SettingsBox.hide()
 
-	_send_init_request()
-
-# BBCode использует [ и ] как спецсимволы для тегов. Текст, который печатает
-# ПОЛЬЗОВАТЕЛЬ (например, вставленный кусок GDScript с массивами вроде
-# [1, 2, 3] или Array[int]), может случайно сломать разметку в chat_log,
-# т.к. RichTextLabel работает с bbcode_enabled = true. Экранируем перед
-# вставкой — так же, как это уже сделано в парсере ответов ИИ на стороне Python.
+# Безопасное экранирование BBCode
 func _escape_bbcode(text: String) -> String:
-	return text.replace("[", "[lb]").replace("]", "[rb]")
+	var result = ""
+	for i in range(text.length()):
+		var c = text[i]
+		if c == "[":
+			result += "[lb]"
+		elif c == "]":
+			result += "[rb]"
+		else:
+			result += c
+	return result
 
-# Отправляет Python абсолютный путь к проекту — на его основе Python сам
-# построит дерево файлов и пришлёт модели ОДИН РАЗ при старте сессии.
-func _send_init_request() -> void:
-	print("[AgentPanel] _send_init_request() вызван, отправляю POST на ", INIT_URL)
-	chat_log.text += "[color=gray]Инициализация сессии, отправляю структуру проекта...[/color]\n"
+func _set_ui_busy(busy: bool) -> void:
+	_is_network_busy = busy
+	send_button.disabled = busy
+	reinit_button.disabled = busy
+	rollback_button.disabled = busy
+	input_field.editable = not busy
+	if confirm_button: confirm_button.disabled = busy
+	if reject_button: reject_button.disabled = busy
+	send_button.text = "Ждём..." if busy else "Отправить"
 
+func _on_advanced_toggle() -> void:
+	advanced_box.visible = not advanced_box.visible
+	advanced_toggle_btn.text = "⚙️ Скрыть доп. инструменты" if advanced_box.visible else "⚙️ Дополнительно"
+
+func _on_input_field_gui_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ENTER and event.ctrl_pressed:
+			_on_send_pressed()
+			accept_event()
+
+func _on_reinit_pressed() -> void:
+	if _is_network_busy: return
+	chat_log.text += "[color=gray]Запрос на обновление дерева файлов отправлен на сервер...[/color]\n"
+	
 	var project_root = ProjectSettings.globalize_path("res://")
-	print("[AgentPanel] project_root = ", project_root)
 	var headers = ["Content-Type: application/json"]
 	var body = {"project_root": project_root}
 
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
-	var err = http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
-	print("[AgentPanel] http_request.request() вернул код: ", err, " (OK = ", OK, ")")
-
-	if err != OK:
-		print("Ошибка инициализации: убедитесь, что Python-сервер запущен")
+	_set_ui_busy(true)
+	http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 
 func _on_send_pressed() -> void:
-	# Пока есть неподтверждённое действие агента — новые сообщения не отправляем,
-	# сначала нужно подтвердить/отклонить текущее.
+	if _is_network_busy: return
 	if pending_action_box and pending_action_box.visible:
+		_log_error("Сначала разрешите или отклоните текущее действие агента!")
 		return
 
 	var user_text = input_field.text.strip_edges()
@@ -99,32 +118,25 @@ func _on_send_pressed() -> void:
 
 	input_field.text = ""
 	chat_log.text += "\n[color=lightblue]Вы:[/color] " + _escape_bbcode(user_text) + "\n"
+	chat_log.text += "[color=gray]Агент анализирует проект...[/color]\n"
 
-	var final_prompt = user_text
-
-	# Прикрепляем код, если стоит галочка
-	if attach_checkbox.button_pressed:
-		var current_code = ""
-		var script_editor = EditorInterface.get_script_editor()
-		var current_editor = script_editor.get_current_editor()
-		if current_editor and current_editor.get_base_editor():
-			current_code = current_editor.get_base_editor().text
-
-		if current_code != "":
-			final_prompt = "Ответь на вопрос по моему GDScript коду:\n\n```gdscript\n" + current_code + "\n```\nВопрос: " + user_text
-			chat_log.text += "[color=gray][Код прикреплен: " + str(current_code.length()) + " симв.][/color]\n"
-
-	chat_log.text += "[color=gray]Python-сервер эмулирует браузер... ждем.[/color]\n"
-
+	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	var body = {"prompt": final_prompt}
+	
+	# Передаем и промпт, и данные корня проекта В КАЖДОМ сообщении чата для авто-синхронизации
+	var body = {
+		"prompt": user_text,
+		"project_root": project_root
+	}
 
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "chat"
+	_set_ui_busy(true)
+	
 	var err = http_request.request(CHAT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
-
 	if err != OK:
-		print("Ошибка: Убедитесь, что Python скрипт ai_server.py запущен")
+		_log_error("Ошибка отправки сообщения.")
+		_set_ui_busy(false)
 
 func _on_confirm_pressed() -> void:
 	_send_confirm_request(true)
@@ -133,55 +145,79 @@ func _on_reject_pressed() -> void:
 	_send_confirm_request(false)
 
 func _send_confirm_request(approved: bool) -> void:
+	if _is_network_busy: return
 	if pending_action_box:
 		pending_action_box.visible = false
-	var label = "Подтверждено" if approved else "Отклонено"
-	chat_log.text += "[color=gray]" + label + ". Жду реакции агента...[/color]\n"
+		
+	var label = "Вы РАЗРЕШИЛИ действие" if approved else "Вы ОТКЛОНИЛИ действие"
+	chat_log.text += "[color=gray]" + label + ". Жду ответа...[/color]\n"
 
 	var headers = ["Content-Type: application/json"]
 	var body = {"approved": approved}
 
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
+	_set_ui_busy(true)
+	
 	var err = http_request.request(CONFIRM_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
-
 	if err != OK:
-		print("Ошибка отправки подтверждения")
+		_log_error("Ошибка отправки подтверждения.")
+		_set_ui_busy(false)
 
-# Общий колбэг для /init, /chat и /chat/confirm_action — все три возвращают
-# один и тот же формат {"answer": ..., "pending_action": ...}.
+func _on_rollback_pressed() -> void:
+	if _is_network_busy: return
+	chat_log.text += "[color=gray]Отмена последнего изменения...[/color]\n"
+
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "rollback"
+	_set_ui_busy(true)
+	
+	var err = http_request.request(ROLLBACK_URL, [], HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error("Ошибка при отправке запроса отката.")
+		_set_ui_busy(false)
+
 func _on_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	_set_ui_busy(false)
 	var kind = _pending_request_kind
-	print("[AgentPanel] Ответ получен: kind=", kind, " response_code=", response_code, " result=", result)
+	var response_str = body.get_string_from_utf8()
+	var json = JSON.parse_string(response_str)
 
-	if response_code == 200:
-		var json = JSON.parse_string(body.get_string_from_utf8())
-		if json and json.has("answer"):
-			# ai_text уже приходит из Python в виде готового BBCode
-			# (экранирование скобок там уже сделано) — повторно НЕ экранируем,
-			# иначе собственные теги [b], [code] и т.п. превратятся в текст.
+	if response_code == 200 and json != null:
+		if kind == "init":
+			chat_log.text += "\n[color=green]Успех: Карта файлов сброшена. Следующее сообщение заново настроит контекст ИИ.[/color]\n"
+			return
+		if kind == "rollback":
+			chat_log.text += "\n[color=green]Успех: Последнее изменение файла отменено![/color]\n"
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if json.has("answer"):
+			# Жесткая защита от Nil-значений перед конкатенацией строк
 			var ai_text = json["answer"]
-			if kind == "init":
-				chat_log.text += "\n[color=yellow]ИИ (инициализация):[/color]\n" + ai_text + "\n\n-----------------\n"
-			else:
-				chat_log.text += "\n[color=yellow]ИИ:[/color]\n" + ai_text + "\n\n-----------------\n"
+			if ai_text == null:
+				ai_text = ""
+				
+			chat_log.text += "\n[color=yellow]ИИ-Агент:[/color]\n" + str(ai_text) + "\n\n-----------------\n"
 
+			# Выводим плашку действия, если агент его затребовал
 			var pending = json.get("pending_action")
 			if pending != null and action_label and pending_action_box:
-				var description = json.get("pending_action_description", "Агент запросил действие.")
-				action_label.text = description
+				var description = json.get("pending_action_description", "Агент запрашивает действие...")
+				if description == null: description = "Агент запрашивает действие."
+				action_label.text = str(description)
 				pending_action_box.visible = true
 			elif pending_action_box:
 				pending_action_box.visible = false
 
-			# Страховка: явно прокручиваем к последней строке даже если
-			# scroll_following почему-то не сработал (например, из-за большого
-			# BBCode-блока, который пересчитывается не сразу).
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
-		else:
-			print("Ошибка парсинга ответа от Python сервера")
-	elif response_code == 409:
-		print("Есть неподтверждённое действие — подтвердите/отклоните прежде чем продолжить")
 	else:
-		print("Ошибка сервера (Код " + str(response_code) + "): Python скрипт не отвечает")
+		var err_msg = "Сервер не отвечает."
+		if json and json.has("error") and json["error"] != null:
+			err_msg = str(json["error"])
+		_log_error("Ошибка сервера (" + str(response_code) + "): " + err_msg)
+
+func _log_error(msg: String) -> void:
+	chat_log.text += "\n[color=red][Ошибка]: " + msg + "[/color]\n"
