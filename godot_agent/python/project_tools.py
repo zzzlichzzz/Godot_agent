@@ -1,12 +1,12 @@
 import os
+import shutil
 
 EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__', 'node_modules', '.vs', '.vscode'}
 EXCLUDED_FILES = {'.DS_Store'}
 
 
 def build_project_tree(project_root, max_depth=8):
-    """Строит текстовое дерево файлов проекта (без содержимого) —
-    отправляется модели ОДИН раз при инициализации сессии."""
+    """Строит текстовое дерево файлов проекта для контекста ИИ."""
     project_root = os.path.abspath(project_root)
     lines = []
     for dirpath, dirnames, filenames in os.walk(project_root):
@@ -27,40 +27,74 @@ def build_project_tree(project_root, max_depth=8):
 
 
 def _resolve_safe_path(project_root, godot_path):
-    """
-    Превращает res://путь (или относительный путь) в абсолютный и
-    проверяет, что он НЕ выходит за пределы project_root.
-    Это защита от path traversal — модель в теории может предложить
-    путь вроде "res://../../../etc/passwd" или содержащий "..", и без
-    этой проверки мы бы читали/писали файлы вне проекта.
-    """
+    """Защита от Path Traversal — не дает ИИ выйти за рамки проекта."""
     rel = godot_path[len('res://'):] if godot_path.startswith('res://') else godot_path
     project_root_abs = os.path.abspath(project_root)
     abs_path = os.path.abspath(os.path.join(project_root_abs, rel))
-
     if abs_path != project_root_abs and not abs_path.startswith(project_root_abs + os.sep):
-        raise ValueError(f"Путь вне проекта, отклонено: {godot_path}")
-
+        raise ValueError(f"Путь вне проекта отклонен: {godot_path}")
     return abs_path
 
 
 def read_project_file(project_root, godot_path, max_chars=50000):
+    """Читает содержимое файла проекта."""
+    abs_path = _resolve_safe_path(project_root, godot_path)
+    if not os.path.isfile(abs_path):
+        raise FileNotFoundError(f"Файл не найден: {godot_path}")
+    with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
+        content = f.read()
+    truncated = len(content) > max_chars
+    return content[:max_chars], truncated
+
+
+def create_project_file(project_root, godot_path, content):
+    """Создает новый файл. Если файл существует — возвращает ошибку."""
+    abs_path = _resolve_safe_path(project_root, godot_path)
+    if os.path.exists(abs_path):
+        raise FileExistsError(f"Файл уже существует: {godot_path}")
+    
+    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    with open(abs_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+
+def patch_project_file(project_root, godot_path, search_code, replace_code):
+    """Точечный патч кода функции с созданием резервной копии .bak."""
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(f"Файл не найден: {godot_path}")
 
-    with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
-        content = f.read()
+    with open(abs_path, 'r', encoding='utf-8') as f:
+        original_content = f.read()
 
-    truncated = len(content) > max_chars
-    if truncated:
-        content = content[:max_chars]
+    content = original_content.replace('\r\n', '\n')
+    search_norm = search_code.replace('\r\n', '\n')
+    replace_norm = replace_code.replace('\r\n', '\n')
 
-    return content, truncated
+    occurrences = content.count(search_norm)
+    if occurrences == 0:
+        raise ValueError("Ошибка: Указанный старый блок кода не найден в файле.")
+    if occurrences > 1:
+        raise ValueError("Ошибка: Блок кода не уникален (встречается несколько раз).")
 
+    backup_path = abs_path + ".bak"
+    with open(backup_path, 'w', encoding='utf-8') as f:
+        f.write(original_content)
 
-def write_project_file(project_root, godot_path, content):
-    abs_path = _resolve_safe_path(project_root, godot_path)
-    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+    new_content = content.replace(search_norm, replace_norm)
     with open(abs_path, 'w', encoding='utf-8') as f:
-        f.write(content)
+        f.write(new_content)
+
+
+def move_project_file(project_root, source_godot_path, dest_godot_path):
+    """Перемещает или переименовывает файл, создавая папки при необходимости."""
+    abs_source = _resolve_safe_path(project_root, source_godot_path)
+    abs_dest = _resolve_safe_path(project_root, dest_godot_path)
+
+    if not os.path.isfile(abs_source):
+        raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
+    if os.path.exists(abs_dest):
+        raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
+
+    os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
+    shutil.move(abs_source, abs_dest)
