@@ -113,6 +113,19 @@ def move_project_file(project_root, source_godot_path, dest_godot_path):
     shutil.move(abs_source, abs_dest)
 
 
+def copy_project_file(project_root, source_godot_path, dest_godot_path):
+    """Копирует файл ВНУТРИ проекта (res://) как есть (байты сохраняются).
+    Не перезаписывает существующий файл — как и create_project_file."""
+    abs_source = _resolve_safe_path(project_root, source_godot_path)
+    abs_dest = _resolve_safe_path(project_root, dest_godot_path)
+    if not os.path.isfile(abs_source):
+        raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
+    if os.path.exists(abs_dest):
+        raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
+    os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
+    shutil.copy2(abs_source, abs_dest)
+
+
 SEARCH_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.json', '.txt',
                '.md', '.gdshader', '.shader', '.csv'}
 
