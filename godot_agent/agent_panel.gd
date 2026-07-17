@@ -639,7 +639,7 @@ func _mark_script_in_list_experimental(path: String) -> void:
 		for i in range(item_list.item_count):
 			var t := item_list.get_item_text(i)
 			var tip := item_list.get_item_tooltip(i)
-			if t == fname or t.begins_with(fname + "(") or tip == path or tip.contains(fname):
+			if t == fname or t.begins_with(fname + "(") or tip == path or tip.ends_with("/" + fname):
 				item_list.set_item_custom_fg_color(i, Color(0.45, 1.0, 0.45))
 				matched += 1
 	if not _list_mark_dbg_done:
