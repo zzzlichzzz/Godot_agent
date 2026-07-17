@@ -28,13 +28,51 @@ from project_tools import _resolve_safe_path
 HISTORY_DIR_NAME = ".agent_history"
 MAX_ENTRIES = 50
 
+# Если задан set_storage_dir(), журнал и снапшоты живут ВНЕ проекта
+# (в папке user:// данных Godot) — их не видит ни сканер редактора,
+# ни git, ни модель, и обновление плагина их не задевает.
+_STORAGE_OVERRIDE = None
+
 # Максимальный размер search/replace, который храним в журнале ради
 # точного диффа отката. Больше — не храним (модель просто перечитает файл).
 MAX_DIFF_CHARS = 4000
 
 
+def set_storage_dir(base_dir):
+    """Включает хранение журнала/снапшотов вне проекта: <base_dir>/agent_history."""
+    global _STORAGE_OVERRIDE
+    _STORAGE_OVERRIDE = os.path.join(os.path.abspath(base_dir), "agent_history")
+
+
+def get_storage_dir(project_root):
+    """Абсолютный путь к папке хранения (журнал, снапшоты, служебные файлы)."""
+    return _history_dir(project_root)
+
+
+def migrate_from_project(project_root):
+    """Одноразовый перенос старой .agent_history из корня проекта в новое
+    хранилище (user://). Возвращает True, если перенос был выполнен."""
+    if not _STORAGE_OVERRIDE or not project_root:
+        return False
+    old = os.path.join(os.path.abspath(project_root), HISTORY_DIR_NAME)
+    old_journal = os.path.join(old, "journal.json")
+    if not os.path.isfile(old_journal):
+        return False
+    if os.path.isfile(os.path.join(_STORAGE_OVERRIDE, "journal.json")):
+        return False  # в новом месте уже есть своя история — старую не трогаем
+    os.makedirs(os.path.join(_STORAGE_OVERRIDE, "snapshots"), exist_ok=True)
+    shutil.move(old_journal, os.path.join(_STORAGE_OVERRIDE, "journal.json"))
+    old_snaps = os.path.join(old, "snapshots")
+    if os.path.isdir(old_snaps):
+        for name in os.listdir(old_snaps):
+            shutil.move(os.path.join(old_snaps, name),
+                        os.path.join(_STORAGE_OVERRIDE, "snapshots", name))
+    shutil.rmtree(old, ignore_errors=True)
+    return True
+
+
 def _history_dir(project_root):
-    d = os.path.join(os.path.abspath(project_root), HISTORY_DIR_NAME)
+    d = _STORAGE_OVERRIDE or os.path.join(os.path.abspath(project_root), HISTORY_DIR_NAME)
     os.makedirs(os.path.join(d, "snapshots"), exist_ok=True)
     return d
 
