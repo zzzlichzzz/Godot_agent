@@ -25,6 +25,7 @@ const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
 const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
+const PROGRESS_URL = "http://" + HOST + "/chat/progress"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -58,6 +59,21 @@ var _hl_code_edit: CodeEdit = null
 var _list_mark_dbg_done: bool = false  # разовый диагностический вывод пометки списка скриптов
 var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
 var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
+
+
+# Живая трансляция: пока идёт запрос, отдельный HTTPRequest раз в секунду
+# опрашивает /chat/progress и показывает статус + хвост ответа модели.
+var _progress_http: HTTPRequest = null
+var _progress_timer: Timer = null
+var _progress_inflight: bool = false
+var _status_label: Label = null
+# Плавная «печать» ответа: текст приходит снимком, а выводим по буквам.
+var _tw_timer: Timer = null
+var _tw_buffer: String = ""
+# Живой стрим ответа прямо в чат: сколько символов уже показано.
+var _live_active: bool = false
+var _live_start_len: int = 0
+var _live_sent: int = 0
 
 
 func _ready() -> void:
@@ -100,6 +116,31 @@ func _ready() -> void:
 		_guard_timer.one_shot = true
 		add_child(_guard_timer)
 		_guard_timer.timeout.connect(_on_guard_timeout)
+	if _progress_timer == null:
+		_progress_timer = Timer.new()
+		_progress_timer.wait_time = 1.0
+		_progress_timer.one_shot = false
+		add_child(_progress_timer)
+		_progress_timer.timeout.connect(_on_progress_tick)
+	if _progress_http == null:
+		_progress_http = HTTPRequest.new()
+		_progress_http.timeout = 4.0
+		add_child(_progress_http)
+		_progress_http.request_completed.connect(_on_progress_response)
+	if _status_label == null:
+		_status_label = Label.new()
+		_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_status_label.add_theme_color_override("font_color", Color(0.62, 0.74, 0.95))
+		_status_label.visible = false
+		var vbox := $VBoxContainer
+		vbox.add_child(_status_label)
+		vbox.move_child(_status_label, chat_log.get_index() + 1)
+	if _tw_timer == null:
+		_tw_timer = Timer.new()
+		_tw_timer.wait_time = 0.02
+		_tw_timer.one_shot = false
+		add_child(_tw_timer)
+		_tw_timer.timeout.connect(_on_tw_tick)
 	# Восстановление после перезагрузки скрипта: если панель перезагрузилась,
 	# пока кнопки были временно заблокированы охранником — вернуть их в рабочее состояние.
 	if confirm_button and reject_button and not _is_network_busy:
@@ -137,6 +178,19 @@ func _set_ui_busy(busy: bool) -> void:
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = "Ждём..." if busy else "Отправить"
+	# Живая трансляция: опрашиваем статус только пока идёт запрос.
+	if busy:
+		_tw_flush()
+		_live_active = false
+		_live_sent = 0
+		if _progress_timer and _progress_timer.is_stopped():
+			_progress_timer.start()
+	else:
+		if _progress_timer:
+			_progress_timer.stop()
+		if _status_label:
+			_status_label.visible = false
+		_progress_inflight = false
 
 
 func _on_advanced_toggle() -> void:
@@ -173,7 +227,7 @@ func _on_send_pressed() -> void:
 	if user_text.is_empty(): return
 	input_field.text = ""
 	_rollback_force_next = false
-	chat_log.text += "\n[color=lightblue]Вы:[/color] " + _escape_bbcode(user_text) + "\n"
+	chat_log.text += _bubble("Вы", "#a5d6a7", _escape_bbcode(user_text), "#1f3320", "#3a5a3c")
 	chat_log.text += "[color=gray]Агент анализирует проект...[/color]\n"
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
@@ -358,7 +412,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# Текстовый ответ ИИ (не печатаем пустые ответы)
 		var has_answer: bool = json.has("answer") and json["answer"] != null and str(json["answer"]) != ""
 		if has_answer:
-			chat_log.text += "\n[color=yellow]ИИ-Агент:[/color]\n" + str(json["answer"]) + "\n\n-----------------\n"
+			_finalize_live_block()
+			chat_log.text += _bubble("ИИ-Агент", "#ffd54f", str(json["answer"]), "#26303d", "#3a4a63")
 
 		# Промежуточное подтверждение файла из пачки на чтение:
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
@@ -376,6 +431,10 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if pending != null and action_label and pending_action_box:
 			var description = json.get("pending_action_description", "Агент запрашивает действие...")
 			if description == null: description = "Агент запрашивает действие."
+			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки).
+			var pcode = json.get("pending_action_code")
+			if pcode != null and str(pcode) != "":
+				chat_log.text += "[bgcolor=#1f2430][color=#8ab4f8] ▸ предлагаемый код [/color][/bgcolor]\n[bgcolor=#2b2b2b][code]" + _escape_bbcode(str(pcode)) + "[/code][/bgcolor]\n"
 			action_label.text = str(description)
 			pending_action_box.visible = true
 			_last_pending_action_type = str(pending.get("action", ""))
@@ -408,6 +467,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 
 func _log_error(msg: String) -> void:
+	_tw_flush()
 	chat_log.text += "\n[color=red][Ошибка]: " + msg + "[/color]\n"
 
 
@@ -682,3 +742,138 @@ func _mark_script_in_list_experimental(path: String) -> void:
 	if not _list_mark_dbg_done:
 		_list_mark_dbg_done = true
 		print("[ИИ-Агент] Пометка в списке скриптов: ItemList найдено %d, совпадений %d (файл: %s)" % [lists_found, matched, fname])
+
+
+# ---------------------------------------------------------------------------
+# Живая трансляция ответа: пока идёт запрос к серверу, раз в секунду
+# спрашиваем /chat/progress и показываем фазу («думает…», «пишет…»),
+# время, счётчик символов и хвост ответа прямо под чатом.
+# Отдельный HTTPRequest не мешает основному запросу (у Godot один
+# HTTPRequest = один запрос за раз), а сервер отдаёт снимок состояния
+# мгновенно, не трогая браузер.
+# ---------------------------------------------------------------------------
+
+func _on_progress_tick() -> void:
+	if not _is_network_busy:
+		if _progress_timer:
+			_progress_timer.stop()
+		if _status_label:
+			_status_label.visible = false
+		return
+	if _progress_inflight or _progress_http == null:
+		return
+	_progress_http.set_http_proxy("", 0)
+	var err = _progress_http.request(PROGRESS_URL)
+	if err == OK:
+		_progress_inflight = true
+
+
+func _on_progress_response(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	_progress_inflight = false
+	if not _is_network_busy or _status_label == null:
+		return
+	if response_code != 200:
+		return
+	var json = JSON.parse_string(body.get_string_from_utf8())
+	if json == null or typeof(json) != TYPE_DICTIONARY:
+		return
+	if not bool(json.get("active", false)):
+		return
+	var phase := str(json.get("phase", "работаю…"))
+	var elapsed := int(json.get("elapsed", 0))
+	var chars := int(json.get("chars", 0))
+	var line := "🤖 " + phase
+	if elapsed > 0:
+		line += " · " + str(elapsed) + " с"
+	if chars > 0:
+		line += " · " + str(chars) + " симв."
+	_status_label.text = line
+	_status_label.visible = true
+	# Текст ответа больше НЕ показываем в статусе — он стримится прямо в чат.
+	_feed_live_stream(str(json.get("stream", "")))
+
+
+# ---------------------------------------------------------------------------
+# Плавная «печать» ответа. Ответ приходит целиком (снимком), но выводим
+# его порциями по буквам — выглядит как живая печать. BBCode-теги
+# вставляются целиком, чтобы разметка не ломалась на середине тега.
+# ---------------------------------------------------------------------------
+
+func _tw_flush() -> void:
+	# Мгновенно допечатать всё оставшееся (перед новым запросом/ошибкой).
+	if _tw_buffer != "":
+		chat_log.text += _tw_buffer
+		_tw_buffer = ""
+	if _tw_timer:
+		_tw_timer.stop()
+
+
+func _chat_append_typed(text: String) -> void:
+	_tw_buffer += text
+	if _tw_timer and _tw_timer.is_stopped():
+		_tw_timer.start()
+
+
+func _on_tw_tick() -> void:
+	if _tw_buffer == "":
+		if _tw_timer:
+			_tw_timer.stop()
+		return
+	# Скорость адаптивная: чем длиннее остаток, тем крупнее порция —
+	# короткий ответ печатается по буквам, длинный не заставляет ждать.
+	var step: int = clamp(int(_tw_buffer.length() / 100.0) + 2, 2, 40)
+	var out := ""
+	while step > 0 and _tw_buffer != "":
+		var c := _tw_buffer[0]
+		if c == "[":
+			var close := _tw_buffer.find("]")
+			if close == -1:
+				out += _tw_buffer
+				_tw_buffer = ""
+				break
+			out += _tw_buffer.substr(0, close + 1)
+			_tw_buffer = _tw_buffer.substr(close + 1)
+		else:
+			out += c
+			_tw_buffer = _tw_buffer.substr(1)
+		step -= 1
+	chat_log.text += out
+	if _tw_buffer == "":
+		if _tw_timer:
+			_tw_timer.stop()
+
+
+# ---------------------------------------------------------------------------
+# «Пузыри» сообщений и живой стрим ответа прямо в чат.
+# Пока модель печатает в браузере, текст сразу появляется в чате
+# (печатается по буквам), а по завершении черновик заменяется
+# финальным оформленным ответом (код-блоки, цвета) в виде пузыря.
+# ---------------------------------------------------------------------------
+
+func _bubble(header: String, header_color: String, body: String, bg: String, border: String) -> String:
+	return "\n[table=1][cell bg=" + bg + " border=" + border + " padding=10,8,10,8][color=" + header_color + "][b]" + header + "[/b][/color]\n" + body + "\n[/cell][/table]\n"
+
+
+func _finalize_live_block() -> void:
+	# Стрим окончен: убираем черновой текст, дальше придёт финальный
+	# оформленный ответ в виде пузыря.
+	_tw_flush()
+	if _live_active:
+		chat_log.text = chat_log.text.substr(0, _live_start_len)
+	_live_active = false
+	_live_sent = 0
+
+
+func _feed_live_stream(stream: String) -> void:
+	if stream == "":
+		return
+	if not _live_active:
+		_tw_flush()
+		_live_start_len = chat_log.text.length()
+		chat_log.text += "\n[color=yellow]ИИ-Агент[/color] [color=gray](печатает…)[/color]\n"
+		_live_active = true
+		_live_sent = 0
+	if stream.length() > _live_sent:
+		var delta := stream.substr(_live_sent)
+		_live_sent = stream.length()
+		_chat_append_typed(_escape_bbcode(delta))

@@ -147,9 +147,24 @@ def _save_primed(project_root, val):
         pass
 
 
+def _set_progress(info):
+    """Живая трансляция: ai_parser присылает фазу/символы/хвост ответа."""
+    data = {"active": True}
+    data.update(info or {})
+    STATE["progress"] = data
+
+
+def _clear_progress():
+    STATE["progress"] = {"active": False}
+
+
 def _reply(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
-    result = send_message_and_get_response(driver, prompt)
+    _set_progress({"phase": "отправляю запрос в браузер"})
+    try:
+        result = send_message_and_get_response(driver, prompt, progress_cb=_set_progress)
+    finally:
+        _clear_progress()
     if isinstance(result, dict):
         text, action = result.get("text") or "", result.get("action")
     else:
@@ -307,10 +322,22 @@ def _package_model_reply(text, action, project_root, depth=0):
                 "ещё генерировала текст, а парсер не дождался конца. Ответ, вероятно, "
                 "виден во вкладке AI Studio. Можно написать модели: 'повтори последний ответ'.")
     STATE["pending_action"] = action
+    # Чистый код для красивого предпросмотра в панели (без JSON-обёртки).
+    code_preview = None
+    if isinstance(action, dict):
+        if action.get("action") == "patch_file":
+            code_preview = action.get("replace")
+        elif action.get("action") == "create_file":
+            code_preview = action.get("content")
+    if not (isinstance(code_preview, str) and code_preview.strip()):
+        code_preview = None
+    elif len(code_preview) > 1500:
+        code_preview = code_preview[:1500] + "\n… (показано начало, применится полный код)"
     return jsonify({
         "answer": text,
         "pending_action": action,
         "pending_action_description": _describe_action(action),
+        "pending_action_code": code_preview,
     })
 
 
@@ -702,6 +729,15 @@ def send_log_errors():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/chat/progress', methods=['GET'])
+def chat_progress():
+    # Живая трансляция для панели: что сейчас происходит в браузере.
+    # ВАЖНО: эндпоинт НЕ трогает Selenium (браузером занят поток /chat),
+    # он только читает последний снимок состояния — поэтому безопасен
+    # при одновременном длинном запросе.
+    return jsonify(STATE.get("progress") or {"active": False})
+
+
 if __name__ == '__main__':
     try:
         driver = setup_browser()
@@ -710,7 +746,7 @@ if __name__ == '__main__':
         log.setLevel(logging.ERROR)
         # ВАЖНО: только 127.0.0.1! На 0.0.0.0 любой в локальной сети
         # мог бы писать файлы в ваш проект простым POST-запросом.
-        app.run(port=5000, host='127.0.0.1')
+        app.run(port=5000, host='127.0.0.1', threaded=True)
     except Exception as e:
         traceback.print_exc()
         input()
