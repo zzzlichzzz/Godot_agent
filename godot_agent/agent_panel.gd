@@ -23,6 +23,8 @@ const CHAT_URL = "http://" + HOST + "/chat"
 const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
+const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
+const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -35,6 +37,25 @@ var _last_pending_action_dest: String = ""
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
 # после действия агента) — следующее нажатие кнопки отката отправит force.
 var _rollback_force_next: bool = false
+
+# Канал «Ошибки запуска игры»: кнопка создаётся кодом (без правки .tscn),
+# а флаг означает, что текущее подтверждение — это отправка отчёта модели.
+var _log_errors_button: Button = null
+var _pending_log_send: bool = false
+
+# Автопроверка лога после закрытия игры (переход is_playing_scene: true→false).
+var _play_watch_timer: Timer = null
+var _was_playing: bool = false
+var _auto_check: bool = false
+
+# Подсветка изменённых агентом строк: помним путь и ТЕКСТ блока и красим
+# строки там, где блок находится СЕЙЧАС (поиск по содержимому, а не по номерам).
+const HL_COLOR := Color(0.25, 0.85, 0.35, 0.16)
+var _hl_path: String = ""
+var _hl_block: String = ""
+var _hl_lines: Array = []
+var _hl_code_edit: CodeEdit = null
+var _list_mark_dbg_done: bool = false  # разовый диагностический вывод пометки списка скриптов
 
 
 func _ready() -> void:
@@ -59,6 +80,22 @@ func _ready() -> void:
 		advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
 	if rollback_button and not rollback_button.pressed.is_connected(_on_rollback_pressed):
 		rollback_button.pressed.connect(_on_rollback_pressed)
+	if advanced_box and _log_errors_button == null:
+		_log_errors_button = Button.new()
+		_log_errors_button.text = "🐞 Ошибки запуска игры"
+		advanced_box.add_child(_log_errors_button)
+		_log_errors_button.pressed.connect(_on_check_log_pressed)
+	_ensure_file_logging_enabled()
+	if _play_watch_timer == null:
+		_play_watch_timer = Timer.new()
+		_play_watch_timer.wait_time = 1.0
+		_play_watch_timer.one_shot = false
+		add_child(_play_watch_timer)
+		_play_watch_timer.timeout.connect(_on_play_watch_tick)
+		_play_watch_timer.start()
+	var se := EditorInterface.get_script_editor()
+	if se and not se.editor_script_changed.is_connected(_on_editor_script_changed):
+		se.editor_script_changed.connect(_on_editor_script_changed)
 	if not input_field.gui_input.is_connected(_on_input_field_gui_input):
 		input_field.gui_input.connect(_on_input_field_gui_input)
 	if has_node("VBoxContainer/SettingsBox"):
@@ -83,6 +120,7 @@ func _set_ui_busy(busy: bool) -> void:
 	send_button.disabled = busy
 	reinit_button.disabled = busy
 	rollback_button.disabled = busy
+	if _log_errors_button: _log_errors_button.disabled = busy
 	input_field.editable = not busy
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
@@ -107,7 +145,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	var body = {"project_root": project_root}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir()}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -129,7 +167,8 @@ func _on_send_pressed() -> void:
 	var headers = ["Content-Type: application/json"]
 	var body = {
 		"prompt": user_text,
-		"project_root": project_root
+		"project_root": project_root,
+		"user_data_dir": OS.get_user_data_dir()
 	}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "chat"
@@ -152,6 +191,23 @@ func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
 	if pending_action_box:
 		pending_action_box.visible = false
+	# Подтверждение отправки отчёта об ошибках запуска — отдельная ветка:
+	# при отказе сервер вообще не трогаем (и браузер тоже).
+	if _pending_log_send:
+		_pending_log_send = false
+		if not approved:
+			chat_log.text += "[color=gray]Отправка ошибок модели отменена.[/color]\n"
+			return
+		chat_log.text += "[color=gray]Отправляю ошибки модели. Жду ответа...[/color]\n"
+		var log_headers = ["Content-Type: application/json"]
+		http_request.set_http_proxy("", 0)
+		_pending_request_kind = "chat"
+		_set_ui_busy(true)
+		var log_err = http_request.request(SEND_LOG_URL, log_headers, HTTPClient.METHOD_POST, JSON.stringify({}))
+		if log_err != OK:
+			_log_error("Ошибка отправки отчёта об ошибках.")
+			_set_ui_busy(false)
+		return
 	var label = "Вы РАЗРЕШИЛИ действие" if approved else "Вы ОТКЛОНИЛИ действие"
 	chat_log.text += "[color=gray]" + label + ". Жду ответа...[/color]\n"
 	var headers = ["Content-Type: application/json"]
@@ -183,6 +239,41 @@ func _on_rollback_pressed() -> void:
 		_set_ui_busy(false)
 
 
+func _ensure_file_logging_enabled() -> void:
+	# Чтобы кнопка «Ошибки запуска» работала, игра должна писать лог в
+	# user://logs/godot.log. На десктопе это обычно уже включено (override
+	# .pc), но если выключено — включаем один раз и сохраняем настройки.
+	var base_on := bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging", false))
+	var pc_on := bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging.pc", true))
+	if not base_on and not pc_on:
+		ProjectSettings.set_setting("debug/file_logging/enable_file_logging.pc", true)
+		ProjectSettings.save()
+		print("Включено файловое логирование запусков игры (user://logs/godot.log).")
+
+
+func _on_check_log_pressed() -> void:
+	if _is_network_busy: return
+	if pending_action_box and pending_action_box.visible:
+		_log_error("Сначала разрешите или отклоните текущее действие агента!")
+		return
+	chat_log.text += "[color=gray]Читаю лог последнего запуска игры...[/color]\n"
+	_pending_log_send = false
+	_auto_check = false
+	_rollback_force_next = false
+	var headers = ["Content-Type: application/json"]
+	var body = {
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+	}
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "check_log"
+	_set_ui_busy(true)
+	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error("Ошибка отправки запроса проверки лога.")
+		_set_ui_busy(false)
+
+
 func _on_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
 	_set_ui_busy(false)
 	var kind = _pending_request_kind
@@ -206,6 +297,35 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if paths is Array:
 				for p in paths:
 					_sync_open_script_with_disk(str(p))
+			# Подсвечиваем восстановленный после отката блок (или гасим старое).
+			var rb_path = json.get("changed_path")
+			var rb_block = json.get("changed_block")
+			if rb_path != null and rb_block != null and str(rb_block) != "":
+				_apply_agent_highlight(str(rb_path), str(rb_block))
+			else:
+				_clear_agent_highlight()
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "check_log":
+			var was_auto := _auto_check
+			_auto_check = false
+			var found := int(json.get("found", 0))
+			var log_info := str(json.get("log_time", "?"))
+			if found == 0:
+				if was_auto:
+					chat_log.text += "[color=gray]Авто-проверка: в логе запуска (" + log_info + ") ошибок нет.[/color]\n"
+				else:
+					chat_log.text += "\n[color=green]✅ В логе запуска (" + log_info + ") ошибок не найдено.[/color]\n"
+			else:
+				var head := "🐞 Игра закрыта, в логе найдены ошибки: " if was_auto else "Найдено ошибок: "
+				chat_log.text += "\n[color=orange]" + head + str(found) + " (лог от " + log_info + ")[/color]\n" + _escape_bbcode(str(json.get("summary", ""))) + "\n"
+				if action_label and pending_action_box:
+					action_label.text = "Отправить " + str(found) + " ошибок модели на исправление?"
+					pending_action_box.visible = true
+					_pending_log_send = true
+					_guard_confirm_buttons()
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
@@ -217,6 +337,11 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_last_pending_action_type = ""
 			_last_pending_action_path = ""
 			_last_pending_action_dest = ""
+			# Открываем изменённый файл и подсвечиваем строки, написанные агентом.
+			var ch_path = json.get("changed_path")
+			var ch_block = json.get("changed_block")
+			if ch_path != null and ch_block != null and str(ch_block) != "":
+				_apply_agent_highlight(str(ch_path), str(ch_block))
 
 		# Текстовый ответ ИИ (не печатаем пустые ответы)
 		var has_answer: bool = json.has("answer") and json["answer"] != null and str(json["answer"]) != ""
@@ -254,6 +379,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		await get_tree().process_frame
 		chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 	else:
+		if kind == "check_log" and _auto_check:
+			# Авто-проверка не спамит в чат: нет лога, лог уже отправлялся,
+			# сервер занят или выключен — просто тихо пропускаем.
+			_auto_check = false
+			if json and json.has("error"):
+				print("Авто-проверка лога пропущена: ", str(json["error"]))
+			return
 		var err_msg = "Сервер не отвечает."
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
@@ -337,3 +469,179 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 				print("Вкладка скрипта синхронизирована с диском: ", target_path)
 	if previous_script and previous_script != target_script:
 		EditorInterface.edit_script(previous_script, -1, 0, false)
+
+
+# ---------------------------------------------------------------------------
+# Автопроверка лога после закрытия игры: следим за is_playing_scene()
+# и после остановки игры сами проверяем лог. В браузер при этом НИЧЕГО
+# не уходит — отправка ошибок по-прежнему только после подтверждения.
+# ---------------------------------------------------------------------------
+
+func _on_play_watch_tick() -> void:
+	_highlight_watchdog()
+	var playing := EditorInterface.is_playing_scene()
+	if _was_playing and not playing:
+		_was_playing = false
+		# Игра только что закрылась: даём Godot дописать лог и проверяем.
+		await get_tree().create_timer(1.2).timeout
+		_auto_check_log()
+		return
+	_was_playing = playing
+
+
+func _auto_check_log() -> void:
+	# Не мешаем текущей работе: если идёт запрос или ждём подтверждения —
+	# тихо пропускаем (ручная кнопка всегда доступна).
+	if _is_network_busy: return
+	if pending_action_box and pending_action_box.visible: return
+	_auto_check = true
+	_pending_log_send = false
+	var headers = ["Content-Type: application/json"]
+	var body = {
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+	}
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "check_log"
+	_set_ui_busy(true)
+	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_auto_check = false
+
+
+# ---------------------------------------------------------------------------
+# Подсветка строк, изменённых агентом.
+# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ блока: при любой правке
+# блок ищется заново, и подсветка «переезжает» вместе с кодом. Если
+# пользователь отредактировал сам блок — подсветка гаснет (это уже
+# не код агента).
+# ---------------------------------------------------------------------------
+
+func _apply_agent_highlight(path: String, block: String) -> void:
+	_clear_agent_highlight()
+	_list_mark_dbg_done = false
+	if not path.begins_with("res://") or not path.ends_with(".gd"):
+		return
+	if not FileAccess.file_exists(path):
+		return
+	var scr := load(path) as Script
+	if scr == null:
+		return
+	_hl_path = path
+	_hl_block = block.replace("\r\n", "\n").strip_edges(false, true)
+	if _hl_block.is_empty():
+		return
+	# Открываем изменённый скрипт в редакторе, чтобы изменения были на виду.
+	EditorInterface.edit_script(scr, -1, 0, false)
+	_hook_current_code_edit()
+	_repaint_highlight()
+	if _hl_code_edit and _hl_lines.size() > 0:
+		_hl_code_edit.set_caret_line(_hl_lines[0])
+	_mark_script_in_list_experimental(path)
+
+
+func _hook_current_code_edit() -> void:
+	_hl_code_edit = null
+	var script_editor := EditorInterface.get_script_editor()
+	if not script_editor: return
+	var current := script_editor.get_current_editor()
+	if not current: return
+	var code_edit := current.get_base_editor() as CodeEdit
+	if not code_edit: return
+	_hl_code_edit = code_edit
+	if not code_edit.text_changed.is_connected(_on_hl_text_changed):
+		code_edit.text_changed.connect(_on_hl_text_changed)
+
+
+func _on_hl_text_changed() -> void:
+	# Текст меняется — блок мог сместиться. Ищем его заново и перекрашиваем.
+	if _hl_block != "":
+		_repaint_highlight()
+
+
+func _on_editor_script_changed(scr: Script) -> void:
+	# Вернулись на вкладку с подсвеченным скриптом — восстанавливаем покрас.
+	if scr and _hl_path != "" and scr.resource_path == _hl_path:
+		_hook_current_code_edit()
+		_repaint_highlight()
+
+
+func _clear_agent_highlight() -> void:
+	if _hl_code_edit and is_instance_valid(_hl_code_edit):
+		for l in range(_hl_code_edit.get_line_count()):
+			_hl_code_edit.set_line_background_color(l, Color(0, 0, 0, 0))
+	_hl_lines = []
+	_hl_path = ""
+	_hl_block = ""
+	_hl_code_edit = null
+
+
+func _repaint_highlight() -> void:
+	if _hl_code_edit == null or not is_instance_valid(_hl_code_edit):
+		return
+	# Сначала гасим все строки: после правок номера могли сместиться,
+	# и точечная очистка по старым номерам оставила бы «хвосты».
+	for l in range(_hl_code_edit.get_line_count()):
+		_hl_code_edit.set_line_background_color(l, Color(0, 0, 0, 0))
+	_hl_lines = []
+	if _hl_block == "":
+		return
+	var idx := _hl_code_edit.text.find(_hl_block)
+	if idx == -1:
+		return  # блок изменён/удалён пользователем — подсвечивать нечего
+	var start_line := _hl_code_edit.text.substr(0, idx).count("\n")
+	var block_line_count := _hl_block.count("\n") + 1
+	for i in range(block_line_count):
+		var line := start_line + i
+		if line < _hl_code_edit.get_line_count():
+			_hl_code_edit.set_line_background_color(line, HL_COLOR)
+			_hl_lines.append(line)
+
+
+func _highlight_watchdog() -> void:
+	# Редактор Godot при перепроверке кода (наведение мыши, пауза после
+	# правок) САМ сбрасывает фоновые цвета строк (так он рисует строки
+	# с ошибками). Раз в секунду проверяем и восстанавливаем подсветку,
+	# если её затёрли. То же с зелёным именем в списке скриптов — список
+	# часто перестраивается, поэтому пометка наносится заново каждый тик.
+	if _hl_block == "":
+		return
+	if _hl_code_edit == null or not is_instance_valid(_hl_code_edit):
+		return
+	var intact := _hl_lines.size() > 0
+	for l in _hl_lines:
+		if l >= _hl_code_edit.get_line_count() or _hl_code_edit.get_line_background_color(l) != HL_COLOR:
+			intact = false
+			break
+	if not intact:
+		_repaint_highlight()
+	_mark_script_in_list_experimental(_hl_path)
+
+
+func _mark_script_in_list_experimental(path: String) -> void:
+	# ЭКСПЕРИМЕНТ: список скриптов слева — внутренний UI редактора без
+	# публичного API. Если внутренности Godot изменятся — функция просто
+	# тихо ничего не сделает, не влияя на остальной плагин.
+	if path.is_empty(): return
+	var script_editor := EditorInterface.get_script_editor()
+	if not script_editor: return
+	var fname := path.get_file()
+	var lists_found := 0
+	var matched := 0
+	# Проходим ПО ВСЕМ ItemList внутри редактора скриптов. Совпадение ищем
+	# и по видимому тексту, и по tooltip — в нём редактор хранит полный
+	# путь к скрипту (надёжнее, чем текст, который может быть с пометками).
+	for node in script_editor.find_children("*", "ItemList", true, false):
+		var item_list := node as ItemList
+		if item_list == null: continue
+		lists_found += 1
+		for i in range(item_list.item_count):
+			var t := item_list.get_item_text(i)
+			var tip := item_list.get_item_tooltip(i)
+			if t == fname or t.begins_with(fname + "(") or tip == path or tip.contains(fname):
+				item_list.set_item_custom_fg_color(i, Color(0.45, 1.0, 0.45))
+				matched += 1
+	if not _list_mark_dbg_done:
+		_list_mark_dbg_done = true
+		print("[ИИ-Агент] Пометка в списке скриптов: ItemList найдено %d, совпадений %d (файл: %s)" % [lists_found, matched, fname])
