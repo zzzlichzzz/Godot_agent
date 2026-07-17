@@ -99,3 +99,40 @@ def move_project_file(project_root, source_godot_path, dest_godot_path):
         raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
     os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
     shutil.move(abs_source, abs_dest)
+
+
+SEARCH_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.json', '.txt',
+               '.md', '.gdshader', '.shader', '.csv'}
+
+
+def search_project_text(project_root, query, max_results=30, context_lines=2):
+    """Поиск текста по файлам проекта (аналог «Поиска по проекту» в Godot).
+    Возвращает (список совпадений, был_ли_список_обрезан)."""
+    project_root_abs = os.path.abspath(project_root)
+    query_norm = (query or '').replace('\r\n', '\n')
+    results = []
+    if not query_norm.strip():
+        return results, False
+    for dirpath, dirnames, filenames in os.walk(project_root_abs):
+        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        for fname in sorted(filenames):
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in SEARCH_EXTS:
+                continue
+            abs_path = os.path.join(dirpath, fname)
+            try:
+                with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
+                    lines = f.read().replace('\r\n', '\n').split('\n')
+            except Exception:
+                continue
+            rel = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
+            godot_path = 'res://' + rel
+            for idx, line in enumerate(lines):
+                if query_norm in line:
+                    lo = max(0, idx - context_lines)
+                    hi = min(len(lines), idx + context_lines + 1)
+                    snippet = '\n'.join('%d: %s' % (n + 1, lines[n]) for n in range(lo, hi))
+                    results.append({'path': godot_path, 'line': idx + 1, 'snippet': snippet})
+                    if len(results) >= max_results:
+                        return results, True
+    return results, False
