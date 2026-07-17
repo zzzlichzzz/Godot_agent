@@ -56,6 +56,8 @@ var _hl_block: String = ""
 var _hl_lines: Array = []
 var _hl_code_edit: CodeEdit = null
 var _list_mark_dbg_done: bool = false  # разовый диагностический вывод пометки списка скриптов
+var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
+var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
 
 
 func _ready() -> void:
@@ -93,6 +95,16 @@ func _ready() -> void:
 		add_child(_play_watch_timer)
 		_play_watch_timer.timeout.connect(_on_play_watch_tick)
 		_play_watch_timer.start()
+	if _guard_timer == null:
+		_guard_timer = Timer.new()
+		_guard_timer.one_shot = true
+		add_child(_guard_timer)
+		_guard_timer.timeout.connect(_on_guard_timeout)
+	# Восстановление после перезагрузки скрипта: если панель перезагрузилась,
+	# пока кнопки были временно заблокированы охранником — вернуть их в рабочее состояние.
+	if confirm_button and reject_button and not _is_network_busy:
+		confirm_button.disabled = false
+		reject_button.disabled = false
 	var se := EditorInterface.get_script_editor()
 	if se and not se.editor_script_changed.is_connected(_on_editor_script_changed):
 		se.editor_script_changed.connect(_on_editor_script_changed)
@@ -145,7 +157,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir()}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -256,7 +268,7 @@ func _on_check_log_pressed() -> void:
 	if pending_action_box and pending_action_box.visible:
 		_log_error("Сначала разрешите или отклоните текущее действие агента!")
 		return
-	chat_log.text += "[color=gray]Читаю лог последнего запуска игры...[/color]\n"
+	chat_log.text += "[color=gray]Читаю лог последнего ��апуска игры...[/color]\n"
 	_pending_log_send = false
 	_auto_check = false
 	_rollback_force_next = false
@@ -317,7 +329,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				if was_auto:
 					chat_log.text += "[color=gray]Авто-проверка: в логе запуска (" + log_info + ") ошибок нет.[/color]\n"
 				else:
-					chat_log.text += "\n[color=green]✅ В логе запуска (" + log_info + ") ошибок не найдено.[/color]\n"
+					chat_log.text += "\n[color=green]✅ В логе запу��ка (" + log_info + ") ошибок не найдено.[/color]\n"
 			else:
 				var head := "🐞 Игра закрыта, в логе найдены ошибки: " if was_auto else "Найдено ошибок: "
 				chat_log.text += "\n[color=orange]" + head + str(found) + " (лог от " + log_info + ")[/color]\n" + _escape_bbcode(str(json.get("summary", ""))) + "\n"
@@ -403,12 +415,36 @@ func _guard_confirm_buttons() -> void:
 	# Защита от случайных быстрых/двойных кликов: когда появляется НОВОЕ
 	# подтверждение, кнопки ненадолго блокируются, чтобы второй клик по
 	# инерции не одобрил следующее действие мгновенно.
+	# ВАЖНО: без await/корутин. При перезагрузке плагина Godot отменял
+	# приостановленный await — и кнопки навсегда оставались серыми.
 	if not confirm_button or not reject_button:
 		return
 	confirm_button.disabled = true
 	reject_button.disabled = true
-	await get_tree().create_timer(0.7).timeout
-	if not _is_network_busy:
+	_guard_until_msec = Time.get_ticks_msec() + 700
+	if _guard_timer:
+		_guard_timer.stop()
+		_guard_timer.wait_time = 0.7
+		_guard_timer.start()
+
+
+func _on_guard_timeout() -> void:
+	if not _is_network_busy and confirm_button and reject_button:
+		confirm_button.disabled = false
+		reject_button.disabled = false
+
+
+func _reconcile_confirm_buttons() -> void:
+	# Страховка на случай, если таймер-охранник не сработал из-за
+	# перезагрузки скрипта: раз в секунду проверяем и возвращаем кнопки,
+	# если окно подтверждения открыто, сеть свободна и время охраны прошло.
+	if not confirm_button or not reject_button:
+		return
+	if not pending_action_box or not pending_action_box.visible:
+		return
+	if _is_network_busy:
+		return
+	if Time.get_ticks_msec() >= _guard_until_msec and (confirm_button.disabled or reject_button.disabled):
 		confirm_button.disabled = false
 		reject_button.disabled = false
 
@@ -479,6 +515,7 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 
 func _on_play_watch_tick() -> void:
 	_highlight_watchdog()
+	_reconcile_confirm_buttons()
 	var playing := EditorInterface.is_playing_scene()
 	if _was_playing and not playing:
 		_was_playing = false
