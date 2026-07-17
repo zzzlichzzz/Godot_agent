@@ -24,13 +24,17 @@ const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 
-
-var _pending_request_kind: String = "chat"  
+var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
-# Запоминаем детали последнего примененного действия для сброса кэша
+
+# Запоминаем детали последнего примененного WRITE-действия для сброса кэша
 var _last_pending_action_type: String = ""
 var _last_pending_action_path: String = ""
 var _last_pending_action_dest: String = ""
+
+# Если сервер ответил, что для отката нужно подтверждение (файл менялся
+# после действия агента) — следующее нажатие кнопки отката отправит force.
+var _rollback_force_next: bool = false
 
 
 func _ready() -> void:
@@ -39,10 +43,8 @@ func _ready() -> void:
 	chat_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	chat_log.scroll_following = true
 	chat_log.text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]\n"
-
 	if pending_action_box:
 		pending_action_box.visible = false
-
 	if not send_button.pressed.is_connected(_on_send_pressed):
 		send_button.pressed.connect(_on_send_pressed)
 	if not http_request.request_completed.is_connected(_on_request_completed):
@@ -53,18 +55,15 @@ func _ready() -> void:
 		reject_button.pressed.connect(_on_reject_pressed)
 	if reinit_button and not reinit_button.pressed.is_connected(_on_reinit_pressed):
 		reinit_button.pressed.connect(_on_reinit_pressed)
-		
 	if advanced_toggle_btn and not advanced_toggle_btn.pressed.is_connected(_on_advanced_toggle):
 		advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
 	if rollback_button and not rollback_button.pressed.is_connected(_on_rollback_pressed):
 		rollback_button.pressed.connect(_on_rollback_pressed)
-
-
 	if not input_field.gui_input.is_connected(_on_input_field_gui_input):
 		input_field.gui_input.connect(_on_input_field_gui_input)
-
 	if has_node("VBoxContainer/SettingsBox"):
 		$VBoxContainer/SettingsBox.hide()
+
 
 func _escape_bbcode(text: String) -> String:
 	var result = ""
@@ -78,6 +77,7 @@ func _escape_bbcode(text: String) -> String:
 			result += c
 	return result
 
+
 func _set_ui_busy(busy: bool) -> void:
 	_is_network_busy = busy
 	send_button.disabled = busy
@@ -88,9 +88,11 @@ func _set_ui_busy(busy: bool) -> void:
 	if reject_button: reject_button.disabled = busy
 	send_button.text = "Ждём..." if busy else "Отправить"
 
+
 func _on_advanced_toggle() -> void:
 	advanced_box.visible = not advanced_box.visible
 	advanced_toggle_btn.text = "⚙️ Скрыть доп. инструменты" if advanced_box.visible else "⚙️ Дополнительно"
+
 
 func _on_input_field_gui_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
@@ -98,87 +100,88 @@ func _on_input_field_gui_input(event: InputEvent) -> void:
 			_on_send_pressed()
 			accept_event()
 
+
 func _on_reinit_pressed() -> void:
 	if _is_network_busy: return
 	chat_log.text += "[color=gray]Запрос на принудительное обновление дерева файлов...[/color]\n"
-	
+	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
 	var body = {"project_root": project_root}
-
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
 	http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+
 
 func _on_send_pressed() -> void:
 	if _is_network_busy: return
 	if pending_action_box and pending_action_box.visible:
 		_log_error("Сначала разрешите или отклоните текущее действие агента!")
 		return
-
 	var user_text = input_field.text.strip_edges()
 	if user_text.is_empty(): return
-
 	input_field.text = ""
+	_rollback_force_next = false
 	chat_log.text += "\n[color=lightblue]Вы:[/color] " + _escape_bbcode(user_text) + "\n"
 	chat_log.text += "[color=gray]Агент анализирует проект...[/color]\n"
-
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	
 	var body = {
 		"prompt": user_text,
 		"project_root": project_root
 	}
-
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "chat"
 	_set_ui_busy(true)
-	
 	var err = http_request.request(CHAT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		_log_error("Ошибка отправки сообщения.")
 		_set_ui_busy(false)
 
+
 func _on_confirm_pressed() -> void:
 	_send_confirm_request(true)
 
+
 func _on_reject_pressed() -> void:
 	_send_confirm_request(false)
+
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
 	if pending_action_box:
 		pending_action_box.visible = false
-		
 	var label = "Вы РАЗРЕШИЛИ действие" if approved else "Вы ОТКЛОНИЛИ действие"
 	chat_log.text += "[color=gray]" + label + ". Жду ответа...[/color]\n"
-
 	var headers = ["Content-Type: application/json"]
 	var body = {"approved": approved}
-
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
 	_set_ui_busy(true)
-	
 	var err = http_request.request(CONFIRM_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		_log_error("Ошибка отправки подтверждения.")
 		_set_ui_busy(false)
 
+
 func _on_rollback_pressed() -> void:
 	if _is_network_busy: return
-	chat_log.text += "[color=gray]Отмена последнего изменения...[/color]\n"
-
+	if _rollback_force_next:
+		chat_log.text += "[color=orange]Принудительный откат (подтверждено повторным нажатием)...[/color]\n"
+	else:
+		chat_log.text += "[color=gray]Отмена последнего изменения...[/color]\n"
+	var headers = ["Content-Type: application/json"]
+	var body = {"force": _rollback_force_next}
+	_rollback_force_next = false
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "rollback"
 	_set_ui_busy(true)
-	
-	var err = http_request.request(ROLLBACK_URL, [], HTTPClient.METHOD_POST, "{}")
+	var err = http_request.request(ROLLBACK_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		_log_error("Ошибка при отправке запроса отката.")
 		_set_ui_busy(false)
+
 
 func _on_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
 	_set_ui_busy(false)
@@ -189,62 +192,110 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 	if response_code == 200 and json != null:
 		EditorInterface.get_resource_filesystem().scan()
 
-		if kind == "confirm":
-			_force_reload_open_script()
-
 		if kind == "init":
 			chat_log.text += "\n[color=green]Успех: Карта файлов сброшена. Следующий запрос заново настроит контекст ИИ.[/color]\n"
 			return
+
 		if kind == "rollback":
-			chat_log.text += "\n[color=green]Успех: Последнее изменение файла отменено![/color]\n"
+			var msg = str(json.get("message", "Последнее изменение файла отменено!"))
+			chat_log.text += "\n[color=green]Успех: " + _escape_bbcode(msg) + "[/color]\n"
+			# Синхронизируем откаченные файлы с открытыми вкладками. Иначе
+			# вкладка показывает ДО-откатный текст, и Godot может позже
+			# молча пересохранить его ПОВЕРХ результата отката.
+			var paths = json.get("paths")
+			if paths is Array:
+				for p in paths:
+					_sync_open_script_with_disk(str(p))
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
 
-		if json.has("answer"):
-			var ai_text = json["answer"]
-			if ai_text == null: ai_text = ""
-				
-			chat_log.text += "\n[color=yellow]ИИ-Агент:[/color]\n" + str(ai_text) + "\n\n-----------------\n"
+		# После подтверждённого WRITE-действия — синхронизируем открытую вкладку.
+		# При пакетном чтении файлов _last_pending_action_type пуст — ничего не трогаем.
+		if kind == "confirm" and _last_pending_action_type != "":
+			_force_reload_open_script()
+			_last_pending_action_type = ""
+			_last_pending_action_path = ""
+			_last_pending_action_dest = ""
 
-			var pending = json.get("pending_action")
-			if pending != null and action_label and pending_action_box:
-				var description = json.get("pending_action_description", "Агент запрашивает действие...")
-				if description == null: description = "Агент запрашивает действие."
-				action_label.text = str(description)
-				pending_action_box.visible = true
+		# Текстовый ответ ИИ (не печатаем пустые ответы)
+		var has_answer: bool = json.has("answer") and json["answer"] != null and str(json["answer"]) != ""
+		if has_answer:
+			chat_log.text += "\n[color=yellow]ИИ-Агент:[/color]\n" + str(json["answer"]) + "\n\n-----------------\n"
 
-				_last_pending_action_type = str(pending.get("action", ""))
-				_last_pending_action_path = str(pending.get("path", ""))
-				_last_pending_action_dest = str(pending.get("dest", ""))
-			elif pending_action_box:
-				pending_action_box.visible = false
-
+		# Промежуточное подтверждение файла из пачки на чтение:
+		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
+		var nxt = json.get("next_confirmation")
+		if nxt != null and action_label and pending_action_box:
+			action_label.text = str(nxt.get("description", "Агент запрашивает файл..."))
+			pending_action_box.visible = true
+			_guard_confirm_buttons()
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		# WRITE-действие, требующее подтверждения
+		var pending = json.get("pending_action")
+		if pending != null and action_label and pending_action_box:
+			var description = json.get("pending_action_description", "Агент запрашивает действие...")
+			if description == null: description = "Агент запрашивает действие."
+			action_label.text = str(description)
+			pending_action_box.visible = true
+			_last_pending_action_type = str(pending.get("action", ""))
+			_last_pending_action_path = str(pending.get("path", ""))
+			_last_pending_action_dest = str(pending.get("dest", ""))
+			_guard_confirm_buttons()
+		elif pending_action_box:
+			pending_action_box.visible = false
+			# Ни текста, ни действий — не молчим, чтобы ответ не "пропадал" бесследно.
+			if not has_answer and (kind == "chat" or kind == "confirm"):
+				chat_log.text += "[color=gray][Система]: Сервер вернул пустой ответ (без текста и действий). Проверьте вкладку AI Studio.[/color]\n"
+
+		await get_tree().process_frame
+		chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 	else:
 		var err_msg = "Сервер не отвечает."
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
+		# Сервер просит подтвердить откат повторным нажатием кнопки.
+		if json != null and json.get("needs_force") == true:
+			_rollback_force_next = true
 		_log_error("Ошибка сервера (" + str(response_code) + "): " + err_msg)
+
 
 func _log_error(msg: String) -> void:
 	chat_log.text += "\n[color=red][Ошибка]: " + msg + "[/color]\n"
+
+
+func _guard_confirm_buttons() -> void:
+	# Защита от случайных быстрых/двойных кликов: когда появляется НОВОЕ
+	# подтверждение, кнопки ненадолго блокируются, чтобы второй клик по
+	# инерции не одобрил следующее действие мгновенно.
+	if not confirm_button or not reject_button:
+		return
+	confirm_button.disabled = true
+	reject_button.disabled = true
+	await get_tree().create_timer(0.7).timeout
+	if not _is_network_busy:
+		confirm_button.disabled = false
+		reject_button.disabled = false
+
 
 func _force_reload_open_script() -> void:
 	var target_path := _last_pending_action_path
 	if _last_pending_action_type == "move_file" and not _last_pending_action_dest.is_empty():
 		target_path = _last_pending_action_dest
+	_sync_open_script_with_disk(target_path)
 
+
+func _sync_open_script_with_disk(target_path: String) -> void:
 	if target_path.is_empty() or not target_path.begins_with("res://"):
 		return
 	if not FileAccess.file_exists(target_path):
 		return
-
 	var script_editor := EditorInterface.get_script_editor()
 	if not script_editor:
 		return
-
 	# Ищем среди уже открытых вкладок нужный путь.
 	# Если вкладка не открыта — трогать нечего, файл на диске и так актуален.
 	var target_script: Script = null
@@ -254,33 +305,25 @@ func _force_reload_open_script() -> void:
 			break
 	if target_script == null:
 		return
-
-	# КЛЮЧЕВОЕ ОТЛИЧИЕ от прошлой версии: читаем текст напрямую с диска
-	# через FileAccess, полностью в обход ResourceLoader/GDScriptCache —
-	# именно там была причина отката на старый текст.
+	# Чит��ем текст напрямую с диска через FileAccess, полностью в обход
+	# ResourceLoader/GDScriptCache — именно там была причина отката на старый текст.
 	var file := FileAccess.open(target_path, FileAccess.READ)
 	if not file:
 		push_warning("Не удалось открыть файл для чтения: " + target_path)
 		return
 	var real_text := file.get_as_text()
 	file.close()
-
-	# Запоминаем текущую активную вкладку, чтобы вернуться к ней после
-	# обновления и не "прыгать" перед глазами пользователя без необходимости.
+	# Запоминаем текущую активную вкладку, чтобы вернуться к ней после обновления.
 	var previous_script := script_editor.get_current_script()
-
 	EditorInterface.edit_script(target_script, -1, 0, false)
 	var current_editor := script_editor.get_current_editor()
 	if current_editor:
 		var base_editor: Control = current_editor.get_base_editor()
 		var code_edit := base_editor as CodeEdit
-
 		if code_edit:
 			# Защита от потери работы пользователя: если в открытой вкладке
-			# ЕСТЬ несохранённые ручные правки (get_version() отличается от
-			# get_saved_version()), НЕ перетираем их автоматически.
+			# ЕСТЬ несохранённые ручные правки — НЕ перетираем их автоматически.
 			var has_unsaved_edits := code_edit.get_version() != code_edit.get_saved_version()
-
 			if has_unsaved_edits:
 				push_warning("Вкладка '%s' содержит несохранённые правки — авто-обновление пропущено, чтобы не потерять их." % target_path)
 			elif code_edit.text != real_text:
@@ -289,12 +332,8 @@ func _force_reload_open_script() -> void:
 				code_edit.text = real_text
 				code_edit.set_caret_line(min(caret_line, max(0, code_edit.get_line_count() - 1)))
 				code_edit.set_caret_column(caret_col)
-				# Помечаем текущее состояние как "сохранённое", иначе Godot
-				# будет считать вкладку изменённой и может позже перезаписать
-				# диск этим же (уже актуальным) содержимым — не страшно, но
-				# лишний "*" в заголовке вкладки сбивает с толку.
+				# Помечаем текущее состояние как "сохранённое", чтобы не было лишнего "*".
 				code_edit.tag_saved_version()
 				print("Вкладка скрипта синхронизирована с диском: ", target_path)
-
 	if previous_script and previous_script != target_script:
 		EditorInterface.edit_script(previous_script, -1, 0, false)
