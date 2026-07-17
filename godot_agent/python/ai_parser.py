@@ -75,8 +75,8 @@ JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
                         return '\n[color=#888888]— агент предлагает действие (см. ниже) —[/color]\n';
                     }
                     const code = escapeBBCode(rawCode);
-                    const langLabel = lang ? '[color=#8ab4f8]' + escapeBBCode(lang) + '[/color]\n' : '';
-                    return '\n' + langLabel + '[bgcolor=#2b2b2b][code]' + code + '[/code][/bgcolor]\n';
+                    const header = '[bgcolor=#1f2430][color=#8ab4f8] ▸ ' + (lang ? escapeBBCode(lang) : 'код') + ' [/color][/bgcolor]\n';
+                    return '\n' + header + '[bgcolor=#2b2b2b][code]' + code + '[/code][/bgcolor]\n';
                 }
                 if (['button', 'svg', 'mat-icon'].includes(tag)) return '';
                 function collectChildren(node, allowedTags) {
@@ -223,6 +223,62 @@ JS_GET_ANSWER_TEXT_LENGTH = r"""try {
     return -1;
 }"""
 
+# Хвост ОТВЕТА (без блока размышлений) для живой трансляции в панель.
+JS_GET_ANSWER_PREVIEW = r"""try {
+    const turns = document.querySelectorAll('[data-turn-role="Model"]');
+    if (turns.length === 0) return '';
+    const clone = turns[turns.length - 1].cloneNode(true);
+    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    const t = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    return t.slice(-260);
+} catch (e) {
+    return '';
+}"""
+
+# ПЛАН Б: грубое извлечение ответа без форматирования. Клонируем реплику,
+# вырезаем мысли, последний agent_action забираем напрямую из код-блоков,
+# остальное отдаём как чистый textContent. Используется, когда основной
+# структурный парсер вернул пустоту (например, AI Studio сменила разметку).
+JS_EXTRACT_RAW_FALLBACK = r"""try {
+    const turns = document.querySelectorAll('[data-turn-role="Model"]');
+    if (turns.length === 0) return { text: '', actionRaw: null, error: 'no model turns' };
+    const clone = turns[turns.length - 1].cloneNode(true);
+    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    let actionRaw = null;
+    const blocks = clone.querySelectorAll('ms-code-block');
+    for (const block of blocks) {
+        const lang = (block.getAttribute('data-test-language') || '').trim().toLowerCase();
+        if (lang === 'agent_action') {
+            const codeEl = block.querySelector('pre code') || block.querySelector('code');
+            if (codeEl) actionRaw = codeEl.textContent || '';
+            block.remove();
+        }
+    }
+    const text = (clone.textContent || '').trim();
+    return { text: text, actionRaw: actionRaw, error: null };
+} catch (e) {
+    return { text: '', actionRaw: null, error: String(e && e.message || e) };
+}"""
+
+# Чем модель занята ПРЯМО СЕЙЧАС (для статуса в стиле Gemini): если ответ
+# обрывается внутри последнего код-блока — значит, модель сейчас пишет код.
+JS_GET_LIVE_ACTIVITY = r"""try {
+    const turns = document.querySelectorAll('[data-turn-role="Model"]');
+    if (turns.length === 0) return { code: false, lang: '' };
+    const clone = turns[turns.length - 1].cloneNode(true);
+    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    const blocks = clone.querySelectorAll('ms-code-block');
+    if (blocks.length === 0) return { code: false, lang: '' };
+    const last = blocks[blocks.length - 1];
+    const lang = (last.getAttribute('data-test-language') || '').trim().toLowerCase();
+    const total = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    const tail = (last.textContent || '').replace(/\s+/g, ' ').trim().slice(-30);
+    const writing = tail.length > 0 && total.endsWith(tail);
+    return { code: writing, lang: lang };
+} catch (e) {
+    return { code: false, lang: '' };
+}"""
+
 
 def _safe_execute(driver, script, retries=5, delay=0.2, default=None):
     """
@@ -259,11 +315,88 @@ def get_answer_text_length(driver):
     return val if val is not None else -1
 
 
+def get_answer_preview(driver):
+    val = _safe_execute(driver, JS_GET_ANSWER_PREVIEW, default="")
+    return val if isinstance(val, str) else ""
+
+
+def get_live_activity(driver):
+    val = _safe_execute(driver, JS_GET_LIVE_ACTIVITY, default=None)
+    return val if isinstance(val, dict) else {"code": False, "lang": ""}
+
+
+# Полный текст ответа (без «мыслей») с переносами строк — для живого стрима
+# прямо в чат панели. textContent не даёт переносов, а innerText не работает
+# на отсоединённом клоне — поэтому обходим DOM вручную.
+JS_GET_ANSWER_STREAM = r"""try {
+    const turns = document.querySelectorAll('[data-turn-role="Model"]');
+    if (turns.length === 0) return '';
+    const clone = turns[turns.length - 1].cloneNode(true);
+    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    const BLOCK = /^(P|DIV|LI|PRE|UL|OL|H1|H2|H3|H4|H5|TABLE|TR|SECTION|ARTICLE|MS-CODE-BLOCK)$/;
+    function walk(node) {
+        if (node.nodeType === 3) return node.data;
+        if (node.nodeType !== 1) return '';
+        if (node.tagName === 'BR') return '\n';
+        let s = '';
+        for (let i = 0; i < node.childNodes.length; i++) s += walk(node.childNodes[i]);
+        if (BLOCK.test(node.tagName)) s += '\n';
+        return s;
+    }
+    let text = walk(clone);
+    text = text.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+    if (text.length > 30000) text = text.slice(0, 30000);
+    return text.replace(/^\s+/, '');
+} catch (e) {
+    return '';
+}"""
+
+
+def get_answer_stream(driver):
+    val = _safe_execute(driver, JS_GET_ANSWER_STREAM, default="")
+    return val if isinstance(val, str) else ""
+
+
 def extract_last_answer(driver):
     return _safe_execute(
         driver, JS_EXTRACT_LAST_ANSWER,
         default={"text": "", "actionRaw": None, "error": "execute_script failed"}
     )
+
+
+def _escape_bbcode_py(text: str) -> str:
+    """[ и ] -> [lb]/[rb], чтобы сырой текст не ломал BBCode в панели."""
+    return text.replace('[', '[lb]').replace(']', '[rb]')
+
+
+def extract_last_answer_robust(driver, retries=3, delay=1.5):
+    """
+    ПЛАН Б: многоуровневое извлечение ответа.
+      1) основной структурный парсер (форматирование + agent_action);
+      2) грубый textContent без мыслей — текст без оформления лучше пустоты;
+      3) пауза и повтор с нуля (DOM мог перерисоваться прямо во время чтения).
+    """
+    result = None
+    for attempt in range(retries):
+        result = extract_last_answer(driver) or {}
+        text = (result.get("text") or "").strip()
+        if text or result.get("actionRaw") is not None:
+            if attempt > 0:
+                print(f"[ai_parser] План Б: ответ прочитан с попытки {attempt + 1}.")
+            return result
+        raw = _safe_execute(driver, JS_EXTRACT_RAW_FALLBACK, default=None) or {}
+        raw_text = (raw.get("text") or "").strip()
+        if raw_text or raw.get("actionRaw") is not None:
+            print("[ai_parser] План Б: основной парсер дал пустоту — использую textContent-фолбэк.")
+            return {
+                "text": _escape_bbcode_py(raw_text),
+                "actionRaw": raw.get("actionRaw"),
+                "error": None,
+            }
+        if attempt < retries - 1:
+            print(f"[ai_parser] Пустой ответ (попытка {attempt + 1}/{retries}) — жду {delay} с и читаю заново.")
+            time.sleep(delay)
+    return result or {"text": "", "actionRaw": None, "error": "extraction failed"}
 
 
 # ---------------------------------------------------------------------------
@@ -378,12 +511,29 @@ def _looks_json_balanced(raw: str) -> bool:
 
 def wait_for_new_answer(driver, initial_model_count, timeout=900,
                         quiet_period=2.5, hard_quiet_period=45.0, poll_interval=0.25,
-                        post_quiet_grace=6.0):
+                        post_quiet_grace=6.0, progress_cb=None):
     start = time.time()
+
+    def _report(phase, chars=0, preview=None, stream=None):
+        # Живая трансляция: снимок состояния уходит в main.py -> /chat/progress.
+        if progress_cb is None:
+            return
+        try:
+            progress_cb({
+                "phase": phase,
+                "chars": int(chars or 0),
+                "elapsed": int(time.time() - start),
+                "preview": preview or "",
+                "stream": stream or "",
+            })
+        except Exception:
+            pass
+
     # 1) ждём появления новой реплики модели
     while time.time() - start < timeout:
         if get_model_turn_count(driver) > initial_model_count:
             break
+        _report("жду начала ответа")
         time.sleep(poll_interval)
     else:
         raise TimeoutError("Новая реплика модели не появилась.")
@@ -392,8 +542,13 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
     while time.time() - start < timeout:
         if get_answer_text_length(driver) > 0 or is_generating(driver):
             break
+        _report("модель думает…")
         time.sleep(poll_interval)
 
+    preview_txt = ""
+    stream_txt = ""
+    phase_txt = "пишет ответ…"
+    last_preview_ts = 0.0
     last_length = -1
     quiet_since = None
     length_only_quiet_since = None
@@ -413,6 +568,28 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
             quiet_since = None
             length_only_quiet_since = None
 
+        # Живая трансляция: фаза + счётчик символов + хвост ответа.
+        # В стиле Gemini: если модель прямо сейчас пишет код — говорим об этом.
+        if length > 0:
+            if now - last_preview_ts >= 1.0:
+                preview_txt = get_answer_preview(driver)
+                stream_txt = get_answer_stream(driver)
+                activity = get_live_activity(driver)
+                if activity.get("code"):
+                    lang = activity.get("lang") or ""
+                    if lang == "agent_action":
+                        phase_txt = "готовит действие для проекта…"
+                    elif lang:
+                        phase_txt = "пишет код (" + lang + ")…"
+                    else:
+                        phase_txt = "пишет код…"
+                else:
+                    phase_txt = "пишет ответ…"
+                last_preview_ts = now
+            _report("модель " + phase_txt, chars=length, preview=preview_txt, stream=stream_txt)
+        else:
+            _report("модель думает…")
+
         # ВАЖНО: не завершаем, пока в ОТВЕТЕ нет ни одного символа.
         # Пока модель только "думает", answer length == 0 -> ждём дальше,
         # даже если спиннер на мгновение мигнул.
@@ -429,6 +606,7 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
     # 3) Защита от "ложного завершения": сеть подвисла / ответ ещё
     #    дорисовывается / JSON action оборван / ответ пока пуст.
     grace_start = time.time()
+    _report("проверяю, что ответ дописан", chars=max(last_length, 0), preview=preview_txt, stream=stream_txt)
     result = extract_last_answer(driver)
     while time.time() - grace_start < post_quiet_grace:
         raw = (result or {}).get("actionRaw")
@@ -447,7 +625,7 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
     return result
 
 
-def send_message_and_get_response(driver, prompt, input_retries=3):
+def send_message_and_get_response(driver, prompt, input_retries=3, progress_cb=None):
     for handle in driver.window_handles:
         driver.switch_to.window(handle)
         if "aistudio.google.com" in driver.current_url:
@@ -508,10 +686,14 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
     except StaleElementReferenceException:
         textarea = driver.execute_script(js_find_input)
         textarea.send_keys(Keys.CONTROL, Keys.ENTER)
-    result = wait_for_new_answer(driver, initial_model_count)
+    result = wait_for_new_answer(driver, initial_model_count, progress_cb=progress_cb)
     time.sleep(0.6)
-    if not result:
-        result = extract_last_answer(driver)
+    # ПЛАН Б: основной парсер дал пустоту -> многоуровневое чтение заново.
+    _empty = (not result) or (
+        not ((result.get("text") or "").strip()) and result.get("actionRaw") is None
+    )
+    if _empty:
+        result = extract_last_answer_robust(driver)
     text = result.get("text") or ""
     raw_action = result.get("actionRaw")
     error = result.get("error")

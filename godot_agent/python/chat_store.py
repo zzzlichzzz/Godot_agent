@@ -1,0 +1,136 @@
+# -*- coding: utf-8 -*-
+"""Хранилище чатов агента.
+
+Каждый чат привязан к странице AI Studio (URL) и хранит:
+- название (авто из первого сообщения, можно переименовать),
+- сохранённый диалог (транскрипт) для восстановления в панели,
+- флаг primed (обучен ли агент в этом чате мега-промптом).
+
+Файл: <user_data_dir>/agent_chats.json (в user://, вне проекта).
+"""
+import json
+import os
+import time
+import uuid
+
+_FILE_NAME = "agent_chats.json"
+MAX_TRANSCRIPT = 300
+DEFAULT_TITLE = "Новый чат"
+
+
+def _path(base_dir):
+    return os.path.join(base_dir, _FILE_NAME)
+
+
+def _load(base_dir):
+    p = _path(base_dir)
+    if not os.path.isfile(p):
+        return []
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _save(base_dir, chats):
+    try:
+        os.makedirs(base_dir, exist_ok=True)
+        with open(_path(base_dir), "w", encoding="utf-8") as f:
+            json.dump(chats, f, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
+
+
+def title_from_prompt(prompt):
+    """Авто-название чата: первая строка первого сообщения, до 40 символов."""
+    text = (prompt or "").strip()
+    line = text.splitlines()[0] if text else ""
+    line = " ".join(line.split())
+    if len(line) > 40:
+        line = line[:40].rstrip() + "…"
+    return line or DEFAULT_TITLE
+
+
+def list_chats(base_dir):
+    """Список чатов для панели (без транскриптов, свежие сверху)."""
+    chats = _load(base_dir)
+    chats.sort(key=lambda c: c.get("last_used", 0), reverse=True)
+    return [{"id": c.get("id"), "title": c.get("title", DEFAULT_TITLE),
+             "url": c.get("url", ""), "primed": bool(c.get("primed"))}
+            for c in chats]
+
+
+def find_chat(base_dir, chat_id):
+    for c in _load(base_dir):
+        if c.get("id") == chat_id:
+            return c
+    return None
+
+
+def create_chat(base_dir, url="", title=DEFAULT_TITLE, primed=False):
+    chats = _load(base_dir)
+    rec = {
+        "id": uuid.uuid4().hex[:12],
+        "title": title or DEFAULT_TITLE,
+        "manual_title": False,
+        "url": url or "",
+        "primed": bool(primed),
+        "created": time.time(),
+        "last_used": time.time(),
+        "transcript": [],
+    }
+    chats.append(rec)
+    _save(base_dir, chats)
+    return rec
+
+
+def update_chat(base_dir, chat_id, **fields):
+    chats = _load(base_dir)
+    for c in chats:
+        if c.get("id") == chat_id:
+            c.update(fields)
+            c["last_used"] = time.time()
+            _save(base_dir, chats)
+            return c
+    return None
+
+
+def touch_chat(base_dir, chat_id, url=None, primed=None):
+    """Обновляет URL страницы / primed / время использования чата."""
+    chats = _load(base_dir)
+    for c in chats:
+        if c.get("id") == chat_id:
+            if url:
+                c["url"] = url
+            if primed is not None:
+                c["primed"] = bool(primed)
+            c["last_used"] = time.time()
+            _save(base_dir, chats)
+            return c
+    return None
+
+
+def append_transcript(base_dir, chat_id, role, text):
+    """Дописывает реплику (user/agent/system) в сохранённый диалог чата."""
+    chats = _load(base_dir)
+    for c in chats:
+        if c.get("id") == chat_id:
+            tr = c.setdefault("transcript", [])
+            tr.append({"role": role, "text": text, "ts": time.time()})
+            if len(tr) > MAX_TRANSCRIPT:
+                del tr[:len(tr) - MAX_TRANSCRIPT]
+            # Авто-название по первому сообщению пользователя.
+            if (role == "user" and not c.get("manual_title")
+                    and c.get("title") in ("", DEFAULT_TITLE)):
+                c["title"] = title_from_prompt(text)
+            c["last_used"] = time.time()
+            _save(base_dir, chats)
+            return c
+    return None
+
+
+def delete_chat(base_dir, chat_id):
+    chats = [c for c in _load(base_dir) if c.get("id") != chat_id]
+    _save(base_dir, chats)
