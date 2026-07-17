@@ -1,7 +1,6 @@
 import time
 import json
 import re
-
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import (
     JavascriptException,
@@ -15,51 +14,71 @@ from selenium.common.exceptions import (
 # наружу в Python, даже если разметка AI Studio внезапно поменялась.
 # JSON action НЕ парсится в JS — сырой текст блока agent_action отдаётся
 # в Python, где его гораздо проще "починить".
+#
+# ВАЖНО (фикс): блок размышлений модели ("Thoughts"/thinking) ИСКЛЮЧАЕТСЯ
+# и из текста, и из поиска agent_action, и из замера длины.
 # ---------------------------------------------------------------------------
-JS_EXTRACT_LAST_ANSWER = r"""
-try {
+
+# Общая JS-функция: является ли узел частью «размышлений».
+# Если в будущем AI Studio поменяет разметку — добавь селектор сюда.
+_JS_IS_THOUGHT = r"""
+    function isThoughtNode(node) {
+        try {
+            var el = (node && node.nodeType === Node.ELEMENT_NODE) ? node
+                     : (node ? node.parentElement : null);
+            while (el && el !== document.body) {
+                var tag = (el.tagName || '').toLowerCase();
+                if (tag === 'ms-thought-chunk') return true;
+                var cls = (el.className && el.className.toString) ? el.className.toString() : '';
+                if (/thought|thinking/i.test(cls)) return true;
+                if (el.getAttribute && (el.getAttribute('data-thought') ||
+                    el.getAttribute('data-test-thought'))) return true;
+                el = el.parentElement;
+            }
+        } catch (e) {}
+        return false;
+    }
+"""
+
+_THOUGHT_SELECTORS = (
+    "ms-thought-chunk, [data-thought], [data-test-thought], "
+    ".thought, .thoughts, .model-thoughts"
+)
+
+JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
     function extractLastAnswer() {
         const modelTurns = document.querySelectorAll('[data-turn-role="Model"]');
         if (modelTurns.length === 0) return { text: '', actionRaw: null, error: null };
         const lastModelTurn = modelTurns[modelTurns.length - 1];
-
         const chunks = lastModelTurn.querySelectorAll('div[mssnapshotlink]');
-
         function escapeBBCode(text) {
             return text.replace(/[\[\]]/g, function(ch) {
                 return ch === '[' ? '[lb]' : '[rb]';
             });
         }
-
         let capturedActionRaw = null; // берём ПОСЛЕДНИЙ найденный agent_action блок
-
         function walk(node, listDepth) {
             listDepth = listDepth || 0;
             try {
+                if (isThoughtNode(node)) return '';
                 if (node.nodeType === Node.TEXT_NODE) {
                     return escapeBBCode(node.textContent);
                 }
                 if (node.nodeType !== Node.ELEMENT_NODE) return '';
-
                 const tag = node.tagName.toLowerCase();
-
                 if (tag === 'ms-code-block') {
                     const lang = (node.getAttribute('data-test-language') || '').trim().toLowerCase();
                     const codeEl = node.querySelector('pre code') || node.querySelector('code');
                     const rawCode = codeEl ? (codeEl.textContent || codeEl.innerText || '') : '';
-
                     if (lang === 'agent_action') {
                         capturedActionRaw = rawCode; // последний найденный перезапишет предыдущий
                         return '\n[color=#888888]— агент предлагает действие (см. ниже) —[/color]\n';
                     }
-
                     const code = escapeBBCode(rawCode);
                     const langLabel = lang ? '[color=#8ab4f8]' + escapeBBCode(lang) + '[/color]\n' : '';
                     return '\n' + langLabel + '[bgcolor=#2b2b2b][code]' + code + '[/code][/bgcolor]\n';
                 }
-
                 if (['button', 'svg', 'mat-icon'].includes(tag)) return '';
-
                 function collectChildren(node, allowedTags) {
                     let items = [];
                     function scan(n) {
@@ -75,7 +94,6 @@ try {
                     scan(node);
                     return items;
                 }
-
                 if (tag === 'ol' || tag === 'ul') {
                     let out = '';
                     let idx = 1;
@@ -89,7 +107,6 @@ try {
                     }
                     return out;
                 }
-
                 if (tag === 'table') {
                     let rows = [];
                     function collectRows(n) {
@@ -103,7 +120,6 @@ try {
                         }
                     }
                     collectRows(node);
-
                     let out = '\n';
                     for (const tr of rows) {
                         const cells = collectChildren(tr, ['th', 'td']).map(function(c) {
@@ -113,28 +129,23 @@ try {
                     }
                     return out + '\n';
                 }
-
                 let inner = '';
                 for (const child of node.childNodes) {
                     inner += walk(child, listDepth);
                 }
-
                 if (tag === 'strong') return '[b]' + inner + '[/b]';
                 if (tag === 'em') return '[i]' + inner + '[/i]';
                 if (node.classList && node.classList.contains('inline-code')) return '[code]' + inner + '[/code]';
-
                 if (tag === 'li') return inner;
                 if (['h1', 'h2', 'h3', 'h4'].includes(tag)) return '[b][font_size=20]' + inner + '[/font_size][/b]\n';
                 if (tag === 'p') return inner + '\n';
                 if (tag === 'hr') return '\n―――――――――――\n';
                 if (tag === 'br') return '\n';
-
                 return inner;
             } catch (innerErr) {
                 return '';
             }
         }
-
         let fullText = '';
         try {
             if (chunks.length === 0) {
@@ -142,6 +153,7 @@ try {
                 fullText += walk(cmarkRoot) + '\n';
             } else {
                 for (const chunk of chunks) {
+                    if (isThoughtNode(chunk)) continue;
                     const cmarkRoot = chunk.querySelector('ms-cmark-node.cmark-node') || chunk;
                     fullText += walk(cmarkRoot) + '\n';
                 }
@@ -149,14 +161,13 @@ try {
         } catch (e) {
             fullText = lastModelTurn.innerText || '';
         }
-
         fullText = fullText.replace(/\n{3,}/g, '\n\n').trim();
-
         // Страховка: сканируем все ms-code-block напрямую, если walk() что-то
-        // пропустил из-за внутренних try/catch.
+        // пропустил из-за внутренних try/catch. Блоки в размышлениях ПРОПУСКАЕМ.
         if (capturedActionRaw === null) {
             const codeBlocks = lastModelTurn.querySelectorAll('ms-code-block');
             for (const block of codeBlocks) {
+                if (isThoughtNode(block)) continue;
                 const lang = (block.getAttribute('data-test-language') || '').trim().toLowerCase();
                 if (lang === 'agent_action') {
                     const codeEl = block.querySelector('pre code') || block.querySelector('code');
@@ -166,23 +177,18 @@ try {
                 }
             }
         }
-
         return { text: fullText, actionRaw: capturedActionRaw, error: null };
     }
     return extractLastAnswer();
 } catch (outerErr) {
     return { text: '', actionRaw: null, error: String(outerErr && outerErr.message || outerErr) };
-}
-"""
+}"""
 
 JS_COUNT_MODEL_TURNS = "return document.querySelectorAll('[data-turn-role=\"Model\"]').length;"
 
 # Список селекторов-кандидатов "идёт генерация". Проверяем ВСЕ по очереди —
 # если один селектор в UI студии сломается, остальные подстрахуют.
-# Если проблема повторится — открой DevTools во время генерации и добавь
-# сюда актуальный селектор кнопки "Stop"/спиннера.
-JS_IS_GENERATING = r"""
-try {
+JS_IS_GENERATING = r"""try {
     if (document.querySelector('ms-run-button .spin')) return true;
     if (document.querySelector('ms-run-button .stoppable')) return true;
     const stopBtn = document.querySelector(
@@ -193,19 +199,29 @@ try {
     return false;
 } catch (e) {
     return false;
-}
-"""
+}"""
 
-JS_GET_LAST_MODEL_TEXT_LENGTH = r"""
-try {
+JS_GET_LAST_MODEL_TEXT_LENGTH = r"""try {
     const modelTurns = document.querySelectorAll('[data-turn-role="Model"]');
     if (modelTurns.length === 0) return 0;
     const last = modelTurns[modelTurns.length - 1];
     return (last.innerText || '').length;
 } catch (e) {
     return -1;
-}
-"""
+}"""
+
+# Длина ТОЛЬКО ответа (без блока размышлений). Клонируем реплику,
+# вырезаем мысли и берём textContent (работает на отсоединённом узле,
+# в отличие от innerText).
+JS_GET_ANSWER_TEXT_LENGTH = r"""try {
+    const turns = document.querySelectorAll('[data-turn-role="Model"]');
+    if (turns.length === 0) return 0;
+    const clone = turns[turns.length - 1].cloneNode(true);
+    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    return (clone.textContent || '').length;
+} catch (e) {
+    return -1;
+}"""
 
 
 def _safe_execute(driver, script, retries=5, delay=0.2, default=None):
@@ -238,6 +254,11 @@ def get_last_model_text_length(driver):
     return val if val is not None else -1
 
 
+def get_answer_text_length(driver):
+    val = _safe_execute(driver, JS_GET_ANSWER_TEXT_LENGTH, default=-1)
+    return val if val is not None else -1
+
+
 def extract_last_answer(driver):
     return _safe_execute(
         driver, JS_EXTRACT_LAST_ANSWER,
@@ -246,9 +267,7 @@ def extract_last_answer(driver):
 
 
 # ---------------------------------------------------------------------------
-# Разбор JSON из agent_action. LLM часто присылает "почти валидный" JSON:
-# необрезанные переносы строк внутри строковых значений, висячие запятые,
-# иногда лишний текст до/после {}. Пытаемся почленно "починить".
+# Разбор JSON из agent_action.
 # ---------------------------------------------------------------------------
 def _strip_code_fences(raw: str) -> str:
     raw = raw.strip()
@@ -258,8 +277,7 @@ def _strip_code_fences(raw: str) -> str:
 
 
 def _extract_json_object(raw: str) -> str:
-    """Вырезает подстроку от первой '{' до последней '}' — на случай, если
-    модель добавила пояснительный текст до/после самого JSON."""
+    """Вырезает подстроку от первой '{' до последней '}'."""
     start = raw.find('{')
     end = raw.rfind('}')
     if start == -1 or end == -1 or end < start:
@@ -268,11 +286,7 @@ def _extract_json_object(raw: str) -> str:
 
 
 def _escape_raw_newlines_in_strings(raw: str) -> str:
-    """
-    Экранирует "голые" переносы строк внутри JSON-строк.
-    LLM иногда вставляет реальный \n вместо \\n в значениях content/search/replace.
-    Идём по символам и следим, находимся ли мы внутри строки.
-    """
+    """Экранирует "голые" переносы строк внутри JSON-строк."""
     out = []
     in_string = False
     escape = False
@@ -312,42 +326,33 @@ def _remove_trailing_commas(raw: str) -> str:
 
 
 def parse_action_json(raw: str):
-    """
-    Пытается распарсить JSON блока agent_action в несколько заходов —
-    от простого к "чинящему".
-    Возвращает (dict_or_None, error_message_or_None).
-    """
+    """Пытается распарсить JSON блока agent_action.
+    Возвращает (dict_or_None, error_message_or_None)."""
     if raw is None:
         return None, None
-
     base = _strip_code_fences(raw)
     candidates = [base, _extract_json_object(base)]
     for cand in list(candidates):
         candidates.append(_remove_trailing_commas(cand))
         candidates.append(_escape_raw_newlines_in_strings(cand))
         candidates.append(_remove_trailing_commas(_escape_raw_newlines_in_strings(cand)))
-
     last_error = None
     for cand in candidates:
         try:
             return json.loads(cand), None
         except Exception as e:
             last_error = str(e)
-
-    # Последний рубеж: если установлен pip-пакет json_repair — используем его.
     try:
         from json_repair import repair_json
         fixed = repair_json(_extract_json_object(base))
         return json.loads(fixed), None
     except Exception as e:
         last_error = f"{last_error}; json_repair: {e}"
-
     return None, last_error
 
 
 def _looks_json_balanced(raw: str) -> bool:
-    """Грубая проверка баланса скобок/кавычек — признак того, что блок
-    кода дорендерился полностью, а не оборван на середине."""
+    """Грубая проверка баланса скобок/кавычек."""
     if not raw:
         return False
     depth = 0
@@ -372,10 +377,10 @@ def _looks_json_balanced(raw: str) -> bool:
 
 
 def wait_for_new_answer(driver, initial_model_count, timeout=900,
-                        quiet_period=2.0, hard_quiet_period=30.0, poll_interval=0.25,
-                        post_quiet_grace=4.0):
+                        quiet_period=2.5, hard_quiet_period=45.0, poll_interval=0.25,
+                        post_quiet_grace=6.0):
     start = time.time()
-
+    # 1) ждём появления новой реплики модели
     while time.time() - start < timeout:
         if get_model_turn_count(driver) > initial_model_count:
             break
@@ -383,22 +388,19 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
     else:
         raise TimeoutError("Новая реплика модели не появилась.")
 
+    # 2) ждём, пока начнётся генерация (спиннер) ИЛИ появится текст ОТВЕТА
     while time.time() - start < timeout:
-        length = get_last_model_text_length(driver)
-        generating = is_generating(driver)
-        if length > 0 or generating:
+        if get_answer_text_length(driver) > 0 or is_generating(driver):
             break
         time.sleep(poll_interval)
 
     last_length = -1
     quiet_since = None
     length_only_quiet_since = None
-
     while time.time() - start < timeout:
-        length = get_last_model_text_length(driver)
+        length = get_answer_text_length(driver)   # длина ТОЛЬКО ответа, без "мыслей"
         generating = is_generating(driver)
         now = time.time()
-
         if length == last_length:
             if length_only_quiet_since is None:
                 length_only_quiet_since = now
@@ -411,38 +413,37 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
             quiet_since = None
             length_only_quiet_since = None
 
-        if quiet_since is not None and now - quiet_since >= quiet_period:
-            break
-        if length_only_quiet_since is not None and now - length_only_quiet_since >= hard_quiet_period:
-            break
-
+        # ВАЖНО: не завершаем, пока в ОТВЕТЕ нет ни одного символа.
+        # Пока модель только "думает", answer length == 0 -> ждём дальше,
+        # даже если спиннер на мгновение мигнул.
+        if length > 0:
+            if quiet_since is not None and now - quiet_since >= quiet_period:
+                break
+            if length_only_quiet_since is not None and now - length_only_quiet_since >= hard_quiet_period:
+                break
         last_length = length
         time.sleep(poll_interval)
     else:
         raise TimeoutError("Генерация не завершилась вовремя.")
 
-    # --- Защита от "ложного завершения" ---
-    # Сеть может ненадолго подвиснуть дольше quiet_period, хотя модель ещё
-    # не закончила. Перепроверяем: если появился новый текст ИЛИ JSON
-    # agent_action выглядит незавершённым — ждём ещё немного.
+    # 3) Защита от "ложного завершения": сеть подвисла / ответ ещё
+    #    дорисовывается / JSON action оборван / ответ пока пуст.
     grace_start = time.time()
     result = extract_last_answer(driver)
     while time.time() - grace_start < post_quiet_grace:
         raw = (result or {}).get("actionRaw")
-        cur_len = get_last_model_text_length(driver)
+        text = (result or {}).get("text") or ""
+        cur_len = get_answer_text_length(driver)
         still_generating = is_generating(driver)
-
         action_incomplete = raw is not None and not _looks_json_balanced(
             _extract_json_object(_strip_code_fences(raw))
         )
-
-        if not still_generating and cur_len == last_length and not action_incomplete:
+        answer_empty = (not text.strip()) and (raw is None)
+        if (not still_generating) and cur_len == last_length and (not action_incomplete) and (not answer_empty):
             break
-
         time.sleep(0.4)
         result = extract_last_answer(driver)
         last_length = cur_len
-
     return result
 
 
@@ -451,10 +452,8 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
         driver.switch_to.window(handle)
         if "aistudio.google.com" in driver.current_url:
             break
-
     from browser_manager import harden_background_tab
     harden_background_tab(driver)
-
     js_find_input = """
     function findInput(root) {
         let nodes = [root];
@@ -468,7 +467,6 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
     }
     return findInput(document.body);
     """
-
     textarea = None
     for _ in range(input_retries):
         textarea = driver.execute_script(js_find_input)
@@ -477,12 +475,10 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
         time.sleep(0.5)
     if not textarea:
         raise Exception("Поле ввода не найдено.")
-
     for _ in range(input_retries):
         try:
             driver.execute_script("arguments[0].value = '';", textarea)
             time.sleep(0.2)
-
             js_insert = """
             let el = arguments[0];
             el.focus();
@@ -491,7 +487,6 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
             el.dispatchEvent(new Event('change', { bubbles: true }));
             """
             driver.execute_script(js_insert, textarea, prompt)
-
             actual_value = driver.execute_script("return arguments[0].value;", textarea)
             if actual_value:
                 break
@@ -500,7 +495,6 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
         time.sleep(0.3)
     else:
         raise Exception("Не удалось вставить текст в поле ввода после нескольких попыток.")
-
     time.sleep(1)
     try:
         textarea.send_keys(Keys.SPACE)
@@ -508,28 +502,21 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
     except StaleElementReferenceException:
         textarea = driver.execute_script(js_find_input)
     time.sleep(0.5)
-
     initial_model_count = get_model_turn_count(driver)
-
     try:
         textarea.send_keys(Keys.CONTROL, Keys.ENTER)
     except StaleElementReferenceException:
         textarea = driver.execute_script(js_find_input)
         textarea.send_keys(Keys.CONTROL, Keys.ENTER)
-
     result = wait_for_new_answer(driver, initial_model_count)
     time.sleep(0.6)
-
     if not result:
         result = extract_last_answer(driver)
-
     text = result.get("text") or ""
     raw_action = result.get("actionRaw")
     error = result.get("error")
-
     if error:
         print(f"[ai_parser] JS extraction error: {error}")
-
     action = None
     if raw_action is not None:
         action, parse_error = parse_action_json(raw_action)
@@ -541,5 +528,4 @@ def send_message_and_get_response(driver, prompt, input_retries=3):
                 "raw": raw_action,
                 "error": parse_error,
             }
-
     return {"text": text, "action": action}
