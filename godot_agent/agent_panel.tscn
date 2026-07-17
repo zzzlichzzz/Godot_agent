@@ -27,7 +27,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 focus_mode = 2
 bbcode_enabled = true
-text = "[color=green]Система готова. Работаем через локальный ИИ-мост Gravepath![/color]
+text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]
 "
 scroll_following = true
 context_menu_enabled = true
