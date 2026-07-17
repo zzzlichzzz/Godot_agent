@@ -28,6 +28,10 @@ from project_tools import _resolve_safe_path
 HISTORY_DIR_NAME = ".agent_history"
 MAX_ENTRIES = 50
 
+# Максимальный размер search/replace, который храним в журнале ради
+# точного диффа отката. Больше — не храним (модель просто перечитает файл).
+MAX_DIFF_CHARS = 4000
+
 
 def _history_dir(project_root):
     d = os.path.join(os.path.abspath(project_root), HISTORY_DIR_NAME)
@@ -107,6 +111,13 @@ def record_change(project_root, action):
         snap_rel = os.path.join("snapshots", entry["id"] + "_before")
         shutil.copy2(abs_path, os.path.join(hist, snap_rel))
         entry["snapshot"] = snap_rel
+        # Сохраняем сам дифф: при откате можно будет точно сказать модели,
+        # что именно вернулось, без повторного чтения файла целиком.
+        search = action.get("search") or ""
+        replace = action.get("replace") or ""
+        if len(search) <= MAX_DIFF_CHARS and len(replace) <= MAX_DIFF_CHARS:
+            entry["search"] = search
+            entry["replace"] = replace
     elif act == "move_file":
         entry["dest"] = action.get("dest", "")
     # create_file: снапшот не нужен — файла до действия не существует
@@ -142,26 +153,28 @@ def abort_change(project_root, entry_id):
 
 def rollback_last(project_root, force=False):
     """Откат последнего применённого действия.
-    Возвращает (ok: bool, message: str, needs_force: bool, paths: list[str]),
-    где paths — затронутые res:// пути (для синхронизации вкладок в Godot)."""
+    Возвращает (ok, message, needs_force, paths, diff):
+      paths — затронутые res:// пути (для синхронизации вкладок в Godot);
+      diff  — для patch_file: {"path", "was", "now"} — точный обратный дифф
+              (блок "was" снова стал блоком "now"), иначе None."""
     journal = _load_journal(project_root)
     committed = [e for e in journal if e.get("committed")]
     if not committed:
-        return False, "История изменений пуста — откатывать нечего.", False, []
+        return False, "История изменений пуста — откатывать нечего.", False, [], None
     entry = committed[-1]
     act = entry["type"]
     target = entry.get("dest") or entry["path"]
     try:
         abs_target = _resolve_safe_path(project_root, target)
     except Exception as e:
-        return False, str(e), False, []
+        return False, str(e), False, [], None
 
     # Защита: файл менялся ПОСЛЕ этого действия агента?
     if not force and _file_hash(abs_target) != entry.get("after_hash"):
         return False, (
             "Файл %s изменялся ПОСЛЕ этого действия агента. Откат перезапишет "
             "эти изменения. Нажмите откат ещё раз для подтверждения." % target
-        ), True, []
+        ), True, [], None
 
     if act == "create_file":
         if os.path.exists(abs_target):
@@ -169,16 +182,16 @@ def rollback_last(project_root, force=False):
     elif act == "patch_file":
         snap = os.path.join(_history_dir(project_root), entry.get("snapshot", ""))
         if not os.path.isfile(snap):
-            return False, "Снапшот для отката не найден (возможно, вычищен по лимиту истории).", False, []
+            return False, "Снапшот для отката не найден (возможно, вычищен по лимиту истории).", False, [], None
         shutil.copy2(snap, abs_target)
     elif act == "move_file":
         abs_src = _resolve_safe_path(project_root, entry["path"])
         if os.path.exists(abs_src) and not force:
-            return False, "По старому пути уже существует файл: %s" % entry["path"], True, []
+            return False, "По старому пути уже существует файл: %s" % entry["path"], True, [], None
         os.makedirs(os.path.dirname(abs_src), exist_ok=True)
         shutil.move(abs_target, abs_src)
     else:
-        return False, "Неизвестный тип действия в журнале: %s" % act, False, []
+        return False, "Неизвестный тип действия в журнале: %s" % act, False, [], None
 
     # Убираем запись и её снапшот только после успешного отката.
     snap_rel = entry.get("snapshot")
@@ -190,4 +203,8 @@ def rollback_last(project_root, force=False):
         except OSError:
             pass
     affected = [target] if act != "move_file" else [entry["path"], target]
-    return True, "Откачено: %s (%s)" % (act, target), False, affected
+    diff = None
+    if act == "patch_file" and "search" in entry and "replace" in entry:
+        # Обратный дифф: блок "replace" снова стал блоком "search".
+        diff = {"path": target, "was": entry["replace"], "now": entry["search"]}
+    return True, "Откачено: %s (%s)" % (act, target), False, affected, diff
