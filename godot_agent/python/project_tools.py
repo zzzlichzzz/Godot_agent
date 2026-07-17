@@ -8,10 +8,12 @@ EXCLUDED_FILES = {'.DS_Store'}
 HISTORY_DIR_NAME = ".agent_history"
 
 
-def build_project_tree(project_root, max_depth=8):
+def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=None):
     """Строит текстовое дерево файлов проекта для контекста ИИ."""
     project_root = os.path.abspath(project_root)
     lines = []
+    count = 0
+    truncated = False
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         rel = os.path.relpath(dirpath, project_root)
@@ -25,7 +27,17 @@ def build_project_tree(project_root, max_depth=8):
         for f in sorted(filenames):
             if f in EXCLUDED_FILES:
                 continue
+            if only_exts is not None and os.path.splitext(f)[1].lower() not in only_exts:
+                continue
+            if max_entries is not None and count >= max_entries:
+                truncated = True
+                break
             lines.append(f"{indent}  {f}")
+            count += 1
+        if truncated:
+            break
+    if truncated:
+        lines.append("  ... (список обрезан; используй действие list_files для полного дерева)")
     return '\n'.join(lines)
 
 
