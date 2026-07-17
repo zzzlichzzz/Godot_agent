@@ -25,6 +25,14 @@ const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
 const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
+const PROGRESS_URL = "http://" + HOST + "/chat/progress"
+const CHATS_LIST_URL = "http://" + HOST + "/chats/list"
+const CHATS_NEW_URL = "http://" + HOST + "/chats/new"
+const CHATS_OPEN_URL = "http://" + HOST + "/chats/open"
+const CHATS_RENAME_URL = "http://" + HOST + "/chats/rename"
+const CHATS_DELETE_URL = "http://" + HOST + "/chats/delete"
+const SITES_LIST_URL = "http://" + HOST + "/sites/list"
+const BROWSER_STATUS_URL = "http://" + HOST + "/browser/status"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -48,16 +56,40 @@ var _play_watch_timer: Timer = null
 var _was_playing: bool = false
 var _auto_check: bool = false
 
-# Подсветка изменённых агентом строк: помним путь и ТЕКСТ блока и красим
-# строки там, где блок находится СЕЙЧАС (поиск по содержимому, а не по номерам).
-const HL_COLOR := Color(0.25, 0.85, 0.35, 0.16)
-var _hl_path: String = ""
-var _hl_block: String = ""
-var _hl_lines: Array = []
-var _hl_code_edit: CodeEdit = null
-var _list_mark_dbg_done: bool = false  # разовый диагностический вывод пометки списка скриптов
+var _hl = null  # подсистема подсветки (agent_highlight.gd)
+var _start_screen: Control = null
+var _pending_chat_prompt: String = ""
+var _site_dialog: ConfirmationDialog = null
+var _resend_after_open: bool = false
 var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
 var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
+
+
+# Живая трансляция: пока идёт запрос, отдельный HTTPRequest раз в секунду
+# опрашивает /chat/progress и показывает статус + хвост ответа модели.
+var _progress_http: HTTPRequest = null
+var _progress_timer: Timer = null
+var _progress_inflight: bool = false
+# Весь визуал чата (пузыри, печать, стрим, статус) — в agent_chat_view.gd.
+var _view: Node = null
+# --- Чаты: список, создание, переименование, удаление ---
+var _chats_http: HTTPRequest = null
+var _chats_inflight: bool = false
+var _chats_queue: Array = []
+var _pagewait_timer: Timer = null
+var _pagewait_left: int = 0
+var _server_start_attempted: bool = false
+var _server_wait_timer: Timer = null
+var _server_wait_left: int = 0
+var _retry_after_server: Array = []
+var _chats_extra: Dictionary = {}
+var _chats_kind: String = ""
+var _pending_view: String = ""
+var _chat_select: OptionButton = null
+var _rename_dialog: AcceptDialog = null
+var _rename_edit: LineEdit = null
+var _current_chat_id: String = ""
+var _suppress_chat_select: bool = false
 
 
 func _ready() -> void:
@@ -100,6 +132,80 @@ func _ready() -> void:
 		_guard_timer.one_shot = true
 		add_child(_guard_timer)
 		_guard_timer.timeout.connect(_on_guard_timeout)
+	if _progress_timer == null:
+		_progress_timer = Timer.new()
+		_progress_timer.wait_time = 1.0
+		_progress_timer.one_shot = false
+		add_child(_progress_timer)
+		_progress_timer.timeout.connect(_on_progress_tick)
+	if _progress_http == null:
+		_progress_http = HTTPRequest.new()
+		_progress_http.timeout = 4.0
+		add_child(_progress_http)
+		_progress_http.request_completed.connect(_on_progress_response)
+	if has_node("ChatView"):
+		_view = get_node("ChatView")
+	else:
+		var view_script = load(get_script().resource_path.get_base_dir() + "/agent_chat_view.gd")
+		_view = view_script.new()
+		_view.name = "ChatView"
+		add_child(_view)
+	_view.setup(chat_log, $VBoxContainer)
+	if _hl == null:
+		var hl_script = load(get_script().resource_path.get_base_dir() + "/agent_highlight.gd")
+		_hl = hl_script.new()
+	if _chats_http == null:
+		_chats_http = HTTPRequest.new()
+		_chats_http.timeout = 60.0
+		add_child(_chats_http)
+		_chats_http.request_completed.connect(_on_chats_response)
+	if $VBoxContainer.has_node("ChatsBar"):
+		var bar_old: HBoxContainer = $VBoxContainer/ChatsBar
+		_chat_select = bar_old.get_child(0)
+		if not _chat_select.item_selected.is_connected(_on_chat_selected):
+			_chat_select.item_selected.connect(_on_chat_selected)
+	else:
+		var bar := HBoxContainer.new()
+		bar.name = "ChatsBar"
+		_chat_select = OptionButton.new()
+		_chat_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_chat_select.item_selected.connect(_on_chat_selected)
+		bar.add_child(_chat_select)
+		var bnew := Button.new()
+		bnew.text = "＋"
+		bnew.tooltip_text = "Новый чат (новая страница в браузере)"
+		bnew.pressed.connect(_on_chat_new_pressed)
+		bar.add_child(bnew)
+		var bren := Button.new()
+		bren.text = "✏"
+		bren.tooltip_text = "Переименовать чат"
+		bren.pressed.connect(_on_chat_rename_pressed)
+		bar.add_child(bren)
+		var bdel := Button.new()
+		bdel.text = "🗑"
+		bdel.tooltip_text = "Удалить чат из списка"
+		bdel.pressed.connect(_on_chat_delete_pressed)
+		bar.add_child(bdel)
+		var bhome := Button.new()
+		bhome.text = "Меню"
+		bhome.tooltip_text = "В начало (выбор чата/сайта)"
+		bhome.pressed.connect(_show_start_ui)
+		bar.add_child(bhome)
+		$VBoxContainer.add_child(bar)
+		$VBoxContainer.move_child(bar, 0)
+	call_deferred("_request_chats", "list", {})
+	if _start_screen == null:
+		var ss_script = load(get_script().resource_path.get_base_dir() + "/agent_start_screen.gd")
+		_start_screen = ss_script.new()
+		_start_screen.name = "StartScreen"
+		add_child(_start_screen)
+		_start_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_start_screen.new_chat_requested.connect(_on_start_new_chat)
+		_start_screen.load_chat_requested.connect(_on_start_load_chat)
+		_start_screen.sites_tab_requested.connect(_on_sites_tab_requested)
+		_start_screen.chats_tab_requested.connect(_on_chats_tab_requested)
+	_show_start_ui()
+	call_deferred("_request_chats", "sites", {})
 	# Восстановление после перезагрузки скрипта: если панель перезагрузилась,
 	# пока кнопки были временно заблокированы охранником — вернуть их в рабочее состояние.
 	if confirm_button and reject_button and not _is_network_busy:
@@ -137,6 +243,18 @@ func _set_ui_busy(busy: bool) -> void:
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = "Ждём..." if busy else "Отправить"
+	# Живая трансляция: опрашиваем статус только пока идёт запрос.
+	if busy:
+		if _view:
+			_view.reset_live()
+		if _progress_timer and _progress_timer.is_stopped():
+			_progress_timer.start()
+	else:
+		if _progress_timer:
+			_progress_timer.stop()
+		if _view:
+			_view.hide_status()
+		_progress_inflight = false
 
 
 func _on_advanced_toggle() -> void:
@@ -173,15 +291,22 @@ func _on_send_pressed() -> void:
 	if user_text.is_empty(): return
 	input_field.text = ""
 	_rollback_force_next = false
-	chat_log.text += "\n[color=lightblue]Вы:[/color] " + _escape_bbcode(user_text) + "\n"
-	chat_log.text += "[color=gray]Агент анализирует проект...[/color]\n"
+	_view.add_user_message(_escape_bbcode(user_text))
+	_view.add_system("Агент анализирует проект...")
+	_send_chat_raw(user_text, false)
+
+
+func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
+	_pending_chat_prompt = prompt
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
 	var body = {
-		"prompt": user_text,
+		"prompt": prompt,
 		"project_root": project_root,
 		"user_data_dir": OS.get_user_data_dir()
 	}
+	if ignore_mismatch:
+		body["ignore_site_mismatch"] = true
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "chat"
 	_set_ui_busy(true)
@@ -295,6 +420,10 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 	if response_code == 200 and json != null:
 		EditorInterface.get_resource_filesystem().scan()
 
+		if json.has("site_mismatch") and bool(json.get("site_mismatch", false)):
+			_handle_site_mismatch(str(json.get("site", "")), str(json.get("prompt", "")))
+			return
+
 		if kind == "init":
 			chat_log.text += "\n[color=green]Успех: Карта файлов сброшена. Следующий запрос заново настроит контекст ИИ.[/color]\n"
 			return
@@ -313,9 +442,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var rb_path = json.get("changed_path")
 			var rb_block = json.get("changed_block")
 			if rb_path != null and rb_block != null and str(rb_block) != "":
-				_apply_agent_highlight(str(rb_path), str(rb_block))
+				if _hl: _hl.apply(str(rb_path), str(rb_block))
 			else:
-				_clear_agent_highlight()
+				if _hl: _hl.clear()
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
@@ -353,12 +482,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var ch_path = json.get("changed_path")
 			var ch_block = json.get("changed_block")
 			if ch_path != null and ch_block != null and str(ch_block) != "":
-				_apply_agent_highlight(str(ch_path), str(ch_block))
+				if _hl: _hl.apply(str(ch_path), str(ch_block))
 
 		# Текстовый ответ ИИ (не печатаем пустые ответы)
 		var has_answer: bool = json.has("answer") and json["answer"] != null and str(json["answer"]) != ""
 		if has_answer:
-			chat_log.text += "\n[color=yellow]ИИ-Агент:[/color]\n" + str(json["answer"]) + "\n\n-----------------\n"
+			_view.add_agent_message(str(json["answer"]))
+			_request_chats("list", {})  # обновить авто-названия чатов
 
 		# Промежуточное подтверждение файла из пачки на чтение:
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
@@ -376,6 +506,10 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if pending != null and action_label and pending_action_box:
 			var description = json.get("pending_action_description", "Агент запрашивает действие...")
 			if description == null: description = "Агент запрашивает действие."
+			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки).
+			var pcode = json.get("pending_action_code")
+			if pcode != null and str(pcode) != "":
+				_view.add_code_preview(_escape_bbcode(str(pcode)))
 			action_label.text = str(description)
 			pending_action_box.visible = true
 			_last_pending_action_type = str(pending.get("action", ""))
@@ -408,6 +542,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 
 func _log_error(msg: String) -> void:
+	if _view:
+		_view.flush()
 	chat_log.text += "\n[color=red][Ошибка]: " + msg + "[/color]\n"
 
 
@@ -514,7 +650,7 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 # ---------------------------------------------------------------------------
 
 func _on_play_watch_tick() -> void:
-	_highlight_watchdog()
+	if _hl: _hl.watchdog()
 	_reconcile_confirm_buttons()
 	var playing := EditorInterface.is_playing_scene()
 	if _was_playing and not playing:
@@ -555,130 +691,537 @@ func _auto_check_log() -> void:
 # не код агента).
 # ---------------------------------------------------------------------------
 
-func _apply_agent_highlight(path: String, block: String) -> void:
-	_clear_agent_highlight()
-	_list_mark_dbg_done = false
-	if not path.begins_with("res://") or not path.ends_with(".gd"):
+func _on_progress_tick() -> void:
+	if not _is_network_busy:
+		if _progress_timer:
+			_progress_timer.stop()
+		if _view:
+			_view.hide_status()
 		return
-	if not FileAccess.file_exists(path):
+	if _progress_inflight or _progress_http == null:
 		return
-	var scr := load(path) as Script
-	if scr == null:
+	_progress_http.set_http_proxy("", 0)
+	var err = _progress_http.request(PROGRESS_URL)
+	if err == OK:
+		_progress_inflight = true
+
+
+func _on_progress_response(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	_progress_inflight = false
+	if not _is_network_busy or _view == null:
 		return
-	_hl_path = path
-	_hl_block = block.replace("\r\n", "\n").strip_edges(false, true)
-	if _hl_block.is_empty():
+	if response_code != 200:
 		return
-	# Открываем изменённый скрипт в редакторе, чтобы изменения были на виду.
-	EditorInterface.edit_script(scr, -1, 0, false)
-	_hook_current_code_edit()
-	_repaint_highlight()
-	if _hl_code_edit and _hl_lines.size() > 0:
-		_hl_code_edit.set_caret_line(_hl_lines[0])
-	_mark_script_in_list_experimental(path)
+	var json = JSON.parse_string(body.get_string_from_utf8())
+	if json == null or typeof(json) != TYPE_DICTIONARY:
+		return
+	if not bool(json.get("active", false)):
+		return
+	# Статус — только состояние бота; сам текст стримится прямо в чат (в _view).
+	_view.show_status(str(json.get("phase", "работаю…")), int(json.get("elapsed", 0)), int(json.get("chars", 0)))
+	_view.feed_live_stream(str(json.get("stream", "")))
 
 
-func _hook_current_code_edit() -> void:
-	_hl_code_edit = null
-	var script_editor := EditorInterface.get_script_editor()
-	if not script_editor: return
-	var current := script_editor.get_current_editor()
-	if not current: return
-	var code_edit := current.get_base_editor() as CodeEdit
-	if not code_edit: return
-	_hl_code_edit = code_edit
-	if not code_edit.text_changed.is_connected(_on_hl_text_changed):
-		code_edit.text_changed.connect(_on_hl_text_changed)
+# ---------------------------------------------------------------------------
+# Чаты: список, создание, выбор (открывает страницу в браузере),
+# переименование, удаление. Сохранённый диалог восстанавливается в панели.
+# ---------------------------------------------------------------------------
+
+func _request_chats(kind: String, extra: Dictionary) -> void:
+	if _chats_http == null:
+		return
+	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status":
+		_log_error("Дождитесь окончания текущего запроса.")
+		return
+	# На одном HTTPRequest-узле одновременно может идти только один запрос —
+	# остальные ставим в очередь, иначе второй падает с ERR_BUSY.
+	if _chats_inflight:
+		_chats_queue.append({"kind": kind, "extra": extra})
+		return
+	_fire_chats_request(kind, extra)
 
 
-func _on_hl_text_changed() -> void:
-	# Текст меняется — блок мог сместиться. Ищем его заново и перекрашиваем.
-	if _hl_block != "":
-		_repaint_highlight()
+func _fire_chats_request(kind: String, extra: Dictionary) -> void:
+	if _chats_http == null:
+		return
+	var body = {
+		"user_data_dir": OS.get_user_data_dir(),
+		"project_root": ProjectSettings.globalize_path("res://"),
+	}
+	for k in extra:
+		body[k] = extra[k]
+	var url := CHATS_LIST_URL
+	match kind:
+		"new": url = CHATS_NEW_URL
+		"open": url = CHATS_OPEN_URL
+		"rename": url = CHATS_RENAME_URL
+		"delete": url = CHATS_DELETE_URL
+		"sites": url = SITES_LIST_URL
+		"status": url = BROWSER_STATUS_URL
+	_chats_kind = kind
+	_chats_extra = extra
+	_chats_inflight = true
+	_chats_http.set_http_proxy("", 0)
+	var err = _chats_http.request(url, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_chats_kind = ""
+		_chats_inflight = false
+		_drain_chats_queue()
 
+
+func _drain_chats_queue() -> void:
+	if _chats_inflight:
+		return
+	if _chats_queue.is_empty():
+		return
+	var next = _chats_queue.pop_front()
+	_fire_chats_request(str(next.get("kind", "list")), next.get("extra", {}))
+
+
+func _on_chats_response(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	var kind := _chats_kind
+	var extra := _chats_extra
+	_chats_kind = ""
+	_chats_extra = {}
+	_chats_inflight = false
+	_drain_chats_queue()
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		if kind == "status":
+			return
+		if kind == "new" or kind == "open":
+			# Запоминаем действие пользователя и повторим его после запуска сервера.
+			_retry_after_server = [{"kind": kind, "extra": extra}]
+		_maybe_autostart_server()
+		return
+	var json = JSON.parse_string(body.get_string_from_utf8())
+	if json == null or typeof(json) != TYPE_DICTIONARY:
+		return
+	_on_server_alive()
+	if kind == "status":
+		_on_browser_status(json)
+		return
+	if kind == "sites":
+		if _start_screen:
+			_start_screen.set_sites(json.get("sites", []))
+			if _pending_view == "sites":
+				_pending_view = ""
+				_start_screen.show_sites()
+		return
+	var cur = json.get("current_id")
+	if cur != null:
+		_current_chat_id = str(cur)
+	_fill_chat_list(json.get("chats", []))
+	if _start_screen:
+		_start_screen.set_chats(json.get("chats", []))
+		if _pending_view == "chats":
+			_pending_view = ""
+			_start_screen.show_chats()
+	if kind == "open" and _view:
+		_view.clear()
+		_render_transcript(json.get("transcript", []))
+		_view.add_system("Открыт чат: " + str(json.get("title", "")) + " — страница открыта в браузере, можно продолжать общение.")
+		_enter_chat_ui()
+		_begin_page_wait()
+		if _resend_after_open:
+			_resend_after_open = false
+			_send_chat_raw(_pending_chat_prompt, true)
+	elif kind == "new" and _view:
+		_view.clear()
+		_view.add_system("Создан новый чат. Просто напишите сообщение — агент обучится автоматически.")
+		_enter_chat_ui()
+		_begin_page_wait()
+
+
+func _fill_chat_list(chats) -> void:
+	if _chat_select == null or typeof(chats) != TYPE_ARRAY:
+		return
+	_suppress_chat_select = true
+	_chat_select.clear()
+	var sel := -1
+	for i in chats.size():
+		var c = chats[i]
+		if typeof(c) != TYPE_DICTIONARY:
+			continue
+		_chat_select.add_item(str(c.get("title", "Без названия")), i)
+		_chat_select.set_item_metadata(i, str(c.get("id", "")))
+		if str(c.get("id", "")) == _current_chat_id:
+			sel = i
+	if sel >= 0:
+		_chat_select.select(sel)
+	_suppress_chat_select = false
+
+
+func _on_chat_selected(index: int) -> void:
+	if _suppress_chat_select or _chat_select == null:
+		return
+	var id := str(_chat_select.get_item_metadata(index))
+	if id == "" or id == _current_chat_id:
+		return
+	_request_chats("open", {"id": id})
+
+
+func _on_chat_new_pressed() -> void:
+	_request_chats("new", {})
+
+
+func _on_chat_rename_pressed() -> void:
+	if _current_chat_id == "":
+		_log_error("Сначала выберите чат (или отправьте сообщение, чтобы чат создался).")
+		return
+	if _rename_dialog == null:
+		_rename_dialog = AcceptDialog.new()
+		_rename_dialog.title = "Переименовать чат"
+		_rename_edit = LineEdit.new()
+		_rename_edit.custom_minimum_size = Vector2(260, 0)
+		_rename_dialog.add_child(_rename_edit)
+		_rename_dialog.register_text_enter(_rename_edit)
+		_rename_dialog.confirmed.connect(_on_rename_confirmed)
+		add_child(_rename_dialog)
+	if _chat_select and _chat_select.selected >= 0:
+		_rename_edit.text = _chat_select.get_item_text(_chat_select.selected)
+	_rename_dialog.popup_centered()
+	_rename_edit.grab_focus()
+
+
+func _on_rename_confirmed() -> void:
+	var t := _rename_edit.text.strip_edges()
+	if t == "":
+		return
+	_request_chats("rename", {"id": _current_chat_id, "title": t})
+
+
+func _on_chat_delete_pressed() -> void:
+	if _current_chat_id == "":
+		_log_error("Сначала выберите чат.")
+		return
+	_request_chats("delete", {"id": _current_chat_id})
+
+
+func _render_transcript(entries) -> void:
+	if typeof(entries) != TYPE_ARRAY or _view == null:
+		return
+	for e in entries:
+		if typeof(e) != TYPE_DICTIONARY:
+			continue
+		var role := str(e.get("role", ""))
+		var text := str(e.get("text", ""))
+		if role == "user":
+			_view.add_user_message(_escape_bbcode(text))
+		elif role == "agent":
+			_view.add_agent_message(text)
+		else:
+			_view.add_system(text)
+
+
+# ---------------------------------------------------------------------------
+# Стартовый экран, переключение сайтов и проверка "не тот сайт".
+# ---------------------------------------------------------------------------
 
 func _on_editor_script_changed(scr: Script) -> void:
-	# Вернулись на вкладку с подсвеченным скриптом — восстанавливаем покрас.
-	if scr and _hl_path != "" and scr.resource_path == _hl_path:
-		_hook_current_code_edit()
-		_repaint_highlight()
+	if _hl:
+		_hl.on_editor_script_changed(scr)
 
 
-func _clear_agent_highlight() -> void:
-	if _hl_code_edit and is_instance_valid(_hl_code_edit):
-		for l in range(_hl_code_edit.get_line_count()):
-			_hl_code_edit.set_line_background_color(l, Color(0, 0, 0, 0))
-	_hl_lines = []
-	_hl_path = ""
-	_hl_block = ""
-	_hl_code_edit = null
+func _show_start_ui() -> void:
+	if _start_screen:
+		_start_screen.visible = true
+		_start_screen.show_home()
+	if has_node("VBoxContainer"):
+		$VBoxContainer.visible = false
 
 
-func _repaint_highlight() -> void:
-	if _hl_code_edit == null or not is_instance_valid(_hl_code_edit):
+func _enter_chat_ui() -> void:
+	if _start_screen:
+		_start_screen.visible = false
+	if has_node("VBoxContainer"):
+		$VBoxContainer.visible = true
+
+
+func _on_sites_tab_requested() -> void:
+	# Пользователь нажал «Новый чат» на главном экране — сразу показываем загрузку, список
+	# сайтов покажем только после ответа сервера (см. _on_chats_response).
+	_pending_view = "sites"
+	if _start_screen and _start_screen.has_method("show_loading"):
+		_start_screen.show_loading("Подключение к серверу…")
+	_request_chats("sites", {})
+
+
+func _on_chats_tab_requested() -> void:
+	# Аналогично для кнопки «Загрузиться».
+	_pending_view = "chats"
+	if _start_screen and _start_screen.has_method("show_loading"):
+		_start_screen.show_loading("Подключение к серверу…")
+	_request_chats("list", {})
+
+
+func _on_start_new_chat(site_id: String) -> void:
+	if _start_screen and _start_screen.has_method("show_loading"):
+		_start_screen.show_loading("Подключение к серверу…")
+	_request_chats("new", {"site_id": site_id})
+
+
+func _on_start_load_chat(chat_id: String) -> void:
+	if _start_screen and _start_screen.has_method("show_loading"):
+		_start_screen.show_loading("Подключение к серверу…")
+	_request_chats("open", {"id": chat_id})
+
+
+func _handle_site_mismatch(site_name: String, prompt: String) -> void:
+	_pending_chat_prompt = prompt
+	if _site_dialog == null:
+		_site_dialog = ConfirmationDialog.new()
+		_site_dialog.title = "Не тот сайт"
+		_site_dialog.confirmed.connect(_on_site_switch_yes)
+		_site_dialog.canceled.connect(_on_site_switch_no)
+		add_child(_site_dialog)
+	_site_dialog.dialog_text = "Выбран не тот сайт. Перейти на страницу нашего чата" + ((" (" + site_name + ")") if site_name != "" else "") + "?"
+	_site_dialog.ok_button_text = "Да, перейти"
+	_site_dialog.get_cancel_button().text = "Нет, остаться"
+	_site_dialog.popup_centered()
+
+
+func _on_site_switch_yes() -> void:
+	if _current_chat_id == "":
+		_send_chat_raw(_pending_chat_prompt, true)
 		return
-	# Сначала гасим все строки: после правок номера могли сместиться,
-	# и точечная очистка по старым номерам оставила бы «хвосты».
-	for l in range(_hl_code_edit.get_line_count()):
-		_hl_code_edit.set_line_background_color(l, Color(0, 0, 0, 0))
-	_hl_lines = []
-	if _hl_block == "":
+	_resend_after_open = true
+	_request_chats("open", {"id": _current_chat_id})
+
+
+func _on_site_switch_no() -> void:
+	if _view:
+		_view.add_system("Остаёмся на текущей странице. Внимание: диалоги могут спутаться из-за разного контекста страниц.")
+	_send_chat_raw(_pending_chat_prompt, true)
+
+
+# ---------------------------------------------------------------------------
+# Уведомления о загрузке страницы + автозапуск сервера.
+# ---------------------------------------------------------------------------
+
+func _begin_page_wait() -> void:
+	if _view:
+		_view.add_system("Открываю страницу в браузере — жду загрузки сайта…")
+	_pagewait_left = 40
+	if _pagewait_timer == null:
+		_pagewait_timer = Timer.new()
+		_pagewait_timer.wait_time = 1.0
+		_pagewait_timer.one_shot = false
+		add_child(_pagewait_timer)
+		_pagewait_timer.timeout.connect(_on_pagewait_tick)
+	_pagewait_timer.start()
+
+
+func _on_pagewait_tick() -> void:
+	if _pagewait_left <= 0:
+		if _pagewait_timer: _pagewait_timer.stop()
+		if _view:
+			_view.add_system("Страница всё ещё грузится — можно уже писать сообщение, агент дождётся сам.")
 		return
-	var idx := _hl_code_edit.text.find(_hl_block)
-	if idx == -1:
-		return  # блок изменён/удалён пользователем — подсвечивать нечего
-	var start_line := _hl_code_edit.text.substr(0, idx).count("\n")
-	var block_line_count := _hl_block.count("\n") + 1
-	for i in range(block_line_count):
-		var line := start_line + i
-		if line < _hl_code_edit.get_line_count():
-			_hl_code_edit.set_line_background_color(line, HL_COLOR)
-			_hl_lines.append(line)
-
-
-func _highlight_watchdog() -> void:
-	# Редактор Godot при перепроверке кода (наведение мыши, пауза после
-	# правок) САМ сбрасывает фоновые цвета строк (так он рисует строки
-	# с ошибками). Раз в секунду проверяем и восстанавливаем подсветку,
-	# если её затёрли. То же с зелёным именем в списке скриптов — список
-	# часто перестраивается, поэтому пометка наносится заново каждый тик.
-	if _hl_block == "":
+	_pagewait_left -= 1
+	if _chats_inflight:
 		return
-	if _hl_code_edit == null or not is_instance_valid(_hl_code_edit):
+	_request_chats("status", {})
+
+
+func _on_browser_status(json: Dictionary) -> void:
+	if _pagewait_timer == null or _pagewait_timer.is_stopped():
 		return
-	var intact := _hl_lines.size() > 0
-	for l in _hl_lines:
-		if l >= _hl_code_edit.get_line_count() or _hl_code_edit.get_line_background_color(l) != HL_COLOR:
-			intact = false
-			break
-	if not intact:
-		_repaint_highlight()
-	_mark_script_in_list_experimental(_hl_path)
+	if bool(json.get("ready", false)):
+		_pagewait_timer.stop()
+		if _view:
+			_view.add_success("Страница загружена — можно общаться.")
 
 
-func _mark_script_in_list_experimental(path: String) -> void:
-	# ЭКСПЕРИМЕНТ: список скриптов слева — внутренний UI редактора без
-	# публичного API. Если внутренности Godot изменятся — функция просто
-	# тихо ничего не сделает, не влияя на остальной плагин.
-	if path.is_empty(): return
-	var script_editor := EditorInterface.get_script_editor()
-	if not script_editor: return
-	var fname := path.get_file()
-	var lists_found := 0
-	var matched := 0
-	# Проходим ПО ВСЕМ ItemList внутри редактора скриптов. Совпадение ищем
-	# и по видимому тексту, и по tooltip — в нём редактор хранит полный
-	# путь к скрипту (надёжнее, чем текст, который может быть с пометками).
-	for node in script_editor.find_children("*", "ItemList", true, false):
-		var item_list := node as ItemList
-		if item_list == null: continue
-		lists_found += 1
-		for i in range(item_list.item_count):
-			var t := item_list.get_item_text(i)
-			var tip := item_list.get_item_tooltip(i)
-			if t == fname or t.begins_with(fname + "(") or tip == path or tip.ends_with("/" + fname):
-				item_list.set_item_custom_fg_color(i, Color(0.45, 1.0, 0.45))
-				matched += 1
-	if not _list_mark_dbg_done:
-		_list_mark_dbg_done = true
-		print("[ИИ-Агент] Пометка в списке скриптов: ItemList найдено %d, совпадений %d (файл: %s)" % [lists_found, matched, fname])
+func _notify(text: String, kind: String = "info") -> void:
+	# Показываем статус и на стартовом экране, и в чате — пользователь всегда
+	# видит, что агент работает, а не завис.
+	if _start_screen and _start_screen.has_method("set_status"):
+		_start_screen.set_status(text, kind)
+	if kind == "status":
+		return
+	if kind == "error":
+		_log_error(text)
+	elif kind == "success":
+		if _view: _view.add_success(text)
+	else:
+		if _view: _view.add_system(text)
+
+
+func _maybe_autostart_server() -> void:
+	if _server_wait_left > 0:
+		_notify("Сервер ещё запускается — ваше действие выполнится автоматически, как только он поднимется…", "status")
+		return
+	if _server_start_attempted:
+		_notify("Сервер агента не отвечает. Запустите его вручную (godot_agent_server.exe или python main.py).", "error")
+		return
+	_server_start_attempted = true
+	if _start_screen and _start_screen.has_method("show_loading"):
+		_start_screen.show_loading("Ищу сервер…")
+	_notify("Ищу сервер…", "status")
+	if not _launch_server_process():
+		if _start_screen and _start_screen.has_method("hide_loading"):
+			_start_screen.hide_loading()
+		_notify("Не нашёл сервер. Убедитесь, что файл godot_agent_server.exe лежит по пути res://addons/Godot_agent/godot_agent/python/dist/ или res://addons/godot_agent/python/dist/, либо запустите python main.py вручную.", "error")
+		return
+	if _start_screen and _start_screen.has_method("show_loading"):
+		_start_screen.show_loading("Запускаю сервер…")
+	_notify("Запускаю сервер…", "status")
+	_server_wait_left = 20
+	if _server_wait_timer == null:
+		_server_wait_timer = Timer.new()
+		_server_wait_timer.wait_time = 2.0
+		_server_wait_timer.one_shot = false
+		add_child(_server_wait_timer)
+		_server_wait_timer.timeout.connect(_on_server_wait_tick)
+	_server_wait_timer.start()
+
+
+func _on_server_wait_tick() -> void:
+	if _server_wait_left <= 0:
+		if _server_wait_timer: _server_wait_timer.stop()
+		if _start_screen and _start_screen.has_method("is_loading") and _start_screen.is_loading():
+			_start_screen.hide_loading()
+		_notify("Сервер так и не поднялся. Проверьте окно сервера (консоль).", "error")
+		return
+	_server_wait_left -= 1
+	_notify("Подключение… (ещё до " + str(_server_wait_left * 2) + " с)", "status")
+	if _chats_inflight:
+		return
+	_request_chats("list", {})
+
+
+func _on_server_alive() -> void:
+	# Любой успешный ответ сервера: если ждали запуска — сообщаем, обновляем
+	# списки чатов/сайтов и повторяем отложенное действие пользователя.
+	if _server_wait_left > 0:
+		_server_wait_left = 0
+		if _server_wait_timer:
+			_server_wait_timer.stop()
+		_server_start_attempted = false
+		_notify("Сервер запущен и отвечает.", "success")
+		_request_chats("sites", {})
+		_request_chats("list", {})
+		var pending: Array = _retry_after_server
+		_retry_after_server = []
+		var replayed := false
+		for r in pending:
+			if typeof(r) != TYPE_DICTIONARY:
+				continue
+			var rk := str(r.get("kind", ""))
+			if rk != "":
+				replayed = true
+				_notify("Повторяю ваше действие…", "status")
+				_request_chats(rk, r.get("extra", {}))
+		if not replayed and _start_screen and _start_screen.has_method("is_loading") and _start_screen.is_loading():
+			_start_screen.hide_loading()
+
+
+const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
+
+
+func _load_cached_server_path() -> String:
+	# Запомненный ранее успешный путь к exe (если раньше нашли его только после полного поиска по addons/).
+	if not FileAccess.file_exists(SERVER_PATH_CACHE):
+		return ""
+	var f := FileAccess.open(SERVER_PATH_CACHE, FileAccess.READ)
+	if f == null:
+		return ""
+	var p := f.get_as_text().strip_edges()
+	f.close()
+	return p
+
+
+func _save_cached_server_path(path: String) -> void:
+	var f := FileAccess.open(SERVER_PATH_CACHE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(path)
+	f.close()
+
+
+func _launch_server_process() -> bool:
+	# 0) Сначала пробуем ранее зазиённое (запомненное) расположение exe — оно быстрее всего, т.к.
+	# мы уже знаем, где он лежал в прошлый раз.
+	var cached := _load_cached_server_path()
+	if cached != "" and FileAccess.file_exists(cached):
+		var pidc := OS.create_process(cached, [], true)
+		if pidc > 0:
+			print("[agent] Запустил сервер (по запомненному ранее пути): " + cached)
+			return true
+
+	# 1) Сначала проверяем два самых типовых расположения exe — это мгновенно, без обхода папок.
+	var priority_paths: Array = [
+		ProjectSettings.globalize_path("res://addons/Godot_agent/godot_agent/python/dist/godot_agent_server.exe"),
+		ProjectSettings.globalize_path("res://addons/godot_agent/python/dist/godot_agent_server.exe"),
+	]
+	for pth in priority_paths:
+		if FileAccess.file_exists(String(pth)):
+			var pid0 := OS.create_process(String(pth), [], true)
+			if pid0 > 0:
+				print("[agent] Запустил сервер: " + String(pth))
+				_save_cached_server_path(String(pth))
+				return true
+
+	# 2) Не нашли по типовым путям — рекурсивно ищем по всей папке addons/ (любые имена папок).
+	var addons_root := ProjectSettings.globalize_path("res://addons")
+	var exe := _find_server_file(addons_root, "godot_agent_server.exe", 0)
+	if exe != "":
+		var pid := OS.create_process(exe, [], true)
+		if pid > 0:
+			print("[agent] Запустил сервер: " + exe)
+			_save_cached_server_path(exe)
+			return true
+
+	# 3) Корень проекта — частые ручные расположения.
+	var project_root := ProjectSettings.globalize_path("res://")
+	for n in ["godot_agent_server.exe", "server/godot_agent_server.exe", "dist/godot_agent_server.exe", "python/dist/godot_agent_server.exe"]:
+		var p: String = project_root.path_join(String(n))
+		if FileAccess.file_exists(p):
+			var pid2 := OS.create_process(p, [], true)
+			if pid2 > 0:
+				print("[agent] Запустил сервер: " + p)
+				_save_cached_server_path(p)
+				return true
+
+	# 4) Последний вариант — python main.py (сначала в addons/, потом в корне). Ссылку на main.py не кешируем —
+	# это ручной режим, а не собранный exe.
+	var py_path := _find_server_file(addons_root, "main.py", 0)
+	if py_path == "":
+		for n2 in ["python/main.py", "server/main.py", "main.py"]:
+			var p2: String = project_root.path_join(String(n2))
+			if FileAccess.file_exists(p2):
+				py_path = p2
+				break
+	if py_path != "":
+		for interp in ["python", "py"]:
+			var pid3 := OS.create_process(interp, [py_path], true)
+			if pid3 > 0:
+				print("[agent] Запустил сервер: " + str(interp) + " " + py_path)
+				return true
+	return false
+
+
+func _find_server_file(dir_path: String, file_name: String, depth: int) -> String:
+	# Рекурсивный поиск файла (пропускаем скрытые папки, __pycache__ и build).
+	if depth > 6:
+		return ""
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return ""
+	var subdirs: Array = []
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while entry != "":
+		if dir.current_is_dir():
+			if not entry.begins_with(".") and entry != "__pycache__" and entry != "build":
+				subdirs.append(dir_path + "/" + entry)
+		elif entry == file_name:
+			dir.list_dir_end()
+			return dir_path + "/" + entry
+		entry = dir.get_next()
+	dir.list_dir_end()
+	for sd in subdirs:
+		var found := _find_server_file(String(sd), file_name, depth + 1)
+		if found != "":
+			return found
+	return ""
