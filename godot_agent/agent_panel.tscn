@@ -28,19 +28,22 @@ size_flags_vertical = 3
 focus_mode = 2
 bbcode_enabled = true
 text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]
+
+[color=orange]🐞 Игра закрыта, в логе найдены ошибки: 2 (лог от 02:25:47 (0 мин назад))[/color]
+1) ERROR: Signal 'sign_unit_name' is already connected to given callable 'Node2D(net_player.gd)::sorting_units' in that object.
+2) ERROR: The InputMap action \"press_R\" doesn't exist. Did you mean \"press_E\"? (повторов: 856)
 "
 scroll_following = true
 context_menu_enabled = true
 selection_enabled = true
 
 [node name="PendingActionBox" type="HBoxContainer" parent="VBoxContainer" unique_id=840791717]
-visible = false
 layout_mode = 2
 
 [node name="ActionLabel" type="Label" parent="VBoxContainer/PendingActionBox" unique_id=1452643193]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Агент хочет выполнить действие..."
+text = "Отправить 2 ошибок модели на исправление?"
 autowrap_mode = 3
 
 [node name="ConfirmButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=1411869472]

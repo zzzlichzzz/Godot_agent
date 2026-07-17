@@ -1,4 +1,5 @@
 import os
+import time
 import traceback
 from flask import Flask, request, jsonify
 
@@ -16,153 +17,36 @@ from project_tools import (
 )
 import history_manager as history
 import log_reader
+import chat_store
+import json as _json
+from agent_prompts import (
+    PRIMING_TEMPLATE,
+    CODE_EXTS,
+    PRIME_TREE_MAX_ENTRIES,
+    MAX_BATCH_FILES,
+    PER_FILE_CHAR_LIMIT,
+    TOTAL_CHAR_BUDGET,
+    MAX_ACTION_FIX_RETRIES,
+)
+import server_state
+from server_state import (
+    STATE, get_driver, set_driver,
+    _prime_flag_path, _load_primed, _save_primed,
+    _apply_session_context, _ensure_current_chat, _remember,
+    _sync_chat_after_reply, _set_progress, _clear_progress,
+)
+import sites
+from chat_routes import chats_bp
 
 app = Flask(__name__)
-driver = None
-
-MAX_ACTION_FIX_RETRIES = 3
-
-# Расширения, важные модели (скрипты/сцены/ресурсы). Ассеты (png/wav/ogg/…)
-# В СТАРТОВОЕ дерево НЕ включаем — именно они раздували токены.
-CODE_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.gdshader', '.shader', '.json', '.cs'}
-PRIME_TREE_MAX_ENTRIES = 400
-
-# Лимиты пакетного чтения файлов
-MAX_BATCH_FILES = 5
-PER_FILE_CHAR_LIMIT = 30000
-TOTAL_CHAR_BUDGET = 80000
-
-# Глобальное состояние сессии
-STATE = {
-    "project_root": None,
-    "pending_action": None,   # ожидающее подтверждения WRITE-действие
-    "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
-    "is_primed": False,
-    "action_note": "",
-    "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
-    "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
-}
-
-PRIMING_TEMPLATE = """Ты — специализированный ИИ-разработчик, интегрированный в движок Godot 4 через плагин.
-Стиль общения: кратко, технически точно, без приветствий и лишней вежливости.
-
-Доступные действия:
-1. read_file — прочитать один или НЕСКОЛЬКО файлов (до 5 за раз). ВСЕГДА запрашивай сразу все файлы, которые понадобятся для задачи, одним блоком.
-2. create_file — создать новый файл (и папки на пути к нему).
-3. patch_file — заменить уникальный блок кода (патч функции).
-4. move_file — переместить или переименовать существующий файл.
-5. search_project — найти текст во ВСЕХ файлах проекта (поиск по проекту). Используй его ВМЕСТО чтения многих файлов, когда ищешь, где объявлена или используется функция, сигнал, переменная, действие ввода или узел.
-6. list_files — получить СВЕЖЕЕ дерево файлов проекта (структура из этого промпта могла устареть после create_file / move_file).
-7. copy_file — скопировать один или несколько файлов ВНУТРИ проекта (res://) как есть, без изменений. Копирование применяется АВТОМАТИЧЕСКИ, без подтверждения. Используй, чтобы внедрить готовый код/ресурсы из папки-источника в нужное место проекта; саму адаптацию под проект делай отдельными patch_file.
-
-Форматы блоков agent_action (ЗАКОНЧИ ответ ровно одним таким блоком при необходимости действия):
-```agent_action
-{"action": "read_file", "paths": ["res://scripts/a.gd", "res://scripts/b.gd"], "reason": "причина"}
-```
-Каждый запрошенный файл показывается пользователю на подтверждение отдельно; если пользователь откажет по какому-то файлу, ты получишь об этом пометку — НЕ запрашивай его повторно.
-или
-```agent_action
-{"action": "create_file", "path": "res://scripts/ui/menu.gd", "content": "код"}
-```
-или
-```agent_action
-{
-  "action": "patch_file",
-  "path": "res://scripts/player.gd",
-  "search": "СТАРЫЙ_КОД",
-  "replace": "НОВЫЙ_КОД",
-  "summary": "описание"
-}
-```
-или
-```agent_action
-{"action": "move_file", "path": "res://old_path.gd", "dest": "res://new_path.gd"}
-```
-или
-```agent_action
-{"action": "search_project", "query": "искомый_текст", "reason": "причина"}
-```
-или
-```agent_action
-{"action": "list_files", "reason": "причина"}
-```
-или
-```agent_action
-{"action": "copy_file", "copies": [{"src": "res://addons/pack/player.gd", "dest": "res://src/player/player.gd"}]}
-```
-
-КРИТИЧЕСКИЕ ПРАВИЛА:
-1. Пиши строго на GDScript для Godot 4! Никакого Python или Bash в действиях.
-2. СОБЛЮДАЙ СТРУКТУРУ ПРОЕКТА! Не создавай новые папки в корне проекта (res://), если не просили. Клади новые скрипты в существующую папку для скриптов (res://scripts/ или аналогичную).
-3. ЗАПРЕЩЕНО использовать patch_file для файла, если ты не прочитал его АКТУАЛЬНОЕ содержимое в ЭТОМ ЖЕ диалоге через read_file. Если ты не читал файл только что (даже если помнишь его из более раннего сообщения) — сначала отправь read_file (сразу со ВСЕМИ нужными файлами в paths), дождись содержимого, и только следующим ответом отправляй patch_file. Файл мог измениться с последнего просмотра.
-   ИСКЛЮЧЕНИЕ: если последнее сообщение [Система] содержит ТОЧНЫЙ дифф изменения файла (например, после отката) или его актуальное содержимое — это равнозначно read_file: можешь сразу отправлять patch_file без повторного чтения.
-4. Если приходит "[Система: Ошибки последнего запуска игры...]" — это реальные ошибки из лога Godot. Исправляй их ПО ОДНОЙ, начиная с первой: остальные часто являются её следствием. Предложи patch_file для первой ошибки и жди результата.
-5. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО использовать встроенный механизм вызова функций/инструментов интерфейса (function calling / tool use). read_file, patch_file, create_file, move_file, search_project, list_files — это НЕ функции интерфейса: они работают ТОЛЬКО как ОБЫЧНЫЙ ТЕКСТ твоего ответа с блоком ```agent_action```. Если ты ответишь вызовом функции, плагин его НЕ УВИДИТ и задача зависнет.
-6. СНАЧАЛА СОРИЕНТИРУЙСЯ, ПОТОМ ПРАВЬ. Если для задачи тебе не хватает контекста (не знаешь, где что объявлено, как устроен файл, какие есть узлы/сигналы/действия ввода) — СНАЧАЛА собери его: одним read_file (сразу ВСЕ нужные файлы в paths) ИЛИ одним search_project. ЛИМИТ РАЗВЕДКИ: не больше ОДНОГО обзорного действия (search_project или list_files) перед началом правок — не устраивай серию поисков, это тратит запросы пользователя. Не угадывай пути и код: если не уверен — посмотри. Перед первой правкой в 1–2 строках напиши КРАТКИЙ ПЛАН (какие файлы меняешь и что делаешь). План пиши ТЕМ ЖЕ сообщением, что и первое действие — не трать на него отдельный запрос.
-7. ВНЕДРЕНИЕ КОДА ИЗ ПАПКИ (адаптация). Когда нужно внедрить/адаптировать файлы из папки-источника в проект: (1) осмотри источник и целевые места ОДНИМ search_project или list_files и прочитай ключевые файлы через read_file; (2) кратким планом перечисли, что копируешь и что придётся править; (3) перенеси файлы действием copy_file (применится автоматически, без подтверждения); (4) адаптируй перенесённое под проект через patch_file — правь пути res://, class_name, имена автозагрузок (Autoload), пути к сценам/ресурсам, подключения сигналов. copy_file НЕ меняет содержимое: любая правка — только через patch_file (с подтверждением пользователя).
-
-Структура проекта Godot (ТОЛЬКО скрипты/сцены/ресурсы, ассеты опущены; если нужно полное дерево — действие list_files):
-```
-{tree}
-```
-"""
-
-
-import json as _json
-
-
-def _prime_flag_path(project_root):
-    # Флаг «primed» храним рядом с историей изменений (в user://), чтобы
-    # перезапуск сервера НЕ заставлял заново отправлять дерево проекта.
-    try:
-        base = history.get_storage_dir(project_root)
-    except Exception:
-        return None
-    if not base:
-        return None
-    return os.path.join(base, "agent_prime.json")
-
-
-def _load_primed(project_root):
-    p = _prime_flag_path(project_root)
-    if not p or not os.path.isfile(p):
-        return False
-    try:
-        with open(p, "r", encoding="utf-8") as f:
-            data = _json.load(f)
-        return bool(data.get("primed")) and data.get("root") == project_root
-    except Exception:
-        return False
-
-
-def _save_primed(project_root, val):
-    p = _prime_flag_path(project_root)
-    if not p:
-        return
-    try:
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "w", encoding="utf-8") as f:
-            _json.dump({"primed": bool(val), "root": project_root}, f)
-    except Exception:
-        pass
-
-
-def _set_progress(info):
-    """Живая трансляция: ai_parser присылает фазу/символы/хвост ответа."""
-    data = {"active": True}
-    data.update(info or {})
-    STATE["progress"] = data
-
-
-def _clear_progress():
-    STATE["progress"] = {"active": False}
+app.register_blueprint(chats_bp)
 
 
 def _reply(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
     _set_progress({"phase": "отправляю запрос в браузер"})
     try:
-        result = send_message_and_get_response(driver, prompt, progress_cb=_set_progress)
+        result = send_message_and_get_response(get_driver(), prompt, progress_cb=_set_progress)
     finally:
         _clear_progress()
     if isinstance(result, dict):
@@ -321,6 +205,8 @@ def _package_model_reply(text, action, project_root, depth=0):
         text = ("[Система]: ⚠ Из браузера пришёл ПУСТОЙ ответ. Скорее всего, модель "
                 "ещё генерировала текст, а парсер не дождался конца. Ответ, вероятно, "
                 "виден во вкладке AI Studio. Можно написать модели: 'повтори последний ответ'.")
+    _remember("agent", text)
+    _sync_chat_after_reply()
     STATE["pending_action"] = action
     # Чистый код для красивого предпросмотра в панели (без JSON-обёртки).
     code_preview = None
@@ -433,21 +319,6 @@ def _format_search_results(query, results, truncated):
 # HTTP-эндпоинты
 # ---------------------------------------------------------------------------
 
-def _apply_session_context(data):
-    """Обновляет project_root и user_data_dir из запроса панели.
-    user_data_dir переключает хранение истории/снапшотов в user:// (вне
-    проекта) и один раз переносит туда старую .agent_history из проекта."""
-    if data.get("project_root"):
-        STATE["project_root"] = data["project_root"]
-    udd = data.get("user_data_dir")
-    if udd and udd != STATE.get("user_data_dir"):
-        STATE["user_data_dir"] = udd
-        history.set_storage_dir(udd)
-        if history.migrate_from_project(STATE.get("project_root")):
-            print("--> История изменений перенесена из проекта в:",
-                  history.get_storage_dir(STATE.get("project_root")))
-
-
 @app.route('/init', methods=['POST'])
 def init_session():
     data = request.json or {}
@@ -465,6 +336,8 @@ def init_session():
     else:
         STATE["is_primed"] = _load_primed(STATE["project_root"])
         print(f"\n---> Проект синхронизирован: {STATE['project_root']} (primed={STATE['is_primed']})")
+    _ensure_current_chat("")
+    _sync_chat_after_reply()
     return jsonify({"success": True, "message": "Локальная синхронизация успешна.", "primed": STATE["is_primed"]})
 
 
@@ -482,6 +355,15 @@ def chat():
     _apply_session_context(data)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     current_root = STATE.get("project_root")
+    _ensure_current_chat(prompt)
+    if not data.get("ignore_site_mismatch"):
+        mm = server_state.site_mismatch_for_current()
+        if mm:
+            return jsonify({"site_mismatch": True,
+                            "expected_url": mm["expected_url"],
+                            "site": mm["site"],
+                            "prompt": prompt})
+    _remember("user", prompt)
 
     try:
         note = STATE.get("action_note", "")
@@ -741,6 +623,7 @@ def chat_progress():
 if __name__ == '__main__':
     try:
         driver = setup_browser()
+        set_driver(driver)
         import logging
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
