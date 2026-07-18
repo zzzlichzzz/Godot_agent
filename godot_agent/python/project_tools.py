@@ -187,12 +187,23 @@ def describe_scene(project_root, godot_path, max_chars=12000):
         text = f.read()
     # id ext-ресурса -> путь (скрипты, вложенные сцены)
     ext = {}
+    ext_rows = []
+    sub_rows = []
     for m in re.finditer(r'\[ext_resource\b[^\]]*\]', text):
         head = m.group(0)
         pm = re.search(r'path="([^"]+)"', head)
         im = re.search(r'\bid="?([^"\s\]]+)"?', head)
+        tm2 = re.search(r'\btype="([^"]+)"', head)
+        um = re.search(r'\buid="([^"]+)"', head)
         if pm and im:
             ext[im.group(1)] = pm.group(1)
+        ext_rows.append({"id": im.group(1) if im else "?", "type": tm2.group(1) if tm2 else "?",
+                          "path": pm.group(1) if pm else "?", "uid": um.group(1) if um else None})
+    for m in re.finditer(r'\[sub_resource\b[^\]]*\]', text):
+        head = m.group(0)
+        im = re.search(r'\bid="?([^"\s\]]+)"?', head)
+        tm2 = re.search(r'\btype="([^"]+)"', head)
+        sub_rows.append({"id": im.group(1) if im else "?", "type": tm2.group(1) if tm2 else "?"})
     nodes = []
     connections = []
     cur = None
@@ -248,6 +259,16 @@ def describe_scene(project_root, godot_path, max_chars=12000):
         out.append("Сигналы ([connection]):")
         for c in connections:
             out.append("- " + c)
+    if ext_rows or sub_rows:
+        out.append("")
+        out.append("Ресурсы (id/uid для точных ссылок в ExtResource/SubResource):")
+        for r in ext_rows:
+            line = "- ext id=%s %s: %s" % (r["id"], r["type"], r["path"])
+            if r["uid"]:
+                line += " (uid=%s)" % r["uid"]
+            out.append(line)
+        for r in sub_rows:
+            out.append("- sub id=%s %s" % (r["id"], r["type"]))
     result = "\n".join(out)
     if len(result) > max_chars:
         result = result[:max_chars] + "\n… (сводка обрезана — сцена очень большая)"

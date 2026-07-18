@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bhi3bmvfr2uhv" path="res://addons/Godot_agent/godot_agent/agent_panel.gd" id="1_jpmp7"]
 
-[node name="AgentPanel" type="Control" unique_id=1450016915]
+[node name="ИИ Агент" type="Control" unique_id=1450016915]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,6 +29,7 @@ size_flags_vertical = 3
 focus_mode = 2
 bbcode_enabled = true
 text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]
+[color=#7ddc84]Сервер запущен и отвечает.[/color]
 "
 scroll_following = true
 context_menu_enabled = true
@@ -46,11 +47,11 @@ autowrap_mode = 3
 
 [node name="ConfirmButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=1411869472]
 layout_mode = 2
-text = "✅ Разрешить"
+text = "Разрешить"
 
 [node name="RejectButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=188244827]
 layout_mode = 2
-text = "❌ Отклонить"
+text = "Отклонить"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1197960912]
 layout_mode = 2
@@ -76,8 +77,8 @@ layout_mode = 2
 
 [node name="ReinitButton" type="Button" parent="VBoxContainer/AdvancedBox" unique_id=165629525]
 layout_mode = 2
-text = "🔄 Переинициализировать (переслать структуру проекта)"
+text = "Переинициализировать (переслать структуру проекта)"
 
 [node name="RollbackButton" type="Button" parent="VBoxContainer/AdvancedBox" unique_id=549619356]
 layout_mode = 2
-text = "↩️ Откатить последнее изменение"
+text = "Откатить последнее изменение"
