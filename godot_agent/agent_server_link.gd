@@ -1,0 +1,332 @@
+@tool
+extends Node
+# agent_server_link.gd — вся связь панели с локальным сервером (v16).
+# Здесь живут: очередь запросов /chats/*, /sites/*, /browser/status,
+# различие «сервер занят» / «сервер не запущен», автозапуск
+# godot_agent_server.exe (с кулдауном от лишних окон), ожидание старта
+# и повтор отложенного действия пользователя.
+#
+# Панель (agent_panel.gd) общается с этим узлом только так:
+#   request(kind, extra)              — отправить запрос серверу;
+#   is_inflight()                     — идёт ли сейчас запрос;
+# сигналы:
+#   chats_response(kind, json, extra) — успешный ответ (весь UI рисует панель);
+#   link_status(text, kind)           — статус/ошибка/успех (панель -> _notify);
+#   show_loading_requested(text)      — показать экран загрузки;
+#   hide_loading_requested()          — скрыть экран загрузки, если показан.
+
+signal chats_response(kind: String, json: Dictionary, extra: Dictionary)
+signal link_status(text: String, kind: String)
+signal show_loading_requested(text: String)
+signal hide_loading_requested()
+
+const HOST = "127.0.0.1:5000"
+const CHATS_LIST_URL = "http://" + HOST + "/chats/list"
+const CHATS_NEW_URL = "http://" + HOST + "/chats/new"
+const CHATS_OPEN_URL = "http://" + HOST + "/chats/open"
+const CHATS_RENAME_URL = "http://" + HOST + "/chats/rename"
+const CHATS_DELETE_URL = "http://" + HOST + "/chats/delete"
+const SITES_LIST_URL = "http://" + HOST + "/sites/list"
+const BROWSER_STATUS_URL = "http://" + HOST + "/browser/status"
+const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
+
+var _http: HTTPRequest = null
+var _inflight: bool = false
+var _queue: Array = []
+var _kind: String = ""
+var _extra: Dictionary = {}
+var _server_start_attempted: bool = false
+var _server_wait_timer: Timer = null
+var _server_wait_left: int = 0
+var _retry_after_server: Array = []
+var _last_server_launch_msec: int = 0
+var _loc = null
+
+
+func _locale():
+    if _loc == null:
+        var sc := get_script() as Script
+        if sc:
+            var lp := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+            if FileAccess.file_exists(lp):
+                _loc = load(lp)
+    return _loc
+
+
+func _t(key: String) -> String:
+    var l = _locale()
+    if l:
+        return l.t(key)
+    return key
+
+
+func _ready() -> void:
+    if _http == null:
+        _http = HTTPRequest.new()
+        _http.timeout = 180.0
+        add_child(_http)
+        _http.request_completed.connect(_on_response)
+
+
+func is_inflight() -> bool:
+    return _inflight
+
+
+func request(kind: String, extra: Dictionary) -> void:
+    if _http == null:
+        return
+    # На одном HTTPRequest-узле одновременно может идти только один запрос —
+    # остальные ставим в очередь, иначе второй падает с ERR_BUSY.
+    if _inflight:
+        _queue.append({"kind": kind, "extra": extra})
+        return
+    _fire(kind, extra)
+
+
+func _fire(kind: String, extra: Dictionary) -> void:
+    if _http == null:
+        return
+    var body = {
+        "user_data_dir": OS.get_user_data_dir(),
+        "project_root": ProjectSettings.globalize_path("res://"),
+    }
+    for k in extra:
+        body[k] = extra[k]
+    var url := CHATS_LIST_URL
+    match kind:
+        "new": url = CHATS_NEW_URL
+        "open": url = CHATS_OPEN_URL
+        "rename": url = CHATS_RENAME_URL
+        "delete": url = CHATS_DELETE_URL
+        "sites": url = SITES_LIST_URL
+        "status": url = BROWSER_STATUS_URL
+    _kind = kind
+    _extra = extra
+    _inflight = true
+    _http.set_http_proxy("", 0)
+    var err = _http.request(url, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
+    if err != OK:
+        _kind = ""
+        _inflight = false
+        _drain_queue()
+
+
+func _drain_queue() -> void:
+    if _inflight:
+        return
+    if _queue.is_empty():
+        return
+    var next = _queue.pop_front()
+    _fire(str(next.get("kind", "list")), next.get("extra", {}))
+
+
+func _on_response(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+    var kind := _kind
+    var extra := _extra
+    _kind = ""
+    _extra = {}
+    _inflight = false
+    _drain_queue()
+    if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+        if kind == "status":
+            return
+        if result == HTTPRequest.RESULT_TIMEOUT:
+            # Сервер жив, но занят долгой операцией (например, открывает
+            # страницу в браузере). НЕ запускаем новые копии сервера.
+            hide_loading_requested.emit()
+            link_status.emit(_t("srv_busy"), "error")
+            return
+        if kind == "new" or kind == "open":
+            # Запоминаем действие пользователя и повторим его после запуска сервера.
+            _retry_after_server = [{"kind": kind, "extra": extra}]
+        _maybe_autostart_server()
+        return
+    var json = JSON.parse_string(body.get_string_from_utf8())
+    if json == null or typeof(json) != TYPE_DICTIONARY:
+        return
+    _on_server_alive()
+    chats_response.emit(kind, json, extra)
+
+
+# ---------------------------------------------------------------------------
+# Автозапуск сервера и ожидание его готовности.
+# ---------------------------------------------------------------------------
+
+func _maybe_autostart_server() -> void:
+    if _server_wait_left > 0:
+        link_status.emit(_t("srv_wait_boot"), "status")
+        return
+    if _server_start_attempted:
+        link_status.emit(_t("srv_dead"), "error")
+        return
+    if _last_server_launch_msec > 0 and Time.get_ticks_msec() - _last_server_launch_msec < 60000:
+        # Недавно уже запускали exe — не открываем новые окна сервера.
+        link_status.emit(_t("srv_wait_boot"), "status")
+        return
+    _server_start_attempted = true
+    show_loading_requested.emit(_t("srv_search"))
+    link_status.emit(_t("srv_search"), "status")
+    if not _launch_server_process():
+        hide_loading_requested.emit()
+        link_status.emit(_t("srv_not_found"), "error")
+        return
+    show_loading_requested.emit(_t("srv_start"))
+    _last_server_launch_msec = Time.get_ticks_msec()
+    link_status.emit(_t("srv_start"), "status")
+    _server_wait_left = 20
+    if _server_wait_timer == null:
+        _server_wait_timer = Timer.new()
+        _server_wait_timer.wait_time = 2.0
+        _server_wait_timer.one_shot = false
+        add_child(_server_wait_timer)
+        _server_wait_timer.timeout.connect(_on_server_wait_tick)
+    _server_wait_timer.start()
+
+
+func _on_server_wait_tick() -> void:
+    if _server_wait_left <= 0:
+        if _server_wait_timer: _server_wait_timer.stop()
+        hide_loading_requested.emit()
+        link_status.emit(_t("srv_fail"), "error")
+        return
+    _server_wait_left -= 1
+    link_status.emit(_t("srv_connecting_n") % (_server_wait_left * 2), "status")
+    if _inflight:
+        return
+    request("list", {})
+
+
+func _on_server_alive() -> void:
+    # Любой успешный ответ сервера: если ждали запуска — сообщаем, обновляем
+    # списки чатов/сайтов и повторяем отложенное действие пользователя.
+    if _server_wait_left > 0:
+        _server_wait_left = 0
+        if _server_wait_timer:
+            _server_wait_timer.stop()
+        _server_start_attempted = false
+        link_status.emit(_t("srv_alive"), "success")
+        request("sites", {})
+        request("list", {})
+        var pending: Array = _retry_after_server
+        _retry_after_server = []
+        var replayed := false
+        for r in pending:
+            if typeof(r) != TYPE_DICTIONARY:
+                continue
+            var rk := str(r.get("kind", ""))
+            if rk != "":
+                replayed = true
+                link_status.emit(_t("replay_action"), "status")
+                request(rk, r.get("extra", {}))
+        if not replayed:
+            hide_loading_requested.emit()
+
+
+# ---------------------------------------------------------------------------
+# Поиск и запуск godot_agent_server.exe (или python main.py).
+# ---------------------------------------------------------------------------
+
+func _load_cached_server_path() -> String:
+    # Запомненный ранее успешный путь к exe (если раньше нашли его только после полного поиска по addons/).
+    if not FileAccess.file_exists(SERVER_PATH_CACHE):
+        return ""
+    var f := FileAccess.open(SERVER_PATH_CACHE, FileAccess.READ)
+    if f == null:
+        return ""
+    var p := f.get_as_text().strip_edges()
+    f.close()
+    return p
+
+
+func _save_cached_server_path(path: String) -> void:
+    var f := FileAccess.open(SERVER_PATH_CACHE, FileAccess.WRITE)
+    if f == null:
+        return
+    f.store_string(path)
+    f.close()
+
+
+func _launch_server_process() -> bool:
+    # 0) Сначала пробуем запомненное расположение exe — это быстрее всего.
+    var cached := _load_cached_server_path()
+    if cached != "" and FileAccess.file_exists(cached):
+        var pidc := OS.create_process(cached, [], true)
+        if pidc > 0:
+            print("[agent] Запустил сервер (по запомненному ранее пути): " + cached)
+            return true
+
+    # 1) Два самых типовых расположения exe — мгновенно, без обхода папок.
+    var priority_paths: Array = [
+        ProjectSettings.globalize_path("res://addons/Godot_agent/godot_agent/python/dist/godot_agent_server.exe"),
+        ProjectSettings.globalize_path("res://addons/godot_agent/python/dist/godot_agent_server.exe"),
+    ]
+    for pth in priority_paths:
+        if FileAccess.file_exists(String(pth)):
+            var pid0 := OS.create_process(String(pth), [], true)
+            if pid0 > 0:
+                print("[agent] Запустил сервер: " + String(pth))
+                _save_cached_server_path(String(pth))
+                return true
+
+    # 2) Не нашли по типовым путям — рекурсивно ищем по всей папке addons/ (любые имена папок).
+    var addons_root := ProjectSettings.globalize_path("res://addons")
+    var exe := _find_server_file(addons_root, "godot_agent_server.exe", 0)
+    if exe != "":
+        var pid := OS.create_process(exe, [], true)
+        if pid > 0:
+            print("[agent] Запустил сервер: " + exe)
+            _save_cached_server_path(exe)
+            return true
+
+    # 3) Корень проекта — частые ручные расположения.
+    var project_root := ProjectSettings.globalize_path("res://")
+    for n in ["godot_agent_server.exe", "server/godot_agent_server.exe", "dist/godot_agent_server.exe", "python/dist/godot_agent_server.exe"]:
+        var p: String = project_root.path_join(String(n))
+        if FileAccess.file_exists(p):
+            var pid2 := OS.create_process(p, [], true)
+            if pid2 > 0:
+                print("[agent] Запустил сервер: " + p)
+                _save_cached_server_path(p)
+                return true
+
+    # 4) Последний вариант — python main.py (сначала в addons/, потом в корне).
+    var py_path := _find_server_file(addons_root, "main.py", 0)
+    if py_path == "":
+        for n2 in ["python/main.py", "server/main.py", "main.py"]:
+            var p2: String = project_root.path_join(String(n2))
+            if FileAccess.file_exists(p2):
+                py_path = p2
+                break
+    if py_path != "":
+        for interp in ["python", "py"]:
+            var pid3 := OS.create_process(interp, [py_path], true)
+            if pid3 > 0:
+                print("[agent] Запустил сервер: " + str(interp) + " " + py_path)
+                return true
+    return false
+
+
+func _find_server_file(dir_path: String, file_name: String, depth: int) -> String:
+    # Рекурсивный поиск файла (пропускаем скрытые папки, __pycache__ и build).
+    if depth > 6:
+        return ""
+    var dir := DirAccess.open(dir_path)
+    if dir == null:
+        return ""
+    var subdirs: Array = []
+    dir.list_dir_begin()
+    var entry := dir.get_next()
+    while entry != "":
+        if dir.current_is_dir():
+            if not entry.begins_with(".") and entry != "__pycache__" and entry != "build":
+                subdirs.append(dir_path + "/" + entry)
+        elif entry == file_name:
+            dir.list_dir_end()
+            return dir_path + "/" + entry
+        entry = dir.get_next()
+    dir.list_dir_end()
+    for sd in subdirs:
+        var found := _find_server_file(String(sd), file_name, depth + 1)
+        if found != "":
+            return found
+    return ""

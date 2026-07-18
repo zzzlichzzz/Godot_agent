@@ -45,6 +45,17 @@ _THOUGHT_SELECTORS = (
     ".thought, .thoughts, .model-thoughts"
 )
 
+# Мысли + служебный «хром» реплики: шапка (автор Model + время 4:50 PM),
+# кнопки и иконки. Без этого замер длины ответа считал шапку за текст
+# (ожидание завершалось во время «размышлений» модели), а грубый
+# фолбэк отдавал в чат пустое сообщение вида «Model 4:50 PM».
+_CHROME_SELECTORS = (
+    _THOUGHT_SELECTORS + ", "
+    "mat-icon, button, time, "
+    '[class*="turn-header" i], [class*="turn-footer" i], '
+    '[class*="author" i], [class*="timestamp" i], [class*="actions" i]'
+)
+
 JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
     function extractLastAnswer() {
         const modelTurns = document.querySelectorAll('[data-turn-role="Model"]');
@@ -217,7 +228,7 @@ JS_GET_ANSWER_TEXT_LENGTH = r"""try {
     const turns = document.querySelectorAll('[data-turn-role="Model"]');
     if (turns.length === 0) return 0;
     const clone = turns[turns.length - 1].cloneNode(true);
-    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    clone.querySelectorAll('""" + _CHROME_SELECTORS + r"""').forEach(function(n){ n.remove(); });
     return (clone.textContent || '').length;
 } catch (e) {
     return -1;
@@ -228,7 +239,7 @@ JS_GET_ANSWER_PREVIEW = r"""try {
     const turns = document.querySelectorAll('[data-turn-role="Model"]');
     if (turns.length === 0) return '';
     const clone = turns[turns.length - 1].cloneNode(true);
-    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    clone.querySelectorAll('""" + _CHROME_SELECTORS + r"""').forEach(function(n){ n.remove(); });
     const t = (clone.textContent || '').replace(/\s+/g, ' ').trim();
     return t.slice(-260);
 } catch (e) {
@@ -243,7 +254,7 @@ JS_EXTRACT_RAW_FALLBACK = r"""try {
     const turns = document.querySelectorAll('[data-turn-role="Model"]');
     if (turns.length === 0) return { text: '', actionRaw: null, error: 'no model turns' };
     const clone = turns[turns.length - 1].cloneNode(true);
-    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    clone.querySelectorAll('""" + _CHROME_SELECTORS + r"""').forEach(function(n){ n.remove(); });
     let actionRaw = null;
     const blocks = clone.querySelectorAll('ms-code-block');
     for (const block of blocks) {
@@ -266,7 +277,7 @@ JS_GET_LIVE_ACTIVITY = r"""try {
     const turns = document.querySelectorAll('[data-turn-role="Model"]');
     if (turns.length === 0) return { code: false, lang: '' };
     const clone = turns[turns.length - 1].cloneNode(true);
-    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    clone.querySelectorAll('""" + _CHROME_SELECTORS + r"""').forEach(function(n){ n.remove(); });
     const blocks = clone.querySelectorAll('ms-code-block');
     if (blocks.length === 0) return { code: false, lang: '' };
     const last = blocks[blocks.length - 1];
@@ -332,7 +343,7 @@ JS_GET_ANSWER_STREAM = r"""try {
     const turns = document.querySelectorAll('[data-turn-role="Model"]');
     if (turns.length === 0) return '';
     const clone = turns[turns.length - 1].cloneNode(true);
-    clone.querySelectorAll('""" + _THOUGHT_SELECTORS + r"""').forEach(function(n){ n.remove(); });
+    clone.querySelectorAll('""" + _CHROME_SELECTORS + r"""').forEach(function(n){ n.remove(); });
     const BLOCK = /^(P|DIV|LI|PRE|UL|OL|H1|H2|H3|H4|H5|TABLE|TR|SECTION|ARTICLE|MS-CODE-BLOCK)$/;
     function walk(node) {
         if (node.nodeType === 3) return node.data;
@@ -369,6 +380,22 @@ def _escape_bbcode_py(text: str) -> str:
     return text.replace('[', '[lb]').replace(']', '[rb]')
 
 
+# Шапка реплики в textContent: "Model 4:50 PM" / "User 12:03" в начале строки.
+_TURN_HEADER_RE = re.compile(r"^\s*(?:Model|User)\s+\d{1,2}:\d{2}(?:\s*[APap]\.?[Mm]\.?)?\s*")
+
+
+def _strip_turn_chrome(text: str) -> str:
+    """Убирает шапку реплики (автор + время) из грубого textContent-фолбэка.
+    Если после чистки ничего не осталось — ответ считается пустым и парсер
+    продолжает ждать/перечитывать, а не шлёт в чат пустое сообщение."""
+    cleaned = text or ""
+    prev = None
+    while prev != cleaned:
+        prev = cleaned
+        cleaned = _TURN_HEADER_RE.sub("", cleaned, count=1)
+    return cleaned.strip()
+
+
 def extract_last_answer_robust(driver, retries=3, delay=1.5):
     """
     ПЛАН Б: многоуровневое извлечение ответа.
@@ -385,7 +412,7 @@ def extract_last_answer_robust(driver, retries=3, delay=1.5):
                 print(f"[ai_parser] План Б: ответ прочитан с попытки {attempt + 1}.")
             return result
         raw = _safe_execute(driver, JS_EXTRACT_RAW_FALLBACK, default=None) or {}
-        raw_text = (raw.get("text") or "").strip()
+        raw_text = _strip_turn_chrome(raw.get("text") or "")
         if raw_text or raw.get("actionRaw") is not None:
             print("[ai_parser] План Б: основной парсер дал пустоту — использую textContent-фолбэк.")
             return {
@@ -608,7 +635,8 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
     grace_start = time.time()
     _report("проверяю, что ответ дописан", chars=max(last_length, 0), preview=preview_txt, stream=stream_txt)
     result = extract_last_answer(driver)
-    while time.time() - grace_start < post_quiet_grace:
+    empty_grace = max(post_quiet_grace, 90.0)
+    while True:
         raw = (result or {}).get("actionRaw")
         text = (result or {}).get("text") or ""
         cur_len = get_answer_text_length(driver)
@@ -619,9 +647,15 @@ def wait_for_new_answer(driver, initial_model_count, timeout=900,
         answer_empty = (not text.strip()) and (raw is None)
         if (not still_generating) and cur_len == last_length and (not action_incomplete) and (not answer_empty):
             break
+        # Пустой ответ или идущая генерация — не повод сдаваться через 6 с:
+        # после долгих «размышлений» даём модели до 90 с начать печатать ответ.
+        limit = empty_grace if (answer_empty or still_generating) else post_quiet_grace
+        if time.time() - grace_start >= limit:
+            break
         time.sleep(0.4)
         result = extract_last_answer(driver)
         last_length = cur_len
+        _report("проверяю, что ответ дописан", chars=max(cur_len, 0), preview=preview_txt, stream=stream_txt)
     return result
 
 
