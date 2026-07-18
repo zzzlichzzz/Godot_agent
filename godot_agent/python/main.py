@@ -20,8 +20,7 @@ import history_manager as history
 import gd_lint
 import gd_api_cache
 import gd_api_check
-import gd_api_cache
-import gd_api_check
+import tscn_lint
 import log_reader
 import chat_store
 import json as _json
@@ -290,6 +289,8 @@ def _lint_action_code(action, project_root):
     Возвращает текст системного сообщения для модели или None, если код чист."""
     kind = action.get("action")
     path = action.get("path", "") or ""
+    if tscn_lint.is_scene_path(path):
+        return _lint_action_scene(action, project_root, kind, path)
     if not path.endswith(".gd"):
         return None
     if kind == "create_file":
@@ -326,6 +327,54 @@ def _lint_action_code(action, project_root):
         + "\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u043b\u0441\u044f \u0438\u0442\u043e\u0433\u043e\u0432\u044b\u0439 \u0442\u0435\u043a\u0441\u0442 \u0444\u0430\u0439\u043b\u0430 \u043f\u043e\u0441\u043b\u0435 \u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0442\u0432\u043e\u0435\u0433\u043e \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f. \u041f\u0440\u043e\u0431\u043b\u0435\u043c\u044b:\n" + listing + "\n"
         + "\u0418\u0441\u043f\u0440\u0430\u0432\u044c \u043a\u043e\u0434 \u0438 \u043f\u0440\u0438\u0448\u043b\u0438 agent_action \u0437\u0430\u043d\u043e\u0432\u043e (" + kind + " \u0434\u043b\u044f " + path + "). "
         + "\u0415\u0441\u043b\u0438 \u0442\u044b \u043f\u0440\u0438\u0441\u043b\u0430\u043b \u043e\u0431\u0440\u0435\u0437\u0430\u043d\u043d\u044b\u0439 \u0444\u0440\u0430\u0433\u043c\u0435\u043d\u0442 \u2014 \u043f\u0440\u0438\u0448\u043b\u0438 \u0435\u0433\u043e \u0446\u0435\u043b\u0438\u043a\u043e\u043c."
+    )
+
+
+def _lint_action_scene(action, project_root, kind, path):
+    """Самопроверка сцены (.tscn/.scn) до показа действия пользователю.
+    Механически исправимые вещи (load_steps) правит и применяет к action тихо —
+    модель этого даже не увидит. Недетерминированные структурные проблемы
+    (битые ссылки, несуществующий parent, дубли, чужие типы) — как и для кода,
+    возвращаются модели на самоисправление."""
+    if kind == "create_file":
+        candidate = action.get("content", "") or ""
+    elif kind == "patch_file":
+        try:
+            abs_path = _resolve_safe_path(project_root, path)
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+                disk = f.read()
+        except Exception:
+            return None
+        norm = disk.replace("\r\n", "\n")
+        search = (action.get("search", "") or "").replace("\r\n", "\n")
+        replace = (action.get("replace", "") or "").replace("\r\n", "\n")
+        if not search or norm.count(search) != 1:
+            return None  # этим случаем занимается _validate_patch_against_disk
+        candidate = norm.replace(search, replace, 1)
+    else:
+        return None
+    try:
+        fixed, problems = tscn_lint.lint_and_fix_tscn(candidate, project_root, STATE.get("addon_dir"))
+    except Exception:
+        return None
+    if fixed != candidate:
+        # механически исправлено (сейчас — только load_steps). Применяем тихо, не беспокоя
+        # модель: для patch_file проще переключиться в полную перезапись файла готовым
+        # итоговым текстом — результат на диске идентичен, а место исправления (заголовок
+        # load_steps) могло оказаться вне search/replace окна.
+        action["action"] = "create_file"
+        action["content"] = fixed
+        action.pop("search", None)
+        action.pop("replace", None)
+        candidate = fixed
+    if not problems:
+        return None
+    listing = "\n".join("- %s" % p for p in problems[:8])
+    return (
+        "[" + "\u0421\u0438\u0441\u0442\u0435\u043c\u0430" + "]: \u0442\u0432\u043e\u044f \u0441\u0446\u0435\u043d\u0430 \u0434\u043b\u044f \u0444\u0430\u0439\u043b\u0430 " + path + " \u043d\u0435 \u043f\u0440\u043e\u0448\u043b\u0430 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b. "
+        + "\u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0438\u0442\u043e\u0433\u043e\u0432\u044b\u0439 \u0442\u0435\u043a\u0441\u0442 \u0441\u0446\u0435\u043d\u044b. \u041f\u0440\u043e\u0431\u043b\u0435\u043c\u044b:\n" + listing + "\n"
+        + "\u0418\u0441\u043f\u0440\u0430\u0432\u044c \u0441\u0446\u0435\u043d\u0443 \u0438 \u043f\u0440\u0438\u0448\u043b\u0438 agent_action \u0437\u0430\u043d\u043e\u0432\u043e (create_file \u0434\u043b\u044f " + path + "). "
+        + "\u0421\u0441\u044b\u043b\u0430\u0439\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0440\u0435\u0430\u043b\u044c\u043d\u043e \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u0435 id/uid \u0440\u0435\u0441\u0443\u0440\u0441\u044b \u0438 \u0443\u0436\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0432\u044b\u0448\u0435 \u0443\u0437\u043b\u044b (\u0432\u044b\u0437\u043e\u0432\u0438 list_scene, \u0435\u0441\u043b\u0438 \u043d\u0443\u0436\u043d\u043e \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u0430\u043a\u0442\u0443\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0441\u0446\u0435\u043d\u044b)."
     )
 
 

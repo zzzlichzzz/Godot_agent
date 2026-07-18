@@ -52,6 +52,10 @@ var _log_errors_button: Button = null
 var _api_export_button: Button = null
 var _pending_log_send: bool = false
 
+# Автопроверка актуальности кэша API при старте панели: сервер (с браузером внутри) может подняться не сразу, поэтому при неудаче повторяем с нарастающей задержкой, а не молча сдаёмся после первой неудачи.
+var _api_cache_check_attempts: int = 0
+var _api_cache_check_timer: Timer = null
+
 # Автопроверка лога после закрытия игры (переход is_playing_scene: true→false).
 var _play_watch_timer: Timer = null
 var _was_playing: bool = false
@@ -141,6 +145,7 @@ func _ready() -> void:
 		_api_export_button.text = _t("api_export_btn")
 		advanced_box.add_child(_api_export_button)
 		_api_export_button.pressed.connect(_on_export_api_pressed)
+	call_deferred("_check_api_cache_freshness")
 	_ensure_file_logging_enabled()
 	if _play_watch_timer == null:
 		_play_watch_timer = Timer.new()
@@ -483,6 +488,38 @@ func _on_check_log_pressed() -> void:
 		_set_ui_busy(false)
 
 
+func _check_api_cache_freshness() -> void:
+	if _is_network_busy:
+		_schedule_api_cache_check_retry()
+		return
+	var headers = ["Content-Type: application/json"]
+	var body = {
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+		"godot_version": Engine.get_version_info().get("string", ""),
+	}
+	_pending_request_kind = "api_cache_status"
+	_set_ui_busy(true)
+	var err = http_request.request(API_CACHE_STATUS_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_schedule_api_cache_check_retry()
+
+
+func _schedule_api_cache_check_retry() -> void:
+	_api_cache_check_attempts += 1
+	if _api_cache_check_attempts > 8:
+		return
+	if _api_cache_check_timer == null:
+		_api_cache_check_timer = Timer.new()
+		_api_cache_check_timer.one_shot = true
+		add_child(_api_cache_check_timer)
+		_api_cache_check_timer.timeout.connect(_check_api_cache_freshness)
+	_api_cache_check_timer.wait_time = min(2.0 * _api_cache_check_attempts, 15.0)
+	_api_cache_check_timer.start()
+
+
 func _on_export_api_pressed() -> void:
 	if _is_network_busy: return
 	if pending_action_box and pending_action_box.visible:
@@ -494,7 +531,8 @@ func _on_export_api_pressed() -> void:
 # silent = true — тихий автоматический запуск при старте плагина (не блокирует сеть для пользователя,
 # просто показывает одно сообщение, если реально пришлось пересобирать).
 func _export_api_to_server(silent: bool) -> void:
-	chat_log.text += "[color=gray]" + _t("api_export_sending") + "[/color]\n"
+	if not silent:
+		chat_log.text += "[color=gray]" + _t("api_export_sending") + "[/color]\n"
 	var export_script = load(get_script().resource_path.get_base_dir() + "/agent_api_export.gd")
 	var classes: Dictionary = export_script.export_classes()
 	var headers = ["Content-Type: application/json"]
@@ -533,6 +571,15 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "api_export":
 			var cnt := int(json.get("classes_count", 0))
 			chat_log.text += "[color=green]" + _t("api_export_done") % cnt + "[/color]\n"
+			return
+
+		if kind == "api_cache_status":
+			_api_cache_check_attempts = 0
+			var has_cache = bool(json.get("has_cache", false))
+			var cached_version = str(json.get("cached_version", ""))
+			var current_version = Engine.get_version_info().get("string", "")
+			if not has_cache or cached_version != current_version:
+				_export_api_to_server(true)
 			return
 
 		if kind == "rollback_preview":
@@ -650,6 +697,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_auto_check = false
 			if json and json.has("error"):
 				print("Авто-проверка лога пропущена: ", str(json["error"]))
+			return
+		if kind == "api_cache_status":
+			_schedule_api_cache_check_retry()
 			return
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
