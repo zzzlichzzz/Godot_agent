@@ -67,16 +67,21 @@ def read_project_file(project_root, godot_path, max_chars=50000):
 
 
 def create_project_file(project_root, godot_path, content):
-    """Создает новый файл. Если файл существует — возвращает ошибку."""
+    """Создаёт файл (и папки на пути к нему). Если файл уже существует —
+    ПОЛНОСТЬЮ перезаписывает его. Это безопасно: record_change снимает
+    снапшот старой версии ДО вызова этой функции, и откат вернёт её.
+    Возвращает True, если файл существовал и был перезаписан."""
     abs_path = _resolve_safe_path(project_root, godot_path)
-    if os.path.exists(abs_path):
-        raise FileExistsError(f"Файл уже существует: {godot_path}")
+    if os.path.isdir(abs_path):
+        raise IsADirectoryError(f"По этому пути находится папка: {godot_path}")
+    existed = os.path.isfile(abs_path)
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     # newline='\n': пишем LF, как это делает сам редактор Godot. Иначе на Windows
     # Python записал бы CRLF, а пересохранение файла в Godot меняло бы
     # каждый перенос строки — и откат ложно считал бы файл "изменённым".
     with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(content.replace('\r\n', '\n'))
+    return existed
 
 
 def patch_project_file(project_root, godot_path, search_code, replace_code):
