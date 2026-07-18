@@ -6,12 +6,20 @@ extends Control
 # Главная: две кнопки делят экран по вертикали — сверху «Загрузиться»
 # (список сохранённых чатов), снизу «Новый чат» (список сайтов-нейросетей).
 # Наружу отдаёт сигналы, а данные получает через set_chats()/set_sites().
+# Локализация RU/EN — agent_locale.gd; переключатель языка — справа сверху.
+# Блок «Поддержать автора»: для русского языка — CloudTips + Boosty,
+# для английского — только Boosty (CloudTips не принимает зарубежные карты).
 # ---------------------------------------------------------------------------
 
 signal new_chat_requested(site_id)
 signal load_chat_requested(chat_id)
 signal sites_tab_requested()
 signal chats_tab_requested()
+signal language_changed()
+
+const URL_BOOSTY := "https://boosty.to/zzzlichzzz"
+const URL_TIPS := "https://pay.cloudtips.ru/p/50d418af"
+const SPIN_FRAMES := ["|", "/", "-", "\\"]
 
 var _home: VBoxContainer = null
 var _chats_view: VBoxContainer = null
@@ -28,7 +36,7 @@ var _loading_label: Label = null
 var _spin_timer: Timer = null
 var _spin_idx: int = 0
 var _return_view: String = "home"
-const SPIN_FRAMES := ["|", "/", "-", "\\"]
+var _loc = null
 
 
 func _ready() -> void:
@@ -36,6 +44,62 @@ func _ready() -> void:
 	_build()
 	show_home()
 
+
+# ---------------- Локализация ----------------
+
+func _locale():
+	if _loc == null:
+		var sc := get_script() as Script
+		if sc:
+			var lp := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(lp):
+				_loc = load(lp)
+	return _loc
+
+
+func _t(key: String) -> String:
+	var l = _locale()
+	if l:
+		return l.t(key)
+	return key
+
+
+func _lang() -> String:
+	var l = _locale()
+	if l:
+		return l.get_lang()
+	return "ru"
+
+
+func _on_lang_selected(idx: int) -> void:
+	var l = _locale()
+	if l:
+		l.set_lang("en" if idx == 1 else "ru")
+	language_changed.emit()
+	_rebuild_ui()
+
+
+func _rebuild_ui() -> void:
+	# Полная пересборка интерфейса (используется после смены языка).
+	_stop_loading_visual()
+	for ch in get_children():
+		ch.queue_free()
+	_built = false
+	_home = null
+	_chats_view = null
+	_sites_view = null
+	_chats_list = null
+	_sites_list = null
+	_status = null
+	_loading_view = null
+	_loading_spinner = null
+	_loading_label = null
+	_spin_timer = null
+	_build()
+	show_home()
+
+
+# ---------------- Построение интерфейса ----------------
 
 func _build() -> void:
 	if _built:
@@ -45,11 +109,21 @@ func _build() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
 
+	# Верхняя строка: заголовок + переключатель языка.
+	var top := HBoxContainer.new()
+	root.add_child(top)
 	var title := Label.new()
-	title.text = "Браузерный ИИ-Агент"
+	title.text = _t("title")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = SIZE_EXPAND_FILL
 	title.add_theme_font_size_override("font_size", 20)
-	root.add_child(title)
+	top.add_child(title)
+	var lang_btn := OptionButton.new()
+	lang_btn.add_item("Русский", 0)
+	lang_btn.add_item("English", 1)
+	lang_btn.select(1 if _lang() == "en" else 0)
+	lang_btn.item_selected.connect(_on_lang_selected)
+	top.add_child(lang_btn)
 
 	# ---- ГЛАВНАЯ: две большие кнопки, сверху и снизу ----
 	_home = VBoxContainer.new()
@@ -57,7 +131,7 @@ func _build() -> void:
 	_home.size_flags_vertical = SIZE_EXPAND_FILL
 	root.add_child(_home)
 	var hint := Label.new()
-	hint.text = "С чего начнём?"
+	hint.text = _t("hint")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_home.add_child(hint)
 	# Вертикальное деление экрана: верхняя кнопка и нижняя кнопка.
@@ -66,17 +140,39 @@ func _build() -> void:
 	split.size_flags_vertical = SIZE_EXPAND_FILL
 	_home.add_child(split)
 	var b_load := Button.new()
-	b_load.text = "Загрузиться"
+	b_load.text = _t("btn_load")
 	b_load.size_flags_horizontal = SIZE_EXPAND_FILL
 	b_load.size_flags_vertical = SIZE_EXPAND_FILL
 	b_load.pressed.connect(func(): chats_tab_requested.emit())
 	split.add_child(b_load)
 	var b_new := Button.new()
-	b_new.text = "Новый чат"
+	b_new.text = _t("btn_new")
 	b_new.size_flags_horizontal = SIZE_EXPAND_FILL
 	b_new.size_flags_vertical = SIZE_EXPAND_FILL
 	b_new.pressed.connect(func(): sites_tab_requested.emit())
 	split.add_child(b_new)
+
+	# ---- Блок «Поддержать автора» (маленькая строка под кнопками) ----
+	var support := HBoxContainer.new()
+	support.alignment = BoxContainer.ALIGNMENT_CENTER
+	_home.add_child(support)
+	var sup_lbl := Label.new()
+	sup_lbl.text = _t("support")
+	support.add_child(sup_lbl)
+	if _lang() != "en":
+		var tips_btn := LinkButton.new()
+		tips_btn.text = _t("support_tips")
+		tips_btn.uri = URL_TIPS
+		tips_btn.tooltip_text = URL_TIPS
+		support.add_child(tips_btn)
+		var sep := Label.new()
+		sep.text = " · "
+		support.add_child(sep)
+	var boosty_btn := LinkButton.new()
+	boosty_btn.text = _t("support_boosty")
+	boosty_btn.uri = URL_BOOSTY
+	boosty_btn.tooltip_text = URL_BOOSTY
+	support.add_child(boosty_btn)
 
 	# ---- СПИСОК ЧАТОВ ----
 	_chats_view = VBoxContainer.new()
@@ -84,7 +180,7 @@ func _build() -> void:
 	_chats_view.size_flags_vertical = SIZE_EXPAND_FILL
 	_chats_view.visible = false
 	root.add_child(_chats_view)
-	_chats_view.add_child(_make_header("Сохранённые чаты"))
+	_chats_view.add_child(_make_header(_t("hdr_chats")))
 	var ch_scroll := ScrollContainer.new()
 	ch_scroll.size_flags_horizontal = SIZE_EXPAND_FILL
 	ch_scroll.size_flags_vertical = SIZE_EXPAND_FILL
@@ -99,7 +195,7 @@ func _build() -> void:
 	_sites_view.size_flags_vertical = SIZE_EXPAND_FILL
 	_sites_view.visible = false
 	root.add_child(_sites_view)
-	_sites_view.add_child(_make_header("Выберите сайт (нейросеть)"))
+	_sites_view.add_child(_make_header(_t("hdr_sites")))
 	var st_scroll := ScrollContainer.new()
 	st_scroll.size_flags_horizontal = SIZE_EXPAND_FILL
 	st_scroll.size_flags_vertical = SIZE_EXPAND_FILL
@@ -140,7 +236,7 @@ func _build() -> void:
 func _make_header(text: String) -> HBoxContainer:
 	var head := HBoxContainer.new()
 	var back := Button.new()
-	back.text = "Назад"
+	back.text = _t("back")
 	back.pressed.connect(show_home)
 	head.add_child(back)
 	var lbl := Label.new()
@@ -175,14 +271,14 @@ func _rebuild_chats() -> void:
 	_clear_container(_chats_list)
 	if _chats_data.is_empty():
 		var empty := Label.new()
-		empty.text = "Пока нет сохранённых чатов. Начните новый!"
+		empty.text = _t("no_chats")
 		_chats_list.add_child(empty)
 		return
 	for c in _chats_data:
 		if typeof(c) != TYPE_DICTIONARY:
 			continue
 		var btn := Button.new()
-		var t := str(c.get("title", "Без названия"))
+		var t := str(c.get("title", _t("untitled")))
 		var sname := str(c.get("site_name", ""))
 		btn.text = t if sname == "" else (t + "   — " + sname)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -197,23 +293,23 @@ func _rebuild_sites() -> void:
 	_clear_container(_sites_list)
 	if _sites_data.is_empty():
 		var empty := Label.new()
-		empty.text = "Список сайтов пуст (сервер запущен?)."
+		empty.text = _t("sites_empty")
 		_sites_list.add_child(empty)
 		return
 	for s in _sites_data:
 		if typeof(s) != TYPE_DICTIONARY:
 			continue
 		var btn := Button.new()
-		btn.text = str(s.get("name", "Сайт"))
+		btn.text = str(s.get("name", _t("site_fallback")))
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = SIZE_EXPAND_FILL
 		btn.pressed.connect(_pick_site.bind(str(s.get("id", ""))))
 		_sites_list.add_child(btn)
 	# ЗАГОТОВКА: кнопка «добавить свою страницу» (универсальный парсер) — позже.
 	var add_own := Button.new()
-	add_own.text = "Добавить свою страницу (скоро)"
+	add_own.text = _t("add_own")
 	add_own.disabled = true
-	add_own.tooltip_text = "В разработке: универсальный парсер подберёт алгоритм чтения страницы."
+	add_own.tooltip_text = _t("add_own_tip")
 	add_own.size_flags_horizontal = SIZE_EXPAND_FILL
 	_sites_list.add_child(add_own)
 

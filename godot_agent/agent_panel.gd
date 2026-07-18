@@ -85,6 +85,7 @@ var _retry_after_server: Array = []
 var _chats_extra: Dictionary = {}
 var _chats_kind: String = ""
 var _pending_view: String = ""
+var _loc = null                      # скрипт локализации agent_locale.gd
 var _chat_select: OptionButton = null
 var _rename_dialog: AcceptDialog = null
 var _rename_edit: LineEdit = null
@@ -92,12 +93,29 @@ var _current_chat_id: String = ""
 var _suppress_chat_select: bool = false
 
 
+func _locale():
+	if _loc == null:
+		var sc := get_script() as Script
+		if sc:
+			var lp := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(lp):
+				_loc = load(lp)
+	return _loc
+
+
+func _t(key: String) -> String:
+	var l = _locale()
+	if l:
+		return l.t(key)
+	return key
+
+
 func _ready() -> void:
 	chat_log.selection_enabled = true
 	chat_log.context_menu_enabled = true
 	chat_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	chat_log.scroll_following = true
-	chat_log.text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]\n"
+	chat_log.text = "[color=green]" + _t("system_ready") + "[/color]\n"
 	if pending_action_box:
 		pending_action_box.visible = false
 	if not send_button.pressed.is_connected(_on_send_pressed):
@@ -116,7 +134,7 @@ func _ready() -> void:
 		rollback_button.pressed.connect(_on_rollback_pressed)
 	if advanced_box and _log_errors_button == null:
 		_log_errors_button = Button.new()
-		_log_errors_button.text = "🐞 Ошибки запуска игры"
+		_log_errors_button.text = _t("log_errors")
 		advanced_box.add_child(_log_errors_button)
 		_log_errors_button.pressed.connect(_on_check_log_pressed)
 	_ensure_file_logging_enabled()
@@ -173,22 +191,22 @@ func _ready() -> void:
 		bar.add_child(_chat_select)
 		var bnew := Button.new()
 		bnew.text = "＋"
-		bnew.tooltip_text = "Новый чат (новая страница в браузере)"
+		bnew.tooltip_text = _t("tip_new")
 		bnew.pressed.connect(_on_chat_new_pressed)
 		bar.add_child(bnew)
 		var bren := Button.new()
 		bren.text = "✏"
-		bren.tooltip_text = "Переименовать чат"
+		bren.tooltip_text = _t("tip_rename")
 		bren.pressed.connect(_on_chat_rename_pressed)
 		bar.add_child(bren)
 		var bdel := Button.new()
 		bdel.text = "🗑"
-		bdel.tooltip_text = "Удалить чат из списка"
+		bdel.tooltip_text = _t("tip_delete")
 		bdel.pressed.connect(_on_chat_delete_pressed)
 		bar.add_child(bdel)
 		var bhome := Button.new()
-		bhome.text = "Меню"
-		bhome.tooltip_text = "В начало (выбор чата/сайта)"
+		bhome.text = _t("menu")
+		bhome.tooltip_text = _t("tip_menu")
 		bhome.pressed.connect(_show_start_ui)
 		bar.add_child(bhome)
 		$VBoxContainer.add_child(bar)
@@ -204,6 +222,8 @@ func _ready() -> void:
 		_start_screen.load_chat_requested.connect(_on_start_load_chat)
 		_start_screen.sites_tab_requested.connect(_on_sites_tab_requested)
 		_start_screen.chats_tab_requested.connect(_on_chats_tab_requested)
+		if _start_screen.has_signal("language_changed"):
+			_start_screen.language_changed.connect(_on_language_changed)
 	_show_start_ui()
 	call_deferred("_request_chats", "sites", {})
 	# Восстановление после перезагрузки скрипта: если панель перезагрузилась,
@@ -242,7 +262,7 @@ func _set_ui_busy(busy: bool) -> void:
 	input_field.editable = not busy
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
-	send_button.text = "Ждём..." if busy else "Отправить"
+	send_button.text = _t("sending") if busy else _t("send")
 	# Живая трансляция: опрашиваем статус только пока идёт запрос.
 	if busy:
 		if _view:
@@ -259,7 +279,7 @@ func _set_ui_busy(busy: bool) -> void:
 
 func _on_advanced_toggle() -> void:
 	advanced_box.visible = not advanced_box.visible
-	advanced_toggle_btn.text = "⚙️ Скрыть доп. инструменты" if advanced_box.visible else "⚙️ Дополнительно"
+	advanced_toggle_btn.text = _t("advanced_hide") if advanced_box.visible else _t("advanced_show")
 
 
 func _on_input_field_gui_input(event: InputEvent) -> void:
@@ -937,12 +957,33 @@ func _enter_chat_ui() -> void:
 		$VBoxContainer.visible = true
 
 
+func _on_language_changed() -> void:
+	# Обновляем подписи панели сразу, без перезагрузки плагина.
+	name = _t("dock_title")
+	if send_button and not _is_network_busy:
+		send_button.text = _t("send")
+	if input_field:
+		input_field.placeholder_text = _t("input_placeholder")
+	if advanced_toggle_btn and advanced_box:
+		advanced_toggle_btn.text = _t("advanced_hide") if advanced_box.visible else _t("advanced_show")
+	if confirm_button:
+		confirm_button.text = _t("allow")
+	if reject_button:
+		reject_button.text = _t("reject")
+	if reinit_button:
+		reinit_button.text = _t("reinit")
+	if rollback_button:
+		rollback_button.text = _t("rollback")
+	if _log_errors_button:
+		_log_errors_button.text = _t("log_errors")
+
+
 func _on_sites_tab_requested() -> void:
 	# Пользователь нажал «Новый чат» на главном экране — сразу показываем загрузку, список
 	# сайтов покажем только после ответа сервера (см. _on_chats_response).
 	_pending_view = "sites"
 	if _start_screen and _start_screen.has_method("show_loading"):
-		_start_screen.show_loading("Подключение к серверу…")
+		_start_screen.show_loading(_t("connecting"))
 	_request_chats("sites", {})
 
 
@@ -950,19 +991,19 @@ func _on_chats_tab_requested() -> void:
 	# Аналогично для кнопки «Загрузиться».
 	_pending_view = "chats"
 	if _start_screen and _start_screen.has_method("show_loading"):
-		_start_screen.show_loading("Подключение к серверу…")
+		_start_screen.show_loading(_t("connecting"))
 	_request_chats("list", {})
 
 
 func _on_start_new_chat(site_id: String) -> void:
 	if _start_screen and _start_screen.has_method("show_loading"):
-		_start_screen.show_loading("Подключение к серверу…")
+		_start_screen.show_loading(_t("connecting"))
 	_request_chats("new", {"site_id": site_id})
 
 
 func _on_start_load_chat(chat_id: String) -> void:
 	if _start_screen and _start_screen.has_method("show_loading"):
-		_start_screen.show_loading("Подключение к серверу…")
+		_start_screen.show_loading(_t("connecting"))
 	_request_chats("open", {"id": chat_id})
 
 
@@ -1049,23 +1090,23 @@ func _notify(text: String, kind: String = "info") -> void:
 
 func _maybe_autostart_server() -> void:
 	if _server_wait_left > 0:
-		_notify("Сервер ещё запускается — ваше действие выполнится автоматически, как только он поднимется…", "status")
+		_notify(_t("srv_wait_boot"), "status")
 		return
 	if _server_start_attempted:
-		_notify("Сервер агента не отвечает. Запустите его вручную (godot_agent_server.exe или python main.py).", "error")
+		_notify(_t("srv_dead"), "error")
 		return
 	_server_start_attempted = true
 	if _start_screen and _start_screen.has_method("show_loading"):
-		_start_screen.show_loading("Ищу сервер…")
-	_notify("Ищу сервер…", "status")
+		_start_screen.show_loading(_t("srv_search"))
+	_notify(_t("srv_search"), "status")
 	if not _launch_server_process():
 		if _start_screen and _start_screen.has_method("hide_loading"):
 			_start_screen.hide_loading()
-		_notify("Не нашёл сервер. Убедитесь, что файл godot_agent_server.exe лежит по пути res://addons/Godot_agent/godot_agent/python/dist/ или res://addons/godot_agent/python/dist/, либо запустите python main.py вручную.", "error")
+		_notify(_t("srv_not_found"), "error")
 		return
 	if _start_screen and _start_screen.has_method("show_loading"):
-		_start_screen.show_loading("Запускаю сервер…")
-	_notify("Запускаю сервер…", "status")
+		_start_screen.show_loading(_t("srv_start"))
+	_notify(_t("srv_start"), "status")
 	_server_wait_left = 20
 	if _server_wait_timer == null:
 		_server_wait_timer = Timer.new()
@@ -1081,10 +1122,10 @@ func _on_server_wait_tick() -> void:
 		if _server_wait_timer: _server_wait_timer.stop()
 		if _start_screen and _start_screen.has_method("is_loading") and _start_screen.is_loading():
 			_start_screen.hide_loading()
-		_notify("Сервер так и не поднялся. Проверьте окно сервера (консоль).", "error")
+		_notify(_t("srv_fail"), "error")
 		return
 	_server_wait_left -= 1
-	_notify("Подключение… (ещё до " + str(_server_wait_left * 2) + " с)", "status")
+	_notify(_t("srv_connecting_n") % (_server_wait_left * 2), "status")
 	if _chats_inflight:
 		return
 	_request_chats("list", {})
