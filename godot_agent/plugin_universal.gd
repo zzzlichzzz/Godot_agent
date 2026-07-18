@@ -12,12 +12,16 @@ extends EditorPlugin
 #   - agent_panel.tscn больше НЕ ИСПОЛЬЗУЕТСЯ — панель собирается кодом.
 #     Удалять сцену НЕ ОБЯЗАТЕЛЬНО — она просто лежит без дела
 #     и ничему не мешает.
+#   - Вкладка агента автоматически становится ПЕРВОЙ в правом доке
+#     и сразу открывается — пользователю не нужно её искать.
+#   - Подписи локализуются через agent_locale.gd (RU/EN).
 #
 # Единственное требование самого Godot: папка аддона должна лежать
 # где-то внутри res://addons/, а рядом с этим скриптом — plugin.cfg.
 # ============================================================================
 
 var _dock: Control = null
+var _loc = null
 
 
 func _enter_tree() -> void:
@@ -27,9 +31,15 @@ func _enter_tree() -> void:
 	if panel_script_path == "":
 		push_error("[Godot Agent] agent_panel.gd не найден внутри " + base)
 		return
+	var locale_path: String = _find_file(base, "agent_locale.gd")
+	if locale_path != "":
+		_loc = load(locale_path)
 	_dock = _build_panel(panel_script_path)
-	_dock.name = "ИИ Агент"
+	_dock.name = _lt("dock_title", "ИИ Агент")
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
+	# Делаем вкладку агента первой и активной (отложенно: док должен
+	# успеть попасть в TabContainer редактора).
+	call_deferred("_promote_dock_tab")
 
 
 func _exit_tree() -> void:
@@ -37,6 +47,27 @@ func _exit_tree() -> void:
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
 		_dock = null
+
+
+func _lt(key: String, fallback: String) -> String:
+	# Перевод с запасным русским текстом, если файл локализации не найден.
+	if _loc:
+		return _loc.t(key)
+	return fallback
+
+
+func _promote_dock_tab() -> void:
+	# Перемещаем вкладку дока на первое место и делаем её активной,
+	# чтобы пользователь сразу увидел агента после установки плагина.
+	if _dock == null or not is_instance_valid(_dock):
+		return
+	var tabs := _dock.get_parent() as TabContainer
+	if tabs == null:
+		return
+	tabs.move_child(_dock, 0)
+	var idx: int = tabs.get_tab_idx_from_control(_dock)
+	if idx >= 0:
+		tabs.current_tab = idx
 
 
 func _find_file(dir_path: String, file_name: String) -> String:
@@ -86,7 +117,7 @@ func _build_panel(panel_script_path: String) -> Control:
 	chat_log.scroll_following = true
 	chat_log.context_menu_enabled = true
 	chat_log.selection_enabled = true
-	chat_log.text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]\n"
+	chat_log.text = "[color=green]" + _lt("system_ready", "Система готова. Работаем через локальный Браузерный ИИ-Агент!") + "[/color]\n"
 	vbox.add_child(chat_log)
 
 	var pbox := HBoxContainer.new()
@@ -96,16 +127,16 @@ func _build_panel(panel_script_path: String) -> Control:
 	var action_label := Label.new()
 	action_label.name = "ActionLabel"
 	action_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	action_label.text = "Агент хочет выполнить действие..."
+	action_label.text = _lt("pending_default", "Агент хочет выполнить действие...")
 	action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	pbox.add_child(action_label)
 	var confirm_btn := Button.new()
 	confirm_btn.name = "ConfirmButton"
-	confirm_btn.text = "Разрешить"
+	confirm_btn.text = _lt("allow", "Разрешить")
 	pbox.add_child(confirm_btn)
 	var reject_btn := Button.new()
 	reject_btn.name = "RejectButton"
-	reject_btn.text = "Отклонить"
+	reject_btn.text = _lt("reject", "Отклонить")
 	pbox.add_child(reject_btn)
 
 	var hbox := HBoxContainer.new()
@@ -115,17 +146,17 @@ func _build_panel(panel_script_path: String) -> Control:
 	input_field.name = "InputField"
 	input_field.custom_minimum_size = Vector2(0, 60)
 	input_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	input_field.placeholder_text = "Спросите или дайте указание (Ctrl+Enter для отправки)..."
+	input_field.placeholder_text = _lt("input_placeholder", "Спросите или дайте указание (Ctrl+Enter для отправки)...")
 	input_field.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	hbox.add_child(input_field)
 	var send_btn := Button.new()
 	send_btn.name = "SendButton"
-	send_btn.text = "Отправить"
+	send_btn.text = _lt("send", "Отправить")
 	hbox.add_child(send_btn)
 
 	var adv_toggle := Button.new()
 	adv_toggle.name = "AdvancedToggleBtn"
-	adv_toggle.text = "Дополнительно"
+	adv_toggle.text = _lt("advanced_show", "⚙️ Дополнительно")
 	vbox.add_child(adv_toggle)
 
 	var adv_box := VBoxContainer.new()
@@ -134,11 +165,11 @@ func _build_panel(panel_script_path: String) -> Control:
 	vbox.add_child(adv_box)
 	var reinit_btn := Button.new()
 	reinit_btn.name = "ReinitButton"
-	reinit_btn.text = "Переинициализировать (переслать структуру проекта)"
+	reinit_btn.text = _lt("reinit", "Переинициализировать (переслать структуру проекта)")
 	adv_box.add_child(reinit_btn)
 	var rollback_btn := Button.new()
 	rollback_btn.name = "RollbackButton"
-	rollback_btn.text = "Откатить последнее изменение"
+	rollback_btn.text = _lt("rollback", "Откатить последнее изменение")
 	adv_box.add_child(rollback_btn)
 
 	# Скрипт панели подключаем ПОСЛЕ создания детей: когда панель попадёт
