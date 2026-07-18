@@ -111,6 +111,13 @@ def move_project_file(project_root, source_godot_path, dest_godot_path):
         raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
     os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
     shutil.move(abs_source, abs_dest)
+    # Godot хранит уникальный идентификатор ресурса в соседнем *.uid —
+    # переносим его тоже, иначе ссылки на файл в проекте могут сломаться.
+    if os.path.exists(abs_source + ".uid") and not os.path.exists(abs_dest + ".uid"):
+        try:
+            shutil.move(abs_source + ".uid", abs_dest + ".uid")
+        except OSError:
+            pass
 
 
 def copy_project_file(project_root, source_godot_path, dest_godot_path):
@@ -161,3 +168,82 @@ def search_project_text(project_root, query, max_results=30, context_lines=2):
                     if len(results) >= max_results:
                         return results, True
     return results, False
+
+def describe_scene(project_root, godot_path, max_chars=12000):
+    """Краткая структура сцены .tscn для модели: дерево узлов (имя, тип),
+    прикреплённые скрипты, инстансы других сцен и связи сигналов."""
+    import re
+    abs_path = _resolve_safe_path(project_root, godot_path)
+    if not os.path.isfile(abs_path):
+        raise FileNotFoundError("Файл не найден: %s" % godot_path)
+    if os.path.splitext(abs_path)[1].lower() not in (".tscn", ".scn"):
+        raise ValueError("list_scene работает только со сценами .tscn: %s" % godot_path)
+    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+        text = f.read()
+    # id ext-ресурса -> путь (скрипты, вложенные сцены)
+    ext = {}
+    for m in re.finditer(r'\[ext_resource\b[^\]]*\]', text):
+        head = m.group(0)
+        pm = re.search(r'path="([^"]+)"', head)
+        im = re.search(r'\bid="?([^"\s\]]+)"?', head)
+        if pm and im:
+            ext[im.group(1)] = pm.group(1)
+    nodes = []
+    connections = []
+    cur = None
+    for line in text.replace("\r\n", "\n").split("\n"):
+        s = line.strip()
+        if s.startswith("[node "):
+            nm = re.search(r'name="([^"]+)"', s)
+            tm = re.search(r'type="([^"]+)"', s)
+            pm = re.search(r'parent="([^"]*)"', s)
+            im = re.search(r'instance=ExtResource\(\s*"?([^")\s]+)"?\s*\)', s)
+            if pm is None:
+                depth = 0
+            else:
+                parent = pm.group(1)
+                depth = 1 if parent == "." else parent.count("/") + 2
+            cur = {"depth": depth,
+                   "name": nm.group(1) if nm else "?",
+                   "type": tm.group(1) if tm else "",
+                   "script": None,
+                   "instance": ext.get(im.group(1)) if im else None}
+            nodes.append(cur)
+        elif s.startswith("[connection "):
+            sig = re.search(r'signal="([^"]+)"', s)
+            frm = re.search(r'from="([^"]*)"', s)
+            to = re.search(r'to="([^"]*)"', s)
+            met = re.search(r'method="([^"]+)"', s)
+            if sig and frm and to and met:
+                frm_disp = frm.group(1) if frm.group(1) not in ("", ".") else "<root>"
+                to_disp = to.group(1) if to.group(1) not in ("", ".") else "<root>"
+                connections.append("%s.%s -> %s.%s()" % (frm_disp, sig.group(1), to_disp, met.group(1)))
+            cur = None
+        elif s.startswith("["):
+            cur = None
+        elif cur is not None and re.match(r"script\s*=", s):
+            sm = re.search(r'ExtResource\(\s*"?([^")\s]+)"?\s*\)', s)
+            if sm:
+                cur["script"] = ext.get(sm.group(1))
+    if not nodes:
+        raise ValueError("В файле не найдено ни одного узла [node].")
+    out = []
+    for n in nodes:
+        extra = []
+        if n["type"]:
+            extra.append(n["type"])
+        if n["instance"]:
+            extra.append("инстанс: %s" % n["instance"])
+        row = "  " * n["depth"] + "- " + n["name"] + ((" (" + ", ".join(extra) + ")") if extra else "")
+        if n["script"]:
+            row += "  [скрипт: %s]" % n["script"]
+        out.append(row)
+    if connections:
+        out.append("")
+        out.append("Сигналы ([connection]):")
+        for c in connections:
+            out.append("- " + c)
+    result = "\n".join(out)
+    if len(result) > max_chars:
+        result = result[:max_chars] + "\n… (сводка обрезана — сцена очень большая)"
+    return result

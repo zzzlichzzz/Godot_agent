@@ -112,18 +112,24 @@ func _build() -> void:
 	# Верхняя строка: заголовок + переключатель языка.
 	var top := HBoxContainer.new()
 	root.add_child(top)
-	var title := Label.new()
-	title.text = _t("title")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.size_flags_horizontal = SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 20)
-	top.add_child(title)
+	var top_spacer := Control.new()
+	top_spacer.size_flags_horizontal = SIZE_EXPAND_FILL
+	top.add_child(top_spacer)
+	var lang_lbl := Label.new()
+	lang_lbl.text = _t("lang_label")
+	top.add_child(lang_lbl)
 	var lang_btn := OptionButton.new()
 	lang_btn.add_item("Русский", 0)
 	lang_btn.add_item("English", 1)
 	lang_btn.select(1 if _lang() == "en" else 0)
 	lang_btn.item_selected.connect(_on_lang_selected)
 	top.add_child(lang_btn)
+	var title := Label.new()
+	title.text = _t("title")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size_flags_horizontal = SIZE_EXPAND_FILL
+	title.add_theme_font_size_override("font_size", 20)
+	root.add_child(title)
 
 	# ---- ГЛАВНАЯ: две большие кнопки, сверху и снизу ----
 	_home = VBoxContainer.new()

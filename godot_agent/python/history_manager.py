@@ -217,6 +217,14 @@ def rollback_last(project_root, force=False):
     if act == "create_file":
         if os.path.exists(abs_target):
             os.remove(abs_target)
+        # Godot 4 держит рядом служебные файлы (*.uid, *.import) — удаляем
+        # и их, иначе в файловой системе редактора остаются «остатки».
+        for leftover in (abs_target + ".uid", abs_target + ".import"):
+            if os.path.exists(leftover):
+                try:
+                    os.remove(leftover)
+                except OSError:
+                    pass
     elif act == "patch_file":
         snap = os.path.join(_history_dir(project_root), entry.get("snapshot", ""))
         if not os.path.isfile(snap):
@@ -228,6 +236,11 @@ def rollback_last(project_root, force=False):
             return False, "По старому пути уже существует файл: %s" % entry["path"], True, [], None
         os.makedirs(os.path.dirname(abs_src), exist_ok=True)
         shutil.move(abs_target, abs_src)
+        if os.path.exists(abs_target + ".uid") and not os.path.exists(abs_src + ".uid"):
+            try:
+                shutil.move(abs_target + ".uid", abs_src + ".uid")
+            except OSError:
+                pass
     else:
         return False, "Неизвестный тип действия в журнале: %s" % act, False, [], None
 

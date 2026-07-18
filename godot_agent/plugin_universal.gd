@@ -22,6 +22,7 @@ extends EditorPlugin
 
 var _dock: Control = null
 var _loc = null
+var _promote_focus_done: bool = false
 
 
 func _enter_tree() -> void:
@@ -57,16 +58,31 @@ func _lt(key: String, fallback: String) -> String:
 
 
 func _promote_dock_tab() -> void:
-	# Перемещаем вкладку дока на первое место и делаем её активной,
-	# чтобы пользователь сразу увидел агента после установки плагина.
+	# Редактор восстанавливает сохранённую раскладку доков УЖЕ ПОСЛЕ
+	# включения плагинов и может вернуть вкладку на старое место.
+	# Поэтому в течение ~4 секунд несколько раз передвигаем её на первое
+	# место (позиция закрепится в раскладке после первого сохранения).
+	for i in range(8):
+		_do_promote_once()
+		if get_tree() == null:
+			return
+		await get_tree().create_timer(0.5).timeout
+		if _dock == null:
+			return
+	_do_promote_once()
+
+
+func _do_promote_once() -> void:
 	if _dock == null or not is_instance_valid(_dock):
 		return
 	var tabs := _dock.get_parent() as TabContainer
 	if tabs == null:
 		return
-	tabs.move_child(_dock, 0)
+	if tabs.get_child(0) != _dock:
+		tabs.move_child(_dock, 0)
 	var idx: int = tabs.get_tab_idx_from_control(_dock)
-	if idx >= 0:
+	if idx >= 0 and not _promote_focus_done:
+		_promote_focus_done = true
 		tabs.current_tab = idx
 
 

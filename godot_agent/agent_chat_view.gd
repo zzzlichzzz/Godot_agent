@@ -22,6 +22,24 @@ var _live_active: bool = false
 var _live_start_len: int = 0
 var _live_sent: int = 0
 var _live_shown: String = ""
+var _loc = null                      # скрипт локализации agent_locale.gd
+
+
+func _locale():
+	if _loc == null:
+		var sc := get_script() as Script
+		if sc:
+			var lp := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(lp):
+				_loc = load(lp)
+	return _loc
+
+
+func _t(key: String) -> String:
+	var l = _locale()
+	if l:
+		return l.t(key)
+	return key
 
 
 func setup(chat_log_in: RichTextLabel, vbox: VBoxContainer) -> void:
@@ -55,13 +73,13 @@ func clear() -> void:
 func add_user_message(escaped_text: String) -> void:
 	flush()
 	if chat_log:
-		chat_log.text += "[right]" + _bubble("Вы", USER_HEADER, escaped_text, USER_BG, USER_BORDER) + "[/right]\n"
+		chat_log.text += "[right]" + _bubble(_t("you"), USER_HEADER, escaped_text, USER_BG, USER_BORDER) + "[/right]\n"
 
 
 func add_agent_message(bbcode_text: String) -> void:
 	finalize_live_block()
 	if chat_log:
-		chat_log.text += _bubble("ИИ-Агент", AGENT_HEADER, bbcode_text, AGENT_BG, AGENT_BORDER)
+		chat_log.text += _bubble(_t("agent_name"), AGENT_HEADER, bbcode_text, AGENT_BG, AGENT_BORDER)
 
 
 func add_system(text: String) -> void:
@@ -90,9 +108,9 @@ func show_status(phase: String, elapsed: int, chars: int) -> void:
 		return
 	var line := phase
 	if elapsed > 0:
-		line += " · " + str(elapsed) + " с"
+		line += " · " + str(elapsed) + " " + _t("unit_sec")
 	if chars > 0:
-		line += " · " + str(chars) + " симв."
+		line += " · " + str(chars) + " " + _t("unit_chars")
 	_status_label.text = line
 	_status_label.visible = true
 
@@ -135,7 +153,7 @@ func _repaint_live() -> void:
 	var body := _live_shown + "[color=gray]▌[/color]"
 	chat_log.text = chat_log.text.substr(0, _live_start_len) \
 		+ "\n[table=1][cell bg=" + AGENT_BG + " border=" + AGENT_BORDER \
-		+ " padding=10,8,10,8][color=" + AGENT_HEADER + "][b]ИИ-Агент[/b][/color] [color=gray](печатает…)[/color]\n" \
+		+ " padding=10,8,10,8][color=" + AGENT_HEADER + "][b]" + _t("agent_name") + "[/b][/color] [color=gray]" + _t("typing") + "[/color]\n" \
 		+ body + "\n[/cell][/table]\n"
 
 
