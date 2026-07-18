@@ -17,6 +17,11 @@ from project_tools import (
     _resolve_safe_path,
 )
 import history_manager as history
+import gd_lint
+import gd_api_cache
+import gd_api_check
+import gd_api_cache
+import gd_api_check
 import log_reader
 import chat_store
 import json as _json
@@ -279,6 +284,51 @@ def _create_overwrite_is_stale(action, project_root):
     )
 
 
+def _lint_action_code(action, project_root):
+    """Самопроверка кода ДО показа действия пользователю: гоняем лёгкий
+    линтер по ИТОГОВОМУ тексту .gd-файла (каким он станет после create/patch).
+    Возвращает текст системного сообщения для модели или None, если код чист."""
+    kind = action.get("action")
+    path = action.get("path", "") or ""
+    if not path.endswith(".gd"):
+        return None
+    if kind == "create_file":
+        candidate = action.get("content", "") or ""
+    elif kind == "patch_file":
+        try:
+            abs_path = _resolve_safe_path(project_root, path)
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+                disk = f.read()
+        except Exception:
+            return None
+        norm = disk.replace("\r\n", "\n")
+        search = (action.get("search", "") or "").replace("\r\n", "\n")
+        replace = (action.get("replace", "") or "").replace("\r\n", "\n")
+        if not search or norm.count(search) != 1:
+            return None  # этим случаем занимается _validate_patch_against_disk
+        candidate = norm.replace(search, replace, 1)
+    else:
+        return None
+    try:
+        problems = list(gd_lint.lint_gdscript(candidate))
+    except Exception:
+        problems = []
+    try:
+        problems += gd_api_check.check_api_usage(project_root, candidate, path, STATE.get("addon_dir"))
+    except Exception:
+        pass
+    if not problems:
+        return None
+    listing = "\n".join("- %s" % p for p in problems[:8])
+    msg_head = "[Sistema]"
+    return (
+        "[" + "\u0421\u0438\u0441\u0442\u0435\u043c\u0430" + "]: \u0422\u0432\u043e\u0439 \u043a\u043e\u0434 \u0434\u043b\u044f \u0444\u0430\u0439\u043b\u0430 " + path + " \u043d\u0435 \u043f\u0440\u043e\u0448\u0451\u043b \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443. "
+        + "\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u043b\u0441\u044f \u0438\u0442\u043e\u0433\u043e\u0432\u044b\u0439 \u0442\u0435\u043a\u0441\u0442 \u0444\u0430\u0439\u043b\u0430 \u043f\u043e\u0441\u043b\u0435 \u043f\u0440\u0438\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0442\u0432\u043e\u0435\u0433\u043e \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f. \u041f\u0440\u043e\u0431\u043b\u0435\u043c\u044b:\n" + listing + "\n"
+        + "\u0418\u0441\u043f\u0440\u0430\u0432\u044c \u043a\u043e\u0434 \u0438 \u043f\u0440\u0438\u0448\u043b\u0438 agent_action \u0437\u0430\u043d\u043e\u0432\u043e (" + kind + " \u0434\u043b\u044f " + path + "). "
+        + "\u0415\u0441\u043b\u0438 \u0442\u044b \u043f\u0440\u0438\u0441\u043b\u0430\u043b \u043e\u0431\u0440\u0435\u0437\u0430\u043d\u043d\u044b\u0439 \u0444\u0440\u0430\u0433\u043c\u0435\u043d\u0442 \u2014 \u043f\u0440\u0438\u0448\u043b\u0438 \u0435\u0433\u043e \u0446\u0435\u043b\u0438\u043a\u043e\u043c."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Self-heal: битый JSON или несовпадающий patch чиним без участия пользователя.
 # ---------------------------------------------------------------------------
@@ -301,7 +351,13 @@ def _reply_with_self_heal(prompt, project_root):
         if action and action.get("action") == "patch_file":
             ok, real_content, err = _validate_patch_against_disk(action, project_root)
             if ok:
-                break
+                lint_msg = _lint_action_code(action, project_root)
+                if lint_msg is None:
+                    break
+                retries += 1
+                print(f"--> [self-heal] Код в patch_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                text, action = _reply(lint_msg)
+                continue
             retries += 1
             path = action.get("path", "")
             print(f"--> [self-heal] patch_file не совпал с диском ({err}), попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
@@ -326,7 +382,13 @@ def _reply_with_self_heal(prompt, project_root):
         if action and action.get("action") == "create_file":
             stale_msg = _create_overwrite_is_stale(action, project_root)
             if stale_msg is None:
-                break
+                lint_msg = _lint_action_code(action, project_root)
+                if lint_msg is None:
+                    break
+                retries += 1
+                print(f"--> [self-heal] Код в create_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                text, action = _reply(lint_msg)
+                continue
             retries += 1
             print(f"--> [self-heal] create_file поверх файла, изменённого другим чатом, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
             text, action = _reply(stale_msg)
@@ -663,6 +725,36 @@ def rollback():
 # отправляется ОДИН отчёт. Повторная отправка того же лога блокируется
 # по отпечатку (mtime + размер), который переживает перезапуск сервера.
 # ---------------------------------------------------------------------------
+
+@app.route('/project/api_cache_status', methods=['POST'])
+def api_cache_status():
+    data = request.json or {}
+    _apply_session_context(data)
+    root = STATE.get("project_root")
+    addon_dir = STATE.get("addon_dir")
+    if not root:
+        return jsonify({"cached_version": "", "has_cache": False})
+    version = gd_api_cache.get_cached_version(root, addon_dir)
+    return jsonify({"cached_version": version, "has_cache": bool(version) or gd_api_cache.has_cache(root, addon_dir)})
+
+
+@app.route('/project/update_api_cache', methods=['POST'])
+def update_api_cache():
+    data = request.json or {}
+    _apply_session_context(data)
+    if not STATE.get("project_root"):
+        return jsonify({"error": "\u041f\u0440\u043e\u0435\u043a\u0442 \u043d\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d."}), 400
+    classes = data.get("classes")
+    if not isinstance(classes, dict) or not classes:
+        return jsonify({"error": "\u041f\u0443\u0441\u0442\u043e\u0439 \u0438\u043b\u0438 \u043d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 \u0441\u043f\u0438\u0441\u043e\u043a \u043a\u043b\u0430\u0441\u0441\u043e\u0432."}), 400
+    godot_version = str(data.get("godot_version", ""))
+    try:
+        count = gd_api_cache.save_cache(STATE["project_root"], classes, godot_version, STATE.get("addon_dir"))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    print("--> API cache updated: %d classes (Godot %s)" % (count, godot_version))
+    return jsonify({"classes_count": count, "godot_version": godot_version})
+
 
 @app.route('/project/check_log', methods=['POST'])
 def check_log():
