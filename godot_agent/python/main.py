@@ -132,6 +132,7 @@ def _finish_read_batch(project_root):
             total += len(content)
             note = " (файл обрезан)" if truncated else ""
             parts.append("Содержимое файла %s%s:\n%s\n%s\n%s" % (f["path"], note, fence, content, fence))
+            _touch_file_read(f["path"])  # чат теперь знает актуальное содержимое
         elif f["status"] == "rejected":
             parts.append("[Система]: Пользователь ОТКАЗАЛСЯ показывать файл %s. НЕ запрашивай его повторно; работай без него или объясни пользователю, зачем он нужен." % f["path"])
         elif f["status"] == "missing":
@@ -180,7 +181,7 @@ def _package_model_reply(text, action, project_root, depth=0):
         results = []
         for s, d in pairs[:20]:
             synthetic = {"action": "create_file", "path": d}
-            entry_id = history.record_change(project_root, synthetic)
+            entry_id = history.record_change(project_root, synthetic, *_current_chat_info())
             try:
                 copy_project_file(project_root, s, d)
             except Exception as e:
@@ -229,6 +230,55 @@ def _package_model_reply(text, action, project_root, depth=0):
     })
 
 
+def _current_chat_info():
+    """(chat_id, chat_title) текущего чата — для меток в журнале изменений."""
+    chat = server_state.get_current_chat()
+    if not chat:
+        return None, None
+    return chat.get("id"), chat.get("title")
+
+
+def _touch_file_read(path):
+    """Отмечает: ТЕКУЩИЙ чат видел актуальное содержимое файла."""
+    try:
+        base = server_state._chats_dir()
+        cid, _ = _current_chat_info()
+        if base and cid and path:
+            chat_store.touch_file_read(base, cid, path)
+    except Exception:
+        pass
+
+
+def _create_overwrite_is_stale(action, project_root):
+    """create_file поверх СУЩЕСТВУЮЩЕГО файла, который менял другой чат
+    ПОСЛЕ того, как текущий чат в последний раз видел его содержимое, —
+    опасен: модель молча сотрёт чужую работу. Возвращает текст системного
+    сообщения для модели или None, если всё свежо."""
+    path = action.get("path", "")
+    try:
+        abs_path = _resolve_safe_path(project_root, path)
+    except Exception:
+        return None
+    if not os.path.isfile(abs_path):
+        return None  # обычное создание нового файла — проверять нечего
+    chat = server_state.get_current_chat()
+    if not chat:
+        return None
+    others_ts = history.last_write_ts_by_others(project_root, path, chat.get("id"))
+    if not others_ts:
+        return None
+    seen_ts = (chat.get("file_reads") or {}).get(path, 0)
+    if seen_ts >= others_ts:
+        return None
+    return (
+        f"[Система]: СТОП. Ты предлагаешь ПОЛНОСТЬЮ перезаписать файл {path}, "
+        "но он изменялся из ДРУГОГО чата после того, как ты в последний раз видел его содержимое. "
+        "Слепая перезапись уничтожит эти изменения. Сначала запроси этот файл через read_file, "
+        "изучи актуальную версию и только потом предлагай правку (patch_file для точечных "
+        "изменений или create_file, если полная замена всё ещё нужна)."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Self-heal: битый JSON или несовпадающий patch чиним без участия пользователя.
 # ---------------------------------------------------------------------------
@@ -269,7 +319,17 @@ def _reply_with_self_heal(prompt, project_root):
                     f"Пришли новый agent_action patch_file, где 'search' дословно совпадает "
                     f"с текстом файла выше."
                 )
+                # Модель только что увидела АКТУАЛЬНОЕ содержимое файла с диска.
+                _touch_file_read(path)
             text, action = _reply(fix_prompt)
+            continue
+        if action and action.get("action") == "create_file":
+            stale_msg = _create_overwrite_is_stale(action, project_root)
+            if stale_msg is None:
+                break
+            retries += 1
+            print(f"--> [self-heal] create_file поверх файла, изменённого другим чатом, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+            text, action = _reply(stale_msg)
             continue
         # Любое другое действие или его отсутствие — проверять нечего.
         break
@@ -379,6 +439,13 @@ def chat():
             prompt = f"{note}\n\n{prompt}"
             STATE["action_note"] = ""
 
+        # Сводка «что изменилось, пока чат был неактивен» (готовится при
+        # открытии чата, отправляется ОДИН раз с первым сообщением).
+        stale = STATE.get("stale_note", "")
+        if stale:
+            prompt = f"{stale}\n\n{prompt}"
+            STATE["stale_note"] = ""
+
         if not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
             tree = build_project_tree(current_root, only_exts=CODE_EXTS, max_entries=PRIME_TREE_MAX_ENTRIES)
@@ -447,13 +514,14 @@ def confirm_action():
 
         if act_type == "create_file":
             print(f"--> Создание файла {path}. Выполняем локально...")
-            entry_id = history.record_change(project_root, action)
+            entry_id = history.record_change(project_root, action, *_current_chat_info())
             try:
                 overwrote = create_project_file(project_root, path, action.get("content", ""))
             except Exception:
                 history.abort_change(project_root, entry_id)
                 raise
             history.commit_change(project_root, entry_id)
+            _touch_file_read(path)  # чат только что сам записал этот файл
             STATE["pending_action"] = None
             _create_msg = (f"[Система]: Файл полностью перезаписан: {path}" if overwrote
                            else f"[Система]: Файл успешно создан: {path}")
@@ -464,20 +532,21 @@ def confirm_action():
 
         elif act_type == "patch_file":
             print(f"--> Точечный патч {path}. Выполняем локально...")
-            entry_id = history.record_change(project_root, action)
+            entry_id = history.record_change(project_root, action, *_current_chat_info())
             try:
                 patch_project_file(project_root, path, action.get("search", ""), action.get("replace", ""))
             except Exception:
                 history.abort_change(project_root, entry_id)
                 raise
             history.commit_change(project_root, entry_id)
+            _touch_file_read(path)  # чат только что сам правил этот файл
             STATE["pending_action"] = None
             return jsonify({"answer": f"[Система]: Изменения успешно внесены в файл: {path}", "pending_action": None,
                             "changed_path": path, "changed_block": action.get("replace", "")})
 
         elif act_type == "move_file":
             print(f"--> Перемещение файла в {action.get('dest')}. Выполняем локально...")
-            entry_id = history.record_change(project_root, action)
+            entry_id = history.record_change(project_root, action, *_current_chat_info())
             try:
                 move_project_file(project_root, path, action.get("dest", ""))
             except Exception:
@@ -530,6 +599,27 @@ def confirm_action():
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/chat/rollback/preview', methods=['POST'])
+def rollback_preview():
+    """Что именно отменит откат — панель показывает это в диалоге
+    подтверждения, чтобы не откатить вслепую действие другого чата."""
+    if not STATE.get("project_root"):
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    info = history.last_committed_info(STATE["project_root"])
+    if not info:
+        return jsonify({"found": False})
+    kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
+               "patch_file": "правка файла", "move_file": "перемещение файла"}
+    desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), info["path"])
+    when = time.strftime("%H:%M", time.localtime(info.get("ts", 0)))
+    title = info.get("chat_title") or ""
+    if title:
+        src = "чат «%s», %s" % (title, when)
+    else:
+        src = "%s, чат неизвестен (изменение сделано до обновления)" % when
+    return jsonify({"found": True, "description": "%s (%s)" % (desc, src)})
 
 
 @app.route('/chat/rollback', methods=['POST'])

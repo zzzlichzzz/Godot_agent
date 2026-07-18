@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify
 import chat_store
 import sites
 import server_state as S
+import history_manager as history
 
 chats_bp = Blueprint("chats", __name__)
 
@@ -104,6 +105,7 @@ def chats_new():
     S._save_primed(S.STATE.get("project_root"), False)
     S.STATE["pending_action"] = None
     S.STATE["pending_batch"] = None
+    S.STATE["stale_note"] = ""  # новый чат праймится свежим деревом — сводка не нужна
     print("--> Новый чат:", rec["id"], "на сайте", site["name"] if site else "?")
     return jsonify({"chats": chat_store.list_chats(base), "current_id": rec["id"],
                     "title": rec["title"], "site": site["name"] if site else ""})
@@ -129,7 +131,21 @@ def chats_open():
     S._save_primed(S.STATE.get("project_root"), S.STATE["is_primed"])
     S.STATE["pending_action"] = None
     S.STATE["pending_batch"] = None
+    prev_used = rec.get("last_used", 0)
     chat_store.touch_chat(base, cid)
+    # Сводка «что изменилось в проекте, пока чат был неактивен» — уйдёт
+    # модели вместе со СЛЕДУЮЩИМ сообщением пользователя. Защита от полотна —
+    # внутри summarize_changes_since (лимит строк / короткий абзац).
+    S.STATE["stale_note"] = ""
+    _root = S.STATE.get("project_root")
+    if _root:
+        try:
+            _note = history.summarize_changes_since(_root, prev_used, exclude_chat_id=cid)
+            if _note:
+                S.STATE["stale_note"] = _note
+                print("--> Подготовлена сводка изменений проекта для чата (%d симв.)" % len(_note))
+        except Exception:
+            pass
     print("--> Открыт чат:", rec.get("title"), cid)
     return jsonify({"chats": chat_store.list_chats(base), "current_id": cid,
                     "title": rec.get("title"),
