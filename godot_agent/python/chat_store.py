@@ -15,7 +15,9 @@ import uuid
 
 _FILE_NAME = "agent_chats.json"
 MAX_TRANSCRIPT = 300
-DEFAULT_TITLE = "Новый чат"
+DEFAULT_TITLE = "New chat"
+# Старое название по умолчанию — чтобы авто-название работало и для уже созданных чатов.
+LEGACY_DEFAULT_TITLES = ("", "New chat", "Новый чат")
 
 
 def _path(base_dir):
@@ -123,7 +125,7 @@ def append_transcript(base_dir, chat_id, role, text):
                 del tr[:len(tr) - MAX_TRANSCRIPT]
             # Авто-название по первому сообщению пользователя.
             if (role == "user" and not c.get("manual_title")
-                    and c.get("title") in ("", DEFAULT_TITLE)):
+                    and c.get("title") in LEGACY_DEFAULT_TITLES):
                 c["title"] = title_from_prompt(text)
             c["last_used"] = time.time()
             _save(base_dir, chats)

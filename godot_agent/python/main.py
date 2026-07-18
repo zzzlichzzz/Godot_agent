@@ -13,6 +13,7 @@ from project_tools import (
     move_project_file,
     copy_project_file,
     search_project_text,
+    describe_scene,
     _resolve_safe_path,
 )
 import history_manager as history
@@ -69,6 +70,7 @@ def _describe_action(action):
     if act == "copy_file": return "Агент копирует файлы внутри проекта (адаптация)"
     if act == "search_project": return "Агент хочет выполнить поиск по всем файлам проекта: «%s»" % action.get("query", "")
     if act == "list_files": return "Агент хочет получить свежее дерево файлов проекта"
+    if act == "list_scene": return f"Агент хочет посмотреть структуру сцены: {path}"
     if act == "parse_error": return "⚠ Агент прислал повреждённый JSON действия — действие пропущено."
     return f"Агент запросил неизвестное действие: {act}"
 
@@ -356,6 +358,12 @@ def chat():
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     current_root = STATE.get("project_root")
     _ensure_current_chat(prompt)
+    # Страховка: если история ТЕКУЩЕГО чата пуста — это первое сообщение,
+    # и мега-промпт нужен ВСЕГДА: глобальный флаг мог остаться от старого чата
+    # или подгрузиться с диска при /init уже ПОСЛЕ создания нового чата.
+    _cur_chat = server_state.get_current_chat()
+    if _cur_chat is not None and not _cur_chat.get("transcript"):
+        STATE["is_primed"] = False
     if not data.get("ignore_site_mismatch"):
         mm = server_state.site_mismatch_for_current()
         if mm:
@@ -495,6 +503,19 @@ def confirm_action():
             tree = build_project_tree(project_root)
             fence = "`" * 3
             followup = "[Система]: АКТУАЛЬНОЕ дерево файлов проекта:\n%s\n%s\n%s" % (fence, tree, fence)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "list_scene":
+            STATE["pending_action"] = None
+            print(f"--> Структура сцены {path}...")
+            fence = "`" * 3
+            try:
+                summary = describe_scene(project_root, path)
+                followup = ("[Система]: Структура сцены %s:\n%s\n%s\n%s\n"
+                            "Это СВОДКА, а не содержимое файла: для patch_file по этой сцене сначала прочитай файл через read_file.") % (path, fence, summary, fence)
+            except Exception as e:
+                followup = "[Система]: list_scene не выполнен: %s" % e
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 
