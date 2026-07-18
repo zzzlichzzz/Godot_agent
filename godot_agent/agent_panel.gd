@@ -27,6 +27,8 @@ const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
 const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
 const PROGRESS_URL = "http://" + HOST + "/chat/progress"
+const API_EXPORT_URL = "http://" + HOST + "/project/update_api_cache"
+const API_CACHE_STATUS_URL = "http://" + HOST + "/project/api_cache_status"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -47,6 +49,7 @@ var _ghost_prev_script: Script = null
 # Канал «Ошибки запуска игры»: кнопка создаётся кодом (без правки .tscn),
 # а флаг означает, что текущее подтверждение — это отправка отчёта модели.
 var _log_errors_button: Button = null
+var _api_export_button: Button = null
 var _pending_log_send: bool = false
 
 # Автопроверка лога после закрытия игры (переход is_playing_scene: true→false).
@@ -133,6 +136,11 @@ func _ready() -> void:
 		_log_errors_button.text = _t("log_errors")
 		advanced_box.add_child(_log_errors_button)
 		_log_errors_button.pressed.connect(_on_check_log_pressed)
+	if advanced_box and _api_export_button == null:
+		_api_export_button = Button.new()
+		_api_export_button.text = _t("api_export_btn")
+		advanced_box.add_child(_api_export_button)
+		_api_export_button.pressed.connect(_on_export_api_pressed)
 	_ensure_file_logging_enabled()
 	if _play_watch_timer == null:
 		_play_watch_timer = Timer.new()
@@ -269,6 +277,7 @@ func _set_ui_busy(busy: bool) -> void:
 	reinit_button.disabled = busy
 	rollback_button.disabled = busy
 	if _log_errors_button: _log_errors_button.disabled = busy
+	if _api_export_button: _api_export_button.disabled = busy
 	input_field.editable = not busy
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
@@ -305,7 +314,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "reinit": true}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -333,7 +342,8 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	var body = {
 		"prompt": prompt,
 		"project_root": project_root,
-		"user_data_dir": OS.get_user_data_dir()
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
 	}
 	if ignore_mismatch:
 		body["ignore_site_mismatch"] = true
@@ -462,6 +472,7 @@ func _on_check_log_pressed() -> void:
 	var body = {
 		"project_root": ProjectSettings.globalize_path("res://"),
 		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 	}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "check_log"
@@ -469,6 +480,36 @@ func _on_check_log_pressed() -> void:
 	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		_log_error(_t("err_log_req"))
+		_set_ui_busy(false)
+
+
+func _on_export_api_pressed() -> void:
+	if _is_network_busy: return
+	if pending_action_box and pending_action_box.visible:
+		_log_error(_t("resolve_action_first"))
+		return
+	_export_api_to_server(false)
+
+
+# silent = true — тихий автоматический запуск при старте плагина (не блокирует сеть для пользователя,
+# просто показывает одно сообщение, если реально пришлось пересобирать).
+func _export_api_to_server(silent: bool) -> void:
+	chat_log.text += "[color=gray]" + _t("api_export_sending") + "[/color]\n"
+	var export_script = load(get_script().resource_path.get_base_dir() + "/agent_api_export.gd")
+	var classes: Dictionary = export_script.export_classes()
+	var headers = ["Content-Type: application/json"]
+	var body = {
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+		"classes": classes,
+		"godot_version": Engine.get_version_info().get("string", ""),
+	}
+	_pending_request_kind = "api_export"
+	_set_ui_busy(true)
+	var err = http_request.request(API_EXPORT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error(_t("api_export_err"))
 		_set_ui_busy(false)
 
 
@@ -487,6 +528,11 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "init":
 			chat_log.text += "\n[color=green]" + _t("reinit_done") + "[/color]\n"
+			return
+
+		if kind == "api_export":
+			var cnt := int(json.get("classes_count", 0))
+			chat_log.text += "[color=green]" + _t("api_export_done") % cnt + "[/color]\n"
 			return
 
 		if kind == "rollback_preview":
@@ -746,6 +792,7 @@ func _auto_check_log() -> void:
 	var body = {
 		"project_root": ProjectSettings.globalize_path("res://"),
 		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 	}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "check_log"
@@ -1013,6 +1060,8 @@ func _on_language_changed() -> void:
 		rollback_button.text = _t("rollback")
 	if _log_errors_button:
 		_log_errors_button.text = _t("log_errors")
+	if _api_export_button:
+		_api_export_button.text = _t("api_export_btn")
 	_apply_chatbar_texts()
 	# Обновляем заголовок вкладки дока.
 	var tabs := get_parent() as TabContainer

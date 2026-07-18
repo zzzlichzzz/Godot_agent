@@ -21,6 +21,7 @@ STATE = {
     "is_primed": False,
     "action_note": "",
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
+    "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
     "progress": {"active": False},
 }
@@ -182,6 +183,8 @@ def _apply_session_context(data):
     проекта) и один раз переносит туда старую .agent_history из проекта."""
     if data.get("project_root"):
         STATE["project_root"] = data["project_root"]
+    if data.get("addon_dir"):
+        STATE["addon_dir"] = data["addon_dir"]
     udd = data.get("user_data_dir")
     if udd and udd != STATE.get("user_data_dir"):
         STATE["user_data_dir"] = udd
