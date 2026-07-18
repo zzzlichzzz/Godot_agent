@@ -23,6 +23,7 @@ const CHAT_URL = "http://" + HOST + "/chat"
 const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
+const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
 const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
 const PROGRESS_URL = "http://" + HOST + "/chat/progress"
@@ -80,6 +81,7 @@ var _bar_btn_ren: Button = null
 var _bar_btn_del: Button = null
 var _bar_btn_home: Button = null
 var _delete_dialog: ConfirmationDialog = null
+var _rollback_dialog: ConfirmationDialog = null
 var _chat_select: OptionButton = null
 var _rename_dialog: AcceptDialog = null
 var _rename_edit: LineEdit = null
@@ -389,11 +391,25 @@ func _send_confirm_request(approved: bool) -> void:
 func _on_rollback_pressed() -> void:
 	if _is_network_busy: return
 	if _rollback_force_next:
+		# Повторное нажатие после needs_force — откатываем без лишних вопросов.
 		chat_log.text += "[color=orange]" + _t("force_rollback") + "[/color]\n"
-	else:
-		chat_log.text += "[color=gray]" + _t("rollback_msg") + "[/color]\n"
+		_send_rollback_request(true)
+		return
+	# Сначала спрашиваем сервер, ЧТО именно будет отменено (и из какого
+	# чата было это изменение), чтобы не откатить вслепую чужую работу.
 	var headers = ["Content-Type: application/json"]
-	var body = {"force": _rollback_force_next}
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "rollback_preview"
+	_set_ui_busy(true)
+	var err = http_request.request(ROLLBACK_PREVIEW_URL, headers, HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error(_t("err_rollback"))
+		_set_ui_busy(false)
+
+
+func _send_rollback_request(force: bool) -> void:
+	var headers = ["Content-Type: application/json"]
+	var body = {"force": force}
 	_rollback_force_next = false
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "rollback"
@@ -402,6 +418,23 @@ func _on_rollback_pressed() -> void:
 	if err != OK:
 		_log_error(_t("err_rollback"))
 		_set_ui_busy(false)
+
+
+func _show_rollback_dialog(desc: String) -> void:
+	if _rollback_dialog == null:
+		_rollback_dialog = ConfirmationDialog.new()
+		_rollback_dialog.confirmed.connect(_on_rollback_confirmed)
+		add_child(_rollback_dialog)
+	_rollback_dialog.title = _t("rb_title")
+	_rollback_dialog.dialog_text = _t("rb_text") % desc
+	_rollback_dialog.ok_button_text = _t("rb_yes")
+	_rollback_dialog.get_cancel_button().text = _t("rb_no")
+	_rollback_dialog.popup_centered()
+
+
+func _on_rollback_confirmed() -> void:
+	chat_log.text += "[color=gray]" + _t("rollback_msg") + "[/color]\n"
+	_send_rollback_request(false)
 
 
 func _ensure_file_logging_enabled() -> void:
@@ -454,6 +487,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "init":
 			chat_log.text += "\n[color=green]" + _t("reinit_done") + "[/color]\n"
+			return
+
+		if kind == "rollback_preview":
+			if bool(json.get("found", false)):
+				_show_rollback_dialog(str(json.get("description", "")))
+			else:
+				chat_log.text += "[color=gray]" + _t("rb_nothing") + "[/color]\n"
 			return
 
 		if kind == "rollback":

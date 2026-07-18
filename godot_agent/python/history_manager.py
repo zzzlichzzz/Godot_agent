@@ -131,8 +131,10 @@ def _prune(project_root, journal):
                 pass
 
 
-def record_change(project_root, action):
-    """Вызывать ДО применения write-действия. Возвращает id записи журнала."""
+def record_change(project_root, action, chat_id=None, chat_title=None):
+    """Вызывать ДО применения write-действия. Возвращает id записи журнала.
+    chat_id/chat_title — какой чат сделал изменение: нужно для предпросмотра
+    отката и для сводки «что изменилось» при возврате в старый чат."""
     act = action.get("action")
     path = action.get("path", "")
     entry = {
@@ -142,6 +144,9 @@ def record_change(project_root, action):
         "path": path,
         "committed": False,
     }
+    if chat_id:
+        entry["chat_id"] = chat_id
+        entry["chat_title"] = chat_title or ""
     hist = _history_dir(project_root)
 
     if act == "patch_file":
@@ -194,6 +199,94 @@ def abort_change(project_root, entry_id):
     new_journal = [e for e in journal if e["id"] != entry_id]
     if len(new_journal) != len(journal):
         _save_journal(project_root, new_journal)
+
+
+def last_committed_info(project_root):
+    """Описание последнего применённого действия — для предпросмотра отката
+    в панели (что именно будет отменено и из какого чата)."""
+    journal = _load_journal(project_root)
+    committed = [e for e in journal if e.get("committed")]
+    if not committed:
+        return None
+    e = committed[-1]
+    return {
+        "type": e.get("type", ""),
+        "path": e.get("dest") or e.get("path", ""),
+        "overwrote": bool(e.get("overwrote")),
+        "chat_title": e.get("chat_title") or "",
+        "ts": e.get("ts", 0),
+    }
+
+
+def last_write_ts_by_others(project_root, path, chat_id):
+    """Когда файл в последний раз меняли ДРУГИЕ чаты (0 — не меняли).
+    Записи без chat_id (сделанные до обновления) не учитываются,
+    чтобы не блокировать старые проекты ложными срабатываниями."""
+    ts = 0
+    for e in _load_journal(project_root):
+        if not e.get("committed"):
+            continue
+        target = e.get("dest") or e.get("path")
+        if target != path:
+            continue
+        eid = e.get("chat_id")
+        if not eid or eid == chat_id:
+            continue
+        ts = max(ts, e.get("ts", 0))
+    return ts
+
+
+def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
+                            max_lines=12, collapse_after=30):
+    """Компактная сводка изменений проекта после since_ts — для заметки
+    модели при возврате в старый чат. None — если изменений не было.
+    Защита от «полотна»: группируем по ФАЙЛАМ (не по действиям),
+    максимум max_lines строк; если файлов больше collapse_after —
+    вместо списка один короткий абзац «проект сильно изменился»."""
+    per_file = {}
+    order = []
+    for e in _load_journal(project_root):
+        if not e.get("committed") or e.get("ts", 0) <= since_ts:
+            continue
+        if exclude_chat_id and e.get("chat_id") == exclude_chat_id:
+            continue
+        target = e.get("dest") or e.get("path") or ""
+        if not target:
+            continue
+        rec = per_file.get(target)
+        if rec is None:
+            rec = {"n": 0, "last": "", "chats": set()}
+            per_file[target] = rec
+            order.append(target)
+        rec["n"] += 1
+        rec["last"] = e.get("type", "")
+        title = (e.get("chat_title") or "").strip()
+        if title:
+            rec["chats"].add(title)
+    if not per_file:
+        return None
+    total_files = len(per_file)
+    total_changes = sum(r["n"] for r in per_file.values())
+    # Журнал хранит не больше MAX_ENTRIES записей, поэтому «как минимум».
+    if total_files > collapse_after:
+        return ("[Система]: ВНИМАНИЕ. С момента твоей последней активности проект СИЛЬНО изменился "
+                "(как минимум %d изменений в %d файлах, в том числе из других чатов). "
+                "Твоя память о содержимом файлов и структуре проекта УСТАРЕЛА. "
+                "Перед любыми правками сначала запроси list_files, а каждый нужный файл перечитай через read_file."
+                % (total_changes, total_files))
+    kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён", "move_file": "перемещён"}
+    lines = []
+    for p in order[:max_lines]:
+        r = per_file[p]
+        what = kind_ru.get(r["last"], r["last"])
+        extra = " \u00d7%d" % r["n"] if r["n"] > 1 else ""
+        by = (" [чат: %s]" % ", ".join(sorted(r["chats"]))) if r["chats"] else ""
+        lines.append("- %s — %s%s%s" % (p, what, extra, by))
+    if total_files > max_lines:
+        lines.append("- …и ещё %d файлов." % (total_files - max_lines))
+    return ("[Система]: Пока этот чат был неактивен, в проекте изменились файлы:\n%s\n"
+            "Твоя память об их содержимом устарела: перед patch_file или create_file по этим файлам "
+            "сначала перечитай их через read_file." % "\n".join(lines))
 
 
 def rollback_last(project_root, force=False):
