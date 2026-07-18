@@ -449,15 +449,17 @@ def confirm_action():
             print(f"--> Создание файла {path}. Выполняем локально...")
             entry_id = history.record_change(project_root, action)
             try:
-                create_project_file(project_root, path, action.get("content", ""))
+                overwrote = create_project_file(project_root, path, action.get("content", ""))
             except Exception:
                 history.abort_change(project_root, entry_id)
                 raise
             history.commit_change(project_root, entry_id)
             STATE["pending_action"] = None
+            _create_msg = (f"[Система]: Файл полностью перезаписан: {path}" if overwrote
+                           else f"[Система]: Файл успешно создан: {path}")
             # changed_path/changed_block — панель откроет файл в редакторе и
             # подсветит строки, которые написал агент.
-            return jsonify({"answer": f"[Система]: Файл успешно создан: {path}", "pending_action": None,
+            return jsonify({"answer": _create_msg, "pending_action": None,
                             "changed_path": path, "changed_block": action.get("content", "")})
 
         elif act_type == "patch_file":

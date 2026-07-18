@@ -158,8 +158,15 @@ def record_change(project_root, action):
             entry["replace"] = replace
     elif act == "move_file":
         entry["dest"] = action.get("dest", "")
-    # create_file: снапшот не нужен — файла до действия не существует
-    # (create_project_file сама падает, если файл уже есть).
+    elif act == "create_file":
+        # Если файл уже существует, create_file работает как ПОЛНАЯ перезапись:
+        # снимаем снапшот старой версии, чтобы откат вернул её, а не удалял файл.
+        abs_path = _resolve_safe_path(project_root, path)
+        if os.path.isfile(abs_path):
+            snap_rel = os.path.join("snapshots", entry["id"] + "_before")
+            shutil.copy2(abs_path, os.path.join(hist, snap_rel))
+            entry["snapshot"] = snap_rel
+            entry["overwrote"] = True
 
     journal = _load_journal(project_root)
     journal.append(entry)
@@ -215,16 +222,23 @@ def rollback_last(project_root, force=False):
         ), True, [], None
 
     if act == "create_file":
-        if os.path.exists(abs_target):
-            os.remove(abs_target)
-        # Godot 4 держит рядом служебные файлы (*.uid, *.import) — удаляем
-        # и их, иначе в файловой системе редактора остаются «остатки».
-        for leftover in (abs_target + ".uid", abs_target + ".import"):
-            if os.path.exists(leftover):
-                try:
-                    os.remove(leftover)
-                except OSError:
-                    pass
+        if entry.get("overwrote") and entry.get("snapshot"):
+            # create_file перезаписал существовавший файл — возвращаем старую версию.
+            snap = os.path.join(_history_dir(project_root), entry["snapshot"])
+            if not os.path.isfile(snap):
+                return False, "Снапшот для отката не найден (возможно, вычищен по лимиту истории).", False, [], None
+            shutil.copy2(snap, abs_target)
+        else:
+            if os.path.exists(abs_target):
+                os.remove(abs_target)
+            # Godot 4 держит рядом служебные файлы (*.uid, *.import) — удаляем
+            # и их, иначе в файловой системе редактора остаются «остатки».
+            for leftover in (abs_target + ".uid", abs_target + ".import"):
+                if os.path.exists(leftover):
+                    try:
+                        os.remove(leftover)
+                    except OSError:
+                        pass
     elif act == "patch_file":
         snap = os.path.join(_history_dir(project_root), entry.get("snapshot", ""))
         if not os.path.isfile(snap):
