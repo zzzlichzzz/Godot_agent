@@ -29,19 +29,21 @@ size_flags_vertical = 3
 focus_mode = 2
 bbcode_enabled = true
 text = "[color=green]Система готова. Работаем через локальный Браузерный ИИ-Агент![/color]
+
+[color=orange]🐞 Игра закрыта, в логе найдены ошибки: 1 (лог от 20:55:46 (0 мин назад))[/color]
+1) SCRIPT ERROR: Invalid call. Nonexistent function 'get_script_editor' in base 'EditorInterface'.
 "
 scroll_following = true
 context_menu_enabled = true
 selection_enabled = true
 
 [node name="PendingActionBox" type="HBoxContainer" parent="VBoxContainer" unique_id=840791717]
-visible = false
 layout_mode = 2
 
 [node name="ActionLabel" type="Label" parent="VBoxContainer/PendingActionBox" unique_id=1452643193]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Отправить 2 ошибок модели на исправление?"
+text = "Отправить 1 ошибок модели на исправление?"
 autowrap_mode = 3
 
 [node name="ConfirmButton" type="Button" parent="VBoxContainer/PendingActionBox" unique_id=1411869472]

@@ -165,6 +165,57 @@ def _looks_json_balanced(raw: str) -> bool:
     return (not in_string) and depth == 0
 
 
+def _find_action_json_candidates(raw: str):
+    """Страховка на случай, если сайт отрисует блок agent_action ВНЕ
+    ожидаемых тегов (не в <pre>/<code>, а обычным текстом ответа) —
+    ищет ВСЕ подстроки, похожие на JSON-объект agent_action, начиная от
+    каждой '{', после которой вскоре встречается '"action"', и вырезает
+    сбалансированный (с учётом JSON-строк) объект до парной '}'."""
+    out = []
+    if not raw:
+        return out
+    n = len(raw)
+    i = 0
+    while i < n:
+        if raw[i] != '{':
+            i += 1
+            continue
+        if '"action"' not in raw[i:i + 40]:
+            i += 1
+            continue
+        depth = 0
+        in_string = False
+        escape = False
+        j = i
+        end = -1
+        while j < n:
+            ch = raw[j]
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == '\\':
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+            else:
+                if ch == '"':
+                    in_string = True
+                elif ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        end = j
+                        break
+            j += 1
+        if end != -1:
+            out.append(raw[i:end + 1])
+            i = end + 1
+        else:
+            i += 1
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Базовый класс парсера сайта
 # ---------------------------------------------------------------------------
@@ -232,7 +283,7 @@ class BaseSiteParser:
         raise NotImplementedError
 
     def before_submit(self, driver, el):
-        """Действия между вставкой и отправкой (опционально)."""
+        """Де����твия между вставкой и отправкой (опционально)."""
         pass
 
     def submit(self, driver, el):
@@ -348,9 +399,15 @@ class BaseSiteParser:
             except Exception:
                 pass
 
-        # 1) ждём появления нового ответа/реплики модели
+        # 1) ждём появления нового ответа/реплики модели.
+        # важно: сравниваем с initial_count на Неравенство (а не только на рост),
+        # потому что сайт иногда перестраивает DOM так, что старый блок удаляется
+        # раньше, чем появится новый (счётчик временно уменьшается), и строгое "только больше"
+        # никогда не срабатывало и ждало сторожевого таймера (~20 с) вместо того, чтобы сразу
+        # заметить изменившийся счётчик. Аналогично выходим раньше, если генерация уже идёт —
+        # это уже достаточный сигнал, что новый ответ начался, даже если счётчик пока не изменился.
         while time.time() - start < timeout:
-            if self.count_answers(driver) > initial_count:
+            if self.count_answers(driver) != initial_count or self.is_generating(driver):
                 break
             got = _try_salvage()
             if got is not None:
@@ -539,4 +596,23 @@ class BaseSiteParser:
                 self._log("Не удалось распарсить agent_action: %s" % parse_error)
                 self._log("RAW (%d симв.): %s" % (len(raw_action), raw_action[:2000]))
                 action = {"action": "parse_error", "raw": raw_action, "error": parse_error}
+        # ПЛАН В: основной парсер нигде не нашёл actionRaw (например,
+        # сайт отрисовал блок agent_action одиной обратной котировкой вместо
+        # ```-блока, и она попала в абзац без особой обработки) — ответ
+        # виден в чате, но действие теряется. Страхуемся ещё одним способом:
+        # сканируем сырой текст ответа (answer_stream) на встроенный JSON с ключом
+        # "action", независимо от того, в какой тег его обёрнул сайт.
+        if action is None and raw_action is None:
+            try:
+                raw_stream = self.answer_stream(driver) or ""
+            except Exception:
+                raw_stream = ""
+            if '"action"' in raw_stream:
+                for cand in _find_action_json_candidates(raw_stream):
+                    salv_action, _ = parse_action_json(cand)
+                    if salv_action is not None:
+                        self._log("Страховка (план В): JSON-действие найдено в тексте "
+                                  "ответа вне ожидаемых тегов — забираю его.")
+                        action = salv_action
+                        break
         return {"text": text, "action": action}
