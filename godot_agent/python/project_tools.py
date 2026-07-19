@@ -8,15 +8,25 @@ EXCLUDED_FILES = {'.DS_Store'}
 HISTORY_DIR_NAME = ".agent_history"
 
 
-def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=None):
-    """Строит текстовое дерево файлов проекта для контекста ИИ."""
+def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=None, subdir=None):
+    """Строит текстовое дерево файлов проекта (или ОДНОЙ его папки, если задан
+    subdir — например "res://src/scripts/") для контекста ИИ."""
     project_root = os.path.abspath(project_root)
+    base = project_root
+    if subdir and str(subdir).strip().rstrip('/') in ("", "res:"):
+        # "res://" после rstrip('/') превращался в "res:" и «не находился».
+        # Корень проекта — валидный запрос: показываем всё дерево.
+        subdir = None
+    if subdir:
+        base = _resolve_safe_path(project_root, subdir.rstrip('/'))
+        if not os.path.isdir(base):
+            raise FileNotFoundError(f"Папка не найдена: {subdir}")
     lines = []
     count = 0
     truncated = False
-    for dirpath, dirnames, filenames in os.walk(project_root):
+    for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
-        rel = os.path.relpath(dirpath, project_root)
+        rel = os.path.relpath(dirpath, base)
         depth = 0 if rel == '.' else rel.count(os.sep) + 1
         if depth > max_depth:
             dirnames[:] = []
@@ -273,3 +283,262 @@ def describe_scene(project_root, godot_path, max_chars=12000):
     if len(result) > max_chars:
         result = result[:max_chars] + "\n… (сводка обрезана — сцена очень большая)"
     return result
+
+
+# ---------------------------------------------------------------------------
+# Умный контекст проекта: маленький проект — полное дерево, большой —
+# КОМПАКТНАЯ сводка по папкам (счётчики по расширениям), чтобы не сжигать
+# токены модели полотном из тысяч файлов. Плюс понимание архитектуры
+# проекта и снапшот файлов для обнаружения ВНЕШНИХ изменений.
+# ---------------------------------------------------------------------------
+
+ASSET_EXTS = {'.png', '.jpg', '.jpeg', '.webp', '.svg', '.wav', '.ogg', '.mp3',
+              '.ttf', '.otf', '.glb', '.gltf', '.obj', '.fbx'}
+
+# Стандартная архитектура для НОВОГО игрового проекта (создаётся,
+# только если своей архитектуры у проекта ещё нет — см. has_architecture).
+STANDARD_ARCHITECTURE_DIRS = [
+    "src/scenes",
+    "src/scripts",
+    "src/scripts/player",
+    "src/scripts/ui",
+    "src/autoload",
+    "assets/sprites",
+    "assets/audio",
+    "assets/fonts",
+]
+
+
+def build_project_overview(project_root, only_exts=None, max_entries=None, compact_threshold=150):
+    """Умный контекст: если файлов мало — полное дерево (как раньше), если
+    много — сводка по папкам. Возвращает (текст, is_compact)."""
+    project_root = os.path.abspath(project_root)
+    total = 0
+    for dirpath, dirnames, filenames in os.walk(project_root):
+        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        for f in filenames:
+            if f in EXCLUDED_FILES:
+                continue
+            if only_exts is not None and os.path.splitext(f)[1].lower() not in only_exts:
+                continue
+            total += 1
+        if total > compact_threshold:
+            break
+    if total <= compact_threshold:
+        return build_project_tree(project_root, only_exts=only_exts, max_entries=max_entries), False
+    # Компактная сводка: папки (до 3 уровней) и счётчики файлов по расширениям.
+    per_dir = {}
+    root_files = []
+    for dirpath, dirnames, filenames in os.walk(project_root):
+        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
+        for f in sorted(filenames):
+            if f in EXCLUDED_FILES:
+                continue
+            ext = os.path.splitext(f)[1].lower() or '(без расширения)'
+            if rel == '.':
+                root_files.append(f)
+            else:
+                key = '/'.join(rel.split('/')[:3])
+                per_dir.setdefault(key, {})
+                per_dir[key][ext] = per_dir[key].get(ext, 0) + 1
+    lines = [
+        "(Проект БОЛЬШОЙ — вместо полного дерева ниже СВОДКА по папкам.",
+        "Точные данные бери АДРЕСНО: list_files с \"dir\" — дерево нужной папки; search_project — где объявлен код; list_scene — структура сцены; read_file — содержимое файла.)",
+        "",
+    ]
+    for f in root_files:
+        lines.append(f)
+    for key in sorted(per_dir):
+        stats = per_dir[key]
+        parts = ", ".join("%d %s" % (stats[e], e) for e in sorted(stats))
+        lines.append("%s/ — %s" % (key, parts))
+    if len(lines) > 400:
+        lines = lines[:400] + ["… (сводка обрезана — папок очень много)"]
+    return '\n'.join(lines), True
+
+
+def _parse_project_godot(project_root):
+    """Главная сцена и автозагрузки (Autoload) из project.godot."""
+    p = os.path.join(os.path.abspath(project_root), 'project.godot')
+    main_scene, autoloads, section = '', {}, ''
+    if not os.path.isfile(p):
+        return main_scene, autoloads
+    try:
+        with open(p, 'r', encoding='utf-8', errors='replace') as f:
+            for line in f:
+                s = line.strip()
+                if s.startswith('[') and s.endswith(']'):
+                    section = s[1:-1].strip()
+                    continue
+                if '=' not in s or s.startswith(';') or s.startswith('#'):
+                    continue
+                key, val = s.split('=', 1)
+                key, val = key.strip(), val.strip().strip('"')
+                if section == 'application' and key == 'run/main_scene':
+                    main_scene = val
+                elif section == 'autoload' and key:
+                    autoloads[key] = val.lstrip('*')
+    except Exception:
+        pass
+    return main_scene, autoloads
+
+
+def has_architecture(project_root):
+    """Есть ли у проекта СВОЯ структура: типовые папки или любой .gd/.tscn
+    вне addons/. Если есть — агент ИСПОЛЬЗУЕТ её, а не навязывает свою."""
+    project_root = os.path.abspath(project_root)
+    for name in ('src', 'scripts', 'scenes', 'game', 'core', 'levels'):
+        if os.path.isdir(os.path.join(project_root, name)):
+            return True
+    for dirpath, dirnames, filenames in os.walk(project_root):
+        dirnames[:] = [d for d in dirnames
+                       if d not in EXCLUDED_DIRS and not d.startswith('.') and d != 'addons']
+        for f in filenames:
+            if os.path.splitext(f)[1].lower() in ('.gd', '.tscn'):
+                return True
+    return False
+
+
+def ensure_standard_architecture(project_root):
+    """Если архитектуры у проекта нет (пустой/новый проект) — создаёт
+    стандартную для игр (с пустым .gdkeep в каждой папке, чтобы папки
+    не терялись). Возвращает список созданных папок res:// (пустой — ничего не создано)."""
+    project_root = os.path.abspath(project_root)
+    if has_architecture(project_root):
+        return []
+    created = []
+    for rel in STANDARD_ARCHITECTURE_DIRS:
+        abs_dir = os.path.join(project_root, rel.replace('/', os.sep))
+        if os.path.isdir(abs_dir):
+            continue
+        os.makedirs(abs_dir, exist_ok=True)
+        try:
+            with open(os.path.join(abs_dir, '.gdkeep'), 'w', encoding='utf-8') as f:
+                f.write('')
+        except OSError:
+            pass
+        created.append('res://' + rel + '/')
+    return created
+
+
+def describe_architecture(project_root, max_dirs=6):
+    """Короткая сводка архитектуры проекта для модели: главная сцена,
+    автозагрузки, где живут скрипты/сцены/ассеты (топ папок по числу файлов)."""
+    project_root = os.path.abspath(project_root)
+    main_scene, autoloads = _parse_project_godot(project_root)
+    script_dirs, scene_dirs, asset_dirs = {}, {}, {}
+    for dirpath, dirnames, filenames in os.walk(project_root):
+        dirnames[:] = [d for d in dirnames
+                       if d not in EXCLUDED_DIRS and not d.startswith('.') and d != 'addons']
+        rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
+        key = '(корень res://)' if rel == '.' else '/'.join(rel.split('/')[:2])
+        for f in filenames:
+            ext = os.path.splitext(f)[1].lower()
+            if ext == '.gd':
+                script_dirs[key] = script_dirs.get(key, 0) + 1
+            elif ext in ('.tscn', '.scn'):
+                scene_dirs[key] = scene_dirs.get(key, 0) + 1
+            elif ext in ASSET_EXTS:
+                asset_dirs[key] = asset_dirs.get(key, 0) + 1
+    lines = []
+    if main_scene:
+        lines.append('Главная сцена: %s' % main_scene)
+    if autoloads:
+        lines.append('Автозагрузки (Autoload): ' +
+                     '; '.join('%s → %s' % (k, v) for k, v in sorted(autoloads.items())))
+
+    def _top(d, label):
+        if not d:
+            return
+        items = sorted(d.items(), key=lambda kv: -kv[1])[:max_dirs]
+        shown = []
+        for k, v in items:
+            shown.append('%s (%d)' % (k, v) if k.startswith('(') else 'res://%s/ (%d)' % (k, v))
+        lines.append(label + ': ' + '; '.join(shown))
+
+    _top(script_dirs, 'Скрипты (.gd)')
+    _top(scene_dirs, 'Сцены (.tscn)')
+    _top(asset_dirs, 'Ассеты')
+    return '\n'.join(lines)
+
+
+def snapshot_files(project_root):
+    """Отпечаток файлов проекта (mtime+size) — для обнаружения изменений,
+    сделанных ВНЕ агента (пользователь удалил/поменял файлы руками)."""
+    project_root = os.path.abspath(project_root)
+    snap = {}
+    for dirpath, dirnames, filenames in os.walk(project_root):
+        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        for f in filenames:
+            if f in EXCLUDED_FILES:
+                continue
+            abs_path = os.path.join(dirpath, f)
+            try:
+                st = os.stat(abs_path)
+            except OSError:
+                continue
+            rel = os.path.relpath(abs_path, project_root).replace(os.sep, '/')
+            snap[rel] = (int(st.st_mtime), int(st.st_size))
+    return snap
+
+
+def diff_snapshots(old, new):
+    """Сравнение двух снапшотов: (добавлены, изменены, удалены)."""
+    added = sorted(set(new) - set(old))
+    deleted = sorted(set(old) - set(new))
+    changed = sorted(p for p in new if p in old and new[p] != old[p])
+    return added, changed, deleted
+
+
+def format_fs_changes(added, changed, deleted, limit=12, diffs=None):
+    """Сообщение модели о внешних изменениях файлов (или "" если их нет).
+    diffs: {rel_path: (diff_text, n_lines)} — точечные diff для изменённых
+    файлов, чьё старое содержимое модель уже видела: ей НЕ нужно
+    перечитывать весь файл заново (экономия токенов)."""
+    if not (added or changed or deleted):
+        return ''
+    diffs = diffs or {}
+
+    def _block(title, items):
+        rows = ['- %s: res://%s' % (title, p) for p in items[:limit]]
+        if len(items) > limit:
+            rows.append('- …и ещё %d (%s)' % (len(items) - limit, title))
+        return rows
+
+    lines = ['[Система]: файлы проекта ИЗМЕНИЛИСЬ вне этого диалога (пользователь или другая программа):']
+    lines += _block('удалён', deleted)
+    for p in changed[:limit]:
+        if p in diffs:
+            d, n = diffs[p]
+            lines.append('- изменён: res://%s — точечная правка (строк в diff: %d). Точный diff НИЖЕ — перечитывать файл НЕ нужно:' % (p, n))
+            lines.append('```diff')
+            lines.append(d)
+            lines.append('```')
+        else:
+            lines.append('- изменён: res://%s (правка большая или неизвестная — перечитай через read_file перед патчем)' % p)
+    if len(changed) > limit:
+        lines.append('- …и ещё %d (изменён)' % (len(changed) - limit))
+    lines += _block('добавлен', added)
+    lines.append('Учитывай это: НЕ ссылайся на удалённые файлы; где есть diff — применяй его как новое содержимое; изменённые БЕЗ diff перечитай через read_file, прежде чем патчить.')
+    return '\n'.join(lines)
+
+
+def unified_diff_text(old_text, new_text, rel_path, max_lines=40, context=1):
+    """Компактный unified-diff для модели: (diff_text, изменённых строк).
+    Если правка слишком большая для точечного diff — (None, изменённых строк):
+    тогда модели дешевле перечитать файл целиком через read_file."""
+    import difflib
+    diff = list(difflib.unified_diff(
+        old_text.splitlines(), new_text.splitlines(),
+        fromfile='res://%s (было)' % rel_path,
+        tofile='res://%s (стало)' % rel_path,
+        lineterm='', n=context))
+    if not diff:
+        return None, 0
+    changed = sum(1 for l in diff
+                  if (l.startswith('+') or l.startswith('-'))
+                  and not l.startswith('+++') and not l.startswith('---'))
+    if len(diff) > max_lines:
+        return None, changed
+    return '\n'.join(diff), changed

@@ -7,6 +7,13 @@ from browser_manager import setup_browser
 from ai_parser import send_message_and_get_response
 from project_tools import (
     build_project_tree,
+    build_project_overview,
+    describe_architecture,
+    ensure_standard_architecture,
+    snapshot_files,
+    diff_snapshots,
+    format_fs_changes,
+    unified_diff_text,
     read_project_file,
     create_project_file,
     patch_project_file,
@@ -28,6 +35,7 @@ from agent_prompts import (
     PRIMING_TEMPLATE,
     CODE_EXTS,
     PRIME_TREE_MAX_ENTRIES,
+    PRIME_COMPACT_THRESHOLD,
     MAX_BATCH_FILES,
     PER_FILE_CHAR_LIMIT,
     TOTAL_CHAR_BUDGET,
@@ -43,23 +51,62 @@ from agent_prompts import (
 PLAN_ALLOWED_ACTIONS = {"create_file", "patch_file", "move_file"}
 import server_state
 from server_state import (
-    STATE, get_driver, set_driver,
+    STATE, get_driver, set_driver, wait_driver, set_driver_error,
     _prime_flag_path, _load_primed, _save_primed,
     _apply_session_context, _ensure_current_chat, _remember,
     _sync_chat_after_reply, _set_progress, _clear_progress,
 )
 import sites
+
+# PyInstaller кладёт в exe только СТАТИЧЕСКИ импортированные модули.
+# Парсеры сайтов подгружаются динамически (sites.get_parser_module), поэтому
+# перечисляем их здесь явно — иначе их не окажется в сборке и DeepSeek молча
+# обслуживался бы парсером AI Studio (баг «текст вводится, но не отправляется»).
+import parser_base      # noqa: F401
+import ai_parser        # noqa: F401
+import deepseek_parser  # noqa: F401
+
 from chat_routes import chats_bp
 
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
 
 
+def _current_parser():
+    """Модуль-парсер по сайту ТЕКУЩЕГО чата (aistudio -> ai_parser,
+    deepseek -> deepseek_parser, ...). Если чат не помнит сайт (старые чаты) —
+    определяем по адресу открытой страницы браузера."""
+    site_id = None
+    try:
+        base = server_state._chats_dir()
+        cid = STATE.get("current_chat_id")
+        if base and cid:
+            rec = chat_store.find_chat(base, cid) or {}
+            site_id = rec.get("site_id")
+    except Exception:
+        site_id = None
+    url = None
+    if not site_id:
+        try:
+            d = get_driver()
+            if d is not None:
+                url = d.current_url or ""
+        except Exception:
+            url = None
+    return sites.get_parser_module(site_id, url)
+
+
 def _reply(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
+    server_state.clear_cancel()
     _set_progress({"phase": "отправляю запрос в браузер"})
     try:
-        result = send_message_and_get_response(get_driver(), prompt, progress_cb=_set_progress)
+        result = _current_parser().send_message_and_get_response(
+            wait_driver(), prompt, progress_cb=_set_progress,
+            cancel_cb=server_state.cancel_requested)
+    except parser_base.ParserCancelled:
+        print("<-- Запрос остановлен пользователем.")
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     finally:
         _clear_progress()
     if isinstance(result, dict):
@@ -81,7 +128,8 @@ def _describe_action(action):
     if act == "move_file": return f"Агент хочет переместить {path} в {action.get('dest', '')}"
     if act == "copy_file": return "Агент копирует файлы внутри проекта (адаптация)"
     if act == "search_project": return "Агент хочет выполнить поиск по всем файлам проекта: «%s»" % action.get("query", "")
-    if act == "list_files": return "Агент хочет получить свежее дерево файлов проекта"
+    if act == "list_files":
+        return "Агент хочет получить свежее дерево файлов проекта" + ((" (папка %s)" % action.get("dir")) if action.get("dir") else "")
     if act == "list_scene": return f"Агент хочет посмотреть структуру сцены: {path}"
     if act == "plan":
         total = action.get("total", len(action.get("steps") or []))
@@ -197,6 +245,12 @@ def _apply_write_step(action, project_root, chain_id=None):
         history.abort_change(project_root, entry_id)
         return {"ok": False, "message": str(e), "changed_path": None, "changed_block": None}
     history.commit_change(project_root, entry_id)
+    _refresh_fs_snapshot(project_root)  # своя запись — не «внешнее» изменение
+    if act_type in ("create_file", "patch_file"):
+        _remember_file(project_root, path)   # модель знает, что сама написала
+    elif act_type == "move_file":
+        _forget_file(path)
+        _remember_file(project_root, action.get("dest", ""))
     if act_type != "move_file":
         _touch_file_read(path)
     if act_type == "create_file":
@@ -265,6 +319,7 @@ def _finish_read_batch(project_root):
             note = " (файл обрезан)" if truncated else ""
             parts.append("Содержимое файла %s%s:\n%s\n%s\n%s" % (f["path"], note, fence, content, fence))
             _touch_file_read(f["path"])  # чат теперь знает актуальное содержимое
+            _remember_file(project_root, f["path"])  # для точечных diff ручных правок
         elif f["status"] == "rejected":
             parts.append("[Система]: Пользователь ��ТКАЗАЛСЯ показывать файл %s. НЕ запрашивай его повторно; работай без него или объясни пользователю, зачем он нужен." % f["path"])
         elif f["status"] == "missing":
@@ -323,6 +378,9 @@ def _package_model_reply(text, action, project_root, depth=0):
             history.commit_change(project_root, entry_id)
             results.append("\u2713 %s -> %s" % (s, d))
             print("--> copy_file %s -> %s" % (s, d))
+            _remember_file(project_root, d)
+        if pairs:
+            _refresh_fs_snapshot(project_root)
         if not pairs:
             followup = ("[Система]: copy_file пришёл без пар src/dest. Пришли заново: "
                         '{"action":"copy_file","copies":[{"src":"res://...","dest":"res://..."}]}.')
@@ -658,6 +716,120 @@ def _format_search_results(query, results, truncated):
     return "\n\n".join(parts)
 
 
+def _refresh_fs_snapshot(project_root):
+    """Пересъёмка отпечатка файлов проекта. Вызывается после КАЖДОЙ записи
+    самого агента, чтобы его собственные правки не считались «внешними»."""
+    if not project_root:
+        return
+    try:
+        STATE["fs_snapshot"] = snapshot_files(project_root)
+        STATE["fs_snapshot_root"] = project_root
+    except Exception:
+        pass
+
+
+FILE_CACHE_MAX_BYTES = 300000  # файлы больше этого в кэш точечных diff не попадают
+
+
+def _rel_from_godot_path(godot_path):
+    return str(godot_path or "").replace("res://", "").strip("/").replace(chr(92), "/")
+
+
+def _remember_file(project_root, godot_path):
+    """Кэширует содержимое файла, которое видела модель (после чтения или
+    своей записи): при ручной правке пользователя модель получит ТОЧЕЧНЫЙ
+    diff, а не команду перечитать весь файл (экономия токенов)."""
+    try:
+        abs_path = _resolve_safe_path(project_root, godot_path)
+        if not os.path.isfile(abs_path) or os.path.getsize(abs_path) > FILE_CACHE_MAX_BYTES:
+            return
+        with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+            content = fh.read()
+    except Exception:
+        return
+    cache = STATE.get("file_cache")
+    if cache is None:
+        cache = {}
+        STATE["file_cache"] = cache
+    cache[_rel_from_godot_path(godot_path)] = content
+
+
+def _forget_file(godot_path):
+    cache = STATE.get("file_cache")
+    if cache:
+        cache.pop(_rel_from_godot_path(godot_path), None)
+
+
+def _external_changes_note(project_root):
+    """Сообщение модели о файлах, изменённых ВНЕ агента с прошлого обмена
+    (пользователь удалил сцену, поменял скрипт руками, что-то добавил), или "".
+    Заодно обновляет снапшот, чтобы одно изменение не сообщалось дважды."""
+    if not project_root:
+        return ""
+    old = STATE.get("fs_snapshot")
+    if old is None or STATE.get("fs_snapshot_root") != project_root:
+        _refresh_fs_snapshot(project_root)
+        return ""
+    try:
+        new = snapshot_files(project_root)
+    except Exception:
+        return ""
+    STATE["fs_snapshot"] = new
+    STATE["fs_snapshot_root"] = project_root
+    added, changed, deleted = diff_snapshots(old, new)
+    cache = STATE.get("file_cache") or {}
+    diffs = {}
+    for rel in changed:
+        old_content = cache.get(rel)
+        if old_content is None:
+            continue
+        try:
+            with open(os.path.join(project_root, rel), "r", encoding="utf-8", errors="replace") as fh:
+                new_content = fh.read()
+        except Exception:
+            continue
+        d, n_lines = unified_diff_text(old_content, new_content, rel)
+        if d is not None:
+            diffs[rel] = (d, n_lines)
+            cache[rel] = new_content   # модель узнаёт новое содержимое из diff
+        else:
+            cache.pop(rel, None)       # правка слишком большая — модель перечитает файл
+    for rel in deleted:
+        cache.pop(rel, None)
+    return format_fs_changes(added, changed, deleted, diffs=diffs)
+
+
+def _build_priming_context(project_root):
+    """Мега-промпт: умное дерево (полное для маленького проекта, сводка по
+    папкам для большого) + описание архитектуры проекта. Если проект пустой —
+    агент сам создаёт стандартную архитектуру для игр."""
+    try:
+        created = ensure_standard_architecture(project_root)
+    except Exception:
+        created = []
+    if created:
+        print("--> Проект пуст: создана стандартная архитектура (%d папок)" % len(created))
+    try:
+        arch = describe_architecture(project_root)
+    except Exception:
+        arch = ""
+    if created:
+        arch = ("Проект был пуст — агент УЖЕ создал стандартную структуру папок для игры:\n"
+                + "\n".join("- " + d for d in created)
+                + "\nКлади скрипты в res://src/scripts/, сцены в res://src/scenes/, "
+                  "автозагрузки в res://src/autoload/, ассеты в res://assets/."
+                + (("\n" + arch) if arch.strip() else ""))
+    if not arch.strip():
+        arch = "(явной архитектуры не обнаружено — ориентируйся на структуру ниже и не разводи хаос в корне)"
+    tree, compact = build_project_overview(project_root, only_exts=CODE_EXTS,
+                                           max_entries=PRIME_TREE_MAX_ENTRIES,
+                                           compact_threshold=PRIME_COMPACT_THRESHOLD)
+    if compact:
+        print("--> Проект большой: в мега-промпт идёт компактная сводка по папкам вместо полного дерева")
+    _refresh_fs_snapshot(project_root)  # созданные папки — не «внешние» изменения
+    return PRIMING_TEMPLATE.replace("{tree}", tree).replace("{architecture}", arch)
+
+
 # ---------------------------------------------------------------------------
 # HTTP-эндпоинты
 # ---------------------------------------------------------------------------
@@ -671,6 +843,8 @@ def init_session():
     STATE["pending_batch"] = None
     STATE["action_note"] = ""
     STATE["pending_log_report"] = None
+    if STATE.get("fs_snapshot") is None or STATE.get("fs_snapshot_root") != STATE["project_root"]:
+        _refresh_fs_snapshot(STATE["project_root"])
     reinit = bool(data.get("reinit", False))
     if reinit:
         _save_primed(STATE["project_root"], False)
@@ -728,10 +902,16 @@ def chat():
             prompt = f"{stale}\n\n{prompt}"
             STATE["stale_note"] = ""
 
+        # Файлы, изменённые ВНЕ агента (пользователь удалил сцену, поменял
+        # скрипт руками...) — модель узнаёт об этом вместе с этим сообщением.
+        ext_note = _external_changes_note(current_root)
+        if ext_note:
+            print("--> Обнаружены внешние изменения файлов проекта, сообщаем модели")
+            prompt = f"{ext_note}\n\n{prompt}"
+
         if not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
-            tree = build_project_tree(current_root, only_exts=CODE_EXTS, max_entries=PRIME_TREE_MAX_ENTRIES)
-            system_context = PRIMING_TEMPLATE.replace("{tree}", tree)
+            system_context = _build_priming_context(current_root)
             final_prompt = f"{system_context}\n\n[ЗАДАНИЕ ОТ ПОЛЬЗОВАТЕЛЯ]:\n{prompt}"
             text, action = _reply_with_self_heal(final_prompt, current_root)
             STATE["is_primed"] = True
@@ -837,11 +1017,24 @@ def confirm_action():
             return _package_model_reply(text, new_action, project_root)
 
         elif act_type == "list_files":
-            print("--> Отправка свежего дерева файлов проекта...")
             STATE["pending_action"] = None
-            tree = build_project_tree(project_root)
+            sub = str(action.get("dir") or "").strip()
+            if sub.rstrip("/") in ("", "res:"):
+                sub = ""  # res:// — это корень проекта: отдаём полную структуру, а не ошибку
             fence = "`" * 3
-            followup = "[Система]: АКТУАЛЬНОЕ дерево файлов проекта:\n%s\n%s\n%s" % (fence, tree, fence)
+            if sub:
+                print(f"--> Отправка дерева папки {sub}...")
+                try:
+                    tree = build_project_tree(project_root, subdir=sub)
+                    followup = "[Система]: АКТУАЛЬНОЕ дерево папки %s:\n%s\n%s\n%s" % (sub, fence, tree, fence)
+                except Exception as e:
+                    followup = "[Система]: list_files не выполнен: %s Проверь \"dir\" — это должна быть существующая папка res://." % e
+            else:
+                print("--> Отправка свежей структуры проекта...")
+                tree, compact = build_project_overview(project_root, compact_threshold=PRIME_COMPACT_THRESHOLD)
+                head = ("АКТУАЛЬНАЯ структура проекта (проект большой — это СВОДКА по папкам; дерево конкретной папки: list_files с \"dir\")"
+                        if compact else "АКТУАЛЬНОЕ дерево файлов проекта")
+                followup = "[Система]: %s:\n%s\n%s\n%s" % (head, fence, tree, fence)
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 
@@ -902,6 +1095,8 @@ def rollback():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     if ok:
+        _refresh_fs_snapshot(STATE.get("project_root"))
+        STATE["file_cache"] = None  # содержимое откатилось — кэш diff устарел
         note = f"[Система: Пользователь ОТМЕНИЛ (откатил) ваше последнее действие! {msg}."
         if diff:
             # Точный обратный дифф — модели НЕ нужно перечитывать файл целиком.
@@ -1023,6 +1218,8 @@ def plan_rollback_chain():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     if ok:
+        _refresh_fs_snapshot(STATE.get("project_root"))
+        STATE["file_cache"] = None  # содержимое откатилось — кэш diff устарел
         STATE["action_note"] = (
             "[Система: Пользователь откатил всю цепочку вашего плана! %s. Скорректируйте подход, если эти файлы всё ещё нужны.]"
         ) % msg
@@ -1116,8 +1313,7 @@ def send_log_errors():
             STATE["action_note"] = ""
         if not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
-            tree = build_project_tree(project_root)
-            system_context = PRIMING_TEMPLATE.replace("{tree}", tree)
+            system_context = _build_priming_context(project_root)
             message = f"{system_context}\n\n{message}"
             STATE["is_primed"] = True
         print(f"--> Отправка отчёта об ошибках запуска ({len(message)} симв.)")
@@ -1129,6 +1325,15 @@ def send_log_errors():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/chat/stop', methods=['POST'])
+def chat_stop():
+    """Остановить текущую обработку запроса (кнопка «Стоп» в панели)."""
+    busy = bool((STATE.get("progress") or {}).get("active"))
+    server_state.request_cancel()
+    print("--> Запрошена остановка обработки (шла обработка: %s)." % busy)
+    return jsonify({"ok": True, "was_busy": busy})
+
+
 @app.route('/chat/progress', methods=['GET'])
 def chat_progress():
     # Живая трансляция для панели: что сейчас происходит в браузере.
@@ -1138,13 +1343,25 @@ def chat_progress():
     return jsonify(STATE.get("progress") or {"active": False})
 
 
+def _boot_browser_background():
+    """Запуск Chrome В ФОНЕ: HTTP-сервер поднимается сразу (панель видит его
+    через 1-2 секунды), а браузер догоняет параллельно. Кому нужен
+    браузер — дождётся его через wait_driver()."""
+    try:
+        set_driver(setup_browser())
+        print("\u2705 Браузер готов.")
+    except Exception as e:
+        traceback.print_exc()
+        set_driver_error(e)
+
+
 if __name__ == '__main__':
     try:
-        driver = setup_browser()
-        set_driver(driver)
         import logging
+        import threading
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
+        threading.Thread(target=_boot_browser_background, daemon=True).start()
         # ВАЖНО: только 127.0.0.1! На 0.0.0.0 любой в локальной сети
         # мог бы писать файлы в ваш проект простым POST-запросом.
         app.run(port=5000, host='127.0.0.1', threaded=True)

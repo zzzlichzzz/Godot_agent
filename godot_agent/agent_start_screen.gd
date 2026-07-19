@@ -16,6 +16,7 @@ signal load_chat_requested(chat_id)
 signal sites_tab_requested()
 signal chats_tab_requested()
 signal language_changed()
+signal open_server_requested()
 
 const URL_BOOSTY := "https://boosty.to/zzzlichzzz"
 const URL_TIPS := "https://pay.cloudtips.ru/p/50d418af"
@@ -37,6 +38,9 @@ var _spin_timer: Timer = null
 var _spin_idx: int = 0
 var _return_view: String = "home"
 var _loc = null
+var _server_btn: Button = null
+var _server_hint: Label = null
+var _server_running: bool = true  # до первого сигнала от сервера считаем, что он мог быть уже запущен — кнопку не мигаем без повода
 
 
 func _ready() -> void:
@@ -99,6 +103,22 @@ func _rebuild_ui() -> void:
 	show_home()
 
 
+# ---------------- Кнопка ручного запуска сервера ----------------
+
+
+func set_server_running(running: bool) -> void:
+	# вызывается из agent_panel.gd при каждом server_state_changed.
+	_server_running = running
+	_apply_server_visibility()
+
+
+func _apply_server_visibility() -> void:
+	if _server_btn:
+		_server_btn.visible = not _server_running
+	if _server_hint:
+		_server_hint.visible = not _server_running
+
+
 # ---------------- Построение интерфейса ----------------
 
 func _build() -> void:
@@ -115,6 +135,20 @@ func _build() -> void:
 	var top_spacer := Control.new()
 	top_spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	top.add_child(top_spacer)
+	# Кнопка ручного запуска сервера — прямо здесь, рядом с переключателем
+	# языка (не в основной панели: стартовый экран рисуется поверх неё на
+	# весь экран, поэтому там кнопку никто не видел). Видна только когда
+	# сервер не отвечает; как только отвечает — прячется сама.
+	_server_btn = Button.new()
+	_server_btn.text = _t("srv_open_folder_btn")
+	_server_btn.tooltip_text = _t("srv_open_folder_tip")
+	_server_btn.pressed.connect(func(): open_server_requested.emit())
+	top.add_child(_server_btn)
+	_server_hint = Label.new()
+	_server_hint.text = _t("srv_manual_hint")
+	_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_server_hint.custom_minimum_size = Vector2(190, 0)
+	top.add_child(_server_hint)
 	var lang_lbl := Label.new()
 	lang_lbl.text = _t("lang_label")
 	top.add_child(lang_lbl)
@@ -130,6 +164,7 @@ func _build() -> void:
 	title.size_flags_horizontal = SIZE_EXPAND_FILL
 	title.add_theme_font_size_override("font_size", 20)
 	root.add_child(title)
+	_apply_server_visibility()
 
 	# ---- ГЛАВНАЯ: две большие кнопки, сверху и снизу ----
 	_home = VBoxContainer.new()

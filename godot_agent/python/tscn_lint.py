@@ -14,9 +14,42 @@ import re
 import gd_api_cache
 
 _SECTION_START_RE = re.compile(r'^\[(gd_scene|ext_resource|sub_resource|node|resource|connection)\b')
+# Строка-«закрывающий тег» вида [/sub_resource]: в формате .tscn таких НЕТ вообще —
+# это типовая выдумка моделей (по аналогии с XML), из-за которой Godot падает с
+# «ошибкой при синтаксическом разборе файла» / Failed loading resource.
+_CLOSING_TAG_RE = re.compile(r'^\[/[A-Za-z_][A-Za-z0-9_]*\]$')
 _HEADER_RE = re.compile(r'\[gd_scene\b([^\]]*)\]')
 _EXT_RE = re.compile(r'\[ext_resource\b([^\]]*)\]')
 _SUB_RE = re.compile(r'\[sub_resource\b([^\]]*)\]')
+
+# Частые КЛАССЫ-УЗЛЫ, которые модели ошибочно объявляют как [sub_resource].
+# Узел — не ресурс: Godot падает с «Can't create sub resource of type 'X'
+# as it's not a resource type» и сцена не грузится вообще.
+_NODE_CLASSES = {
+    "Node", "Node2D", "Node3D", "Control", "CanvasLayer",
+    "ColorRect", "TextureRect", "Label", "RichTextLabel", "Button",
+    "TextureButton", "Panel", "PanelContainer", "NinePatchRect",
+    "VBoxContainer", "HBoxContainer", "GridContainer", "MarginContainer",
+    "CenterContainer", "ScrollContainer", "ProgressBar", "LineEdit", "TextEdit",
+    "ItemList", "OptionButton", "CheckBox", "CheckButton",
+    "Sprite2D", "AnimatedSprite2D", "Camera2D", "CollisionShape2D",
+    "CollisionPolygon2D", "Area2D", "CharacterBody2D", "RigidBody2D",
+    "StaticBody2D", "AnimatableBody2D", "AnimationPlayer", "Timer",
+    "AudioStreamPlayer", "AudioStreamPlayer2D", "TileMap", "TileMapLayer",
+    "Marker2D", "Path2D", "PathFollow2D", "RayCast2D", "VisibleOnScreenNotifier2D",
+}
+
+# ЗНАЧЕНИЯ (Variant-типы) — тоже НЕ ресурсы: модели пишут
+# [sub_resource type="Color"] и ломают сцену точно так же, как с узлами.
+_VARIANT_TYPES = {
+    "Color", "Vector2", "Vector2i", "Vector3", "Vector3i", "Vector4", "Vector4i",
+    "Rect2", "Rect2i", "Transform2D", "Transform3D", "Quaternion", "Basis",
+    "Plane", "AABB", "String", "StringName", "NodePath", "bool", "int", "float",
+    "Array", "Dictionary", "PackedByteArray", "PackedInt32Array",
+    "PackedInt64Array", "PackedFloat32Array", "PackedFloat64Array",
+    "PackedStringArray", "PackedVector2Array", "PackedVector3Array",
+    "PackedColorArray",
+}
 _NODE_RE = re.compile(r'\[node\b([^\]]*)\]')
 _EXTCALL_RE = re.compile(r'ExtResource\(\s*"?([^")\s]+)"?\s*\)')
 _SUBCALL_RE = re.compile(r'SubResource\(\s*"?([^")\s]+)"?\s*\)')
@@ -67,23 +100,31 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     # однозначен, чиним ЛОКАЛЬНО сами (как load_steps), не тратя обращение
     # к модели. Остальные незакрытые заголовки — в problems на решение модели.
     lines = fixed.split("\n")
+    out_lines = []
     for i, raw_line in enumerate(lines):
         cr = "\r" if raw_line.endswith("\r") else ""
         line = raw_line[:-1] if cr else raw_line
+        # Закрывающих тегов в .tscn НЕ СУЩЕСТВУЕТ: строки [/sub_resource], [/node] и т.п.
+        # удаляем ЛОКАЛЬНО без обращения к модели — смысл однозначен, как и у load_steps.
+        if _CLOSING_TAG_RE.match(line.strip()):
+            continue
         if not _SECTION_START_RE.match(line):
+            out_lines.append(raw_line)
             continue
         stripped = line.rstrip()
         if stripped.endswith("]"):
+            out_lines.append(raw_line)
             continue
         if stripped.endswith(">") and "]" not in stripped:
-            lines[i] = stripped[:-1].rstrip() + "]" + cr
+            out_lines.append(stripped[:-1].rstrip() + "]" + cr)
             continue
         problems.append(
             "строка %d: заголовок секции «%s» не закрыт «]» на своей строке — "
             "Godot откажется открыть такой файл с ошибкой «Unexpected end of file». "
             "Заверши заголовок символом «]» на той же строке." % (i + 1, stripped)
         )
-    fixed = "\n".join(lines)
+        out_lines.append(raw_line)
+    fixed = "\n".join(out_lines)
 
     if problems:
         return fixed, problems
@@ -102,6 +143,28 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
         rid = a.get("id")
         if isinstance(rid, str):
             sub_ids.add(rid)
+
+    # --- 0.5) узлы, ошибочно объявленные как [sub_resource] ---
+    for m in _SUB_RE.finditer(text):
+        a = _attrs(m.group(1))
+        rtype = a.get("type")
+        if isinstance(rtype, str) and rtype in _NODE_CLASSES:
+            problems.append(
+                "[sub_resource type=\"%s\"]: %s — это УЗЕЛ (Node), а НЕ ресурс. Godot откажется "
+                "грузить сцену («Can't create sub resource of type '%s' as it's not a "
+                "resource type»). Объяви его секцией [node name=\"...\" type=\"%s\" "
+                "parent=\"...\"], а [sub_resource] оставь только для ресурсов "
+                "(RectangleShape2D, CircleShape2D, Theme, Animation, Material и т.п.). "
+                "Для цветной заглушки-прямоугольника используй ДОЧЕРНИЙ узел ColorRect "
+                "со свойствами color и offset/size." % (rtype, rtype, rtype, rtype))
+        elif isinstance(rtype, str) and rtype in _VARIANT_TYPES:
+            problems.append(
+                "[sub_resource type=\"%s\"]: %s — это ЗНАЧЕНИЕ (Variant), а НЕ ресурс. "
+                "Godot откажется грузить сцену («Can't create sub resource of type "
+                "'%s' as it's not a resource type»). Такие значения пишутся ПРЯМО "
+                "в строке свойства узла, например color = Color(1, 0.85, 0.1, 1) — "
+                "удали эту секцию [sub_resource] и ссылки SubResource на неё."
+                % (rtype, rtype, rtype))
 
     # --- 1) load_steps: механически пересчитываем и тихо исправляем ---
     hm = _HEADER_RE.search(text)
