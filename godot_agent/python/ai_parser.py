@@ -8,6 +8,18 @@ from selenium.common.exceptions import (
     WebDriverException,
 )
 
+from parser_base import (
+    BaseSiteParser,
+    _safe_execute,
+    _escape_bbcode_py,
+    _strip_code_fences,
+    _extract_json_object,
+    _escape_raw_newlines_in_strings,
+    _remove_trailing_commas,
+    parse_action_json,
+    _looks_json_balanced,
+)
+
 # ---------------------------------------------------------------------------
 # JS: извлечение последнего ответа модели.
 # Всё завёрнуто в try/catch — скрипт НИКОГДА не должен кидать исключение
@@ -291,23 +303,6 @@ JS_GET_LIVE_ACTIVITY = r"""try {
 }"""
 
 
-def _safe_execute(driver, script, retries=5, delay=0.2, default=None):
-    """
-    Обёртка над driver.execute_script с защитой от StaleElementReferenceException /
-    JavascriptException — они возможны, если Angular перерисовал DOM прямо
-    во время выполнения скрипта.
-    """
-    last_exc = None
-    for _ in range(retries):
-        try:
-            return driver.execute_script(script)
-        except (JavascriptException, StaleElementReferenceException, WebDriverException) as e:
-            last_exc = e
-            time.sleep(delay)
-    print(f"[ai_parser] execute_script не удался после {retries} попыток: {last_exc}")
-    return default
-
-
 def get_model_turn_count(driver):
     return _safe_execute(driver, JS_COUNT_MODEL_TURNS, default=0) or 0
 
@@ -375,11 +370,6 @@ def extract_last_answer(driver):
     )
 
 
-def _escape_bbcode_py(text: str) -> str:
-    """[ и ] -> [lb]/[rb], чтобы сырой текст не ломал BBCode в панели."""
-    return text.replace('[', '[lb]').replace(']', '[rb]')
-
-
 # Шапка реплики в textContent: "Model 4:50 PM" / "User 12:03" в начале строки.
 _TURN_HEADER_RE = re.compile(r"^\s*(?:Model|User)\s+\d{1,2}:\d{2}(?:\s*[APap]\.?[Mm]\.?)?\s*")
 
@@ -396,352 +386,113 @@ def _strip_turn_chrome(text: str) -> str:
     return cleaned.strip()
 
 
-def extract_last_answer_robust(driver, retries=3, delay=1.5):
-    """
-    ПЛАН Б: многоуровневое извлечение ответа.
-      1) основной структурный парсер (форматирование + agent_action);
-      2) грубый textContent без мыслей — текст без оформления лучше пустоты;
-      3) пауза и повтор с нуля (DOM мог перерисоваться прямо во время чтения).
-    """
-    result = None
-    for attempt in range(retries):
-        result = extract_last_answer(driver) or {}
-        text = (result.get("text") or "").strip()
-        if text or result.get("actionRaw") is not None:
-            if attempt > 0:
-                print(f"[ai_parser] План Б: ответ прочитан с попытки {attempt + 1}.")
-            return result
+# ---------------------------------------------------------------------------
+# Парсер AI Studio на базе общего менеджера парсинга (parser_base).
+# Вся общая логика (ожидание ответа, план Б, разбор agent_action) — в
+# BaseSiteParser; здесь только «где что лежит» на странице AI Studio.
+# ---------------------------------------------------------------------------
+
+_JS_FIND_INPUT = """
+function findInput(root) {
+    let nodes = [root];
+    while (nodes.length > 0) {
+        let node = nodes.shift();
+        if (node.tagName === 'TEXTAREA') return node;
+        if (node.shadowRoot) nodes.push(node.shadowRoot);
+        for (let child of node.children) nodes.push(child);
+    }
+    return null;
+}
+return findInput(document.body);
+"""
+
+_JS_INSERT = """
+let el = arguments[0];
+el.focus();
+el.value = arguments[1];
+el.dispatchEvent(new Event('input', { bubbles: true }));
+el.dispatchEvent(new Event('change', { bubbles: true }));
+"""
+
+
+class AiStudioParser(BaseSiteParser):
+    """Google AI Studio: сайт-специфичная часть поверх BaseSiteParser."""
+
+    LOG_TAG = "ai_parser"
+    WINDOW_URL_MATCH = "aistudio.google.com"
+    START_PHASE = "жду начала ответа"
+    QUIET_PERIOD = 2.5
+    POLL_INTERVAL = 0.25
+
+    def count_answers(self, driver):
+        return get_model_turn_count(driver)
+
+    def answer_len(self, driver):
+        return get_answer_text_length(driver)
+
+    def answer_preview(self, driver):
+        return get_answer_preview(driver)
+
+    def answer_stream(self, driver):
+        return get_answer_stream(driver)
+
+    def is_generating(self, driver):
+        return is_generating(driver)
+
+    def get_live_activity(self, driver):
+        return get_live_activity(driver)
+
+    def extract_answer(self, driver):
+        return extract_last_answer(driver)
+
+    def extract_raw_fallback(self, driver):
         raw = _safe_execute(driver, JS_EXTRACT_RAW_FALLBACK, default=None) or {}
-        raw_text = _strip_turn_chrome(raw.get("text") or "")
-        if raw_text or raw.get("actionRaw") is not None:
-            print("[ai_parser] План Б: основной парсер дал пустоту — использую textContent-фолбэк.")
-            return {
-                "text": _escape_bbcode_py(raw_text),
-                "actionRaw": raw.get("actionRaw"),
-                "error": None,
-            }
-        if attempt < retries - 1:
-            print(f"[ai_parser] Пустой ответ (попытка {attempt + 1}/{retries}) — жду {delay} с и читаю заново.")
-            time.sleep(delay)
-    return result or {"text": "", "actionRaw": None, "error": "extraction failed"}
+        return {
+            "text": _strip_turn_chrome(raw.get("text") or ""),
+            "actionRaw": raw.get("actionRaw"),
+        }
 
+    def find_input(self, driver):
+        return driver.execute_script(_JS_FIND_INPUT)
 
-# ---------------------------------------------------------------------------
-# Разбор JSON из agent_action.
-# ---------------------------------------------------------------------------
-def _strip_code_fences(raw: str) -> str:
-    raw = raw.strip()
-    raw = re.sub(r'^```[a-zA-Z_]*\s*', '', raw)
-    raw = re.sub(r'```\s*$', '', raw)
-    return raw.strip()
+    def insert_input(self, driver, el, prompt):
+        driver.execute_script("arguments[0].value = '';", el)
+        time.sleep(0.2)
+        driver.execute_script(_JS_INSERT, el, prompt)
 
-
-def _extract_json_object(raw: str) -> str:
-    """Вырезает подстроку от первой '{' до последней '}'."""
-    start = raw.find('{')
-    end = raw.rfind('}')
-    if start == -1 or end == -1 or end < start:
-        return raw
-    return raw[start:end + 1]
-
-
-def _escape_raw_newlines_in_strings(raw: str) -> str:
-    """Экранирует "голые" переносы строк внутри JSON-строк."""
-    out = []
-    in_string = False
-    escape = False
-    for ch in raw:
-        if in_string:
-            if escape:
-                out.append(ch)
-                escape = False
-                continue
-            if ch == '\\':
-                out.append(ch)
-                escape = True
-                continue
-            if ch == '"':
-                in_string = False
-                out.append(ch)
-                continue
-            if ch == '\n':
-                out.append('\\n')
-                continue
-            if ch == '\r':
-                out.append('\\r')
-                continue
-            if ch == '\t':
-                out.append('\\t')
-                continue
-            out.append(ch)
-        else:
-            if ch == '"':
-                in_string = True
-            out.append(ch)
-    return ''.join(out)
-
-
-def _remove_trailing_commas(raw: str) -> str:
-    return re.sub(r',(\s*[}\]])', r'\1', raw)
-
-
-def parse_action_json(raw: str):
-    """Пытается распарсить JSON блока agent_action.
-    Возвращает (dict_or_None, error_message_or_None)."""
-    if raw is None:
-        return None, None
-    base = _strip_code_fences(raw)
-    candidates = [base, _extract_json_object(base)]
-    for cand in list(candidates):
-        candidates.append(_remove_trailing_commas(cand))
-        candidates.append(_escape_raw_newlines_in_strings(cand))
-        candidates.append(_remove_trailing_commas(_escape_raw_newlines_in_strings(cand)))
-    last_error = None
-    for cand in candidates:
+    def before_submit(self, driver, el):
+        # «Толчок» Angular: пробел + backspace, чтобы поле точно заметило текст.
+        time.sleep(1)
         try:
-            return json.loads(cand), None
-        except Exception as e:
-            last_error = str(e)
-    try:
-        from json_repair import repair_json
-        fixed = repair_json(_extract_json_object(base))
-        return json.loads(fixed), None
-    except Exception as e:
-        last_error = f"{last_error}; json_repair: {e}"
-    return None, last_error
+            el.send_keys(Keys.SPACE)
+            el.send_keys(Keys.BACKSPACE)
+        except StaleElementReferenceException:
+            pass
+        time.sleep(0.5)
+
+    def submit(self, driver, el):
+        el.send_keys(Keys.CONTROL, Keys.ENTER)
 
 
-def _looks_json_balanced(raw: str) -> bool:
-    """Грубая проверка баланса скобок/кавычек."""
-    if not raw:
-        return False
-    depth = 0
-    in_string = False
-    escape = False
-    for ch in raw:
-        if in_string:
-            if escape:
-                escape = False
-            elif ch == '\\':
-                escape = True
-            elif ch == '"':
-                in_string = False
-            continue
-        if ch == '"':
-            in_string = True
-        elif ch in '{[':
-            depth += 1
-        elif ch in '}]':
-            depth -= 1
-    return (not in_string) and depth == 0
+PARSER = AiStudioParser()
+
+
+# --- Обёртки для совместимости со старым интерфейсом модуля ---
+
+def extract_last_answer_robust(driver, retries=3, delay=1.5):
+    return PARSER.extract_answer_robust(driver, retries=retries, delay=delay)
 
 
 def wait_for_new_answer(driver, initial_model_count, timeout=900,
                         quiet_period=2.5, hard_quiet_period=45.0, poll_interval=0.25,
                         post_quiet_grace=6.0, progress_cb=None):
-    start = time.time()
-
-    def _report(phase, chars=0, preview=None, stream=None):
-        # Живая трансляция: снимок состояния уходит в main.py -> /chat/progress.
-        if progress_cb is None:
-            return
-        try:
-            progress_cb({
-                "phase": phase,
-                "chars": int(chars or 0),
-                "elapsed": int(time.time() - start),
-                "preview": preview or "",
-                "stream": stream or "",
-            })
-        except Exception:
-            pass
-
-    # 1) ждём появления новой реплики модели
-    while time.time() - start < timeout:
-        if get_model_turn_count(driver) > initial_model_count:
-            break
-        _report("жду начала ответа")
-        time.sleep(poll_interval)
-    else:
-        raise TimeoutError("Новая реплика модели не появилась.")
-
-    # 2) ждём, пока начнётся генерация (спиннер) ИЛИ появится текст ОТВЕТА
-    while time.time() - start < timeout:
-        if get_answer_text_length(driver) > 0 or is_generating(driver):
-            break
-        _report("модель думает…")
-        time.sleep(poll_interval)
-
-    preview_txt = ""
-    stream_txt = ""
-    phase_txt = "пишет ответ…"
-    last_preview_ts = 0.0
-    last_length = -1
-    quiet_since = None
-    length_only_quiet_since = None
-    while time.time() - start < timeout:
-        length = get_answer_text_length(driver)   # длина ТОЛЬКО ответа, без "мыслей"
-        generating = is_generating(driver)
-        now = time.time()
-        if length == last_length:
-            if length_only_quiet_since is None:
-                length_only_quiet_since = now
-            if not generating:
-                if quiet_since is None:
-                    quiet_since = now
-            else:
-                quiet_since = None
-        else:
-            quiet_since = None
-            length_only_quiet_since = None
-
-        # Живая трансляция: фаза + счётчик символов + хвост ответа.
-        # В стиле Gemini: если модель прямо сейчас пишет код — говорим об этом.
-        if length > 0:
-            if now - last_preview_ts >= 1.0:
-                preview_txt = get_answer_preview(driver)
-                stream_txt = get_answer_stream(driver)
-                activity = get_live_activity(driver)
-                if activity.get("code"):
-                    lang = activity.get("lang") or ""
-                    if lang == "agent_action":
-                        phase_txt = "готовит действие для проекта…"
-                    elif lang:
-                        phase_txt = "пишет код (" + lang + ")…"
-                    else:
-                        phase_txt = "пишет код…"
-                else:
-                    phase_txt = "пишет ответ…"
-                last_preview_ts = now
-            _report("модель " + phase_txt, chars=length, preview=preview_txt, stream=stream_txt)
-        else:
-            _report("модель думает…")
-
-        # ВАЖНО: не завершаем, пока в ОТВЕТЕ нет ни одного символа.
-        # Пока модель только "думает", answer length == 0 -> ждём дальше,
-        # даже если спиннер на мгновение мигнул.
-        if length > 0:
-            if quiet_since is not None and now - quiet_since >= quiet_period:
-                break
-            if length_only_quiet_since is not None and now - length_only_quiet_since >= hard_quiet_period:
-                break
-        last_length = length
-        time.sleep(poll_interval)
-    else:
-        raise TimeoutError("Генерация не завершилась вовремя.")
-
-    # 3) Защита от "ложного завершения": сеть подвисла / ответ ещё
-    #    дорисовывается / JSON action оборван / ответ пока пуст.
-    grace_start = time.time()
-    _report("проверяю, что ответ дописан", chars=max(last_length, 0), preview=preview_txt, stream=stream_txt)
-    result = extract_last_answer(driver)
-    empty_grace = max(post_quiet_grace, 90.0)
-    while True:
-        raw = (result or {}).get("actionRaw")
-        text = (result or {}).get("text") or ""
-        cur_len = get_answer_text_length(driver)
-        still_generating = is_generating(driver)
-        action_incomplete = raw is not None and not _looks_json_balanced(
-            _extract_json_object(_strip_code_fences(raw))
-        )
-        answer_empty = (not text.strip()) and (raw is None)
-        if (not still_generating) and cur_len == last_length and (not action_incomplete) and (not answer_empty):
-            break
-        # Пустой ответ или идущая генерация — не повод сдаваться через 6 с:
-        # после долгих «размышлений» даём модели до 90 с начать печатать ответ.
-        limit = empty_grace if (answer_empty or still_generating) else post_quiet_grace
-        if time.time() - grace_start >= limit:
-            break
-        time.sleep(0.4)
-        result = extract_last_answer(driver)
-        last_length = cur_len
-        _report("проверяю, что ответ дописан", chars=max(cur_len, 0), preview=preview_txt, stream=stream_txt)
-    return result
+    return PARSER.wait_for_new_answer(
+        driver, initial_model_count, timeout=timeout, quiet_period=quiet_period,
+        hard_quiet_period=hard_quiet_period, poll_interval=poll_interval,
+        post_quiet_grace=post_quiet_grace, progress_cb=progress_cb)
 
 
-def send_message_and_get_response(driver, prompt, input_retries=3, progress_cb=None):
-    for handle in driver.window_handles:
-        driver.switch_to.window(handle)
-        if "aistudio.google.com" in driver.current_url:
-            break
-    from browser_manager import harden_background_tab
-    harden_background_tab(driver)
-    js_find_input = """
-    function findInput(root) {
-        let nodes = [root];
-        while (nodes.length > 0) {
-            let node = nodes.shift();
-            if (node.tagName === 'TEXTAREA') return node;
-            if (node.shadowRoot) nodes.push(node.shadowRoot);
-            for (let child of node.children) nodes.push(child);
-        }
-        return null;
-    }
-    return findInput(document.body);
-    """
-    textarea = None
-    for _ in range(input_retries):
-        textarea = driver.execute_script(js_find_input)
-        if textarea:
-            break
-        time.sleep(0.5)
-    if not textarea:
-        raise Exception("Поле ввода не найдено.")
-    for _ in range(input_retries):
-        try:
-            driver.execute_script("arguments[0].value = '';", textarea)
-            time.sleep(0.2)
-            js_insert = """
-            let el = arguments[0];
-            el.focus();
-            el.value = arguments[1];
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            """
-            driver.execute_script(js_insert, textarea, prompt)
-            actual_value = driver.execute_script("return arguments[0].value;", textarea)
-            if actual_value:
-                break
-        except (JavascriptException, StaleElementReferenceException):
-            textarea = driver.execute_script(js_find_input)
-        time.sleep(0.3)
-    else:
-        raise Exception("Не удалось вставить текст в поле ввода после нескольких попыток.")
-    time.sleep(1)
-    try:
-        textarea.send_keys(Keys.SPACE)
-        textarea.send_keys(Keys.BACKSPACE)
-    except StaleElementReferenceException:
-        textarea = driver.execute_script(js_find_input)
-    time.sleep(0.5)
-    initial_model_count = get_model_turn_count(driver)
-    try:
-        textarea.send_keys(Keys.CONTROL, Keys.ENTER)
-    except StaleElementReferenceException:
-        textarea = driver.execute_script(js_find_input)
-        textarea.send_keys(Keys.CONTROL, Keys.ENTER)
-    result = wait_for_new_answer(driver, initial_model_count, progress_cb=progress_cb)
-    time.sleep(0.6)
-    # ПЛАН Б: основной парсер дал пустоту -> многоуровневое чтение заново.
-    _empty = (not result) or (
-        not ((result.get("text") or "").strip()) and result.get("actionRaw") is None
-    )
-    if _empty:
-        result = extract_last_answer_robust(driver)
-    text = result.get("text") or ""
-    raw_action = result.get("actionRaw")
-    error = result.get("error")
-    if error:
-        print(f"[ai_parser] JS extraction error: {error}")
-    action = None
-    if raw_action is not None:
-        action, parse_error = parse_action_json(raw_action)
-        if action is None:
-            print(f"[ai_parser] Не удалось распарсить agent_action: {parse_error}")
-            print(f"[ai_parser] RAW ({len(raw_action)} симв.): {raw_action[:2000]}")
-            action = {
-                "action": "parse_error",
-                "raw": raw_action,
-                "error": parse_error,
-            }
-    return {"text": text, "action": action}
+def send_message_and_get_response(driver, prompt, input_retries=3, progress_cb=None, cancel_cb=None):
+    return PARSER.send_message_and_get_response(
+        driver, prompt, input_retries=input_retries, progress_cb=progress_cb,
+        cancel_cb=cancel_cb)

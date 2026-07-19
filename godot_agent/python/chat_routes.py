@@ -15,6 +15,15 @@ import history_manager as history
 chats_bp = Blueprint("chats", __name__)
 
 
+def _busy_error():
+    """Пока идёт обработка запроса, браузер занят парсером — навигация по
+    чатам привела бы к вечной загрузке. Возвращаем понятную ошибку."""
+    if (S.STATE.get("progress") or {}).get("active"):
+        return jsonify({"error": "Агент сейчас обрабатывает запрос — браузер занят. "
+                                 "Дождитесь ответа или нажмите «Стоп»."}), 409
+    return None
+
+
 def _navigate(driver, url):
     """Неблокирующая навигация браузера на URL.
 
@@ -24,6 +33,13 @@ def _navigate(driver, url):
     Меняем адрес через JS: браузер начинает грузить страницу, а сервер сразу
     отвечает. Транскрипт диалога хранится локально, полная загрузка для ответа не нужна.
     """
+    try:
+        # Короткие таймауты: на мёртвой/удалённой странице команды браузеру
+        # могут висеть до 300 с (дефолт Selenium) — отсюда «вечное» зависание.
+        driver.set_page_load_timeout(20)
+        driver.set_script_timeout(10)
+    except Exception:
+        pass
     try:
         driver.switch_to.window(driver.window_handles[-1])
     except Exception:
@@ -44,6 +60,37 @@ def _navigate(driver, url):
         pass
 
 
+def _check_chat_page(driver, url, wait=6.0):
+    """После перехода на страницу чата проверяем (не дольше wait секунд),
+    что браузер остался на ней. Если чат удалён на сайте, сайт обычно
+    перекидывает на главную — возвращаем текст предупреждения (или "").
+    Главное: проверка ОГРАНИЧЕНА ПО ВРЕМЕНИ и никогда не виснет вечно."""
+    deadline = time.time() + wait
+    last_url = ""
+    state = ""
+    while time.time() < deadline:
+        time.sleep(0.5)
+        try:
+            last_url = driver.current_url or ""
+            state = driver.execute_script("return document.readyState") or ""
+        except Exception:
+            continue  # страница ещё грузится — команды могут временно падать
+        if state == "complete" and last_url:
+            break
+    if not last_url:
+        return ("Браузер не ответил при открытии страницы чата — вкладка могла "
+                "зависнуть. Если чат был удалён на сайте — удалите его и здесь.")
+
+    def _path(u):
+        return u.split("://", 1)[-1].split("?", 1)[0].split("#", 1)[0].rstrip("/")
+
+    if _path(last_url) != _path(url):
+        return ("Похоже, этот чат удалён на сайте: страница не открылась "
+                "(браузер оказался на %s). История сообщений сохранена локально. "
+                "Отправка сообщений сюда не сработает — удалите чат или создайте новый." % last_url)
+    return ""
+
+
 @chats_bp.route('/sites/list', methods=['POST'])
 def sites_list():
     # Список доступных сайтов-нейросетей для vbox на стартовом экране.
@@ -55,6 +102,8 @@ def browser_status():
     """Готова ли текущая страница браузера (панель показывает уведомление,
     когда сайт догрузился, чтобы не казалось, что агент завис)."""
     driver = S.get_driver()
+    if driver is None:
+        return jsonify({"ready": False, "state": "booting", "url": ""})
     state = ""
     url = ""
     try:
@@ -80,12 +129,18 @@ def chats_list():
 def chats_new():
     data = request.json or {}
     S._apply_session_context(data)
+    busy = _busy_error()
+    if busy:
+        return busy
     base = S._chats_dir()
     if not base:
         return jsonify({"error": "Нет user_data_dir (отправьте сообщение или Синхронизацию)."}), 400
     site = sites.get_site(data.get("site_id") or "aistudio") or sites.get_site("aistudio")
     target_url = site["new_chat_url"] if site else "https://aistudio.google.com/prompts/new_chat"
-    driver = S.get_driver()
+    try:
+        driver = S.wait_driver()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 503
     try:
         _navigate(driver, target_url)
         time.sleep(1.5)
@@ -115,17 +170,27 @@ def chats_new():
 def chats_open():
     data = request.json or {}
     S._apply_session_context(data)
+    busy = _busy_error()
+    if busy:
+        return busy
     base = S._chats_dir()
     cid = (data.get("id") or "").strip()
     rec = chat_store.find_chat(base, cid) if base else None
     if rec is None:
         return jsonify({"error": "Чат не найден."}), 404
+    page_note = ""
     if rec.get("url"):
-        driver = S.get_driver()
+        try:
+            driver = S.wait_driver()
+        except Exception as e:
+            return jsonify({"error": str(e)}), 503
         try:
             _navigate(driver, rec["url"])
         except Exception as e:
             return jsonify({"error": "Не удалось открыть страницу чата: %s" % e}), 500
+        page_note = _check_chat_page(driver, rec["url"])
+        if page_note:
+            print("--> ВНИМАНИЕ:", page_note)
     S.STATE["current_chat_id"] = cid
     S.STATE["is_primed"] = bool(rec.get("primed"))
     S._save_primed(S.STATE.get("project_root"), S.STATE["is_primed"])
@@ -150,6 +215,7 @@ def chats_open():
     return jsonify({"chats": chat_store.list_chats(base), "current_id": cid,
                     "title": rec.get("title"),
                     "site": rec.get("site_name", ""),
+                    "warning": page_note,
                     "transcript": rec.get("transcript", [])})
 
 
@@ -171,6 +237,9 @@ def chats_rename():
 def chats_delete():
     data = request.json or {}
     S._apply_session_context(data)
+    busy = _busy_error()
+    if busy:
+        return busy
     base = S._chats_dir()
     cid = (data.get("id") or "").strip()
     if not base or not cid:

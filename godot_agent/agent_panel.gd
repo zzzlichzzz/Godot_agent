@@ -31,6 +31,7 @@ const API_EXPORT_URL = "http://" + HOST + "/project/update_api_cache"
 const API_CACHE_STATUS_URL = "http://" + HOST + "/project/api_cache_status"
 const PLAN_STEP_URL = "http://" + HOST + "/chat/plan/step"
 const PLAN_STOP_URL = "http://" + HOST + "/chat/plan/stop"
+const CHAT_STOP_URL = "http://" + HOST + "/chat/stop"
 const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
 
 var _pending_request_kind: String = "chat"
@@ -43,6 +44,7 @@ var _plan_chain_id: String = ""
 var _plan_total: int = 0
 var _plan_index: int = 0
 var _plan_stop_button: Button = null
+var _stop_button: Button = null
 var _plan_rollback_dialog: ConfirmationDialog = null
 var _plan_rollback_chain_id: String = ""
 var _plan_rollback_force_next: bool = false
@@ -211,6 +213,8 @@ func _ready() -> void:
 		_link.show_loading_requested.connect(_on_link_show_loading)
 	if not _link.hide_loading_requested.is_connected(_on_link_hide_loading):
 		_link.hide_loading_requested.connect(_on_link_hide_loading)
+	if not _link.server_state_changed.is_connected(_on_server_state_changed):
+		_link.server_state_changed.connect(_on_server_state_changed)
 	if $VBoxContainer.has_node("ChatsBar"):
 		var bar_old: HBoxContainer = $VBoxContainer/ChatsBar
 		_chat_select = bar_old.get_child(0)
@@ -247,7 +251,7 @@ func _ready() -> void:
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
-	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуска
+	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуск���
 	# сервера: если сервер ещё не поднят, просто ждём, пока пользователь сам
 	# нажмёт «новый чат»/«загрузить чат» (иначе при каждом открытии Godot
 	# запускалась бы своя копия сервера, независимо от действий пользователя).
@@ -264,6 +268,8 @@ func _ready() -> void:
 		_start_screen.chats_tab_requested.connect(_on_chats_tab_requested)
 		if _start_screen.has_signal("language_changed"):
 			_start_screen.language_changed.connect(_on_language_changed)
+		if _start_screen.has_signal("open_server_requested"):
+			_start_screen.open_server_requested.connect(_on_open_server_folder_pressed)
 	_show_start_ui()
 	call_deferred("_request_chats", "sites", {}, false)
 	call_deferred("_on_language_changed")
@@ -311,12 +317,72 @@ func _set_ui_busy(busy: bool) -> void:
 			_view.reset_live()
 		if _progress_timer and _progress_timer.is_stopped():
 			_progress_timer.start()
+		_show_stop_button()
 	else:
 		if _progress_timer:
 			_progress_timer.stop()
 		if _view:
 			_view.hide_status()
 		_progress_inflight = false
+		_hide_stop_button()
+
+
+func _on_server_state_changed(running: bool) -> void:
+	# Кнопка ручного запуска сервера теперь живёт на стартовом экране
+	# (agent_start_screen.gd), рядом с переключателем языка — видна только
+	# пока сервер не отвечает. Раньше она добавлялась в $VBoxContainer, но
+	# стартовый экран рисуется поверх него на весь экран и закрывал её целиком —
+	# поэтому кнопку никто не видел. Автозапуск продолжает работать как раньше.
+	if _start_screen and _start_screen.has_method("set_server_running"):
+		_start_screen.set_server_running(running)
+
+
+func _on_open_server_folder_pressed() -> void:
+	if _link == null:
+		return
+	var exe: String = _link.open_server_folder()
+	if exe == "":
+		_notify("Не нашёл godot_agent_server.exe — соберите сервер (build_server_exe.bat) или укажите путь в server_path.txt", "error")
+	else:
+		_notify("Открыл папку сервера: " + exe, "info")
+
+
+func _show_stop_button() -> void:
+	# Кнопка «Стоп» для ОБЫЧНОЙ обработки запроса (не путать с остановкой плана).
+	if _stop_button == null:
+		_stop_button = Button.new()
+		_stop_button.pressed.connect(_on_stop_pressed)
+		if send_button and send_button.get_parent():
+			send_button.get_parent().add_child(_stop_button)
+		else:
+			add_child(_stop_button)
+	_stop_button.text = "■ Стоп"
+	_stop_button.tooltip_text = "Остановить обработку текущего запроса"
+	_stop_button.visible = true
+	_stop_button.disabled = false
+
+
+func _hide_stop_button() -> void:
+	if _stop_button:
+		_stop_button.visible = false
+
+
+func _on_stop_pressed() -> void:
+	# Основной http_request занят самим запросом /chat — шлём остановку
+	# отдельным одноразовым HTTPRequest. Сервер прервёт ожидание ответа,
+	# и текущий запрос вернётся с пометкой [Остановлено].
+	if _stop_button:
+		_stop_button.disabled = true
+		_stop_button.text = "Останавливаю…"
+	var req := HTTPRequest.new()
+	add_child(req)
+	req.request_completed.connect(func(_r, _rc, _h, _b): req.queue_free())
+	var err = req.request(CHAT_STOP_URL, ["Content-Type: application/json"], HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		req.queue_free()
+		if _stop_button:
+			_stop_button.disabled = false
+			_stop_button.text = "■ Стоп"
 
 
 func _on_advanced_toggle() -> void:
@@ -636,7 +702,7 @@ func _on_export_api_pressed() -> void:
 	_export_api_to_server(false)
 
 
-# silent = true — тихий автоматический запуск при старте плагина (не блокирует сеть для пользователя,
+# silent = true — тихий а��томатический запуск при старте плагина (не блокирует сеть для пользователя,
 # просто показывает одно сообщение, если реально пришлось пересобирать).
 func _export_api_to_server(silent: bool) -> void:
 	if not silent:
@@ -903,7 +969,7 @@ func _log_error(msg: String) -> void:
 
 
 func _guard_confirm_buttons() -> void:
-	# Защита от случайных быстрых/двойных кликов: когда появляется НОВОЕ
+	# Защита от случайных быстрых/двой����х кликов: когда появляется НОВОЕ
 	# подтверждение, кнопки ненадолго блокируются, чтобы второй клик по
 	# инерции не одобрил следующее действие мгновенно.
 	# ВАЖНО: без await/корутин. При перезагрузке плагина Godot отменял
@@ -1041,7 +1107,7 @@ func _auto_check_log() -> void:
 
 # ---------------------------------------------------------------------------
 # Подсветка строк, изменённых агентом.
-# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ блока: при любой правке
+# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ ��лока: при любой правке
 # блок ищется заново, и подсветка «переезжает» вместе с кодом. Если
 # пользователь отредактировал сам блок — подсветка гаснет (это уже
 # не код агента).
@@ -1116,6 +1182,10 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 		_view.clear()
 		_render_transcript(json.get("transcript", []))
 		_view.add_system(_t("chat_opened") % str(json.get("title", "")))
+		var warn: String = str(json.get("warning", ""))
+		if warn != "":
+			_view.add_system(warn)
+			_notify(warn, "error")
 		_enter_chat_ui()
 		_begin_page_wait()
 		if _resend_after_open:
