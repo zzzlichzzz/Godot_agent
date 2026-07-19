@@ -264,6 +264,119 @@ finally:
 
 
 # ===========================================================================
+# 1в) v44: точечное восстановление шагов плана при частично битом JSON
+# ===========================================================================
+print("\n--- 1в) v44: точечное восстановление шагов плана ---")
+
+import parser_base
+
+good_step1_raw = '{"action": "create_file", "path": "res://player.gd", "content": "extends CharacterBody2D\\nfunc _ready():\\n\\tpass\\n"}'
+good_step2_raw = '{"action": "create_file", "path": "res://enemy.gd", "content": "extends CharacterBody2D\\nfunc _ready():\\n\\tpass\\n"}'
+fixable_tscn_step_raw = (
+    '{"action": "create_file", "path": "res://Player.tscn", "content": '
+    '"[node name=\\"Player\\" type=\\"Node2D\\"]\\nid=\\"1_player\\"\\nid="2_icon"\\n[/node]"}'
+)
+truly_broken_step_raw = '{"action": "create_file", "path": "res://Broken.tscn", "content": "bad escape: \\qhere"}'
+plan_raw_v44 = (
+    '{"action": "plan", "description": "v44 selfcheck plan", "steps": ['
+    + good_step1_raw + ', ' + good_step2_raw + ', ' + fixable_tscn_step_raw + ', ' + truly_broken_step_raw
+    + ']}'
+)
+
+step_obj, step_err = parser_base.parse_action_json(fixable_tscn_step_raw)
+check("несогласованные кавычки внутри одного шага чинятся автоматически",
+      isinstance(step_obj, dict) and step_obj.get("path") == "res://Player.tscn", (step_obj, step_err))
+
+repaired = parser_base._repair_unescaped_inner_quotes(fixable_tscn_step_raw)
+try:
+    import json as _json_v44
+    _json_v44.loads(repaired)
+    repaired_ok = True
+except Exception:
+    repaired_ok = False
+check("_repair_unescaped_inner_quotes сама даёт валидный JSON", repaired_ok, repaired)
+
+lenient = parser_base.parse_plan_lenient(plan_raw_v44)
+check("parse_plan_lenient распознаёт план, несмотря на 1 битый шаг из 4",
+      lenient is not None and len(lenient["good_steps"]) == 3 and len(lenient["bad_steps"]) == 1, lenient)
+if lenient:
+    check("единственный битый шаг — это res://Broken.tscn с индексом 3",
+          lenient["bad_steps"][0]["index"] == 3, lenient["bad_steps"])
+    good_paths_v44 = [s["step"].get("path") for s in lenient["good_steps"]]
+    check("все 3 распознанных шага — правильные пути (в т.ч. починенный .tscn)",
+          good_paths_v44 == ["res://player.gd", "res://enemy.gd", "res://Player.tscn"], good_paths_v44)
+
+    guessed_path = srv._guess_step_path(lenient["bad_steps"][0]["raw"])
+    check("_guess_step_path угадывает путь битого шага из сырого текста",
+          guessed_path == "res://Broken.tscn", guessed_path)
+
+# --- интеграционный тест: полное точечное восстановление (модель присылает верный шаг) ---
+root = fresh_project()
+try:
+    reset_state(root)
+    calls_full = {"n": 0, "prompts": []}
+
+    def _fake_reply_full_recovery(prompt):
+        calls_full["n"] += 1
+        calls_full["prompts"].append(prompt)
+        if calls_full["n"] == 1:
+            return ("[Модель]: вот план", {"action": "parse_error", "raw": plan_raw_v44, "error": "test: битые кавычки"})
+        return ("", {"action": "create_file", "path": "res://Broken.tscn", "content": "extends Node\n"})
+
+    _orig_reply_full = srv._reply
+    srv._reply = _fake_reply_full_recovery
+    text_full, action_full = srv._reply_with_self_heal("пришли план платформера", root)
+    srv._reply = _orig_reply_full
+
+    check("полное точечное восстановление: итоговое действие — план из всех 4 шагов",
+          action_full.get("action") == "plan" and action_full.get("total") == 4, action_full)
+    if action_full.get("action") == "plan":
+        paths_full = [s.get("path") for s in action_full.get("steps", [])]
+        check("полное восстановление: порядок и пути всех 4 шагов сохранены",
+              paths_full == ["res://player.gd", "res://enemy.gd", "res://Player.tscn", "res://Broken.tscn"], paths_full)
+    check("полное восстановление: потрачена ровно 1 точечная попытка (2 обращения к модели всего)",
+          calls_full["n"] == 2, calls_full["n"])
+    check("точечный fix-prompt называет номер и путь именно битого шага",
+          "№4" in calls_full["prompts"][1] and "res://Broken.tscn" in calls_full["prompts"][1], calls_full["prompts"][1])
+    check("точечный fix-prompt называет уже принятые шаги, чтобы модель не прислала их повторно",
+          "res://player.gd" in calls_full["prompts"][1] and "res://Player.tscn" in calls_full["prompts"][1], calls_full["prompts"][1])
+    check("при полном восстановлении в тексте нет предупреждения об отброшенных шагах",
+          "Восстановлено частично" not in (text_full or ""), text_full)
+finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+# --- интеграционный тест: частичное восстановление (модель не смогла починить шаг) ---
+root = fresh_project()
+try:
+    reset_state(root)
+    calls_partial = {"n": 0}
+
+    def _fake_reply_partial_recovery(prompt):
+        calls_partial["n"] += 1
+        if calls_partial["n"] == 1:
+            return ("[Модель]: вот план", {"action": "parse_error", "raw": plan_raw_v44, "error": "test: битые кавычки"})
+        return ("[Модель]: не могу починить", {"action": "parse_error", "raw": "снова битый JSON", "error": "test: всё ещё сломано"})
+
+    _orig_reply_partial = srv._reply
+    srv._reply = _fake_reply_partial_recovery
+    text_partial, action_partial = srv._reply_with_self_heal("пришли план платформера", root)
+    srv._reply = _orig_reply_partial
+
+    check("частичное восстановление: итоговое действие — план из 3 распознанных шагов",
+          action_partial.get("action") == "plan" and action_partial.get("total") == 3, action_partial)
+    if action_partial.get("action") == "plan":
+        paths_partial = [s.get("path") for s in action_partial.get("steps", [])]
+        check("частичное восстановление: отброшен только res://Broken.tscn",
+              paths_partial == ["res://player.gd", "res://enemy.gd", "res://Player.tscn"], paths_partial)
+    check("частичное восстановление: потрачена ровно 1 точечная попытка (2 обращения к модели всего)",
+          calls_partial["n"] == 2, calls_partial["n"])
+    check("частичное восстановление: пользователь предупреждён об отброшенном шаге",
+          "Восстановлено частично" in (text_partial or "") and "res://Broken.tscn" in (text_partial or ""), text_partial)
+finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+
+# ===========================================================================
 # 2) защиты: знает ли агент реальный API Godot и правильно ли читает сцены
 # ===========================================================================
 print("\n--- 2) защиты API/сцен ---")
@@ -362,6 +475,47 @@ try:
     fixed_nodeorder, _ = tscn_lint.lint_and_fix_tscn(node_order_scene)
     check("перестановка ресурсов НЕ трогает порядок самих узлов",
           fixed_nodeorder.find(chr(34)+"First"+chr(34)) < fixed_nodeorder.find(chr(34)+"Second"+chr(34)), fixed_nodeorder)
+
+    # --- v45: узел с parent="Level" объявлен в файле раньше самого узла "Level" —
+    # чисто порядоковая ошибка, должна переставляться без участия модели.
+    node_parent_later_scene = ('[gd_scene load_steps=1 format=3]\n\n'
+                                '[node name="Root" type="Node2D"]\n'
+                                '[node name="Enemy" type="Node2D" parent="Level"]\n'
+                                '[node name="Level" type="Node2D" parent="."]\n')
+    fixed_po, problems_po = tscn_lint.lint_and_fix_tscn(node_parent_later_scene)
+    check("v45: узел с parent, объявленным позже в файле, автоматически переставляется",
+          fixed_po.find(chr(34)+"Level"+chr(34)) < fixed_po.find(chr(34)+"Enemy"+chr(34)), fixed_po)
+    check("v45: после перестановки ложная жалоба на ненайденный parent исчезает",
+          not any("не найден" in p for p in problems_po), problems_po)
+
+    node_parent_missing_scene = ('[gd_scene load_steps=1 format=3]\n\n'
+                                  '[node name="Root" type="Node2D"]\n'
+                                  '[node name="Enemy" type="Node2D" parent="NoSuchNode"]\n')
+    _, problems_missing = tscn_lint.lint_and_fix_tscn(node_parent_missing_scene)
+    check("v45: действительно отсутствующий parent по-прежнему ловится (не путан с порядковыми ошибками)",
+          any("NoSuchNode" in p for p in problems_missing), problems_missing)
+
+    # --- v45: единственная битая ссылка на единственный объявленный ext_resource —
+    # цель однозначна, чинится автоматически.
+    single_ext_bad_ref_scene = ('[gd_scene load_steps=2 format=3]\n\n'
+                                 '[ext_resource type="Script" path="res://player.gd" id="1"]\n\n'
+                                 '[node name="Root" type="Node2D"]\nscript = ExtResource("PlayerScript")\n')
+    fixed_single_ext, problems_single_ext = tscn_lint.lint_and_fix_tscn(single_ext_bad_ref_scene)
+    check("v45: битая ссылка на единственный ext_resource переписывается на верный id",
+          'ExtResource("1")' in fixed_single_ext and "PlayerScript" not in fixed_single_ext, fixed_single_ext)
+    check("v45: после автофикса ссылки проблем не остаётся",
+          not any("ExtResource" in p for p in problems_single_ext), problems_single_ext)
+
+    # --- v45: два+ кандидата — цель неоднозначна, автофикс НЕ срабатывает, остаётся модели.
+    multi_ext_bad_ref_scene = ('[gd_scene load_steps=3 format=3]\n\n'
+                                '[ext_resource type="Script" path="res://a.gd" id="1"]\n'
+                                '[ext_resource type="Script" path="res://b.gd" id="2"]\n\n'
+                                '[node name="Root" type="Node2D"]\nscript = ExtResource("bad_id")\n')
+    fixed_multi_ext, problems_multi_ext = tscn_lint.lint_and_fix_tscn(multi_ext_bad_ref_scene)
+    check("v45: при 2+ кандидатах битая ссылка НЕ автоисправляется вслепую",
+          'ExtResource("bad_id")' in fixed_multi_ext, fixed_multi_ext)
+    check("v45: неоднозначная битая ссылка всё равно возвращается модели",
+          any("bad_id" in p for p in problems_multi_ext), problems_multi_ext)
 
 finally:
     shutil.rmtree(root, ignore_errors=True)
@@ -617,7 +771,7 @@ check("сайт DeepSeek зарегистрирован",
       (_sites.get_site("deepseek") or {}).get("parser") == "deepseek_parser"
       and (_sites.detect_site("https://chat.deepseek.com/a/chat/s/abc") or {}).get("id") == "deepseek"
       and (_sites.detect_site("https://aistudio.google.com/prompts/new_chat") or {}).get("id") == "aistudio")
-check("выбо�� парсера по сайту ��а������отает",
+check("выбо�� парсера по сайту ��а——отает",
       _sites.get_parser_module("deepseek").__name__ == "deepseek_parser"
       and _sites.get_parser_module("aistudio").__name__ == "ai_parser"
       and _sites.get_parser_module(None, "https://chat.deepseek.com/").__name__ == "deepseek_parser"
