@@ -23,12 +23,31 @@ const CHAT_URL = "http://" + HOST + "/chat"
 const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
+const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
 const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
 const PROGRESS_URL = "http://" + HOST + "/chat/progress"
+const API_EXPORT_URL = "http://" + HOST + "/project/update_api_cache"
+const API_CACHE_STATUS_URL = "http://" + HOST + "/project/api_cache_status"
+const PLAN_STEP_URL = "http://" + HOST + "/chat/plan/step"
+const PLAN_STOP_URL = "http://" + HOST + "/chat/plan/stop"
+const CHAT_STOP_URL = "http://" + HOST + "/chat/stop"
+const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
+
+# Plan-режим (цепочка действий): активен, когда пользователь подтвердил план
+# и панель сама выполняет шаги через PLAN_STEP_URL по одному.
+var _plan_active: bool = false
+var _plan_chain_id: String = ""
+var _plan_total: int = 0
+var _plan_index: int = 0
+var _plan_stop_button: Button = null
+var _stop_button: Button = null
+var _plan_rollback_dialog: ConfirmationDialog = null
+var _plan_rollback_chain_id: String = ""
+var _plan_rollback_force_next: bool = false
 
 # Запоминаем детали последнего примененного WRITE-действия для сброса кэша
 var _last_pending_action_type: String = ""
@@ -46,7 +65,12 @@ var _ghost_prev_script: Script = null
 # Канал «Ошибки запуска игры»: кнопка создаётся кодом (без правки .tscn),
 # а флаг означает, что текущее подтверждение — это отправка отчёта модели.
 var _log_errors_button: Button = null
+var _api_export_button: Button = null
 var _pending_log_send: bool = false
+
+# Автопроверка актуальности кэша API при старте панели: сервер (с браузером внутри) может подняться не сразу, поэтому при неудаче повторяем с нарастающей задержкой, а не молча сдаёмся после первой неудачи.
+var _api_cache_check_attempts: int = 0
+var _api_cache_check_timer: Timer = null
 
 # Автопроверка лога после закрытия игры (переход is_playing_scene: true→false).
 var _play_watch_timer: Timer = null
@@ -80,6 +104,7 @@ var _bar_btn_ren: Button = null
 var _bar_btn_del: Button = null
 var _bar_btn_home: Button = null
 var _delete_dialog: ConfirmationDialog = null
+var _rollback_dialog: ConfirmationDialog = null
 var _chat_select: OptionButton = null
 var _rename_dialog: AcceptDialog = null
 var _rename_edit: LineEdit = null
@@ -131,6 +156,12 @@ func _ready() -> void:
 		_log_errors_button.text = _t("log_errors")
 		advanced_box.add_child(_log_errors_button)
 		_log_errors_button.pressed.connect(_on_check_log_pressed)
+	if advanced_box and _api_export_button == null:
+		_api_export_button = Button.new()
+		_api_export_button.text = _t("api_export_btn")
+		advanced_box.add_child(_api_export_button)
+		_api_export_button.pressed.connect(_on_export_api_pressed)
+	call_deferred("_check_api_cache_freshness")
 	_ensure_file_logging_enabled()
 	if _play_watch_timer == null:
 		_play_watch_timer = Timer.new()
@@ -182,6 +213,8 @@ func _ready() -> void:
 		_link.show_loading_requested.connect(_on_link_show_loading)
 	if not _link.hide_loading_requested.is_connected(_on_link_hide_loading):
 		_link.hide_loading_requested.connect(_on_link_hide_loading)
+	if not _link.server_state_changed.is_connected(_on_server_state_changed):
+		_link.server_state_changed.connect(_on_server_state_changed)
 	if $VBoxContainer.has_node("ChatsBar"):
 		var bar_old: HBoxContainer = $VBoxContainer/ChatsBar
 		_chat_select = bar_old.get_child(0)
@@ -218,7 +251,11 @@ func _ready() -> void:
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
-	call_deferred("_request_chats", "list", {})
+	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуск���
+	# сервера: если сервер ещё не поднят, просто ждём, пока пользователь сам
+	# нажмёт «новый чат»/«загрузить чат» (иначе при каждом открытии Godot
+	# запускалась бы своя копия сервера, независимо от действий пользователя).
+	call_deferred("_request_chats", "list", {}, false)
 	if _start_screen == null:
 		var ss_script = load(get_script().resource_path.get_base_dir() + "/agent_start_screen.gd")
 		_start_screen = ss_script.new()
@@ -231,8 +268,10 @@ func _ready() -> void:
 		_start_screen.chats_tab_requested.connect(_on_chats_tab_requested)
 		if _start_screen.has_signal("language_changed"):
 			_start_screen.language_changed.connect(_on_language_changed)
+		if _start_screen.has_signal("open_server_requested"):
+			_start_screen.open_server_requested.connect(_on_open_server_folder_pressed)
 	_show_start_ui()
-	call_deferred("_request_chats", "sites", {})
+	call_deferred("_request_chats", "sites", {}, false)
 	call_deferred("_on_language_changed")
 	# Восстановление после перезагрузки скрипта: если панель перезагрузилась,
 	# пока кнопки были временно заблокированы охранником — вернуть их в рабочее состояние.
@@ -267,22 +306,83 @@ func _set_ui_busy(busy: bool) -> void:
 	reinit_button.disabled = busy
 	rollback_button.disabled = busy
 	if _log_errors_button: _log_errors_button.disabled = busy
+	if _api_export_button: _api_export_button.disabled = busy
 	input_field.editable = not busy
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = _t("sending") if busy else _t("send")
-	# Живая трансляция: опрашиваем статус только пока идёт запрос.
+	# Живая трансляция: опрашива��������м статус только пока идёт запрос.
 	if busy:
 		if _view:
 			_view.reset_live()
 		if _progress_timer and _progress_timer.is_stopped():
 			_progress_timer.start()
+		_show_stop_button()
 	else:
 		if _progress_timer:
 			_progress_timer.stop()
 		if _view:
 			_view.hide_status()
 		_progress_inflight = false
+		_hide_stop_button()
+
+
+func _on_server_state_changed(running: bool) -> void:
+	# Кнопка ручного запуска сервера теперь живёт на стартовом экране
+	# (agent_start_screen.gd), рядом с переключателем языка — видна только
+	# пока сервер не отвечает. Раньше она добавлялась в $VBoxContainer, но
+	# стартовый экран рисуется поверх него на весь экран и закрывал её целиком —
+	# поэтому кнопку никто не видел. Автозапуск продолжает работать как раньше.
+	if _start_screen and _start_screen.has_method("set_server_running"):
+		_start_screen.set_server_running(running)
+
+
+func _on_open_server_folder_pressed() -> void:
+	if _link == null:
+		return
+	var exe: String = _link.open_server_folder()
+	if exe == "":
+		_notify("Не нашёл godot_agent_server.exe — соберите сервер (build_server_exe.bat) или укажите путь в server_path.txt", "error")
+	else:
+		_notify("Открыл папку сервера: " + exe, "info")
+
+
+func _show_stop_button() -> void:
+	# Кнопка «Стоп» для ОБЫЧНОЙ обработки запроса (не путать с остановкой плана).
+	if _stop_button == null:
+		_stop_button = Button.new()
+		_stop_button.pressed.connect(_on_stop_pressed)
+		if send_button and send_button.get_parent():
+			send_button.get_parent().add_child(_stop_button)
+		else:
+			add_child(_stop_button)
+	_stop_button.text = "■ Стоп"
+	_stop_button.tooltip_text = "Остановить обработку текущего запроса"
+	_stop_button.visible = true
+	_stop_button.disabled = false
+
+
+func _hide_stop_button() -> void:
+	if _stop_button:
+		_stop_button.visible = false
+
+
+func _on_stop_pressed() -> void:
+	# Основной http_request занят самим запросом /chat — шлём остановку
+	# отдельным одноразовым HTTPRequest. Сервер прервёт ожидание ответа,
+	# и текущий запрос вернётся с пометкой [Остановлено].
+	if _stop_button:
+		_stop_button.disabled = true
+		_stop_button.text = "Останавливаю…"
+	var req := HTTPRequest.new()
+	add_child(req)
+	req.request_completed.connect(func(_r, _rc, _h, _b): req.queue_free())
+	var err = req.request(CHAT_STOP_URL, ["Content-Type: application/json"], HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		req.queue_free()
+		if _stop_button:
+			_stop_button.disabled = false
+			_stop_button.text = "■ Стоп"
 
 
 func _on_advanced_toggle() -> void:
@@ -303,7 +403,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "reinit": true}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -331,7 +431,8 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	var body = {
 		"prompt": prompt,
 		"project_root": project_root,
-		"user_data_dir": OS.get_user_data_dir()
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
 	}
 	if ignore_mismatch:
 		body["ignore_site_mismatch"] = true
@@ -386,14 +487,177 @@ func _send_confirm_request(approved: bool) -> void:
 		_set_ui_busy(false)
 
 
+func _start_plan_execution(total: int) -> void:
+	_plan_active = true
+	_plan_total = total
+	_plan_index = 0
+	chat_log.text += "[color=gray]" + (_t("plan_started") % total) + "[/color]\n"
+	_show_plan_stop_button()
+	_request_plan_step()
+
+
+func _request_plan_step() -> void:
+	if _is_network_busy: return
+	var headers = ["Content-Type: application/json"]
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "plan_step"
+	_set_ui_busy(true)
+	var err = http_request.request(PLAN_STEP_URL, headers, HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error(_t("err_plan_step"))
+		_set_ui_busy(false)
+		_end_plan_execution()
+
+
+func _end_plan_execution() -> void:
+	_plan_active = false
+	_hide_plan_stop_button()
+
+
+func _show_plan_stop_button() -> void:
+	if _plan_stop_button == null:
+		_plan_stop_button = Button.new()
+		_plan_stop_button.pressed.connect(_on_plan_stop_pressed)
+		if advanced_box:
+			advanced_box.add_child(_plan_stop_button)
+		else:
+			add_child(_plan_stop_button)
+	_plan_stop_button.text = _t("plan_stop_btn")
+	_plan_stop_button.visible = true
+	_plan_stop_button.disabled = false
+
+
+func _hide_plan_stop_button() -> void:
+	if _plan_stop_button:
+		_plan_stop_button.visible = false
+
+
+func _on_plan_stop_pressed() -> void:
+	if _is_network_busy or not _plan_active: return
+	if _plan_stop_button: _plan_stop_button.disabled = true
+	var headers = ["Content-Type: application/json"]
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "plan_stop"
+	_set_ui_busy(true)
+	var err = http_request.request(PLAN_STOP_URL, headers, HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error(_t("err_plan_step"))
+		_set_ui_busy(false)
+		_end_plan_execution()
+
+
+var _reload_project_dialog: ConfirmationDialog = null
+
+
+func _note_autoload_removed(json) -> void:
+	# Откат мог оставить в project.godot висячую запись автозагрузки на файл,
+	# которого больше нет (см. clean_dangling_autoloads на сервере) — сообщаем,
+	# что она уже убрана, чтобы пользователь не искал причину ошибок автозагрузки сам.
+	var removed = json.get("autoload_removed")
+	if removed is Array and removed.size() > 0:
+		chat_log.text += "[color=gray]" + (_t("autoload_cleaned") % ", ".join(removed)) + "[/color]\n"
+
+
+func _maybe_prompt_project_reload(json) -> void:
+	# project.godot изменился в обход обычного действия модели (откат, откат
+	# цепочки, чистка автозагрузки) — эти правки видны Godot ТОЛЬКО после
+	# перезапуска редактора/ручного "Reload Current Project", иначе автозагрузка
+	# ещё долго будет ошибаться на устаревшие пути. Предлагаем перезапуск сразу.
+	var touched := false
+	if bool(json.get("project_godot_changed", false)):
+		touched = true
+	else:
+		var pths = json.get("paths")
+		if pths is Array:
+			for pp in pths:
+				if str(pp).ends_with("project.godot"):
+					touched = true
+					break
+		var cp = json.get("changed_path")
+		if cp != null and str(cp).ends_with("project.godot"):
+			touched = true
+	if not touched:
+		return
+	if _reload_project_dialog == null:
+		_reload_project_dialog = ConfirmationDialog.new()
+		_reload_project_dialog.confirmed.connect(_on_reload_project_confirmed)
+		add_child(_reload_project_dialog)
+	_reload_project_dialog.title = _t("reload_project_title")
+	_reload_project_dialog.dialog_text = _t("reload_project_text")
+	_reload_project_dialog.ok_button_text = _t("reload_project_yes")
+	_reload_project_dialog.get_cancel_button().text = _t("reload_project_no")
+	_reload_project_dialog.popup_centered()
+
+
+func _on_reload_project_confirmed() -> void:
+	chat_log.text += "[color=gray]" + _t("reload_project_doing") + "[/color]\n"
+	if _view: _view.flush()
+	# true = перезапустить движок на том же проекте (Godot 4.3+); подхватывает
+	# свежий project.godot (автозагрузки, main scene и т.п.) без ручных действий.
+	EditorInterface.restart_editor(true)
+
+
+func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
+	_plan_rollback_chain_id = chain_id
+	if _plan_rollback_dialog == null:
+		_plan_rollback_dialog = ConfirmationDialog.new()
+		_plan_rollback_dialog.confirmed.connect(_on_plan_rollback_confirmed)
+		add_child(_plan_rollback_dialog)
+	_plan_rollback_dialog.title = _t("plan_rb_title")
+	_plan_rollback_dialog.dialog_text = _t("plan_rb_text") % desc
+	_plan_rollback_dialog.ok_button_text = _t("rb_yes")
+	_plan_rollback_dialog.get_cancel_button().text = _t("rb_no")
+	_plan_rollback_dialog.popup_centered()
+
+
+func _on_plan_rollback_confirmed() -> void:
+	# v40: если сервер ранее ответил needs_force (файл менялся не из этой цепочки),
+	# это повторное подтверждение уже означает согласие откатить принудительно —
+	# раньше сюда всегда уходил force=false, и повторное нажатие «Да» просто
+	# бесконечно повторяло тот же отказ (внешне выглядело так, будто кнопка не работает).
+	if _plan_rollback_force_next:
+		chat_log.text += "[color=orange]" + _t("force_rollback") + "[/color]\n"
+		_send_plan_rollback_chain_request(true)
+		return
+	_send_plan_rollback_chain_request(false)
+
+
+func _send_plan_rollback_chain_request(force: bool) -> void:
+	if _is_network_busy: return
+	var headers = ["Content-Type: application/json"]
+	var body = {"chain_id": _plan_rollback_chain_id, "force": force}
+	_plan_rollback_force_next = false
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "plan_rollback_chain"
+	_set_ui_busy(true)
+	var err = http_request.request(PLAN_ROLLBACK_CHAIN_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error(_t("err_rollback"))
+		_set_ui_busy(false)
+
+
 func _on_rollback_pressed() -> void:
 	if _is_network_busy: return
 	if _rollback_force_next:
+		# Повторное нажатие после needs_force — откатываем без лишних вопросов.
 		chat_log.text += "[color=orange]" + _t("force_rollback") + "[/color]\n"
-	else:
-		chat_log.text += "[color=gray]" + _t("rollback_msg") + "[/color]\n"
+		_send_rollback_request(true)
+		return
+	# Сначала спрашиваем сервер, ЧТО именно будет отменено (и из какого
+	# чата было это изменение), чтобы не откатить вслепую чужую работу.
 	var headers = ["Content-Type: application/json"]
-	var body = {"force": _rollback_force_next}
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "rollback_preview"
+	_set_ui_busy(true)
+	var err = http_request.request(ROLLBACK_PREVIEW_URL, headers, HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error(_t("err_rollback"))
+		_set_ui_busy(false)
+
+
+func _send_rollback_request(force: bool) -> void:
+	var headers = ["Content-Type: application/json"]
+	var body = {"force": force}
 	_rollback_force_next = false
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "rollback"
@@ -402,6 +666,23 @@ func _on_rollback_pressed() -> void:
 	if err != OK:
 		_log_error(_t("err_rollback"))
 		_set_ui_busy(false)
+
+
+func _show_rollback_dialog(desc: String) -> void:
+	if _rollback_dialog == null:
+		_rollback_dialog = ConfirmationDialog.new()
+		_rollback_dialog.confirmed.connect(_on_rollback_confirmed)
+		add_child(_rollback_dialog)
+	_rollback_dialog.title = _t("rb_title")
+	_rollback_dialog.dialog_text = _t("rb_text") % desc
+	_rollback_dialog.ok_button_text = _t("rb_yes")
+	_rollback_dialog.get_cancel_button().text = _t("rb_no")
+	_rollback_dialog.popup_centered()
+
+
+func _on_rollback_confirmed() -> void:
+	chat_log.text += "[color=gray]" + _t("rollback_msg") + "[/color]\n"
+	_send_rollback_request(false)
 
 
 func _ensure_file_logging_enabled() -> void:
@@ -429,6 +710,7 @@ func _on_check_log_pressed() -> void:
 	var body = {
 		"project_root": ProjectSettings.globalize_path("res://"),
 		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 	}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "check_log"
@@ -439,11 +721,81 @@ func _on_check_log_pressed() -> void:
 		_set_ui_busy(false)
 
 
+func _check_api_cache_freshness() -> void:
+	if _is_network_busy:
+		_schedule_api_cache_check_retry()
+		return
+	var headers = ["Content-Type: application/json"]
+	var body = {
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+		"godot_version": Engine.get_version_info().get("string", ""),
+	}
+	_pending_request_kind = "api_cache_status"
+	_set_ui_busy(true)
+	var err = http_request.request(API_CACHE_STATUS_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_schedule_api_cache_check_retry()
+
+
+func _schedule_api_cache_check_retry() -> void:
+	_api_cache_check_attempts += 1
+	if _api_cache_check_attempts > 8:
+		return
+	if _api_cache_check_timer == null:
+		_api_cache_check_timer = Timer.new()
+		_api_cache_check_timer.one_shot = true
+		add_child(_api_cache_check_timer)
+		_api_cache_check_timer.timeout.connect(_check_api_cache_freshness)
+	_api_cache_check_timer.wait_time = min(2.0 * _api_cache_check_attempts, 15.0)
+	_api_cache_check_timer.start()
+
+
+func _on_export_api_pressed() -> void:
+	if _is_network_busy: return
+	if pending_action_box and pending_action_box.visible:
+		_log_error(_t("resolve_action_first"))
+		return
+	_export_api_to_server(false)
+
+
+# silent = true — тихий а��томатический запуск при старте плагина (не блокирует сеть для пользователя,
+# просто показывает одно сообщение, если реально пришлось пересобирать).
+func _export_api_to_server(silent: bool) -> void:
+	if not silent:
+		chat_log.text += "[color=gray]" + _t("api_export_sending") + "[/color]\n"
+	var export_script = load(get_script().resource_path.get_base_dir() + "/agent_api_export.gd")
+	var classes: Dictionary = export_script.export_classes()
+	var headers = ["Content-Type: application/json"]
+	var body = {
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+		"classes": classes,
+		"godot_version": Engine.get_version_info().get("string", ""),
+	}
+	_pending_request_kind = "api_export"
+	_set_ui_busy(true)
+	var err = http_request.request(API_EXPORT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error(_t("api_export_err"))
+		_set_ui_busy(false)
+
+
 func _on_request_completed(result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
 	_set_ui_busy(false)
 	var kind = _pending_request_kind
 	var response_str = body.get_string_from_utf8()
-	var json = JSON.parse_string(response_str)
+	# Вызываем JSON.parse_string только при успешном соединении и непустом теле ответа —
+	# иначе (например, когда сервер ещё не поднялся и соединение отказано/без тела)
+	# сам JSON.parse_string на пустой строке логирует в консоль встроенную ошибку движка
+	# «Parse JSON failed. Error at line 0: Unknown error getting token», даже если результат
+	# всё равно игнорируется ниже — итоговая причина повторяющихся ошибок в консоли при ожидании запуска сервера.
+	var json = null
+	if result == OK and not response_str.is_empty():
+		json = JSON.parse_string(response_str)
 
 	if response_code == 200 and json != null:
 		EditorInterface.get_resource_filesystem().scan()
@@ -456,9 +808,112 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			chat_log.text += "\n[color=green]" + _t("reinit_done") + "[/color]\n"
 			return
 
+		if kind == "confirm" and bool(json.get("plan_started", false)):
+			_last_pending_action_type = ""
+			_last_pending_action_path = ""
+			_last_pending_action_dest = ""
+			var has_answer_plan: bool = json.has("answer") and json["answer"] != null and str(json["answer"]) != ""
+			if has_answer_plan:
+				_view.add_agent_message(str(json["answer"]))
+			_start_plan_execution(int(json.get("plan_total", 0)))
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "plan_step":
+			var p_index := int(json.get("index", 0))
+			var p_total := int(json.get("total", _plan_total))
+			var p_chain := str(json.get("chain_id", _plan_chain_id))
+			_plan_chain_id = p_chain
+			_plan_index = p_index
+			var p_msg := str(json.get("message", ""))
+			var p_ok := bool(json.get("ok", false))
+			var p_done := bool(json.get("done", false))
+			var p_stopped := bool(json.get("stopped", false))
+			if p_ok:
+				chat_log.text += "[color=gray]" + _escape_bbcode(p_msg) + "[/color]\n"
+			else:
+				chat_log.text += "[color=orange]" + _escape_bbcode(p_msg) + "[/color]\n"
+			var p_ch_path = json.get("changed_path")
+			var p_ch_block = json.get("changed_block")
+			if p_ch_path != null and p_ch_block != null and str(p_ch_block) != "":
+				if _hl: _hl.apply(str(p_ch_path), str(p_ch_block))
+			_force_reload_open_script()
+			if p_done:
+				_end_plan_execution()
+				chat_log.text += "[color=green]" + _t("plan_done") + "[/color]\n"
+			elif p_stopped:
+				_end_plan_execution()
+				chat_log.text += "[color=orange]" + (_t("plan_stopped_desc") % [p_index, p_total]) + "[/color]\n"
+				_show_plan_rollback_dialog(p_chain, _t("plan_rb_step_desc") % [p_index, p_total])
+			else:
+				_request_plan_step()
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "plan_stop":
+			var s_index := int(json.get("index", _plan_index))
+			var s_total := int(json.get("total", _plan_total))
+			var s_chain := str(json.get("chain_id", _plan_chain_id))
+			_end_plan_execution()
+			chat_log.text += "[color=orange]" + (_t("plan_stopped_manual") % [s_index, s_total]) + "[/color]\n"
+			if s_index > 0:
+				_show_plan_rollback_dialog(s_chain, _t("plan_rb_step_desc") % [s_index, s_total])
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "plan_rollback_chain":
+			var pr_msg = str(json.get("message", _t("rollback_done")))
+			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(pr_msg) + "[/color]\n"
+			_note_autoload_removed(json)
+			var pr_paths = json.get("paths")
+			if pr_paths is Array:
+				for pp in pr_paths:
+					if FileAccess.file_exists(str(pp)):
+						_sync_open_script_with_disk(str(pp))
+					else:
+						_close_ghost_script_tab(str(pp))
+			if _hl: _hl.clear()
+			_maybe_prompt_project_reload(json)
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "api_export":
+			var cnt := int(json.get("classes_count", 0))
+			chat_log.text += "[color=green]" + _t("api_export_done") % cnt + "[/color]\n"
+			return
+
+		if kind == "api_cache_status":
+			_api_cache_check_attempts = 0
+			var has_cache = bool(json.get("has_cache", false))
+			var cached_version = str(json.get("cached_version", ""))
+			var current_version = Engine.get_version_info().get("string", "")
+			if not has_cache or cached_version != current_version:
+				_export_api_to_server(true)
+			return
+
+		if kind == "rollback_preview":
+			if bool(json.get("found", false)):
+				# Если последнее действие — шаг ещё неоткатанной цепочки плана (есть
+				# chain_id и в ней больше 1 шага), предлагаем откатить всю цепочку сразу
+				# через уже готовый диалог/запрос отката цепочки, а не по одному действию.
+				var pv_chain := str(json.get("chain_id", ""))
+				var pv_chain_total := int(json.get("chain_total", 0))
+				if pv_chain != "" and pv_chain_total > 1:
+					_show_plan_rollback_dialog(pv_chain, _t("plan_rb_step_desc") % [pv_chain_total, pv_chain_total])
+				else:
+					_show_rollback_dialog(str(json.get("description", "")))
+			else:
+				chat_log.text += "[color=gray]" + _t("rb_nothing") + "[/color]\n"
+			return
+
 		if kind == "rollback":
 			var msg = str(json.get("message", _t("rollback_done")))
 			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(msg) + "[/color]\n"
+			_note_autoload_removed(json)
 			# Синхронизируем откаченные файлы с открытыми вкладками. Иначе
 			# вкладка показывает ДО-откатный текст, и Godot может позже
 			# молча пересохранить его ПОВЕРХ результата отката.
@@ -469,7 +924,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 						_sync_open_script_with_disk(str(p))
 					else:
 						# Откат удалил созданный файл — закрываем его вкладку,
-						# иначе Godot держит «призрака» и может пересохранить файл обратно.
+						# ина��е Godot держит «призрака» и может пересохранить файл обратно.
 						_close_ghost_script_tab(str(p))
 			# Подсвечиваем восстановленный после отката блок (или гасим старое).
 			var rb_path = json.get("changed_path")
@@ -478,6 +933,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				if _hl: _hl.apply(str(rb_path), str(rb_block))
 			else:
 				if _hl: _hl.clear()
+			_maybe_prompt_project_reload(json)
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
@@ -565,11 +1021,28 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if json and json.has("error"):
 				print("Авто-проверка лога пропущена: ", str(json["error"]))
 			return
+		if kind == "api_cache_status":
+			_schedule_api_cache_check_retry()
+			return
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
 		# Сервер просит подтвердить откат повторным нажатием кнопки.
+		# v40: раньше здесь всегда выставлялся _rollback_force_next (флаг одиночного
+		# отката), даже для отката всей цепочки плана (kind == "plan_rollback_chain") — а его
+		# никто не читал, потому кнопка «Откатить» (одиночный откат) тут не задействована, а
+		# диалог отката цеп��ци всё равно снова посылал force=false и молча падал снова и снова
+		# (внешне выглядело как «нажал и ничего не произошло»). Теперь для plan_rollback_chain
+		# ставится свой собственный флаг _plan_rollback_force_next, и диалог подтверждения показывается
+		# ещё раз, чтобы следующее подтверждение ушло с force=true.
 		if json != null and json.get("needs_force") == true:
+			if kind == "plan_rollback_chain":
+				_plan_rollback_force_next = true
+				chat_log.text += "[color=orange]" + _t("plan_rb_needs_force") + "[/color]\n"
+				_show_plan_rollback_dialog(_plan_rollback_chain_id, _t("plan_rb_force_desc"))
+				await get_tree().process_frame
+				chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+				return
 			_rollback_force_next = true
 		_log_error((_t("srv_error") % str(response_code)) + err_msg)
 
@@ -581,7 +1054,7 @@ func _log_error(msg: String) -> void:
 
 
 func _guard_confirm_buttons() -> void:
-	# Защита от случайных быстрых/двойных кликов: когда появляется НОВОЕ
+	# Защита от случайных быстрых/двой������ кликов: когда появляется НОВОЕ
 	# подтверждение, кнопки ненадолго блокируются, чтобы второй клик по
 	# инерции не одобрил следующее действие мгновенно.
 	# ВАЖНО: без await/корутин. При перезагрузке плагина Godot отменял
@@ -706,6 +1179,7 @@ func _auto_check_log() -> void:
 	var body = {
 		"project_root": ProjectSettings.globalize_path("res://"),
 		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 	}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "check_log"
@@ -718,7 +1192,7 @@ func _auto_check_log() -> void:
 
 # ---------------------------------------------------------------------------
 # Подсветка строк, изменённых агентом.
-# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ блока: при любой правке
+# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ ��лока: при любой правке
 # блок ищется заново, и подсветка «переезжает» вместе с кодом. Если
 # пользователь отредактировал сам блок — подсветка гаснет (это уже
 # не код агента).
@@ -750,23 +1224,23 @@ func _on_progress_response(_result: int, response_code: int, _headers: PackedStr
 		return
 	if not bool(json.get("active", false)):
 		return
-	# Статус — только состояние бота; сам текст стримится прямо в чат (в _view).
+	# Статус ��� только состояние бота; сам текст стримится прямо в чат (в _view).
 	_view.show_status(str(json.get("phase", _t("working"))), int(json.get("elapsed", 0)), int(json.get("chars", 0)))
 	_view.feed_live_stream(str(json.get("stream", "")))
 
 
 # ---------------------------------------------------------------------------
-# Чаты: список, создание, выбор (открывает страницу в браузере),
-# переименование, удаление. Сохранённый диалог восстанавливается в панели.
+# Чаты: список, созда��ие, выбор (открывает страницу в браузере),
+# переименование, удаление. Сохранённ��й диалог восстанавливается в панели.
 # ---------------------------------------------------------------------------
 
-func _request_chats(kind: String, extra: Dictionary) -> void:
+func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = true) -> void:
 	if _link == null:
 		return
 	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status":
 		_log_error(_t("wait_current"))
 		return
-	_link.request(kind, extra)
+	_link.request(kind, extra, allow_autostart)
 
 
 func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> void:
@@ -793,6 +1267,10 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 		_view.clear()
 		_render_transcript(json.get("transcript", []))
 		_view.add_system(_t("chat_opened") % str(json.get("title", "")))
+		var warn: String = str(json.get("warning", ""))
+		if warn != "":
+			_view.add_system(warn)
+			_notify(warn, "error")
 		_enter_chat_ui()
 		_begin_page_wait()
 		if _resend_after_open:
@@ -844,7 +1322,7 @@ func _on_chat_selected(index: int) -> void:
 
 
 func _on_chat_new_pressed() -> void:
-	# «＋» в чате открывает выбор сайта (нейросети). Важно сначала
+	# «＋» в чате открывает выбор сайта (нейросети). Важ��о сначала
 	# показать стартовый экран — иначе экран загрузки останется невидимым.
 	_show_start_ui()
 	_on_sites_tab_requested()
@@ -973,6 +1451,8 @@ func _on_language_changed() -> void:
 		rollback_button.text = _t("rollback")
 	if _log_errors_button:
 		_log_errors_button.text = _t("log_errors")
+	if _api_export_button:
+		_api_export_button.text = _t("api_export_btn")
 	_apply_chatbar_texts()
 	# Обновляем заголовок вкладки дока.
 	var tabs := get_parent() as TabContainer

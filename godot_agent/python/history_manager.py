@@ -38,6 +38,13 @@ _STORAGE_OVERRIDE = None
 MAX_DIFF_CHARS = 4000
 
 
+def new_chain_id():
+    """Новый идентификатор цепочки для plan-режима: все шаги одного плана
+    записываются в журнал с одним chain_id, чтобы rollback_chain мог откатить их
+    все сразу как одну операцию."""
+    return uuid.uuid4().hex[:12]
+
+
 def set_storage_dir(base_dir):
     """Включает хранение журнала/снапшотов вне проекта: <base_dir>/agent_history."""
     global _STORAGE_OVERRIDE
@@ -131,8 +138,12 @@ def _prune(project_root, journal):
                 pass
 
 
-def record_change(project_root, action):
-    """Вызывать ДО применения write-действия. Возвращает id записи журнала."""
+def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=None):
+    """Вызывать ДО применения write-действия. Возвращает id записи журнала.
+    chat_id/chat_title — какой чат сделал изменение: нужно для предпросмотра
+    отката и для сводки «что изменилось» при возврате в старый чат.
+    chain_id — общий идентификатор цепочки для шагов plan-режима (см. new_chain_id);
+    обычные одиночные действия его не задают."""
     act = action.get("action")
     path = action.get("path", "")
     entry = {
@@ -142,6 +153,11 @@ def record_change(project_root, action):
         "path": path,
         "committed": False,
     }
+    if chat_id:
+        entry["chat_id"] = chat_id
+        entry["chat_title"] = chat_title or ""
+    if chain_id:
+        entry["chain_id"] = chain_id
     hist = _history_dir(project_root)
 
     if act == "patch_file":
@@ -196,17 +212,111 @@ def abort_change(project_root, entry_id):
         _save_journal(project_root, new_journal)
 
 
-def rollback_last(project_root, force=False):
-    """Откат последнего применённого действия.
-    Возвращает (ok, message, needs_force, paths, diff):
-      paths — затронутые res:// пути (для синхронизации вкладок в Godot);
-      diff  — для patch_file: {"path", "was", "now"} — точный обратный дифф
-              (блок "was" снова стал блоком "now"), иначе None."""
+def last_committed_info(project_root):
+    """Описание последнего применённого действия — для предпросмотра отката
+    в панели (что именно будет отменено и из какого чата). Если последнее
+    действие — шаг плана (есть chain_id), дополнительно возвращает chain_id и chain_total
+    (сколько ещё неоткатанных шагов этой цепочки сейчас в журнале) — панель использует
+    это, чтобы предложить откат всей цепочки одной кнопкой вместо одиночного отката."""
     journal = _load_journal(project_root)
     committed = [e for e in journal if e.get("committed")]
     if not committed:
-        return False, "История изменений пуста — откатывать нечего.", False, [], None
-    entry = committed[-1]
+        return None
+    e = committed[-1]
+    info = {
+        "type": e.get("type", ""),
+        "path": e.get("dest") or e.get("path", ""),
+        "overwrote": bool(e.get("overwrote")),
+        "chat_title": e.get("chat_title") or "",
+        "ts": e.get("ts", 0),
+        "chain_id": "",
+        "chain_total": 0,
+    }
+    chain_id = e.get("chain_id")
+    if chain_id:
+        info["chain_id"] = chain_id
+        info["chain_total"] = sum(
+            1 for j in committed if j.get("chain_id") == chain_id)
+    return info
+
+
+def last_write_ts_by_others(project_root, path, chat_id):
+    """Когда файл в последний раз меняли ДРУГИЕ чаты (0 — не меняли).
+    Записи без chat_id (сделанные до обновления) не учитываются,
+    чтобы не блокир��вать стар��е проекты ложными срабатываниями."""
+    ts = 0
+    for e in _load_journal(project_root):
+        if not e.get("committed"):
+            continue
+        target = e.get("dest") or e.get("path")
+        if target != path:
+            continue
+        eid = e.get("chat_id")
+        if not eid or eid == chat_id:
+            continue
+        ts = max(ts, e.get("ts", 0))
+    return ts
+
+
+def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
+                            max_lines=12, collapse_after=30):
+    """Компактная сводка изменений проекта после since_ts — для заметки
+    модели при возврате в старый чат. None — если изменений не было.
+    Защита от «полотна»: группируем по ФАЙЛАМ (не по действиям),
+    максимум max_lines строк; если файлов больше collapse_after —
+    вместо списка один короткий абзац «проект сильно изменился»."""
+    per_file = {}
+    order = []
+    for e in _load_journal(project_root):
+        if not e.get("committed") or e.get("ts", 0) <= since_ts:
+            continue
+        if exclude_chat_id and e.get("chat_id") == exclude_chat_id:
+            continue
+        target = e.get("dest") or e.get("path") or ""
+        if not target:
+            continue
+        rec = per_file.get(target)
+        if rec is None:
+            rec = {"n": 0, "last": "", "chats": set()}
+            per_file[target] = rec
+            order.append(target)
+        rec["n"] += 1
+        rec["last"] = e.get("type", "")
+        title = (e.get("chat_title") or "").strip()
+        if title:
+            rec["chats"].add(title)
+    if not per_file:
+        return None
+    total_files = len(per_file)
+    total_changes = sum(r["n"] for r in per_file.values())
+    # Журнал хранит не больше MAX_ENTRIES записей, поэтому «как минимум».
+    if total_files > collapse_after:
+        return ("[Система]: ВНИМАНИЕ. С момента твоей последней активности проект СИЛЬНО изменился "
+                "(как минимум %d изменений в %d файлах, в том числе из других чатов). "
+                "Твоя память о содержимом файлов и структуре проекта УСТАРЕЛА. "
+                "Перед любыми правками сначала запроси list_files, а каждый нужный файл перечитай через read_file."
+                % (total_changes, total_files))
+    kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён", "move_file": "перемещён"}
+    lines = []
+    for p in order[:max_lines]:
+        r = per_file[p]
+        what = kind_ru.get(r["last"], r["last"])
+        extra = " \u00d7%d" % r["n"] if r["n"] > 1 else ""
+        by = (" [чат: %s]" % ", ".join(sorted(r["chats"]))) if r["chats"] else ""
+        lines.append("- %s — %s%s%s" % (p, what, extra, by))
+    if total_files > max_lines:
+        lines.append("- …и ещё %d файлов." % (total_files - max_lines))
+    return ("[Система]: Пока этот чат был неактивен, в проекте изменились файлы:\n%s\n"
+            "Твоя память об их содержимом устарела: перед patch_file или create_file по этим файлам "
+            "сначала перечитай их через read_file." % "\n".join(lines))
+
+
+def _revert_entry_on_disk(project_root, entry, force=False):
+    """Общая логика отката ОДНОЙ записи журнала НА ДИСКЕ. Не трогает
+    сам журнал/снапшоты — только применяет изменения к файлам. Используется
+    и для одиночного rollback_last, и для каждого шага в rollback_chain.
+    Возвращает (ok, message, needs_force, paths, diff) — та же семантика,
+    что раньше возвращал rollback_last целиком."""
     act = entry["type"]
     target = entry.get("dest") or entry["path"]
     try:
@@ -258,6 +368,30 @@ def rollback_last(project_root, force=False):
     else:
         return False, "Неизвестный тип действия в журнале: %s" % act, False, [], None
 
+    affected = [target] if act != "move_file" else [entry["path"], target]
+    diff = None
+    if act == "patch_file" and "search" in entry and "replace" in entry:
+        # Обратный дифф: блок "replace" снова стал блоком "search".
+        diff = {"path": target, "was": entry["replace"], "now": entry["search"]}
+    return True, "Откачено: %s (%s)" % (act, target), False, affected, diff
+
+
+def rollback_last(project_root, force=False):
+    """Откат последнего применённого действия.
+    Возвращает (ok, message, needs_force, paths, diff):
+      paths — затронутые res:// пути (для синхронизации вкладок в Godot);
+      diff  — для patch_file: {"path", "was", "now"} — точный обратный дифф
+              (блок "was" снова стал блоком "now"), иначе None."""
+    journal = _load_journal(project_root)
+    committed = [e for e in journal if e.get("committed")]
+    if not committed:
+        return False, "История изменений пуста — откатывать нечего.", False, [], None
+    entry = committed[-1]
+
+    ok, message, needs_force, affected, diff = _revert_entry_on_disk(project_root, entry, force=force)
+    if not ok:
+        return False, message, needs_force, affected, diff
+
     # Убираем запись и её снапшот только после успешного отката.
     snap_rel = entry.get("snapshot")
     journal.remove(entry)
@@ -267,9 +401,60 @@ def rollback_last(project_root, force=False):
             os.remove(os.path.join(_history_dir(project_root), snap_rel))
         except OSError:
             pass
-    affected = [target] if act != "move_file" else [entry["path"], target]
-    diff = None
-    if act == "patch_file" and "search" in entry and "replace" in entry:
-        # Обратный дифф: блок "replace" снова стал блоком "search".
-        diff = {"path": target, "was": entry["replace"], "now": entry["search"]}
-    return True, "Откачено: %s (%s)" % (act, target), False, affected, diff
+    return True, message, False, affected, diff
+
+
+def rollback_chain(project_root, chain_id, force=False):
+    """Откатывает все шаги plan-цепочки chain_id от ПОСЛЕДНЕГО к ПЕРВОМУ.
+    Останавливается на первой ошибке, сохраняя частичную откатку (уже
+    откатанные шаги убираются из журнала, оставшиеся — остаются там для
+    повторной попытки). Возвращает (ok, message, needs_force, paths,
+    reverted_count, total_count)."""
+    journal = _load_journal(project_root)
+    entries = [e for e in journal if e.get("committed") and e.get("chain_id") == chain_id]
+    if not entries:
+        return False, "Цепочка не найдена в истории изменений (возможно, уже откачена).", False, [], 0, 0
+
+    # От последнего шага к первому: иначе поздние шаги могут зависеть от
+    # ранних (например, patch_file по файлу, созданному ранним create_file).
+    entries_sorted = sorted(entries, key=lambda e: e.get("ts", 0), reverse=True)
+    total = len(entries_sorted)
+    reverted_entries = []
+    reverted_paths = []
+    error_msg = None
+    error_needs_force = False
+
+    for i, entry in enumerate(entries_sorted):
+        ok, message, needs_force, affected, diff = _revert_entry_on_disk(project_root, entry, force=force)
+        if not ok:
+            error_msg = "Откат цепочки прерван на шаге %d из %d: %s" % (i + 1, total, message)
+            error_needs_force = needs_force
+            break
+        reverted_entries.append(entry)
+        reverted_paths.extend(affected)
+
+    # Уже откатанные на диске шаги убираем из журнала в ЛЮБОМ случае —
+    # и при успехе, и при частичной остановке — иначе повторный откат
+    # увидит уже откатанный файл и сломается на hash-проверке.
+    if reverted_entries:
+        reverted_ids = {e["id"] for e in reverted_entries}
+        journal = [e for e in journal if e["id"] not in reverted_ids]
+        _save_journal(project_root, journal)
+        for e in reverted_entries:
+            snap_rel = e.get("snapshot")
+            if snap_rel:
+                try:
+                    os.remove(os.path.join(_history_dir(project_root), snap_rel))
+                except OSError:
+                    pass
+
+    if error_msg is not None:
+        return (
+            False,
+            error_msg + " Уже откачено шагов: %d из %d." % (len(reverted_entries), total),
+            error_needs_force,
+            reverted_paths,
+            len(reverted_entries),
+            total,
+        )
+    return True, "Цепочка полностью откачена (%d шаг(ов))." % total, False, reverted_paths, total, total

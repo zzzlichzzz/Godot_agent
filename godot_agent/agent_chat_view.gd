@@ -73,7 +73,11 @@ func clear() -> void:
 func add_user_message(escaped_text: String) -> void:
 	flush()
 	if chat_log:
-		chat_log.text += "[right]" + _bubble(_t("you"), USER_HEADER, escaped_text, USER_BG, USER_BORDER) + "[/right]\n"
+		# [right] прижимает сам пузырь к правому краю, но выравнивание
+		# наследуется и внутрь ячейки таблицы — весь текст «съезжал» вправо.
+		# [p align=left] возвращает тексту сообщения нормальное левое
+		# выравнивание ВНУТРИ пузыря, а пузырь остаётся справа.
+		chat_log.text += "[right]" + _bubble(_t("you"), USER_HEADER, "[p align=left]" + escaped_text + "[/p]", USER_BG, USER_BORDER) + "[/right]\n"
 
 
 func add_agent_message(bbcode_text: String) -> void:

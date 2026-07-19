@@ -18,15 +18,20 @@ STATE = {
     "pending_action": None,   # ожидающее подтверждения WRITE-действие
     "current_chat_id": None,  # активный чат (см. chat_store.py)
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
+    "pending_plan": None,     # ожидающий подтверждения/выполнения план (plan-режим, цепочка шагов)
     "is_primed": False,
     "action_note": "",
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
+    "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
     "progress": {"active": False},
+    "fs_snapshot": None,       # отпечаток файлов проекта (mtime+size) для обнаружения ВНЕШНИХ изменений
+    "fs_snapshot_root": None,
+    "file_cache": None,       # rel_path -> содержимое, которое уже видела модель (для точечных diff)  # корень проекта, для которого снят fs_snapshot
 }
 
 # Драйвер браузера храним в держателе: он создаётся уже после импорта.
-_holder = {"driver": None}
+_holder = {"driver": None, "driver_error": None}
 
 
 def set_driver(d):
@@ -35,6 +40,25 @@ def set_driver(d):
 
 def get_driver():
     return _holder["driver"]
+
+
+def set_driver_error(msg):
+    _holder["driver_error"] = str(msg or "")
+
+
+def wait_driver(timeout=90.0):
+    """Браузер теперь стартует В ФОНЕ: HTTP-сервер поднимается сразу,
+    а Chrome догоняет параллельно. Кому нужен браузер — ждёт его здесь.
+    Возвращает driver или бросает RuntimeError с понятным текстом."""
+    import time as _time
+    deadline = _time.time() + timeout
+    while _time.time() < deadline:
+        if _holder["driver"] is not None:
+            return _holder["driver"]
+        if _holder["driver_error"]:
+            raise RuntimeError("Браузер агента не запустился: %s" % _holder["driver_error"])
+        _time.sleep(0.25)
+    raise RuntimeError("Браузер агента ещё запускается — подождите пару секунд и повторите.")
 
 
 def _prime_flag_path(project_root):
@@ -165,6 +189,22 @@ def site_mismatch_for_current():
     }
 
 
+# Флаг «остановить текущую обработку запроса» (кнопка «Стоп» в панели).
+_cancel = {"requested": False}
+
+
+def request_cancel():
+    _cancel["requested"] = True
+
+
+def clear_cancel():
+    _cancel["requested"] = False
+
+
+def cancel_requested():
+    return _cancel["requested"]
+
+
 def _set_progress(info):
     """Живая трансляция: ai_parser присылает фазу/символы/хвост ответа."""
     data = {"active": True}
@@ -182,6 +222,8 @@ def _apply_session_context(data):
     проекта) и один раз переносит туда старую .agent_history из проекта."""
     if data.get("project_root"):
         STATE["project_root"] = data["project_root"]
+    if data.get("addon_dir"):
+        STATE["addon_dir"] = data["addon_dir"]
     udd = data.get("user_data_dir")
     if udd and udd != STATE.get("user_data_dir"):
         STATE["user_data_dir"] = udd

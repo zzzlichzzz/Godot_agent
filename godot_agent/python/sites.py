@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Реестр сайтов-нейросетей, с которыми работает агент.
 
-Сейчас поддержан один сайт — Google AI Studio. Чтобы добавить новый:
+Сейчас поддержаны: Google AI Studio, DeepSeek. Чтобы добавить новый:
 допиши запись в SITES (id, name, new_chat_url, match-домены, parser).
 В будущем можно будет добавлять «свои» страницы с универсальным
 парсером — заготовки для этого оставлены ниже (register_custom_site /
@@ -17,6 +17,14 @@ SITES = [
         "new_chat_url": "https://aistudio.google.com/prompts/new_chat",
         "match": ["aistudio.google.com"],
         "parser": "ai_parser",   # модуль, умеющий читать ответы с этой страницы
+        "builtin": True,
+    },
+    {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "new_chat_url": "https://chat.deepseek.com/",
+        "match": ["chat.deepseek.com", "deepseek.com"],
+        "parser": "deepseek_parser",   # модуль deepseek_parser.py
         "builtin": True,
     },
     # Пример будущего сайта (выключен, оставлен как ориентир):
@@ -54,6 +62,22 @@ def get_site(site_id):
         if s["id"] == site_id:
             return s
     return None
+
+
+def get_parser_module(site_id=None, url=None):
+    """Модуль-парсер для сайта: по id сайта, иначе по адресу страницы,
+    иначе ai_parser (Google AI Studio) как парсер по умолчанию."""
+    import importlib
+    s = get_site(site_id) if site_id else None
+    if s is None and url:
+        s = detect_site(url)
+    name = (s or {}).get("parser") or "ai_parser"
+    try:
+        return importlib.import_module(name)
+    except Exception as e:
+        print("[sites] Не удалось загрузить парсер %s (%s) — использую ai_parser." % (name, e))
+        import ai_parser
+        return ai_parser
 
 
 def detect_site(url):
