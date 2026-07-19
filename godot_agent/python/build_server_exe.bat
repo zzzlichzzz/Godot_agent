@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
 rem ============================================================
-rem Сборка сервера агента в один exe-файл.
-rem Результат: dist\godot_agent_server.exe
-rem Положите его в папку аддона (любая вложенность) — панель найдёт сама.
+rem Сборка сервера агента (режим onedir — БЫСТРЫЙ старт, без распаковки при каждом запуске).
+rem Результат: ПАПКА dist\godot_agent_server с godot_agent_server.exe внутри.
+rem Переносите ВСЮ папку godot_agent_server целиком — панель найдёт exe сама.
 rem ============================================================
 title Сборка сервера Godot Agent
 echo.
@@ -82,16 +82,19 @@ if errorlevel 1 (
 )
 echo.
 echo [2/3] Сборка exe (несколько минут, окно не закрывайте)...
-%PYCMD% -m PyInstaller --onefile --noconfirm --collect-submodules selenium --name godot_agent_server main.py
+%PYCMD% -m PyInstaller --onedir --noconfirm --collect-submodules selenium --name godot_agent_server main.py
 if errorlevel 1 (
     echo.
     echo [ERROR] Ошибка сборки. Прочитайте вывод выше.
     goto END
 )
 echo.
+rem Старый медленный одиночный exe (onefile) больше не нужен — удаляем его,
+rem чтобы панель случайно не запускала его вместо быстрой папки.
+if exist "dist\godot_agent_server.exe" del "dist\godot_agent_server.exe"
 echo [3/3] Готово!
-echo Файл: %CD%\dist\godot_agent_server.exe
-echo Положите его в любое место внутри папки аддона — панель найдёт его сама.
+echo Файл: %CD%\dist\godot_agent_server\godot_agent_server.exe
+echo Перенесите ВСЮ папку dist\godot_agent_server в папку аддона — панель найдёт exe сама. Старый одиночный exe можно удалить.
 
 :END
 echo.

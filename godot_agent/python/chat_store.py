@@ -114,6 +114,24 @@ def touch_chat(base_dir, chat_id, url=None, primed=None):
     return None
 
 
+def touch_file_read(base_dir, chat_id, path):
+    """Запоминает: чат видел АКТУАЛЬНОЕ содержимое файла (read_file,
+    успешная запись или self-heal показал модели файл с диска).
+    Используется защитой от перезаписи файла по устаревшей памяти чата."""
+    chats = _load(base_dir)
+    for c in chats:
+        if c.get("id") == chat_id:
+            reads = c.setdefault("file_reads", {})
+            reads[path] = time.time()
+            # Не даём словарю расти бесконечно: держим 300 самых свежих.
+            if len(reads) > 300:
+                for stale_path in sorted(reads, key=reads.get)[:len(reads) - 300]:
+                    del reads[stale_path]
+            _save(base_dir, chats)
+            return c
+    return None
+
+
 def append_transcript(base_dir, chat_id, role, text):
     """Дописывает реплику (user/agent/system) в сохранённый диалог чата."""
     chats = _load(base_dir)

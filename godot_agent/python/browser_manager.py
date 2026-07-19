@@ -5,11 +5,6 @@ import subprocess
 import urllib.request
 
 from selenium import webdriver
-# Явные статические импорты: PyInstaller не видит "ленивые" импорты selenium
-# (selenium.webdriver.__getattr__), из-за чего собранный exe падал с ошибкой
-# ModuleNotFoundError: No module named 'selenium.webdriver.chrome.options'.
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.chrome.webdriver import WebDriver as ChromeDriver
 
 # Стартовый адрес браузера. РАНЬШЕ здесь сразу открывался AI Studio —
 # теперь браузер стартует на пустой странице, а конкретный сайт/чат
@@ -121,9 +116,9 @@ def setup_browser():
         if not _wait_for_debug_port(9222, timeout=20.0):
             print("⚠ Порт отладки Chrome не ответил вовремя, пробую подключиться всё равно...")
     print("3. Подключаю управление...")
-    options = ChromeOptions()
+    options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-    driver = ChromeDriver(options=options)
+    driver = webdriver.Chrome(options=options)
     print("4. Отключаю троттлинг рендера для фонового/свёрнутого окна...")
     harden_background_tab(driver)
     return driver

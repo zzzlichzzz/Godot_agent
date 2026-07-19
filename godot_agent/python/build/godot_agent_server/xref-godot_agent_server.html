@@ -29,6 +29,7 @@ imports:
  &#8226;   <a href="#codecs">codecs</a>
  &#8226;   <a href="#collections">collections</a>
  &#8226;   <a href="#copyreg">copyreg</a>
+ &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
  &#8226;   <a href="#encodings">encodings</a>
  &#8226;   <a href="#encodings._win_cp_codecs">encodings._win_cp_codecs</a>
  &#8226;   <a href="#encodings.aliases">encodings.aliases</a>
@@ -155,6 +156,9 @@ imports:
  &#8226;   <a href="#enum">enum</a>
  &#8226;   <a href="#flask">flask</a>
  &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
+ &#8226;   <a href="#gd_api_check">gd_api_check</a>
+ &#8226;   <a href="#gd_lint">gd_lint</a>
  &#8226;   <a href="#genericpath">genericpath</a>
  &#8226;   <a href="#heapq">heapq</a>
  &#8226;   <a href="#history_manager">history_manager</a>
@@ -168,6 +172,7 @@ imports:
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#operator">operator</a>
  &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#posixpath">posixpath</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#pyi_rth_inspect.py">pyi_rth_inspect.py</a>
@@ -311,8 +316,10 @@ imports:
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
+ &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#traceback">traceback</a>
+ &#8226;   <a href="#tscn_lint">tscn_lint</a>
  &#8226;   <a href="#types">types</a>
  &#8226;   <a href="#warnings">warnings</a>
  &#8226;   <a href="#weakref">weakref</a>
@@ -3101,9 +3108,8 @@ imported by:
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/ai_parser.py" type="text/plain"><tt>ai_parser</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#browser_manager">browser_manager</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#json_repair">json_repair</a>
+    <a href="#json">json</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#selenium.common.exceptions">selenium.common.exceptions</a>
  &#8226;   <a href="#selenium.webdriver.common.keys">selenium.webdriver.common.keys</a>
@@ -3113,6 +3119,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#main.py">main.py</a>
+ &#8226;   <a href="#sites">sites</a>
 
   </div>
 
@@ -4946,8 +4953,6 @@ imports:
     <a href="#os">os</a>
  &#8226;   <a href="#selenium">selenium</a>
  &#8226;   <a href="#selenium.webdriver">selenium.webdriver</a>
- &#8226;   <a href="#selenium.webdriver.chrome.options">selenium.webdriver.chrome.options</a>
- &#8226;   <a href="#selenium.webdriver.chrome.webdriver">selenium.webdriver.chrome.webdriver</a>
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#time">time</a>
@@ -4956,8 +4961,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#ai_parser">ai_parser</a>
- &#8226;   <a href="#main.py">main.py</a>
+    <a href="#main.py">main.py</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
 
   </div>
 
@@ -5532,6 +5537,7 @@ imported by:
 imports:
     <a href="#chat_store">chat_store</a>
  &#8226;   <a href="#flask">flask</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#server_state">server_state</a>
  &#8226;   <a href="#sites">sites</a>
  &#8226;   <a href="#time">time</a>
@@ -7667,6 +7673,25 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="deepseek_parser"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/deepseek_parser.py" type="text/plain"><tt>deepseek_parser</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#parser_base">parser_base</a>
+ &#8226;   <a href="#selenium.common.exceptions">selenium.common.exceptions</a>
+ &#8226;   <a href="#selenium.webdriver.common.keys">selenium.webdriver.common.keys</a>
+ &#8226;   <a href="#time">time</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="difflib"></a>
   <a target="code" href="///C:/Users/Lich/AppData/Local/Python/pythoncore-3.14-64/Lib/difflib.py" type="text/plain"><tt>difflib</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -7681,6 +7706,7 @@ imports:
 imported by:
     <a href="#argparse">argparse</a>
  &#8226;   <a href="#click.exceptions">click.exceptions</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#unittest.case">unittest.case</a>
  &#8226;   <a href="#werkzeug.routing.exceptions">werkzeug.routing.exceptions</a>
@@ -12031,6 +12057,59 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="gd_api_cache"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/gd_api_cache.py" type="text/plain"><tt>gd_api_cache</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#history_manager">history_manager</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#os">os</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#gd_api_check">gd_api_check</a>
+ &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#tscn_lint">tscn_lint</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="gd_api_check"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/gd_api_check.py" type="text/plain"><tt>gd_api_check</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#gd_api_cache">gd_api_cache</a>
+ &#8226;   <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="gd_lint"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/gd_lint.py" type="text/plain"><tt>gd_lint</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="genericpath"></a>
   <a target="code" href="///C:/Users/Lich/AppData/Local/Python/pythoncore-3.14-64/Lib/genericpath.py" type="text/plain"><tt>genericpath</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -12551,7 +12630,9 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#main.py">main.py</a>
+    <a href="#chat_routes">chat_routes</a>
+ &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
+ &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#server_state">server_state</a>
 
   </div>
@@ -12964,6 +13045,7 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.importlib_metadata">setuptools._vendor.importlib_metadata</a>
  &#8226;   <a href="#setuptools._vendor.zipp.compat.overlay">setuptools._vendor.zipp.compat.overlay</a>
  &#8226;   <a href="#setuptools.config.expand">setuptools.config.expand</a>
+ &#8226;   <a href="#sites">sites</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
 
   </div>
@@ -14781,6 +14863,7 @@ imported by:
  &#8226;   <a href="#flask.config">flask.config</a>
  &#8226;   <a href="#flask.json">flask.json</a>
  &#8226;   <a href="#flask.json.provider">flask.json.provider</a>
+ &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#itsdangerous._json">itsdangerous._json</a>
@@ -14795,6 +14878,7 @@ imported by:
  &#8226;   <a href="#log_reader">log_reader</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#multiprocessing.resource_tracker">multiprocessing.resource_tracker</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#pdb">pdb</a>
  &#8226;   <a href="#selenium.webdriver.common.api_request_context">selenium.webdriver.common.api_request_context</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi._script_handlers">selenium.webdriver.common.bidi._script_handlers</a>
@@ -14892,8 +14976,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#ai_parser">ai_parser</a>
- &#8226;   <a href="#json_repair.json_parser">json_repair.json_parser</a>
+    <a href="#json_repair.json_parser">json_repair.json_parser</a>
  &#8226;   <a href="#json_repair.json_repair">json_repair.json_repair</a>
  &#8226;   <a href="#json_repair.parse_array">json_repair.parse_array</a>
  &#8226;   <a href="#json_repair.parse_comment">json_repair.parse_comment</a>
@@ -14905,6 +14988,7 @@ imported by:
  &#8226;   <a href="#json_repair.parser_schema">json_repair.parser_schema</a>
  &#8226;   <a href="#json_repair.schema_repair">json_repair.schema_repair</a>
  &#8226;   <a href="#json_repair.utils">json_repair.utils</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
 
   </div>
 
@@ -16822,6 +16906,7 @@ imported by:
  &#8226;   <a href="#flask.sansio.scaffold">flask.sansio.scaffold</a>
  &#8226;   <a href="#fnmatch">fnmatch</a>
  &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
  &#8226;   <a href="#genericpath">genericpath</a>
  &#8226;   <a href="#getopt">getopt</a>
  &#8226;   <a href="#getpass">getpass</a>
@@ -17503,6 +17588,29 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="parser_base"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/parser_base.py" type="text/plain"><tt>parser_base</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#browser_manager">browser_manager</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#json_repair">json_repair</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#selenium.common.exceptions">selenium.common.exceptions</a>
+ &#8226;   <a href="#time">time</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#ai_parser">ai_parser</a>
+ &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
+ &#8226;   <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="pathlib"></a>
   <a target="code" href="///C:/Users/Lich/AppData/Local/Python/pythoncore-3.14-64/Lib/pathlib/__init__.py" type="text/plain"><tt>pathlib</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
@@ -17853,7 +17961,8 @@ imported by:
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/project_tools.py" type="text/plain"><tt>project_tools</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#os">os</a>
+    <a href="#difflib">difflib</a>
+ &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#shutil">shutil</a>
 
@@ -18332,6 +18441,8 @@ imported by:
  &#8226;   <a href="#fnmatch">fnmatch</a>
  &#8226;   <a href="#fractions">fractions</a>
  &#8226;   <a href="#ftplib">ftplib</a>
+ &#8226;   <a href="#gd_api_check">gd_api_check</a>
+ &#8226;   <a href="#gd_lint">gd_lint</a>
  &#8226;   <a href="#gettext">gettext</a>
  &#8226;   <a href="#glob">glob</a>
  &#8226;   <a href="#h11._events">h11._events</a>
@@ -18370,6 +18481,7 @@ imported by:
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#packaging.utils">packaging.utils</a>
  &#8226;   <a href="#packaging.version">packaging.version</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#pdb">pdb</a>
  &#8226;   <a href="#pkgutil">pkgutil</a>
  &#8226;   <a href="#platform">platform</a>
@@ -18439,6 +18551,7 @@ imported by:
  &#8226;   <a href="#tokenize">tokenize</a>
  &#8226;   <a href="#tomllib._re">tomllib._re</a>
  &#8226;   <a href="#trio.testing._raises_group">trio.testing._raises_group</a>
+ &#8226;   <a href="#tscn_lint">tscn_lint</a>
  &#8226;   <a href="#typing">typing</a>
  &#8226;   <a href="#unittest.case">unittest.case</a>
  &#8226;   <a href="#unittest.loader">unittest.loader</a>
@@ -18783,7 +18896,9 @@ imports:
   <div class="import">
 imported by:
     <a href="#ai_parser">ai_parser</a>
+ &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
  &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#selenium.common">selenium.common</a>
  &#8226;   <a href="#selenium.webdriver.common.actions.pointer_input">selenium.webdriver.common.actions.pointer_input</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi.script">selenium.webdriver.common.bidi.script</a>
@@ -18874,8 +18989,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#browser_manager">browser_manager</a>
- &#8226;   <a href="#main.py">main.py</a>
+    <a href="#main.py">main.py</a>
  &#8226;   <a href="#selenium.webdriver.chrome.webdriver">selenium.webdriver.chrome.webdriver</a>
 
   </div>
@@ -18937,8 +19051,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#browser_manager">browser_manager</a>
- &#8226;   <a href="#main.py">main.py</a>
+    <a href="#main.py">main.py</a>
 
   </div>
 
@@ -20112,6 +20225,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#ai_parser">ai_parser</a>
+ &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#selenium.webdriver.common.utils">selenium.webdriver.common.utils</a>
 
@@ -21728,6 +21842,7 @@ imports:
  &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#sites">sites</a>
+ &#8226;   <a href="#time">time</a>
 
   </div>
   <div class="import">
@@ -25697,7 +25812,9 @@ imported by:
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/sites.py" type="text/plain"><tt>sites</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#urllib.parse">urllib.parse</a>
+    <a href="#ai_parser">ai_parser</a>
+ &#8226;   <a href="#importlib">importlib</a>
+ &#8226;   <a href="#urllib.parse">urllib.parse</a>
 
   </div>
   <div class="import">
@@ -26891,6 +27008,7 @@ imported by:
  &#8226;   <a href="#importlib.util">importlib.util</a>
  &#8226;   <a href="#jinja2.utils">jinja2.utils</a>
  &#8226;   <a href="#logging">logging</a>
+ &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#multiprocessing.context">multiprocessing.context</a>
  &#8226;   <a href="#multiprocessing.dummy">multiprocessing.dummy</a>
  &#8226;   <a href="#multiprocessing.forkserver">multiprocessing.forkserver</a>
@@ -26959,6 +27077,7 @@ imported by:
  &#8226;   <a href="#concurrent.futures._base">concurrent.futures._base</a>
  &#8226;   <a href="#concurrent.interpreters._queues">concurrent.interpreters._queues</a>
  &#8226;   <a href="#datetime">datetime</a>
+ &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
  &#8226;   <a href="#email._parseaddr">email._parseaddr</a>
  &#8226;   <a href="#email.generator">email.generator</a>
  &#8226;   <a href="#email.utils">email.utils</a>
@@ -26978,6 +27097,7 @@ imported by:
  &#8226;   <a href="#multiprocessing.queues">multiprocessing.queues</a>
  &#8226;   <a href="#multiprocessing.resource_tracker">multiprocessing.resource_tracker</a>
  &#8226;   <a href="#multiprocessing.synchronize">multiprocessing.synchronize</a>
+ &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#random">random</a>
@@ -26986,6 +27106,7 @@ imported by:
  &#8226;   <a href="#selenium.webdriver.remote.server">selenium.webdriver.remote.server</a>
  &#8226;   <a href="#selenium.webdriver.remote.websocket_connection">selenium.webdriver.remote.websocket_connection</a>
  &#8226;   <a href="#selenium.webdriver.support.wait">selenium.webdriver.support.wait</a>
+ &#8226;   <a href="#server_state">server_state</a>
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
  &#8226;   <a href="#setuptools._vendor.jaraco.functools">setuptools._vendor.jaraco.functools</a>
  &#8226;   <a href="#setuptools._vendor.more_itertools.more">setuptools._vendor.more_itertools.more</a>
@@ -29370,6 +29491,23 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#setuptools.config._validate_pyproject.formats">setuptools.config._validate_pyproject.formats</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="tscn_lint"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/tscn_lint.py" type="text/plain"><tt>tscn_lint</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#gd_api_cache">gd_api_cache</a>
+ &#8226;   <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
 
   </div>
 

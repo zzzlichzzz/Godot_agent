@@ -16,6 +16,7 @@ signal load_chat_requested(chat_id)
 signal sites_tab_requested()
 signal chats_tab_requested()
 signal language_changed()
+signal open_server_requested()
 
 const URL_BOOSTY := "https://boosty.to/zzzlichzzz"
 const URL_TIPS := "https://pay.cloudtips.ru/p/50d418af"
@@ -37,6 +38,11 @@ var _spin_timer: Timer = null
 var _spin_idx: int = 0
 var _return_view: String = "home"
 var _loc = null
+var _server_btn: Button = null
+var _server_hint: Label = null
+var _server_running: bool = false  # v41: раньше по умолчанию считали сервер уже запущенным (кнопка скрыта)
+var _loading_server_btn: Button = null  # v41: та же кнопка, но продублирована прямо на экране ожидания,
+var _loading_server_hint: Label = null  # где её реально видит пользователь, а не только у языковой строки.
 
 
 func _ready() -> void:
@@ -95,8 +101,30 @@ func _rebuild_ui() -> void:
 	_loading_spinner = null
 	_loading_label = null
 	_spin_timer = null
+	_loading_server_btn = null
+	_loading_server_hint = null
 	_build()
 	show_home()
+
+
+# ---------------- Кнопка ручного запуска сервера ----------------
+
+
+func set_server_running(running: bool) -> void:
+	# вызывается из agent_panel.gd при каждом server_state_changed.
+	_server_running = running
+	_apply_server_visibility()
+
+
+func _apply_server_visibility() -> void:
+	if _server_btn:
+		_server_btn.visible = not _server_running
+	if _server_hint:
+		_server_hint.visible = not _server_running
+	if _loading_server_btn:
+		_loading_server_btn.visible = not _server_running
+	if _loading_server_hint:
+		_loading_server_hint.visible = not _server_running
 
 
 # ---------------- Построение интерфейса ----------------
@@ -109,7 +137,32 @@ func _build() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
 
-	# Верхняя строка: заголовок + переключатель языка.
+	# Отдельная строка НАД языковой (v38): кнопка ручного запуска сервера.
+	# В v37 она сидела в одной строке с языковым переключателем и заголовком:
+	# вместе они не влезали в узкую пристёгнутую панель (190px под текст-подсказку +
+	# кнопка + язык + выпадающий заголовок), и HBoxContainer просто обрезал/сжимал
+	# содержимое — кнопку и переключатель языка было не видно. Сейчас кнопка —
+	# отдельная полностью своя строка НАД языковой строкой, и постоянная подсказка убрана —
+	# объяснение теперь только в tooltip_text кнопки (всё равно видно при наведении). Скрыта
+	# (и занимает 0 высоты), когда сервер отвечает — см. _apply_server_visibility().
+	var server_row := HBoxContainer.new()
+	server_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	root.add_child(server_row)
+	_server_btn = Button.new()
+	_server_btn.text = _t("srv_open_folder_btn")
+	_server_btn.tooltip_text = _t("srv_open_folder_tip") + " " + _t("srv_manual_hint")
+	_server_btn.pressed.connect(func(): open_server_requested.emit())
+	server_row.add_child(_server_btn)
+	_server_hint = Label.new()
+	_server_hint.text = _t("srv_manual_hint")
+	# текст подсказки длинный и без переноса строк вылезал за край узкой панели —
+	# переносим часть текста на следующую строку, а не уменьшаем сам текст.
+	_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_server_hint.size_flags_horizontal = SIZE_EXPAND_FILL
+	server_row.add_child(_server_hint)
+
+	# Верхняя строка: заголовок + переключатель языка (теперь без кнопки сервера —
+	# её место выше, чтобы она не спорила место с языковым переключателем в узкой панели).
 	var top := HBoxContainer.new()
 	root.add_child(top)
 	var top_spacer := Control.new()
@@ -130,6 +183,7 @@ func _build() -> void:
 	title.size_flags_horizontal = SIZE_EXPAND_FILL
 	title.add_theme_font_size_override("font_size", 20)
 	root.add_child(title)
+	_apply_server_visibility()
 
 	# ---- ГЛАВНАЯ: две большие кнопки, сверху и снизу ----
 	_home = VBoxContainer.new()
@@ -232,6 +286,26 @@ func _build() -> void:
 	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_loading_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_loading_view.add_child(_loading_label)
+	# v41: дубликат кнопки ручного запуска сервера — прямо на экране ожидания.
+	# Верхняя строка (server_row, рядом с языком) в некоторых случаях не была замечена
+	# пользователем/не успевала обновиться до первого сигнала от сервера, из-за чего
+	# кнопка казалась "пропавшей" именно в момент, когда она нужнее всего — во время
+	# ожидания старта сервера. Эта копия живёт внутри _loading_view и управляется тем
+	# же _apply_server_visibility(), так что видна ровно тогда же, когда и верхняя.
+	var loading_srv_row := HBoxContainer.new()
+	loading_srv_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_loading_view.add_child(loading_srv_row)
+	_loading_server_btn = Button.new()
+	_loading_server_btn.text = _t("srv_open_folder_btn")
+	_loading_server_btn.tooltip_text = _t("srv_open_folder_tip") + " " + _t("srv_manual_hint")
+	_loading_server_btn.pressed.connect(func(): open_server_requested.emit())
+	loading_srv_row.add_child(_loading_server_btn)
+	_loading_server_hint = Label.new()
+	_loading_server_hint.text = _t("srv_manual_hint")
+	# аналогично _server_hint выше — длинный текст подсказки переносится на строки, а не съедается краем экрана.
+	_loading_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_loading_server_hint.size_flags_horizontal = SIZE_EXPAND_FILL
+	loading_srv_row.add_child(_loading_server_hint)
 	_spin_timer = Timer.new()
 	_spin_timer.wait_time = 0.12
 	_spin_timer.one_shot = false
@@ -383,6 +457,7 @@ func show_loading(text: String) -> void:
 	if _loading_view: _loading_view.visible = true
 	if _loading_label: _loading_label.text = text
 	if _spin_timer: _spin_timer.start()
+	_apply_server_visibility()
 
 
 func set_loading_text(text: String) -> void:
