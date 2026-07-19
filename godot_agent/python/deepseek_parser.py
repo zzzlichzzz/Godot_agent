@@ -145,7 +145,15 @@ JS_EXTRACT = _BLOCKS_JS + r"""try {
             for (var j = 0; j < node.childNodes.length; j++) inner += walk(node.childNodes[j]);
             if (tag === 'strong' || tag === 'b') return '[b]' + inner + '[/b]';
             if (tag === 'em' || tag === 'i') return '[i]' + inner + '[/i]';
-            if (tag === 'code') return '[code]' + inner + '[/code]';
+            if (tag === 'code') {
+                var rawInline = node.textContent || '';
+                var headInline = rawInline.trim();
+                if (headInline.charAt(0) === '{' && headInline.indexOf('"action"') !== -1) {
+                    actionRaw = rawInline;
+                    return '\n[color=#888888]— агент предлагает действие (см. ниже) —[/color]\n';
+                }
+                return '[code]' + inner + '[/code]';
+            }
             if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4') return '[b][font_size=20]' + inner + '[/font_size][/b]\n';
             if (tag === 'p') return inner + '\n';
             if (tag === 'br') return '\n';

@@ -59,6 +59,77 @@ _ATTR_RE = re.compile(
     r'|(-?\d+(?:\.\d+)?))'
 )
 
+# Ранг типа секции в КАНОНИЧЕСКОМ порядке файла .tscn (как его сохраняет сам
+# редактор Godot): заголовок сцены, внешние ресурсы, внутренние ресурсы,
+# узлы, коннекты. Официальная документация формата прямо говорит: если один
+# внутренний ресурс ссылается на другой, ссылающийся ресурс должен идти в
+# файле РАНЬШЕ. Модели (особенно быстрые/слабые) часто пишут [sub_resource]
+# ПОСЛЕ узлов, которые на него ссылаются через SubResource(...) — Godot не
+# резолвит такую ссылку. Порядок узлов друг относительно друга и коннектов —
+# НЕ трогаем (это дерево сцены), переставляем только секции ресурсов.
+_CHUNK_TYPE_RANK = {
+    "gd_scene": 0,
+    "ext_resource": 1,
+    "sub_resource": 2,
+    "resource": 2,
+    "node": 3,
+    "connection": 4,
+}
+
+
+def _reorder_resource_sections(text):
+    """Переставляет секции [ext_resource]/[sub_resource] перед первым [node],
+    сохраняя их взаимный порядок и порядок самих узлов/коннектов без изменений.
+    Идемпотентно: если файл уже в каноническом порядке, текст не меняется."""
+    lines = text.split("\n")
+    preamble = []
+    chunks = []
+    current_type = None
+    current_lines = None
+    for line in lines:
+        m = _SECTION_START_RE.match(line)
+        if m:
+            if current_lines is not None:
+                chunks.append((current_type, current_lines))
+            current_type = m.group(1)
+            current_lines = [line]
+        elif current_lines is None:
+            preamble.append(line)
+        else:
+            current_lines.append(line)
+    if current_lines is not None:
+        chunks.append((current_type, current_lines))
+    if not chunks:
+        return text
+    ranked = sorted(
+        enumerate(chunks),
+        key=lambda pair: (_CHUNK_TYPE_RANK.get(pair[1][0], 99), pair[0]),
+    )
+    new_lines = list(preamble)
+    for _, (_type, chunk_lines) in ranked:
+        new_lines.extend(chunk_lines)
+    return "\n".join(new_lines)
+
+
+# Настоящий uid Godot — это ВСЕГДА конкретная сгенерированная base32-строка
+# (например uid://cecaux1sm7mo0), а не человеческое слово-заглушка. Модели
+# часто пишут uid="uid://dummy"/"uid://dummy2" — Godot либо откажется
+# резолвить такой uid, либо результат непредсказуем. Ссылка по uid не
+# обязательна (Godot размечает ресурс по path, если uid отсутствует), так что
+# самое безопасное механическое исправление — просто убрать битый атрибут.
+_UID_IN_HEADER_RE = re.compile(
+    r'(\[(?:gd_scene|ext_resource)\b[^\]]*)\s+uid="uid://([^"]*)"([^\]]*\])'
+)
+_VALID_UID_RE = re.compile(r'^[0-9a-z]{10,}$')
+
+
+def _strip_invalid_uids(text):
+    def repl(m):
+        if _VALID_UID_RE.match(m.group(2)):
+            return m.group(0)
+        return m.group(1) + m.group(3)
+    return _UID_IN_HEADER_RE.sub(repl, text)
+
 
 def _attrs(head):
     """Атрибуты из заголовка типа '[node name="X" type="Y" parent="."]'.
@@ -128,6 +199,13 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
 
     if problems:
         return fixed, problems
+
+    # --- 0.6) ссылающийся внутренний ресурс должен идти РАНЬШЕ ресурса, на
+    # который он ссылается (так документирован сам формат .tscn): переставляем
+    # [ext_resource]/[sub_resource] перед первым [node], не трогая узлы/коннекты.
+    fixed = _reorder_resource_sections(fixed)
+    # --- 0.65) поддельные uid="uid://dummy"-заглушки — убираем битый атрибут.
+    fixed = _strip_invalid_uids(fixed)
 
     text = fixed  # дальнейший анализ — по уже исправленному (автопочиненному) тексту
 

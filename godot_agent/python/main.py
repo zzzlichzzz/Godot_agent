@@ -1123,8 +1123,33 @@ def rollback():
 # ---------------------------------------------------------------------------
 # Plan-режим (цепочка действий): после подтверждения всего плана в confirm_action
 # клиент (Godot-панель) сам вызывает /chat/plan/step в цикле, пока не закончатся
-# шаги, не придёт ошибка линта/применения, или пользователь не нажмёт "Стоп".
+# шаги, не придёт ошибка линта/привинения, или пользователь не нажмёт "Стоп".
+#
+# v40: раньше любая ошибка линта/аплайна на шаге плана тут сразу останавливала весь план
+# и требовала ручного отката от пользователя, в отличие от одиночных действий (см. _reply_with_self_heal),
+# где модель сама получает точное описание ошибки и шанс исправиться. теферь шаг
+# плана точно так же пытается самоисцелиться до MAX_ACTION_FIX_RETRIES раз, и только после этого
+# останавливает весь план и зовёт кнопку ручного отката.
 # ---------------------------------------------------------------------------
+
+def _self_heal_plan_step_action(step, error_msg, idx, total):
+    """Просит модель прислать исправленную версию одного шага плана, который
+    не прошёл линт или не применился на диске. Возвращает исправленное действие
+    (dict) или None, если модель не прислала пригодное для плана действие."""
+    path = step.get("path", "")
+    act = step.get("action", "")
+    fix_prompt = (
+        "[Система]: шаг %d из %d твоего плана (%s, файл: %s) НЕ прошёл проверку и не был применён. "
+        "Ошибка: %s\n"
+        "Пришли исправленную версию ТОЛьКО этого шага одним agent_action (действие %s для файла %s), "
+        "учитывая эту ошибку. Не присылай остальные шаги плана — после того как этот шаг пройдёт "
+        "проверку, выполнение плана автоматически продолжится со следующего."
+    ) % (idx + 1, total, act, path, error_msg, act, path)
+    _, fixed = _reply(fix_prompt)
+    if not fixed or fixed.get("action") not in PLAN_ALLOWED_ACTIONS or not fixed.get("path"):
+        return None
+    return fixed
+
 
 @app.route('/chat/plan/step', methods=['POST'])
 def plan_step():
@@ -1137,40 +1162,60 @@ def plan_step():
         STATE["pending_plan"] = None
         return jsonify({"done": True, "index": idx, "total": plan["total"], "message": "План уже завершён."})
     step = plan["steps"][idx]
+    heal_attempts = 0
     try:
-        lint_msg = _lint_action_code(step, project_root) if step.get("action") != "move_file" else None
-        if lint_msg is not None:
-            # Останавливаемся на ошибке: уже применённые шаги НЕ откатываются автоматически —
-            # у пользователя есть кнопка отката всей цепочки.
-            STATE["pending_plan"] = None
-            STATE["action_note"] = (
-                "[Система: выполнение плана остановлено на шаге %d из %d (%s): код не прошёл проверку. "
-                "Уже выполненные шаги (%d) остались на диске. %s]"
-            ) % (idx + 1, plan["total"], step.get("path", ""), idx, lint_msg)
-            return jsonify({
-                "ok": False, "stopped": True, "index": idx, "total": plan["total"],
-                "chain_id": plan["chain_id"], "error": lint_msg,
-                "message": "шаг %d из %d (%s) не прошёл проверку, выполнение остановлено" % (idx + 1, plan["total"], step.get("path", "")),
-            })
-        result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
-        if not result["ok"]:
-            STATE["pending_plan"] = None
-            STATE["action_note"] = (
-                "[Система: выполнение плана остановлено на шаге %d из %d (%s): %s. "
-                "Уже выполненные шаги (%d) остались на диске.]"
-            ) % (idx + 1, plan["total"], step.get("path", ""), result["message"], idx)
-            return jsonify({
-                "ok": False, "stopped": True, "index": idx, "total": plan["total"],
-                "chain_id": plan["chain_id"], "error": result["message"],
-                "message": "шаг %d из %d (%s) не выполнен: %s" % (idx + 1, plan["total"], step.get("path", ""), result["message"]),
-            })
+        result = None
+        while True:
+            lint_msg = _lint_action_code(step, project_root) if step.get("action") != "move_file" else None
+            if lint_msg is None:
+                result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
+                if result["ok"]:
+                    break
+                fail_reason = result["message"]
+            else:
+                fail_reason = lint_msg
+            # шаг не прошёл проверку/применение — прежде чем останавливать весь план
+            # и звать ручной откат, пытаемся самоисцелиться через зачинку обратно модели.
+            if heal_attempts >= MAX_ACTION_FIX_RETRIES:
+                STATE["pending_plan"] = None
+                STATE["action_note"] = (
+                    "[Система: выполнение плана остановлено на шаге %d из %d (%s): автоматическое исправление не помогло за %d "
+                    "попыт(ки). Последняя ошибка: %s. Уже выполненные шаги (%d) остались на диске.]"
+                ) % (idx + 1, plan["total"], step.get("path", ""), MAX_ACTION_FIX_RETRIES, fail_reason, idx)
+                return jsonify({
+                    "ok": False, "stopped": True, "index": idx, "total": plan["total"],
+                    "chain_id": plan["chain_id"], "error": fail_reason,
+                    "message": ("шаг %d из %d (%s) не прошёл проверку, автоисправление не помогло (%d попыт.), выполнение остановлено"
+                                % (idx + 1, plan["total"], step.get("path", ""), heal_attempts)),
+                })
+            print("--> [plan self-heal] шаг %d/%d не прошёл проверку, попытка %d/%d: %s"
+                  % (idx + 1, plan["total"], heal_attempts + 1, MAX_ACTION_FIX_RETRIES, fail_reason))
+            fixed = _self_heal_plan_step_action(step, fail_reason, idx, plan["total"])
+            heal_attempts += 1
+            if fixed is None:
+                STATE["pending_plan"] = None
+                STATE["action_note"] = (
+                    "[Система: выполнение плана остановлено на шаге %d из %d (%s): %s. Модель не прислала "
+                    "пригодное исправление. Уже выполненные шаги (%d) остались на диске.]"
+                ) % (idx + 1, plan["total"], step.get("path", ""), fail_reason, idx)
+                return jsonify({
+                    "ok": False, "stopped": True, "index": idx, "total": plan["total"],
+                    "chain_id": plan["chain_id"], "error": fail_reason,
+                    "message": "шаг %d из %d (%s) не прошёл проверку, выполнение остановлено" % (idx + 1, plan["total"], step.get("path", "")),
+                })
+            step = fixed
+            plan["steps"][idx] = fixed  # сохраняем исправленный шаг в плане (на случай повторной попытки)
+            continue
         plan["applied_paths"].append(result.get("changed_path") or step.get("path", ""))
         plan["index"] = idx + 1
         done = plan["index"] >= plan["total"]
+        step_msg = result["message"]
+        if heal_attempts:
+            step_msg += " (автоисправлено с учётом ошибки, попыток: %d)" % heal_attempts
         resp = {
             "ok": True, "done": done, "index": plan["index"], "total": plan["total"],
             "chain_id": plan["chain_id"],
-            "message": "Шаг %d/%d: %s" % (plan["index"], plan["total"], result["message"]),
+            "message": "Шаг %d/%d: %s" % (plan["index"], plan["total"], step_msg),
         }
         if result.get("changed_path"):
             resp["changed_path"] = result["changed_path"]

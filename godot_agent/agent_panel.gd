@@ -311,7 +311,7 @@ func _set_ui_busy(busy: bool) -> void:
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = _t("sending") if busy else _t("send")
-	# Живая трансляция: опрашиваем статус только пока идёт запрос.
+	# Живая трансляция: опрашива����м статус только пока идёт запрос.
 	if busy:
 		if _view:
 			_view.reset_live()
@@ -560,6 +560,14 @@ func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
 
 
 func _on_plan_rollback_confirmed() -> void:
+	# v40: если сервер ранее ответил needs_force (файл менялся не из этой цепочки),
+	# это повторное подтверждение уже означает согласие откатить принудительно —
+	# раньше сюда всегда уходил force=false, и повторное нажатие «Да» просто
+	# бесконечно повторяло тот же отказ (внешне выглядело так, будто кнопка не работает).
+	if _plan_rollback_force_next:
+		chat_log.text += "[color=orange]" + _t("force_rollback") + "[/color]\n"
+		_send_plan_rollback_chain_request(true)
+		return
 	_send_plan_rollback_chain_request(false)
 
 
@@ -957,7 +965,21 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
 		# Сервер просит подтвердить откат повторным нажатием кнопки.
+		# v40: раньше здесь всегда выставлялся _rollback_force_next (флаг одиночного
+		# отката), даже для отката всей цепочки плана (kind == "plan_rollback_chain") — а его
+		# никто не читал, потому кнопка «Откатить» (одиночный откат) тут не задействована, а
+		# диалог отката цепоци всё равно снова посылал force=false и молча падал снова и снова
+		# (внешне выглядело как «нажал и ничего не произошло»). Теперь для plan_rollback_chain
+		# ставится свой собственный флаг _plan_rollback_force_next, и диалог подтверждения показывается
+		# ещё раз, чтобы следующее подтверждение ушло с force=true.
 		if json != null and json.get("needs_force") == true:
+			if kind == "plan_rollback_chain":
+				_plan_rollback_force_next = true
+				chat_log.text += "[color=orange]" + _t("plan_rb_needs_force") + "[/color]\n"
+				_show_plan_rollback_dialog(_plan_rollback_chain_id, _t("plan_rb_force_desc"))
+				await get_tree().process_frame
+				chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+				return
 			_rollback_force_next = true
 		_log_error((_t("srv_error") % str(response_code)) + err_msg)
 
@@ -969,7 +991,7 @@ func _log_error(msg: String) -> void:
 
 
 func _guard_confirm_buttons() -> void:
-	# Защита от случайных быстрых/двой����х кликов: когда появляется НОВОЕ
+	# Защита от случайных быстрых/двой������ кликов: когда появляется НОВОЕ
 	# подтверждение, кнопки ненадолго блокируются, чтобы второй клик по
 	# инерции не одобрил следующее действие мгновенно.
 	# ВАЖНО: без await/корутин. При перезагрузке плагина Godot отменял
