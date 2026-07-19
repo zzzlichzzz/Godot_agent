@@ -214,25 +214,36 @@ def abort_change(project_root, entry_id):
 
 def last_committed_info(project_root):
     """Описание последнего применённого действия — для предпросмотра отката
-    в панели (что именно будет отменено и из какого чата)."""
+    в панели (что именно будет отменено и из какого чата). Если последнее
+    действие — шаг плана (есть chain_id), дополнительно возвращает chain_id и chain_total
+    (сколько ещё неоткатанных шагов этой цепочки сейчас в журнале) — панель использует
+    это, чтобы предложить откат всей цепочки одной кнопкой вместо одиночного отката."""
     journal = _load_journal(project_root)
     committed = [e for e in journal if e.get("committed")]
     if not committed:
         return None
     e = committed[-1]
-    return {
+    info = {
         "type": e.get("type", ""),
         "path": e.get("dest") or e.get("path", ""),
         "overwrote": bool(e.get("overwrote")),
         "chat_title": e.get("chat_title") or "",
         "ts": e.get("ts", 0),
+        "chain_id": "",
+        "chain_total": 0,
     }
+    chain_id = e.get("chain_id")
+    if chain_id:
+        info["chain_id"] = chain_id
+        info["chain_total"] = sum(
+            1 for j in committed if j.get("chain_id") == chain_id)
+    return info
 
 
 def last_write_ts_by_others(project_root, path, chat_id):
     """Когда файл в последний раз меняли ДРУГИЕ чаты (0 — не меняли).
     Записи без chat_id (сделанные до обновления) не учитываются,
-    чтобы не блокировать стар��е проекты ложными срабатываниями."""
+    чтобы не блокир��вать стар��е проекты ложными срабатываниями."""
     ts = 0
     for e in _load_journal(project_root):
         if not e.get("committed"):

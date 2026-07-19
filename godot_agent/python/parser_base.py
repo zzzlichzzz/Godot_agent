@@ -238,6 +238,9 @@ class BaseSiteParser:
     POLL_INTERVAL = 0.25          # период опроса, с
     POST_QUIET_GRACE = 6.0        # добор после тишины (обрыв JSON и т.п.), с
     INPUT_RETRIES = 3
+    # сколько раз повторить submit, если confirm_sent вернул False (сообщение не ушло) —
+    # прежде чем сдаваться и показывать ошибку пользователю.
+    SEND_RETRIES = 2
 
     # ---- сайт-специфичные методы (переопределяются наследниками) ----
 
@@ -570,11 +573,32 @@ class BaseSiteParser:
             if el:
                 self.submit(driver, el)
         self.after_submit(driver, el)
-        if not self.confirm_sent(driver, el):
-            # Сообщение так и не ушло — НЕ ждём ответ впустую, сразу сообщаем.
-            self._log("сообщение НЕ отправилось — прерываю, ответ не жду.")
-            return {"text": "[Ошибка]: сообщение не отправилось на сайт "
-                            "(текст остался в поле ввода). Попробуйте ещё раз.",
+        sent = self.confirm_sent(driver, el)
+        # Сообщение могло не уйти из-за временного глюка сайта (особенно на больших сообщениях/вложениях) —
+        # прежде чем сдаваться и терять введённый текст, пробуем повторить отправку (не вставляя текст заново —
+        # он всё ещё в поле ввода) несколько раз с нарастающей паузой, давая сайту больше времени на обработку большого текста.
+        send_retries = max(0, self.SEND_RETRIES)
+        for send_attempt in range(send_retries):
+            if sent:
+                break
+            delay = 1.5 * (send_attempt + 1)
+            self._log("сообщение не ушло (повтор %d/%d) — жду %sс и пробую отправить ещё раз." % (send_attempt + 1, send_retries, delay))
+            time.sleep(delay)
+            try:
+                el = self.find_input(driver) or el
+                self.before_submit(driver, el)
+                self.submit(driver, el)
+                self.after_submit(driver, el)
+            except (JavascriptException, StaleElementReferenceException) as e:
+                self._log("повторная отправка сорвалась с ошибкой: %s" % e)
+                continue
+            sent = self.confirm_sent(driver, el)
+        if not sent:
+            # Все повторы исчерпаны, сообщение так и не ушло — НЕ ждём ответ впустую, сразу сообщаем.
+            self._log("сообщение НЕ отправилось после %d повтор(ов) — прерываю, ответ не жду." % send_retries)
+            return {"text": "[Ошибка]: сообщение не отправилось на сайт даже после %d повтор(ов) "
+                            "(текст остался в поле ввода; возможная причина — слишком большой текст сообщения). "
+                            "Попробуйте ещё раз." % send_retries,
                     "action": None}
         result = self.wait_for_new_answer(driver, initial_count, progress_cb=progress_cb,
                                           cancel_cb=cancel_cb)

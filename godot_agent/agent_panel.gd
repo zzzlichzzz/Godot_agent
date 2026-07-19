@@ -311,7 +311,7 @@ func _set_ui_busy(busy: bool) -> void:
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = _t("sending") if busy else _t("send")
-	# Живая трансляция: опрашива����м статус только пока идёт запрос.
+	# Живая трансляция: опрашива��������м статус только пока идёт запрос.
 	if busy:
 		if _view:
 			_view.reset_live()
@@ -544,6 +544,57 @@ func _on_plan_stop_pressed() -> void:
 		_log_error(_t("err_plan_step"))
 		_set_ui_busy(false)
 		_end_plan_execution()
+
+
+var _reload_project_dialog: ConfirmationDialog = null
+
+
+func _note_autoload_removed(json) -> void:
+	# Откат мог оставить в project.godot висячую запись автозагрузки на файл,
+	# которого больше нет (см. clean_dangling_autoloads на сервере) — сообщаем,
+	# что она уже убрана, чтобы пользователь не искал причину ошибок автозагрузки сам.
+	var removed = json.get("autoload_removed")
+	if removed is Array and removed.size() > 0:
+		chat_log.text += "[color=gray]" + (_t("autoload_cleaned") % ", ".join(removed)) + "[/color]\n"
+
+
+func _maybe_prompt_project_reload(json) -> void:
+	# project.godot изменился в обход обычного действия модели (откат, откат
+	# цепочки, чистка автозагрузки) — эти правки видны Godot ТОЛЬКО после
+	# перезапуска редактора/ручного "Reload Current Project", иначе автозагрузка
+	# ещё долго будет ошибаться на устаревшие пути. Предлагаем перезапуск сразу.
+	var touched := false
+	if bool(json.get("project_godot_changed", false)):
+		touched = true
+	else:
+		var pths = json.get("paths")
+		if pths is Array:
+			for pp in pths:
+				if str(pp).ends_with("project.godot"):
+					touched = true
+					break
+		var cp = json.get("changed_path")
+		if cp != null and str(cp).ends_with("project.godot"):
+			touched = true
+	if not touched:
+		return
+	if _reload_project_dialog == null:
+		_reload_project_dialog = ConfirmationDialog.new()
+		_reload_project_dialog.confirmed.connect(_on_reload_project_confirmed)
+		add_child(_reload_project_dialog)
+	_reload_project_dialog.title = _t("reload_project_title")
+	_reload_project_dialog.dialog_text = _t("reload_project_text")
+	_reload_project_dialog.ok_button_text = _t("reload_project_yes")
+	_reload_project_dialog.get_cancel_button().text = _t("reload_project_no")
+	_reload_project_dialog.popup_centered()
+
+
+func _on_reload_project_confirmed() -> void:
+	chat_log.text += "[color=gray]" + _t("reload_project_doing") + "[/color]\n"
+	if _view: _view.flush()
+	# true = перезапустить движок на том же проекте (Godot 4.3+); подхватывает
+	# свежий project.godot (автозагрузки, main scene и т.п.) без ручных действий.
+	EditorInterface.restart_editor(true)
 
 
 func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
@@ -816,6 +867,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "plan_rollback_chain":
 			var pr_msg = str(json.get("message", _t("rollback_done")))
 			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(pr_msg) + "[/color]\n"
+			_note_autoload_removed(json)
 			var pr_paths = json.get("paths")
 			if pr_paths is Array:
 				for pp in pr_paths:
@@ -824,6 +876,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 					else:
 						_close_ghost_script_tab(str(pp))
 			if _hl: _hl.clear()
+			_maybe_prompt_project_reload(json)
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
@@ -844,7 +897,15 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "rollback_preview":
 			if bool(json.get("found", false)):
-				_show_rollback_dialog(str(json.get("description", "")))
+				# Если последнее действие — шаг ещё неоткатанной цепочки плана (есть
+				# chain_id и в ней больше 1 шага), предлагаем откатить всю цепочку сразу
+				# через уже готовый диалог/запрос отката цепочки, а не по одному действию.
+				var pv_chain := str(json.get("chain_id", ""))
+				var pv_chain_total := int(json.get("chain_total", 0))
+				if pv_chain != "" and pv_chain_total > 1:
+					_show_plan_rollback_dialog(pv_chain, _t("plan_rb_step_desc") % [pv_chain_total, pv_chain_total])
+				else:
+					_show_rollback_dialog(str(json.get("description", "")))
 			else:
 				chat_log.text += "[color=gray]" + _t("rb_nothing") + "[/color]\n"
 			return
@@ -852,6 +913,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "rollback":
 			var msg = str(json.get("message", _t("rollback_done")))
 			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(msg) + "[/color]\n"
+			_note_autoload_removed(json)
 			# Синхронизируем откаченные файлы с открытыми вкладками. Иначе
 			# вкладка показывает ДО-откатный текст, и Godot может позже
 			# молча пересохранить его ПОВЕРХ результата отката.
@@ -871,6 +933,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				if _hl: _hl.apply(str(rb_path), str(rb_block))
 			else:
 				if _hl: _hl.clear()
+			_maybe_prompt_project_reload(json)
 			await get_tree().process_frame
 			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
@@ -968,7 +1031,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# v40: раньше здесь всегда выставлялся _rollback_force_next (флаг одиночного
 		# отката), даже для отката всей цепочки плана (kind == "plan_rollback_chain") — а его
 		# никто не читал, потому кнопка «Откатить» (одиночный откат) тут не задействована, а
-		# диалог отката цепоци всё равно снова посылал force=false и молча падал снова и снова
+		# диалог отката цеп��ци всё равно снова посылал force=false и молча падал снова и снова
 		# (внешне выглядело как «нажал и ничего не произошло»). Теперь для plan_rollback_chain
 		# ставится свой собственный флаг _plan_rollback_force_next, и диалог подтверждения показывается
 		# ещё раз, чтобы следующее подтверждение ушло с force=true.
@@ -1161,7 +1224,7 @@ func _on_progress_response(_result: int, response_code: int, _headers: PackedStr
 		return
 	if not bool(json.get("active", false)):
 		return
-	# Статус — только состояние бота; сам текст стримится прямо в чат (в _view).
+	# Статус ��� только состояние бота; сам текст стримится прямо в чат (в _view).
 	_view.show_status(str(json.get("phase", _t("working"))), int(json.get("elapsed", 0)), int(json.get("chars", 0)))
 	_view.feed_live_stream(str(json.get("stream", "")))
 
