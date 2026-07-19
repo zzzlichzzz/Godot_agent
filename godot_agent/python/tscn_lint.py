@@ -151,10 +151,124 @@ def is_scene_path(path):
     return (path or "").lower().endswith((".tscn", ".scn"))
 
 
+# v45: узлы, чей parent объявлен НИЖЕ по файлу (или порядок вперемешку) —
+# частая ошибка слабых моделей. Годоту важен порядок объявления: parent
+# должен идти в файле РАНЬШЕ ребёнка (тот же принцип, что и для
+# ext_resource/sub_resource в _reorder_resource_sections). Если ��то ЧИСТО
+# вопрос порядка (сам parent реально существует где-то в файле) — переставляем
+# механически, без участия модели. Если parent не существует вовсе — это
+# настоящая ошибка и переставлять нечего: её найдёт и вернёт модели основной
+# анализ дерева узлов ниже (секция «2»).
+def _reorder_nodes_for_parent_order(text):
+    lines = text.split("\n")
+    preamble = []
+    chunks = []
+    current_type = None
+    current_lines = None
+    for line in lines:
+        m = _SECTION_START_RE.match(line)
+        if m:
+            if current_lines is not None:
+                chunks.append((current_type, current_lines))
+            current_type = m.group(1)
+            current_lines = [line]
+        elif current_lines is None:
+            preamble.append(line)
+        else:
+            current_lines.append(line)
+    if current_lines is not None:
+        chunks.append((current_type, current_lines))
+
+    node_idxs = [i for i, (t, _) in enumerate(chunks) if t == "node"]
+    if len(node_idxs) < 2:
+        return text  # нечего переставлять
+
+    infos = []  # (idx, name, parent)
+    for idx in node_idxs:
+        head = chunks[idx][1][0]
+        m = _NODE_RE.search(head)
+        a = _attrs(m.group(1)) if m else {}
+        infos.append((idx, a.get("name", "?"), a.get("parent")))
+
+    root_idx = None
+    full_paths = {}
+    for idx, name, parent in infos:
+        if parent is None:
+            full_paths[idx] = name
+            if root_idx is None:
+                root_idx = idx
+        elif parent == ".":
+            full_paths[idx] = name
+        else:
+            full_paths[idx] = parent + "/" + name
+
+    path_to_idx = {}
+    for idx, name, parent in infos:
+        path_to_idx.setdefault(full_paths[idx], idx)
+
+    parent_of = {}
+    for idx, name, parent in infos:
+        if parent is None:
+            parent_of[idx] = None
+        elif parent == ".":
+            parent_of[idx] = root_idx if (root_idx is not None and root_idx != idx) else None
+        else:
+            parent_of[idx] = path_to_idx.get(parent)  # None, если родитель не найден вовсе
+
+    order = []
+    emitted = set()
+    remaining = list(node_idxs)
+    progress = True
+    while remaining and progress:
+        progress = False
+        next_remaining = []
+        for idx in remaining:
+            p = parent_of.get(idx)
+            if p is None or p in emitted:
+                order.append(idx)
+                emitted.add(idx)
+                progress = True
+            else:
+                next_remaining.append(idx)
+        remaining = next_remaining
+    order.extend(remaining)  # цикл/недостижимое — оставляем как было (не теряем данные)
+
+    if order == node_idxs:
+        return text  # уже в правильном порядке — не трогаем текст
+
+    order_iter = iter(order)
+    new_lines = list(preamble)
+    for t, cl in chunks:
+        if t == "node":
+            new_lines.extend(chunks[next(order_iter)][1])
+        else:
+            new_lines.extend(cl)
+    return "\n".join(new_lines)
+
+
+# v45: если во всей сцене объявлен РОВНО ОДИН ext_resource/sub_resource —
+# любая ссылка ExtResource("X")/SubResource("X") с чужим id однозначно (без
+# каких-либо вариантов) должна указывать именно на него: чиним молча. Если
+# объявлено 0 или 2+ id такого вида — цель неоднозначна, оставляем модели.
+def _fix_single_candidate_refs(text, ext_ids, sub_ids):
+    fixed = text
+    if len(ext_ids) == 1:
+        only_id = next(iter(ext_ids))
+        def _fix_ext(m):
+            return m.group(0) if m.group(1) == only_id else 'ExtResource("%s")' % only_id
+        fixed = _EXTCALL_RE.sub(_fix_ext, fixed)
+    if len(sub_ids) == 1:
+        only_id = next(iter(sub_ids))
+        def _fix_sub(m):
+            return m.group(0) if m.group(1) == only_id else 'SubResource("%s")' % only_id
+        fixed = _SUBCALL_RE.sub(_fix_sub, fixed)
+    return fixed
+
+
 def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
-      неверным); в остальном идентичен входному.
+      неверным); в остальном идентичен входном��.
     - problems — список строк с неоднозначными проблемами, которые должна
       исправить сама модель (пустой список — ничего не ломается).
     Функция ничего не бросает и ничего не печатает — только анализирует текст."""
@@ -190,7 +304,7 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
             out_lines.append(stripped[:-1].rstrip() + "]" + cr)
             continue
         problems.append(
-            "строка %d: заголовок секции «%s» не закрыт «]» на своей строке — "
+            "строка %d: заголовок секц��и «%s» не закрыт «]» на своей строке — "
             "Godot откажется открыть такой файл с ошибкой «Unexpected end of file». "
             "Заверши заголовок символом «]» на той же строке." % (i + 1, stripped)
         )
@@ -206,6 +320,8 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     fixed = _reorder_resource_sections(fixed)
     # --- 0.65) поддельные uid="uid://dummy"-заглушки — убираем битый атрибут.
     fixed = _strip_invalid_uids(fixed)
+    # --- 0.66) v45: узлы, чей parent объявлен позже по файлу — переставляем.
+    fixed = _reorder_nodes_for_parent_order(fixed)
 
     text = fixed  # дальнейший анализ — по уже исправленному (автопочиненному) тексту
 
@@ -221,6 +337,13 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
         rid = a.get("id")
         if isinstance(rid, str):
             sub_ids.add(rid)
+
+    # --- 0.7) v45: единственная битая ссылка на единственный объявленный
+    # ресурс такого вида — чиним однозначно, без участия модели.
+    refixed = _fix_single_candidate_refs(text, ext_ids, sub_ids)
+    if refixed != text:
+        fixed = refixed
+        text = fixed
 
     # --- 0.5) узлы, ошибочно объявленные как [sub_resource] ---
     for m in _SUB_RE.finditer(text):

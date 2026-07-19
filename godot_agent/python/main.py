@@ -164,7 +164,7 @@ def _describe_action(action):
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
         return "Агент хочет выполнить план из %d шаг(ов): %s" % (total, desc)
-    if act == "parse_error": return "⚠ Агент прислал повреждённый JSON действия — действие пропущено."
+    if act == "parse_error": return "⚠ Агент прислал поврежённый JSON действия — самоисцеление (включая точечное восстановление шагов плана, если это был план) не помогло — действие пропущено."
     return f"Агент запросил неизвестное действие: {act}"
 
 
@@ -381,7 +381,7 @@ def _package_model_reply(text, action, project_root, depth=0):
     if action and action.get("action") == "parse_error":
         STATE["pending_action"] = None
         return jsonify({
-            "answer": text + "\n\n[Система]: ⚠ Не удалось получить корректный JSON действия даже после повтора.",
+            "answer": text + "\n\n[Система]: ⚠ Не удалось получить корректный JSON действия даже после нескольких повторных попыток (включая точечное восстановление шагов плана, если сломанный ответ был похож на план).",
             "pending_action": None,
         })
     if action and action.get("action") in ("read_file", "read_files"):
@@ -534,7 +534,7 @@ def _touch_file_read(path):
 
 def _create_overwrite_is_stale(action, project_root):
     """create_file поверх СУЩЕСТВУЮЩЕГО файла, который менял другой чат
-    ПОСЛЕ того, как текущий чат в последний раз видел его содержимое, —
+    ПОСЛ�� того, как текущий чат в последний раз видел его содержимое, —
     опасен: модель молча сотрёт чужую работу. Возвращает текст системного
     сообщения для модели или None, если всё свежо."""
     path = action.get("path", "")
@@ -657,8 +657,61 @@ def _lint_action_scene(action, project_root, kind, path):
     )
 
 
+def _guess_step_path(raw_step_text):
+    """Извлекает 'path' из СЫРОГО (возможно, невалидного JSON) текста ОДНОГО
+    шага плана — только для сообщений пользователю/модели о том, какой из
+    шагов не распознан (парсить сам JSON тут не пытаемся)."""
+    if not raw_step_text:
+        return None
+    m = _re.search(r'"path"\s*:\s*"((?:[^"\\]|\\.)*)"', raw_step_text)
+    if not m:
+        return None
+    try:
+        return _json.loads('"' + m.group(1) + '"')
+    except Exception:
+        return m.group(1)
+
+
 # ---------------------------------------------------------------------------
 # Self-heal: битый JSON или несовпадающий patch чиним без участия пользователя.
+#
+# v44: раньше один БИТЫЙ шаг плана (action=plan) ронял ВЕСЬ план целиком —
+# parse_action_json не мог разобрать общий JSON, если хотя бы один шаг
+# содержал несогласованное экранирование кавычек (типичный случай — большой
+# .tscn-контент, где часть кавычек внутри значения экранирована, а часть —
+# нет). Модель получала общий "пришли всё заново", план терялся целиком, и
+# пользователь оставался без уже готового кода — даже если 3 из 4 шагов были
+# полностью корректны.
+#
+# Начиная с v44: если сырой ответ ПОХОЖ на action=plan (см.
+# parser_base.parse_plan_lenient), мы разбираем каждый шаг из "steps": [...]
+# ПО ОТДЕЛЬНОСТИ (с учётом починки несогласованных кавычек — см.
+# parser_base._repair_unescaped_inner_quotes). Все шаги, которые распознались
+# нормально, сразу принимаются (lenient_good). По каждому ОСТАВШЕМУСЯ битому
+# шагу (lenient_bad) отправляется ТОЧЕЧНЫЙ fix-prompt: модели называют уже
+# принятые пути (чтобы не путать её и не заставлять присылать план заново
+# целиком), номер/путь именно ПРОБЛЕМНОГО шага и точную причину разбора —
+# и просят переписать ТОЛЬКО этот один шаг одним корректным JSON-объектом
+# (без обёртки action=plan). Каждая такая попытка расходует ОДНУ попытку из
+# общего бюджета MAX_ACTION_FIX_RETRIES (общего с обычным самоисцелением
+# create_file/patch_file). Если шаг починился — он переходит в lenient_good;
+# если нет — на него записывается причина отказа, и обрабатывается следующий
+# битый шаг по кругу, пока бюджет не закончится.
+#
+# Если после этого lenient_bad опустел — план собирается заново из
+# lenient_good, и обработка продолжается как обычный action=plan (дальше
+# план валидируется/подтверждается пользователем как всегда).
+#
+# Если бюджет попыток исчерпан, а lenient_bad всё ещё не пуст, но
+# lenient_good не пуст — план всё равно собирается из того, что удалось
+# распознать (лучше отдать пользователю частичный результат, чем ничего), а
+# в text дописывается явное предупреждение: сколько шагов принято, сколько и
+# какие (номер + путь, если удалось угадать) отброшены и почему, с советом
+# попросить модель прислать отброшенные шаги отдельным сообщением.
+#
+# Если сырой ответ вообще не похож на план, или из него не удалось вытащить
+# ни одного шага (ни good, ни bad) — ведём себя как раньше: обычный общий
+# fix-prompt с просьбой переслать ВСЁ действие заново.
 # ---------------------------------------------------------------------------
 
 def _reply_with_self_heal(prompt, project_root):
@@ -666,15 +719,94 @@ def _reply_with_self_heal(prompt, project_root):
     retries = 0
     while retries < MAX_ACTION_FIX_RETRIES:
         if action and action.get("action") == "parse_error":
-            retries += 1
-            print(f"--> [self-heal] Битый JSON action, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
-            fix_prompt = (
-                "[Система]: Твой предыдущий блок agent_action содержал невалидный JSON "
-                "и не был обработан. Пришли ТО ЖЕ действие заново одним корректным JSON-блоком "
-                "agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") внутри "
-                "строковых значений. Никакого текста вне JSON-блока."
-            )
-            text, action = _reply(fix_prompt)
+            raw = action.get("raw")
+            lenient = parser_base.parse_plan_lenient(raw)
+            has_any_step = bool(lenient and (lenient.get("good_steps") or lenient.get("bad_steps")))
+            if not has_any_step:
+                retries += 1
+                print(f"--> [self-heal] Битый JSON action, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                fix_prompt = (
+                    "[Система]: Твой предыдущий блок agent_action содержал невалидный JSON "
+                    "и не был обработан. Пришли ТО ЖЕ действие заново одним корректным JSON-блоком "
+                    "agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") внутри "
+                    "строковых значений. Никакого текста вне JSON-блока."
+                )
+                text, action = _reply(fix_prompt)
+                continue
+            lenient_good = list(lenient["good_steps"])
+            lenient_bad = list(lenient["bad_steps"])
+            print(f"--> [self-heal] план распознан частично: {len(lenient_good)} шаг(ов) ок, "
+                  f"{len(lenient_bad)} шаг(ов) битых — пробую точечно починить.")
+            accepted_paths = [s["step"].get("path", "") for s in lenient_good]
+            dropped = []
+            while lenient_bad and retries < MAX_ACTION_FIX_RETRIES:
+                bad = lenient_bad.pop(0)
+                retries += 1
+                bad_path = _guess_step_path(bad["raw"]) or "?"
+                print(f"--> [self-heal] точечная починка шага (индекс {bad['index']}, "
+                      f"путь {bad_path}), попытка {retries}/{MAX_ACTION_FIX_RETRIES}: {bad['error']}")
+                accepted_note = (
+                    ("Уже принятые шаги (НЕ присылай ��х повторно): " + ", ".join(p for p in accepted_paths if p))
+                    if accepted_paths else "Других шагов пока не принято."
+                )
+                fix_prompt = (
+                    "[Система]: В твоём последнем плане (action=plan) шаг №%d содержит НЕвалидный "
+                    "JSON и не был обработан (остальные корректные шаги уже приняты ОТДЕЛЬНО). "
+                    "Путь этого шага: %s. Точная причина ошибки разбора: %s. %s "
+                    "Пришли ТОЛЬКО этот ОДИН шаг заново одним корректным JSON-ОБЪЕКТОМ действия "
+                    "(create_file/patch_file/move_file — без обёртки action=plan и без остальных "
+                    "шагов), строго экранируя переносы строк (\\n) и кавычки (\\\") внутри строковых "
+                    "значений."
+                ) % (bad["index"] + 1, bad_path, bad["error"], accepted_note)
+                fix_text, fix_action = _reply(fix_prompt)
+                if isinstance(fix_action, dict) and fix_action.get("action") in PLAN_ALLOWED_ACTIONS:
+                    lenient_good.append({"index": bad["index"], "step": fix_action})
+                    accepted_paths.append(fix_action.get("path", ""))
+                    print(f"--> [self-heal] шаг {bad['index'] + 1} успешно починен точечно.")
+                else:
+                    reason = (
+                        (fix_action or {}).get("error") if isinstance(fix_action, dict) else None
+                    ) or bad["error"] or "не удалось распознать корректное действие"
+                    dropped.append({"index": bad["index"], "path": bad_path, "error": reason})
+                    print(f"--> [self-heal] шаг {bad['index'] + 1} НЕ починен точечно: {reason}")
+            for bad in lenient_bad:
+                dropped.append({
+                    "index": bad["index"],
+                    "path": _guess_step_path(bad["raw"]) or "?",
+                    "error": bad["error"] + " (бюджет попыток самоисцеления исчерпан)",
+                })
+            if not lenient_good:
+                retries += 1
+                print(f"--> [self-heal] ни один шаг плана не удалось восстановить — откат на общий fix-prompt, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                fix_prompt = (
+                    "[Система]: Твой предыдущий блок agent_action (план) содержал невалидный JSON "
+                    "и не был обработан целиком. Пришли ТО ЖЕ действие заново одним корректным "
+                    "JSON-блоком agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") "
+                    "внутри строковых значений. Никакого текста вне JSON-блока."
+                )
+                text, action = _reply(fix_prompt)
+                continue
+            ordered_steps = [s["step"] for s in sorted(lenient_good, key=lambda s: s["index"])]
+            action = {
+                "action": "plan",
+                "description": lenient.get("description", ""),
+                "steps": ordered_steps,
+                "total": len(ordered_steps),
+            }
+            if dropped:
+                listing = "\n".join(
+                    "- шаг %d (%s): %s" % (d["index"] + 1, d["path"], d["error"]) for d in dropped
+                )
+                warning = (
+                    "[Система]: \u26a0 Восстановлено частично: %d шаг(ов) плана принято, %d шаг(ов) "
+                    "отброшено из-за повреждённого JSON, который не удалось починить даже точечно:\n%s\n"
+                    "Попроси модель прислать отброшенные шаги отдельным сообщением, если они нужны."
+                    % (len(ordered_steps), len(dropped), listing)
+                )
+                text = (text + "\n\n" + warning).strip() if text else warning
+            else:
+                print(f"--> [self-heal] план полностью восстановлен точечными починками: "
+                      f"{len(ordered_steps)} шаг(ов).")
             continue
         if action and action.get("action") == "patch_file":
             ok, real_content, err = _validate_patch_against_disk(action, project_root)
@@ -877,7 +1009,7 @@ def _build_priming_context(project_root):
                                            compact_threshold=PRIME_COMPACT_THRESHOLD)
     if compact:
         print("--> Проект большой: в мега-промпт идёт компактная сводка по папкам вместо полного дерева")
-    _refresh_fs_snapshot(project_root)  # созданные папки — не «внешние» изменения
+    _refresh_fs_snapshot(project_root)  # созданные ��апки — не «внешние» изменения
     return PRIMING_TEMPLATE.replace("{tree}", tree).replace("{architecture}", arch)
 
 
@@ -925,7 +1057,7 @@ def chat():
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
     # Каждое НОВОе сообщение пользователя занова решает, ��азрешены ли в этом ходе действия над
     # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
-    # задаётся заново на каждое такое сообщение, а не один раз, чтобы доступ к аддонам не застревал навсегда.
+    # задаётся заново на каждое такое сообщение, а не один раз, чтобы досту�� к аддонам не застревал навсегда.
     STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
     _ensure_current_chat(prompt)
