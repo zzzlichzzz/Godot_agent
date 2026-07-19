@@ -4,7 +4,7 @@
 Аналог gd_lint/gd_api_check, но для сцен: ловит битые ссылки на ресурсы
 (ExtResource/SubResource без объявления), недостижимые parent-пути, дублирующиеся
 узлы и несуществующие типы узлов (по справочнику реального API Godot из
- gd_api_cache). load_steps в заголовке сцены исправляется автоматически,
+ gd_api_cache). load_steps в заголовке сцены и опечатка «>» вместо «]» на конце заголовка секции исправляются автоматически,
 без участия модели — это чистая арифметика, а не вопрос найти смысл.
 Do not scream — всё остальное (битые ссылки, несуществующие parent, дубли, чужие
 типы) неоднозначно и требует решения модели — поэтому такие вещи только в
@@ -13,6 +13,7 @@ import re
 
 import gd_api_cache
 
+_SECTION_START_RE = re.compile(r'^\[(gd_scene|ext_resource|sub_resource|node|resource|connection)\b')
 _HEADER_RE = re.compile(r'\[gd_scene\b([^\]]*)\]')
 _EXT_RE = re.compile(r'\[ext_resource\b([^\]]*)\]')
 _SUB_RE = re.compile(r'\[sub_resource\b([^\]]*)\]')
@@ -58,6 +59,36 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
         return text, problems  # не сцена (например, .tres) — не наша забота
 
     fixed = text
+
+    # --- 0) строка заголовка секции должна закрываться «]» на той же строке ---
+    # иначе регулярки ниже дотягиваются до следующей «]» где угодно ниже, и Godot
+    # падает с «Unexpected end of file» при открытии такого файла.
+    # Частый механический случай — «>» вместо «]» на конце заголовка: смысл
+    # однозначен, чиним ЛОКАЛЬНО сами (как load_steps), не тратя обращение
+    # к модели. Остальные незакрытые заголовки — в problems на решение модели.
+    lines = fixed.split("\n")
+    for i, raw_line in enumerate(lines):
+        cr = "\r" if raw_line.endswith("\r") else ""
+        line = raw_line[:-1] if cr else raw_line
+        if not _SECTION_START_RE.match(line):
+            continue
+        stripped = line.rstrip()
+        if stripped.endswith("]"):
+            continue
+        if stripped.endswith(">") and "]" not in stripped:
+            lines[i] = stripped[:-1].rstrip() + "]" + cr
+            continue
+        problems.append(
+            "строка %d: заголовок секции «%s» не закрыт «]» на своей строке — "
+            "Godot откажется открыть такой файл с ошибкой «Unexpected end of file». "
+            "Заверши заголовок символом «]» на той же строке." % (i + 1, stripped)
+        )
+    fixed = "\n".join(lines)
+
+    if problems:
+        return fixed, problems
+
+    text = fixed  # дальнейший анализ — по уже исправленному (автопочиненному) тексту
 
     ext_ids = set()
     sub_ids = set()

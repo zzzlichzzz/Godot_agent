@@ -29,9 +29,23 @@ const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
 const PROGRESS_URL = "http://" + HOST + "/chat/progress"
 const API_EXPORT_URL = "http://" + HOST + "/project/update_api_cache"
 const API_CACHE_STATUS_URL = "http://" + HOST + "/project/api_cache_status"
+const PLAN_STEP_URL = "http://" + HOST + "/chat/plan/step"
+const PLAN_STOP_URL = "http://" + HOST + "/chat/plan/stop"
+const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
+
+# Plan-режим (цепочка действий): активен, когда пользователь подтвердил план
+# и панель сама выполняет шаги через PLAN_STEP_URL по одному.
+var _plan_active: bool = false
+var _plan_chain_id: String = ""
+var _plan_total: int = 0
+var _plan_index: int = 0
+var _plan_stop_button: Button = null
+var _plan_rollback_dialog: ConfirmationDialog = null
+var _plan_rollback_chain_id: String = ""
+var _plan_rollback_force_next: bool = false
 
 # Запоминаем детали последнего примененного WRITE-действия для сброса кэша
 var _last_pending_action_type: String = ""
@@ -233,7 +247,11 @@ func _ready() -> void:
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
-	call_deferred("_request_chats", "list", {})
+	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуска
+	# сервера: если сервер ещё не поднят, просто ждём, пока пользователь сам
+	# нажмёт «новый чат»/«загрузить чат» (иначе при каждом открытии Godot
+	# запускалась бы своя копия сервера, независимо от действий пользователя).
+	call_deferred("_request_chats", "list", {}, false)
 	if _start_screen == null:
 		var ss_script = load(get_script().resource_path.get_base_dir() + "/agent_start_screen.gd")
 		_start_screen = ss_script.new()
@@ -247,7 +265,7 @@ func _ready() -> void:
 		if _start_screen.has_signal("language_changed"):
 			_start_screen.language_changed.connect(_on_language_changed)
 	_show_start_ui()
-	call_deferred("_request_chats", "sites", {})
+	call_deferred("_request_chats", "sites", {}, false)
 	call_deferred("_on_language_changed")
 	# Восстановление после перезагрузки скрипта: если панель перезагрузилась,
 	# пока кнопки были временно заблокированы охранником — вернуть их в рабочее состояние.
@@ -403,6 +421,96 @@ func _send_confirm_request(approved: bool) -> void:
 		_set_ui_busy(false)
 
 
+func _start_plan_execution(total: int) -> void:
+	_plan_active = true
+	_plan_total = total
+	_plan_index = 0
+	chat_log.text += "[color=gray]" + (_t("plan_started") % total) + "[/color]\n"
+	_show_plan_stop_button()
+	_request_plan_step()
+
+
+func _request_plan_step() -> void:
+	if _is_network_busy: return
+	var headers = ["Content-Type: application/json"]
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "plan_step"
+	_set_ui_busy(true)
+	var err = http_request.request(PLAN_STEP_URL, headers, HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error(_t("err_plan_step"))
+		_set_ui_busy(false)
+		_end_plan_execution()
+
+
+func _end_plan_execution() -> void:
+	_plan_active = false
+	_hide_plan_stop_button()
+
+
+func _show_plan_stop_button() -> void:
+	if _plan_stop_button == null:
+		_plan_stop_button = Button.new()
+		_plan_stop_button.pressed.connect(_on_plan_stop_pressed)
+		if advanced_box:
+			advanced_box.add_child(_plan_stop_button)
+		else:
+			add_child(_plan_stop_button)
+	_plan_stop_button.text = _t("plan_stop_btn")
+	_plan_stop_button.visible = true
+	_plan_stop_button.disabled = false
+
+
+func _hide_plan_stop_button() -> void:
+	if _plan_stop_button:
+		_plan_stop_button.visible = false
+
+
+func _on_plan_stop_pressed() -> void:
+	if _is_network_busy or not _plan_active: return
+	if _plan_stop_button: _plan_stop_button.disabled = true
+	var headers = ["Content-Type: application/json"]
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "plan_stop"
+	_set_ui_busy(true)
+	var err = http_request.request(PLAN_STOP_URL, headers, HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		_log_error(_t("err_plan_step"))
+		_set_ui_busy(false)
+		_end_plan_execution()
+
+
+func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
+	_plan_rollback_chain_id = chain_id
+	if _plan_rollback_dialog == null:
+		_plan_rollback_dialog = ConfirmationDialog.new()
+		_plan_rollback_dialog.confirmed.connect(_on_plan_rollback_confirmed)
+		add_child(_plan_rollback_dialog)
+	_plan_rollback_dialog.title = _t("plan_rb_title")
+	_plan_rollback_dialog.dialog_text = _t("plan_rb_text") % desc
+	_plan_rollback_dialog.ok_button_text = _t("rb_yes")
+	_plan_rollback_dialog.get_cancel_button().text = _t("rb_no")
+	_plan_rollback_dialog.popup_centered()
+
+
+func _on_plan_rollback_confirmed() -> void:
+	_send_plan_rollback_chain_request(false)
+
+
+func _send_plan_rollback_chain_request(force: bool) -> void:
+	if _is_network_busy: return
+	var headers = ["Content-Type: application/json"]
+	var body = {"chain_id": _plan_rollback_chain_id, "force": force}
+	_plan_rollback_force_next = false
+	http_request.set_http_proxy("", 0)
+	_pending_request_kind = "plan_rollback_chain"
+	_set_ui_busy(true)
+	var err = http_request.request(PLAN_ROLLBACK_CHAIN_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error(_t("err_rollback"))
+		_set_ui_busy(false)
+
+
 func _on_rollback_pressed() -> void:
 	if _is_network_busy: return
 	if _rollback_force_next:
@@ -555,7 +663,14 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 	_set_ui_busy(false)
 	var kind = _pending_request_kind
 	var response_str = body.get_string_from_utf8()
-	var json = JSON.parse_string(response_str)
+	# Вызываем JSON.parse_string только при успешном соединении и непустом теле ответа —
+	# иначе (например, когда сервер ещё не поднялся и соединение отказано/без тела)
+	# сам JSON.parse_string на пустой строке логирует в консоль встроенную ошибку движка
+	# «Parse JSON failed. Error at line 0: Unknown error getting token», даже если результат
+	# всё равно игнорируется ниже — итоговая причина повторяющихся ошибок в консоли при ожидании запуска сервера.
+	var json = null
+	if result == OK and not response_str.is_empty():
+		json = JSON.parse_string(response_str)
 
 	if response_code == 200 and json != null:
 		EditorInterface.get_resource_filesystem().scan()
@@ -566,6 +681,77 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "init":
 			chat_log.text += "\n[color=green]" + _t("reinit_done") + "[/color]\n"
+			return
+
+		if kind == "confirm" and bool(json.get("plan_started", false)):
+			_last_pending_action_type = ""
+			_last_pending_action_path = ""
+			_last_pending_action_dest = ""
+			var has_answer_plan: bool = json.has("answer") and json["answer"] != null and str(json["answer"]) != ""
+			if has_answer_plan:
+				_view.add_agent_message(str(json["answer"]))
+			_start_plan_execution(int(json.get("plan_total", 0)))
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "plan_step":
+			var p_index := int(json.get("index", 0))
+			var p_total := int(json.get("total", _plan_total))
+			var p_chain := str(json.get("chain_id", _plan_chain_id))
+			_plan_chain_id = p_chain
+			_plan_index = p_index
+			var p_msg := str(json.get("message", ""))
+			var p_ok := bool(json.get("ok", false))
+			var p_done := bool(json.get("done", false))
+			var p_stopped := bool(json.get("stopped", false))
+			if p_ok:
+				chat_log.text += "[color=gray]" + _escape_bbcode(p_msg) + "[/color]\n"
+			else:
+				chat_log.text += "[color=orange]" + _escape_bbcode(p_msg) + "[/color]\n"
+			var p_ch_path = json.get("changed_path")
+			var p_ch_block = json.get("changed_block")
+			if p_ch_path != null and p_ch_block != null and str(p_ch_block) != "":
+				if _hl: _hl.apply(str(p_ch_path), str(p_ch_block))
+			_force_reload_open_script()
+			if p_done:
+				_end_plan_execution()
+				chat_log.text += "[color=green]" + _t("plan_done") + "[/color]\n"
+			elif p_stopped:
+				_end_plan_execution()
+				chat_log.text += "[color=orange]" + (_t("plan_stopped_desc") % [p_index, p_total]) + "[/color]\n"
+				_show_plan_rollback_dialog(p_chain, _t("plan_rb_step_desc") % [p_index, p_total])
+			else:
+				_request_plan_step()
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "plan_stop":
+			var s_index := int(json.get("index", _plan_index))
+			var s_total := int(json.get("total", _plan_total))
+			var s_chain := str(json.get("chain_id", _plan_chain_id))
+			_end_plan_execution()
+			chat_log.text += "[color=orange]" + (_t("plan_stopped_manual") % [s_index, s_total]) + "[/color]\n"
+			if s_index > 0:
+				_show_plan_rollback_dialog(s_chain, _t("plan_rb_step_desc") % [s_index, s_total])
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			return
+
+		if kind == "plan_rollback_chain":
+			var pr_msg = str(json.get("message", _t("rollback_done")))
+			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(pr_msg) + "[/color]\n"
+			var pr_paths = json.get("paths")
+			if pr_paths is Array:
+				for pp in pr_paths:
+					if FileAccess.file_exists(str(pp)):
+						_sync_open_script_with_disk(str(pp))
+					else:
+						_close_ghost_script_tab(str(pp))
+			if _hl: _hl.clear()
+			await get_tree().process_frame
+			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
 
 		if kind == "api_export":
@@ -602,7 +788,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 						_sync_open_script_with_disk(str(p))
 					else:
 						# Откат удалил созданный файл — закрываем его вкладку,
-						# иначе Godot держит «призрака» и может пересохранить файл обратно.
+						# ина��е Godot держит «призрака» и может пересохранить файл обратно.
 						_close_ghost_script_tab(str(p))
 			# Подсвечиваем восстановленный после отката блок (или гасим старое).
 			var rb_path = json.get("changed_path")
@@ -893,17 +1079,17 @@ func _on_progress_response(_result: int, response_code: int, _headers: PackedStr
 
 
 # ---------------------------------------------------------------------------
-# Чаты: список, создание, выбор (открывает страницу в браузере),
-# переименование, удаление. Сохранённый диалог восстанавливается в панели.
+# Чаты: список, созда��ие, выбор (открывает страницу в браузере),
+# переименование, удаление. Сохранённ��й диалог восстанавливается в панели.
 # ---------------------------------------------------------------------------
 
-func _request_chats(kind: String, extra: Dictionary) -> void:
+func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = true) -> void:
 	if _link == null:
 		return
 	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status":
 		_log_error(_t("wait_current"))
 		return
-	_link.request(kind, extra)
+	_link.request(kind, extra, allow_autostart)
 
 
 func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> void:
@@ -981,7 +1167,7 @@ func _on_chat_selected(index: int) -> void:
 
 
 func _on_chat_new_pressed() -> void:
-	# «＋» в чате открывает выбор сайта (нейросети). Важно сначала
+	# «＋» в чате открывает выбор сайта (нейросети). Важ��о сначала
 	# показать стартовый экран — иначе экран загрузки останется невидимым.
 	_show_start_ui()
 	_on_sites_tab_requested()
