@@ -32,7 +32,15 @@ from agent_prompts import (
     PER_FILE_CHAR_LIMIT,
     TOTAL_CHAR_BUDGET,
     MAX_ACTION_FIX_RETRIES,
+    MAX_PLAN_STEPS,
+    MAX_PLAN_TOTAL_STEPS,
+    MAX_PLAN_PARTS,
 )
+
+# шаги plan-режима ограничены теми же write-действиями, что и одиночные действия,
+# без copy_file (оно применяется автоматически и не требует отдельного подтверждения)
+# и без read_file/search_project/list_files/list_scene (они не меняют диск и им нечего откатывать).
+PLAN_ALLOWED_ACTIONS = {"create_file", "patch_file", "move_file"}
 import server_state
 from server_state import (
     STATE, get_driver, set_driver,
@@ -75,8 +83,128 @@ def _describe_action(action):
     if act == "search_project": return "Агент хочет выполнить поиск по всем файлам проекта: «%s»" % action.get("query", "")
     if act == "list_files": return "Агент хочет получить свежее дерево файлов проекта"
     if act == "list_scene": return f"Агент хочет посмотреть структуру сцены: {path}"
+    if act == "plan":
+        total = action.get("total", len(action.get("steps") or []))
+        desc = action.get("description", "")
+        return "Агент хочет выполнить план из %d шаг(ов): %s" % (total, desc)
     if act == "parse_error": return "⚠ Агент прислал повреждённый JSON действия — действие пропущено."
     return f"Агент запросил неизвестное действие: {act}"
+
+
+def _validate_plan_steps(steps, max_steps=None):
+    """Валидация списка шагов action=plan ДО показа плана пользователю.
+    Возвращает (ok, error_message)."""
+    limit = max_steps if max_steps is not None else MAX_PLAN_STEPS
+    if not isinstance(steps, list) or not steps:
+        return False, "План должен содержать непустой список 'steps'."
+    if len(steps) > limit:
+        return False, (
+            "в плане %d шаг(ов) — максимум %d. Раздели шаги на несколько сообщений через \"continues\": true (см. формат plan) или разбей механику на несколько меньших планов."
+            % (len(steps), limit)
+        )
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            return False, "шаг %d плана не является объектом действия." % (i + 1)
+        act = step.get("action")
+        if act not in PLAN_ALLOWED_ACTIONS:
+            return False, (
+                "шаг %d имеет недопустимое действие '%s' (разрешены только %s)."
+                % (i + 1, act, ", ".join(sorted(PLAN_ALLOWED_ACTIONS)))
+            )
+        if not step.get("path"):
+            return False, "шаг %d (%s) не содержит 'path'." % (i + 1, act)
+        if act == "create_file" and not isinstance(step.get("content"), str):
+            return False, "шаг %d (create_file) не содержит текстового 'content'." % (i + 1)
+        if act == "patch_file" and (not step.get("search") or not isinstance(step.get("replace"), str)):
+            return False, "шаг %d (patch_file) должен содержать непустой 'search' и текстовый 'replace'." % (i + 1)
+        if act == "move_file" and not step.get("dest"):
+            return False, "шаг %d (move_file) не содержит 'dest'." % (i + 1)
+    return True, None
+
+
+def _plan_part_add(action):
+    """Принимает ЧАСТЬ многочастного плана (action=plan с \"continues\": true):
+    у модели может не хватать выходного лимита токенов на все шаги за один
+    ответ — шаги копятся в STATE[\"plan_parts\"], пока не придёт последняя часть
+    (без continues). Возвращает (ok, followup_для_модели); при ошибке
+    накопленное сбрасывается."""
+    steps = action.get("steps")
+    ok, err = _validate_plan_steps(steps, max_steps=MAX_PLAN_STEPS)
+    if not ok:
+        STATE["plan_parts"] = None
+        return False, ("[Система]: часть плана отклонена: %s Накопленные части сброшены — "
+                       "пришли план заново (можно частями через \"continues\": true)." % err)
+    parts = STATE.get("plan_parts") or {"steps": [], "description": "", "count": 0}
+    if parts["count"] >= MAX_PLAN_PARTS - 1:
+        STATE["plan_parts"] = None
+        return False, ("[Система]: превышен лимит частей плана (максимум %d, включая последнюю). "
+                       "Накопленные части сброшены — разбей механику на несколько планов поменьше." % MAX_PLAN_PARTS)
+    if len(parts["steps"]) + len(steps) > MAX_PLAN_TOTAL_STEPS:
+        STATE["plan_parts"] = None
+        return False, ("[Система]: суммарно получается больше %d шагов — слишком много для одного плана. "
+                       "Накопленные части сброшены — разбей механику на несколько планов поменьше." % MAX_PLAN_TOTAL_STEPS)
+    parts["steps"].extend(steps)
+    parts["count"] += 1
+    if not parts["description"]:
+        parts["description"] = action.get("description", "")
+    STATE["plan_parts"] = parts
+    print(f"--> Принята часть {parts['count']} многочастного плана: +{len(steps)} шаг(ов), всего {len(parts['steps'])}.")
+    return True, ("[Система]: часть %d плана принята (+%d шаг(ов), всего накоплено %d). "
+                  "Пришли СЛЕДУЮЩУЮ часть шагов одним блоком agent_action (action=plan): "
+                  "с \"continues\": true, если после неё будут ещё шаги, или БЕЗ \"continues\", "
+                  "если это последняя часть. Уже присланные шаги НЕ повторяй. "
+                  "Осталось запаса: %d шаг(ов)."
+                  % (parts["count"], len(steps), len(parts["steps"]),
+                     MAX_PLAN_TOTAL_STEPS - len(parts["steps"])))
+
+
+def _plan_collect_final(action):
+    """Последняя часть многочастного плана (или обычный одночастный план):
+    склеивает накопленные части (если были) с шагами из текущего action.
+    Возвращает (steps, description) и очищает накопитель."""
+    steps = list(action.get("steps") or [])
+    description = action.get("description", "")
+    parts = STATE.get("plan_parts")
+    if parts:
+        steps = list(parts["steps"]) + steps
+        description = parts.get("description") or description
+        STATE["plan_parts"] = None
+        print(f"--> Многочастный план склеен: {len(steps)} шаг(ов) из {parts['count'] + 1} частей.")
+    return steps, description
+
+
+def _apply_write_step(action, project_root, chain_id=None):
+    """Применяет ОДНО write-действие (create_file/patch_file/move_file) на диске,
+    с записью в журнал изменений. Общий путь для одиночных действий
+    и для шагов плана (chain_id задаётся только во втором случае).
+    Возвращает dict: {"ok", "message", "changed_path", "changed_block"}."""
+    act_type = action.get("action")
+    path = action.get("path", "")
+    entry_id = history.record_change(project_root, action, *_current_chat_info(), chain_id=chain_id)
+    try:
+        if act_type == "create_file":
+            overwrote = create_project_file(project_root, path, action.get("content", ""))
+        elif act_type == "patch_file":
+            patch_project_file(project_root, path, action.get("search", ""), action.get("replace", ""))
+            overwrote = None
+        elif act_type == "move_file":
+            move_project_file(project_root, path, action.get("dest", ""))
+            overwrote = None
+        else:
+            history.abort_change(project_root, entry_id)
+            return {"ok": False, "message": "Неизвестный тип действия: %s" % act_type, "changed_path": None, "changed_block": None}
+    except Exception as e:
+        history.abort_change(project_root, entry_id)
+        return {"ok": False, "message": str(e), "changed_path": None, "changed_block": None}
+    history.commit_change(project_root, entry_id)
+    if act_type != "move_file":
+        _touch_file_read(path)
+    if act_type == "create_file":
+        message = ("Файл полностью перезаписан: %s" % path) if overwrote else ("Файл успешно создан: %s" % path)
+        return {"ok": True, "message": message, "changed_path": path, "changed_block": action.get("content", "")}
+    if act_type == "patch_file":
+        return {"ok": True, "message": "Изменения успешно внесены в файл: %s" % path, "changed_path": path, "changed_block": action.get("replace", "")}
+    return {"ok": True, "message": "Файл успешно перемещён в: %s" % action.get("dest", ""), "changed_path": None, "changed_block": None}
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +266,7 @@ def _finish_read_batch(project_root):
             parts.append("Содержимое файла %s%s:\n%s\n%s\n%s" % (f["path"], note, fence, content, fence))
             _touch_file_read(f["path"])  # чат теперь знает актуальное содержимое
         elif f["status"] == "rejected":
-            parts.append("[Система]: Пользователь ОТКАЗАЛСЯ показывать файл %s. НЕ запрашивай его повторно; работай без него или объясни пользователю, зачем он нужен." % f["path"])
+            parts.append("[Система]: Пользователь ��ТКАЗАЛСЯ показывать файл %s. НЕ запрашивай его повторно; работай без него или объясни пользователю, зачем он нужен." % f["path"])
         elif f["status"] == "missing":
             parts.append("[Система]: Файл %s не найден в проекте. Сверься со структурой проекта." % f["path"])
     return "\n\n".join(parts) or "[Система]: Ни один файл не был предоставлен."
@@ -200,17 +328,59 @@ def _package_model_reply(text, action, project_root, depth=0):
                         '{"action":"copy_file","copies":[{"src":"res://...","dest":"res://..."}]}.')
         else:
             followup = ("[Система]: Результат копирования (файлы скопированы БЕЗ изменений; "
-                        "адаптацию под проект делай через patch_file, он потребует подтверждения):\n"
+                        "адаптацию под проект делай через patch_file, он ��отребует подтверждения):\n"
                         + "\n".join(results))
         if depth >= 3:
             return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
         text2, act2 = _reply_with_self_heal(followup, project_root)
         return _package_model_reply(text2, act2, project_root, depth + 1)
+    if action and action.get("action") == "plan":
+        STATE["pending_action"] = None
+        # Многочастный план: модель присылает шаги несколькими сообщениями
+        # ("continues": true), если все шаги не помещаются в один ответ
+        # (не хватает выходного лимита токенов). Пользователь увидит и
+        # подтвердит склеенный план ОДИН раз — целиком, за один проход.
+        if action.get("continues"):
+            ok_part, followup = _plan_part_add(action)
+            if depth >= MAX_PLAN_PARTS + 4 or (not ok_part and depth >= 2):
+                STATE["plan_parts"] = None
+                return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
+            text2, act2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, act2, project_root, depth + 1)
+        steps, plan_description = _plan_collect_final(action)
+        ok, err = _validate_plan_steps(steps, max_steps=MAX_PLAN_TOTAL_STEPS)
+        if not ok:
+            followup = "[Система]: план отклонён автоматически: %s Исправь и пришли agent_action заново (action=plan; если все шаги не помещаются в один ответ — частями через \"continues\": true)." % err
+            if depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
+            text2, act2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, act2, project_root, depth + 1)
+        chain_id = history.new_chain_id()
+        pending_plan = {
+            "chain_id": chain_id,
+            "steps": steps,
+            "index": 0,
+            "description": plan_description,
+            "total": len(steps),
+            "applied_paths": [],
+        }
+        STATE["pending_plan"] = pending_plan
+        synthetic = {"action": "plan", "description": plan_description,
+                     "steps": steps, "total": len(steps)}
+        STATE["pending_action"] = synthetic
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({
+            "answer": text,
+            "pending_action": synthetic,
+            "pending_action_description": _describe_action(synthetic),
+            "pending_action_code": None,
+        })
     if not text and action is None:
         # Пустой ответ из браузера: парсер мог не дождаться конца генерации
         # длинного ответа. Не молчим — пользователь должен это увидеть.
-        text = ("[Система]: ⚠ Из браузера пришёл ПУСТОЙ ответ. Скорее всего, модель "
-                "ещё генерировала текст, а парсер не дождался конца. Ответ, вероятно, "
+        text = ("[Система]: ⚠ Из браузера пришёл ПУСТОЙ ответ. Скорее всего, м��дель "
+                "ещ�� генерировала текст, а парсер не дождался конца. Ответ, вероятно, "
                 "виден во вкладке AI Studio. Можно написать модели: 'повтори последний ответ'.")
     _remember("agent", text)
     _sync_chat_after_reply()
@@ -527,11 +697,12 @@ def chat():
 
     _apply_session_context(data)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
+    STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
     current_root = STATE.get("project_root")
     _ensure_current_chat(prompt)
     # Страховка: если история ТЕКУЩЕГО чата пуста — это первое сообщение,
     # и мега-промпт нужен ВСЕГДА: глобальный флаг мог остаться от старого чата
-    # или подгрузиться с диска при /init уже ПОСЛЕ создания нового чата.
+    # или подгрузиться с диска при /init уже П��СЛЕ создания нового чата.
     _cur_chat = server_state.get_current_chat()
     if _cur_chat is not None and not _cur_chat.get("transcript"):
         STATE["is_primed"] = False
@@ -582,6 +753,22 @@ def confirm_action():
     approved = data.get('approved', False)
     project_root = STATE.get("project_root")
 
+    # --- Ветка 0: план (целая цепочка действий) ---
+    if STATE.get("pending_plan") is not None:
+        plan = STATE["pending_plan"]
+        if not approved:
+            print(f"--> План из {plan['total']} шаг(ов) ОТКЛОНён пользователем.")
+            STATE["pending_plan"] = None
+            STATE["pending_action"] = None
+            STATE["action_note"] = "[Система: Пользователь ОТКЛОНИЛ ваш план. Ни один шаг не был применен. Скорректируй подход.]"
+            return jsonify({"answer": "[Система]: План отклонён пользователем.", "pending_action": None})
+        # План одобрен: переводим в режим выполнения. Сами шаги вызывает клиент (Godot-панель)
+        # через /chat/plan/step — здесь мы только снимаем pending_action, чтобы освободить UI подтверждения.
+        print(f"--> План из {plan['total']} шаг(ов) подтверждён. Выполнение будет идти пошагово через /chat/plan/step.")
+        STATE["pending_action"] = None
+        return jsonify({"answer": "[Система]: План подтверждён, начинается выполнение шагов.", "pending_action": None,
+                        "plan_started": True, "plan_total": plan["total"]})
+
     # --- Ветка 1: пачка файлов на чтение ---
     if STATE.get("pending_batch") is not None:
         try:
@@ -623,49 +810,19 @@ def confirm_action():
             STATE["pending_action"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
 
-        if act_type == "create_file":
-            print(f"--> Создание файла {path}. Выполняем локально...")
-            entry_id = history.record_change(project_root, action, *_current_chat_info())
-            try:
-                overwrote = create_project_file(project_root, path, action.get("content", ""))
-            except Exception:
-                history.abort_change(project_root, entry_id)
-                raise
-            history.commit_change(project_root, entry_id)
-            _touch_file_read(path)  # чат только что сам записал этот файл
+        if act_type in ("create_file", "patch_file", "move_file"):
+            print(f"--> {act_type} {path}. Выполняем локально...")
+            result = _apply_write_step(action, project_root)
             STATE["pending_action"] = None
-            _create_msg = (f"[Система]: Файл полностью перезаписан: {path}" if overwrote
-                           else f"[Система]: Файл успешно создан: {path}")
+            if not result["ok"]:
+                raise RuntimeError(result["message"])
             # changed_path/changed_block — панель откроет файл в редакторе и
             # подсветит строки, которые написал агент.
-            return jsonify({"answer": _create_msg, "pending_action": None,
-                            "changed_path": path, "changed_block": action.get("content", "")})
-
-        elif act_type == "patch_file":
-            print(f"--> Точечный патч {path}. Выполняем локально...")
-            entry_id = history.record_change(project_root, action, *_current_chat_info())
-            try:
-                patch_project_file(project_root, path, action.get("search", ""), action.get("replace", ""))
-            except Exception:
-                history.abort_change(project_root, entry_id)
-                raise
-            history.commit_change(project_root, entry_id)
-            _touch_file_read(path)  # чат только что сам правил этот файл
-            STATE["pending_action"] = None
-            return jsonify({"answer": f"[Система]: Изменения успешно внесены в файл: {path}", "pending_action": None,
-                            "changed_path": path, "changed_block": action.get("replace", "")})
-
-        elif act_type == "move_file":
-            print(f"--> Перемещение файла в {action.get('dest')}. Выполняем локально...")
-            entry_id = history.record_change(project_root, action, *_current_chat_info())
-            try:
-                move_project_file(project_root, path, action.get("dest", ""))
-            except Exception:
-                history.abort_change(project_root, entry_id)
-                raise
-            history.commit_change(project_root, entry_id)
-            STATE["pending_action"] = None
-            return jsonify({"answer": f"[Система]: Файл успешно перемещен в: {action.get('dest')}", "pending_action": None})
+            resp = {"answer": "[Система]: " + result["message"], "pending_action": None}
+            if result.get("changed_path"):
+                resp["changed_path"] = result["changed_path"]
+                resp["changed_block"] = result.get("changed_block", "")
+            return jsonify(resp)
 
         elif act_type == "search_project":
             query = str(action.get("query", ""))
@@ -769,6 +926,113 @@ def rollback():
 
 
 # ---------------------------------------------------------------------------
+# Plan-режим (цепочка действий): после подтверждения всего плана в confirm_action
+# клиент (Godot-панель) сам вызывает /chat/plan/step в цикле, пока не закончатся
+# шаги, не придёт ошибка линта/применения, или пользователь не нажмёт "Стоп".
+# ---------------------------------------------------------------------------
+
+@app.route('/chat/plan/step', methods=['POST'])
+def plan_step():
+    plan = STATE.get("pending_plan")
+    if plan is None:
+        return jsonify({"error": "Нет активного плана."}), 400
+    project_root = STATE.get("project_root")
+    idx = plan["index"]
+    if idx >= plan["total"]:
+        STATE["pending_plan"] = None
+        return jsonify({"done": True, "index": idx, "total": plan["total"], "message": "План уже завершён."})
+    step = plan["steps"][idx]
+    try:
+        lint_msg = _lint_action_code(step, project_root) if step.get("action") != "move_file" else None
+        if lint_msg is not None:
+            # Останавливаемся на ошибке: уже применённые шаги НЕ откатываются автоматически —
+            # у пользователя есть кнопка отката всей цепочки.
+            STATE["pending_plan"] = None
+            STATE["action_note"] = (
+                "[Система: выполнение плана остановлено на шаге %d из %d (%s): код не прошёл проверку. "
+                "Уже выполненные шаги (%d) остались на диске. %s]"
+            ) % (idx + 1, plan["total"], step.get("path", ""), idx, lint_msg)
+            return jsonify({
+                "ok": False, "stopped": True, "index": idx, "total": plan["total"],
+                "chain_id": plan["chain_id"], "error": lint_msg,
+                "message": "шаг %d из %d (%s) не прошёл проверку, выполнение остановлено" % (idx + 1, plan["total"], step.get("path", "")),
+            })
+        result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
+        if not result["ok"]:
+            STATE["pending_plan"] = None
+            STATE["action_note"] = (
+                "[Система: выполнение плана остановлено на шаге %d из %d (%s): %s. "
+                "Уже выполненные шаги (%d) остались на диске.]"
+            ) % (idx + 1, plan["total"], step.get("path", ""), result["message"], idx)
+            return jsonify({
+                "ok": False, "stopped": True, "index": idx, "total": plan["total"],
+                "chain_id": plan["chain_id"], "error": result["message"],
+                "message": "шаг %d из %d (%s) не выполнен: %s" % (idx + 1, plan["total"], step.get("path", ""), result["message"]),
+            })
+        plan["applied_paths"].append(result.get("changed_path") or step.get("path", ""))
+        plan["index"] = idx + 1
+        done = plan["index"] >= plan["total"]
+        resp = {
+            "ok": True, "done": done, "index": plan["index"], "total": plan["total"],
+            "chain_id": plan["chain_id"],
+            "message": "Шаг %d/%d: %s" % (plan["index"], plan["total"], result["message"]),
+        }
+        if result.get("changed_path"):
+            resp["changed_path"] = result["changed_path"]
+            resp["changed_block"] = result.get("changed_block", "")
+        if done:
+            STATE["pending_plan"] = None
+            STATE["action_note"] = (
+                "[Система: весь план из %d шаг(ов) успешно выполнен. Файлы: %s]"
+            ) % (plan["total"], ", ".join(plan["applied_paths"]))
+        return jsonify(resp)
+    except Exception as e:
+        traceback.print_exc()
+        STATE["pending_plan"] = None
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/chat/plan/stop', methods=['POST'])
+def plan_stop():
+    plan = STATE.get("pending_plan")
+    if plan is None:
+        return jsonify({"error": "Нет активного плана."}), 400
+    idx, total = plan["index"], plan["total"]
+    STATE["pending_plan"] = None
+    STATE["action_note"] = (
+        "[Система: Пользователь остановил выполнение плана вручную на шаге %d из %d. "
+        "Сделанные шаги (%d) остались на диске, остальные отменены. При необходимости пользователь "
+        "может откатить всю цепочку целиком.]"
+    ) % (idx, total, idx)
+    return jsonify({"stopped": True, "index": idx, "total": total, "chain_id": plan["chain_id"], "applied_paths": plan["applied_paths"]})
+
+
+@app.route('/chat/plan/rollback_chain', methods=['POST'])
+def plan_rollback_chain():
+    data = request.json or {}
+    chain_id = data.get('chain_id')
+    force = bool(data.get('force', False))
+    if not STATE.get("project_root"):
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    if not chain_id:
+        return jsonify({"error": "Не указан chain_id."}), 400
+    try:
+        ok, msg, needs_force, paths, reverted_count, total_count = history.rollback_chain(
+            STATE["project_root"], chain_id, force=force)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    if ok:
+        STATE["action_note"] = (
+            "[Система: Пользователь откатил всю цепочку вашего плана! %s. Скорректируйте подход, если эти файлы всё ещё нужны.]"
+        ) % msg
+        return jsonify({"success": True, "message": msg, "paths": paths,
+                        "reverted_count": reverted_count, "total_count": total_count})
+    return jsonify({"error": msg, "needs_force": needs_force,
+                    "reverted_count": reverted_count, "total_count": total_count}), 409
+
+
+# ---------------------------------------------------------------------------
 # Ошибки последнего запуска игры: панель сперва получает сводку (в браузер
 # НИЧЕГО не уходит), пользователь подтверждает — и только тогда модели
 # отправляется ОДИН отчёт. Повторная отправка того же лога блокируется
@@ -839,7 +1103,7 @@ def check_log():
 def send_log_errors():
     report = STATE.get("pending_log_report")
     if not report:
-        return jsonify({"error": "Нет подготовленного отчёта. Нажмите «Ошибки запуска» заново."}), 400
+        return jsonify({"error": "Нет подготовленного отчёт��. Нажмите «Ошибки запуска» заново."}), 400
     STATE["pending_log_report"] = None
     project_root = STATE.get("project_root")
     try:

@@ -18,8 +18,44 @@ import history_manager as history
 
 CACHE_FILENAME = "godot_api_cache.json"
 DEFAULT_CACHE_FILENAME = "default_api_cache.json"
+# Вшитый кэш кладём не прямо в папку аддона, а в эту подпапку — вместе с
+# .gdignore, чтобы редактор Godot вообще не пытался сканировать/импортировать
+# .json как ресурс (иначе иногда вылетает мусорная "Unknown error getting
+# token" из инспектора ресурсов — сам файл при этом не ломается и агент это
+# не видит и не использует эту ошибку). Сами .gd/.tscn аддона лежат выше по
+# дереву и .gdignore их не касается — сканируются как обычно.
+DEFAULT_CACHE_SUBDIR = "agent_api_cache"
 
 _cache = {"root": None, "classes": {}, "godot_version": ""}
+
+
+def _migrate_legacy_addon_cache(addon_dir):
+    """Одноразовая миграция старого вшитого кэша (лежавшего прямо в addon_dir
+    без .gdignore в старых версиях аддона) в защищённое место. Вызывается при
+    КАЖДОМ чтении кэша (а не только при save_cache), потому что плагин пропускает
+    переотправку справочника на сервер, если версия Godot не изменилась — тогда
+    старый незащищённый файл без этой функции мог бы никогда не убраться."""
+    if not addon_dir:
+        return
+    old_bpath = os.path.join(addon_dir, DEFAULT_CACHE_FILENAME)
+    if not os.path.isfile(old_bpath):
+        return
+    try:
+        bdir = os.path.join(addon_dir, DEFAULT_CACHE_SUBDIR)
+        os.makedirs(bdir, exist_ok=True)
+        gi = os.path.join(bdir, ".gdignore")
+        if not os.path.isfile(gi):
+            with open(gi, "w", encoding="utf-8") as f:
+                f.write("")
+        new_bpath = os.path.join(bdir, DEFAULT_CACHE_FILENAME)
+        if not os.path.isfile(new_bpath):
+            with open(old_bpath, "r", encoding="utf-8") as f:
+                data = f.read()
+            with open(new_bpath, "w", encoding="utf-8") as f:
+                f.write(data)
+        os.remove(old_bpath)
+    except Exception:
+        pass  # миграция лучше-усилие — не критична, попробуется в следующий раз
 
 
 def _cache_path(project_root):
@@ -51,9 +87,23 @@ def save_cache(project_root, classes, godot_version="", addon_dir=None):
         json.dump(payload, f, ensure_ascii=False)
     if addon_dir:
         try:
-            bpath = os.path.join(addon_dir, DEFAULT_CACHE_FILENAME)
+            bdir = os.path.join(addon_dir, DEFAULT_CACHE_SUBDIR)
+            os.makedirs(bdir, exist_ok=True)
+            gi = os.path.join(bdir, ".gdignore")
+            if not os.path.isfile(gi):
+                with open(gi, "w", encoding="utf-8") as f:
+                    f.write("")
+            bpath = os.path.join(bdir, DEFAULT_CACHE_FILENAME)
             with open(bpath, "w", encoding="utf-8") as f:
                 json.dump(payload, f, ensure_ascii=False)
+            # Старая версия аддона клала файл прямо в addon_dir без .gdignore —
+            # убираем его, чтобы не остался дублирующийся кэш без защиты.
+            old_bpath = os.path.join(addon_dir, DEFAULT_CACHE_FILENAME)
+            if os.path.isfile(old_bpath):
+                try:
+                    os.remove(old_bpath)
+                except Exception:
+                    pass
         except Exception:
             pass  # базовый кэш необязателен — основное сохранение выше уже удалось
     _cache["root"] = project_root
@@ -63,6 +113,7 @@ def save_cache(project_root, classes, godot_version="", addon_dir=None):
 
 
 def _load_if_needed(project_root, addon_dir=None):
+    _migrate_legacy_addon_cache(addon_dir)
     if _cache["root"] == project_root and _cache["classes"]:
         return
     _cache["root"] = project_root
@@ -81,7 +132,11 @@ def _load_if_needed(project_root, addon_dir=None):
             _cache["classes"] = {}
     if not loaded and addon_dir:
         # Своего кэша ещё нет — берём вшитый в аддон разработчиком справочник, если он есть.
-        bpath = os.path.join(addon_dir, DEFAULT_CACHE_FILENAME)
+        # Сначала новое (защищённое .gdignore) место, затем старое — для тех, кто
+        # обновился с более старой версии аддона и ещё не пересохранял справочник.
+        bpath = os.path.join(addon_dir, DEFAULT_CACHE_SUBDIR, DEFAULT_CACHE_FILENAME)
+        if not os.path.isfile(bpath):
+            bpath = os.path.join(addon_dir, DEFAULT_CACHE_FILENAME)
         if os.path.isfile(bpath):
             try:
                 with open(bpath, "r", encoding="utf-8") as f:

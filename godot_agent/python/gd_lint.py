@@ -16,6 +16,55 @@ _PAIRS = {")": "(", "]": "[", "}": "{"}
 _FUNC_RE = re.compile(r"^(static\s+)?func\s+\w")
 _CLASS_RE = re.compile(r"^class\s+\w")
 
+# Точечная проверка явного несоответствия типа при объявлении переменной вида
+# `var x: int = "строка"`. Это НЕ полноценная проверка типов (выражения,
+# вызовы функций, переменные справа — не трогаем, слишком велик риск ложных
+# срабатываний), а узкий эвристический ловец ровно того случая, когда справа
+# буквальный литерал явно не того типа. Расширять список типов осторожно.
+_VAR_TYPED_RE = re.compile(r"^var\s+\w+\s*:\s*(int|float|bool|String)\s*=\s*(.+)$")
+_STR_LIT_RE = re.compile(r"""^('([^'\\]|\\.)*'|"([^"\\]|\\.)*")$""")
+_BOOL_LIT_RE = re.compile(r"^(true|false)$")
+_FLOAT_LIT_RE = re.compile(r"^-?\d+\.\d+$")
+_INT_LIT_RE = re.compile(r"^-?\d+$")
+_ARRAY_LIT_RE = re.compile(r"^\[.*\]$")
+_DICT_LIT_RE = re.compile(r"^\{.*\}$")
+# Какие виды литералов допустимы для каждого объявленного типа без явного
+# приведения (int -> float допускается расширением, остальное — нет).
+_TYPE_ALLOWED_LITERALS = {
+    "int": {"int"},
+    "float": {"int", "float"},
+    "bool": {"bool"},
+    "String": {"string"},
+}
+_TYPE_RU = {"int": "int", "float": "float", "bool": "bool", "String": "String"}
+_LIT_RU = {
+    "string": "строковый литерал",
+    "bool": "булевый литерал (true/false)",
+    "float": "вещественное число (float)",
+    "int": "целое число (int)",
+    "array": "литерал массива",
+    "dict": "литерал словаря",
+}
+
+
+def _literal_kind(rhs):
+    """Определяет вид буквального литерала справа от `=`. None — это не
+    простой литерал (выражение/переменная/вызов функции), такие строки не
+    трогаем, чтобы не давать ложных срабатываний."""
+    if _STR_LIT_RE.match(rhs):
+        return "string"
+    if _BOOL_LIT_RE.match(rhs):
+        return "bool"
+    if _FLOAT_LIT_RE.match(rhs):
+        return "float"
+    if _INT_LIT_RE.match(rhs):
+        return "int"
+    if _ARRAY_LIT_RE.match(rhs):
+        return "array"
+    if _DICT_LIT_RE.match(rhs):
+        return "dict"
+    return None
+
 
 def lint_gdscript(text):
     """Возвращает список проблем (строки на русском). Пустой список — код чистый."""
@@ -123,6 +172,18 @@ def lint_gdscript(text):
                 code = stripped.split("#")[0].rstrip()
                 if code and not code.endswith(":") and not code.endswith("\\"):
                     errors.append("строка %d: похоже, пропущено двоеточие в конце объявления" % (idx + 1))
+            if info["ds"] == 0 and info["de"] == 0:
+                code = stripped.split("#")[0].rstrip()
+                m = _VAR_TYPED_RE.match(code)
+                if m:
+                    decl_type, rhs = m.group(1), m.group(2).strip()
+                    if rhs.endswith(";"):
+                        rhs = rhs[:-1].strip()
+                    kind = _literal_kind(rhs)
+                    if kind is not None and kind not in _TYPE_ALLOWED_LITERALS[decl_type]:
+                        errors.append(
+                            "строка %d: переменной типа %s присваивается %s — Godot выдаст ошибку типов (Type Mismatch)"
+                            % (idx + 1, _TYPE_RU[decl_type], _LIT_RU[kind]))
         if tab_lines and space_lines:
             errors.append(
                 "смешаны отступы: табы (например, строка %d) и пробелы (например, строка %d) — "

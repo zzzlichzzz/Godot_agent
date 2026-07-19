@@ -18,6 +18,7 @@ STATE = {
     "pending_action": None,   # ожидающее подтверждения WRITE-действие
     "current_chat_id": None,  # активный чат (см. chat_store.py)
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
+    "pending_plan": None,     # ожидающий подтверждения/выполнения план (plan-режим, цепочка шагов)
     "is_primed": False,
     "action_note": "",
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
