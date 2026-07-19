@@ -21,8 +21,10 @@ from project_tools import (
     copy_project_file,
     search_project_text,
     describe_scene,
+    clean_dangling_autoloads,
     _resolve_safe_path,
 )
+import re as _re
 import history_manager as history
 import gd_lint
 import gd_api_cache
@@ -49,6 +51,33 @@ from agent_prompts import (
 # без copy_file (оно применяется автоматически и не требует отдельного подтверждения)
 # и без read_file/search_project/list_files/list_scene (они не меняют диск и им нечего откатывать).
 PLAN_ALLOWED_ACTIONS = {"create_file", "patch_file", "move_file"}
+
+# Защита аддонов: модель не должна сама лезть в res://addons/... (читать,
+# создавать, патчить, перемещать, копировать) — только когда пользователь ЯВНО
+# попросил об этом в своём последнем сообщении (см. _ADDON_INTENT_RE / STATE["addon_intent"]).
+# Иначе модель регулярно предлагала действия над чужими аддонами "на автомате",
+# и пользователю приходилось отклонять их вручную каждый раз.
+_ADDON_INTENT_RE = _re.compile(r"\b(\u0430\u0434\u0434\u043e\u043d|addon|\u0430\u0434\u0434\u043e\u043d\u044b|addons)\b", _re.IGNORECASE)
+
+
+def _is_addon_path(path):
+    """True, если путь res://... указывает внутрь папки addons/ проекта."""
+    if not path:
+        return False
+    p = str(path).replace("\\", "/")
+    if p.startswith("res://"):
+        p = p[len("res://"):]
+    p = p.lstrip("/")
+    return p.startswith("addons/")
+
+
+def _addon_blocked_message(path):
+    return (
+        "Путь %s находится в папке аддона (res://addons/...). Правки аддонов разрешены ТОЛЬКО "
+        "когда пользователь явно попросил об этом в своём сообщении (словами \u00abаддон\u00bb/\u00abaddon\u00bb). "
+        "Если это действительно нужно — спроси пользователя напрямую, прежде чем предлагать действие "
+        "над файлами аддона; не запрашивай и не изменяй файлы аддона по своей инициативе." % path
+    )
 import server_state
 from server_state import (
     STATE, get_driver, set_driver, wait_driver, set_driver_error,
@@ -161,6 +190,11 @@ def _validate_plan_steps(steps, max_steps=None):
             )
         if not step.get("path"):
             return False, "шаг %d (%s) не содержит 'path'." % (i + 1, act)
+        if (not STATE.get("addon_intent")) and (_is_addon_path(step.get("path")) or _is_addon_path(step.get("dest"))):
+            return False, (
+                "шаг %d трогает файл аддона (res://addons/...), а пользователь это явно не запрашивал. "
+                "Не включай аддоны в план, если пользователь явно не попросил изменить аддон." % (i + 1)
+            )
         if act == "create_file" and not isinstance(step.get("content"), str):
             return False, "шаг %d (create_file) не содержит текстового 'content'." % (i + 1)
         if act == "patch_file" and (not step.get("search") or not isinstance(step.get("replace"), str)):
@@ -228,6 +262,10 @@ def _apply_write_step(action, project_root, chain_id=None):
     Возвращает dict: {"ok", "message", "changed_path", "changed_block"}."""
     act_type = action.get("action")
     path = action.get("path", "")
+    dest = action.get("dest", "")
+    if (not STATE.get("addon_intent")) and (_is_addon_path(path) or _is_addon_path(dest)):
+        return {"ok": False, "message": _addon_blocked_message(path if _is_addon_path(path) else dest),
+                "changed_path": None, "changed_block": None}
     entry_id = history.record_change(project_root, action, *_current_chat_info(), chain_id=chain_id)
     try:
         if act_type == "create_file":
@@ -275,6 +313,12 @@ def _start_read_batch(action, project_root):
         if not p or p in seen:
             continue
         seen.add(p)
+        if _is_addon_path(p) and not STATE.get("addon_intent"):
+            # Модель не должна САМА запрашивать файлы аддона без явной просьбы
+            # пользователя в этом сообщении — отмечаем "blocked" и не спрашиваем
+            # пользователя вообще (см. _addon_blocked_message в _finish_read_batch).
+            files.append({"path": p, "status": "blocked"})
+            continue
         status = "pending"
         try:
             if not os.path.isfile(_resolve_safe_path(project_root, p)):
@@ -290,6 +334,8 @@ def _next_batch_confirmation():
     if not batch:
         return None
     files = batch["files"]
+    # "blocked" (аддон без явной просьбы) никогда не доходит до вопроса пользователю —
+    # он просто прошёл, как если бы уже разрешён/обработан (см. _finish_read_batch).
     for i, f in enumerate(files):
         if f["status"] == "pending":
             desc = "Агент хочет прочитать файл (%d из %d): %s" % (i + 1, len(files), f["path"])
@@ -324,6 +370,8 @@ def _finish_read_batch(project_root):
             parts.append("[Система]: Пользователь ��ТКАЗАЛСЯ показывать файл %s. НЕ запрашивай его повторно; работай без него или объясни пользователю, зачем он нужен." % f["path"])
         elif f["status"] == "missing":
             parts.append("[Система]: Файл %s не найден в проекте. Сверься со структурой проекта." % f["path"])
+        elif f["status"] == "blocked":
+            parts.append("[Система]: " + _addon_blocked_message(f["path"]))
     return "\n\n".join(parts) or "[Система]: Ни один файл не был предоставлен."
 
 
@@ -367,6 +415,9 @@ def _package_model_reply(text, action, project_root, depth=0):
                 pairs.append((s, d))
         results = []
         for s, d in pairs[:20]:
+            if (not STATE.get("addon_intent")) and (_is_addon_path(s) or _is_addon_path(d)):
+                results.append("\u2717 %s -> %s: %s" % (s, d, _addon_blocked_message(s if _is_addon_path(s) else d)))
+                continue
             synthetic = {"action": "create_file", "path": d}
             entry_id = history.record_change(project_root, synthetic, *_current_chat_info())
             try:
@@ -439,7 +490,7 @@ def _package_model_reply(text, action, project_root, depth=0):
         # длинного ответа. Не молчим — пользователь должен это увидеть.
         text = ("[Система]: ⚠ Из браузера пришёл ПУСТОЙ ответ. Скорее всего, м��дель "
                 "ещ�� генерировала текст, а парсер не дождался конца. Ответ, вероятно, "
-                "виден во вкладке AI Studio. Можно написать модели: 'повтори последний ответ'.")
+                "виден во вклад��е AI Studio. Можно написать модели: 'повтори последний ответ'.")
     _remember("agent", text)
     _sync_chat_after_reply()
     STATE["pending_action"] = action
@@ -504,7 +555,7 @@ def _create_overwrite_is_stale(action, project_root):
         return None
     return (
         f"[Система]: СТОП. Ты предлагаешь ПОЛНОСТЬЮ перезаписать файл {path}, "
-        "но он изменялся из ДРУГОГО чата после того, как ты в последний раз видел его содержимое. "
+        "но он изменялся из ДРУГОГО чата после того, как ты в последн��й раз видел его содержимое. "
         "Слепая перезапись уничтожит эти изменения. Сначала запроси этот файл через read_file, "
         "изучи актуальную версию и только потом предлагай правку (patch_file для точечных "
         "изменений или create_file, если полная замена всё ещё нужна)."
@@ -563,7 +614,7 @@ def _lint_action_scene(action, project_root, kind, path):
     Механически исправимые вещи (load_steps) правит и применяет к action тихо —
     модель этого даже не увидит. Недетерминированные структурные проблемы
     (битые ссылки, несуществующий parent, дубли, чужие типы) — как и для кода,
-    возвращаются модели на самоисправление."""
+    возвращаются модели на самоисправлени��."""
     if kind == "create_file":
         candidate = action.get("content", "") or ""
     elif kind == "patch_file":
@@ -800,7 +851,7 @@ def _external_changes_note(project_root):
 
 
 def _build_priming_context(project_root):
-    """Мега-промпт: умное дерево (полное для маленького проекта, сводка по
+    """Мега-промпт: умное д��рево (полное для маленького проекта, сводка по
     папкам для большого) + описание архитектуры проекта. Если проект пустой —
     агент сам создаёт стандартную архитектуру для игр."""
     try:
@@ -808,7 +859,7 @@ def _build_priming_context(project_root):
     except Exception:
         created = []
     if created:
-        print("--> Проект пуст: создана стандартная архитектура (%d папок)" % len(created))
+        print("--> Проект ��уст: создана стандартная архитектура (%d папок)" % len(created))
     try:
         arch = describe_architecture(project_root)
     except Exception:
@@ -872,9 +923,13 @@ def chat():
     _apply_session_context(data)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
+    # Каждое НОВОе сообщение пользователя занова решает, ��азрешены ли в этом ходе действия над
+    # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
+    # задаётся заново на каждое такое сообщение, а не один раз, чтобы доступ к аддонам не застревал навсегда.
+    STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
     _ensure_current_chat(prompt)
-    # Страховка: если история ТЕКУЩЕГО чата пуста — это первое сообщение,
+    # Страховка: если история ТЕКУЩЕГО чата пуста — это первое сообщен��е,
     # и мега-промпт нужен ВСЕГДА: глобальный флаг мог остаться от старого чата
     # или подгрузиться с диска при /init уже П��СЛЕ создания нового чата.
     _cur_chat = server_state.get_current_chat()
@@ -1071,7 +1126,7 @@ def rollback_preview():
     info = history.last_committed_info(STATE["project_root"])
     if not info:
         return jsonify({"found": False})
-    kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
+    kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание фай��а",
                "patch_file": "правка файла", "move_file": "перемещение файла"}
     desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), info["path"])
     when = time.strftime("%H:%M", time.localtime(info.get("ts", 0)))
@@ -1080,7 +1135,13 @@ def rollback_preview():
         src = "чат «%s», %s" % (title, when)
     else:
         src = "%s, чат неизвестен (изменение сделано до обновления)" % when
-    return jsonify({"found": True, "description": "%s (%s)" % (desc, src)})
+    resp = {"found": True, "description": "%s (%s)" % (desc, src)}
+    # если последнее действие — шаг неоткатанной цепочки плана из >1 шага — панель должна
+    # предложить откатить всю цепочку, а не по одному действию.
+    if info.get("chain_id") and info.get("chain_total", 0) > 1:
+        resp["chain_id"] = info["chain_id"]
+        resp["chain_total"] = info["chain_total"]
+    return jsonify(resp)
 
 
 @app.route('/chat/rollback', methods=['POST'])
@@ -1109,19 +1170,29 @@ def rollback():
                 "Остальное содержимое файла НЕ менялось. Повторный read_file НЕ нужен — "
                 "можешь сразу предлагать patch_file на основе этого диффа."
             )
-        note += " Учтите это!]"
-        STATE["action_note"] = note
-        resp = {"success": True, "message": msg, "paths": paths}
+        resp = {"success": True, "message": msg, "paths": list(paths or [])}
         if diff:
             # Панель подсветит в редакторе восстановленный после отката блок.
             resp["changed_path"] = diff["path"]
             resp["changed_block"] = diff["now"]
+        # Откат мог вернуть create_file к состоянию "файла ещё нет", а автозагрузка на него
+        # в project.godot могла остаться от другого (неоткатанного) шага плана — вычищаем её.
+        removed_autoloads = clean_dangling_autoloads(STATE["project_root"])
+        if removed_autoloads:
+            resp["autoload_removed"] = removed_autoloads
+            resp["project_godot_changed"] = True
+            if "res://project.godot" not in resp["paths"]:
+                resp["paths"].append("res://project.godot")
+            note += (" В project.godot также убраны висячие записи автозагрузки (%s), "
+                     "так как их файлы больше не существуют." % ", ".join(removed_autoloads))
+        note += " Учтите это!]"
+        STATE["action_note"] = note
         return jsonify(resp)
     return jsonify({"error": msg, "needs_force": needs_force}), 409
 
 
 # ---------------------------------------------------------------------------
-# Plan-режим (цепочка действий): после подтверждения всего плана в confirm_action
+# Plan-режим (ц��почка действий): после подтверж��ения всего плана в confirm_action
 # клиент (Godot-панель) сам вызывает /chat/plan/step в цикле, пока не закончатся
 # шаги, не придёт ошибка линта/привинения, или пользователь не нажмёт "Стоп".
 #
@@ -1265,11 +1336,23 @@ def plan_rollback_chain():
     if ok:
         _refresh_fs_snapshot(STATE.get("project_root"))
         STATE["file_cache"] = None  # содержимое откатилось — кэш diff устарел
-        STATE["action_note"] = (
-            "[Система: Пользователь откатил всю цепочку вашего плана! %s. Скорректируйте подход, если эти файлы всё ещё нужны.]"
+        note = (
+            "[Система: Пользователь откатил всю цепочку вашего плана! %s. Скорректируйте подход, если эти файлы всё ещё нужны."
         ) % msg
-        return jsonify({"success": True, "message": msg, "paths": paths,
-                        "reverted_count": reverted_count, "total_count": total_count})
+        resp = {"success": True, "message": msg, "paths": list(paths or []),
+                "reverted_count": reverted_count, "total_count": total_count}
+        # После отката всей цепочки файлы, добавленные планом в [autoload], больше не существуют — вычищаем их.
+        removed_autoloads = clean_dangling_autoloads(STATE["project_root"])
+        if removed_autoloads:
+            resp["autoload_removed"] = removed_autoloads
+            resp["project_godot_changed"] = True
+            if "res://project.godot" not in resp["paths"]:
+                resp["paths"].append("res://project.godot")
+            note += (" В project.godot также убраны висячие записи автозагрузки (%s), "
+                     "так как их файлы больше не существуют." % ", ".join(removed_autoloads))
+        note += "]"
+        STATE["action_note"] = note
+        return jsonify(resp)
     return jsonify({"error": msg, "needs_force": needs_force,
                     "reverted_count": reverted_count, "total_count": total_count}), 409
 

@@ -384,6 +384,60 @@ def _parse_project_godot(project_root):
     return main_scene, autoloads
 
 
+def clean_dangling_autoloads(project_root):
+    """После откат��/удаления файлов убирает из project.godot записи секции
+    [autoload], которые ссылаются на файл, которого больше нет на диске
+    (например, откат вернул create_file, добавивший автозагрузку, к состоянию
+    ДО плана, а сама запись автозагрузки была добавлена другим patch_file и
+    осталась, если откат был частичным/по одному действию). Возвращает список
+    убранных ключей автозагрузки (пустой список — ничего убирать не пришлось).
+    Пустой список также означает, что project.godot НЕ был перезаписан на диске
+    (важно для вызывающего кода — не дёргать лишний раз сброс кэша/перезагрузку)."""
+    project_root_abs = os.path.abspath(project_root)
+    p = os.path.join(project_root_abs, 'project.godot')
+    if not os.path.isfile(p):
+        return []
+    try:
+        with open(p, 'r', encoding='utf-8', errors='replace') as f:
+            lines = f.readlines()
+    except OSError:
+        return []
+    out_lines = []
+    section = ''
+    removed_keys = []
+    changed = False
+    for line in lines:
+        s = line.strip()
+        if s.startswith('[') and s.endswith(']'):
+            section = s[1:-1].strip()
+            out_lines.append(line)
+            continue
+        if (section == 'autoload' and '=' in s
+                and not s.startswith(';') and not s.startswith('#')):
+            key, val = s.split('=', 1)
+            key = key.strip()
+            val_clean = val.strip().strip('"').lstrip('*')
+            # Автозагрузка может уточнять класс через "::" (напр. "*res://x.gd::MyClass").
+            target_path = val_clean.split('::')[0] if '::' in val_clean else val_clean
+            target_missing = True
+            if target_path.startswith('res://'):
+                try:
+                    target_missing = not os.path.isfile(_resolve_safe_path(project_root, target_path))
+                except Exception:
+                    target_missing = True
+            else:
+                target_missing = False  # не res:// путь — не наша забота, не трогаем
+            if key and target_missing:
+                removed_keys.append(key)
+                changed = True
+                continue  # пропускаем строку — вычищаем висячую автозагрузку
+        out_lines.append(line)
+    if changed:
+        with open(p, 'w', encoding='utf-8', newline='\n') as f:
+            f.writelines(out_lines)
+    return removed_keys
+
+
 def has_architecture(project_root):
     """Есть ли у проекта СВОЯ структура: типовые папки или любой .gd/.tscn
     вне addons/. Если есть — агент ИСПОЛЬЗУЕТ её, а не навязывает свою."""

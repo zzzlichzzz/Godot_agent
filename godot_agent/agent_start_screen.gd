@@ -155,6 +155,10 @@ func _build() -> void:
 	server_row.add_child(_server_btn)
 	_server_hint = Label.new()
 	_server_hint.text = _t("srv_manual_hint")
+	# текст подсказки длинный и без переноса строк вылезал за край узкой панели —
+	# переносим часть текста на следующую строку, а не уменьшаем сам текст.
+	_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_server_hint.size_flags_horizontal = SIZE_EXPAND_FILL
 	server_row.add_child(_server_hint)
 
 	# Верхняя строка: заголовок + переключатель языка (теперь без кнопки сервера —
@@ -298,6 +302,9 @@ func _build() -> void:
 	loading_srv_row.add_child(_loading_server_btn)
 	_loading_server_hint = Label.new()
 	_loading_server_hint.text = _t("srv_manual_hint")
+	# аналогично _server_hint выше — длинный текст подсказки переносится на строки, а не съедается краем экрана.
+	_loading_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_loading_server_hint.size_flags_horizontal = SIZE_EXPAND_FILL
 	loading_srv_row.add_child(_loading_server_hint)
 	_spin_timer = Timer.new()
 	_spin_timer.wait_time = 0.12
