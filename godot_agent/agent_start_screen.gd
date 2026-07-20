@@ -360,11 +360,37 @@ func _rebuild_chats() -> void:
 		var btn := Button.new()
 		var t := str(c.get("title", _t("untitled")))
 		var sname := str(c.get("site_name", ""))
-		btn.text = t if sname == "" else (t + "   — " + sname)
+		# v48: сайт нейросети, время последнего использования и признак «промпт устарел».
+		var info := PackedStringArray()
+		if sname != "":
+			info.append(sname)
+		var used_ts := int(c.get("last_used", 0))
+		if used_ts > 0:
+			info.append(_fmt_ts(used_ts))
+		var stale := bool(c.get("prompt_stale", false))
+		if stale:
+			info.append(_t("prompt_stale_short"))
+		btn.text = t if info.is_empty() else (t + "   — " + " · ".join(info))
+		btn.tooltip_text = _t("tip_chat_times") % [_fmt_ts(int(c.get("created", 0))), _fmt_ts(used_ts)]
+		if stale:
+			btn.tooltip_text += "\n" + _t("prompt_stale_tip")
+			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = SIZE_EXPAND_FILL
 		btn.pressed.connect(_pick_chat.bind(str(c.get("id", ""))))
 		_chats_list.add_child(btn)
+
+
+func _fmt_ts(ts: int) -> String:
+	# Локальное время «ДД.ММ ЧЧ:ММ» из unix-времени (сервер пишет time.time()).
+	if ts <= 0:
+		return "—"
+	var bias := 0
+	var tz: Dictionary = Time.get_time_zone_from_system()
+	if tz.has("bias"):
+		bias = int(tz["bias"])  # смещение локальной зоны в минутах
+	var d := Time.get_datetime_dict_from_unix_time(ts + bias * 60)
+	return "%02d.%02d %02d:%02d" % [int(d.get("day", 0)), int(d.get("month", 0)), int(d.get("hour", 0)), int(d.get("minute", 0))]
 
 
 func _rebuild_sites() -> void:

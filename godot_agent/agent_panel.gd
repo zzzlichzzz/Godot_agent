@@ -53,6 +53,7 @@ var _plan_rollback_force_next: bool = false
 var _last_pending_action_type: String = ""
 var _last_pending_action_path: String = ""
 var _last_pending_action_dest: String = ""
+var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
 # после действия агента) — следующее нажатие кнопки отката отправит force.
@@ -130,6 +131,7 @@ func _t(key: String) -> String:
 
 
 func _ready() -> void:
+	_ensure_script_autoreload_setting()
 	chat_log.selection_enabled = true
 	chat_log.context_menu_enabled = true
 	chat_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -311,7 +313,7 @@ func _set_ui_busy(busy: bool) -> void:
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = _t("sending") if busy else _t("send")
-	# Живая трансляция: опрашива��������м статус только пока идёт запрос.
+	# Живая трансляция: опрашива����������м статус только пока идёт запрос.
 	if busy:
 		if _view:
 			_view.reset_live()
@@ -474,6 +476,8 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
+	if approved:
+		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	chat_log.text += "[color=gray]" + label + _t("waiting_reply") + "[/color]\n"
 	var headers = ["Content-Type: application/json"]
@@ -485,6 +489,7 @@ func _send_confirm_request(approved: bool) -> void:
 	if err != OK:
 		_log_error(_t("err_send_confirm"))
 		_set_ui_busy(false)
+		_reopen_scenes_after_write()  # v49: запрос не ушёл — вернуть закрытые сцены
 
 
 func _start_plan_execution(total: int) -> void:
@@ -551,7 +556,7 @@ var _reload_project_dialog: ConfirmationDialog = null
 
 func _note_autoload_removed(json) -> void:
 	# Откат мог оставить в project.godot висячую запись автозагрузки на файл,
-	# которого больше нет (см. clean_dangling_autoloads на сервере) — сообщаем,
+	# которого больше нет (см. clean_dangling_autoloads на серве��е) — сообщаем,
 	# что она уже убрана, чтобы пользователь не искал причину ошибок автозагрузки сам.
 	var removed = json.get("autoload_removed")
 	if removed is Array and removed.size() > 0:
@@ -809,6 +814,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			return
 
 		if kind == "confirm" and bool(json.get("plan_started", false)):
+			_reopen_scenes_after_write()  # v49: подтверждение запустило план — вернуть сцены
 			_last_pending_action_type = ""
 			_last_pending_action_path = ""
 			_last_pending_action_dest = ""
@@ -839,6 +845,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if p_ch_path != null and p_ch_block != null and str(p_ch_block) != "":
 				if _hl: _hl.apply(str(p_ch_path), str(p_ch_block))
 			_force_reload_open_script()
+			if p_ch_path != null:
+				_auto_reload_changed_scene(str(p_ch_path))
 			if p_done:
 				_end_plan_execution()
 				chat_log.text += "[color=green]" + _t("plan_done") + "[/color]\n"
@@ -873,6 +881,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				for pp in pr_paths:
 					if FileAccess.file_exists(str(pp)):
 						_sync_open_script_with_disk(str(pp))
+						_auto_reload_changed_scene(str(pp))
 					else:
 						_close_ghost_script_tab(str(pp))
 			if _hl: _hl.clear()
@@ -922,6 +931,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				for p in paths:
 					if FileAccess.file_exists(str(p)):
 						_sync_open_script_with_disk(str(p))
+						_auto_reload_changed_scene(str(p))
 					else:
 						# Откат удалил созданный файл — закрываем его вкладку,
 						# ина��е Godot держит «призрака» и может пересохранить файл обратно.
@@ -964,6 +974,11 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# При пакетном чтении файлов _last_pending_action_type пуст — ничего не трогаем.
 		if kind == "confirm" and _last_pending_action_type != "":
 			_force_reload_open_script()
+			if _last_pending_action_path != "":
+				_auto_reload_changed_scene(_last_pending_action_path)
+			if _last_pending_action_dest != "":
+				_auto_reload_changed_scene(_last_pending_action_dest)
+			_reopen_scenes_after_write()  # v49: вернуть сцены, закрытые перед записью, — уже в новом виде
 			_last_pending_action_type = ""
 			_last_pending_action_path = ""
 			_last_pending_action_dest = ""
@@ -1024,6 +1039,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "api_cache_status":
 			_schedule_api_cache_check_retry()
 			return
+		if kind == "confirm":
+			_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
@@ -1089,6 +1106,61 @@ func _reconcile_confirm_buttons() -> void:
 	if Time.get_ticks_msec() >= _guard_until_msec and (confirm_button.disabled or reject_button.disabled):
 		confirm_button.disabled = false
 		reject_button.disabled = false
+
+
+func _auto_reload_changed_scene(p: String) -> void:
+	# v46: агент изменил сцену на диске — если она открыта в редакторе, перечитываем
+	# её САМИ, чтобы пользователю не приходилось вручную отвечать на вопрос
+	# «файлы изменены снаружи — перезагрузить?» после каждого действия агента.
+	if not (p.ends_with(".tscn") or p.ends_with(".scn")):
+		return
+	if not FileAccess.file_exists(p):
+		return
+	for sp in EditorInterface.get_open_scenes():
+		if str(sp) == p:
+			EditorInterface.reload_scene_from_path(p)
+			return
+
+
+func _close_scenes_before_write() -> void:
+	# v49: Godot не применяет правки с ДИСКА к уже открытой сцене — изменения агента
+	# «не видны», пока сцену не закрыть и не открыть заново. Поэтому перед одобренной
+	# записью закрываем целевую сцену (сам файл агент правит на диске), а после ответа
+	# сервера открываем её обратно уже в новом виде — без вопросов о перезагрузке.
+	_scenes_to_reopen = PackedStringArray()
+	var ei: Object = EditorInterface
+	if not ei.has_method("close_scene"):
+		return  # старый Godot без close_scene: остаётся авто-перечитывание (v46)
+	for raw in [_last_pending_action_path, _last_pending_action_dest]:
+		var sp := str(raw)
+		if sp == "" or not (sp.ends_with(".tscn") or sp.ends_with(".scn")):
+			continue
+		if not EditorInterface.get_open_scenes().has(sp):
+			continue
+		EditorInterface.open_scene_from_path(sp)  # делаем вкладку сцены активной
+		if int(ei.call("close_scene")) == OK and not _scenes_to_reopen.has(sp):
+			_scenes_to_reopen.append(sp)
+
+
+func _reopen_scenes_after_write() -> void:
+	# v49: открываем обратно сцены, закрытые перед записью. Если действие
+	# не выполнилось или файл переехал/удалён — просто пропускаем.
+	for sp in _scenes_to_reopen:
+		if FileAccess.file_exists(str(sp)):
+			EditorInterface.open_scene_from_path(str(sp))
+	_scenes_to_reopen = PackedStringArray()
+
+
+func _ensure_script_autoreload_setting() -> void:
+	# v46: включаем в настройках редактора автоперечитывание скриптов,
+	# изменённых вне Godot (по аналогии с авто-включением файлового лога):
+	# убирает постоянный вопрос о перезагрузке скриптов после правок агента.
+	var es = EditorInterface.get_editor_settings()
+	if es == null:
+		return
+	var key := "text_editor/behavior/files/auto_reload_scripts_on_external_change"
+	if es.has_setting(key) and not bool(es.get_setting(key)):
+		es.set_setting(key, true)
 
 
 func _force_reload_open_script() -> void:
@@ -1279,6 +1351,7 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 	elif kind == "new" and _view:
 		_view.clear()
 		_view.add_system(_t("chat_created"))
+		_view.add_hint(_t("pick_model_hint"))  # v48/v49: напоминание выбрать модель — заметным окошком
 		_enter_chat_ui()
 		_begin_page_wait()
 	elif kind == "delete":
@@ -1300,7 +1373,13 @@ func _fill_chat_list(chats) -> void:
 		var c = chats[i]
 		if typeof(c) != TYPE_DICTIONARY:
 			continue
-		_chat_select.add_item(str(c.get("title", _t("untitled"))), i)
+		var label := str(c.get("title", _t("untitled")))
+		var sname := str(c.get("site_name", ""))
+		if sname != "":
+			label += " — " + sname
+		if bool(c.get("prompt_stale", false)):
+			label += "  " + _t("prompt_stale_short")
+		_chat_select.add_item(label, i)
 		_chat_select.set_item_metadata(i, str(c.get("id", "")))
 		if str(c.get("id", "")) == _current_chat_id:
 			sel = i

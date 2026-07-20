@@ -55,13 +55,23 @@ def title_from_prompt(prompt):
     return line or DEFAULT_TITLE
 
 
-def list_chats(base_dir):
-    """Список чатов для панели (без транскриптов, свежие сверху)."""
+def list_chats(base_dir, current_prompt_hash=None):
+    """Список чатов для панели (без транскриптов, свежие сверху).
+    v48: плюс сайт нейросети, времена и признак устаревшего промпта — чат,
+    обученный старой версией PRIMING_TEMPLATE, может не знать новых действий."""
     chats = _load(base_dir)
     chats.sort(key=lambda c: c.get("last_used", 0), reverse=True)
-    return [{"id": c.get("id"), "title": c.get("title", DEFAULT_TITLE),
-             "url": c.get("url", ""), "primed": bool(c.get("primed"))}
-            for c in chats]
+    out = []
+    for c in chats:
+        stale = bool(c.get("primed")) and bool(current_prompt_hash) \
+            and c.get("prompt_hash") != current_prompt_hash
+        out.append({"id": c.get("id"), "title": c.get("title", DEFAULT_TITLE),
+                    "url": c.get("url", ""), "primed": bool(c.get("primed")),
+                    "site_name": c.get("site_name", ""),
+                    "created": int(c.get("created", 0) or 0),
+                    "last_used": int(c.get("last_used", 0) or 0),
+                    "prompt_stale": stale})
+    return out
 
 
 def find_chat(base_dir, chat_id):
