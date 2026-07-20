@@ -209,7 +209,8 @@ def _exam(project_root, addon_dir=None):
             ok_exact += 1
             _log(u"Экзамен %d/%d: OK — точь-в-точь как учитель" % (idx + 1, total))
         else:
-            _log(u"Экзамен %d/%d: OK — по-своему, но линтер чист" % (idx + 1, total))
+            sim = difflib.SequenceMatcher(None, _norm_scene(fix), _norm_scene(e.get("fixed") or "")).ratio()
+            _log(u"Экзамен %d/%d: OK — по-своему, но линтер чист (похожесть на учителя %d%%)" % (idx + 1, total, int(round(sim * 100))))
     summary = u"чинит %d/%d, точно как учитель %d/%d" % (ok_lint, total, ok_exact, total)
     _state["exam"] = summary
     _log(u"Экзамен итог: %s." % summary)
