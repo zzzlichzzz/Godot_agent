@@ -34,6 +34,7 @@ EXAM_EVERY_BURSTS = 100
 EXAM_EXAMPLES = 3
 MARATHON_ATTEMPTS = 100
 MARATHON_EVERY_BURSTS = 500
+MARATHON_TIME_BUDGET_SEC = 100
 TRAIN_LOG = "train_log.json"
 MAX_LOG_LINES = 200
 
@@ -230,14 +231,22 @@ def _marathon(project_root, addon_dir=None):
     teacher = _norm_scene(e.get("fixed") or "")
     if not teacher:
         return
-    _log(u"Марафон: %d попыток починить последний пример (фон, работе не мешает)..." % MARATHON_ATTEMPTS)
+    _log(u"Марафон: %d попыток, ~1 попытка/сек, лимит %d сек — итог в конце..." % (MARATHON_ATTEMPTS, MARATHON_TIME_BUDGET_SEC))
     ok_count = 0
     first_ok = 0
     best_att = 0
     best_sim = -1.0
+    attempted = 0
+    deadline = _time.time() + MARATHON_TIME_BUDGET_SEC
     for i in range(1, MARATHON_ATTEMPTS + 1):
         if _stop.is_set():
+            _log(u"Марафон прерван — обучение выключено.")
             return
+        if _time.time() > deadline:
+            _log(u"Марафон: лимит времени %d сек — досрочный итог по %d попыткам." % (MARATHON_TIME_BUDGET_SEC, attempted))
+            break
+        attempted = i
+        t_att = _time.time()
         if i == 1:
             temp = 0.0
         else:
@@ -261,12 +270,20 @@ def _marathon(project_root, addon_dir=None):
                 if sim > best_sim:
                     best_sim = sim
                     best_att = i
-        _time.sleep(0.05)
+        _sp = 1.0 - (_time.time() - t_att)
+        if _sp > 0:
+            _time.sleep(_sp)
+        if i % 10 == 0:
+            prog = u"попытка %d/%d — удачных %d" % (i, MARATHON_ATTEMPTS, ok_count)
+            if best_att:
+                prog += u", лучшая — №%d (похожесть %d%%)" % (best_att, int(round(best_sim * 100)))
+            _state["marathon"] = u"марафон идёт: " + prog
+            _log(u"Марафон: " + prog)
     if best_att:
         points = int(round(100.0 / best_att))
-        summary = u"удачных %d/%d, лучшая — попытка №%d (похожесть на учителя %d%%), первая удачная — №%d, очки: %d" % (ok_count, MARATHON_ATTEMPTS, best_att, int(round(best_sim * 100)), first_ok, points)
+        summary = u"удачных %d/%d, лучшая — попытка №%d (похожесть на учителя %d%%), первая удачная — №%d, очки: %d" % (ok_count, attempted, best_att, int(round(best_sim * 100)), first_ok, points)
     else:
-        summary = u"удачных 0/%d — модели нужно ещё обучение, очки: 0" % MARATHON_ATTEMPTS
+        summary = u"удачных 0/%d — модели нужно ещё обучение, очки: 0" % attempted
     _state["marathon"] = summary
     _log(u"Марафон итог: %s" % summary)
 

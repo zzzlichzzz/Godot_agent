@@ -1692,14 +1692,16 @@ def minilich_set():
     if not root:
         print("[minilich] /set:", "проект не синхронизирован — отказываю (400)")
         return jsonify({"error": "Проект не синхронизирован."}), 400
-    enabled = bool(data.get("enabled"))
-    print("[minilich] /set: root=%s enabled=%s" % (root, enabled))
+    has_enabled = "enabled" in data
+    enabled = bool(data.get("enabled")) if has_enabled else bool(minilich.is_enabled(root))
+    print(u"[minilich] /set: root=%s enabled=%s%s" % (root, enabled, u"" if has_enabled else u" (галочка mini-lich не менялась)"))
     try:
-        minilich.set_enabled(root, enabled)
+        if has_enabled:
+            minilich.set_enabled(root, enabled)
         if "training_mode" in data:
             minilich.set_training_mode(root, bool(data.get("training_mode")))
             print("[minilich] /set: training_mode=%s" % bool(data.get("training_mode")))
-        if enabled:
+        if enabled and has_enabled:
             _started = minilich.start_training(root, STATE.get("addon_dir"))
             if _started:
                 print("[minilich] /set: start_training -> True (фоновый поток запущен)")
@@ -1709,7 +1711,7 @@ def minilich_set():
                     print("[minilich] /set: start_training -> False, РЕАЛЬНАЯ ОШИБКА запуска: %s" % _err)
                 else:
                     print("[minilich] /set: start_training -> False (уже работает с предыдущего раза — второй фон не нужен, это не ошибка)")
-        else:
+        elif has_enabled:
             minilich.stop_training()
         _st = minilich.status(root, STATE.get("addon_dir"))
         if _st.get("storage"):
