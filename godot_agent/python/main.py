@@ -1662,10 +1662,14 @@ def minilich_status():
     _apply_session_context(data)
     root = STATE.get("project_root")
     if not root:
+        print("[minilich] /status:", "проект не синхронизирован, отвечаю enabled=False")
         return jsonify({"enabled": False, "examples": 0, "train_step": 0, "last_loss": None, "training_active": False, "params": 0, "disk_bytes": 0})
     try:
-        return jsonify(minilich.status(root))
+        _st = minilich.status(root)
+        print("[minilich] /status: root=%s enabled=%s training_active=%s" % (root, _st.get("enabled"), _st.get("training_active")))
+        return jsonify(_st)
     except Exception as e:
+        print("[minilich] /status: ошибка:", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1675,16 +1679,25 @@ def minilich_set():
     _apply_session_context(data)
     root = STATE.get("project_root")
     if not root:
-        return jsonify({"error": "\u041f\u0440\u043e\u0435\u043a\u0442 \u043d\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d."}), 400
+        print("[minilich] /set:", "проект не синхронизирован — отказываю (400)")
+        return jsonify({"error": "Проект не синхронизирован."}), 400
     enabled = bool(data.get("enabled"))
+    print("[minilich] /set: root=%s enabled=%s" % (root, enabled))
     try:
         minilich.set_enabled(root, enabled)
         if enabled:
-            minilich.start_training(root, STATE.get("addon_dir"))
+            _started = minilich.start_training(root, STATE.get("addon_dir"))
+            if _started:
+                print("[minilich] /set: start_training -> True (фоновый поток запущен)")
+            else:
+                print("[minilich] /set: start_training -> False (уже работает с предыдущего раза — второй фон не нужен, это не ошибка)")
         else:
             minilich.stop_training()
-        return jsonify(minilich.status(root))
+        _st = minilich.status(root)
+        print("[minilich] /set: сохранено, enabled=%s training_active=%s (перечитано с диска)" % (_st.get("enabled"), _st.get("training_active")))
+        return jsonify(_st)
     except Exception as e:
+        print("[minilich] /set: ошибка:", e)
         return jsonify({"error": str(e)}), 500
 
 

@@ -115,16 +115,12 @@ var _suppress_chat_select: bool = false
 # v57: экспериментальные настройки (mini-lich) — кнопка ⛙ в панели чатов.
 var _bar_btn_settings: Button = null
 var _settings_dialog: AcceptDialog = null
-var _settings_tabs: TabContainer = null
 var _settings_exp_header: Label = null
 var _minilich_check: CheckBox = null
 var _minilich_status_label: Label = null
+var _minilich_set_pending: bool = false  # true пока ответ на minilich_set не пришёл — не даём устаревшему minilich_status затирать галочку
 # v58: кнопка «Обучение модели» + живая консоль прогресса обучения.
 var _minilich_train_btn: Button = null
-var _train_console: AcceptDialog = null
-var _train_console_text: RichTextLabel = null
-var _train_console_timer: Timer = null
-var _train_console_seen_lines: int = 0
 
 
 func _locale():
@@ -234,6 +230,13 @@ func _ready() -> void:
 	if $VBoxContainer.has_node("ChatsBar"):
 		var bar_old: HBoxContainer = $VBoxContainer/ChatsBar
 		_chat_select = bar_old.get_child(0)
+		# v63: bez etogo dlinnoe nazvanie chata rastyagivaet svoyo minimalnoe
+		# shirinu po vsey svoey dline, i kogda panel uzhe tsentra ekrana (dok v bok),
+		# knopki sprava vytesnyayutsya za granitsu. Obrezaem tekst ellipsisom i dayom
+		# emu neboljshoy garantirovanniy minimum vmesto estestvennoy shiriny teksta.
+		if _chat_select is OptionButton:
+			_chat_select.clip_text = true
+			_chat_select.custom_minimum_size.x = 40.0
 		if not _chat_select.item_selected.is_connected(_on_chat_selected):
 			_chat_select.item_selected.connect(_on_chat_selected)
 		if bar_old.get_child_count() >= 5:
@@ -257,6 +260,10 @@ func _ready() -> void:
 		bar.name = "ChatsBar"
 		_chat_select = OptionButton.new()
 		_chat_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# v63: obrezaem dlinnye nazvaniya chata ellipsisom, chtoby knopki
+		# spravsa za krayem paneli pri uzkoy panele ne vytesnyalisj.
+		_chat_select.clip_text = true
+		_chat_select.custom_minimum_size.x = 40.0
 		_chat_select.item_selected.connect(_on_chat_selected)
 		bar.add_child(_chat_select)
 		_bar_btn_new = Button.new()
@@ -301,6 +308,8 @@ func _ready() -> void:
 			_start_screen.language_changed.connect(_on_language_changed)
 		if _start_screen.has_signal("open_server_requested"):
 			_start_screen.open_server_requested.connect(_on_open_server_folder_pressed)
+		if _start_screen.has_signal("settings_requested"):
+			_start_screen.settings_requested.connect(_on_settings_pressed)
 	_show_start_ui()
 	call_deferred("_request_chats", "sites", {}, false)
 	call_deferred("_on_language_changed")
@@ -1346,7 +1355,7 @@ func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = tru
 
 func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> void:
 	if kind == "minilich_status" or kind == "minilich_set":
-		_on_minilich_payload(json)
+		_on_minilich_payload(kind, json)
 		return
 	if kind == "status":
 		_on_browser_status(json)
@@ -1751,10 +1760,15 @@ func _after_ghost_close() -> void:
 func _on_settings_pressed() -> void:
 	if _settings_dialog == null:
 		_settings_dialog = AcceptDialog.new()
-		_settings_tabs = TabContainer.new()
+		# v60: без TabContainer — с одной вкладкой он давал два одинаковых
+		# заголовка (таб + внутренняя надпись) и лишнюю стрелку вкладок сверху.
+		# Простой список: заголовок + подпись «ниже — экспериментальные настройки» + сами настройки.
 		var box := VBoxContainer.new()
 		_settings_exp_header = Label.new()
+		_settings_exp_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_settings_exp_header.custom_minimum_size = Vector2(360, 0)
 		box.add_child(_settings_exp_header)
+		box.add_child(HSeparator.new())
 		_minilich_check = CheckBox.new()
 		_minilich_check.button_pressed = false
 		_minilich_check.toggled.connect(_on_minilich_toggled)
@@ -1766,12 +1780,10 @@ func _on_settings_pressed() -> void:
 		_minilich_train_btn = Button.new()
 		_minilich_train_btn.pressed.connect(_on_train_model_pressed)
 		box.add_child(_minilich_train_btn)
-		_settings_tabs.add_child(box)
-		_settings_dialog.add_child(_settings_tabs)
+		_settings_dialog.add_child(box)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
-	_settings_tabs.set_tab_title(0, _t("experimental_hdr"))
-	_settings_exp_header.text = _t("experimental_hdr")
+	_settings_exp_header.text = _t("experimental_hdr") + ":"
 	_minilich_check.text = _t("minilich_toggle")
 	_minilich_train_btn.text = _t("train_model_btn")
 	_minilich_status_label.text = _t("minilich_loading")
@@ -1782,74 +1794,52 @@ func _on_settings_pressed() -> void:
 
 
 func _on_train_model_pressed() -> void:
-	if _train_console == null:
-		_train_console = AcceptDialog.new()
-		_train_console.min_size = Vector2(480, 320)
-		_train_console.close_requested.connect(_on_train_console_closed)
-		var vb := VBoxContainer.new()
-		_train_console_text = RichTextLabel.new()
-		_train_console_text.custom_minimum_size = Vector2(460, 280)
-		_train_console_text.scroll_following = true
-		_train_console_text.bbcode_enabled = false
-		vb.add_child(_train_console_text)
-		_train_console.add_child(vb)
-		add_child(_train_console)
-		_train_console_timer = Timer.new()
-		_train_console_timer.wait_time = 2.0
-		_train_console_timer.timeout.connect(_on_train_console_poll)
-		add_child(_train_console_timer)
-	_train_console.title = _t("train_console_title")
-	_train_console_text.text = ""
-	_train_console_seen_lines = 0
-	_train_console.popup_centered()
-	_on_train_console_poll()
-	_train_console_timer.start()
-
-
-func _on_train_console_closed() -> void:
-	if _train_console_timer:
-		_train_console_timer.stop()
-
-
-func _on_train_console_poll() -> void:
-	_request_chats("minilich_status", {}, false)
-
-
-func _update_train_console(json: Dictionary) -> void:
-	if _train_console == null or not _train_console.visible or _train_console_text == null:
+	# v61: без отдельного окна-консоли — она конфликтовала с окном настроек
+	# (оба — эксклюзивные AcceptDialog в одной вкладке редактора — Godot ронял ошибкой),
+	# а её вопросик-таймер раз в 2 секунды ставил в одну очередь с остальными
+	# запросами (например, загрузкой списка чатов) и вёл себя, даже после
+	# закрытия окна, замедляя всё остальное. Сейчас каждая строка обучения
+	# печатается живьём в консоль server.exe самим сервером (ml_train.py: _log).
+	# v62: раньше кнопка только спрашивала текущий статус (minilich_status), и если
+	# обучение было не активно, полезный ответ сервера («обучение: нет») тут же
+	# затирал более понятную подсказку «выключено, поставьте галочку», создавая
+	# видимость мигания между двумя текстами без понятной причины. Сейчас если
+	# галочка включена — кнопка активно пытается включить/перезапустить обучение (minilich_set), а не только
+	# спрашивать его; если оно уже идёт — сервер просто ничего не делает повторно.
+	if not (_minilich_check and _minilich_check.button_pressed):
+		if _minilich_status_label:
+			_minilich_status_label.text = _t("train_console_disabled")
 		return
-	var lines: Array = json.get("lines", [])
-	if not bool(json.get("enabled", false)) and lines.is_empty():
-		_train_console_text.text = _t("train_console_disabled")
-		_train_console_seen_lines = 0
-		return
-	if lines.size() < _train_console_seen_lines:
-		_train_console_text.text = ""
-		_train_console_seen_lines = 0
-	if lines.size() <= _train_console_seen_lines:
-		return
-	for i in range(_train_console_seen_lines, lines.size()):
-		_train_console_text.text += str(lines[i]) + "\n"
-	_train_console_seen_lines = lines.size()
+	if _minilich_status_label:
+		_minilich_status_label.text = _t("minilich_loading")
+	_minilich_set_pending = true
+	_request_chats("minilich_set", {"enabled": true})
 
 
 func _on_minilich_toggled(pressed: bool) -> void:
 	if _minilich_status_label:
 		_minilich_status_label.text = _t("minilich_loading")
+	# Ставим флаг до ответа сервера — иначе устаревший minilich_status, ожидавший ответа в очереди, сбрасывает галочку обратно.
+	_minilich_set_pending = true
 	# Здесь автозапуск разрешён: пользователь явно меняет настройку.
 	_request_chats("minilich_set", {"enabled": pressed})
 
 
-func _on_minilich_payload(json: Dictionary) -> void:
+func _on_minilich_payload(kind: String, json: Dictionary) -> void:
+	if kind == "minilich_set":
+		_minilich_set_pending = false
 	if json.has("error"):
 		if _minilich_status_label:
 			_minilich_status_label.text = str(json.get("error", ""))
 		return
-	if _minilich_check:
+	# Статус-запрос мог уйти до ответа на ещё не завершённый minilich_set — не трогаем галочку его устаревшим значением.
+	if _minilich_check and not (kind == "minilich_status" and _minilich_set_pending):
 		_minilich_check.set_pressed_no_signal(bool(json.get("enabled", false)))
 	if _minilich_status_label:
-		_minilich_status_label.text = _minilich_status_text(json)
-	_update_train_console(json)
+		if not bool(json.get("enabled", false)):
+			_minilich_status_label.text = _t("train_console_disabled")
+		else:
+			_minilich_status_label.text = _minilich_status_text(json)
 
 
 func _minilich_status_text(json: Dictionary) -> String:
