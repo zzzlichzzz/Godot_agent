@@ -11,6 +11,7 @@ import chat_store
 import sites
 import server_state as S
 import history_manager as history
+from agent_prompts import PROMPT_HASH
 
 chats_bp = Blueprint("chats", __name__)
 
@@ -121,7 +122,7 @@ def chats_list():
     base = S._chats_dir()
     if not base:
         return jsonify({"chats": [], "current_id": None})
-    return jsonify({"chats": chat_store.list_chats(base),
+    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
                     "current_id": S.STATE.get("current_chat_id")})
 
 
@@ -161,8 +162,11 @@ def chats_new():
     S.STATE["pending_action"] = None
     S.STATE["pending_batch"] = None
     S.STATE["stale_note"] = ""  # новый чат праймится свежим деревом — сводка не нужна
+    # v48: первое сообщение нового чата — системное напоминание выбрать модель.
+    chat_store.append_transcript(base, rec["id"], "system",
+        "Не забудьте выбрать нейросеть (модель) на странице в браузере, прежде чем отправлять первое сообщение.")
     print("--> Новый чат:", rec["id"], "на сайте", site["name"] if site else "?")
-    return jsonify({"chats": chat_store.list_chats(base), "current_id": rec["id"],
+    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": rec["id"],
                     "title": rec["title"], "site": site["name"] if site else ""})
 
 
@@ -212,7 +216,7 @@ def chats_open():
         except Exception:
             pass
     print("--> Открыт чат:", rec.get("title"), cid)
-    return jsonify({"chats": chat_store.list_chats(base), "current_id": cid,
+    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": cid,
                     "title": rec.get("title"),
                     "site": rec.get("site_name", ""),
                     "warning": page_note,
@@ -229,7 +233,7 @@ def chats_rename():
     if not base or not cid or not title:
         return jsonify({"error": "Нужны id и title."}), 400
     chat_store.update_chat(base, cid, title=title, manual_title=True)
-    return jsonify({"chats": chat_store.list_chats(base),
+    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
                     "current_id": S.STATE.get("current_chat_id")})
 
 
@@ -245,7 +249,8 @@ def chats_delete():
     if not base or not cid:
         return jsonify({"error": "Нужен id."}), 400
     chat_store.delete_chat(base, cid)
+    S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
     if S.STATE.get("current_chat_id") == cid:
         S.STATE["current_chat_id"] = None
-    return jsonify({"chats": chat_store.list_chats(base),
+    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
                     "current_id": S.STATE.get("current_chat_id")})
