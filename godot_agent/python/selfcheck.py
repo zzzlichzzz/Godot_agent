@@ -58,7 +58,7 @@ def reset_state(root):
     srv.STATE["pending_action"] = None
     srv.STATE["pending_batch"] = None
     srv.STATE["pending_plan"] = None
-    srv.STATE["action_note"] = ""
+    srv.STATE["action_notes"] = {}
     srv.STATE["current_chat_id"] = None
     srv.STATE["addon_dir"] = None
 
@@ -264,6 +264,119 @@ finally:
 
 
 # ===========================================================================
+# 1в) v44: точечное восстановление шагов плана при частично битом JSON
+# ===========================================================================
+print("\n--- 1в) v44: точечное восстановление шагов плана ---")
+
+import parser_base
+
+good_step1_raw = '{"action": "create_file", "path": "res://player.gd", "content": "extends CharacterBody2D\\nfunc _ready():\\n\\tpass\\n"}'
+good_step2_raw = '{"action": "create_file", "path": "res://enemy.gd", "content": "extends CharacterBody2D\\nfunc _ready():\\n\\tpass\\n"}'
+fixable_tscn_step_raw = (
+    '{"action": "create_file", "path": "res://Player.tscn", "content": '
+    '"[node name=\\"Player\\" type=\\"Node2D\\"]\\nid=\\"1_player\\"\\nid="2_icon"\\n[/node]"}'
+)
+truly_broken_step_raw = '{"action": "create_file", "path": "res://Broken.tscn", "content": "bad escape: \\qhere"}'
+plan_raw_v44 = (
+    '{"action": "plan", "description": "v44 selfcheck plan", "steps": ['
+    + good_step1_raw + ', ' + good_step2_raw + ', ' + fixable_tscn_step_raw + ', ' + truly_broken_step_raw
+    + ']}'
+)
+
+step_obj, step_err = parser_base.parse_action_json(fixable_tscn_step_raw)
+check("несогласованные кавычки внутри одного шага чинятся автоматически",
+      isinstance(step_obj, dict) and step_obj.get("path") == "res://Player.tscn", (step_obj, step_err))
+
+repaired = parser_base._repair_unescaped_inner_quotes(fixable_tscn_step_raw)
+try:
+    import json as _json_v44
+    _json_v44.loads(repaired)
+    repaired_ok = True
+except Exception:
+    repaired_ok = False
+check("_repair_unescaped_inner_quotes сама даёт валидный JSON", repaired_ok, repaired)
+
+lenient = parser_base.parse_plan_lenient(plan_raw_v44)
+check("parse_plan_lenient распознаёт план, несмотря на 1 битый шаг из 4",
+      lenient is not None and len(lenient["good_steps"]) == 3 and len(lenient["bad_steps"]) == 1, lenient)
+if lenient:
+    check("единственный битый шаг — это res://Broken.tscn с индексом 3",
+          lenient["bad_steps"][0]["index"] == 3, lenient["bad_steps"])
+    good_paths_v44 = [s["step"].get("path") for s in lenient["good_steps"]]
+    check("все 3 распознанных шага — правильные пути (в т.ч. починенный .tscn)",
+          good_paths_v44 == ["res://player.gd", "res://enemy.gd", "res://Player.tscn"], good_paths_v44)
+
+    guessed_path = srv._guess_step_path(lenient["bad_steps"][0]["raw"])
+    check("_guess_step_path угадывает путь битого шага из сырого текста",
+          guessed_path == "res://Broken.tscn", guessed_path)
+
+# --- интеграционный тест: полное точечное восстановление (модель присылает верный шаг) ---
+root = fresh_project()
+try:
+    reset_state(root)
+    calls_full = {"n": 0, "prompts": []}
+
+    def _fake_reply_full_recovery(prompt):
+        calls_full["n"] += 1
+        calls_full["prompts"].append(prompt)
+        if calls_full["n"] == 1:
+            return ("[Модель]: вот план", {"action": "parse_error", "raw": plan_raw_v44, "error": "test: битые кавычки"})
+        return ("", {"action": "create_file", "path": "res://Broken.tscn", "content": "extends Node\n"})
+
+    _orig_reply_full = srv._reply
+    srv._reply = _fake_reply_full_recovery
+    text_full, action_full = srv._reply_with_self_heal("пришли план платформера", root)
+    srv._reply = _orig_reply_full
+
+    check("полное точечное восстановление: итоговое действие — план из всех 4 шагов",
+          action_full.get("action") == "plan" and action_full.get("total") == 4, action_full)
+    if action_full.get("action") == "plan":
+        paths_full = [s.get("path") for s in action_full.get("steps", [])]
+        check("полное восстановление: порядок и пути всех 4 шагов сохранены",
+              paths_full == ["res://player.gd", "res://enemy.gd", "res://Player.tscn", "res://Broken.tscn"], paths_full)
+    check("полное восстановление: потрачена ровно 1 точечная попытка (2 обращения к модели всего)",
+          calls_full["n"] == 2, calls_full["n"])
+    check("точечный fix-prompt называет номер и путь именно битого шага",
+          "№4" in calls_full["prompts"][1] and "res://Broken.tscn" in calls_full["prompts"][1], calls_full["prompts"][1])
+    check("точечный fix-prompt называет уже принятые шаги, чтобы модель не прислала их повторно",
+          "res://player.gd" in calls_full["prompts"][1] and "res://Player.tscn" in calls_full["prompts"][1], calls_full["prompts"][1])
+    check("при полном восстановлении в тексте нет предупреждения об отброшенных шагах",
+          "Восстановлено частично" not in (text_full or ""), text_full)
+finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+# --- интеграционный тест: частичное восстановление (модель не смогла починить шаг) ---
+root = fresh_project()
+try:
+    reset_state(root)
+    calls_partial = {"n": 0}
+
+    def _fake_reply_partial_recovery(prompt):
+        calls_partial["n"] += 1
+        if calls_partial["n"] == 1:
+            return ("[Модель]: вот план", {"action": "parse_error", "raw": plan_raw_v44, "error": "test: битые кавычки"})
+        return ("[Модель]: не могу починить", {"action": "parse_error", "raw": "снова битый JSON", "error": "test: всё ещё сломано"})
+
+    _orig_reply_partial = srv._reply
+    srv._reply = _fake_reply_partial_recovery
+    text_partial, action_partial = srv._reply_with_self_heal("пришли план платформера", root)
+    srv._reply = _orig_reply_partial
+
+    check("частичное восстановление: итоговое действие — план из 3 распознанных шагов",
+          action_partial.get("action") == "plan" and action_partial.get("total") == 3, action_partial)
+    if action_partial.get("action") == "plan":
+        paths_partial = [s.get("path") for s in action_partial.get("steps", [])]
+        check("частичное восстановление: отброшен только res://Broken.tscn",
+              paths_partial == ["res://player.gd", "res://enemy.gd", "res://Player.tscn"], paths_partial)
+    check("частичное восстановление: потрачена ровно 1 точечная попытка (2 обращения к модели всего)",
+          calls_partial["n"] == 2, calls_partial["n"])
+    check("частичное восстановление: пользователь предупреждён об отброшенном шаге",
+          "Восстановлено частично" in (text_partial or "") and "res://Broken.tscn" in (text_partial or ""), text_partial)
+finally:
+    shutil.rmtree(root, ignore_errors=True)
+
+
+# ===========================================================================
 # 2) защиты: знает ли агент реальный API Godot и правильно ли читает сцены
 # ===========================================================================
 print("\n--- 2) защиты API/сцен ---")
@@ -315,12 +428,15 @@ try:
     fixed_hdr, malformed_problems = tscn_lint.lint_and_fix_tscn(malformed_header_scene)
     check("«>» вместо «]» в заголовке секции чинится ЛОКАЛЬНО, без обращения к модели",
           'id="Shape1"]' in fixed_hdr and malformed_problems == [], (malformed_problems, fixed_hdr[:130]))
+    # v46: незакрытый заголовок со СБАЛАНСИРОВАННЫМИ кавычками теперь тоже
+    # чинится ЛОКАЛЬНО (дозакрываем «]» сами), а не уходит модели.
     unfixable_scene = ('[gd_scene load_steps=2 format=3]\n\n'
                         '[sub_resource type="RectangleShape2D" id="Shape1"\nsize = Vector2(1,1)\n\n'
                         '[node name="Root" type="Node2D"]\n')
-    _, unfixable_problems = tscn_lint.lint_and_fix_tscn(unfixable_scene)
-    check("незакрытый заголовок секции без «>» по-прежнему ловится",
-          any("не закрыт" in p for p in unfixable_problems), unfixable_problems)
+    fixed_bal, unfixable_problems = tscn_lint.lint_and_fix_tscn(unfixable_scene)
+    check("v46: незакрытый заголовок без «>» со сбалансированными кавычками теперь чинится сам",
+          'id="Shape1"]' in fixed_bal and unfixable_problems == [],
+          (unfixable_problems, fixed_bal[:130]))
 
     create_project_file(root, "res://demo.tscn", good_scene)
     desc = describe_scene(root, "res://demo.tscn")
@@ -362,6 +478,47 @@ try:
     fixed_nodeorder, _ = tscn_lint.lint_and_fix_tscn(node_order_scene)
     check("перестановка ресурсов НЕ трогает порядок самих узлов",
           fixed_nodeorder.find(chr(34)+"First"+chr(34)) < fixed_nodeorder.find(chr(34)+"Second"+chr(34)), fixed_nodeorder)
+
+    # --- v45: узел с parent="Level" объявлен в файле раньше самого узла "Level" —
+    # чисто порядоковая ошибка, должна переставляться без участия модели.
+    node_parent_later_scene = ('[gd_scene load_steps=1 format=3]\n\n'
+                                '[node name="Root" type="Node2D"]\n'
+                                '[node name="Enemy" type="Node2D" parent="Level"]\n'
+                                '[node name="Level" type="Node2D" parent="."]\n')
+    fixed_po, problems_po = tscn_lint.lint_and_fix_tscn(node_parent_later_scene)
+    check("v45: узел с parent, объявленным позже в файле, автоматически переставляется",
+          fixed_po.find(chr(34)+"Level"+chr(34)) < fixed_po.find(chr(34)+"Enemy"+chr(34)), fixed_po)
+    check("v45: после перестан����������вки ложная жалоба на ненайденный parent исчезает",
+          not any("не найден" in p for p in problems_po), problems_po)
+
+    node_parent_missing_scene = ('[gd_scene load_steps=1 format=3]\n\n'
+                                  '[node name="Root" type="Node2D"]\n'
+                                  '[node name="Enemy" type="Node2D" parent="NoSuchNode"]\n')
+    _, problems_missing = tscn_lint.lint_and_fix_tscn(node_parent_missing_scene)
+    check("v45: действительно отсутствующий parent по-прежнему ловится (не путан с порядковыми ошибками)",
+          any("NoSuchNode" in p for p in problems_missing), problems_missing)
+
+    # --- v45: единственная битая ссылка на единственный объявленный ext_resource —
+    # цель однозначна, чинится автоматически.
+    single_ext_bad_ref_scene = ('[gd_scene load_steps=2 format=3]\n\n'
+                                 '[ext_resource type="Script" path="res://player.gd" id="1"]\n\n'
+                                 '[node name="Root" type="Node2D"]\nscript = ExtResource("PlayerScript")\n')
+    fixed_single_ext, problems_single_ext = tscn_lint.lint_and_fix_tscn(single_ext_bad_ref_scene)
+    check("v45: битая ссылка на единственный ext_resource переписывается на верный id",
+          'ExtResource("1")' in fixed_single_ext and "PlayerScript" not in fixed_single_ext, fixed_single_ext)
+    check("v45: после автофикса ссылки проблем не остаётся",
+          not any("ExtResource" in p for p in problems_single_ext), problems_single_ext)
+
+    # --- v45: два+ кандидата — цель неоднозначна, автофикс НЕ срабатывает, остаётся модели.
+    multi_ext_bad_ref_scene = ('[gd_scene load_steps=3 format=3]\n\n'
+                                '[ext_resource type="Script" path="res://a.gd" id="1"]\n'
+                                '[ext_resource type="Script" path="res://b.gd" id="2"]\n\n'
+                                '[node name="Root" type="Node2D"]\nscript = ExtResource("bad_id")\n')
+    fixed_multi_ext, problems_multi_ext = tscn_lint.lint_and_fix_tscn(multi_ext_bad_ref_scene)
+    check("v45: при 2+ кандидатах битая ссылка НЕ автоисправляется вслепую",
+          'ExtResource("bad_id")' in fixed_multi_ext, fixed_multi_ext)
+    check("v45: неоднозначная битая ссылка всё равно возвращается модели",
+          any("bad_id" in p for p in problems_multi_ext), problems_multi_ext)
 
 finally:
     shutil.rmtree(root, ignore_errors=True)
@@ -617,7 +774,7 @@ check("сайт DeepSeek зарегистрирован",
       (_sites.get_site("deepseek") or {}).get("parser") == "deepseek_parser"
       and (_sites.detect_site("https://chat.deepseek.com/a/chat/s/abc") or {}).get("id") == "deepseek"
       and (_sites.detect_site("https://aistudio.google.com/prompts/new_chat") or {}).get("id") == "aistudio")
-check("выбо�� парсера по сайту ��а������отает",
+check("выбо�� парсера по сайту ��а——отает",
       _sites.get_parser_module("deepseek").__name__ == "deepseek_parser"
       and _sites.get_parser_module("aistudio").__name__ == "ai_parser"
       and _sites.get_parser_module(None, "https://chat.deepseek.com/").__name__ == "deepseek_parser"
@@ -866,6 +1023,379 @@ check("стартовый экран: show_loading() перестраивает 
       and _ss41.split("func show_loading(text: String) -> void:", 1)[1].split("func ", 1)[0].count("_apply_server_visibility()") >= 1)
 check("стартовый экран: ребилд UI (смена языка) обнуляет ссылки на копии из loading-view",
       "_loading_server_btn = null" in _ss41 and "_loading_server_hint = null" in _ss41)
+
+# v45(2): системная заметка (откат/отказ/завершение шага плана) теперь привязана
+# к chat_id того чата, где произошло действие, а не к общему серве��ному состоянию —
+# иначе новый/чужой чат мог получить чужой откат первым же своим сообщением.
+print("\n--- 8) v45: заметка об откате/действии привязана к своему чату ---")
+
+reset_state(root)
+srv.STATE["current_chat_id"] = "chat-A"
+server_state.queue_action_note("[Система: заметка чата A]")
+check("queue_action_note: заметка сохранена под chat-A",
+      server_state.STATE.get("action_notes", {}).get("chat-A") == "[Система: заметка чата A]")
+
+srv.STATE["current_chat_id"] = "chat-B"
+_note_for_b = server_state.pop_action_note_for_current()
+check("pop_action_note_for_current: НОВЫЙ/чужой чат B не получает заметку чата A",
+      _note_for_b == "")
+check("заметка чата A всё ещё лежит в словаре (не потеряна, не отдана чужому чату)",
+      server_state.STATE.get("action_notes", {}).get("chat-A") == "[Система: заметка чата A]")
+
+srv.STATE["current_chat_id"] = "chat-A"
+_note_for_a = server_state.pop_action_note_for_current()
+check("pop_action_note_for_current: свой чат A получает свою же заметку",
+      _note_for_a == "[Система: заметка чата A]")
+check("после выдачи заметка чата A убрана из словаря (не отдаётся повторно)",
+      "chat-A" not in server_state.STATE.get("action_notes", {}))
+
+# без текущего чата (например, самый первый /init до открытия чата) заметка не сохраняется,
+# чтобы не привязаться к пустому/несуществующему ключу.
+srv.STATE["current_chat_id"] = None
+server_state.queue_action_note("[Система: заметка без чата]")
+check("queue_action_note: без текущего chat_id заметка тихо отбрасывается",
+      server_state.STATE.get("action_notes", {}) == {})
+
+# удаление чата должно чистить его отложенную заметку (чтобы словарь не рос бесконечно).
+srv.STATE["current_chat_id"] = "chat-C"
+server_state.queue_action_note("[Система: заметка чата C]")
+server_state.discard_action_note_for_chat("chat-C")
+check("discard_action_note_for_chat: заметка удалённого чата убрана из словаря",
+      "chat-C" not in server_state.STATE.get("action_notes", {}))
+
+# main.py больше не должен использовать старый общий STATE["action_note"] ни в одном месте.
+_m45b = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+check("main.py: нет ни одного использования старого общего action_note",
+      "action_note\"]" not in _m45b and "'action_note']" not in _m45b)
+check("main.py: все места установки заметки используют server_state.queue_action_note",
+      _m45b.count("server_state.queue_action_note(") == 11)
+check("main.py: оба места выдачи заметки используют server_state.pop_action_note_for_current",
+      _m45b.count("server_state.pop_action_note_for_current()") == 2)
+
+reset_state(root)
+
+# --- 9) v46: автозакрытие «]» в заголовках, «файл НЕ изменён» и автоперечитывание сцен ---
+print("\n--- 9) v46: автозакрытие заголовков сцены, честное «файл НЕ изменён», автоперечитывание ---")
+import tscn_lint as _tl46
+
+# заголовок без «]», но со сбалансированными кавычками (типичный обрыв/забытая
+# скобка, как в реальном баге с main.tscn на строке 232) — дозакрываем сами.
+_scene_unclosed = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[sub_resource type="BoxMesh" id="m1"]\n\n'
+    '[node name="Main" type="Node3D"]\n\n'
+    '[node name="Child" type="MeshInstance3D" parent="."\n'
+    'mesh = SubResource("m1")\n'
+)
+_fx46, _pr46 = _tl46.lint_and_fix_tscn(_scene_unclosed)
+check("tscn: незакрытый заголовок со сбалансированными кавычками дозакрывается сам",
+      '[node name="Child" type="MeshInstance3D" parent="."]' in _fx46)
+check("tscn: после автозакрытия заголовка проблем не остаётся",
+      _pr46 == [])
+# повторный прогон уже починенного текста ничего не меняет (идемпотентность).
+_fx46b, _pr46b = _tl46.lint_and_fix_tscn(_fx46)
+check("tscn: автозакрытие заголовка идемпотентно",
+      _fx46b == _fx46 and _pr46b == [])
+# обрыв ПОСЕРЕДИНЕ строкового значения (нечётные кавычки) — чинить вслепую нельзя,
+# проблема по-прежнему уходит модели.
+_scene_torn = (
+    '[gd_scene format=3]\n\n'
+    '[node name="Main" type="Node3D"]\n\n'
+    '[node name="Chi\n'
+)
+_fx46c, _pr46c = _tl46.lint_and_fix_tscn(_scene_torn)
+check("tscn: обрыв посередине строки (нечётные кавычки) не чинится вслепую, а уходит модели",
+      any("не закрыт" in p for p in _pr46c))
+
+# main.py: после исчерпания самоисцеления битое write-действие ОТБРАСЫВАЕТСЯ
+# с явным «файл НЕ был изменён» и заметкой для модели (а не уходит в pending_action).
+_m46 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+check("main.py: битое действие после исчерпания попыток отбрасывается с «файл НЕ был изменён»",
+      "ОТБРОШЕНО: файл НЕ был изменён" in _m46)
+check("main.py: модель получает заметку «не считай правки применёнными»",
+      "Не считай эти правки" in _m46)
+check("main.py: подсказка смягчена — новые sub_resource/ext_resource объявлять МОЖНО",
+      "sub_resource]/[ext_resource" in _m46)
+
+# agent_panel.gd: автоперечитывание изменённых сцен и авто-включение автоперезагрузки скриптов.
+_panel46 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+check("панель: есть автоперечитывание изменённых сцен (reload_scene_from_path)",
+      "func _auto_reload_changed_scene" in _panel46 and "reload_scene_from_path" in _panel46)
+check("панель: автоперечитывание вызывается для подтверждений, шагов плана и откатов",
+      _panel46.count("_auto_reload_changed_scene(") >= 5)
+check("панель: автоперезагрузка скриптов включается в настройках редактора автоматически",
+      "auto_reload_scripts_on_external_change" in _panel46 and "_ensure_script_autoreload_setting()" in _panel46)
+
+reset_state(root)
+
+# --- 10) v47: анализ зависимостей «скрипт <-> сцена» ([connection]) ---
+print("\n--- 10) v47: анализ зависимостей: авто-[connection] без ложных срабатываний ---")
+import scene_deps as _sd47
+
+check("to_snake: Camera3D -> camera_3d (как в редакторе Godot)",
+      _sd47.to_snake("Camera3D") == "camera_3d", _sd47.to_snake("Camera3D"))
+check("to_snake: Wall_North -> wall_north, AnimationPlayer -> animation_player",
+      _sd47.to_snake("Wall_North") == "wall_north"
+      and _sd47.to_snake("AnimationPlayer") == "animation_player")
+
+# сцена: корень со скриптом, внутри Area3D «DangerZone». В скрипте есть
+# обработчик по шаблону редактора — должно ОДНОЗНАЧНО добавиться [connection].
+create_project_file(root, "res://deps_main.gd",
+    "extends Node3D\n\nfunc _on_danger_zone_body_entered(body):\n\tpass\n")
+_deps_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_main.gd" id="1_s"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_s")\n\n'
+    '[node name="DangerZone" type="Area3D" parent="."]\n'
+)
+_dtext, _dadded, _dnotes = _sd47.analyze_scene_action(_deps_scene, "res://deps_main.tscn", root)
+check("deps: однозначный обработчик получает авто-[connection] (body_entered от DangerZone)",
+      '[connection signal="body_entered" from="DangerZone" to="." method="_on_danger_zone_body_entered"]' in _dtext
+      and len(_dadded) == 1, (_dadded, _dnotes))
+_dtext2, _dadded2, _dnotes2 = _sd47.analyze_scene_action(_dtext, "res://deps_main.tscn", root)
+check("deps: повторный анализ обогащённой сцены ничего не добавляет (идемпотентность)",
+      _dadded2 == [] and _dtext2 == _dtext, _dadded2)
+
+# сигнал от СЕБЯ: скрипт на самом Area3D с func _on_body_entered.
+create_project_file(root, "res://deps_zone.gd",
+    "extends Area3D\n\nfunc _on_body_entered(body):\n\tpass\n")
+_zone_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_zone.gd" id="1_z"]\n\n'
+    '[node name="Zone" type="Area3D"]\n'
+    'script = ExtResource("1_z")\n'
+)
+_ztext, _zadded, _znotes = _sd47.analyze_scene_action(_zone_scene, "res://deps_zone.tscn", root)
+check("deps: сигнал от самого узла (_on_body_entered на Area3D) подключается как . -> .",
+      '[connection signal="body_entered" from="." to="." method="_on_body_entered"]' in _ztext,
+      (_zadded, _znotes))
+
+# обработчик уже подключается в КОДЕ — никаких автодобавлений (защита от дубля).
+create_project_file(root, "res://deps_code.gd",
+    "extends Node3D\n\nfunc _ready():\n\t$KillTimer.timeout.connect(_on_kill_timer_timeout)\n\n"
+    "func _on_kill_timer_timeout():\n\tpass\n")
+_code_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_code.gd" id="1_c"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_c")\n\n'
+    '[node name="KillTimer" type="Timer" parent="."]\n'
+)
+_ctext, _cadded, _cnotes = _sd47.analyze_scene_action(_code_scene, "res://deps_code.tscn", root)
+check("deps: обработчик, подключаемый в коде через connect(), НЕ трогается",
+      _cadded == [] and _ctext == _code_scene, (_cadded, _cnotes))
+
+# уже есть [connection] в сцене — не дублируем.
+_conn_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_main.gd" id="1_s"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_s")\n\n'
+    '[node name="DangerZone" type="Area3D" parent="."]\n\n'
+    '[connection signal="body_entered" from="DangerZone" to="." method="_on_danger_zone_body_entered"]\n'
+)
+_ktext, _kadded, _knotes = _sd47.analyze_scene_action(_conn_scene, "res://deps_conn.tscn", root)
+check("deps: уже подключённый в сцене обработчик не дублируется",
+      _kadded == [] and _ktext == _conn_scene, _kadded)
+
+# два подходящих узла с одинаковым именем в разных ветках — НЕОДНОЗНАЧНО:
+# ничего не добавляем, только заметка.
+_amb_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_main.gd" id="1_s"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_s")\n\n'
+    '[node name="Sub" type="Node3D" parent="."]\n\n'
+    '[node name="DangerZone" type="Area3D" parent="."]\n\n'
+    '[node name="DangerZone" type="Area3D" parent="Sub"]\n'
+)
+_atext, _aadded, _anotes = _sd47.analyze_scene_action(_amb_scene, "res://deps_amb.tscn", root)
+check("deps: неоднозначный источник (два DangerZone) — без автодобавления, с заметкой",
+      _aadded == [] and _atext == _amb_scene and len(_anotes) == 1, (_aadded, _anotes))
+
+# незнакомое имя обработчика (не по шаблону, не пользовательский сигнал) — МОЛЧИМ.
+create_project_file(root, "res://deps_quiet.gd",
+    "extends Node3D\n\nfunc _on_start_game():\n\tpass\n")
+_q_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_quiet.gd" id="1_q"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_q")\n'
+)
+_qtext, _qadded, _qnotes = _sd47.analyze_scene_action(_q_scene, "res://deps_quiet.tscn", root)
+check("deps: нераспознанный обработчик — полная тишина (ни правок, ни заметок)",
+      _qadded == [] and _qnotes == [] and _qtext == _q_scene, (_qadded, _qnotes))
+
+# пользовательский сигнал: не чиним автоматом, но подсказываем.
+create_project_file(root, "res://deps_custom.gd",
+    "extends Node3D\n\nsignal wave_finished\n\nfunc _on_wave_finished():\n\tpass\n")
+_cu_scene = (
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_custom.gd" id="1_u"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_u")\n'
+)
+_utext, _uadded, _unotes = _sd47.analyze_scene_action(_cu_scene, "res://deps_custom.tscn", root)
+check("deps: обработчик пользовательского сигнала — только мягкая заметка, без правок",
+      _uadded == [] and len(_unotes) == 1 and "wave_finished" in _unotes[0], (_uadded, _unotes))
+
+# сторона СКРИПТА: сцена на диске уже использует скрипт, в новом тексте
+# скрипта появился неподключённый обработчик — должна быть заметка.
+create_project_file(root, "res://deps_attached.tscn",
+    '[gd_scene load_steps=2 format=3]\n\n'
+    '[ext_resource type="Script" path="res://deps_attached.gd" id="1_a"]\n\n'
+    '[node name="Main" type="Node3D"]\n'
+    'script = ExtResource("1_a")\n\n'
+    '[node name="BombZone" type="Area3D" parent="."]\n')
+create_project_file(root, "res://deps_attached.gd", "extends Node3D\n")
+_snotes = _sd47.analyze_script_action(
+    "extends Node3D\n\nfunc _on_bomb_zone_body_entered(body):\n\tpass\n",
+    "res://deps_attached.gd", root)
+check("deps: при записи скрипта с неподключённым обработчиком приходит заметка про сцену",
+      len(_snotes) == 1 and "_on_bomb_zone_body_entered" in _snotes[0]
+      and "body_entered" in _snotes[0], _snotes)
+_snotes2 = _sd47.analyze_script_action(
+    "extends Node3D\n\nfunc _ready():\n\tpass\n", "res://deps_attached.gd", root)
+check("deps: скрипт без _on_-обработчиков не порождает никаких заметок",
+      _snotes2 == [], _snotes2)
+
+# интеграция в main.py: анализ включён в обе ветки линта (сцена и скрипт).
+_m47 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+check("main.py: анализ зависимостей подключён для сцен и скриптов",
+      "import scene_deps" in _m47
+      and "_deps_enrich_scene_action(action, candidate, path, project_root)" in _m47
+      and "_deps_note_script_action(candidate, path, project_root)" in _m47)
+
+reset_state(root)
+
+# ---------------------------------------------------------------------------
+# 11) v48: read_function (чтение отдельных функций), системное напоминание
+#    в новом чате, расширенная информация о чатах и устаревший промпт
+# ---------------------------------------------------------------------------
+print("\n--- 11) v48: read_function, напоминание о модели, инфо о чатах ---")
+import gd_functions as _gf48
+import agent_prompts as _ap48
+import chat_store as _cs48
+
+_gd48 = (
+    "extends CharacterBody3D\n"
+    "\n"
+    "var speed := 5.0\n"
+    "\n"
+    "# Двигает игрока.\n"
+    "@rpc(\"any_peer\")\n"
+    "func _physics_process(delta):\n"
+    "\tmove_and_slide()\n"
+    "\n"
+    "\tif speed > 0:\n"
+    "\t\tpass\n"
+    "\n"
+    "func take_damage(amount):\n"
+    "\thealth -= amount\n"
+    "\n"
+    "static func helper(x):\n"
+    "\treturn x\n"
+)
+check("gd_functions: список функций файла в порядке объявления",
+      _gf48.list_functions(_gd48) == ["_physics_process", "take_damage", "helper"],
+      _gf48.list_functions(_gd48))
+_found48, _missing48 = _gf48.extract_functions(_gd48, ["_physics_process"])
+check("gd_functions: сниппет включает комментарий, @rpc и всё тело с пустой строкой внутри",
+      len(_found48) == 1 and _found48[0]["snippet"].startswith("# Двигает игрока.")
+      and "@rpc" in _found48[0]["snippet"] and "move_and_slide()" in _found48[0]["snippet"]
+      and "pass" in _found48[0]["snippet"] and "take_damage" not in _found48[0]["snippet"],
+      _found48)
+check("gd_functions: номера строк корректные (1-based, с учётом комментария сверху)",
+      len(_found48) == 1 and _found48[0]["start_line"] == 5 and _found48[0]["end_line"] == 11,
+      _found48)
+_f48b, _m48b = _gf48.extract_functions(_gd48, ["helper", "nope"])
+check("gd_functions: последняя функция файла извлекается, отсутствующее имя — в missing",
+      len(_f48b) == 1 and _f48b[0]["snippet"] == "static func helper(x):\n\treturn x"
+      and _m48b == ["nope"], (_f48b, _m48b))
+
+# main.py: read_function встроен в пакетное чтение и цепочку подтверждений.
+_m48 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+check("main.py: read_function принимается как действие чтения и обрабатывается отдельной веткой",
+      '("read_file", "read_files", "read_function")' in _m48
+      and "def _read_functions_part(" in _m48
+      and "_read_functions_part(project_root, f)" in _m48)
+check("main.py: подтверждение упоминает функции, прайм запоминает версию промпта у чата",
+      "Агент хочет прочитать функции из файла" in _m48
+      and "mark_chat_prompt_version()" in _m48)
+
+# Промпт: новое действие описано, цепочки чтения разрешены, есть хэш версии.
+check("agent_prompts: read_function описан в промпте и разрешены цепочки чтения",
+      '"action": "read_function"' in _ap48.PRIMING_TEMPLATE
+      and "ПО ЦЕПОЧКЕ" in _ap48.PRIMING_TEMPLATE)
+check("agent_prompts: PROMPT_HASH вычисляется из текста мега-промпта",
+      isinstance(_ap48.PROMPT_HASH, str) and len(_ap48.PROMPT_HASH) == 12)
+
+# chat_store: расширенный list_chats и логика устаревшего промпта.
+_base48 = os.path.join(root, "_chats48")
+os.makedirs(_base48, exist_ok=True)
+_rec48 = _cs48.create_chat(_base48, url="https://example.com/chat", primed=True)
+_cs48.update_chat(_base48, _rec48["id"], site_name="AI Studio", prompt_hash="oldhash")
+_lst48 = _cs48.list_chats(_base48, "newhash")
+check("chat_store: list_chats отдаёт сайт, времена и prompt_stale=True при старом хэше",
+      len(_lst48) == 1 and _lst48[0]["site_name"] == "AI Studio"
+      and _lst48[0]["created"] > 0 and _lst48[0]["last_used"] > 0
+      and _lst48[0]["prompt_stale"] is True, _lst48)
+_lst48b = _cs48.list_chats(_base48, "oldhash")
+check("chat_store: prompt_stale=False при совпадающем хэше промпта",
+      _lst48b[0]["prompt_stale"] is False, _lst48b)
+_rec48b = _cs48.create_chat(_base48, url="", primed=False)
+_stale_map48 = {c["id"]: c["prompt_stale"] for c in _cs48.list_chats(_base48, "newhash")}
+check("chat_store: непраймленный чат не помечается устаревшим",
+      _stale_map48.get(_rec48b["id"]) is False, _stale_map48)
+
+# chat_routes и server_state: системное напоминание + передача хэша везде.
+_cr48 = open(os.path.join(_here, "chat_routes.py"), encoding="utf-8").read()
+check("chat_routes: новый чат начинается с системного напоминания, хэш передаётся во все list_chats",
+      "Не забудьте выбрать нейросеть" in _cr48
+      and _cr48.count("chat_store.list_chats(base, PROMPT_HASH)") == 5)
+_ss48 = open(os.path.join(_here, "server_state.py"), encoding="utf-8").read()
+check("server_state: mark_chat_prompt_version записывает prompt_hash текущему чату",
+      "def mark_chat_prompt_version" in _ss48 and "prompt_hash=PROMPT_HASH" in _ss48)
+
+# Godot-сторона: локализация, стартовый экран, панель.
+_loc48 = open(os.path.join(_here, "..", "godot", "agent_locale.gd"), encoding="utf-8").read()
+check("locale: ключи v48 есть и в RU, и в EN",
+      _loc48.count('"pick_model_hint"') == 2 and _loc48.count('"prompt_stale_short"') == 2
+      and _loc48.count('"prompt_stale_tip"') == 2 and _loc48.count('"tip_chat_times"') == 2)
+_scr48 = open(os.path.join(_here, "..", "godot", "agent_start_screen.gd"), encoding="utf-8").read()
+check("start_screen: список сохранений показывает время, сайт и «промпт устарел»",
+      "func _fmt_ts(" in _scr48 and "prompt_stale" in _scr48
+      and "prompt_stale_tip" in _scr48 and "tip_chat_times" in _scr48)
+_pan48 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+check("panel: новый чат начинается с напоминания, выпадающий список помечает устаревшие чаты",
+      'add_hint(_t("pick_model_hint"))' in _pan48  # v49: напоминание стало окошком
+      and 'c.get("prompt_stale", false)' in _pan48)
+
+reset_state(root)
+
+print("\n--- 12) v49: закрытие сцен перед записью, окошко-подсказка ---")
+
+_pan49 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_view49 = open(os.path.join(_here, "..", "godot", "agent_chat_view.gd"), encoding="utf-8").read()
+_loc49 = open(os.path.join(_here, "..", "godot", "agent_locale.gd"), encoding="utf-8").read()
+
+check("view: появилось окошко-пузырь add_hint с собственной рамкой",
+      "func add_hint(" in _view49 and "HINT_BORDER" in _view49 and "HINT_BG" in _view49)
+check("locale: заголовок окошка hint_title есть в RU и EN",
+      _loc49.count('"hint_title"') == 2)
+check("panel: напоминание о выборе модели показывается окошком, а не серой строкой",
+      'add_hint(_t("pick_model_hint"))' in _pan49 and 'add_system(_t("pick_model_hint"))' not in _pan49)
+check("panel: перед одобренной записью открытая целевая сцена закрывается",
+      "func _close_scenes_before_write" in _pan49 and "_close_scenes_before_write()" in _pan49)
+check("panel: закрываются только .tscn/.scn и только если сцена реально открыта",
+      'sp.ends_with(".tscn") or sp.ends_with(".scn")' in _pan49 and "get_open_scenes().has(sp)" in _pan49)
+check("panel: после записи закрытые сцены открываются обратно (все 4 точки возврата)",
+      "func _reopen_scenes_after_write" in _pan49 and _pan49.count("_reopen_scenes_after_write()") >= 5)
+check("panel: close_scene вызывается с проверкой наличия (фолбэк для старых Godot)",
+      'has_method("close_scene")' in _pan49 and 'call("close_scene")' in _pan49)
+check("panel: авто-перечитывание сцены (v46) сохранено как фолбэк",
+      "func _auto_reload_changed_scene" in _pan49)
 
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

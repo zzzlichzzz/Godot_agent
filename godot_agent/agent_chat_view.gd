@@ -13,6 +13,9 @@ const AGENT_HEADER := "#ffd54f"
 const USER_BG := "#1f3320"
 const USER_BORDER := "#3a5a3c"
 const USER_HEADER := "#a5d6a7"
+const HINT_BG := "#3a3320"      # v49: фон окошка-подсказки
+const HINT_BORDER := "#8a7433"  # v49: рамка окошка-подсказки
+const HINT_HEADER := "#ffd54f"  # v49: заголовок окошка-подсказки
 
 var chat_log: RichTextLabel = null
 var _status_label: Label = null
@@ -90,6 +93,14 @@ func add_system(text: String) -> void:
 	flush()
 	if chat_log:
 		chat_log.text += "[color=gray]" + text + "[/color]\n"
+
+
+func add_hint(text: String) -> void:
+	# v49: заметное «окошко»-пузырь для системных подсказок (например, напоминание
+	# выбрать нейросеть) — вместо простой серой строки текста.
+	flush()
+	if chat_log:
+		chat_log.text += _bubble(_t("hint_title"), HINT_HEADER, _escape_bbcode(text), HINT_BG, HINT_BORDER)
 
 
 func add_success(text: String) -> void:

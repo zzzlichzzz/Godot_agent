@@ -20,7 +20,14 @@ STATE = {
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
     "pending_plan": None,     # ожидающий подтверждения/выполнения план (plan-режим, цепочка шагов)
     "is_primed": False,
-    "action_note": "",
+    # v45: заметки о результате действия/плана (принято/откачено/отклонено) —
+    # ЭТО НЕ строка, а словарь chat_id -> текст заметки. Раньше это была одна
+    # общая строка на весь сервер, из-за чего откат/отказ, случившийся в одном
+    # чате, мог "прилипнуть" к следующему сообщению ЛЮБОГО чата (в т.ч. только
+    # что созданного нового) — модель получала чужой системный отчёт об откате.
+    # Теперь заметка помечается chat_id того чата, где произошло действие, и
+    # отдаётся только этому же чату; см. queue_action_note/pop_action_note_for_current.
+    "action_notes": {},
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
     "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
@@ -147,6 +154,36 @@ def _remember(role, text):
         pass
 
 
+def queue_action_note(note, chat_id=None):
+    """v45: сохраняет системную заметку (откат/отказ/завершение шага
+    плана и т.п.), строго привязанную к chat_id того чата, где произошло действие.
+    По умолчанию — текущий STATE["current_chat_id"]. Без chat_id (никакого текущего
+    чата ещё нет) заметка тихо пропадает — лучше потерять её, чем отдать не
+    тому чату."""
+    cid = chat_id or STATE.get("current_chat_id")
+    if not cid:
+        return
+    STATE.setdefault("action_notes", {})[cid] = note
+
+
+def pop_action_note_for_current():
+    """v45: возвращает и убирает заметку ТОЛЬКО для текущего активного чата.
+    Заметки других чатов при этом НЕ трогаются и остаются дожидаться своих
+    собственных чатов (а не любого, кто первым отправит сообщение)."""
+    cid = STATE.get("current_chat_id")
+    notes = STATE.get("action_notes") or {}
+    if not cid or cid not in notes:
+        return ""
+    return notes.pop(cid) or ""
+
+
+def discard_action_note_for_chat(chat_id):
+    """v45: убирает (без выдачи) отложенную заметку конкретного чата —
+    используется при удалении чата, чтобы словарь заметок не рос бесконечно."""
+    notes = STATE.get("action_notes") or {}
+    notes.pop(chat_id, None)
+
+
 def _sync_chat_after_reply():
     """После ответа обновляет URL страницы и флаг primed текущего чата."""
     base = _chats_dir()
@@ -231,3 +268,17 @@ def _apply_session_context(data):
         if history.migrate_from_project(STATE.get("project_root")):
             print("--> История изменений перенесена из проекта в:",
                   history.get_storage_dir(STATE.get("project_root")))
+
+
+def mark_chat_prompt_version():
+    """v48: текущий чат только что обучен актуальным мега-промптом —
+    запоминаем версию промпта, чтобы панель могла показать «промпт устарел»
+    для чатов, обученных более старой версией PRIMING_TEMPLATE."""
+    try:
+        from agent_prompts import PROMPT_HASH
+        base = _chats_dir()
+        chat = get_current_chat()
+        if base and chat:
+            chat_store.update_chat(base, chat.get("id"), prompt_hash=PROMPT_HASH)
+    except Exception:
+        pass
