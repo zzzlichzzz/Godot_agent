@@ -423,7 +423,7 @@ try:
 
     malformed_header_scene = ('[gd_scene load_steps=2 format=3]\n\n'
                                '[sub_resource type="RectangleShape2D" id="Shape1">\nsize = Vector2(1,1)\n\n'
-                               '[node name="Root" type="Node2D"]\n'
+                               '[node name="Root" type="StaticBody2D"]\n'
                                '[node name="Col" type="CollisionShape2D" parent="."]\nshape = SubResource("Shape1")\n')
     fixed_hdr, malformed_problems = tscn_lint.lint_and_fix_tscn(malformed_header_scene)
     check("«>» вместо «]» в заголовке секции чинится ЛОКАЛЬНО, без обращения к модели",
@@ -432,7 +432,7 @@ try:
     # чинится ЛОКАЛЬНО (дозакрываем «]» сами), а не уходит модели.
     unfixable_scene = ('[gd_scene load_steps=2 format=3]\n\n'
                         '[sub_resource type="RectangleShape2D" id="Shape1"\nsize = Vector2(1,1)\n\n'
-                        '[node name="Root" type="Node2D"]\n'
+                        '[node name="Root" type="StaticBody2D"]\n'
                         '[node name="Col" type="CollisionShape2D" parent="."]\nshape = SubResource("Shape1")\n')
     fixed_bal, unfixable_problems = tscn_lint.lint_and_fix_tscn(unfixable_scene)
     check("v46: незакрытый заголовок без «>» со сбалансированными кавычками теперь чинится сам",
@@ -466,7 +466,7 @@ try:
     ordered_scene_unchanged = ('[gd_scene load_steps=3 format=3]\n\n'
                                 '[ext_resource type="Script" path="res://a.gd" id="1"]\n\n'
                                 '[sub_resource type="RectangleShape2D" id="Shape_1"]\nsize = Vector2(1,1)\n\n'
-                                '[node name="A" type="Node2D"]\nscript = ExtResource("1")\n\n'
+                                '[node name="A" type="StaticBody2D"]\nscript = ExtResource("1")\n\n'
                                 '[node name="B" type="CollisionShape2D" parent="."]\nshape = SubResource("Shape_1")\n')
     fixed_ord, problems_ord = tscn_lint.lint_and_fix_tscn(ordered_scene_unchanged)
     check("уже правильно упорядоченная сцена не меняется (идемпотентность)",
@@ -2418,6 +2418,46 @@ check('21.31 v73: qwen_parser boevye selektory + similarity v ekzamene',
       and 'chat-prompt-send-button' in _q31 and '_extract_json_object' in _q31
       and '_norm_scene(e.get("fixed") or "")).ratio()' in _m31
       and '"name": "Qwen"' in _s31)
+
+# 21.32 v74: forma kollizii bez roditelya-fizicheskogo tela = oshibka linta
+import tscn_lint as _tl32
+_sub32 = '[sub_resource type="CircleShape2D" id="1"]'
+_bad32 = '\n'.join(['[gd_scene load_steps=2 format=3]', '', _sub32, 'radius = 20.0', '', '[node name="GameScene" type="Node2D"]', '', '[node name="Player" type="CharacterBody2D" parent="."]', '', '[node name="PlayerCollision" type="CollisionShape2D" parent="."]', 'shape = SubResource("1")', ''])
+_ok32 = _bad32.replace('[node name="PlayerCollision" type="CollisionShape2D" parent="."]', '[node name="PlayerCollision" type="CollisionShape2D" parent="Player"]')
+_fx32, _pr32 = _tl32.lint_and_fix_tscn(_bad32)
+_fx32b, _pr32b = _tl32.lint_and_fix_tscn(_ok32)
+with open('tscn_lint.py', 'r', encoding='utf-8') as _sf32:
+    _src32 = _sf32.read()
+check('21.32 v74: tscn_lint lovit CollisionShape2D bez fizicheskogo tela-roditelya',
+      any('CollisionObject' in p for p in _pr32)
+      and not any('CollisionObject' in p for p in _pr32b)
+      and '_COLLISION_OWNER_2D' in _src32 and '_COLLISION_OWNER_3D' in _src32)
+
+# 21.33 v75: parsery vshity v exe — staticheskie importy v sites.py + hidden-import v bat
+import sites as _st33
+with open('sites.py', 'r', encoding='utf-8') as _sf33:
+    _src33 = _sf33.read()
+with open('build_server_exe.bat', 'r', encoding='utf-8') as _bf33:
+    _bat33 = _bf33.read()
+_mod33 = _st33.get_parser_module('qwen')
+check('21.33 v75: qwen_parser vshit v exe (staticheskiy import + hidden-import) i gruzitsya po id',
+      'import qwen_parser as _static_qwen_parser' in _src33
+      and 'import deepseek_parser as _static_deepseek_parser' in _src33
+      and '--hidden-import qwen_parser' in _bat33
+      and '--hidden-import deepseek_parser' in _bat33
+      and getattr(_mod33, '__name__', '') == 'qwen_parser')
+
+# 21.34 v76: obychnyy tekst bez JSON ne dolzhen schitatsya deystviem (privet-bug)
+import qwen_parser as _qp34
+_plain34 = 'Ozhidayu zadachu. Ukazhite, chto neobkhodimo sdelat v proekte.'
+_act34 = 'Gotovo.' + chr(10) + '{"action": "create_file", "path": "res://a.tscn", "content": "x"}'
+_bad34 = 'nachalo {"action": "create_file", "path": nezakryto'
+check('21.34 v76: qwen ne prinimaet prostoy tekst za JSON-deystvie, no nakhodit nastoyashchiy blok',
+      _qp34._action_raw_from_text(_plain34) is None
+      and _qp34._action_raw_from_text('') is None
+      and _qp34._action_raw_from_text(_bad34) is None
+      and (_qp34._action_raw_from_text(_act34) or '').startswith('{')
+      and '"action"' in (_qp34._action_raw_from_text(_act34) or ''))
 
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

@@ -9,6 +9,17 @@ load_custom_sites), сама реализация пока отложена.
 """
 from urllib.parse import urlparse
 
+# v75: PyInstaller (server.exe) kladyot v sborku tolko staticheski
+# importirovannye moduli. Parsery zagruzhayutsya dinamicheski cherez
+# importlib, poetomu bez etogo bloka ikh net vnutri exe
+# (oshibka "No module named 'qwen_parser'").
+try:
+    import ai_parser as _static_ai_parser  # noqa: F401
+    import deepseek_parser as _static_deepseek_parser  # noqa: F401
+    import qwen_parser as _static_qwen_parser  # noqa: F401
+except Exception:
+    pass
+
 # Встроенные (проверенные) сайты.
 SITES = [
     {

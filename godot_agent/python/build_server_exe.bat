@@ -82,7 +82,7 @@ if errorlevel 1 (
 )
 echo.
 echo [2/3] Сборка exe (несколько минут, окно не закрывайте)...
-%PYCMD% -m PyInstaller --onedir --noconfirm --collect-submodules selenium --hidden-import numpy --collect-submodules numpy --hidden-import minilich.ml_train --hidden-import minilich.ml_model --hidden-import minilich.ml_tokenizer --name godot_agent_server main.py
+%PYCMD% -m PyInstaller --onedir --noconfirm --collect-submodules selenium --hidden-import numpy --collect-submodules numpy --hidden-import minilich.ml_train --hidden-import minilich.ml_model --hidden-import minilich.ml_tokenizer --hidden-import parser_base --hidden-import ai_parser --hidden-import deepseek_parser --hidden-import qwen_parser --name godot_agent_server main.py
 if errorlevel 1 (
     echo.
     echo [ERROR] Ошибка сборки. Прочитайте вывод выше.
