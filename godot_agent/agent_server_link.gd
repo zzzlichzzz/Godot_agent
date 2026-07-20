@@ -29,6 +29,8 @@ const CHATS_RENAME_URL = "http://" + HOST + "/chats/rename"
 const CHATS_DELETE_URL = "http://" + HOST + "/chats/delete"
 const SITES_LIST_URL = "http://" + HOST + "/sites/list"
 const BROWSER_STATUS_URL = "http://" + HOST + "/browser/status"
+const MINILICH_STATUS_URL = "http://" + HOST + "/minilich/status"
+const MINILICH_SET_URL = "http://" + HOST + "/minilich/set"
 const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
 
 var _http: HTTPRequest = null
@@ -102,6 +104,8 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 		"delete": url = CHATS_DELETE_URL
 		"sites": url = SITES_LIST_URL
 		"status": url = BROWSER_STATUS_URL
+		"minilich_status": url = MINILICH_STATUS_URL
+		"minilich_set": url = MINILICH_SET_URL
 	_kind = kind
 	_extra = extra
 	_autostart_ok = allow_autostart
@@ -136,6 +140,13 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 		# По этому сигналу панель показывает/прячет кнопку ручного запуска.
 		server_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)
 		if kind == "status":
+			return
+		if kind == "minilich_status" or kind == "minilich_set":
+			# Отдельная ветка: клик по галочке не должен незаметно пытаться
+			# автозапускать вторую копию сервера — важнее сразу показать панели
+			# ошибку (раньше это молча уходило в автозапуск, и галочка просто
+			# зависала в непонятном состоянии).
+			chats_response.emit(kind, {"error": _t("srv_no_response") + " (HTTP " + str(response_code) + ")"}, extra)
 			return
 		if result == HTTPRequest.RESULT_TIMEOUT:
 			# Сервер жив, но занят долгой операцией (например, открывает

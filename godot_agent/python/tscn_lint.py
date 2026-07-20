@@ -9,6 +9,8 @@
 Do not scream — всё остальное (битые ссылки, несуществующие parent, дубли, чужие
 типы) неоднозначно и требует решения модели — поэтому такие вещи только в
 сисок проблем для самоисцеления модели, а не в автоисправление."""
+import io
+import os
 import re
 
 import gd_api_cache
@@ -436,6 +438,51 @@ def _toposort_sub_resources(text):
     return "\n".join(new_lines)
 
 
+# v74: formy kollizii trebuyut roditelya-fizicheskogo tela (CollisionObject),
+# inache Godot pokazyvaet preduprezhdenie i kollizia ne rabotaet.
+_COLLISION_SHAPE_2D = {"CollisionShape2D", "CollisionPolygon2D"}
+_COLLISION_SHAPE_3D = {"CollisionShape3D", "CollisionPolygon3D"}
+_COLLISION_OWNER_2D = {
+    "Area2D", "StaticBody2D", "AnimatableBody2D", "CharacterBody2D",
+    "RigidBody2D", "PhysicsBody2D",
+}
+_COLLISION_OWNER_3D = {
+    "Area3D", "StaticBody3D", "AnimatableBody3D", "CharacterBody3D",
+    "RigidBody3D", "VehicleBody3D", "PhysicsBody3D",
+}
+
+
+def _scene_node_paths(disk_path):
+    """v72: puti uzlov sceny na diske ('' - koren). (paths, fuzzy) ili (None, None)."""
+    try:
+        with io.open(disk_path, "r", encoding="utf-8", errors="replace") as f:
+            src = f.read()
+    except Exception:
+        return None, None
+    paths = set()
+    fuzzy = set()
+    root_seen = False
+    for m in _NODE_RE.finditer(src):
+        a = _attrs(m.group(1))
+        name = a.get("name", "?")
+        parent = a.get("parent")
+        if parent is None:
+            if root_seen:
+                continue
+            root_seen = True
+            full = ""
+        elif parent == ".":
+            full = name
+        else:
+            full = parent + "/" + name
+        paths.add(full)
+        if a.get("instance") is not None or a.get("instance_placeholder") is not None:
+            fuzzy.add(full)
+    if not root_seen:
+        return None, None
+    return paths, fuzzy
+
+
 def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
@@ -571,8 +618,57 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
                 )
 
     # --- 2) дерево узлов: parent-пути, дубли, типы ---
+    # --- v72: karta instansov: pravki uzlov i parent-puti vnutri instansa ---
+    ext_scene_paths = {}
+    for m in _EXT_RE.finditer(text):
+        a = _attrs(m.group(1))
+        _rid = a.get("id")
+        _rpath = a.get("path")
+        if isinstance(_rid, str) and isinstance(_rpath, str) and is_scene_path(_rpath):
+            ext_scene_paths[_rid] = _rpath
+    inst_map = {}
+    _scene_paths_cache = {}
+
+    def _inst_scene_paths(res_path):
+        if res_path not in _scene_paths_cache:
+            got = (None, None)
+            if project_root and isinstance(res_path, str) and res_path.startswith("res://"):
+                disk = os.path.join(project_root, *res_path[len("res://"):].split("/"))
+                got = _scene_node_paths(disk)
+            _scene_paths_cache[res_path] = got
+        return _scene_paths_cache[res_path]
+
+    def _nearest_inst(p):
+        best = None
+        for ip in inst_map:
+            if ip == "" or p == ip or p.startswith(ip + "/"):
+                if best is None or len(ip) > len(best):
+                    best = ip
+        return best
+
+    def _vanished_in_inst(p):
+        # None - net instansa-predka; False - ok ili proverit nelzya;
+        # (src, rel) - uzla rel v scene src NET ('vanished').
+        ip = _nearest_inst(p)
+        if ip is None:
+            return None
+        src = inst_map[ip]
+        spaths, fuzzy = _inst_scene_paths(src)
+        if spaths is None:
+            return False
+        rel = p if ip == "" else p[len(ip) + 1:]
+        if rel in spaths:
+            return False
+        for fz in fuzzy:
+            if rel == fz or rel.startswith(fz + "/"):
+                return False
+        return (src, rel)
+
     known_paths = set()
     root_seen = False
+    type_by_path = {}
+    root_name = None
+    root_type = None
     for m in _NODE_RE.finditer(text):
         a = _attrs(m.group(1))
         name = a.get("name", "?")
@@ -584,19 +680,51 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
                 continue
             root_seen = True
             full = name
+            root_name = name
+            root_type = a.get("type")
         else:
             if parent == ".":
                 full = name
             else:
                 if parent not in known_paths:
-                    problems.append(
-                        "\u0443\u0437\u0435\u043b \u00ab%s\u00bb: parent=\"%s\" \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0441\u0440\u0435\u0434\u0438 \u0443\u0436\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u0432\u044b\u0448\u0435 \u0443\u0437\u043b\u043e\u0432" % (name, parent))
+                    _van = _vanished_in_inst(parent)
+                    if _van is None:
+                        problems.append(
+                            "\u0443\u0437\u0435\u043b \u00ab%s\u00bb: parent=\"%s\" \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u0441\u0440\u0435\u0434\u0438 \u0443\u0436\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u0432\u044b\u0448\u0435 \u0443\u0437\u043b\u043e\u0432" % (name, parent))
+                    elif _van:
+                        problems.append(
+                            "\u0443\u0437\u0435\u043b \xab%s\xbb: parent=\"%s\" \u0443\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0432\u043d\u0443\u0442\u0440\u044c \u0438\u043d\u0441\u0442\u0430\u043d\u0441\u0430 \u0441\u0446\u0435\u043d\u044b %s, \u043d\u043e \u0443\u0437\u043b\u0430 \xab%s\xbb \u0432 \u0442\u043e\u0439 \u0441\u0446\u0435\u043d\u0435 \u041d\u0415\u0422 \u2014 Godot \u0432\u044b\u0431\u0440\u043e\u0441\u0438\u0442 \u044d\u0442\u043e\u0442 \u0443\u0437\u0435\u043b \u0441 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435\u043c \xabParent path ... has vanished when instantiating\xbb. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0442\u043e\u0447\u043d\u043e\u0435 \u0438\u043c\u044f \u0443\u0437\u043b\u0430 \u0432 \u0438\u0441\u0445\u043e\u0434\u043d\u043e\u0439 \u0441\u0446\u0435\u043d\u0435 (\u0432\u044b\u0437\u043e\u0432\u0438 list_scene)." % (name, parent, _van[0], _van[1]))
                 full = parent + "/" + name
         if full in known_paths:
             problems.append("\u0443\u0437\u0435\u043b \u0441 \u043f\u0443\u0442\u0451\u043c \u00ab%s\u00bb \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d \u0434\u0432\u0430\u0436\u0434\u044b \u2014 \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442 \u0438\u043c\u0451\u043d" % full)
         known_paths.add(full)
+        type_by_path[full] = a.get("type")
+
+        _inst_attr = a.get("instance")
+        if isinstance(_inst_attr, tuple) and _inst_attr[0] == "ExtResource" and _inst_attr[1] in ext_scene_paths:
+            inst_map["" if parent is None else full] = ext_scene_paths[_inst_attr[1]]
+        if (_inst_attr is None and a.get("type") is None and parent is not None
+                and a.get("instance_placeholder") is None):
+            _van = _vanished_in_inst(full)
+            if _van is None:
+                problems.append("\u0443\u0437\u0435\u043b \xab%s\xbb: \u043d\u0435\u0442 \u043d\u0438 type=, \u043d\u0438 instance=, \u0438 \u0441\u0440\u0435\u0434\u0438 \u043f\u0440\u0435\u0434\u043a\u043e\u0432 \u043d\u0435\u0442 \u0438\u043d\u0441\u0442\u0430\u043d\u0441\u0430 \u0441\u0446\u0435\u043d\u044b \u2014 Godot \u043d\u0435 \u0441\u043c\u043e\u0436\u0435\u0442 \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0442\u0430\u043a\u043e\u0439 \u0443\u0437\u0435\u043b. \u0414\u043e\u0431\u0430\u0432\u044c type=\"...\" (\u043d\u043e\u0432\u044b\u0439 \u0443\u0437\u0435\u043b) \u0438\u043b\u0438 instance=ExtResource(\"...\") (\u044d\u043a\u0437\u0435\u043c\u043f\u043b\u044f\u0440 \u0441\u0446\u0435\u043d\u044b)." % name)
+            elif _van:
+                problems.append("\u0443\u0437\u0435\u043b \xab%s\xbb (\u0431\u0435\u0437 type=) \u2014 \u044d\u0442\u043e \u043f\u0440\u0430\u0432\u043a\u0430 \u0443\u0437\u043b\u0430 \u0412\u041d\u0423\u0422\u0420\u0418 \u0438\u043d\u0441\u0442\u0430\u043d\u0441\u0430 \u0441\u0446\u0435\u043d\u044b %s, \u043d\u043e \u0443\u0437\u043b\u0430 \xab%s\xbb \u0432 \u0442\u043e\u0439 \u0441\u0446\u0435\u043d\u0435 \u041d\u0415\u0422. Godot \u043c\u043e\u043b\u0447\u0430 \u0432\u044b\u0431\u0440\u043e\u0441\u0438\u0442 \u0435\u0433\u043e \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0441\u0435\u043c\u0438 \u0434\u0435\u0442\u044c\u043c\u0438: \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435 \xabNode ... was modified from inside an instance, but it has vanished\xbb. \u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0442\u043e\u0447\u043d\u043e\u0435 \u0438\u043c\u044f \u0443\u0437\u043b\u0430 \u0432 \u0438\u0441\u0445\u043e\u0434\u043d\u043e\u0439 \u0441\u0446\u0435\u043d\u0435 (\u0432\u044b\u0437\u043e\u0432\u0438 list_scene) \u0438\u043b\u0438 \u0434\u043e\u0431\u0430\u0432\u044c type=\"...\", \u0447\u0442\u043e\u0431\u044b \u043e\u0431\u044a\u044f\u0432\u0438\u0442\u044c \u041d\u041e\u0412\u042b\u0419 \u0443\u0437\u0435\u043b." % (name, _van[0], _van[1]))
 
         node_type = a.get("type")
+        _shape_owner = None
+        if node_type in _COLLISION_SHAPE_2D:
+            _shape_owner = _COLLISION_OWNER_2D
+        elif node_type in _COLLISION_SHAPE_3D:
+            _shape_owner = _COLLISION_OWNER_3D
+        if _shape_owner is not None:
+            if parent is None:
+                problems.append("\u0443\u0437\u0435\u043b \xab%s\xbb (%s) \u2014 \u043a\u043e\u0440\u0435\u043d\u044c \u0441\u0446\u0435\u043d\u044b: \u0443 \u0444\u043e\u0440\u043c\u044b \u043a\u043e\u043b\u043b\u0438\u0437\u0438\u0438 \u043d\u0435\u0442 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044f-\u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u043e\u0433\u043e \u0442\u0435\u043b\u0430, \u043a\u043e\u043b\u043b\u0438\u0437\u0438\u044f \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u041d\u0415 \u0431\u0443\u0434\u0435\u0442. \u0421\u0434\u0435\u043b\u0430\u0439 \u043a\u043e\u0440\u043d\u0435\u043c \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u0442\u0435\u043b\u043e \u0438\u043b\u0438 \u043f\u0435\u0440\u0435\u043d\u0435\u0441\u0438 \u0444\u043e\u0440\u043c\u0443 \u043f\u043e\u0434 \u043d\u0435\u0433\u043e." % (name, node_type))
+            else:
+                _pt = root_type if parent == "." else type_by_path.get(parent)
+                if _pt is not None and _pt not in _shape_owner:
+                    _pn = root_name if parent == "." else parent
+                    problems.append("\u0443\u0437\u0435\u043b \xab%s\xbb (%s): \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044c \xab%s\xbb \u0438\u043c\u0435\u0435\u0442 \u0442\u0438\u043f %s \u2014 \u044d\u0442\u043e \u043d\u0435 \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u0442\u0435\u043b\u043e/\u043e\u0431\u043b\u0430\u0441\u0442\u044c (\u043d\u0443\u0436\u0435\u043d Area2D, StaticBody2D, CharacterBody2D, RigidBody2D, Area3D \u0438 \u0442.\u043f.). \u041a\u043e\u043b\u043b\u0438\u0437\u0438\u044f \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u041d\u0415 \u0431\u0443\u0434\u0435\u0442: Godot \u043f\u043e\u043c\u0435\u0447\u0430\u0435\u0442 \u0442\u0430\u043a\u043e\u0439 \u0443\u0437\u0435\u043b \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u0435\u043c \xabonly serves to provide a collision shape to a CollisionObject\xbb. \u041f\u0435\u0440\u0435\u043d\u0435\u0441\u0438 \u0443\u0437\u0435\u043b \u043f\u043e\u0434 \u043d\u0443\u0436\u043d\u043e\u0435 \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u043e\u0435 \u0442\u0435\u043b\u043e (\u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 parent=\"Player\")." % (name, node_type, _pn, _pt))
         if node_type and project_root:
             try:
                 if gd_api_cache.has_cache(project_root, addon_dir) and not gd_api_cache.get_class(project_root, node_type, addon_dir):
