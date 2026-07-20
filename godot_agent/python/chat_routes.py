@@ -41,6 +41,25 @@ def _navigate(driver, url):
         driver.set_script_timeout(10)
     except Exception:
         pass
+    # v54: если вкладка с этим адресом уже открыта — просто переключаемся на неё,
+    # не перезагружая страницу и не занимая другую вкладку (иначе появлялись две
+    # вкладки одного чата, и агент мог печатать не в ту).
+    def _p54(u):
+        return (u or "").split("://", 1)[-1].split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    try:
+        want = _p54(url)
+        cur_handle = driver.current_window_handle
+        found = False
+        for handle in driver.window_handles:
+            driver.switch_to.window(handle)
+            if _p54(driver.current_url or "") == want:
+                found = True
+                break
+        if found:
+            return
+        driver.switch_to.window(cur_handle)
+    except Exception:
+        pass
     try:
         driver.switch_to.window(driver.window_handles[-1])
     except Exception:

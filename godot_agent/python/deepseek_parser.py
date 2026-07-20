@@ -349,7 +349,7 @@ def wait_for_new_answer(driver, initial_count, timeout=900, quiet_period=4.0,
         post_quiet_grace=post_quiet_grace, progress_cb=progress_cb)
 
 
-def send_message_and_get_response(driver, prompt, input_retries=3, progress_cb=None, cancel_cb=None):
+def send_message_and_get_response(driver, prompt, input_retries=3, progress_cb=None, cancel_cb=None, prefer_url=None):
     return PARSER.send_message_and_get_response(
         driver, prompt, input_retries=input_retries, progress_cb=progress_cb,
-        cancel_cb=cancel_cb)
+        cancel_cb=cancel_cb, prefer_url=prefer_url)

@@ -53,6 +53,9 @@ _VARIANT_TYPES = {
 _NODE_RE = re.compile(r'\[node\b([^\]]*)\]')
 _EXTCALL_RE = re.compile(r'ExtResource\(\s*"?([^")\s]+)"?\s*\)')
 _SUBCALL_RE = re.compile(r'SubResource\(\s*"?([^")\s]+)"?\s*\)')
+# v55: свойство «через точку» (mesh.size = ...) — в формате .tscn такого синтаксиса
+# НЕТ вообще: Godot молча выбрасывает такую строку при пересохранении сцены.
+_DOTTED_PROP_RE = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+)\s*=')
 _ATTR_RE = re.compile(
     r'(\w+)=(?:"([^"]*)"'
     r'|(ExtResource|SubResource)\(\s*"?([^")\s]+)"?\s*\)'
@@ -265,6 +268,174 @@ def _fix_single_candidate_refs(text, ext_ids, sub_ids):
     return fixed
 
 
+# v50: значения вида `prop = Type.new()` — это синтаксис GDScript, в .tscn он
+# невалиден: Godot падает с Parse Error и сцена не грузится вообще (случай
+# пользователя: mesh = PlaneMesh.new()). Если Type — обычный ресурс и
+# конструктор БЕЗ аргументов, смысл однозначен: объявляем
+# [sub_resource type="Type" id="auto_..."] и подставляем SubResource("auto_...").
+# Узел/Variant-значение или .new(с аргументами) — чинить вслепую нельзя,
+# проблема уходит модели на решение.
+_CTOR_LINE_RE = re.compile(
+    r'^(\s*[A-Za-z_][A-Za-z0-9_/]*\s*=\s*)([A-Za-z_][A-Za-z0-9_]*)\.new\(\s*\)\s*$'
+)
+_CTOR_ARGS_RE = re.compile(
+    r'^\s*[A-Za-z_][A-Za-z0-9_/]*\s*=\s*([A-Za-z_][A-Za-z0-9_]*)\.new\(\s*[^)\s]'
+)
+
+
+def _convert_ctor_values(text, problems):
+    """Меняет `prop = Type.new()` на ссылку SubResource("auto_...") с
+    автообъявлением [sub_resource]. Возвращает новый текст; спорные случаи
+    дописывает в problems. Идемпотентно: после починки .new() не остаётся."""
+    existing_ids = set()
+    for m in _SUB_RE.finditer(text):
+        a = _attrs(m.group(1))
+        rid = a.get("id")
+        if isinstance(rid, str):
+            existing_ids.add(rid)
+
+    lines = text.split("\n")
+    new_headers = []
+    counter = 0
+    for i, raw_line in enumerate(lines):
+        cr = "\r" if raw_line.endswith("\r") else ""
+        line = raw_line[:-1] if cr else raw_line
+        am = _CTOR_ARGS_RE.match(line)
+        if am:
+            problems.append(
+                'строка «%s»: %s.new(...) с аргументами — это синтаксис GDScript, '
+                'в .tscn он невалиден. Объяви [sub_resource type="%s" id="..."] '
+                'с нужными свойствами отдельными строками и подставь '
+                'SubResource("...").' % (line.strip(), am.group(1), am.group(1))
+            )
+            continue
+        m = _CTOR_LINE_RE.match(line)
+        if not m:
+            continue
+        rtype = m.group(2)
+        if rtype in _NODE_CLASSES or rtype in _VARIANT_TYPES:
+            problems.append(
+                'строка «%s»: %s.new() — %s не ресурс (это узел или '
+                'Variant-значение), в .tscn его нельзя объявить как [sub_resource]. '
+                'Убери это свойство или используй дочерний узел / прямое значение.'
+                % (line.strip(), rtype, rtype)
+            )
+            continue
+        counter += 1
+        rid = "auto_%s_%d" % (rtype.lower(), counter)
+        while rid in existing_ids:
+            counter += 1
+            rid = "auto_%s_%d" % (rtype.lower(), counter)
+        existing_ids.add(rid)
+        lines[i] = m.group(1) + 'SubResource("%s")' % rid + cr
+        new_headers.append('[sub_resource type="%s" id="%s"]' % (rtype, rid))
+
+    if not new_headers:
+        return "\n".join(lines)
+
+    # Вставляем новые секции перед первым [node] (все ресурсы уже стоят выше
+    # узлов после _reorder_resource_sections); если узлов нет — в конец файла.
+    insert_at = None
+    for i, line in enumerate(lines):
+        sm = _SECTION_START_RE.match(line)
+        if sm and sm.group(1) in ("node", "connection"):
+            insert_at = i
+            break
+    block = []
+    for header in new_headers:
+        block.append(header)
+        block.append("")
+    if insert_at is None:
+        if lines and lines[-1].strip():
+            lines.append("")
+        lines.extend(block)
+    else:
+        if insert_at > 0 and lines[insert_at - 1].strip():
+            block.insert(0, "")
+        lines[insert_at:insert_at] = block
+    return "\n".join(lines)
+
+
+# v50: внутренний ресурс, ссылающийся на другой внутренний ресурс, должен идти
+# в файле ПОЗЖЕ него — формат .tscn резолвит ссылки только назад. Модели часто
+# пишут [sub_resource] со ссылкой ВПЕРЁД (случай пользователя: Environment со
+# sky = SubResource("ProceduralSky"), объявленным ниже) — Godot падает с
+# «!int_resources.has(id)» и сцена не грузится вообще. Порядок — чистая
+# механика: стабильная топологическая перестановка секций sub_resource,
+# идемпотентная (корректный порядок не меняется). Циклы (невозможны и для
+# самого Godot) оставляем как есть — данные не теряем.
+def _toposort_sub_resources(text):
+    lines = text.split("\n")
+    preamble = []
+    chunks = []
+    current_type = None
+    current_lines = None
+    for line in lines:
+        m = _SECTION_START_RE.match(line)
+        if m:
+            if current_lines is not None:
+                chunks.append((current_type, current_lines))
+            current_type = m.group(1)
+            current_lines = [line]
+        elif current_lines is None:
+            preamble.append(line)
+        else:
+            current_lines.append(line)
+    if current_lines is not None:
+        chunks.append((current_type, current_lines))
+
+    sub_idxs = [i for i, (t, _) in enumerate(chunks) if t == "sub_resource"]
+    if len(sub_idxs) < 2:
+        return text
+
+    id_to_idx = {}
+    for idx in sub_idxs:
+        m = _SUB_RE.search(chunks[idx][1][0])
+        a = _attrs(m.group(1)) if m else {}
+        rid = a.get("id")
+        if isinstance(rid, str):
+            id_to_idx.setdefault(rid, idx)
+
+    deps = {}
+    for idx in sub_idxs:
+        body = "\n".join(chunks[idx][1][1:])
+        found = set()
+        for m in _SUBCALL_RE.finditer(body):
+            target = id_to_idx.get(m.group(1))
+            if target is not None and target != idx:
+                found.add(target)
+        deps[idx] = found
+
+    order = []
+    emitted = set()
+    remaining = list(sub_idxs)
+    progress = True
+    while remaining and progress:
+        progress = False
+        next_remaining = []
+        for idx in remaining:
+            if deps[idx] <= emitted:
+                order.append(idx)
+                emitted.add(idx)
+                progress = True
+            else:
+                next_remaining.append(idx)
+        remaining = next_remaining
+    order.extend(remaining)  # цикл — оставляем как было, не теряем данные
+
+    if order == sub_idxs:
+        return text  # уже в правильном порядке — текст не трогаем
+
+    order_iter = iter(order)
+    new_lines = list(preamble)
+    for t, cl in chunks:
+        if t == "sub_resource":
+            new_lines.extend(chunks[next(order_iter)][1])
+        else:
+            new_lines.extend(cl)
+    return "\n".join(new_lines)
+
+
 def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
@@ -330,6 +501,12 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     fixed = _strip_invalid_uids(fixed)
     # --- 0.66) v45: узлы, чей parent объявлен позже по файлу — переставляем.
     fixed = _reorder_nodes_for_parent_order(fixed)
+    # --- 0.67) v50: prop = Type.new() — конструкторы GDScript в .tscn:
+    # однозначные превращаем в [sub_resource] + SubResource(...), спорные — модели.
+    fixed = _convert_ctor_values(fixed, problems)
+    # --- 0.68) v50: sub_resource со ссылкой на другой sub_resource должен
+    # идти ПОЗЖЕ него — переставляем топологически.
+    fixed = _toposort_sub_resources(fixed)
 
     text = fixed  # дальнейший анализ — по уже исправленному (автопочиненному) тексту
 
@@ -437,6 +614,57 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
         ref_id = m.group(1)
         if ref_id not in sub_ids:
             problems.append("\u0441\u0441\u044b\u043b\u043a\u0430 SubResource(\"%s\") \u043d\u0435 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u043d\u0438 \u043e\u0434\u043d\u043e\u043c\u0443 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u043e\u043c\u0443 [sub_resource] id" % ref_id)
+
+    # --- 4) v55: объявленный, но НЕ используемый ресурс: Godot молча выбрасывает
+    # такие [ext_resource]/[sub_resource] при первом же пересохранении сцены редактором.
+    # Типовой провал моделей: «добавила игрока», объявив PackedScene, но НЕ добавив
+    # узел с instance=ExtResource(...) — на сцене ничего не появляется, а после
+    # пересохранения пропадает и само объявление ресурса.
+    used_ext = set(m.group(1) for m in _EXTCALL_RE.finditer(text))
+    used_sub = set(m.group(1) for m in _SUBCALL_RE.finditer(text))
+    for m in _EXT_RE.finditer(text):
+        a = _attrs(m.group(1))
+        rid = a.get("id")
+        if not isinstance(rid, str) or rid in used_ext:
+            continue
+        rtype = a.get("type") or "?"
+        rpath = a.get("path") or "?"
+        if rtype == "PackedScene":
+            problems.append(
+                '[ext_resource id="%s"] (PackedScene, %s) объявлен, но НЕ используется ни одним узлом — '
+                'эта сцена НЕ появится на экране, а Godot удалит неиспользуемое объявление при '
+                'пересохранении. Добавь узел-экземпляр: [node name="..." parent="." '
+                'instance=ExtResource("%s")] (без type= — тип берётся из самой сцены).'
+                % (rid, rpath, rid))
+        else:
+            problems.append(
+                '[ext_resource id="%s"] (%s, %s) объявлен, но нигде не используется через '
+                'ExtResource("%s") — Godot удалит его при пересохранении сцены. '
+                'Сошлись на него в свойстве узла или убери объявление.'
+                % (rid, rtype, rpath, rid))
+    for m in _SUB_RE.finditer(text):
+        a = _attrs(m.group(1))
+        rid = a.get("id")
+        if not isinstance(rid, str) or rid in used_sub:
+            continue
+        problems.append(
+            '[sub_resource id="%s"] объявлен, но нигде не используется через SubResource("%s") — '
+            'Godot удалит его при пересохранении сцены. Сошлись на него в свойстве '
+            'узла/ресурса или убери объявление.' % (rid, rid))
+
+    # --- 5) v55: свойство «через точку» (mesh.size = ...) — такого синтаксиса в
+    # формате .tscn НЕТ: Godot молча выбросит строку, и свойство пропадёт.
+    for i, line in enumerate(text.split("\n")):
+        if _SECTION_START_RE.match(line):
+            continue
+        dm = _DOTTED_PROP_RE.match(line)
+        if dm:
+            problems.append(
+                'строка %d: «%s» — свойств «через точку» в формате .tscn НЕ существует, '
+                'Godot молча удалит эту строку при пересохранении. Задай свойство ВНУТРИ '
+                'секции соответствующего [sub_resource] (например size = Vector2(60, 60) '
+                'внутри [sub_resource type="PlaneMesh" ...]) и сошлись на него через SubResource(...).'
+                % (i + 1, dm.group(1)))
 
     seen = set()
     uniq = []
