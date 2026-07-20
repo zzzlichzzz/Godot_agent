@@ -32,7 +32,63 @@ MAX_DATASET_BYTES = 4 * 1024 * 1024  # 4 МБ — «главное чтобы н
 MAX_SCENE_CHARS = 6000  # слишком большие сцены в обучение не берём
 
 
+_BASE_OVERRIDE = None  # v68: папка плагина, если задана — «мозг» живёт там
+
+
+def set_storage_base(addon_dir, project_root=None):
+    """v68: храним «мозг» (датасет + чекпоинты) в папке плагина <addon>/minilich_brain,
+    чтобы обученный агент не терялся и передавался вместе с плагином другим пользователям.
+    Старые данные из user:// переносятся автоматически (один раз)."""
+    global _BASE_OVERRIDE
+    if not addon_dir:
+        _BASE_OVERRIDE = None
+        return None
+    new = os.path.join(os.path.abspath(addon_dir), "minilich_brain")
+    try:
+        os.makedirs(new, exist_ok=True)
+    except OSError:
+        return _BASE_OVERRIDE
+    if project_root and not os.path.isfile(os.path.join(new, DATASET_FILE)):
+        try:
+            oldbase = history.get_storage_dir(project_root)
+        except Exception:
+            oldbase = None
+        if not oldbase:
+            oldbase = os.path.join(os.path.abspath(project_root or "."), ".agent_history")
+        old = os.path.join(oldbase, STORAGE_SUBDIR)
+        if os.path.isdir(old):
+            import shutil
+            moved = False
+            for name in (DATASET_FILE, MANIFEST_FILE, "train_log.json"):
+                src = os.path.join(old, name)
+                dst = os.path.join(new, name)
+                if os.path.isfile(src) and not os.path.exists(dst):
+                    try:
+                        shutil.copy2(src, dst)
+                        moved = True
+                    except OSError:
+                        pass
+            src_ck = os.path.join(old, "checkpoints")
+            dst_ck = os.path.join(new, "checkpoints")
+            if os.path.isdir(src_ck) and not os.path.isdir(dst_ck):
+                try:
+                    shutil.copytree(src_ck, dst_ck)
+                    moved = True
+                except OSError:
+                    pass
+            if moved:
+                print(u"[minilich] мозг перенесён в папку плагина: %s" % new)
+    _BASE_OVERRIDE = new
+    return new
+
+
 def storage_dir(project_root):
+    if _BASE_OVERRIDE:
+        try:
+            os.makedirs(_BASE_OVERRIDE, exist_ok=True)
+        except OSError:
+            pass
+        return _BASE_OVERRIDE
     try:
         base = history.get_storage_dir(project_root)
     except Exception:

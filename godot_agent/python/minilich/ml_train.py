@@ -27,8 +27,13 @@ from .ml_tokenizer import MiniLichTokenizer
 
 CKPT_KEEP = 3
 CKPT_EVERY_STEPS = 50
-BURST_STEPS = 40
-BURST_PAUSE_SEC = 20.0
+BURST_STEPS = 10
+BURST_PAUSE_SEC = 2.0
+REPORT_EVERY_STEPS = 100
+EXAM_EVERY_BURSTS = 100
+EXAM_EXAMPLES = 3
+MARATHON_ATTEMPTS = 100
+MARATHON_EVERY_BURSTS = 500
 TRAIN_LOG = "train_log.json"
 MAX_LOG_LINES = 200
 
@@ -36,7 +41,7 @@ _TOK = MiniLichTokenizer()
 _lock = threading.Lock()
 _thread = None
 _stop = threading.Event()
-_state = {"active": False, "last_loss": None, "steps_done": 0, "last_error": "", "lines": []}
+_state = {"active": False, "last_loss": None, "steps_done": 0, "last_error": "", "lines": [], "exam": "", "marathon": ""}
 
 
 def _log(msg):
@@ -159,8 +164,117 @@ def train_steps(project_root, steps=BURST_STEPS, model=None, lr=1e-3, config_ove
 # Фоновый тренер
 # ---------------------------------------------------------------------------
 
+def _norm_scene(s):
+    lines = [" ".join(x.split()) for x in (s or "").strip().splitlines()]
+    return "\n".join(lines).strip()
+
+
+def _exam(project_root, addon_dir=None):
+    """v67 (restored in v69): the model re-fixes the last EXAM_EXAMPLES dataset
+    pairs on its own; each result must pass the linter; exact match vs the
+    teacher fix is reported separately. Results go to the console/status."""
+    import tscn_lint
+    from . import ml_fix
+    pairs = ml_data.load_pairs(project_root)
+    if not pairs:
+        return
+    take = pairs[-EXAM_EXAMPLES:]
+    total = len(take)
+    ok_lint = 0
+    ok_exact = 0
+    for idx in range(total):
+        e = take[idx]
+        if _stop.is_set():
+            return
+        fix = None
+        try:
+            fix = ml_fix.neural_fix(e.get("broken") or "", e.get("problems") or [], project_root)
+        except Exception:
+            fix = None
+        if not fix:
+            _log(u"Экзамен %d/%d: НЕ СМОГЛА (модель не выдала починку)" % (idx + 1, total))
+            continue
+        clean = False
+        try:
+            _f2, probs2 = tscn_lint.lint_and_fix_tscn(fix, project_root, addon_dir)
+            clean = not probs2
+        except Exception:
+            clean = False
+        if not clean:
+            _log(u"Экзамен %d/%d: НЕ СМОГЛА (результат не прошёл линтер)" % (idx + 1, total))
+            continue
+        ok_lint += 1
+        if _norm_scene(fix) == _norm_scene(e.get("fixed") or ""):
+            ok_exact += 1
+            _log(u"Экзамен %d/%d: OK — точь-в-точь как учитель" % (idx + 1, total))
+        else:
+            _log(u"Экзамен %d/%d: OK — по-своему, но линтер чист" % (idx + 1, total))
+    summary = u"чинит %d/%d, точно как учитель %d/%d" % (ok_lint, total, ok_exact, total)
+    _state["exam"] = summary
+    _log(u"Экзамен итог: %s." % summary)
+
+
+def _marathon(project_root, addon_dir=None):
+    """v69: MARATHON_ATTEMPTS attempts to re-fix the newest dataset pair with
+    rising temperature (attempt 1 is strict/greedy). Each attempt is checked
+    by the linter and compared (similarity) with the teacher fix. The earlier
+    the best attempt, the more points the model earns. Background only."""
+    import difflib
+    import time as _time
+    import tscn_lint
+    from . import ml_fix
+    pairs = ml_data.load_pairs(project_root)
+    if not pairs:
+        return
+    e = pairs[-1]
+    teacher = _norm_scene(e.get("fixed") or "")
+    if not teacher:
+        return
+    _log(u"Марафон: %d попыток починить последний пример (фон, работе не мешает)..." % MARATHON_ATTEMPTS)
+    ok_count = 0
+    first_ok = 0
+    best_att = 0
+    best_sim = -1.0
+    for i in range(1, MARATHON_ATTEMPTS + 1):
+        if _stop.is_set():
+            return
+        if i == 1:
+            temp = 0.0
+        else:
+            temp = 0.1 + 0.9 * (i - 2) / float(max(1, MARATHON_ATTEMPTS - 2))
+        try:
+            fix = ml_fix.neural_fix(e.get("broken") or "", e.get("problems") or [], project_root, temperature=temp)
+        except Exception:
+            fix = None
+        if fix:
+            ok = False
+            try:
+                _f2, probs2 = tscn_lint.lint_and_fix_tscn(fix, project_root, addon_dir)
+                ok = not probs2
+            except Exception:
+                ok = False
+            if ok:
+                ok_count += 1
+                if not first_ok:
+                    first_ok = i
+                sim = difflib.SequenceMatcher(None, _norm_scene(fix), teacher).ratio()
+                if sim > best_sim:
+                    best_sim = sim
+                    best_att = i
+        _time.sleep(0.05)
+    if best_att:
+        points = int(round(100.0 / best_att))
+        summary = u"удачных %d/%d, лучшая — попытка №%d (похожесть на учителя %d%%), первая удачная — №%d, очки: %d" % (ok_count, MARATHON_ATTEMPTS, best_att, int(round(best_sim * 100)), first_ok, points)
+    else:
+        summary = u"удачных 0/%d — модели нужно ещё обучение, очки: 0" % MARATHON_ATTEMPTS
+    _state["marathon"] = summary
+    _log(u"Марафон итог: %s" % summary)
+
+
 def _worker(project_root, addon_dir):
     model = None
+    burst = 0
+    last_report = 0
     _state["active"] = True
     _state["last_error"] = ""
     _state["lines"] = []
@@ -179,10 +293,23 @@ def _worker(project_root, addon_dir):
                 if loss is not None:
                     _state["last_loss"] = loss
                     _state["steps_done"] = model.step if model else 0
-                    _log("Шаг %d: loss=%.4f" % (model.step, loss))
+                    if model is not None and model.step - last_report >= REPORT_EVERY_STEPS:
+                        last_report = model.step
+                        _log("Шаг %d: loss=%.4f (примеров: %d)" % (model.step, loss, ml_data.dataset_stats(project_root).get("examples", 0)))
             except Exception as e:
                 _state["last_error"] = "train: %s" % e
                 _log("Ошибка обучения: %s" % e)
+            burst += 1
+            if not _stop.is_set() and model is not None and burst % EXAM_EVERY_BURSTS == 1:
+                try:
+                    _exam(project_root, addon_dir)
+                except Exception as e:
+                    _log(u"Ошибка экзамена: %s" % e)
+            if not _stop.is_set() and model is not None and burst % MARATHON_EVERY_BURSTS == 50:
+                try:
+                    _marathon(project_root, addon_dir)
+                except Exception as e:
+                    _log(u"Ошибка марафона: %s" % e)
             _stop.wait(BURST_PAUSE_SEC)
     finally:
         _state["active"] = False

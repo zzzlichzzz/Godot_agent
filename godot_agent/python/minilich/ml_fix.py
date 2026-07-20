@@ -308,7 +308,7 @@ def build_training_ids(broken, problems, fixed):
     return ids, answer_start
 
 
-def neural_fix(scene_text, problems, project_root):
+def neural_fix(scene_text, problems, project_root, temperature=0.0):
     """Пытается починить сцену обученной моделью. None, если чекпоинта нет
     или вход не помещается в контекст даже после обрезки (v58).
 
@@ -331,6 +331,7 @@ def neural_fix(scene_text, problems, project_root):
             eos_id=_TOK.eos_id,
             repetition_penalty=1.3,
             repetition_window=24,
+            temperature=temperature,
         )
     except Exception:
         return None

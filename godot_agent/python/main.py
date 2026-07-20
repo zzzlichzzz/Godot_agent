@@ -767,9 +767,16 @@ def _lint_action_scene(action, project_root, kind, path):
         _ml_enabled = False
     if _ml_enabled:
         try:
+            _ml_training = minilich.is_training_mode(project_root)
+        except Exception:
+            _ml_training = True
+        try:
             minilich.note_scene_bad(path, candidate, problems)
             healed = minilich.try_fix_scene(candidate, problems, project_root, STATE.get("addon_dir"))
         except Exception:
+            healed = None
+        if healed and _ml_training:
+            print(u"--> [mini-lich] (обучение) сам починил сцену — но в теневом режиме применяем ответ большой модели")
             healed = None
         if healed:
             action["action"] = "create_file"
@@ -1665,8 +1672,12 @@ def minilich_status():
         print("[minilich] /status:", "проект не синхронизирован, отвечаю enabled=False")
         return jsonify({"enabled": False, "examples": 0, "train_step": 0, "last_loss": None, "training_active": False, "params": 0, "disk_bytes": 0})
     try:
-        _st = minilich.status(root)
+        _st = minilich.status(root, STATE.get("addon_dir"))
+        if _st.get("storage"):
+            print(u"[minilich] мозг (датасет+веса): %s" % _st.get("storage"))
         print("[minilich] /status: root=%s enabled=%s training_active=%s" % (root, _st.get("enabled"), _st.get("training_active")))
+        if _st.get("start_error"):
+            print("[minilich] /status: реальная ошибка запуска обучения: %s" % _st.get("start_error"))
         return jsonify(_st)
     except Exception as e:
         print("[minilich] /status: ошибка:", e)
@@ -1685,16 +1696,27 @@ def minilich_set():
     print("[minilich] /set: root=%s enabled=%s" % (root, enabled))
     try:
         minilich.set_enabled(root, enabled)
+        if "training_mode" in data:
+            minilich.set_training_mode(root, bool(data.get("training_mode")))
+            print("[minilich] /set: training_mode=%s" % bool(data.get("training_mode")))
         if enabled:
             _started = minilich.start_training(root, STATE.get("addon_dir"))
             if _started:
                 print("[minilich] /set: start_training -> True (фоновый поток запущен)")
             else:
-                print("[minilich] /set: start_training -> False (уже работает с предыдущего раза — второй фон не нужен, это не ошибка)")
+                _err = getattr(minilich, "_last_start_error", "")
+                if _err:
+                    print("[minilich] /set: start_training -> False, РЕАЛЬНАЯ ОШИБКА запуска: %s" % _err)
+                else:
+                    print("[minilich] /set: start_training -> False (уже работает с предыдущего раза — второй фон не нужен, это не ошибка)")
         else:
             minilich.stop_training()
-        _st = minilich.status(root)
+        _st = minilich.status(root, STATE.get("addon_dir"))
+        if _st.get("storage"):
+            print(u"[minilich] мозг (датасет+веса): %s" % _st.get("storage"))
         print("[minilich] /set: сохранено, enabled=%s training_active=%s (перечитано с диска)" % (_st.get("enabled"), _st.get("training_active")))
+        if _st.get("start_error"):
+            print("[minilich] /set: реальная ошибка запуска обучения: %s" % _st.get("start_error"))
         return jsonify(_st)
     except Exception as e:
         print("[minilich] /set: ошибка:", e)

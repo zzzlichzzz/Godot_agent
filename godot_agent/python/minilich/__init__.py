@@ -30,6 +30,14 @@ SETTINGS_FILE = "settings.json"
 _pending_bad = {}
 _MAX_PENDING = 16
 
+# v65: start_training() could return False for two very different reasons -
+# 'thread already running' (fine) or 'failed to start due to an exception'
+# (e.g. numpy or a bundled dependency missing/broken in the packaged exe).
+# We now remember the last real startup error so it can be shown to the user
+# instead of being hidden behind a falsely reassuring message.
+_last_start_error = ""
+
+
 
 def _settings_path(project_root):
     return os.path.join(ml_data.storage_dir(project_root), SETTINGS_FILE)
@@ -61,6 +69,26 @@ def set_enabled(project_root, enabled):
     return data
 
 
+def is_training_mode(project_root):
+    """v69: теневой режим обучения: mini-lich учится, но сцены применяет большая модель.
+    По умолчанию включён (безопаснее для недоученной модели)."""
+    data = _load_settings(project_root)
+    if "training_mode" not in data:
+        return True
+    return bool(data.get("training_mode"))
+
+
+def set_training_mode(project_root, training):
+    data = _load_settings(project_root)
+    data["training_mode"] = bool(training)
+    path = _settings_path(project_root)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, path)
+    return data
+
+
 def _dir_size(path):
     total = 0
     for root, _dirs, files in os.walk(path):
@@ -72,11 +100,27 @@ def _dir_size(path):
     return total
 
 
-def status(project_root):
-    """Сводка для панели настроек. Никогда не падает."""
+def status(project_root, addon_dir=None):
+    """Сводка для панели настроек. Никогда не падает.
+
+    v64: «enabled» — персистентный флаг на диске и переживает перезагрузку сервера, а
+    фоновый поток обучения — нет: он живёт только в текущем процессе и заводится лишь
+    явным вызовом start_training. Если сервер перезагрузили (новый запуск
+    server.exe) и пользователь не переключил галочку вручную в этой сессии — без этого
+    самолечения обучение навечно зависало бы выключенным (training_active=False), хотя
+    enabled=True и пользователь считает, что оно должно идти. Поэтому каждый вызов status()
+    самолечаще: если enabled=True, а training_active=False — тихонько доказывает запустить
+    фоновой поток сам — без участия пользователя.
+    """
+    if addon_dir:
+        try:
+            ml_data.set_storage_base(addon_dir, project_root)
+        except Exception:
+            pass
     stats = ml_data.dataset_stats(project_root)
+    enabled = is_enabled(project_root)
     out = {
-        "enabled": is_enabled(project_root),
+        "enabled": enabled,
         "examples": stats["examples"],
         "train_step": 0,
         "last_loss": None,
@@ -85,19 +129,37 @@ def status(project_root):
         "disk_bytes": _dir_size(ml_data.storage_dir(project_root)),
         "lines": [],
     }
+    out["start_error"] = ""
     try:
         from . import ml_train
-        log = ml_train.read_log(project_root)
         train = ml_train.training_state()
+        if enabled and not train.get("active"):
+            start_training(project_root, addon_dir)
+            train = ml_train.training_state()
+        log = ml_train.read_log(project_root)
         out["train_step"] = int(log.get("step", 0) or 0)
         out["last_loss"] = log.get("last_loss")
         out["training_active"] = bool(train.get("active"))
         out["lines"] = list(train.get("lines", []) or [])
+        out["last_error"] = train.get("last_error") or ""
+        out["exam"] = train.get("exam") or ""
+        out["marathon"] = train.get("marathon") or ""
         model = ml_train.load_latest_model(project_root)
         if model is not None:
             out["params"] = model.param_count()
-    except Exception:
+    except Exception as e:
+        out["start_error"] = "status: %s" % e
         pass  # numpy недоступен — показываем базовый статус
+    if enabled and not out["training_active"] and _last_start_error and not out["start_error"]:
+        out["start_error"] = _last_start_error
+    try:
+        out["training_mode"] = is_training_mode(project_root)
+    except Exception:
+        out["training_mode"] = True
+    try:
+        out["storage"] = ml_data.storage_dir(project_root)
+    except Exception:
+        out["storage"] = ""
     return out
 
 
@@ -124,7 +186,12 @@ def note_scene_ok(project_root, path, candidate):
         return
     broken, problems = prev
     try:
-        ml_data.record_pair(project_root, broken, problems, candidate, source="live")
+        added = ml_data.record_pair(project_root, broken, problems, candidate, source="live")
+        if added:
+            stats = ml_data.dataset_stats(project_root)
+            print(u"[minilich] +1 обучающий пример (сломано->исправлено, всего: %d) — файл: %s" % (stats["examples"], ml_data._dataset_path(project_root)))
+        else:
+            print(u"[minilich] пара сломано->исправлено уже была в датасете (дубль) — не добавляю")
     except Exception:
         pass
 
@@ -134,6 +201,11 @@ def note_scene_ok(project_root, path, candidate):
 # ---------------------------------------------------------------------------
 
 def try_fix_scene(scene_text, problems, project_root, addon_dir=None):
+    if addon_dir:
+        try:
+            ml_data.set_storage_base(addon_dir, project_root)
+        except Exception:
+            pass
     return ml_fix.try_fix_scene(scene_text, problems, project_root, addon_dir)
 
 
@@ -146,10 +218,24 @@ def describe_for_prompt(project_root, query, limit=6):
 
 
 def start_training(project_root, addon_dir=None):
+    global _last_start_error
+    if addon_dir:
+        try:
+            ml_data.set_storage_base(addon_dir, project_root)
+        except Exception:
+            pass
     try:
         from . import ml_train
-        return ml_train.start_background(project_root, addon_dir)
-    except Exception:
+    except Exception as e:
+        _last_start_error = "import ml_train failed (numpy or bundled dependency missing/broken): %s" % e
+        return False
+    try:
+        started = ml_train.start_background(project_root, addon_dir)
+        if started:
+            _last_start_error = ""
+        return started
+    except Exception as e:
+        _last_start_error = "start_background failed: %s" % e
         return False
 
 
