@@ -114,6 +114,75 @@ def _remove_trailing_commas(raw: str) -> str:
     return re.sub(r',(\s*[}\]])', r'\1', raw)
 
 
+def _repair_unescaped_inner_quotes(raw: str) -> str:
+    """Достраивает недостающее экранирование '"' внутри строковых значений JSON.
+
+    Модель иногда присылает НЕсогласованное экранирование кавычек внутри
+    длинного строкового значения — типичный случай — .tscn-контент в поле
+    "content"/"replace", где рядом оказываются id=\\"1_player\\" (кавычки
+    экранированы) и id="2_icon" (не экранированы) в ОДНОЙ JSON-строке.
+    Обычный json.loads() принимает первую неэкранированную кавычку за конец
+    строки и обрывает разбор посреди значения — весь блок agent_action
+    считается битым, хотя реально повреждён только один шаг.
+
+    Эвристика: пока мы внутри JSON-строки и встречаем '"', смотрим на
+    следующий (после пробелов/переносов) символ. Если это ',', '}', ':'
+    или конец текста — кавычка действительно ЗАКРЫВАЕТ строку (обычная
+    граница JSON: конец значения перед следующим полем/концом объекта).
+    Иначе — это НЕэкранированная кавычка ВНУТРИ значения; достраиваем перед
+    ней '\\' и продолжаем читать строку дальше.
+
+    ВАЖНО: ']' сознательно НЕ входит в список "разрешающих" границ — иначе
+    ломается на .tscn-синтаксисе с квадратными скобками (PackedStringArray,
+    Vector2 в массивах и т.п. внутри самого текста .tscn): там ']' очень
+    часто идёт сразу после закрывающей кавычки атрибута ВНУТРИ содержимого
+    файла, а не как разделитель JSON-массива шагов — раньше это приводило к
+    ложному обрыву строки на первом же .tscn-массиве. Это была найдена и
+    исправлена ошибка при разработке этой функции.
+    """
+    if not raw:
+        return raw
+    out = []
+    in_string = False
+    escape = False
+    n = len(raw)
+    i = 0
+    while i < n:
+        ch = raw[i]
+        if not in_string:
+            out.append(ch)
+            if ch == '"':
+                in_string = True
+            i += 1
+            continue
+        if escape:
+            out.append(ch)
+            escape = False
+            i += 1
+            continue
+        if ch == '\\':
+            out.append(ch)
+            escape = True
+            i += 1
+            continue
+        if ch == '"':
+            j = i + 1
+            while j < n and raw[j] in ' \t\r\n':
+                j += 1
+            nxt = raw[j] if j < n else ''
+            if nxt == '' or nxt in ',}:':
+                out.append(ch)
+                in_string = False
+                i += 1
+                continue
+            out.append('\\"')
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return ''.join(out)
+
+
 def parse_action_json(raw: str):
     """Пытается распарсить JSON блока agent_action.
     Возвращает (dict_or_None, error_message_or_None)."""
@@ -125,6 +194,14 @@ def parse_action_json(raw: str):
         candidates.append(_remove_trailing_commas(cand))
         candidates.append(_escape_raw_newlines_in_strings(cand))
         candidates.append(_remove_trailing_commas(_escape_raw_newlines_in_strings(cand)))
+        # Починка несогласованного экранирования кавычек внутри строковых
+        # значений (см. _repair_unescaped_inner_quotes) — пробуем ПЕРЕД
+        # откатом на внешний json_repair, отдельно и в комбинации с уже
+        # накопленными починками.
+        candidates.append(_repair_unescaped_inner_quotes(cand))
+        candidates.append(_remove_trailing_commas(_repair_unescaped_inner_quotes(cand)))
+        candidates.append(_repair_unescaped_inner_quotes(_escape_raw_newlines_in_strings(cand)))
+        candidates.append(_remove_trailing_commas(_repair_unescaped_inner_quotes(_escape_raw_newlines_in_strings(cand))))
     last_error = None
     for cand in candidates:
         try:
@@ -217,6 +294,98 @@ def _find_action_json_candidates(raw: str):
 
 
 # ---------------------------------------------------------------------------
+# Терпимый (lenient) разбор action=plan: битый ОДИН шаг не должен ронять
+# весь план (v44). См. подробный комментарий над _reply_with_self_heal
+# в main.py про мотивацию и общую схему восстановления.
+# ---------------------------------------------------------------------------
+
+def _extract_step_candidates(raw: str):
+    """Вырезает СЫРЫЕ подстроки отдельных шагов из "steps": [...] с учётом
+    баланса скобок и JSON-строк — работает, даже если JSON плана целиком не
+    парсится (например, ОДИН шаг содержит несогласованное экранирование
+    кавычек). Возвращает список сырых текстов "{...}" (по одному на шаг, в
+    порядке появления в тексте) или [] если "steps": [ вообще не найдено.
+    """
+    out = []
+    if not raw:
+        return out
+    m = re.search(r'"steps"\s*:\s*\[', raw)
+    if not m:
+        return out
+    n = len(raw)
+    i = m.end()          # сразу после '[' списка шагов
+    bracket_depth = 1    # мы уже внутри этой '['
+    in_string = False
+    escape = False
+    obj_start = None
+    obj_depth = 0
+    while i < n and bracket_depth > 0:
+        ch = raw[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == '\\':
+                escape = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == '{':
+            if obj_start is None:
+                obj_start = i
+            obj_depth += 1
+        elif ch == '}':
+            obj_depth -= 1
+            if obj_depth == 0 and obj_start is not None:
+                out.append(raw[obj_start:i + 1])
+                obj_start = None
+        elif ch == '[':
+            bracket_depth += 1
+        elif ch == ']':
+            bracket_depth -= 1
+        i += 1
+    return out
+
+
+def parse_plan_lenient(raw: str):
+    """Терпимый разбор ответа модели, похожего на action=plan, когда обычный
+    parse_action_json не смог разобрать его ЦЕЛИКОМ (обычно из-за
+    несогласованного экранирования кавычек внутри содержимого ОДНОГО шага —
+    например, .tscn-контента). Разбирает КАЖДЫЙ шаг из "steps": [...] ПО
+    ОТДЕЛЬНОСТИ, чтобы один битый шаг не ронял остальные, уже корректные.
+
+    Возвращает {"description": str, "good_steps": [{"index", "step"}, ...],
+    "bad_steps": [{"index", "raw", "error"}, ...]} — или None, если raw
+    вообще не похож на план (нет ни "action":"plan", ни "steps": [ в тексте).
+    """
+    if not raw:
+        return None
+    base = _strip_code_fences(raw)
+    if '"plan"' not in base or '"action"' not in base:
+        return None
+    step_candidates = _extract_step_candidates(base)
+    if not step_candidates:
+        return None
+    description = ""
+    dm = re.search(r'"description"\s*:\s*"((?:[^"\\]|\\.)*)"', base)
+    if dm:
+        try:
+            description = json.loads('"' + dm.group(1) + '"')
+        except Exception:
+            description = dm.group(1)
+    good_steps, bad_steps = [], []
+    for idx, cand in enumerate(step_candidates):
+        step_obj, err = parse_action_json(cand)
+        if isinstance(step_obj, dict) and step_obj.get("action"):
+            good_steps.append({"index": idx, "step": step_obj})
+        else:
+            bad_steps.append({"index": idx, "raw": cand, "error": err or "не удалось разобрать JSON шага"})
+    return {"description": description, "good_steps": good_steps, "bad_steps": bad_steps}
+
+
+# ---------------------------------------------------------------------------
 # Базовый класс парсера сайта
 # ---------------------------------------------------------------------------
 
@@ -286,7 +455,7 @@ class BaseSiteParser:
         raise NotImplementedError
 
     def before_submit(self, driver, el):
-        """Де����твия между вставкой и отправкой (опционально)."""
+        """Де����твия между вставкой и отправкой (опц��онально)."""
         pass
 
     def submit(self, driver, el):

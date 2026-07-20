@@ -30,6 +30,8 @@ import gd_lint
 import gd_api_cache
 import gd_api_check
 import tscn_lint
+import scene_deps
+import gd_functions
 import log_reader
 import chat_store
 import json as _json
@@ -164,7 +166,7 @@ def _describe_action(action):
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
         return "Агент хочет выполнить план из %d шаг(ов): %s" % (total, desc)
-    if act == "parse_error": return "⚠ Агент прислал повреждённый JSON действия — действие пропущено."
+    if act == "parse_error": return "⚠ Агент прислал поврежённый JSON действия — самоисцеление (включая точечное восстановление шагов плана, если это был план) не помогло — действие пропущено."
     return f"Агент запросил неизвестное действие: {act}"
 
 
@@ -307,9 +309,21 @@ def _apply_write_step(action, project_root, chain_id=None):
 # ---------------------------------------------------------------------------
 
 def _start_read_batch(action, project_root):
-    paths = action.get("paths") or ([action.get("path")] if action.get("path") else [])
+    if action.get("action") == "read_function":
+        # v48: запрошены не файлы целиком, а конкретные функции из .gd-скриптов.
+        entries = []
+        raw = action.get("requests")
+        if isinstance(raw, list):
+            for r in raw:
+                if isinstance(r, dict) and r.get("path"):
+                    entries.append((r.get("path"), r.get("names") or r.get("functions") or []))
+        elif action.get("path"):
+            entries.append((action.get("path"), action.get("names") or action.get("functions") or []))
+    else:
+        paths = action.get("paths") or ([action.get("path")] if action.get("path") else [])
+        entries = [(p, None) for p in paths]
     seen, files = set(), []
-    for p in paths[:MAX_BATCH_FILES]:
+    for p, names in entries[:MAX_BATCH_FILES]:
         if not p or p in seen:
             continue
         seen.add(p)
@@ -325,7 +339,10 @@ def _start_read_batch(action, project_root):
                 status = "missing"
         except Exception:
             status = "missing"
-        files.append({"path": p, "status": status})
+        rec = {"path": p, "status": status}
+        if names is not None:  # v48: read_function — список запрошенных функций
+            rec["names"] = [str(n).strip() for n in names if str(n).strip()][:10]
+        files.append(rec)
     return {"files": files, "reason": action.get("reason", "")}
 
 
@@ -338,7 +355,11 @@ def _next_batch_confirmation():
     # он просто прошёл, как если бы уже разрешён/обработан (см. _finish_read_batch).
     for i, f in enumerate(files):
         if f["status"] == "pending":
-            desc = "Агент хочет прочитать файл (%d из %d): %s" % (i + 1, len(files), f["path"])
+            if f.get("names") is not None:
+                what = ", ".join(f["names"]) if f.get("names") else "(список имён функций)"
+                desc = "Агент хочет прочитать функции из файла (%d из %d): %s\nФункции: %s" % (i + 1, len(files), f["path"], what)
+            else:
+                desc = "Агент хочет прочитать файл (%d из %d): %s" % (i + 1, len(files), f["path"])
             if batch.get("reason"):
                 desc += "\nПричина: " + str(batch["reason"])
             return {"path": f["path"], "description": desc}
@@ -353,6 +374,11 @@ def _finish_read_batch(project_root):
     fence = "`" * 3
     for f in batch["files"]:
         if f["status"] == "approved":
+            if f.get("names") is not None:  # v48: точечное чтение функций
+                part = _read_functions_part(project_root, f)
+                total += len(part)
+                parts.append(part)
+                continue
             try:
                 content, truncated = read_project_file(project_root, f["path"], max_chars=PER_FILE_CHAR_LIMIT)
             except Exception as e:
@@ -375,16 +401,47 @@ def _finish_read_batch(project_root):
     return "\n\n".join(parts) or "[Система]: Ни один файл не был предоставлен."
 
 
+def _read_functions_part(project_root, f):
+    """v48: read_function — фрагмент ответа модели по одному файлу: только
+    запрошенные функции, а не файл целиком. Для отсутствующих имён модель
+    получает список имеющихся функций и может дозапросить нужные ещё одним
+    read_function — чтение работает по цепочке."""
+    fence = "`" * 3
+    path = f["path"]
+    if not str(path).endswith(".gd"):
+        return ("[Система]: read_function работает только для .gd-скриптов. "
+                "Файл %s запроси целиком через read_file." % path)
+    try:
+        content, _truncated = read_project_file(project_root, path, max_chars=PER_FILE_CHAR_LIMIT * 4)
+    except Exception as e:
+        return "[Система]: Ошибка чтения %s: %s" % (path, e)
+    all_names = gd_functions.list_functions(content)
+    names = f.get("names") or []
+    if not names:
+        return "[Система]: Функции файла %s: %s." % (path, ", ".join(all_names) or "(функций не найдено)")
+    found, missing = gd_functions.extract_functions(content, names)
+    out = []
+    for item in found:
+        out.append(
+            "Функция %s из файла %s (строки %d–%d; блок дословный — можно использовать как search в patch_file):\n%s\n%s\n%s"
+            % (item["name"], path, item["start_line"], item["end_line"], fence, item["snippet"], fence))
+    if missing:
+        out.append(
+            "[Система]: В файле %s НЕТ функций: %s. Доступные функции: %s. Нужное можешь дозапросить ещё одним read_function."
+            % (path, ", ".join(missing), ", ".join(all_names) or "(функций не найдено)"))
+    return "\n\n".join(out)
+
+
 def _package_model_reply(text, action, project_root, depth=0):
     """Единая упаковка ответа модели в HTTP-ответ для Godot:
     parse_error / запрос чтения / write-действие / просто текст."""
     if action and action.get("action") == "parse_error":
         STATE["pending_action"] = None
         return jsonify({
-            "answer": text + "\n\n[Система]: ⚠ Не удалось получить корректный JSON действия даже после повтора.",
+            "answer": text + "\n\n[Система]: ⚠ Не удалось получить корректный JSON действия даже после нескольких повторных попыток (включая точечное восстановление шагов плана, если сломанный ответ был похож на план).",
             "pending_action": None,
         })
-    if action and action.get("action") in ("read_file", "read_files"):
+    if action and action.get("action") in ("read_file", "read_files", "read_function"):
         STATE["pending_action"] = None
         STATE["pending_batch"] = _start_read_batch(action, project_root)
         nxt = _next_batch_confirmation()
@@ -534,8 +591,8 @@ def _touch_file_read(path):
 
 def _create_overwrite_is_stale(action, project_root):
     """create_file поверх СУЩЕСТВУЮЩЕГО файла, который менял другой чат
-    ПОСЛЕ того, как текущий чат в последний раз видел его содержимое, —
-    опасен: модель молча сотрёт чужую работу. Возвращает текст системного
+    ПОСЛ�� того, как текущий чат в последний раз видел его содержим��е, —
+    оп������сен: модель молча сотрёт чужую работу. Возвращает текст системного
     сообщения для модели или None, если всё свежо."""
     path = action.get("path", "")
     try:
@@ -560,6 +617,47 @@ def _create_overwrite_is_stale(action, project_root):
         "изучи актуальную версию и только потом предлагай правку (patch_file для точечных "
         "изменений или create_file, если полная замена всё ещё нужна)."
     )
+
+
+def _deps_enrich_scene_action(action, candidate, path, project_root):
+    """v47: анализ зависимостей для СЦЕНЫ, которая вот-вот запишется.
+    Если в привязанных скриптах есть обработчики _on_..., которые нигде не
+    подключены и трактуются ОДНОЗНАЧНО — тихо добавляем [connection] в сцену.
+    Спорные случаи — только заметка модели, никаких блокировок."""
+    try:
+        new_text, added, notes = scene_deps.analyze_scene_action(candidate, path, project_root)
+    except Exception:
+        return
+    if added and new_text != candidate:
+        action["action"] = "create_file"
+        action["content"] = new_text
+        action.pop("search", None)
+        action.pop("replace", None)
+    msg_parts = []
+    if added:
+        msg_parts.append(
+            "анализ зависимостей автоматически добавил в сцену " + path
+            + " подключения сигналов: " + "; ".join(added)
+            + ". Не добавляй их повторно"
+        )
+    if notes:
+        msg_parts.append("заметки анализа зависимостей: " + "; ".join(notes[:4]))
+    if msg_parts:
+        server_state.queue_action_note("[Система: " + ". ".join(msg_parts) + ".]")
+
+
+def _deps_note_script_action(candidate, path, project_root):
+    """v47: анализ зависимостей для СКРИПТА: если сцены на диске уже
+    используют этот скрипт, а в нём появился неподключённый обработчик —
+    мягкая заметка модели (чужие файлы не правим автоматически)."""
+    try:
+        notes = scene_deps.analyze_script_action(candidate, path, project_root)
+    except Exception:
+        return
+    if notes:
+        server_state.queue_action_note(
+            "[Система: анализ зависимостей — " + "; ".join(notes[:4]) + ".]"
+        )
 
 
 def _lint_action_code(action, project_root):
@@ -598,6 +696,7 @@ def _lint_action_code(action, project_root):
     except Exception:
         pass
     if not problems:
+        _deps_note_script_action(candidate, path, project_root)
         return None
     listing = "\n".join("- %s" % p for p in problems[:8])
     msg_head = "[Sistema]"
@@ -647,18 +746,72 @@ def _lint_action_scene(action, project_root, kind, path):
         action.pop("replace", None)
         candidate = fixed
     if not problems:
+        _deps_enrich_scene_action(action, candidate, path, project_root)
         return None
     listing = "\n".join("- %s" % p for p in problems[:8])
     return (
         "[" + "\u0421\u0438\u0441\u0442\u0435\u043c\u0430" + "]: \u0442\u0432\u043e\u044f \u0441\u0446\u0435\u043d\u0430 \u0434\u043b\u044f \u0444\u0430\u0439\u043b\u0430 " + path + " \u043d\u0435 \u043f\u0440\u043e\u0448\u043b\u0430 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b. "
         + "\u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0438\u0442\u043e\u0433\u043e\u0432\u044b\u0439 \u0442\u0435\u043a\u0441\u0442 \u0441\u0446\u0435\u043d\u044b. \u041f\u0440\u043e\u0431\u043b\u0435\u043c\u044b:\n" + listing + "\n"
         + "\u0418\u0441\u043f\u0440\u0430\u0432\u044c \u0441\u0446\u0435\u043d\u0443 \u0438 \u043f\u0440\u0438\u0448\u043b\u0438 agent_action \u0437\u0430\u043d\u043e\u0432\u043e (create_file \u0434\u043b\u044f " + path + "). "
-        + "\u0421\u0441\u044b\u043b\u0430\u0439\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0440\u0435\u0430\u043b\u044c\u043d\u043e \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u0435 id/uid \u0440\u0435\u0441\u0443\u0440\u0441\u044b \u0438 \u0443\u0436\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u044b\u0435 \u0432\u044b\u0448\u0435 \u0443\u0437\u043b\u044b (\u0432\u044b\u0437\u043e\u0432\u0438 list_scene, \u0435\u0441\u043b\u0438 \u043d\u0443\u0436\u043d\u043e \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u0430\u043a\u0442\u0443\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0441\u0446\u0435\u043d\u044b)."
+        + "\u041d\u043e\u0432\u044b\u0435 [sub_resource]/[ext_resource] \u043e\u0431\u044a\u044f\u0432\u043b\u044f\u0442\u044c \u041c\u041e\u0416\u041d\u041e \u2014 \u044d\u0442\u043e \u043d\u043e\u0440\u043c\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0443\u0442\u044c \u0434\u043b\u044f \u043d\u043e\u0432\u043e\u0433\u043e \u043a\u043e\u043d\u0442\u0435\u043d\u0442\u0430 (uid \u0443 \u043d\u043e\u0432\u044b\u0445 \u0440\u0435\u0441\u0443\u0440\u0441\u043e\u0432 \u0443\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u043d\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e: Godot \u0441\u0433\u0435\u043d\u0435\u0440\u0438\u0440\u0443\u0435\u0442 \u0435\u0433\u043e \u0441\u0430\u043c \u043f\u0440\u0438 \u043f\u0435\u0440\u0432\u043e\u043c \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u0438). \u0413\u043b\u0430\u0432\u043d\u043e\u0435: \u043e\u0431\u044a\u044f\u0432\u0438 \u0440\u0435\u0441\u0443\u0440\u0441 \u0432 \u0444\u0430\u0439\u043b\u0435 \u0420\u0410\u041d\u042c\u0428\u0415 \u043f\u0435\u0440\u0432\u043e\u0433\u043e \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u044f \u0438 \u0441\u0441\u044b\u043b\u0430\u0439\u0441\u044f \u043d\u0430 \u0435\u0433\u043e id \u0434\u043e\u0441\u043b\u043e\u0432\u043d\u043e, \u0430 \u0443\u0437\u0435\u043b-parent \u043e\u0431\u044a\u044f\u0432\u043b\u044f\u0439 \u0432\u044b\u0448\u0435 \u0435\u0433\u043e \u0434\u0435\u0442\u0435\u0439 (\u0432\u044b\u0437\u043e\u0432\u0438 list_scene, \u0435\u0441\u043b\u0438 \u043d\u0443\u0436\u043d\u043e \u0443\u0432\u0438\u0434\u0435\u0442\u044c \u0430\u043a\u0442\u0443\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0441\u0446\u0435\u043d\u044b)."
     )
+
+
+def _guess_step_path(raw_step_text):
+    """Извлекает 'path' из СЫРОГО (возможно, невалидного JSON) текста ОДНОГО
+    шага плана — только для сообщений пользователю/модели о том, какой из
+    шагов не распознан (парсить сам JSON тут не пытаемся)."""
+    if not raw_step_text:
+        return None
+    m = _re.search(r'"path"\s*:\s*"((?:[^"\\]|\\.)*)"', raw_step_text)
+    if not m:
+        return None
+    try:
+        return _json.loads('"' + m.group(1) + '"')
+    except Exception:
+        return m.group(1)
 
 
 # ---------------------------------------------------------------------------
 # Self-heal: битый JSON или несовпадающий patch чиним без участия пользователя.
+#
+# v44: раньше один БИТЫЙ шаг плана (action=plan) ронял ВЕСЬ план целиком —
+# parse_action_json не мог разобрать общий JSON, если хотя бы один шаг
+# содержал несогласованное экранирование кавычек (типичный случай — большой
+# .tscn-контент, где часть кавычек внутри значения экранирована, а часть —
+# нет). Модель получала общий "пришли всё заново", план терялся целиком, и
+# пользователь оставался без уже готового кода — даже если 3 из 4 шагов были
+# полностью корректны.
+#
+# Начиная с v44: если сырой ответ ПОХОЖ на action=plan (см.
+# parser_base.parse_plan_lenient), мы разбираем каждый шаг из "steps": [...]
+# ПО ОТДЕЛЬНОСТИ (с учётом починки несогласованных кавычек — см.
+# parser_base._repair_unescaped_inner_quotes). Все шаги, которые распознались
+# нормально, сразу принимаются (lenient_good). По каждому ОСТАВШЕМУСЯ битому
+# шагу (lenient_bad) отправляется ТОЧЕЧНЫЙ fix-prompt: модели называют уже
+# принятые пути (чтобы не путать её и не заставлять присылать план заново
+# целиком), номер/путь именно ПРОБЛЕМНОГО шага и точную причину разбора —
+# и просят переписать ТОЛЬКО этот один шаг одним корректным JSON-объектом
+# (без обёртки action=plan). Каждая такая попытка расходует ОДНУ попытку из
+# общего бюджета MAX_ACTION_FIX_RETRIES (общего с обычным самоисцелением
+# create_file/patch_file). Если шаг починился — он переходит в lenient_good;
+# если нет — на него записывается причина отказа, и обраба��ывается следующий
+# битый шаг по кругу, пока бюджет не закончится.
+#
+# Если после этого lenient_bad опустел — план собирается заново из
+# lenient_good, и обработка продолжается как обычный action=plan (дальше
+# план валидируется/подтверждается пользователем как всегда).
+#
+# Если бюджет попыток исчерпан, а lenient_bad всё ещё не пуст, но
+# lenient_good не пуст — план всё равно собирается из того, что удалось
+# распознать (лучше отдать пользователю частичный результат, чем ничего), а
+# в text дописывается явное предупреждение: сколько шагов принято, сколько и
+# какие (номер + путь, если удалось угадать) отброшены и почему, с советом
+# попросить модель прислать отброшенные шаги отдельным сообщением.
+#
+# Если сырой ответ вообще не похож на план, или из него не удалось вытащить
+# ни одного шага (ни good, ни bad) — ведём себя как раньше: обычный общий
+# fix-prompt с просьбой переслать ВСЁ действие заново.
 # ---------------------------------------------------------------------------
 
 def _reply_with_self_heal(prompt, project_root):
@@ -666,15 +819,94 @@ def _reply_with_self_heal(prompt, project_root):
     retries = 0
     while retries < MAX_ACTION_FIX_RETRIES:
         if action and action.get("action") == "parse_error":
-            retries += 1
-            print(f"--> [self-heal] Битый JSON action, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
-            fix_prompt = (
-                "[Система]: Твой предыдущий блок agent_action содержал невалидный JSON "
-                "и не был обработан. Пришли ТО ЖЕ действие заново одним корректным JSON-блоком "
-                "agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") внутри "
-                "строковых значений. Никакого текста вне JSON-блока."
-            )
-            text, action = _reply(fix_prompt)
+            raw = action.get("raw")
+            lenient = parser_base.parse_plan_lenient(raw)
+            has_any_step = bool(lenient and (lenient.get("good_steps") or lenient.get("bad_steps")))
+            if not has_any_step:
+                retries += 1
+                print(f"--> [self-heal] Битый JSON action, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                fix_prompt = (
+                    "[Система]: Твой предыдущий блок agent_action содержал невалидный JSON "
+                    "и не был обработан. Пришли ТО ЖЕ действие заново одним корректным JSON-блоком "
+                    "agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") внутри "
+                    "строковых значений. Никакого текста вне JSON-блока."
+                )
+                text, action = _reply(fix_prompt)
+                continue
+            lenient_good = list(lenient["good_steps"])
+            lenient_bad = list(lenient["bad_steps"])
+            print(f"--> [self-heal] план р��спознан частично: {len(lenient_good)} шаг(ов) ок, "
+                  f"{len(lenient_bad)} шаг(ов) битых — пробую точечно починить.")
+            accepted_paths = [s["step"].get("path", "") for s in lenient_good]
+            dropped = []
+            while lenient_bad and retries < MAX_ACTION_FIX_RETRIES:
+                bad = lenient_bad.pop(0)
+                retries += 1
+                bad_path = _guess_step_path(bad["raw"]) or "?"
+                print(f"--> [self-heal] точечная починка шага (индекс {bad['index']}, "
+                      f"путь {bad_path}), попытка {retries}/{MAX_ACTION_FIX_RETRIES}: {bad['error']}")
+                accepted_note = (
+                    ("Уже принятые шаги (НЕ присылай ��х повторно): " + ", ".join(p for p in accepted_paths if p))
+                    if accepted_paths else "Других шагов пока не принято."
+                )
+                fix_prompt = (
+                    "[Система]: В твоём последнем плане (action=plan) шаг №%d содержит НЕвалидный "
+                    "JSON и не был обработан (остальные корректные шаги уже приняты ОТДЕЛЬНО). "
+                    "Путь этого шага: %s. Точная причина ошибки разбора: %s. %s "
+                    "Пришли ТОЛЬКО этот ОДИН шаг заново одним корректным JSON-ОБЪЕКТОМ действия "
+                    "(create_file/patch_file/move_file — без обёртки action=plan и без остальных "
+                    "шагов), строго экранируя переносы строк (\\n) и кавычки (\\\") внутри строковых "
+                    "значений."
+                ) % (bad["index"] + 1, bad_path, bad["error"], accepted_note)
+                fix_text, fix_action = _reply(fix_prompt)
+                if isinstance(fix_action, dict) and fix_action.get("action") in PLAN_ALLOWED_ACTIONS:
+                    lenient_good.append({"index": bad["index"], "step": fix_action})
+                    accepted_paths.append(fix_action.get("path", ""))
+                    print(f"--> [self-heal] шаг {bad['index'] + 1} успешно починен точечно.")
+                else:
+                    reason = (
+                        (fix_action or {}).get("error") if isinstance(fix_action, dict) else None
+                    ) or bad["error"] or "не удалось распознать корректное действие"
+                    dropped.append({"index": bad["index"], "path": bad_path, "error": reason})
+                    print(f"--> [self-heal] шаг {bad['index'] + 1} НЕ починен точечно: {reason}")
+            for bad in lenient_bad:
+                dropped.append({
+                    "index": bad["index"],
+                    "path": _guess_step_path(bad["raw"]) or "?",
+                    "error": bad["error"] + " (бюджет попыток самоисцеления исчерпан)",
+                })
+            if not lenient_good:
+                retries += 1
+                print(f"--> [self-heal] ни один шаг плана не удалось восстановить — откат на общий fix-prompt, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                fix_prompt = (
+                    "[Система]: Твой предыдущий блок agent_action (план) содержал невалидный JSON "
+                    "и не был обработан целиком. Пришли ТО ЖЕ действие заново одним корректным "
+                    "JSON-блоком agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") "
+                    "внутри строковых значений. Никакого текста вне JSON-блока."
+                )
+                text, action = _reply(fix_prompt)
+                continue
+            ordered_steps = [s["step"] for s in sorted(lenient_good, key=lambda s: s["index"])]
+            action = {
+                "action": "plan",
+                "description": lenient.get("description", ""),
+                "steps": ordered_steps,
+                "total": len(ordered_steps),
+            }
+            if dropped:
+                listing = "\n".join(
+                    "- шаг %d (%s): %s" % (d["index"] + 1, d["path"], d["error"]) for d in dropped
+                )
+                warning = (
+                    "[Система]: \u26a0 Восстановлено частично: %d шаг(ов) плана принято, %d шаг(ов) "
+                    "отброшено из-за повреждённого JSON, который не удалось починить даже точечно:\n%s\n"
+                    "��опроси модель прислать отброшенные шаги отдельным сообщением, если они нужны."
+                    % (len(ordered_steps), len(dropped), listing)
+                )
+                text = (text + "\n\n" + warning).strip() if text else warning
+            else:
+                print(f"--> [self-heal] план полностью восстановлен точечными починками: "
+                      f"{len(ordered_steps)} шаг(ов).")
             continue
         if action and action.get("action") == "patch_file":
             ok, real_content, err = _validate_patch_against_disk(action, project_root)
@@ -723,6 +955,33 @@ def _reply_with_self_heal(prompt, project_root):
             continue
         # Любое другое действие или его отсутствие — проверять нечего.
         break
+    # v46: бюджет самоисцеления мог закончиться на ВСЁ ЕЩЁ битом write-действии
+    # (последний ответ модели после выхода из цикла не перепроверялся). Раньше
+    # такое действие уходило дальше как pending_action: пользователь подтверждал
+    # заведомо сломанный файл, а модель (и пользователь по её тексту) считали
+    # правку применённой, хотя файл мог остаться прежним. Теперь действие
+    # снимается, а пользователь и модель получают явное «файл НЕ изменён».
+    if action and action.get("action") in ("create_file", "patch_file"):
+        try:
+            final_lint = _lint_action_code(action, project_root)
+        except Exception:
+            final_lint = None
+        if final_lint is not None:
+            kind = action.get("action")
+            path = action.get("path", "")
+            warn = (
+                "[Система]: ⚠ Действие %s для %s ОТБРОШЕНО: файл НЕ был изменён. "
+                "Модель за %d попыт(ок) так и не прислала версию, проходящую автоматическую "
+                "проверку. Повторите запрос (можно попросить модель прислать файл целиком заново)."
+                % (kind, path, MAX_ACTION_FIX_RETRIES)
+            )
+            server_state.queue_action_note(
+                "[Система: твоё последнее действие %s для %s было ОТБРОШЕНО, файл НЕ изменён — "
+                "присланная версия так и не прошла автоматическую проверку. Не считай эти правки "
+                "применёнными: файл на диске остался прежним.]" % (kind, path)
+            )
+            text = (text + "\n\n" + warn).strip() if text else warn
+            action = None
     return text, action
 
 
@@ -877,7 +1136,7 @@ def _build_priming_context(project_root):
                                            compact_threshold=PRIME_COMPACT_THRESHOLD)
     if compact:
         print("--> Проект большой: в мега-промпт идёт компактная сводка по папкам вместо полного дерева")
-    _refresh_fs_snapshot(project_root)  # созданные папки — не «внешние» изменения
+    _refresh_fs_snapshot(project_root)  # созданные ��апки — не «внешние» изменения
     return PRIMING_TEMPLATE.replace("{tree}", tree).replace("{architecture}", arch)
 
 
@@ -892,7 +1151,7 @@ def init_session():
     _apply_session_context(data)
     STATE["pending_action"] = None
     STATE["pending_batch"] = None
-    STATE["action_note"] = ""
+    STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
     if STATE.get("fs_snapshot") is None or STATE.get("fs_snapshot_root") != STATE["project_root"]:
         _refresh_fs_snapshot(STATE["project_root"])
@@ -925,7 +1184,7 @@ def chat():
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
     # Каждое НОВОе сообщение пользователя занова решает, ��азрешены ли в этом ходе действия над
     # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
-    # задаётся заново на каждое такое сообщение, а не один раз, чтобы доступ к аддонам не застревал навсегда.
+    # задаётся заново на каждое такое сообщение, а не один раз, чтобы досту�� к аддонам не застревал навсегда.
     STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
     _ensure_current_chat(prompt)
@@ -945,10 +1204,11 @@ def chat():
     _remember("user", prompt)
 
     try:
-        note = STATE.get("action_note", "")
+        # v45: заметка отдаётся только тому же чату, где произошло действие/откат —
+        # другие чаты (в т.ч. только созданные) её НЕ видят.
+        note = server_state.pop_action_note_for_current()
         if note:
             prompt = f"{note}\n\n{prompt}"
-            STATE["action_note"] = ""
 
         # Сводка «что изменилось, пока чат был неактивен» (готовится при
         # открытии чата, отправляется ОДИН раз с первым сообщением).
@@ -957,7 +1217,7 @@ def chat():
             prompt = f"{stale}\n\n{prompt}"
             STATE["stale_note"] = ""
 
-        # Файлы, изменённые ВНЕ агента (пользователь удалил сцену, поменял
+        # Файлы, изменённые ВНЕ агента (пользоват��ль удалил сцену, поменял
         # скрипт руками...) — модель узнаёт об этом вместе с этим сообщением.
         ext_note = _external_changes_note(current_root)
         if ext_note:
@@ -971,6 +1231,7 @@ def chat():
             text, action = _reply_with_self_heal(final_prompt, current_root)
             STATE["is_primed"] = True
             _save_primed(current_root, True)
+            server_state.mark_chat_prompt_version()  # v48: запомнить версию промпта у чата
         else:
             print(f"\n---> Отправка сообщения ({len(prompt)} симв.)")
             text, action = _reply_with_self_heal(prompt, current_root)
@@ -995,7 +1256,7 @@ def confirm_action():
             print(f"--> План из {plan['total']} шаг(ов) ОТКЛОНён пользователем.")
             STATE["pending_plan"] = None
             STATE["pending_action"] = None
-            STATE["action_note"] = "[Система: Пользователь ОТКЛОНИЛ ваш план. Ни один шаг не был применен. Скорректируй подход.]"
+            server_state.queue_action_note("[Система: Пользователь ОТКЛОНИЛ ваш план. Ни один шаг не был применен. Скорректируй подход.]")
             return jsonify({"answer": "[Система]: План отклонён пользователем.", "pending_action": None})
         # План одобрен: переводим в режим выполнения. Сами шаги вызывает клиент (Godot-панель)
         # через /chat/plan/step — здесь мы только снимаем pending_action, чтобы освободить UI подтверждения.
@@ -1034,14 +1295,14 @@ def confirm_action():
     # --- Ветка 2: WRITE-действие ---
     action = STATE.get("pending_action")
     if action is None:
-        return jsonify({"error": "Нет ожидающего подтверждения действия."}), 400
+        return jsonify({"error": "Нет ожидающего подтвер��дения действия."}), 400
 
     act_type = action.get("action")
     path = action.get("path", "")
     try:
         if not approved:
             print(f"--> Действие '{act_type}' ОТКЛОНЕНО пользователем.")
-            STATE["action_note"] = f"[Система: Пользователь ОТКЛОНИЛ ваше действие {act_type} для {path}. Изменение НЕ было применено! Скорректируй подход.]"
+            server_state.queue_action_note(f"[Система: Пользователь ОТКЛОНИЛ ваше действие {act_type} для {path}. Изменение НЕ было применено! Скорректируй подход.]")
             STATE["pending_action"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
 
@@ -1063,7 +1324,7 @@ def confirm_action():
             query = str(action.get("query", ""))
             STATE["pending_action"] = None
             if not query.strip():
-                followup = "[Система]: search_project пришёл с ПУСТЫМ 'query' — поиск не выполнен. Пришли действие заново с непустым query."
+                followup = "[Система]: search_project пришёл с ПУСТЫМ 'query' — поиск н�� выполнен. Пришли действие заново с непустым query."
             else:
                 print(f"--> Поиск по проекту: {query!r}")
                 results, truncated = search_project_text(project_root, query)
@@ -1186,7 +1447,7 @@ def rollback():
             note += (" В project.godot также убраны висячие записи автозагрузки (%s), "
                      "так как их файлы больше не существуют." % ", ".join(removed_autoloads))
         note += " Учтите это!]"
-        STATE["action_note"] = note
+        server_state.queue_action_note(note)
         return jsonify(resp)
     return jsonify({"error": msg, "needs_force": needs_force}), 409
 
@@ -1249,10 +1510,10 @@ def plan_step():
             # и звать ручной откат, пытаемся самоисцелиться через зачинку обратно модели.
             if heal_attempts >= MAX_ACTION_FIX_RETRIES:
                 STATE["pending_plan"] = None
-                STATE["action_note"] = (
+                server_state.queue_action_note((
                     "[Система: выполнение плана остановлено на шаге %d из %d (%s): автоматическое исправление не помогло за %d "
                     "попыт(ки). Последняя ошибка: %s. Уже выполненные шаги (%d) остались на диске.]"
-                ) % (idx + 1, plan["total"], step.get("path", ""), MAX_ACTION_FIX_RETRIES, fail_reason, idx)
+                ) % (idx + 1, plan["total"], step.get("path", ""), MAX_ACTION_FIX_RETRIES, fail_reason, idx))
                 return jsonify({
                     "ok": False, "stopped": True, "index": idx, "total": plan["total"],
                     "chain_id": plan["chain_id"], "error": fail_reason,
@@ -1265,10 +1526,10 @@ def plan_step():
             heal_attempts += 1
             if fixed is None:
                 STATE["pending_plan"] = None
-                STATE["action_note"] = (
+                server_state.queue_action_note((
                     "[Система: выполнение плана остановлено на шаге %d из %d (%s): %s. Модель не прислала "
                     "пригодное исправление. Уже выполненные шаги (%d) остались на диске.]"
-                ) % (idx + 1, plan["total"], step.get("path", ""), fail_reason, idx)
+                ) % (idx + 1, plan["total"], step.get("path", ""), fail_reason, idx))
                 return jsonify({
                     "ok": False, "stopped": True, "index": idx, "total": plan["total"],
                     "chain_id": plan["chain_id"], "error": fail_reason,
@@ -1293,9 +1554,9 @@ def plan_step():
             resp["changed_block"] = result.get("changed_block", "")
         if done:
             STATE["pending_plan"] = None
-            STATE["action_note"] = (
+            server_state.queue_action_note((
                 "[Система: весь план из %d шаг(ов) успешно выполнен. Файлы: %s]"
-            ) % (plan["total"], ", ".join(plan["applied_paths"]))
+            ) % (plan["total"], ", ".join(plan["applied_paths"])))
         return jsonify(resp)
     except Exception as e:
         traceback.print_exc()
@@ -1310,11 +1571,11 @@ def plan_stop():
         return jsonify({"error": "Нет активного плана."}), 400
     idx, total = plan["index"], plan["total"]
     STATE["pending_plan"] = None
-    STATE["action_note"] = (
+    server_state.queue_action_note((
         "[Система: Пользователь остановил выполнение плана вручную на шаге %d из %d. "
         "Сделанные шаги (%d) остались на диске, остальные отменены. При необходимости пользователь "
         "может откатить всю цепочку целиком.]"
-    ) % (idx, total, idx)
+    ) % (idx, total, idx))
     return jsonify({"stopped": True, "index": idx, "total": total, "chain_id": plan["chain_id"], "applied_paths": plan["applied_paths"]})
 
 
@@ -1351,7 +1612,7 @@ def plan_rollback_chain():
             note += (" В project.godot также убраны висячие записи автозагрузки (%s), "
                      "так как их файлы больше не существуют." % ", ".join(removed_autoloads))
         note += "]"
-        STATE["action_note"] = note
+        server_state.queue_action_note(note)
         return jsonify(resp)
     return jsonify({"error": msg, "needs_force": needs_force,
                     "reverted_count": reverted_count, "total_count": total_count}), 409
@@ -1360,7 +1621,7 @@ def plan_rollback_chain():
 # ---------------------------------------------------------------------------
 # Ошибки последнего запуска игры: панель сперва получает сводку (в браузер
 # НИЧЕГО не уходит), пользователь подтверждает — и только тогда модели
-# отправляется ОДИН отчёт. Повторная отправка того же лога блокируется
+# отпр��вляется ОДИН отчёт. Повторная отправка того же лога блокируется
 # по отпечатку (mtime + размер), который переживает перезапуск сервера.
 # ---------------------------------------------------------------------------
 
@@ -1432,13 +1693,12 @@ def send_log_errors():
     STATE["pending_log_report"] = None
     project_root = STATE.get("project_root")
     try:
-        # Фиксируем отпечаток ДО отправки: этот же лог больше не отправить.
+        # Фиксируем отпечаток ДО отправки: этот ж�� лог больше не отправить.
         log_reader.save_sent_fingerprint(history.get_storage_dir(project_root), report["fingerprint"])
         message = log_reader.format_report(report)
-        note = STATE.get("action_note", "")
+        note = server_state.pop_action_note_for_current()  # v45: только заметка своего чата
         if note:
             message = f"{note}\n\n{message}"
-            STATE["action_note"] = ""
         if not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
             system_context = _build_priming_context(project_root)
