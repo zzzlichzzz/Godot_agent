@@ -1809,8 +1809,8 @@ func _on_train_mode_toggled(pressed: bool) -> void:
 	if _minilich_train_warn:
 		_minilich_train_warn.visible = pressed
 	_minilich_set_pending = true
-	var en := _minilich_check != null and _minilich_check.button_pressed
-	_request_chats("minilich_set", {"enabled": en, "training_mode": pressed})
+	# v70: шлём только training_mode — галочку mini-lich не трогаем (гонка со старым статусом могла выключить обучение)
+	_request_chats("minilich_set", {"training_mode": pressed})
 
 
 func _on_minilich_toggled(pressed: bool) -> void:

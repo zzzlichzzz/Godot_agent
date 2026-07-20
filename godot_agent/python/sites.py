@@ -30,6 +30,14 @@ SITES = [
     # Пример будущего сайта (выключен, оставлен как ориентир):
     # {"id": "chatgpt", "name": "ChatGPT", "new_chat_url": "https://chatgpt.com/",
     #  "match": ["chatgpt.com", "chat.openai.com"], "parser": "universal", "builtin": True},
+    {
+        "id": "qwen",
+        "name": "Qwen (заготовка)",
+        "new_chat_url": "https://chat.qwen.ai/",
+        "match": ["chat.qwen.ai", "qwen.ai"],
+        "parser": "qwen_parser",   # модуль qwen_parser.py — ЗАГОТОВКА: селекторы уточнить
+        "builtin": True,
+    },
 ]
 
 

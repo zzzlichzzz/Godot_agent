@@ -319,9 +319,15 @@ def neural_fix(scene_text, problems, project_root, temperature=0.0):
     model = ml_train.load_latest_model(project_root)
     if model is None:
         return None
-    budget = max(64, model.cfg["n_ctx"] - MAX_GEN_TOKENS - 48)
-    trimmed_text, kept_keys = trim_scene_for_context(scene_text, problems, _TOK, budget)
-    prompt = build_prompt_ids(trimmed_text, problems)
+    # v70: сначала пробуем полную сцену — так модель видит примеры при обучении;
+    # обрезаем, только если не помещается в контекст.
+    n_ctx = model.cfg["n_ctx"]
+    prompt = build_prompt_ids(scene_text, problems)
+    kept_keys = None
+    if len(prompt) + 48 > n_ctx:
+        budget = max(64, n_ctx // 2)
+        trimmed_text, kept_keys = trim_scene_for_context(scene_text, problems, _TOK, budget)
+        prompt = build_prompt_ids(trimmed_text, problems)
     if len(prompt) + 8 >= model.cfg["n_ctx"]:
         return None  # сцена не помещается — пусть работает большая модель
     try:
