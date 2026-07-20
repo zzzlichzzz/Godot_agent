@@ -120,7 +120,8 @@ var _minilich_check: CheckBox = null
 var _minilich_status_label: Label = null
 var _minilich_set_pending: bool = false  # true пока ответ на minilich_set не пришёл — не даём устаревшему minilich_status затирать галочку
 # v58: кнопка «Обучение модели» + живая консоль прогресса обучения.
-var _minilich_train_btn: Button = null
+var _minilich_train_check: CheckBox = null
+var _minilich_train_warn: Label = null
 
 
 func _locale():
@@ -1777,15 +1778,23 @@ func _on_settings_pressed() -> void:
 		_minilich_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_status_label.custom_minimum_size = Vector2(360, 0)
 		box.add_child(_minilich_status_label)
-		_minilich_train_btn = Button.new()
-		_minilich_train_btn.pressed.connect(_on_train_model_pressed)
-		box.add_child(_minilich_train_btn)
+		_minilich_train_check = CheckBox.new()
+		_minilich_train_check.button_pressed = false
+		_minilich_train_check.toggled.connect(_on_train_mode_toggled)
+		box.add_child(_minilich_train_check)
+		_minilich_train_warn = Label.new()
+		_minilich_train_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_minilich_train_warn.custom_minimum_size = Vector2(360, 0)
+		_minilich_train_warn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.2))
+		_minilich_train_warn.visible = false
+		box.add_child(_minilich_train_warn)
 		_settings_dialog.add_child(box)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
 	_settings_exp_header.text = _t("experimental_hdr") + ":"
 	_minilich_check.text = _t("minilich_toggle")
-	_minilich_train_btn.text = _t("train_model_btn")
+	_minilich_train_check.text = _t("train_mode_toggle")
+	_minilich_train_warn.text = _t("train_mode_warn")
 	_minilich_status_label.text = _t("minilich_loading")
 	_settings_dialog.popup_centered()
 	# Статус запрашиваем БЕЗ автозапуска сервера — просто открытие настроек
@@ -1793,27 +1802,15 @@ func _on_settings_pressed() -> void:
 	_request_chats("minilich_status", {}, false)
 
 
-func _on_train_model_pressed() -> void:
-	# v61: без отдельного окна-консоли — она конфликтовала с окном настроек
-	# (оба — эксклюзивные AcceptDialog в одной вкладке редактора — Godot ронял ошибкой),
-	# а её вопросик-таймер раз в 2 секунды ставил в одну очередь с остальными
-	# запросами (например, загрузкой списка чатов) и вёл себя, даже после
-	# закрытия окна, замедляя всё остальное. Сейчас каждая строка обучения
-	# печатается живьём в консоль server.exe самим сервером (ml_train.py: _log).
-	# v62: раньше кнопка только спрашивала текущий статус (minilich_status), и если
-	# обучение было не активно, полезный ответ сервера («обучение: нет») тут же
-	# затирал более понятную подсказку «выключено, поставьте галочку», создавая
-	# видимость мигания между двумя текстами без понятной причины. Сейчас если
-	# галочка включена — кнопка активно пытается включить/перезапустить обучение (minilich_set), а не только
-	# спрашивать его; если оно уже идёт — сервер просто ничего не делает повторно.
-	if not (_minilich_check and _minilich_check.button_pressed):
-		if _minilich_status_label:
-			_minilich_status_label.text = _t("train_console_disabled")
-		return
-	if _minilich_status_label:
-		_minilich_status_label.text = _t("minilich_loading")
+func _on_train_mode_toggled(pressed: bool) -> void:
+	# v69: кнопка «Обучение модели» заменена галочкой. Галочка стоит — теневой
+	# режим: mini-lich учится, а сцены применяет большая модель. Снята — боевой
+	# режим: mini-lich чинит сам (каждый результат обязан пройти линтер).
+	if _minilich_train_warn:
+		_minilich_train_warn.visible = pressed
 	_minilich_set_pending = true
-	_request_chats("minilich_set", {"enabled": true})
+	var en := _minilich_check != null and _minilich_check.button_pressed
+	_request_chats("minilich_set", {"enabled": en, "training_mode": pressed})
 
 
 func _on_minilich_toggled(pressed: bool) -> void:
@@ -1835,6 +1832,11 @@ func _on_minilich_payload(kind: String, json: Dictionary) -> void:
 	# Статус-запрос мог уйти до ответа на ещё не завершённый minilich_set — не трогаем галочку его устаревшим значением.
 	if _minilich_check and not (kind == "minilich_status" and _minilich_set_pending):
 		_minilich_check.set_pressed_no_signal(bool(json.get("enabled", false)))
+	if _minilich_train_check and not (kind == "minilich_status" and _minilich_set_pending):
+		var _tm := bool(json.get("training_mode", true))
+		_minilich_train_check.set_pressed_no_signal(_tm)
+		if _minilich_train_warn:
+			_minilich_train_warn.visible = _tm
 	if _minilich_status_label:
 		if not bool(json.get("enabled", false)):
 			_minilich_status_label.text = _t("train_console_disabled")

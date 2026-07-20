@@ -74,7 +74,7 @@ for /f "tokens=*" %%v in ('%PYCMD% --version 2^>^&1') do echo Python: %%v (%PYCM
 echo.
 
 echo [1/3] Установка PyInstaller...
-%PYCMD% -m pip install pyinstaller
+%PYCMD% -m pip install pyinstaller numpy
 if errorlevel 1 (
     echo.
     echo [ERROR] Не удалось установить PyInstaller.
@@ -82,7 +82,7 @@ if errorlevel 1 (
 )
 echo.
 echo [2/3] Сборка exe (несколько минут, окно не закрывайте)...
-%PYCMD% -m PyInstaller --onedir --noconfirm --collect-submodules selenium --name godot_agent_server main.py
+%PYCMD% -m PyInstaller --onedir --noconfirm --collect-submodules selenium --hidden-import numpy --collect-submodules numpy --hidden-import minilich.ml_train --hidden-import minilich.ml_model --hidden-import minilich.ml_tokenizer --name godot_agent_server main.py
 if errorlevel 1 (
     echo.
     echo [ERROR] Ошибка сборки. Прочитайте вывод выше.

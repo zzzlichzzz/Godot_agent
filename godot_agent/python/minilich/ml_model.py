@@ -222,7 +222,7 @@ class TinyTransformer:
             v -= (lr * mhat / (np.sqrt(vhat) + eps)).astype(np.float32)
 
     # ------------------------------------------------------------------
-    def generate(self, prompt_ids, max_new=256, eos_id=None, repetition_penalty=1.0, repetition_window=32):
+    def generate(self, prompt_ids, max_new=256, eos_id=None, repetition_penalty=1.0, repetition_window=32, temperature=0.0, rng=None):
         """Жадная генерация. Возвращает ТОЛьКО новые токены (без промпта).
 
         repetition_penalty > 1.0 включает штраф за повторение (Gemini review, v58):
@@ -247,7 +247,19 @@ class TinyTransformer:
                             step_logits[tid] /= repetition_penalty
                         else:
                             step_logits[tid] *= repetition_penalty
-            nxt = int(np.argmax(step_logits))
+            if temperature and temperature > 0.0:
+                if rng is None:
+                    rng = np.random.default_rng()
+                z = step_logits.astype(np.float64) / max(float(temperature), 1e-6)
+                z = z - z.max()
+                pr = np.exp(z)
+                sm = pr.sum()
+                if sm <= 0 or not np.isfinite(sm):
+                    nxt = int(np.argmax(step_logits))
+                else:
+                    nxt = int(rng.choice(pr.shape[0], p=pr / sm))
+            else:
+                nxt = int(np.argmax(step_logits))
             if eos_id is not None and nxt == eos_id:
                 break
             out.append(nxt)
