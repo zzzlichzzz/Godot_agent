@@ -112,6 +112,20 @@ var _rename_edit: LineEdit = null
 var _current_chat_id: String = ""
 var _suppress_chat_select: bool = false
 
+# v57: экспериментальные настройки (mini-lich) — кнопка ⛙ в панели чатов.
+var _bar_btn_settings: Button = null
+var _settings_dialog: AcceptDialog = null
+var _settings_tabs: TabContainer = null
+var _settings_exp_header: Label = null
+var _minilich_check: CheckBox = null
+var _minilich_status_label: Label = null
+# v58: кнопка «Обучение модели» + живая консоль прогресса обучения.
+var _minilich_train_btn: Button = null
+var _train_console: AcceptDialog = null
+var _train_console_text: RichTextLabel = null
+var _train_console_timer: Timer = null
+var _train_console_seen_lines: int = 0
+
 
 func _locale():
 	if _loc == null:
@@ -227,6 +241,16 @@ func _ready() -> void:
 			_bar_btn_ren = bar_old.get_child(2) as Button
 			_bar_btn_del = bar_old.get_child(3) as Button
 			_bar_btn_home = bar_old.get_child(4) as Button
+		if bar_old.has_node("MiniLichSettingsBtn"):
+			_bar_btn_settings = bar_old.get_node("MiniLichSettingsBtn") as Button
+			if not _bar_btn_settings.pressed.is_connected(_on_settings_pressed):
+				_bar_btn_settings.pressed.connect(_on_settings_pressed)
+		else:
+			_bar_btn_settings = Button.new()
+			_bar_btn_settings.name = "MiniLichSettingsBtn"
+			_bar_btn_settings.text = "⚙"
+			_bar_btn_settings.pressed.connect(_on_settings_pressed)
+			bar_old.add_child(_bar_btn_settings)
 		_apply_chatbar_texts()
 	else:
 		var bar := HBoxContainer.new()
@@ -250,6 +274,11 @@ func _ready() -> void:
 		_bar_btn_home = Button.new()
 		_bar_btn_home.pressed.connect(_show_start_ui)
 		bar.add_child(_bar_btn_home)
+		_bar_btn_settings = Button.new()
+		_bar_btn_settings.name = "MiniLichSettingsBtn"
+		_bar_btn_settings.text = "⚙"
+		_bar_btn_settings.pressed.connect(_on_settings_pressed)
+		bar.add_child(_bar_btn_settings)
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
@@ -1309,13 +1338,16 @@ func _on_progress_response(_result: int, response_code: int, _headers: PackedStr
 func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = true) -> void:
 	if _link == null:
 		return
-	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status":
+	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status" and kind != "minilich_status" and kind != "minilich_set":
 		_log_error(_t("wait_current"))
 		return
 	_link.request(kind, extra, allow_autostart)
 
 
 func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> void:
+	if kind == "minilich_status" or kind == "minilich_set":
+		_on_minilich_payload(json)
+		return
 	if kind == "status":
 		_on_browser_status(json)
 		return
@@ -1509,6 +1541,8 @@ func _apply_chatbar_texts() -> void:
 	if _bar_btn_home:
 		_bar_btn_home.text = _t("menu")
 		_bar_btn_home.tooltip_text = _t("tip_menu")
+	if _bar_btn_settings:
+		_bar_btn_settings.tooltip_text = _t("tip_settings")
 
 
 func _on_language_changed() -> void:
@@ -1709,3 +1743,120 @@ func _after_ghost_close() -> void:
 		EditorInterface.edit_script(_ghost_prev_script, -1, 0, false)
 	_ghost_prev_script = null
 	_ghost_close_path = ""
+# ---------------------------------------------------------------------------
+# v57: экспериментальные настройки — mini-lich (локальная нейросеть-помощник).
+# Галочка по умолчанию выключена; состояние хранит сервер (settings.json проекта).
+# ---------------------------------------------------------------------------
+
+func _on_settings_pressed() -> void:
+	if _settings_dialog == null:
+		_settings_dialog = AcceptDialog.new()
+		_settings_tabs = TabContainer.new()
+		var box := VBoxContainer.new()
+		_settings_exp_header = Label.new()
+		box.add_child(_settings_exp_header)
+		_minilich_check = CheckBox.new()
+		_minilich_check.button_pressed = false
+		_minilich_check.toggled.connect(_on_minilich_toggled)
+		box.add_child(_minilich_check)
+		_minilich_status_label = Label.new()
+		_minilich_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_minilich_status_label.custom_minimum_size = Vector2(360, 0)
+		box.add_child(_minilich_status_label)
+		_minilich_train_btn = Button.new()
+		_minilich_train_btn.pressed.connect(_on_train_model_pressed)
+		box.add_child(_minilich_train_btn)
+		_settings_tabs.add_child(box)
+		_settings_dialog.add_child(_settings_tabs)
+		add_child(_settings_dialog)
+	_settings_dialog.title = _t("settings_title")
+	_settings_tabs.set_tab_title(0, _t("experimental_hdr"))
+	_settings_exp_header.text = _t("experimental_hdr")
+	_minilich_check.text = _t("minilich_toggle")
+	_minilich_train_btn.text = _t("train_model_btn")
+	_minilich_status_label.text = _t("minilich_loading")
+	_settings_dialog.popup_centered()
+	# Статус запрашиваем БЕЗ автозапуска сервера — просто открытие настроек
+	# не должно поднимать сервер.
+	_request_chats("minilich_status", {}, false)
+
+
+func _on_train_model_pressed() -> void:
+	if _train_console == null:
+		_train_console = AcceptDialog.new()
+		_train_console.min_size = Vector2(480, 320)
+		_train_console.close_requested.connect(_on_train_console_closed)
+		var vb := VBoxContainer.new()
+		_train_console_text = RichTextLabel.new()
+		_train_console_text.custom_minimum_size = Vector2(460, 280)
+		_train_console_text.scroll_following = true
+		_train_console_text.bbcode_enabled = false
+		vb.add_child(_train_console_text)
+		_train_console.add_child(vb)
+		add_child(_train_console)
+		_train_console_timer = Timer.new()
+		_train_console_timer.wait_time = 2.0
+		_train_console_timer.timeout.connect(_on_train_console_poll)
+		add_child(_train_console_timer)
+	_train_console.title = _t("train_console_title")
+	_train_console_text.text = ""
+	_train_console_seen_lines = 0
+	_train_console.popup_centered()
+	_on_train_console_poll()
+	_train_console_timer.start()
+
+
+func _on_train_console_closed() -> void:
+	if _train_console_timer:
+		_train_console_timer.stop()
+
+
+func _on_train_console_poll() -> void:
+	_request_chats("minilich_status", {}, false)
+
+
+func _update_train_console(json: Dictionary) -> void:
+	if _train_console == null or not _train_console.visible or _train_console_text == null:
+		return
+	var lines: Array = json.get("lines", [])
+	if not bool(json.get("enabled", false)) and lines.is_empty():
+		_train_console_text.text = _t("train_console_disabled")
+		_train_console_seen_lines = 0
+		return
+	if lines.size() < _train_console_seen_lines:
+		_train_console_text.text = ""
+		_train_console_seen_lines = 0
+	if lines.size() <= _train_console_seen_lines:
+		return
+	for i in range(_train_console_seen_lines, lines.size()):
+		_train_console_text.text += str(lines[i]) + "\n"
+	_train_console_seen_lines = lines.size()
+
+
+func _on_minilich_toggled(pressed: bool) -> void:
+	if _minilich_status_label:
+		_minilich_status_label.text = _t("minilich_loading")
+	# Здесь автозапуск разрешён: пользователь явно меняет настройку.
+	_request_chats("minilich_set", {"enabled": pressed})
+
+
+func _on_minilich_payload(json: Dictionary) -> void:
+	if json.has("error"):
+		if _minilich_status_label:
+			_minilich_status_label.text = str(json.get("error", ""))
+		return
+	if _minilich_check:
+		_minilich_check.set_pressed_no_signal(bool(json.get("enabled", false)))
+	if _minilich_status_label:
+		_minilich_status_label.text = _minilich_status_text(json)
+	_update_train_console(json)
+
+
+func _minilich_status_text(json: Dictionary) -> String:
+	var mb := float(json.get("disk_bytes", 0)) / 1048576.0
+	var loss = json.get("last_loss")
+	var loss_s := "—"
+	if loss != null:
+		loss_s = "%.3f" % float(loss)
+	var active_s := _t("ml_yes") if bool(json.get("training_active", false)) else _t("ml_no")
+	return _t("minilich_status_fmt") % [int(json.get("examples", 0)), int(json.get("train_step", 0)), loss_s, "%.1f" % mb, active_s]
