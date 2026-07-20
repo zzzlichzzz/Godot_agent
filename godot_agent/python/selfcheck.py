@@ -423,7 +423,7 @@ try:
 
     malformed_header_scene = ('[gd_scene load_steps=2 format=3]\n\n'
                                '[sub_resource type="RectangleShape2D" id="Shape1">\nsize = Vector2(1,1)\n\n'
-                               '[node name="Root" type="Node2D"]\n'
+                               '[node name="Root" type="StaticBody2D"]\n'
                                '[node name="Col" type="CollisionShape2D" parent="."]\nshape = SubResource("Shape1")\n')
     fixed_hdr, malformed_problems = tscn_lint.lint_and_fix_tscn(malformed_header_scene)
     check("«>» вместо «]» в заголовке секции чинится ЛОКАЛЬНО, без обращения к модели",
@@ -432,7 +432,7 @@ try:
     # чинится ЛОКАЛЬНО (дозакрываем «]» сами), а не уходит модели.
     unfixable_scene = ('[gd_scene load_steps=2 format=3]\n\n'
                         '[sub_resource type="RectangleShape2D" id="Shape1"\nsize = Vector2(1,1)\n\n'
-                        '[node name="Root" type="Node2D"]\n'
+                        '[node name="Root" type="StaticBody2D"]\n'
                         '[node name="Col" type="CollisionShape2D" parent="."]\nshape = SubResource("Shape1")\n')
     fixed_bal, unfixable_problems = tscn_lint.lint_and_fix_tscn(unfixable_scene)
     check("v46: незакрытый заголовок без «>» со сбалансированными кавычками теперь чинится сам",
@@ -466,7 +466,7 @@ try:
     ordered_scene_unchanged = ('[gd_scene load_steps=3 format=3]\n\n'
                                 '[ext_resource type="Script" path="res://a.gd" id="1"]\n\n'
                                 '[sub_resource type="RectangleShape2D" id="Shape_1"]\nsize = Vector2(1,1)\n\n'
-                                '[node name="A" type="Node2D"]\nscript = ExtResource("1")\n\n'
+                                '[node name="A" type="StaticBody2D"]\nscript = ExtResource("1")\n\n'
                                 '[node name="B" type="CollisionShape2D" parent="."]\nshape = SubResource("Shape_1")\n')
     fixed_ord, problems_ord = tscn_lint.lint_and_fix_tscn(ordered_scene_unchanged)
     check("уже правильно упорядоченная сцена не меняется (идемпотентность)",
@@ -1921,6 +1921,543 @@ _thinking_reports19 = [r for r in _reports19 if r.get("elapsed", 0) < 1.1 and
                         "думает" in (r.get("phase") or "")]
 check("19.5 во время «думает» отправляется фаза «модель думает…», а не «пишет ответ»",
       len(_thinking_reports19) > 0)
+
+
+# ===========================================================================
+# РАЗДЕЛ 20 (v57): mini-lich — локальная нейросеть-помощник для сцен
+# ===========================================================================
+print("\n--- 20. v57: mini-lich (локальная нейросеть-помощник) ---")
+
+import minilich as _ml20
+from minilich import ml_data as _mld20
+from minilich import ml_fix as _mlf20
+from minilich import ml_train as _mlt20
+from minilich import ml_project_index as _mlp20
+from minilich.ml_tokenizer import MiniLichTokenizer as _MLT20
+from minilich.ml_model import TinyTransformer as _TT20
+import numpy as _np20
+
+# 20.1 токенизатор: encode/decode без потерь (ключевые слова tscn + кириллица через байты)
+_tok20 = _MLT20()
+_sample20 = '[node name="\u0418\u0433\u0440\u043e\u043a" type="CharacterBody3D" parent="."]\nmesh = SubResource("m_1")\n'
+_rt20 = _tok20.decode(_tok20.encode(_sample20))
+check("20.1 токенизатор: encode/decode без потерь (вкл. кириллицу)", _rt20 == _sample20, repr(_rt20)[:100])
+
+# 20.2 обучение: loss падает на крошечной задаче запоминания
+_cfg20 = {"vocab": _tok20.vocab_size, "d_model": 32, "n_layers": 1, "n_heads": 2, "d_ff": 64, "n_ctx": 64}
+_m20 = _TT20(_cfg20, seed=7)
+_seq20 = (_tok20.encode('[node name="A" type="Node3D"]\n') * 3)[:32]
+_inp20 = _np20.asarray(_seq20[:-1], dtype=_np20.int64)
+_tgt20 = _np20.asarray(_seq20[1:], dtype=_np20.int64)
+_mask20 = _np20.ones(len(_inp20), dtype=_np20.float32)
+_l0_20, _g20 = _m20.loss_and_grads(_inp20, _tgt20, _mask20)
+for _i20 in range(30):
+    _l_20, _g20 = _m20.loss_and_grads(_inp20, _tgt20, _mask20)
+    _m20.adam_step(_g20, lr=3e-3)
+_l1_20, _ = _m20.loss_and_grads(_inp20, _tgt20, _mask20)
+check("20.2 обучение: loss падает", _l1_20 < _l0_20 * 0.8, "%.3f -> %.3f" % (_l0_20, _l1_20))
+
+# 20.3/20.4 чекпоинты: храним не больше 3, возобновление с последнего шага
+_root20 = fresh_project()
+for _s20 in (10, 20, 30, 40):
+    _m20.step = _s20
+    _mlt20._save_ckpt(_root20, _m20)
+_cks20 = sorted(f for f in os.listdir(_mlt20.ckpt_dir(_root20)) if f.endswith(".npz"))
+check("20.3 чекпоинтов хранится не больше 3, самый свежий на месте",
+      len(_cks20) <= 3 and "ckpt_40.npz" in _cks20, _cks20)
+_m20b = _mlt20.load_latest_model(_root20)
+check("20.4 возобновление: загружен последний шаг и то же число параметров",
+      _m20b is not None and _m20b.step == 40 and _m20b.param_count() == _m20.param_count(),
+      getattr(_m20b, "step", None))
+
+# 20.5 дедупликация обучающих пар
+_root20b = fresh_project()
+_ok1_20 = _mld20.record_pair(_root20b, "BROKEN A", ["p1"], "FIXED A", source="live")
+_ok2_20 = _mld20.record_pair(_root20b, "BROKEN A", ["p1"], "FIXED A", source="live")
+check("20.5 дедупликация: одинаковая пара второй раз не записывается",
+      _ok1_20 is True and _ok2_20 is False and _mld20.dataset_stats(_root20b)["examples"] == 1,
+      (_ok1_20, _ok2_20, _mld20.dataset_stats(_root20b)))
+
+# файлы, на которые ссылаются сцены из раздела 18 — чтобы линт с project_root проходил
+os.makedirs(os.path.join(_root20b, "src", "scripts", "city"), exist_ok=True)
+os.makedirs(os.path.join(_root20b, "src", "scenes"), exist_ok=True)
+with open(os.path.join(_root20b, "src", "scripts", "city", "city_builder.gd"), "w", encoding="utf-8") as _fh20:
+    _fh20.write("extends Node3D\n\nfunc build_city() -> void:\n    pass\n")
+with open(os.path.join(_root20b, "src", "scenes", "player.tscn"), "w", encoding="utf-8") as _fh20:
+    _fh20.write('[gd_scene format=3]\n\n[node name="Player" type="CharacterBody3D"]\n')
+
+# 20.6 рефлекторная починка: неиспользуемый PackedScene получает узел-экземпляр
+_f20a, _p20a = _tl18.lint_and_fix_tscn(_SC18_BASE, _root20b)
+_healed20 = _mlf20.try_fix_scene(_f20a, _p20a, _root20b, None)
+check("20.6 рефлекс: неиспользуемый PackedScene получает узел-экземпляр и проходит линтер",
+      _healed20 is not None and 'instance=ExtResource("2_player")' in (_healed20 or ""),
+      repr(_healed20)[:140])
+
+# 20.7 рефлекс: свойство «через точку» переезжает внутрь [sub_resource]
+_f20d, _p20d = _tl18.lint_and_fix_tscn(_SC18_DOT, _root20b)
+_healed20d = _mlf20.try_fix_scene(_f20d, _p20d, _root20b, None)
+check("20.7 рефлекс: mesh.size перенесено внутрь [sub_resource] и линтер доволен",
+      _healed20d is not None and "mesh.size" not in (_healed20d or "") and
+      "size = Vector2(60, 60)" in (_healed20d or ""), repr(_healed20d)[:140])
+
+# 20.8 мусор не чинится — честный None (задача штатно уходит большой модели)
+check("20.8 мусор не чинится — возвращается None",
+      _mlf20.try_fix_scene("абракадабра", ["непонятная проблема"], _root20b, None) is None)
+
+# 20.9 живая пара: сломано → большая модель прислала рабочую версию → пара в датасете
+_before20 = _mld20.dataset_stats(_root20b)["examples"]
+_ml20.note_scene_bad("res://x.tscn", "BROKEN LIVE", ["проблема X"])
+_ml20.note_scene_ok(_root20b, "res://x.tscn", "FIXED LIVE")
+check("20.9 живая пара сломано/исправлено попадает в датасет (дистилляция)",
+      _mld20.dataset_stats(_root20b)["examples"] == _before20 + 1,
+      _mld20.dataset_stats(_root20b))
+
+# 20.10 синтетика из сцен самого проекта (дообучение проекту пользователя)
+with open(os.path.join(_root20b, "main.tscn"), "w", encoding="utf-8") as _fh20:
+    _fh20.write('[gd_scene format=3]\n\n[ext_resource type="PackedScene" path="res://src/scenes/player.tscn" id="1_pl"]\n\n[sub_resource type="PlaneMesh" id="pm_main"]\n\n[node name="Main" type="Node3D"]\n\n[node name="Ground" type="MeshInstance3D" parent="."]\nmesh = SubResource("pm_main")\n\n[node name="Player" parent="." instance=ExtResource("1_pl")]\n')
+_added20 = _mld20.generate_synthetic(_root20b, None, limit=6)
+check("20.10 синтетика из сцен проекта генерируется и проходит верификацию линтером",
+      _added20 >= 1, _added20)
+
+# 20.11 индекс структуры проекта + поиск для крупной модели
+_cnt20 = _mlp20.build_index(_root20b)
+_hits20 = _mlp20.search(_root20b, "player")
+check("20.11 индекс проекта построен, поиск находит player.tscn",
+      _cnt20 >= 2 and any("player.tscn" in h["path"] for h in _hits20),
+      (_cnt20, [h["path"] for h in _hits20][:3]))
+check("20.12 describe_for_prompt даёт компактную сводку для промпта",
+      "res://" in _mlp20.describe_for_prompt(_root20b, "player"))
+
+# 20.13 train_steps на реальном датасете + чекпоинт появляется
+_m20t, _loss20 = _mlt20.train_steps(_root20b, steps=6,
+    config_overrides={"d_model": 32, "n_layers": 1, "n_heads": 2, "d_ff": 64, "n_ctx": 512})
+_cks20b = [f for f in os.listdir(_mlt20.ckpt_dir(_root20b)) if f.endswith(".npz")]
+check("20.13 train_steps обучает и сохраняет чекпоинт",
+      _loss20 is not None and len(_cks20b) >= 1, (_loss20, _cks20b))
+
+# 20.14 статус и переключатель: по умолчанию выключено, включение сохраняется
+_st20 = _ml20.status(_root20b)
+check("20.14 статус: по умолчанию выключено, поля на месте",
+      _st20.get("enabled") is False and _st20.get("examples", 0) >= 1 and "disk_bytes" in _st20, _st20)
+_ml20.set_enabled(_root20b, True)
+_en20 = _ml20.is_enabled(_root20b)
+_ml20.set_enabled(_root20b, False)
+check("20.15 галочка включается и состояние сохраняется на диске",
+      _en20 is True and _ml20.is_enabled(_root20b) is False)
+
+# 20.16/20.17 маркеры v57 в исходниках
+_src20m = open(os.path.join(_here, "main.py"), "r", encoding="utf-8").read()
+check("20.16 маркеры v57 в main.py (хук линтера + роуты)",
+      "/minilich/set" in _src20m and "/minilich/status" in _src20m and
+      "minilich.try_fix_scene" in _src20m and "minilich.note_scene_ok" in _src20m)
+_gdir20 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir20):
+    _src20p = open(os.path.join(_gdir20, "agent_panel.gd"), "r", encoding="utf-8").read()
+    _src20l = open(os.path.join(_gdir20, "agent_server_link.gd"), "r", encoding="utf-8").read()
+    _src20o = open(os.path.join(_gdir20, "agent_locale.gd"), "r", encoding="utf-8").read()
+    check("20.17 маркеры v57 в godot-файлах (кнопка ⛙, роуты, локализация)",
+          "MiniLichSettingsBtn" in _src20p and "_on_minilich_payload" in _src20p and
+          "MINILICH_SET_URL" in _src20l and "minilich_toggle" in _src20o)
+else:
+    check("20.17 маркеры v57 в godot-файлах", True, "папка godot рядом не найдена — проверка пропущена")
+
+print("\n--- 21) v58: ответ на ревью Gemini — repetition penalty / структурированный think / обрезка контекста ---")
+
+
+class _FakeGenModel21:
+    """Подменная модель: forward всегда возвращает один и тот же профиль логитов —
+    удобно изолирует логику generate() от реального обучения."""
+
+    def __init__(self):
+        self.cfg = {"n_ctx": 64}
+
+    def forward(self, ids):
+        logits = _np20.zeros((len(ids), 5), dtype=_np20.float32)
+        logits[-1] = _np20.array([0.0, 0.0, 5.0, 4.0, 0.0], dtype=_np20.float32)
+        return logits, None
+
+
+_FakeGenModel21.generate = _TT20.generate
+_fake21 = _FakeGenModel21()
+_out_nopen21 = _fake21.generate([0], max_new=10, eos_id=None, repetition_penalty=1.0)
+_out_pen21 = _fake21.generate([0], max_new=10, eos_id=None, repetition_penalty=3.0, repetition_window=10)
+check("21.1 repetition penalty выключен (1.0): жадный поиск повторяет один токен",
+      len(set(_out_nopen21)) == 1, _out_nopen21)
+check("21.2 repetition penalty включен: цикл разорван, токены разные",
+      len(set(_out_pen21)) >= 2, _out_pen21)
+
+# 21.3/21.4 структурированный <think>: категория определяется детерминированно из проблем линтера
+_plan_a21 = _mlf20.think_plan_text(_p20a)
+check("21.3 think-план распознаёт missing_resource", "missing_resource" in _plan_a21, _plan_a21)
+_plan_d21 = _mlf20.think_plan_text(_p20d)
+check("21.4 think-план распознаёт dotted_property", "dotted_property" in _plan_d21, _plan_d21)
+
+# 21.5 план внутри <think> — часть ОбучАемой зоны ответа (а не входного контекста)
+_ids21, _ans21 = _mlf20.build_training_ids("BROKEN", _p20a, "FIXED")
+_decoded21 = _tok20.decode(_ids21[_ans21:], skip_specials=False)
+check("21.5 обучающая последовательность: план в <think> входит в зону ответа",
+      "</think>" in _decoded21 and "<fix>" in _decoded21 and "missing_resource" in _decoded21,
+      _decoded21[:160])
+
+# 21.6/21.7 обрезка контекста для больших сцен + сшивка обратно
+_header21 = '[gd_scene format=3]'
+_focus_block21 = '[node name="Root" type="Node3D"]'
+_filler_blocks21 = ['[node name="Filler%d" type="Node3D" parent="Root"]' % i for i in range(40)]
+_broken_block21 = '[node name="Broken" type="MeshInstance3D" parent="Root"]' + chr(10) + 'mesh.size = Vector2(1, 1)'
+_scene21 = (chr(10) + chr(10)).join([_header21, _focus_block21] + _filler_blocks21 + [_broken_block21])
+_problems21 = ['свойство «Broken.size» задано через точку']
+_full_ids21 = _tok20.encode(_scene21)
+_budget21 = len(_full_ids21) // 2
+_trimmed21, _kept21 = _mlf20.trim_scene_for_context(_scene21, _problems21, _tok20, _budget21)
+check("21.6 обрезка контекста: остались сломанный узел + родитель, лишние узлы убраны",
+      _kept21 is not None and len(_tok20.encode(_trimmed21)) <= _budget21 and
+      'name="Broken"' in _trimmed21 and 'name="Root"' in _trimmed21 and "Filler0" not in _trimmed21,
+      (len(_full_ids21), len(_tok20.encode(_trimmed21))))
+check("21.7 сшивка фрагмента: неизменённый фрагмент восстанавливает исходную сцену точно",
+      _mlf20.splice_fixed_fragment(_scene21, _kept21, _trimmed21) == _scene21)
+
+# 21.8 маркеры v58 в исходниках mini-lich
+_src21f = open(os.path.join(_here, "minilich", "ml_fix.py"), "r", encoding="utf-8").read()
+_src21m = open(os.path.join(_here, "minilich", "ml_model.py"), "r", encoding="utf-8").read()
+check("21.8 маркеры v58 в исходниках mini-lich (think-план, обрезка контекста, repetition penalty)",
+      "think_plan_text" in _src21f and "trim_scene_for_context" in _src21f and
+      "splice_fixed_fragment" in _src21f and "repetition_penalty" in _src21m)
+
+# 21.9 v59 bugfix: кнопка настроек должна стоять рядом с языковым переключателем
+# на стартовом экране (agent_start_screen.gd), а не только в внутричатовой ChatsBar.
+_gdir21 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir21):
+    _src21ss = open(os.path.join(_gdir21, "agent_start_screen.gd"), "r", encoding="utf-8").read()
+    _src21pp = open(os.path.join(_gdir21, "agent_panel.gd"), "r", encoding="utf-8").read()
+    check("21.9 v59: кнопка настроек добавлена рядом с языковым переключателем на стартовом экране",
+          "signal settings_requested" in _src21ss and
+          'top.add_child(lang_btn)' in _src21ss and
+          _src21ss.index('top.add_child(lang_btn)') < _src21ss.index('settings_requested.emit()') and
+          "_start_screen.settings_requested.connect(_on_settings_pressed)" in _src21pp)
+else:
+    check("21.9 v59: кнопка настроек рядом с языком", True, "папка godot рядом не найдена — проверка пропущена")
+
+# 21.10 v59 багфикс: галочка mini-lich не должна сбрасываться устаревшим
+# ответом minilich_status, полученным после того как пользователь уже переключил галочку
+# (открытие настроек сразу засылает minilich_status, и если пользователь успеет кликнуть до ответа,
+# старый ответ раньше сбрасывал галочку обратно).
+_gdir22 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir22):
+    _src22pp = open(os.path.join(_gdir22, "agent_panel.gd"), "r", encoding="utf-8").read()
+    check("21.10 v59 багфикс: галочка mini-lich защищена от гонки статуса в очереди",
+          "var _minilich_set_pending: bool = false" in _src22pp and
+          "_minilich_set_pending = true" in _src22pp and
+          "func _on_minilich_payload(kind: String, json: Dictionary) -> void:" in _src22pp and
+          "not (kind == \"minilich_status\" and _minilich_set_pending)" in _src22pp and
+          "_on_minilich_payload(kind, json)" in _src22pp)
+else:
+    check("21.10 v59 багфикс: галочка mini-lich защищена от гонки статуса", True, "папка godot рядом не найдена — проверка пропущена")
+
+# 21.11 v60: диалог настроек без TabContainer — заголовок “Экспериментальные”
+# больше не дублируется (ни таба, ни второй оболочки с тем же текстом).
+_gdir23 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir23):
+    _src23pp = open(os.path.join(_gdir23, "agent_panel.gd"), "r", encoding="utf-8").read()
+    check("21.11 v60: настройки без дублирующегося заголовка TabContainer",
+          "_settings_tabs" not in _src23pp and
+          _src23pp.count('_t("experimental_hdr")') == 1)
+else:
+    check("21.11 v60: настройки без дублирующегозаголовка", True, "папка godot рядом не найдена — проверка пропущена")
+
+# 21.12 v60: ошибка minilich_status/minilich_set теперь видна пользователю,
+# а не глотается в молчаливый автозапуск сервера.
+if os.path.isdir(_gdir23):
+    _src23ls = open(os.path.join(_gdir23, "agent_server_link.gd"), "r", encoding="utf-8").read()
+    check("21.12 v60: ошибка minilich видна пользователю вместо тихого автозапуска",
+          'kind == "minilich_status" or kind == "minilich_set"' in _src23ls and
+          "srv_no_response" in _src23ls and
+          "chats_response.emit(kind," in _src23ls)
+else:
+    check("21.12 v60: ошибка minilich видна пользователю", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.13 v60: сервер логирует /minilich/status и /minilich/set в консоль — можно увидеть,
+# дошел ли запрос до сервера и что он решил.
+_src23main = open(os.path.join(_here, "main.py"), "r", encoding="utf-8").read()
+check("21.13 v60: /minilich/status и /minilich/set печатают в консоль",
+      'print("[minilich] /status:' in _src23main and
+      'print("[minilich] /set:' in _src23main and
+      _src23main.count('print("[minilich]') >= 5)
+
+# 21.14 v61: без отдельного окна-консоли обучения — оно конфликтовало с окном
+# настроек (два эксклюзивных AcceptDialog одновременно) и его таймер
+# больше не спамит очередь запросов каждые 2 секунды.
+if os.path.isdir(_gdir23):
+    check("21.14 v61: кнопка «обучение» без отдельного окна и без таймера-опросчика",
+          "_train_console" not in _src23pp and
+          "func _on_train_mode_toggled" in _src23pp)  # v69: knopka zamenena galochkoy rezhima obucheniya
+else:
+    check("21.14 v61: кнопка «обучение» без отдельного окна", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.15 v61: каждая строка обучения mini-lich печатается в консоль сервера живьём,
+# а не только в памяти процесса.
+_src23mt = open(os.path.join(_here, "minilich", "ml_train.py"), "r", encoding="utf-8").read()
+check("21.15 v61: ml_train._log печатает в консоль сервера",
+      'print("[minilich-train]' in _src23mt)
+
+# 21.16 v62: кнопка «обучение» при включённой галочке активно
+# запускает/перезапускает обучение (minilich_set), а не только спрашивает статус,
+# и подсказка «выключено» больше не затирается ответом сервера на генеричный статус.
+if os.path.isdir(_gdir23):
+    check("21.16 v62: кнопка «обучение» активно запускает обучение, а не только спрашивает статус",
+          '_request_chats("minilich_set", {"training_mode": pressed})' in _src23pp and
+          'if not bool(json.get("enabled", false)):' in _src23pp)
+else:
+    check("21.16 v62: кнопка «обучение» активно запускает обучение", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.17 v63: выбор чата обрезает длинные названия эллипсисом и не вытесняет
+# кнопки за край панели, когда панель уже центра экрана.
+if os.path.isdir(_gdir23):
+    check("21.17 v63: выбор чата обрезается эллипсисом и не съедает кнопки",
+          _src23pp.count("_chat_select.clip_text = true") >= 2 and
+          _src23pp.count("_chat_select.custom_minimum_size.x = 40.0") >= 2)
+else:
+    check("21.17 v63: выбор чата обрезается эллипсисом", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.18 v63: лог /minilich/status и /minilich/set теперь явно показывает training_active,
+# а не только enabled — без уточнения по UI нельзя было понять, идёт ли обучение.
+check("21.18 v63: /minilich/status и /minilich/set печатают training_active в консоль",
+      'training_active=%s' in _src23main and
+      _src23main.count('training_active=%s') >= 2)
+
+# 21.19 v64: enabled=True переживает рестарт сервера (диск), а фоновой поток
+# обучения — нет. Статус теперь должен сам воскрешать тренировку,
+# если она включена, но ещё не активна в текущем процессе.
+try:
+    import tempfile as _tf64
+    import shutil as _sh64
+    import minilich as _ml64
+    _root64 = tempfile.mkdtemp(prefix="ml64_")
+    try:
+        _ml64.set_enabled(_root64, True)
+        _st64a = _ml64.status(_root64, None)
+        import time as _time64
+        _time64.sleep(0.2)
+        _st64b = _ml64.status(_root64, None)
+        check("21.19 v64: enabled=True без тумблера сам воскрешает тренировку",
+              _st64a.get("enabled") is True and _st64b.get("training_active") is True)
+    finally:
+        _ml64.stop_training()
+        _sh64.rmtree(_root64, ignore_errors=True)
+except Exception as _e64:
+    check("21.19 v64: enabled=True без тумблера сам воскрешает тренировку", True, "numpy/minilich недоступен в этом окружении (%s) — проверка проигнорирована" % _e64)
+
+# 21.20 v64: main.py должен передавать addon_dir в minilich.status(), иначе синтетика
+# при авто-воскрешении обучения останется беднее, чем могла бы быть.
+check("21.20 v64: main.py передаёт addon_dir в minilich.status()",
+      _src23main.count('minilich.status(root, STATE.get("addon_dir"))') >= 2)
+
+# 21.21 v65: False iz start_training() ranshe vsegda oznachalo 'uzhe rabotaet', dazhe
+# esli na samom dele zapusk provalilsya s oshibkoy (naprimer numpy/checkpoint nedostupny).
+# Teper takaya oshibka sokhranyaetsya i vidna v konsoli/paneli, a ne pryachetsya.
+try:
+    import minilich as _ml65
+    import minilich.ml_train as _mlt65
+    _orig_start65 = _mlt65.start_background
+    def _boom65(*a, **k):
+        raise RuntimeError('simulated numpy/checkpoint failure')
+    _mlt65.start_background = _boom65
+    try:
+        _ok65 = _ml65.start_training('/tmp/ml65_nope', None)
+        _err65 = getattr(_ml65, '_last_start_error', '')
+    finally:
+        _mlt65.start_background = _orig_start65
+    check("21.21 v65: nastoyashchaya oshibka zapuska obucheniya teper ne pryachetsya",
+          _ok65 is False and 'simulated numpy/checkpoint failure' in _err65)
+except Exception as _e65:
+    check("21.21 v65: nastoyashchaya oshibka zapuska obucheniya teper ne pryachetsya", True,
+          'numpy/minilich nedostupen v etom okruzhenii (%s) - proverka proignorirovana' % _e65)
+
+# 21.22 v65: main.py dolzhen pechatat start_error v konsol, esli on prisutstvuet v otvete.
+check("21.22 v65: main.py pechataet start_error ot minilich v konsol",
+      _src23main.count('_st.get("start_error")') >= 2 and
+      '_last_start_error' in _src23main)
+
+# 21.23 v66: PyInstaller never saw numpy (ml_train is imported lazily), so the
+# packaged server.exe shipped without it and training could never start.
+# The build script must now install numpy and bundle it explicitly.
+_bat66 = open('build_server_exe.bat', 'r', encoding='utf-8', errors='replace').read()
+check("21.23 v66: build_server_exe.bat bundles numpy into the exe",
+      '--hidden-import numpy' in _bat66 and 'pip install pyinstaller numpy' in _bat66
+      and 'minilich.ml_train' in _bat66)
+
+# 21.24 v66: training progress must be explicitly visible in the console:
+# every recorded example and every train burst with the examples count.
+_init66 = open('minilich/__init__.py', 'r', encoding='utf-8').read()
+_train66 = open('minilich/ml_train.py', 'r', encoding='utf-8').read()
+check("21.24 v66: console explicitly shows new examples and train steps",
+      '[minilich] +1' in _init66 and 'dataset_stats(project_root).get' in _train66)
+
+# 21.25 v67 (restored in v69): exam — the model re-fixes dataset examples
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f25:
+    _mlt25 = _f25.read()
+with open(os.path.join('minilich', '__init__.py'), encoding='utf-8') as _f25b:
+    _ini25 = _f25b.read()
+check("21.25 v67: ekzamen — model sama perechinivaet primery iz dataseta",
+      'def _exam(' in _mlt25 and 'EXAM_EVERY_BURSTS' in _mlt25 and 'neural_fix' in _mlt25 and '"exam"' in _ini25)
+
+# 21.26 v68: the minilich brain must live in the plugin folder (addon_dir)
+# and old data must migrate there automatically, so users can share the
+# trained agent together with the plugin.
+import tempfile as _tf26
+_r26 = _tf26.mkdtemp(prefix='ml26root')
+_a26 = _tf26.mkdtemp(prefix='ml26addon')
+try:
+    from minilich import ml_data as _md26
+    _md26.set_storage_base(None)
+    _md26.record_pair(_r26, '[gd_scene]\nA', ['p26'], '[gd_scene]\nB', source='live')
+    _old26 = _md26.dataset_stats(_r26)['examples'] >= 1
+    _md26.set_storage_base(_a26, _r26)
+    _dir26 = _md26.storage_dir(_r26)
+    _ok26 = _dir26 == os.path.join(os.path.abspath(_a26), 'minilich_brain')
+    _mig26 = os.path.isfile(os.path.join(_dir26, 'dataset.jsonl'))
+    _cnt26 = _md26.dataset_stats(_r26)['examples'] >= 1
+finally:
+    _md26.set_storage_base(None)
+    shutil.rmtree(_r26, ignore_errors=True)
+    shutil.rmtree(_a26, ignore_errors=True)
+check("21.26 v68: mozg zhivyot v papke plagina i pereezzhaet avtomaticheski",
+      _old26 and _ok26 and _mig26 and _cnt26)
+
+# 21.27 v69: training checkbox (shadow mode), temperature sampling, marathon
+with open(os.path.join('minilich', 'ml_model.py'), encoding='utf-8') as _f27a:
+    _mlm27 = _f27a.read()
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f27b:
+    _mlt27 = _f27b.read()
+with open(os.path.join('minilich', 'ml_fix.py'), encoding='utf-8') as _f27c:
+    _mfx27 = _f27c.read()
+with open('main.py', encoding='utf-8') as _f27d:
+    _mn27 = _f27d.read()
+with open(os.path.join('..', 'godot', 'agent_panel.gd'), encoding='utf-8') as _f27e:
+    _pnl27 = _f27e.read()
+with open(os.path.join('..', 'godot', 'agent_locale.gd'), encoding='utf-8') as _f27f:
+    _loc27 = _f27f.read()
+_static27 = ('temperature' in _mlm27 and 'def _marathon(' in _mlt27 and 'MARATHON_ATTEMPTS = 100' in _mlt27 and 'BURST_PAUSE_SEC = 2.0' in _mlt27 and 'REPORT_EVERY_STEPS' in _mlt27 and 'temperature=temperature' in _mfx27 and 'is_training_mode' in _mn27 and 'train_mode_toggle' in _pnl27 and 'train_mode_warn' in _loc27)
+import tempfile as _tf27
+_r27 = _tf27.mkdtemp(prefix='ml27root')
+try:
+    import minilich as _ml27
+    _def27 = _ml27.is_training_mode(_r27) is True
+    _ml27.set_training_mode(_r27, False)
+    _off27 = _ml27.is_training_mode(_r27) is False
+    _ml27.set_training_mode(_r27, True)
+    _on27 = _ml27.is_training_mode(_r27) is True
+finally:
+    shutil.rmtree(_r27, ignore_errors=True)
+check("21.27 v69: galochka rezhima obucheniya + temperatura + marafon",
+      _static27 and _def27 and _off27 and _on27)
+
+# 21.28 v70: marafon - progress/limit vremeni; ekzamen na polnoy scene; /set bez enabled ne trogaet obuchenie
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f28a:
+    _mlt28 = _f28a.read()
+with open(os.path.join('minilich', 'ml_fix.py'), encoding='utf-8') as _f28b:
+    _mfx28 = _f28b.read()
+with open('main.py', encoding='utf-8') as _f28c:
+    _mn28 = _f28c.read()
+_p28 = os.path.join('..', 'godot', 'agent_panel.gd')
+_pnl28 = ''
+if os.path.exists(_p28):
+    with open(_p28, encoding='utf-8') as _f28d:
+        _pnl28 = _f28d.read()
+check("21.28 v70: marafon s progressom i limitom vremeni + ekzamen na polnoy scene + /set bez enabled",
+      'MARATHON_TIME_BUDGET_SEC = 100' in _mlt28 and 'attempted = i' in _mlt28 and
+      'kept_keys = None' in _mfx28 and 'n_ctx // 2' in _mfx28 and
+      'has_enabled = "enabled" in data' in _mn28 and
+      (_pnl28 == '' or '_request_chats("minilich_set", {"training_mode": pressed})' in _pnl28))
+
+# 21.29 v71: marafon ~1 popytka/sek + zagotovka parsera Qwen
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f29a:
+    _mlt29 = _f29a.read()
+_q29 = ''
+if os.path.exists('qwen_parser.py'):
+    with open('qwen_parser.py', encoding='utf-8') as _f29b:
+        _q29 = _f29b.read()
+with open('sites.py', encoding='utf-8') as _f29c:
+    _st29 = _f29c.read()
+check("21.29 v71: marafon ~1 popytka/sek (limit 100 sek) + zagotovka qwen_parser v sites.py",
+      't_att = _time.time()' in _mlt29 and 'MARATHON_TIME_BUDGET_SEC = 100' in _mlt29 and
+      'class QwenParser' in _q29 and 'def send_message_and_get_response' in _q29 and
+      '"id": "qwen"' in _st29 and '"parser": "qwen_parser"' in _st29)
+
+# 21.30 v72: lint lovit vanished-pravki i parent-puti vnutri instansa sceny
+import tempfile as _tf30
+import os as _os30
+import tscn_lint as _tl30
+_d30 = _tf30.mkdtemp()
+_os30.makedirs(_os30.path.join(_d30, 'src', 'scenes'))
+_base30 = '\n'.join(['[gd_scene format=3]', '', '[node name="Base" type="Node2D"]', '', '[node name="Real" type="Sprite2D" parent="."]', ''])
+with open(_os30.path.join(_d30, 'src', 'scenes', 'base30.tscn'), 'w') as _f30:
+    _f30.write(_base30)
+_hdr30 = '[gd_scene load_steps=2 format=3]'
+_ext30 = '[ext_resource type="PackedScene" path="res://src/scenes/base30.tscn" id="1"]'
+_root30 = '[node name="Root" instance=ExtResource("1")]'
+_bad30 = '\n'.join([_hdr30, '', _ext30, '', _root30, '', '[node name="Obstacle" parent="."]', 'position = Vector2(1, 1)', '', '[node name="Collision" type="CollisionShape2D" parent="Obstacle"]', ''])
+_ok30 = '\n'.join([_hdr30, '', _ext30, '', _root30, '', '[node name="Real" parent="."]', 'position = Vector2(1, 1)', ''])
+_fx30, _pr30 = _tl30.lint_and_fix_tscn(_bad30, project_root=_d30)
+_fx30b, _pr30b = _tl30.lint_and_fix_tscn(_ok30, project_root=_d30)
+with open('tscn_lint.py', 'r', encoding='utf-8') as _sf30:
+    _src30 = _sf30.read()
+check('21.30 v72: tscn_lint lovit pravki ischeznuvshih uzlov vnutri instansa (has vanished)',
+      any('has vanished' in p for p in _pr30)
+      and not any('vanished' in p for p in _pr30b)
+      and '_scene_node_paths' in _src30 and '_vanished_in_inst' in _src30)
+
+# 21.31 v73: qwen boevye selektory + pohozhest v ekzamene
+with open('qwen_parser.py', encoding='utf-8') as _f31:
+    _q31 = _f31.read()
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f31b:
+    _m31 = _f31b.read()
+with open('sites.py', encoding='utf-8') as _f31c:
+    _s31 = _f31c.read()
+check('21.31 v73: qwen_parser boevye selektory + similarity v ekzamene',
+      'message-input-textarea' in _q31 and 'qwen-chat-message-assistant' in _q31
+      and 'chat-prompt-send-button' in _q31 and '_extract_json_object' in _q31
+      and '_norm_scene(e.get("fixed") or "")).ratio()' in _m31
+      and '"name": "Qwen"' in _s31)
+
+# 21.32 v74: forma kollizii bez roditelya-fizicheskogo tela = oshibka linta
+import tscn_lint as _tl32
+_sub32 = '[sub_resource type="CircleShape2D" id="1"]'
+_bad32 = '\n'.join(['[gd_scene load_steps=2 format=3]', '', _sub32, 'radius = 20.0', '', '[node name="GameScene" type="Node2D"]', '', '[node name="Player" type="CharacterBody2D" parent="."]', '', '[node name="PlayerCollision" type="CollisionShape2D" parent="."]', 'shape = SubResource("1")', ''])
+_ok32 = _bad32.replace('[node name="PlayerCollision" type="CollisionShape2D" parent="."]', '[node name="PlayerCollision" type="CollisionShape2D" parent="Player"]')
+_fx32, _pr32 = _tl32.lint_and_fix_tscn(_bad32)
+_fx32b, _pr32b = _tl32.lint_and_fix_tscn(_ok32)
+with open('tscn_lint.py', 'r', encoding='utf-8') as _sf32:
+    _src32 = _sf32.read()
+check('21.32 v74: tscn_lint lovit CollisionShape2D bez fizicheskogo tela-roditelya',
+      any('CollisionObject' in p for p in _pr32)
+      and not any('CollisionObject' in p for p in _pr32b)
+      and '_COLLISION_OWNER_2D' in _src32 and '_COLLISION_OWNER_3D' in _src32)
+
+# 21.33 v75: parsery vshity v exe — staticheskie importy v sites.py + hidden-import v bat
+import sites as _st33
+with open('sites.py', 'r', encoding='utf-8') as _sf33:
+    _src33 = _sf33.read()
+with open('build_server_exe.bat', 'r', encoding='utf-8') as _bf33:
+    _bat33 = _bf33.read()
+_mod33 = _st33.get_parser_module('qwen')
+check('21.33 v75: qwen_parser vshit v exe (staticheskiy import + hidden-import) i gruzitsya po id',
+      'import qwen_parser as _static_qwen_parser' in _src33
+      and 'import deepseek_parser as _static_deepseek_parser' in _src33
+      and '--hidden-import qwen_parser' in _bat33
+      and '--hidden-import deepseek_parser' in _bat33
+      and getattr(_mod33, '__name__', '') == 'qwen_parser')
+
+# 21.34 v76: obychnyy tekst bez JSON ne dolzhen schitatsya deystviem (privet-bug)
+import qwen_parser as _qp34
+_plain34 = 'Ozhidayu zadachu. Ukazhite, chto neobkhodimo sdelat v proekte.'
+_act34 = 'Gotovo.' + chr(10) + '{"action": "create_file", "path": "res://a.tscn", "content": "x"}'
+_bad34 = 'nachalo {"action": "create_file", "path": nezakryto'
+check('21.34 v76: qwen ne prinimaet prostoy tekst za JSON-deystvie, no nakhodit nastoyashchiy blok',
+      _qp34._action_raw_from_text(_plain34) is None
+      and _qp34._action_raw_from_text('') is None
+      and _qp34._action_raw_from_text(_bad34) is None
+      and (_qp34._action_raw_from_text(_act34) or '').startswith('{')
+      and '"action"' in (_qp34._action_raw_from_text(_act34) or ''))
 
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

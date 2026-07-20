@@ -9,6 +9,17 @@ load_custom_sites), сама реализация пока отложена.
 """
 from urllib.parse import urlparse
 
+# v75: PyInstaller (server.exe) kladyot v sborku tolko staticheski
+# importirovannye moduli. Parsery zagruzhayutsya dinamicheski cherez
+# importlib, poetomu bez etogo bloka ikh net vnutri exe
+# (oshibka "No module named 'qwen_parser'").
+try:
+    import ai_parser as _static_ai_parser  # noqa: F401
+    import deepseek_parser as _static_deepseek_parser  # noqa: F401
+    import qwen_parser as _static_qwen_parser  # noqa: F401
+except Exception:
+    pass
+
 # Встроенные (проверенные) сайты.
 SITES = [
     {
@@ -30,6 +41,14 @@ SITES = [
     # Пример будущего сайта (выключен, оставлен как ориентир):
     # {"id": "chatgpt", "name": "ChatGPT", "new_chat_url": "https://chatgpt.com/",
     #  "match": ["chatgpt.com", "chat.openai.com"], "parser": "universal", "builtin": True},
+    {
+        "id": "qwen",
+        "name": "Qwen",
+        "new_chat_url": "https://chat.qwen.ai/",
+        "match": ["chat.qwen.ai", "qwen.ai"],
+        "parser": "qwen_parser",
+        "builtin": True,
+    },
 ]
 
 
