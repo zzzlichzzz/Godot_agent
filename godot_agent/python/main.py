@@ -31,6 +31,7 @@ import gd_api_cache
 import gd_api_check
 import tscn_lint
 import scene_deps
+import minilich
 import gd_functions
 import log_reader
 import chat_store
@@ -751,7 +752,33 @@ def _lint_action_scene(action, project_root, kind, path):
         candidate = fixed
     if not problems:
         _deps_enrich_scene_action(action, candidate, path, project_root)
+        try:
+            if minilich.is_enabled(project_root):
+                minilich.note_scene_ok(project_root, path, candidate)
+        except Exception:
+            pass
         return None
+    # mini-lich: локальная попытка починки сцены без большой модели (только если галочка включена).
+    # Любой результат mini-lich обязан заново пройти линтер без единой проблемы —
+    # иначе штатно возвращаем задачу большой модели (испортить сцену он не может).
+    try:
+        _ml_enabled = minilich.is_enabled(project_root)
+    except Exception:
+        _ml_enabled = False
+    if _ml_enabled:
+        try:
+            minilich.note_scene_bad(path, candidate, problems)
+            healed = minilich.try_fix_scene(candidate, problems, project_root, STATE.get("addon_dir"))
+        except Exception:
+            healed = None
+        if healed:
+            action["action"] = "create_file"
+            action["content"] = healed
+            action.pop("search", None)
+            action.pop("replace", None)
+            _deps_enrich_scene_action(action, healed, path, project_root)
+            print("--> [mini-lich] \u0441\u0446\u0435\u043d\u0430 \u043f\u043e\u0447\u0438\u043d\u0435\u043d\u0430 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e \u0431\u0435\u0437 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u043c\u043e\u0434\u0435\u043b\u0438: %s" % path)
+            return None
     listing = "\n".join("- %s" % p for p in problems[:8])
     return (
         "[" + "\u0421\u0438\u0441\u0442\u0435\u043c\u0430" + "]: \u0442\u0432\u043e\u044f \u0441\u0446\u0435\u043d\u0430 \u0434\u043b\u044f \u0444\u0430\u0439\u043b\u0430 " + path + " \u043d\u0435 \u043f\u0440\u043e\u0448\u043b\u0430 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b. "
@@ -1628,6 +1655,38 @@ def plan_rollback_chain():
 # отпр��вляется ОДИН отчёт. Повторная отправка того же лога блокируется
 # по отпечатку (mtime + размер), который переживает перезапуск сервера.
 # ---------------------------------------------------------------------------
+
+@app.route('/minilich/status', methods=['POST'])
+def minilich_status():
+    data = request.json or {}
+    _apply_session_context(data)
+    root = STATE.get("project_root")
+    if not root:
+        return jsonify({"enabled": False, "examples": 0, "train_step": 0, "last_loss": None, "training_active": False, "params": 0, "disk_bytes": 0})
+    try:
+        return jsonify(minilich.status(root))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/minilich/set', methods=['POST'])
+def minilich_set():
+    data = request.json or {}
+    _apply_session_context(data)
+    root = STATE.get("project_root")
+    if not root:
+        return jsonify({"error": "\u041f\u0440\u043e\u0435\u043a\u0442 \u043d\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0438\u0440\u043e\u0432\u0430\u043d."}), 400
+    enabled = bool(data.get("enabled"))
+    try:
+        minilich.set_enabled(root, enabled)
+        if enabled:
+            minilich.start_training(root, STATE.get("addon_dir"))
+        else:
+            minilich.stop_training()
+        return jsonify(minilich.status(root))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/project/api_cache_status', methods=['POST'])
 def api_cache_status():

@@ -1922,5 +1922,206 @@ _thinking_reports19 = [r for r in _reports19 if r.get("elapsed", 0) < 1.1 and
 check("19.5 во время «думает» отправляется фаза «модель думает…», а не «пишет ответ»",
       len(_thinking_reports19) > 0)
 
+
+# ===========================================================================
+# РАЗДЕЛ 20 (v57): mini-lich — локальная нейросеть-помощник для сцен
+# ===========================================================================
+print("\n--- 20. v57: mini-lich (локальная нейросеть-помощник) ---")
+
+import minilich as _ml20
+from minilich import ml_data as _mld20
+from minilich import ml_fix as _mlf20
+from minilich import ml_train as _mlt20
+from minilich import ml_project_index as _mlp20
+from minilich.ml_tokenizer import MiniLichTokenizer as _MLT20
+from minilich.ml_model import TinyTransformer as _TT20
+import numpy as _np20
+
+# 20.1 токенизатор: encode/decode без потерь (ключевые слова tscn + кириллица через байты)
+_tok20 = _MLT20()
+_sample20 = '[node name="\u0418\u0433\u0440\u043e\u043a" type="CharacterBody3D" parent="."]\nmesh = SubResource("m_1")\n'
+_rt20 = _tok20.decode(_tok20.encode(_sample20))
+check("20.1 токенизатор: encode/decode без потерь (вкл. кириллицу)", _rt20 == _sample20, repr(_rt20)[:100])
+
+# 20.2 обучение: loss падает на крошечной задаче запоминания
+_cfg20 = {"vocab": _tok20.vocab_size, "d_model": 32, "n_layers": 1, "n_heads": 2, "d_ff": 64, "n_ctx": 64}
+_m20 = _TT20(_cfg20, seed=7)
+_seq20 = (_tok20.encode('[node name="A" type="Node3D"]\n') * 3)[:32]
+_inp20 = _np20.asarray(_seq20[:-1], dtype=_np20.int64)
+_tgt20 = _np20.asarray(_seq20[1:], dtype=_np20.int64)
+_mask20 = _np20.ones(len(_inp20), dtype=_np20.float32)
+_l0_20, _g20 = _m20.loss_and_grads(_inp20, _tgt20, _mask20)
+for _i20 in range(30):
+    _l_20, _g20 = _m20.loss_and_grads(_inp20, _tgt20, _mask20)
+    _m20.adam_step(_g20, lr=3e-3)
+_l1_20, _ = _m20.loss_and_grads(_inp20, _tgt20, _mask20)
+check("20.2 обучение: loss падает", _l1_20 < _l0_20 * 0.8, "%.3f -> %.3f" % (_l0_20, _l1_20))
+
+# 20.3/20.4 чекпоинты: храним не больше 3, возобновление с последнего шага
+_root20 = fresh_project()
+for _s20 in (10, 20, 30, 40):
+    _m20.step = _s20
+    _mlt20._save_ckpt(_root20, _m20)
+_cks20 = sorted(f for f in os.listdir(_mlt20.ckpt_dir(_root20)) if f.endswith(".npz"))
+check("20.3 чекпоинтов хранится не больше 3, самый свежий на месте",
+      len(_cks20) <= 3 and "ckpt_40.npz" in _cks20, _cks20)
+_m20b = _mlt20.load_latest_model(_root20)
+check("20.4 возобновление: загружен последний шаг и то же число параметров",
+      _m20b is not None and _m20b.step == 40 and _m20b.param_count() == _m20.param_count(),
+      getattr(_m20b, "step", None))
+
+# 20.5 дедупликация обучающих пар
+_root20b = fresh_project()
+_ok1_20 = _mld20.record_pair(_root20b, "BROKEN A", ["p1"], "FIXED A", source="live")
+_ok2_20 = _mld20.record_pair(_root20b, "BROKEN A", ["p1"], "FIXED A", source="live")
+check("20.5 дедупликация: одинаковая пара второй раз не записывается",
+      _ok1_20 is True and _ok2_20 is False and _mld20.dataset_stats(_root20b)["examples"] == 1,
+      (_ok1_20, _ok2_20, _mld20.dataset_stats(_root20b)))
+
+# файлы, на которые ссылаются сцены из раздела 18 — чтобы линт с project_root проходил
+os.makedirs(os.path.join(_root20b, "src", "scripts", "city"), exist_ok=True)
+os.makedirs(os.path.join(_root20b, "src", "scenes"), exist_ok=True)
+with open(os.path.join(_root20b, "src", "scripts", "city", "city_builder.gd"), "w", encoding="utf-8") as _fh20:
+    _fh20.write("extends Node3D\n\nfunc build_city() -> void:\n    pass\n")
+with open(os.path.join(_root20b, "src", "scenes", "player.tscn"), "w", encoding="utf-8") as _fh20:
+    _fh20.write('[gd_scene format=3]\n\n[node name="Player" type="CharacterBody3D"]\n')
+
+# 20.6 рефлекторная починка: неиспользуемый PackedScene получает узел-экземпляр
+_f20a, _p20a = _tl18.lint_and_fix_tscn(_SC18_BASE, _root20b)
+_healed20 = _mlf20.try_fix_scene(_f20a, _p20a, _root20b, None)
+check("20.6 рефлекс: неиспользуемый PackedScene получает узел-экземпляр и проходит линтер",
+      _healed20 is not None and 'instance=ExtResource("2_player")' in (_healed20 or ""),
+      repr(_healed20)[:140])
+
+# 20.7 рефлекс: свойство «через точку» переезжает внутрь [sub_resource]
+_f20d, _p20d = _tl18.lint_and_fix_tscn(_SC18_DOT, _root20b)
+_healed20d = _mlf20.try_fix_scene(_f20d, _p20d, _root20b, None)
+check("20.7 рефлекс: mesh.size перенесено внутрь [sub_resource] и линтер доволен",
+      _healed20d is not None and "mesh.size" not in (_healed20d or "") and
+      "size = Vector2(60, 60)" in (_healed20d or ""), repr(_healed20d)[:140])
+
+# 20.8 мусор не чинится — честный None (задача штатно уходит большой модели)
+check("20.8 мусор не чинится — возвращается None",
+      _mlf20.try_fix_scene("абракадабра", ["непонятная проблема"], _root20b, None) is None)
+
+# 20.9 живая пара: сломано → большая модель прислала рабочую версию → пара в датасете
+_before20 = _mld20.dataset_stats(_root20b)["examples"]
+_ml20.note_scene_bad("res://x.tscn", "BROKEN LIVE", ["проблема X"])
+_ml20.note_scene_ok(_root20b, "res://x.tscn", "FIXED LIVE")
+check("20.9 живая пара сломано/исправлено попадает в датасет (дистилляция)",
+      _mld20.dataset_stats(_root20b)["examples"] == _before20 + 1,
+      _mld20.dataset_stats(_root20b))
+
+# 20.10 синтетика из сцен самого проекта (дообучение проекту пользователя)
+with open(os.path.join(_root20b, "main.tscn"), "w", encoding="utf-8") as _fh20:
+    _fh20.write('[gd_scene format=3]\n\n[ext_resource type="PackedScene" path="res://src/scenes/player.tscn" id="1_pl"]\n\n[sub_resource type="PlaneMesh" id="pm_main"]\n\n[node name="Main" type="Node3D"]\n\n[node name="Ground" type="MeshInstance3D" parent="."]\nmesh = SubResource("pm_main")\n\n[node name="Player" parent="." instance=ExtResource("1_pl")]\n')
+_added20 = _mld20.generate_synthetic(_root20b, None, limit=6)
+check("20.10 синтетика из сцен проекта генерируется и проходит верификацию линтером",
+      _added20 >= 1, _added20)
+
+# 20.11 индекс структуры проекта + поиск для крупной модели
+_cnt20 = _mlp20.build_index(_root20b)
+_hits20 = _mlp20.search(_root20b, "player")
+check("20.11 индекс проекта построен, поиск находит player.tscn",
+      _cnt20 >= 2 and any("player.tscn" in h["path"] for h in _hits20),
+      (_cnt20, [h["path"] for h in _hits20][:3]))
+check("20.12 describe_for_prompt даёт компактную сводку для промпта",
+      "res://" in _mlp20.describe_for_prompt(_root20b, "player"))
+
+# 20.13 train_steps на реальном датасете + чекпоинт появляется
+_m20t, _loss20 = _mlt20.train_steps(_root20b, steps=6,
+    config_overrides={"d_model": 32, "n_layers": 1, "n_heads": 2, "d_ff": 64, "n_ctx": 512})
+_cks20b = [f for f in os.listdir(_mlt20.ckpt_dir(_root20b)) if f.endswith(".npz")]
+check("20.13 train_steps обучает и сохраняет чекпоинт",
+      _loss20 is not None and len(_cks20b) >= 1, (_loss20, _cks20b))
+
+# 20.14 статус и переключатель: по умолчанию выключено, включение сохраняется
+_st20 = _ml20.status(_root20b)
+check("20.14 статус: по умолчанию выключено, поля на месте",
+      _st20.get("enabled") is False and _st20.get("examples", 0) >= 1 and "disk_bytes" in _st20, _st20)
+_ml20.set_enabled(_root20b, True)
+_en20 = _ml20.is_enabled(_root20b)
+_ml20.set_enabled(_root20b, False)
+check("20.15 галочка включается и состояние сохраняется на диске",
+      _en20 is True and _ml20.is_enabled(_root20b) is False)
+
+# 20.16/20.17 маркеры v57 в исходниках
+_src20m = open(os.path.join(_here, "main.py"), "r", encoding="utf-8").read()
+check("20.16 маркеры v57 в main.py (хук линтера + роуты)",
+      "/minilich/set" in _src20m and "/minilich/status" in _src20m and
+      "minilich.try_fix_scene" in _src20m and "minilich.note_scene_ok" in _src20m)
+_gdir20 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir20):
+    _src20p = open(os.path.join(_gdir20, "agent_panel.gd"), "r", encoding="utf-8").read()
+    _src20l = open(os.path.join(_gdir20, "agent_server_link.gd"), "r", encoding="utf-8").read()
+    _src20o = open(os.path.join(_gdir20, "agent_locale.gd"), "r", encoding="utf-8").read()
+    check("20.17 маркеры v57 в godot-файлах (кнопка ⛙, роуты, локализация)",
+          "MiniLichSettingsBtn" in _src20p and "_on_minilich_payload" in _src20p and
+          "MINILICH_SET_URL" in _src20l and "minilich_toggle" in _src20o)
+else:
+    check("20.17 маркеры v57 в godot-файлах", True, "папка godot рядом не найдена — проверка пропущена")
+
+print("\n--- 21) v58: ответ на ревью Gemini — repetition penalty / структурированный think / обрезка контекста ---")
+
+
+class _FakeGenModel21:
+    """Подменная модель: forward всегда возвращает один и тот же профиль логитов —
+    удобно изолирует логику generate() от реального обучения."""
+
+    def __init__(self):
+        self.cfg = {"n_ctx": 64}
+
+    def forward(self, ids):
+        logits = _np20.zeros((len(ids), 5), dtype=_np20.float32)
+        logits[-1] = _np20.array([0.0, 0.0, 5.0, 4.0, 0.0], dtype=_np20.float32)
+        return logits, None
+
+
+_FakeGenModel21.generate = _TT20.generate
+_fake21 = _FakeGenModel21()
+_out_nopen21 = _fake21.generate([0], max_new=10, eos_id=None, repetition_penalty=1.0)
+_out_pen21 = _fake21.generate([0], max_new=10, eos_id=None, repetition_penalty=3.0, repetition_window=10)
+check("21.1 repetition penalty выключен (1.0): жадный поиск повторяет один токен",
+      len(set(_out_nopen21)) == 1, _out_nopen21)
+check("21.2 repetition penalty включен: цикл разорван, токены разные",
+      len(set(_out_pen21)) >= 2, _out_pen21)
+
+# 21.3/21.4 структурированный <think>: категория определяется детерминированно из проблем линтера
+_plan_a21 = _mlf20.think_plan_text(_p20a)
+check("21.3 think-план распознаёт missing_resource", "missing_resource" in _plan_a21, _plan_a21)
+_plan_d21 = _mlf20.think_plan_text(_p20d)
+check("21.4 think-план распознаёт dotted_property", "dotted_property" in _plan_d21, _plan_d21)
+
+# 21.5 план внутри <think> — часть ОбучАемой зоны ответа (а не входного контекста)
+_ids21, _ans21 = _mlf20.build_training_ids("BROKEN", _p20a, "FIXED")
+_decoded21 = _tok20.decode(_ids21[_ans21:], skip_specials=False)
+check("21.5 обучающая последовательность: план в <think> входит в зону ответа",
+      "</think>" in _decoded21 and "<fix>" in _decoded21 and "missing_resource" in _decoded21,
+      _decoded21[:160])
+
+# 21.6/21.7 обрезка контекста для больших сцен + сшивка обратно
+_header21 = '[gd_scene format=3]'
+_focus_block21 = '[node name="Root" type="Node3D"]'
+_filler_blocks21 = ['[node name="Filler%d" type="Node3D" parent="Root"]' % i for i in range(40)]
+_broken_block21 = '[node name="Broken" type="MeshInstance3D" parent="Root"]' + chr(10) + 'mesh.size = Vector2(1, 1)'
+_scene21 = (chr(10) + chr(10)).join([_header21, _focus_block21] + _filler_blocks21 + [_broken_block21])
+_problems21 = ['свойство «Broken.size» задано через точку']
+_full_ids21 = _tok20.encode(_scene21)
+_budget21 = len(_full_ids21) // 2
+_trimmed21, _kept21 = _mlf20.trim_scene_for_context(_scene21, _problems21, _tok20, _budget21)
+check("21.6 обрезка контекста: остались сломанный узел + родитель, лишние узлы убраны",
+      _kept21 is not None and len(_tok20.encode(_trimmed21)) <= _budget21 and
+      'name="Broken"' in _trimmed21 and 'name="Root"' in _trimmed21 and "Filler0" not in _trimmed21,
+      (len(_full_ids21), len(_tok20.encode(_trimmed21))))
+check("21.7 сшивка фрагмента: неизменённый фрагмент восстанавливает исходную сцену точно",
+      _mlf20.splice_fixed_fragment(_scene21, _kept21, _trimmed21) == _scene21)
+
+# 21.8 маркеры v58 в исходниках mini-lich
+_src21f = open(os.path.join(_here, "minilich", "ml_fix.py"), "r", encoding="utf-8").read()
+_src21m = open(os.path.join(_here, "minilich", "ml_model.py"), "r", encoding="utf-8").read()
+check("21.8 маркеры v58 в исходниках mini-lich (think-план, обрезка контекста, repetition penalty)",
+      "think_plan_text" in _src21f and "trim_scene_for_context" in _src21f and
+      "splice_fixed_fragment" in _src21f and "repetition_penalty" in _src21m)
+
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
