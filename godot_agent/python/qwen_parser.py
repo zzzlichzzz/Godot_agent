@@ -1,22 +1,29 @@
 # -*- coding: utf-8 -*-
-"""Парсер сайта Qwen (chat.qwen.ai) — ЗАГОТОВКА (v71).
+"""Парсер сайта Qwen (chat.qwen.ai) — v73: боевые селекторы с реальной страницы.
 
 Интерфейс модуля тот же, что у ai_parser/deepseek_parser:
   send_message_and_get_response(driver, prompt, ...) -> {"text", "action"}
 
-ВАЖНО: селекторы ниже ПРЕДПОЛОЖИТЕЛЬНЫЕ — они не проверялись на реальной
-странице chat.qwen.ai. Открой сайт, проверь DOM (F12) и уточни селекторы
-ответа и поля ввода. Каркас (ожидание ответа, отправка, ретраи) рабочий.
+Селекторы взяты из реального DOM chat.qwen.ai (июль 2026):
+  - ответ модели: div.qwen-chat-message-assistant .response-message-content .qwen-markdown
+    (карточка размышлений qwen-chat-thinking-* лежит ВНЕ response-message-content);
+  - поле ввода: textarea.message-input-textarea;
+  - кнопка отправки: div.chat-prompt-send-button button.send-button (disabled, пока поле пустое);
+  - конец генерации: у последнего ответа появились иконки действий в футере.
+Если Qwen обновит вёрстку — обнови селекторы здесь.
 """
 import time
 
 from selenium.webdriver.common.keys import Keys
 
-from parser_base import BaseSiteParser, _safe_execute
+from parser_base import (BaseSiteParser, _safe_execute, _extract_json_object,
+                         _looks_json_balanced, _strip_code_fences)
 
 _BLOCKS_JS = r"""
 function __qwenBlocks() {
     var sels = [
+        'div.qwen-chat-message-assistant div.response-message-content div.qwen-markdown',
+        'div.qwen-chat-message-assistant div.response-message-content',
         'div.markdown-content-container',
         'div[class*="assistant"] div[class*="markdown"]',
         'div[class*="message"] div[class*="markdown"]',
@@ -43,9 +50,14 @@ function __qwenBlocks() {
 JS_COUNT_ANSWERS = _BLOCKS_JS + "return __qwenBlocks().length;"
 JS_ANSWER_LEN = _BLOCKS_JS + "var b = __qwenBlocks(); return b.length ? (b[b.length-1].innerText || '').length : -1;"
 JS_ANSWER_TEXT = _BLOCKS_JS + "var b = __qwenBlocks(); return b.length ? (b[b.length-1].innerText || '') : '';"
-JS_IS_GENERATING = ("return !!document.querySelector('button[aria-label*=\"Stop\"],"
-                    " [class*=\"stop\"] button, button[class*=\"stop\"]');")
-JS_FIND_INPUT = ("return document.querySelector('textarea#chat-input')"
+JS_IS_GENERATING = (
+    "var msgs = document.querySelectorAll('div.qwen-chat-message-assistant');"
+    " if (msgs.length) { var last = msgs[msgs.length - 1];"
+    "   if (!last.querySelector('.response-message-footer .qwen-chat-package-comp-new-action-control-icons')) return true; }"
+    " return !!document.querySelector('button[aria-label*=\"Stop\"],"
+    " [class*=\"stop\"] button, button[class*=\"stop\"]');")
+JS_FIND_INPUT = ("return document.querySelector('textarea.message-input-textarea')"
+                 " || document.querySelector('textarea#chat-input')"
                  " || document.querySelector('textarea[placeholder]')"
                  " || document.querySelector('textarea')"
                  " || document.querySelector('[contenteditable=\"true\"]');")
@@ -63,9 +75,11 @@ JS_DISPATCH_ENTER = ("var el = arguments[0];"
                      " var ev = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter',"
                      " keyCode: 13, which: 13, bubbles: true});"
                      " el.dispatchEvent(ev);")
-JS_CLICK_SEND = ("var b = document.querySelector('button[id*=\"send\"],"
+JS_CLICK_SEND = ("var b = document.querySelector('div.chat-prompt-send-button button.send-button');"
+                 " if (b && !b.disabled) { b.click(); return true; }"
+                 " b = document.querySelector('button[id*=\"send\"],"
                  " button[class*=\"send\"], button[type=\"submit\"]');"
-                 " if (b) { b.click(); return true; } return false;")
+                 " if (b && !b.disabled) { b.click(); return true; } return false;")
 
 
 def count_answers(driver):
@@ -93,12 +107,19 @@ def is_generating(driver):
 def extract_answer(driver):
     text = answer_stream(driver)
     if not text:
-        return {"text": "", "actionRaw": None, "error": "пустой ответ — заготовка qwen: уточни селекторы"}
-    return {"text": text, "actionRaw": None, "error": None}
+        return {"text": "", "actionRaw": None, "error": "пустой ответ (qwen): проверь, что чат открыт и ответ дописан"}
+    raw = None
+    try:
+        cand = _extract_json_object(_strip_code_fences(text))
+        if cand and _looks_json_balanced(cand):
+            raw = cand
+    except Exception:
+        raw = None
+    return {"text": text, "actionRaw": raw, "error": None}
 
 
 class QwenParser(BaseSiteParser):
-    """Qwen: сайт-специфичная часть поверх BaseSiteParser (ЗАГОТОВКА)."""
+    """Qwen: сайт-специфичная часть поверх BaseSiteParser (v73, боевые селекторы)."""
 
     LOG_TAG = "qwen_parser"
     WINDOW_URL_MATCH = "chat.qwen.ai"

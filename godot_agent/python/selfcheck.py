@@ -2406,5 +2406,18 @@ check('21.30 v72: tscn_lint lovit pravki ischeznuvshih uzlov vnutri instansa (ha
       and not any('vanished' in p for p in _pr30b)
       and '_scene_node_paths' in _src30 and '_vanished_in_inst' in _src30)
 
+# 21.31 v73: qwen boevye selektory + pohozhest v ekzamene
+with open('qwen_parser.py', encoding='utf-8') as _f31:
+    _q31 = _f31.read()
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f31b:
+    _m31 = _f31b.read()
+with open('sites.py', encoding='utf-8') as _f31c:
+    _s31 = _f31c.read()
+check('21.31 v73: qwen_parser boevye selektory + similarity v ekzamene',
+      'message-input-textarea' in _q31 and 'qwen-chat-message-assistant' in _q31
+      and 'chat-prompt-send-button' in _q31 and '_extract_json_object' in _q31
+      and '_norm_scene(e.get("fixed") or "")).ratio()' in _m31
+      and '"name": "Qwen"' in _s31)
+
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
