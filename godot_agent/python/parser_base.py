@@ -476,9 +476,51 @@ class BaseSiteParser:
     def _log(self, msg):
         print("[%s] %s" % (self.LOG_TAG, msg))
 
-    def switch_to_site_window(self, driver):
-        """Переключается на вкладку своего сайта, если она открыта."""
+    def switch_to_site_window(self, driver, prefer_url=None):
+        """Переключается на вкладку своего сайта.
+
+        v54: приоритет выбора вкладки:
+          1) вкладка с ТОЧНЫМ адресом prefer_url (адрес текущего чата);
+          2) ТЕКУЩАЯ вкладка, если она уже на нужном сайте;
+          3) первая попавшаяся вкладка сайта (старое поведение).
+        Раньше всегда бралась первая попавшаяся — при двух открытых вкладках
+        одного сайта агент печатал в ЧУЖОЙ (старый) чат."""
         if not self.WINDOW_URL_MATCH:
+            return
+
+        def _path(u):
+            return (u or "").split("://", 1)[-1].split("?", 1)[0].split("#", 1)[0].rstrip("/")
+
+        def _cur_url():
+            try:
+                return driver.current_url or ""
+            except WebDriverException:
+                return ""
+
+        cur = _cur_url()
+        if prefer_url:
+            want = _path(prefer_url)
+            if want and _path(cur) == want:
+                return
+            if want:
+                try:
+                    cur_handle = None
+                    try:
+                        cur_handle = driver.current_window_handle
+                    except WebDriverException:
+                        pass
+                    for handle in driver.window_handles:
+                        driver.switch_to.window(handle)
+                        if _path(driver.current_url or "") == want:
+                            return
+                    if cur_handle is not None:
+                        driver.switch_to.window(cur_handle)
+                except WebDriverException:
+                    pass
+                cur = _cur_url()
+        # Текущая вкладка уже на нужном сайте — остаёмся на ней (не прыгаем
+        # на первую попавшуюся вкладку с тем же доменом — там может быть ДРУГОЙ чат).
+        if self.WINDOW_URL_MATCH in cur:
             return
         try:
             for handle in driver.window_handles:
@@ -533,6 +575,16 @@ class BaseSiteParser:
         _baseline_sig = (_base.get("text") or "") + "\x00" + (_base.get("actionRaw") or "")
         _salv = {"ts": time.time(), "sig": None}
         _diag = {"ts": time.time()}
+        # v56: снимок «живого» текста ПОСЛЕДНЕГО блока до отправки — пока модель
+        # «думает» (генерация уже идёт, но новый блок ответа в DOM ещё не появился),
+        # answer_len/answer_preview/answer_stream у некоторых сайтов (DeepSeek) читают
+        # ПОСЛЕДНИЙ существующий блок — это ещё СТАРЫЙ ответ. Не транслируем его в панель
+        # как «живую генерацию», пока не увидим либо рост счётчика реплик, либо текст,
+        # отличный от этого снимка.
+        try:
+            _baseline_stream_txt = self.answer_stream(driver) or ""
+        except Exception:
+            _baseline_stream_txt = ""
 
         def _try_salvage():
             if time.time() - _salv["ts"] < 20.0:
@@ -544,7 +596,8 @@ class BaseSiteParser:
             if not sig.replace("\x00", "").strip():
                 _salv["sig"] = None
                 return None
-            if sig == _baseline_sig or self.is_generating(driver):
+            if (sig == _baseline_sig or sig in getattr(self, "_returned_sigs", ())
+                    or self.is_generating(driver)):
                 _salv["sig"] = None
                 return None
             if raw is not None and not _looks_json_balanced(
@@ -609,6 +662,7 @@ class BaseSiteParser:
         last_length = -1
         quiet_since = None
         length_only_quiet_since = None
+        revealed = False  # v56: True, когда на странице виден ДЕЙСТВИТЕЛЬНО новый текст
         while time.time() - start < timeout:
             length = self.answer_len(driver)   # длина ТОЛЬКО ответа, без «мыслей»
             generating = self.is_generating(driver)
@@ -625,9 +679,27 @@ class BaseSiteParser:
                 quiet_since = None
                 length_only_quiet_since = None
             if length > 0:
-                if now - last_preview_ts >= 1.0:
+                # v56: пока не увидели рост счётчика реплик или текст, отличный от
+                # того, что было ДО отправки — это ещё СТАРЛЙ ответ (модель «думает»,
+                # генерация уже идёт, но новый блок в DOM не появился). Сравниваем С СВЕЖИй
+                # текстом (а не с закешированным 1 раз/сек preview_txt/stream_txt ниже), иначе
+                # сам момент перехода мог бы на мгновение показать в ленте ещё старый кеш.
+                if not revealed:
+                    try:
+                        _live_now = self.answer_stream(driver) or ""
+                    except Exception:
+                        _live_now = stream_txt
+                    revealed = (self.count_answers(driver) > initial_count
+                                or _live_now != _baseline_stream_txt)
+                    if revealed:
+                        stream_txt = _live_now
+                        preview_txt = self.answer_preview(driver)
+                        last_preview_ts = now
+                if revealed and now - last_preview_ts >= 1.0:
                     preview_txt = self.answer_preview(driver)
                     stream_txt = self.answer_stream(driver)
+                    last_preview_ts = now
+                if revealed:
                     activity = self.get_live_activity(driver) or {}
                     if activity.get("code"):
                         lang = activity.get("lang") or ""
@@ -639,10 +711,9 @@ class BaseSiteParser:
                             phase_txt = "пишет код…"
                     else:
                         phase_txt = "пишет ответ…"
-                    last_preview_ts = now
-                _report("модель " + phase_txt, chars=length, preview=preview_txt, stream=stream_txt)
-            else:
-                _report("модель думает…")
+                    _report("модель " + phase_txt, chars=length, preview=preview_txt, stream=stream_txt)
+                else:
+                    _report("модель думает…")
             got = _try_salvage()
             if got is not None:
                 return got
@@ -657,6 +728,14 @@ class BaseSiteParser:
             time.sleep(poll_interval)
         else:
             raise TimeoutError("Генерация не завершилась вовремя.")
+
+        # v56: если настоящий новый ответ так и Не появился в DOM к моменту
+        # выхода из цикла стабилизации (например, долгое «думанье» дотянулось
+        # до hard_quiet_period на старом тексте), preview_txt/stream_txt всё ещё содержат
+        # СтАРый ответ — обнуляем их, чтобы он НЕ утек в грейс-период.
+        if not revealed:
+            preview_txt = ""
+            stream_txt = ""
 
         # 4) защита от «ложного завершения»: обрыв JSON / пустой ответ /
         #    генерация ещё идёт.
@@ -681,6 +760,64 @@ class BaseSiteParser:
             result = self.extract_answer(driver)
             last_length = cur_len
             _report("проверяю, что ответ дописан", chars=max(cur_len, 0), preview=preview_txt, stream=stream_txt)
+
+        # 5) v51: АНТИ-ДУБЛЬ старого ответа. Если «стабилизировавшийся» результат
+        # побайтово совпадает с последним ответом модели, снятым ДО отправки
+        # сообщения, и НОВЫХ реплик модели на странице не появилось — значит,
+        # прочитан СТАРЫЙ ответ (счётчик реплик «мигнул» при перестройке DOM,
+        # или модель долго думает, не создав новый блок). Такой результат
+        # возвращать нельзя — ждём настоящий новый ответ до общего таймаута.
+        def _sig_of(r):
+            return (((r or {}).get("text") or "") + "\x00" + ((r or {}).get("actionRaw") or ""))
+
+        def _is_stale(r):
+            s = _sig_of(r)
+            if not s.replace("\x00", "").strip():
+                return False
+            # v53: счётчик реплик может УМЕНЬШАТЬСЯ (сайт сворачивает/перестраивает
+            # DOM; у DeepSeek наблюдали answers=2 (было 3)) — поэтому «новых реплик
+            # нет» проверяем как «счётчик НЕ ВЫРОС», а не «равен исходному».
+            if self.count_answers(driver) > initial_count:
+                return False
+            # После перестройки DOM последним блоком может оказаться и более СТАРЫЙ
+            # ответ, не совпадающий со снимком до отправки, — ловим его по памяти
+            # ранее возвращённых ответов (_returned_sigs).
+            return s == _baseline_sig or s in getattr(self, "_returned_sigs", ())
+
+        _stale_logged = False
+        while _is_stale(result):
+            if time.time() - start >= timeout:
+                raise TimeoutError("Модель не дала НОВЫЙ ответ: на странице только сообщение, "
+                                   "которое было там ещё до отправки (дубль не возвращаю).")
+            if not _stale_logged:
+                self._log("анти-дубль: прочитан ТОТ ЖЕ ответ, что был до отправки, "
+                          "новых реплик модели нет — жду настоящий новый ответ.")
+                _stale_logged = True
+            _report("модель ещё думает…")
+            got = _try_salvage()
+            if got is not None:
+                return got
+            time.sleep(max(poll_interval, 0.25))
+            cur = self.extract_answer(driver) or {}
+            if _sig_of(cur) == _sig_of(result):
+                continue
+            # Текст начал меняться — пошёл настоящий ответ, ждём стабилизации заново.
+            stable_since = None
+            last_len = -1
+            while time.time() - start < timeout:
+                ln = self.answer_len(driver)
+                now2 = time.time()
+                if ln == last_len and ln > 0 and not self.is_generating(driver):
+                    if stable_since is None:
+                        stable_since = now2
+                    if now2 - stable_since >= quiet_period:
+                        break
+                else:
+                    stable_since = None
+                _report("модель пишет ответ…", chars=max(ln, 0))
+                last_len = ln
+                time.sleep(poll_interval)
+            result = self.extract_answer(driver)
         return result
 
     def extract_answer_robust(self, driver, retries=3, delay=1.5):
@@ -706,10 +843,12 @@ class BaseSiteParser:
                 time.sleep(delay)
         return result or {"text": "", "actionRaw": None, "error": "extraction failed"}
 
-    def send_message_and_get_response(self, driver, prompt, input_retries=None, progress_cb=None, cancel_cb=None):
+    def send_message_and_get_response(self, driver, prompt, input_retries=None, progress_cb=None, cancel_cb=None, prefer_url=None):
         """Общий конвейер «промпт -> ответ» для любого сайта."""
         retries = input_retries or self.INPUT_RETRIES
-        self.switch_to_site_window(driver)
+        # v54: prefer_url — адрес страницы ТЕКУЩЕГО чата: печатаем именно в его
+        # вкладку, а не в первую попавшуюся вкладку этого сайта.
+        self.switch_to_site_window(driver, prefer_url=prefer_url)
         from browser_manager import harden_background_tab
         harden_background_tab(driver)
         el = None
@@ -734,6 +873,10 @@ class BaseSiteParser:
         if not inserted:
             raise Exception("Не удалось вставить текст в поле ввода (%s)." % self.LOG_TAG)
         self.before_submit(driver, el)
+        # v51: снимок ПОСЛЕДНЕГО ответа модели ДО отправки — для анти-дубля
+        # (защита от возврата СТАРОГО сообщения вместо нового ответа).
+        _pre = self.extract_answer(driver) or {}
+        _pre_sig = ((_pre.get("text") or "") + "\x00" + (_pre.get("actionRaw") or ""))
         initial_count = self.count_answers(driver)
         try:
             self.submit(driver, el)
@@ -777,6 +920,17 @@ class BaseSiteParser:
             not ((result.get("text") or "").strip()) and result.get("actionRaw") is None)
         if empty:
             result = self.extract_answer_robust(driver)
+            # v51: анти-дубль для «Плана Б» — грубое извлечение могло схватить
+            # СТАРЫЙ ответ (тот, что был на странице ещё до отправки). Дубль не
+            # возвращаем: лучше явная ошибка, чем повторно выполненный старый план.
+            _sig_b = (((result or {}).get("text") or "") + "\x00" + ((result or {}).get("actionRaw") or ""))
+            if (_sig_b.replace("\x00", "").strip()
+                    and (_sig_b == _pre_sig or _sig_b in getattr(self, "_returned_sigs", ()))
+                    and self.count_answers(driver) <= initial_count):
+                self._log("анти-дубль (План Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
+                return {"text": "[Ошибка]: модель не дала НОВЫЙ ответ (на странице найден только старый). "
+                                "Отправьте сообщение ещё раз.",
+                        "action": None}
         text = (result or {}).get("text") or ""
         raw_action = (result or {}).get("actionRaw")
         error = (result or {}).get("error")
@@ -808,4 +962,17 @@ class BaseSiteParser:
                                   "ответа вне ожидаемых тегов — забираю его.")
                         action = salv_action
                         break
+        # v53: запоминаем возвращённый ответ (последние 8) — при следующем ожидании
+        # анти-дубль отбрасывает такие ответы, если счётчик реплик модели не вырос
+        # (защита от «ответа на старый запрос» после перестройки DOM сайтом).
+        _sig_ret = (text or "") + "\x00" + (raw_action or "")
+        if _sig_ret.replace("\x00", "").strip():
+            _mem = getattr(self, "_returned_sigs", None)
+            if _mem is None:
+                _mem = []
+                self._returned_sigs = _mem
+            if _sig_ret in _mem:
+                _mem.remove(_sig_ret)
+            _mem.append(_sig_ret)
+            del _mem[:-8]
         return {"text": text, "action": action}

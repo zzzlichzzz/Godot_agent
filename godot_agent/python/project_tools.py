@@ -54,8 +54,9 @@ def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=No
 def _resolve_safe_path(project_root, godot_path):
     """Защита от Path Traversal — не дает ИИ выйти за рамки проекта."""
     rel = godot_path[len('res://'):] if godot_path.startswith('res://') else godot_path
-    project_root_abs = os.path.abspath(project_root)
-    abs_path = os.path.abspath(os.path.join(project_root_abs, rel))
+    # v52: realpath, не abspath — abspath НЕ разрешает симвлинки; симвлинк внутри проекта, ведущая наружу, могла бы обойти проверку ниже.
+    project_root_abs = os.path.realpath(project_root)
+    abs_path = os.path.realpath(os.path.join(project_root_abs, rel))
     if abs_path != project_root_abs and not abs_path.startswith(project_root_abs + os.sep):
         raise ValueError(f"Путь вне проекта отклонен: {godot_path}")
     # Служебная папка истории агента недоступна для чтения/записи через действия.
