@@ -132,9 +132,13 @@ def _reply(prompt):
     server_state.clear_cancel()
     _set_progress({"phase": "отправляю запрос в браузер"})
     try:
+        # v54: адрес текущего чата — чтобы печатать в ЕГО вкладку, а не в первую
+        # попавшуюся вкладку сайта (у пользователя могла быть открыта вкладка старого чата).
+        _chat_rec = server_state.get_current_chat() or {}
         result = _current_parser().send_message_and_get_response(
             wait_driver(), prompt, progress_cb=_set_progress,
-            cancel_cb=server_state.cancel_requested)
+            cancel_cb=server_state.cancel_requested,
+            prefer_url=_chat_rec.get("url") or None)
     except parser_base.ParserCancelled:
         print("<-- Запрос остановлен пользователем.")
         return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
