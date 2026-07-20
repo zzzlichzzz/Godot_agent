@@ -104,17 +104,34 @@ def is_generating(driver):
     return bool(_safe_execute(driver, JS_IS_GENERATING, default=False))
 
 
+def _action_raw_from_text(text):
+    """v76: vozvrashchaet stroku-kandidata JSON-deystviya TOLKO esli v tekste
+    deystvitelno est JSON-obekt s klyuchom "action". Ranshe obychnyy tekst bez
+    figurnykh skobok celikom schitalsya kandidatom (_extract_json_object
+    vozvrashchaet iskhodnuyu stroku, a _looks_json_balanced schitaet tekst bez
+    skobok sbalansirovannym) -> parse_error -> lozhnyy sistemnyy povtor na
+    prostoe privetstvie."""
+    if not text:
+        return None
+    try:
+        cand = _extract_json_object(_strip_code_fences(text))
+    except Exception:
+        return None
+    if not cand:
+        return None
+    cand = cand.strip()
+    if not (cand.startswith("{") and cand.endswith("}")):
+        return None
+    if u'"action"' not in cand:
+        return None
+    return cand if _looks_json_balanced(cand) else None
+
+
 def extract_answer(driver):
     text = answer_stream(driver)
     if not text:
         return {"text": "", "actionRaw": None, "error": "пустой ответ (qwen): проверь, что чат открыт и ответ дописан"}
-    raw = None
-    try:
-        cand = _extract_json_object(_strip_code_fences(text))
-        if cand and _looks_json_balanced(cand):
-            raw = cand
-    except Exception:
-        raw = None
+    raw = _action_raw_from_text(text)
     return {"text": text, "actionRaw": raw, "error": None}
 
 
