@@ -2123,5 +2123,106 @@ check("21.8 маркеры v58 в исходниках mini-lich (think-план
       "think_plan_text" in _src21f and "trim_scene_for_context" in _src21f and
       "splice_fixed_fragment" in _src21f and "repetition_penalty" in _src21m)
 
+# 21.9 v59 bugfix: кнопка настроек должна стоять рядом с языковым переключателем
+# на стартовом экране (agent_start_screen.gd), а не только в внутричатовой ChatsBar.
+_gdir21 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir21):
+    _src21ss = open(os.path.join(_gdir21, "agent_start_screen.gd"), "r", encoding="utf-8").read()
+    _src21pp = open(os.path.join(_gdir21, "agent_panel.gd"), "r", encoding="utf-8").read()
+    check("21.9 v59: кнопка настроек добавлена рядом с языковым переключателем на стартовом экране",
+          "signal settings_requested" in _src21ss and
+          'top.add_child(lang_btn)' in _src21ss and
+          _src21ss.index('top.add_child(lang_btn)') < _src21ss.index('settings_requested.emit()') and
+          "_start_screen.settings_requested.connect(_on_settings_pressed)" in _src21pp)
+else:
+    check("21.9 v59: кнопка настроек рядом с языком", True, "папка godot рядом не найдена — проверка пропущена")
+
+# 21.10 v59 багфикс: галочка mini-lich не должна сбрасываться устаревшим
+# ответом minilich_status, полученным после того как пользователь уже переключил галочку
+# (открытие настроек сразу засылает minilich_status, и если пользователь успеет кликнуть до ответа,
+# старый ответ раньше сбрасывал галочку обратно).
+_gdir22 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir22):
+    _src22pp = open(os.path.join(_gdir22, "agent_panel.gd"), "r", encoding="utf-8").read()
+    check("21.10 v59 багфикс: галочка mini-lich защищена от гонки статуса в очереди",
+          "var _minilich_set_pending: bool = false" in _src22pp and
+          "_minilich_set_pending = true" in _src22pp and
+          "func _on_minilich_payload(kind: String, json: Dictionary) -> void:" in _src22pp and
+          "not (kind == \"minilich_status\" and _minilich_set_pending)" in _src22pp and
+          "_on_minilich_payload(kind, json)" in _src22pp)
+else:
+    check("21.10 v59 багфикс: галочка mini-lich защищена от гонки статуса", True, "папка godot рядом не найдена — проверка пропущена")
+
+# 21.11 v60: диалог настроек без TabContainer — заголовок “Экспериментальные”
+# больше не дублируется (ни таба, ни второй оболочки с тем же текстом).
+_gdir23 = os.path.join(os.path.dirname(_here), "godot")
+if os.path.isdir(_gdir23):
+    _src23pp = open(os.path.join(_gdir23, "agent_panel.gd"), "r", encoding="utf-8").read()
+    check("21.11 v60: настройки без дублирующегося заголовка TabContainer",
+          "_settings_tabs" not in _src23pp and
+          _src23pp.count('_t("experimental_hdr")') == 1)
+else:
+    check("21.11 v60: настройки без дублирующегозаголовка", True, "папка godot рядом не найдена — проверка пропущена")
+
+# 21.12 v60: ошибка minilich_status/minilich_set теперь видна пользователю,
+# а не глотается в молчаливый автозапуск сервера.
+if os.path.isdir(_gdir23):
+    _src23ls = open(os.path.join(_gdir23, "agent_server_link.gd"), "r", encoding="utf-8").read()
+    check("21.12 v60: ошибка minilich видна пользователю вместо тихого автозапуска",
+          'kind == "minilich_status" or kind == "minilich_set"' in _src23ls and
+          "srv_no_response" in _src23ls and
+          "chats_response.emit(kind," in _src23ls)
+else:
+    check("21.12 v60: ошибка minilich видна пользователю", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.13 v60: сервер логирует /minilich/status и /minilich/set в консоль — можно увидеть,
+# дошел ли запрос до сервера и что он решил.
+_src23main = open(os.path.join(_here, "main.py"), "r", encoding="utf-8").read()
+check("21.13 v60: /minilich/status и /minilich/set печатают в консоль",
+      'print("[minilich] /status:' in _src23main and
+      'print("[minilich] /set:' in _src23main and
+      _src23main.count('print("[minilich]') >= 5)
+
+# 21.14 v61: без отдельного окна-консоли обучения — оно конфликтовало с окном
+# настроек (два эксклюзивных AcceptDialog одновременно) и его таймер
+# больше не спамит очередь запросов каждые 2 секунды.
+if os.path.isdir(_gdir23):
+    check("21.14 v61: кнопка «обучение» без отдельного окна и без таймера-опросчика",
+          "_train_console" not in _src23pp and
+          "func _on_train_model_pressed" in _src23pp)
+else:
+    check("21.14 v61: кнопка «обучение» без отдельного окна", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.15 v61: каждая строка обучения mini-lich печатается в консоль сервера живьём,
+# а не только в памяти процесса.
+_src23mt = open(os.path.join(_here, "minilich", "ml_train.py"), "r", encoding="utf-8").read()
+check("21.15 v61: ml_train._log печатает в консоль сервера",
+      'print("[minilich-train]' in _src23mt)
+
+# 21.16 v62: кнопка «обучение» при включённой галочке активно
+# запускает/перезапускает обучение (minilich_set), а не только спрашивает статус,
+# и подсказка «выключено» больше не затирается ответом сервера на генеричный статус.
+if os.path.isdir(_gdir23):
+    check("21.16 v62: кнопка «обучение» активно запускает обучение, а не только спрашивает статус",
+          '_request_chats("minilich_set", {"enabled": true})' in _src23pp and
+          'if not bool(json.get("enabled", false)):' in _src23pp)
+else:
+    check("21.16 v62: кнопка «обучение» активно запускает обучение", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.17 v63: выбор чата обрезает длинные названия эллипсисом и не вытесняет
+# кнопки за край панели, когда панель уже центра экрана.
+if os.path.isdir(_gdir23):
+    check("21.17 v63: выбор чата обрезается эллипсисом и не съедает кнопки",
+          _src23pp.count("_chat_select.clip_text = true") >= 2 and
+          _src23pp.count("_chat_select.custom_minimum_size.x = 40.0") >= 2)
+else:
+    check("21.17 v63: выбор чата обрезается эллипсисом", True, "папка godot рядом не найдена — проверка проигнорирована")
+
+# 21.18 v63: лог /minilich/status и /minilich/set теперь явно показывает training_active,
+# а не только enabled — без уточнения по UI нельзя было понять, идёт ли обучение.
+check("21.18 v63: /minilich/status и /minilich/set печатают training_active в консоль",
+      'training_active=%s' in _src23main and
+      _src23main.count('training_active=%s') >= 2)
+
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

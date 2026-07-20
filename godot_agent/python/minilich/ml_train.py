@@ -40,11 +40,14 @@ _state = {"active": False, "last_loss": None, "steps_done": 0, "last_error": "",
 
 
 def _log(msg):
-    """Строка для «консоли обучения» в панели настроек — живёт только в памяти процесса."""
+    """Строка для «консоли обучения»: живёт в памяти процесса (для панели)
+    и ОДНОВРЕМЕННО печатается в консоль сервера (server.exe/терминал),
+    чтобы прогресс обучения виден без отдельного окна в Godot."""
     line = "[%s] %s" % (time.strftime("%H:%M:%S"), msg)
     _state["lines"].append(line)
     if len(_state["lines"]) > MAX_LOG_LINES:
         _state["lines"] = _state["lines"][-MAX_LOG_LINES:]
+    print("[minilich-train] %s" % line)
 
 
 def ckpt_dir(project_root):

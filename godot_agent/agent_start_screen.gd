@@ -17,6 +17,7 @@ signal sites_tab_requested()
 signal chats_tab_requested()
 signal language_changed()
 signal open_server_requested()
+signal settings_requested()
 
 const URL_BOOSTY := "https://boosty.to/zzzlichzzz"
 const URL_TIPS := "https://pay.cloudtips.ru/p/50d418af"
@@ -177,6 +178,12 @@ func _build() -> void:
 	lang_btn.select(1 if _lang() == "en" else 0)
 	lang_btn.item_selected.connect(_on_lang_selected)
 	top.add_child(lang_btn)
+	var settings_btn := Button.new()
+	settings_btn.name = "MiniLichSettingsBtn"
+	settings_btn.text = "⚙"
+	settings_btn.tooltip_text = _t("settings_title")
+	settings_btn.pressed.connect(func(): settings_requested.emit())
+	top.add_child(settings_btn)
 	var title := Label.new()
 	title.text = _t("title")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
