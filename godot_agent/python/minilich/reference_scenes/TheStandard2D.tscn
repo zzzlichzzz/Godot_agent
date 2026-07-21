@@ -1,0 +1,164 @@
+[gd_scene format=3 uid="uid://cghojf2ra2xv0"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(40, 40)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 25.0
+
+[sub_resource type="Gradient" id="Gradient_1"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_1"]
+gradient = SubResource("Gradient_1")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="OccluderPolygon2D" id="OccluderPolygon2D_1"]
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="TestScene2D" type="Node2D" unique_id=1343835051]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=672700020]
+position = Vector2(200, 0)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=2114656459]
+position = Vector2(-220.5, -200)
+sprite_frames = SubResource("SpriteFrames_1")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=977190640]
+position = Vector2(-140, -200)
+
+[node name="CollisionShape2D_Static" type="CollisionShape2D" parent="StaticBody2D" unique_id=1897465361]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="RigidBody2D" type="RigidBody2D" parent="." unique_id=2068703767]
+position = Vector2(-60.25, -200)
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="RigidBody2D" unique_id=855816879]
+polygon = PackedVector2Array(-35, -20, 35, -20, 35, 20, -35, 20)
+
+[node name="CharacterBody2D" type="CharacterBody2D" parent="." unique_id=1792911700]
+position = Vector2(20, -200)
+
+[node name="CollisionShape2D_Character" type="CollisionShape2D" parent="CharacterBody2D" unique_id=1259555461]
+shape = SubResource("CircleShape2D_1")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=177321368]
+position = Vector2(100.75, -200)
+
+[node name="CollisionShape2D_Area" type="CollisionShape2D" parent="Area2D" unique_id=1913453873]
+shape = SubResource("RectangleShape2D_1")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1126286024]
+offset = Vector2(-15, 24)
+
+[node name="Line2D" type="Line2D" parent="." unique_id=367668663]
+position = Vector2(-300, -100)
+points = PackedVector2Array(-100, 0, -50, -40.5, 0, 0, 50, 40.5, 100, 0)
+width = 4.0
+default_color = Color(0.2, 0.6, 1, 0.8)
+
+[node name="Polygon2D" type="Polygon2D" parent="." unique_id=231335196]
+position = Vector2(-100, -100)
+color = Color(1, 0.4, 0.1, 0.75)
+polygon = PackedVector2Array(0, -40.5, 38.5, -12.5, 23.8, 32.7, -23.8, 32.7, -38.5, -12.5)
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="." unique_id=1850789628]
+position = Vector2(100, -100)
+
+[node name="ParallaxBackground" type="ParallaxBackground" parent="." unique_id=1334925991]
+
+[node name="ParallaxLayer" type="ParallaxLayer" parent="ParallaxBackground" unique_id=155851687]
+motion_scale = Vector2(0.5, 0.5)
+
+[node name="ParallaxSprite" type="Sprite2D" parent="ParallaxBackground/ParallaxLayer" unique_id=653704353]
+position = Vector2(50, 50)
+
+[node name="TileMapLayer" type="TileMapLayer" parent="." unique_id=62902511]
+position = Vector2(-300, 0)
+
+[node name="CanvasGroup" type="CanvasGroup" parent="." unique_id=1078534379]
+position = Vector2(-150, 0)
+
+[node name="CanvasModulate" type="CanvasModulate" parent="." unique_id=858135518]
+color = Color(0.8, 0.8, 1, 0.6)
+
+[node name="BackBufferCopy" type="BackBufferCopy" parent="." unique_id=1426589241]
+
+[node name="RemoteTransform2D" type="RemoteTransform2D" parent="." unique_id=609233570]
+position = Vector2(200, 0)
+remote_path = NodePath("../Sprite2D")
+
+[node name="PinJoint2D" type="PinJoint2D" parent="." unique_id=185998681]
+position = Vector2(-100, 150)
+node_a = NodePath("../StaticBody2D")
+node_b = NodePath("../RigidBody2D")
+
+[node name="GrooveJoint2D" type="GrooveJoint2D" parent="." unique_id=769659904]
+position = Vector2(0, 150)
+node_a = NodePath("../StaticBody2D")
+node_b = NodePath("../RigidBody2D")
+initial_offset = 10.0
+
+[node name="DampedSpringJoint2D" type="DampedSpringJoint2D" parent="." unique_id=1410093809]
+position = Vector2(100, 150)
+node_a = NodePath("../StaticBody2D")
+node_b = NodePath("../CharacterBody2D")
+length = 60.0
+
+[node name="Skeleton2D" type="Skeleton2D" parent="." unique_id=458080044]
+position = Vector2(-300, 150)
+
+[node name="Bone2D" type="Bone2D" parent="Skeleton2D" unique_id=1220212993]
+rest = Transform2D(1, 0, 0, 1, 0, 0)
+
+[node name="Bone2D_Child" type="Bone2D" parent="Skeleton2D/Bone2D" unique_id=127364518]
+position = Vector2(30, 0)
+rest = Transform2D(1, 0, 0, 1, 30, 0)
+
+[node name="PhysicalBone2D" type="PhysicalBone2D" parent="Skeleton2D" unique_id=392647424]
+position = Vector2(0, 30)
+bone2d_nodepath = NodePath("../Bone2D")
+bone2d_index = 0
+
+[node name="CollisionShape2D_PhysicalBone" type="CollisionShape2D" parent="Skeleton2D/PhysicalBone2D" unique_id=2038231942]
+shape = SubResource("CircleShape2D_1")
+
+[node name="PhysicalBone2D2" type="PhysicalBone2D" parent="Skeleton2D" unique_id=821102619]
+position = Vector2(30, 30)
+bone2d_nodepath = NodePath("../Bone2D/Bone2D_Child")
+bone2d_index = 1
+
+[node name="CollisionPolygon2D_PhysicalBone" type="CollisionPolygon2D" parent="Skeleton2D/PhysicalBone2D2" unique_id=1978623968]
+polygon = PackedVector2Array(-15, -10, 15, -10, 15, 10, -15, 10)
+
+[node name="TouchScreenButton" type="TouchScreenButton" parent="." unique_id=295168177]
+position = Vector2(300, 150)
+
+[node name="PointLight2D" type="PointLight2D" parent="." unique_id=1668718286]
+position = Vector2(-200, 200)
+color = Color(1, 0.9, 0.6, 0.7)
+energy = 1.2
+texture = SubResource("GradientTexture2D_1")
+
+[node name="DirectionalLight2D" type="DirectionalLight2D" parent="." unique_id=1926617125]
+position = Vector2(0, 200)
+color = Color(0.6, 0.6, 1, 0.5)
+height = 0.8
+
+[node name="LightOccluder2D" type="LightOccluder2D" parent="." unique_id=1083095158]
+position = Vector2(200, 200)
+occluder = SubResource("OccluderPolygon2D_1")
+
+[node name="VisibleOnScreenNotifier2D" type="VisibleOnScreenNotifier2D" parent="." unique_id=1639737042]
+position = Vector2(-300, 250)
+rect = Rect2(-20, -20, 40, 40)
+
+[node name="VisibleOnScreenEnabler2D" type="VisibleOnScreenEnabler2D" parent="." unique_id=520439592]
+position = Vector2(300, 250)

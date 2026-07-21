@@ -1,8 +1,13 @@
 import os
 import shutil
 
+from text_sanitize import sanitize_llm_text
+
 EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__',
-                 'node_modules', '.vs', '.vscode', '.agent_history'}
+                 'node_modules', '.vs', '.vscode', '.agent_history',
+                 # v77: мозг mini-lich (датасет+чекпоинты) меняется сам по себе постояннововремя обучения
+                 # — это не внешнее изменение проекта, о котором нужно сообщать модели.
+                 'minilich_brain'}
 EXCLUDED_FILES = {'.DS_Store'}
 
 HISTORY_DIR_NAME = ".agent_history"
@@ -71,7 +76,7 @@ def read_project_file(project_root, godot_path, max_chars=50000):
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(f"Файл не найден: {godot_path}")
-    with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
+    with open(abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
         content = f.read()
     truncated = len(content) > max_chars
     return content[:max_chars], truncated
@@ -90,8 +95,10 @@ def create_project_file(project_root, godot_path, content):
     # newline='\n': пишем LF, как это делает сам редактор Godot. Иначе на Windows
     # Python записал бы CRLF, а пересохранение файла в Godot меняло бы
     # каждый перенос строки — и откат ложно считал бы файл "изменённым".
+    # v86.2: страховка на записи — невидимые символы из веб-DOM (NBSP, NUL,
+    # zero-width) не должны попасть в файлы проекта, даже если парсер их пропустил.
     with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(content.replace('\r\n', '\n'))
+        f.write(sanitize_llm_text(content.replace('\r\n', '\n')) or '')
     return existed
 
 
@@ -101,11 +108,14 @@ def patch_project_file(project_root, godot_path, search_code, replace_code):
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(f"Файл не найден: {godot_path}")
-    with open(abs_path, 'r', encoding='utf-8') as f:
+    with open(abs_path, 'r', encoding='utf-8-sig') as f:
         original_content = f.read()
     content = original_content.replace('\r\n', '\n')
-    search_norm = search_code.replace('\r\n', '\n')
-    replace_norm = replace_code.replace('\r\n', '\n')
+    # v86.2: чистим И искомый блок, И замену: файл на диске уже чистый, а блоки из
+    # ответа модели могут нести NBSP/zero-width — поиск бы ложно проваливался,
+    # а замена заражала бы файл невидимым мусором.
+    search_norm = sanitize_llm_text(search_code.replace('\r\n', '\n')) or ''
+    replace_norm = sanitize_llm_text(replace_code.replace('\r\n', '\n')) or ''
     occurrences = content.count(search_norm)
     if occurrences == 0:
         raise ValueError("Ошибка: Указанный старый блок кода не найден в файле.")
@@ -169,7 +179,7 @@ def search_project_text(project_root, query, max_results=30, context_lines=2):
                 continue
             abs_path = os.path.join(dirpath, fname)
             try:
-                with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
+                with open(abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
                     lines = f.read().replace('\r\n', '\n').split('\n')
             except Exception:
                 continue
@@ -194,7 +204,7 @@ def describe_scene(project_root, godot_path, max_chars=12000):
         raise FileNotFoundError("Файл не найден: %s" % godot_path)
     if os.path.splitext(abs_path)[1].lower() not in (".tscn", ".scn"):
         raise ValueError("list_scene работает только со сценами .tscn: %s" % godot_path)
-    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as f:
         text = f.read()
     # id ext-ресурса -> путь (скрипты, вложенные сцены)
     ext = {}
