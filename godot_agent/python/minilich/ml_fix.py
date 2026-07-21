@@ -157,6 +157,24 @@ def trim_scene_for_context(scene, problems, tok, max_ids):
     return "\n\n".join(kept_blocks), kept_keys
 
 
+def trim_pair_for_context(broken, problems, fixed, max_ids):
+    """v79: обрезает ПАРУ (сломано, исправлено) до одинакового набора узлов,
+    чтобы длинные пары можно было учить фрагментами — ровно так же, как
+    neural_fix обрезает сцену в бою. Если пара влезает целиком — не трогает."""
+    trimmed_broken, kept_keys = trim_scene_for_context(broken, problems, _TOK, max_ids)
+    if kept_keys is None:
+        return broken, fixed
+    keep_nodes = set(info[1] for info in kept_keys if info[0] == "node")
+    kept = []
+    for block in _split_blocks(fixed):
+        info = _block_info(block)
+        if info[0] in ("header", "ext_resource", "sub_resource"):
+            kept.append(block)
+        elif info[0] == "node" and info[1] in keep_nodes:
+            kept.append(block)
+    return trimmed_broken, "\n\n".join(kept)
+
+
 def splice_fixed_fragment(original_scene, kept_keys, fixed_fragment):
     """сшивает исправленный обрезанный фрагмент обратно в полную сцену."""
     orig_blocks = _split_blocks(original_scene)

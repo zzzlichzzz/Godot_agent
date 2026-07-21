@@ -35,7 +35,9 @@ import minilich
 import gd_functions
 import log_reader
 import chat_store
+import dashboard
 import json as _json
+dashboard.install()  # v80: zerkalim konsol servera v zhurnal dlya /dashboard
 from agent_prompts import (
     PRIMING_TEMPLATE,
     CODE_EXTS,
@@ -665,14 +667,14 @@ def _deps_note_script_action(candidate, path, project_root):
         )
 
 
-def _lint_action_code(action, project_root):
+def _lint_action_code(action, project_root, planned_paths=None):
     """Самопроверка кода ДО показа действия пользователю: гоняем лёгкий
     линтер по ИТОГОВОМУ тексту .gd-файла (каким он станет после create/patch).
     Возвращает текст системного сообщения для модели или None, если код чист."""
     kind = action.get("action")
     path = action.get("path", "") or ""
     if tscn_lint.is_scene_path(path):
-        return _lint_action_scene(action, project_root, kind, path)
+        return _lint_action_scene(action, project_root, kind, path, planned_paths=planned_paths)
     if not path.endswith(".gd"):
         return None
     if kind == "create_file":
@@ -680,7 +682,7 @@ def _lint_action_code(action, project_root):
     elif kind == "patch_file":
         try:
             abs_path = _resolve_safe_path(project_root, path)
-            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as f:
                 disk = f.read()
         except Exception:
             return None
@@ -713,7 +715,7 @@ def _lint_action_code(action, project_root):
     )
 
 
-def _lint_action_scene(action, project_root, kind, path):
+def _lint_action_scene(action, project_root, kind, path, planned_paths=None):
     """Самопроверка сцены (.tscn/.scn) до показа действия пользователю.
     Механически исправимые вещи (load_steps) правит и применяет к action тихо —
     модель этого даже не увидит. Недетерминированные структурные проблемы
@@ -724,7 +726,7 @@ def _lint_action_scene(action, project_root, kind, path):
     elif kind == "patch_file":
         try:
             abs_path = _resolve_safe_path(project_root, path)
-            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as f:
                 disk = f.read()
         except Exception:
             return None
@@ -737,7 +739,7 @@ def _lint_action_scene(action, project_root, kind, path):
     else:
         return None
     try:
-        fixed, problems = tscn_lint.lint_and_fix_tscn(candidate, project_root, STATE.get("addon_dir"))
+        fixed, problems = tscn_lint.lint_and_fix_tscn(candidate, project_root, STATE.get("addon_dir"), planned_paths=planned_paths)
     except Exception:
         return None
     if fixed != candidate:
@@ -1035,7 +1037,7 @@ def _validate_patch_against_disk(action, project_root):
         return False, None, str(e)
     if not os.path.isfile(abs_path):
         return False, None, f"Файл не найден: {path}"
-    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as f:
         content = f.read()
     norm_content = content.replace("\r\n", "\n")
     norm_search = search.replace("\r\n", "\n")
@@ -1091,7 +1093,7 @@ def _remember_file(project_root, godot_path):
         abs_path = _resolve_safe_path(project_root, godot_path)
         if not os.path.isfile(abs_path) or os.path.getsize(abs_path) > FILE_CACHE_MAX_BYTES:
             return
-        with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as fh:
             content = fh.read()
     except Exception:
         return
@@ -1536,7 +1538,8 @@ def plan_step():
     try:
         result = None
         while True:
-            lint_msg = _lint_action_code(step, project_root) if step.get("action") != "move_file" else None
+            _plan_paths = set(s.get("path") or "" for s in plan["steps"] if s.get("action") == "create_file")
+            lint_msg = _lint_action_code(step, project_root, planned_paths=_plan_paths) if step.get("action") != "move_file" else None
             if lint_msg is None:
                 result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
                 if result["ok"]:
@@ -1822,6 +1825,32 @@ def chat_stop():
     return jsonify({"ok": True, "was_busy": busy})
 
 
+@app.route('/dashboard', methods=['GET'])
+def dashboard_page():
+    """v80: страница-дашборд: секторы со статистикой + копируемый журнал."""
+    return app.response_class(dashboard.DASHBOARD_HTML, mimetype="text/html")
+
+
+@app.route('/dashboard/data', methods=['GET'])
+def dashboard_data():
+    root = STATE.get("project_root")
+    ml = {}
+    if root:
+        try:
+            ml = minilich.status(root, STATE.get("addon_dir"))
+        except Exception as e:
+            ml = {"error": str(e)}
+    plan = STATE.get("pending_plan") or {}
+    return jsonify({
+        "uptime": dashboard.uptime_text(),
+        "project_root": root or "",
+        "pending_action": bool(STATE.get("pending_action")),
+        "plan": {"active": bool(plan), "index": int(plan.get("index", 0) or 0), "total": int(plan.get("total", 0) or 0)},
+        "minilich": ml,
+        "log": dashboard.get_lines(),
+    })
+
+
 @app.route('/chat/progress', methods=['GET'])
 def chat_progress():
     # Живая трансляция для панели: что сейчас происходит в браузере.
@@ -1852,6 +1881,7 @@ if __name__ == '__main__':
         threading.Thread(target=_boot_browser_background, daemon=True).start()
         # ВАЖНО: только 127.0.0.1! На 0.0.0.0 любой в локальной сети
         # мог бы писать файлы в ваш проект простым POST-запросом.
+        print("Dashbord servera: http://127.0.0.1:5000/dashboard")
         app.run(port=5000, host='127.0.0.1', threaded=True)
     except Exception as e:
         traceback.print_exc()
