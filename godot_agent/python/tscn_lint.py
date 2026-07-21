@@ -852,6 +852,104 @@ def _find_resource_cycles(text):
     return problems
 
 
+# --- v86.3: NodePath("...") в свойствах узлов + вырожденные полигоны ---------
+_NODEPATH_VAL_RE = re.compile(r'NodePath\("([^"]*)"\)')
+_POLYGON_PROP_RE = re.compile(r'^polygon\s*=\s*PackedVector2Array\(([^)]*)\)\s*$')
+_NEXT_SECTION_RE = re.compile(r'\n\s*\[')
+
+
+def _resolve_node_path(own_segs, target):
+    """Разворачивает NodePath, записанный ОТНОСИТЕЛЬНО узла own_segs (корень — []),
+    в путь от корня сцены. None — путь поднялся выше корня сцены."""
+    out = list(own_segs)
+    for part in target.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if not out:
+                return None
+            out.pop()
+        else:
+            out.append(part)
+    return out
+
+
+def _scan_node_path_refs(text):
+    """v86.3: NodePath("...") в свойствах узлов должен указывать на объявленный
+    в этой же сцене узел. Godot битый путь ошибкой НЕ считает (узел может
+    появиться из скрипта в рантайме): сцена откроется, но на узле повиснет
+    жёлтое предупреждение, а свойство (remote_path, target_node и т.п.)
+    работать не будет. Заодно: полигон из <3 точек у Polygon2D/CollisionPolygon2D.
+    Не судим: абсолютные пути (/root/...), %UniqueName, пустые пути и сцены
+    с instance= (часть узлов приходит из другой сцены и здесь не видна)."""
+    problems = []
+    paths = set()
+    infos = []  # (имя, тип, сегменты собственного пути, конец заголовка)
+    root_seen = False
+    for m in _NODE_RE.finditer(text):
+        a = _attrs(m.group(1))
+        if a.get("instance") is not None or a.get("instance_placeholder") is not None:
+            return []
+        name = a.get("name", "?")
+        parent = a.get("parent")
+        if parent is None:
+            if root_seen:
+                continue  # второй «корень» — этим занимаются другие проверки
+            root_seen = True
+            segs = []
+        elif parent == ".":
+            segs = [name]
+            paths.add(name)
+        else:
+            segs = [pp for pp in parent.split("/") if pp] + [name]
+            paths.add(parent + "/" + name)
+        infos.append((name, a.get("type") or "?", segs, m.end()))
+    if not root_seen:
+        return []
+    for name, ntype, segs, body_start in infos:
+        m_next = _NEXT_SECTION_RE.search(text, body_start)
+        body = text[body_start:m_next.start()] if m_next else text[body_start:]
+        for m_np in _NODEPATH_VAL_RE.finditer(body):
+            target = m_np.group(1)
+            node_part = target.split(":", 1)[0]
+            if not node_part or node_part == ".":
+                continue  # пустой путь / сам узел / чистый property-путь
+            if node_part.startswith("/") or "%" in node_part:
+                continue  # абсолютный путь или %UniqueName — вне этой сцены
+            line_start = body.rfind("\n", 0, m_np.start()) + 1
+            line_end = body.find("\n", m_np.start())
+            prop_line = (body[line_start:line_end] if line_end != -1 else body[line_start:]).strip()
+            prop = prop_line.split("=", 1)[0].strip() or "?"
+            resolved = _resolve_node_path(segs, node_part)
+            if resolved is None:
+                problems.append(
+                    u'узел "%s" (%s): %s = NodePath("%s") — путь поднимается выше корня сцены '
+                    u'(лишние «..»); такого узла внутри этой сцены быть не может. Пути NodePath '
+                    u'отсчитываются от самого узла: "../Имя" — сосед, "Имя" — ребёнок.'
+                    % (name, ntype, prop, target))
+            elif resolved and "/".join(resolved) not in paths:
+                problems.append(
+                    u'узел "%s" (%s): %s = NodePath("%s") указывает на узел «%s», которого в сцене НЕТ. '
+                    u'Godot откроет сцену, но повесит на узел жёлтое предупреждение, и свойство работать '
+                    u'не будет. Укажи путь существующего узла (пути отсчитываются от самого узла: '
+                    u'"../Имя" — сосед, "Имя" — ребёнок) либо добавь недостающий узел в сцену.'
+                    % (name, ntype, prop, target, "/".join(resolved)))
+        if ntype in ("Polygon2D", "CollisionPolygon2D"):
+            for raw_line in body.split("\n"):
+                m_poly = _POLYGON_PROP_RE.match(raw_line.strip())
+                if not m_poly:
+                    continue
+                coords = [c for c in m_poly.group(1).split(",") if c.strip()]
+                pts = len(coords) // 2
+                if pts < 3:
+                    problems.append(
+                        u'узел "%s" (%s): polygon содержит только %d точк(и) — полигону нужно минимум '
+                        u'3 точки, иначе Godot повесит предупреждение, а рисовать/сталкивать будет нечего. '
+                        u'Добавь недостающие вершины или убери свойство polygon.'
+                        % (name, ntype, pts))
+    return problems
+
+
 def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
@@ -938,6 +1036,8 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
 
     # --- v80: parent="..." i [connection] from/to dolzhny ukazyvat na obyavlennye uzly ---
     problems.extend(_check_connections_and_parents(text))
+    # v86.3: NodePath("...") в свойствах должен указывать на объявленный узел
+    problems.extend(_scan_node_path_refs(text))
 
     ext_ids = set()
     sub_ids = set()
