@@ -17,7 +17,9 @@ BaseSiteParser реализует общий конвейер целиком:
 же методы работают по эвристикам/спец-маркерам, а не по известным селекторам.
 """
 import json
+import os
 import re
+import sys
 import time
 
 from text_sanitize import sanitize_llm_text
@@ -76,6 +78,40 @@ def _extract_json_object(raw: str) -> str:
     return raw[start:end + 1]
 
 
+def _extract_first_json_object(raw: str) -> str:
+    """v86.7: вырезает ПЕРВЫЙ сбалансированный JSON-объект (учитывая строки
+    и экранирование). _extract_json_object режет от первой '{' до ПОСЛЕДНЕЙ
+    '}' — если после действия в ответе шёл ещё текст с '}' («Готово :}»),
+    в кандидат попадал мусор. ОБЕ версии остаются кандидатами разбора: при
+    битом экранировании кавычек баланс может закрыться раньше времени, и
+    тогда честнее жадный вырез + починки кавычек."""
+    start = raw.find('{')
+    if start == -1:
+        return raw
+    depth = 0
+    in_string = False
+    escape = False
+    for j in range(start, len(raw)):
+        ch = raw[j]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == '\\':
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                return raw[start:j + 1]
+    return _extract_json_object(raw)
+
+
 def _escape_raw_newlines_in_strings(raw: str) -> str:
     """Экранирует "голые" переносы строк внутри JSON-строк."""
     out = []
@@ -114,6 +150,10 @@ def _escape_raw_newlines_in_strings(raw: str) -> str:
 
 def _remove_trailing_commas(raw: str) -> str:
     return re.sub(r',(\s*[}\]])', r'\1', raw)
+
+
+# v86.7: образец `"знач"  "ключ": ...` — модель забыла запятую между полями.
+_MISSING_COMMA_KEY_RE = re.compile(r'"(?:[^"\\\n]|\\.){0,64}"\s*:')
 
 
 def _repair_unescaped_inner_quotes(raw: str) -> str:
@@ -177,6 +217,15 @@ def _repair_unescaped_inner_quotes(raw: str) -> str:
                 in_string = False
                 i += 1
                 continue
+            # v86.7: пропущенная запятая между полями: `"знач" "ключ": ...` —
+            # следующий непробельный символ — кавычка, за которой ключ с ':'.
+            # Раньше кавычка ключа ошибочно экранировалась и два поля
+            # склеивались в одно значение. Закрываем строку и достраиваем ','.
+            if nxt == '"' and _MISSING_COMMA_KEY_RE.match(raw, j):
+                out.append('",')
+                in_string = False
+                i += 1
+                continue
             out.append('\\"')
             i += 1
             continue
@@ -185,39 +234,145 @@ def _repair_unescaped_inner_quotes(raw: str) -> str:
     return ''.join(out)
 
 
+_PARSE_STATS = {"ok_first": 0, "ok_repaired": 0, "ok_json_repair": 0, "fail": 0}
+
+
+def get_parse_stats():
+    """v86.7: счётчики разбора agent_action за жизнь процесса: сразу /
+    с починкой / только json_repair / провал. По ним видно, что реально
+    хрупко в бою, а не в теории."""
+    return dict(_PARSE_STATS)
+
+
+_CORPUS_MAX_FILES = 200
+
+
+def _corpus_dir():
+    """v86.7: папка «золотого корпуса» — сырые ответы, которые разобрать не
+    удалось. По умолчанию parser_corpus рядом с сервером; путь можно
+    переопределить переменной окружения GODOT_AGENT_CORPUS_DIR."""
+    base = os.environ.get("GODOT_AGENT_CORPUS_DIR")
+    if base:
+        return base
+    try:
+        root = os.path.dirname(os.path.abspath(sys.argv[0]))
+    except Exception:
+        root = "."
+    return os.path.join(root, "parser_corpus")
+
+
+def _save_corpus_sample(raw, error):
+    """v86.7: сохраняет неразобранный ответ в золотой корпус — selfcheck
+    (РАЗДЕЛ 26) прогоняет корпус через parse_action_json, так каждый боевой
+    сбой навсегда становится регресс-тестом. Ошибки глотаются: сбор корпуса
+    не должен мешать работе. Возвращает путь файла или None."""
+    try:
+        if not (raw or "").strip():
+            return None
+        d = _corpus_dir()
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        existing = [f for f in os.listdir(d) if f.endswith(".txt")]
+        if len(existing) >= _CORPUS_MAX_FILES:
+            return None
+        path = os.path.join(d, "fail_%d.txt" % int(time.time() * 1000))
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(u"# parse error: %s\n" % (error or ""))
+            f.write(raw)
+        return path
+    except Exception:
+        return None
+
+
+def _build_candidates(raw):
+    """v86.7: упорядоченный список (метка, текст) кандидатов разбора БЕЗ
+    дублей — раньше комбинации починок давали одинаковые строки, и
+    json.loads гонялся по мегабайтным дублям впустую. Метка попадает в лог
+    метрик, чтобы было видно, какая починка спасла разбор."""
+    base = _strip_code_fences(raw)
+    pairs = [(u"как есть", base),
+             (u"первый объект {…}", _extract_first_json_object(base)),
+             (u"жадный вырез {…}", _extract_json_object(base))]
+    for label, cand in list(pairs):
+        esc = _escape_raw_newlines_in_strings(cand)
+        rep = _repair_unescaped_inner_quotes(cand)
+        rep_esc = _repair_unescaped_inner_quotes(esc)
+        pairs.extend([
+            (label + u" + запятые", _remove_trailing_commas(cand)),
+            (label + u" + переносы", esc),
+            (label + u" + переносы + запятые", _remove_trailing_commas(esc)),
+            (label + u" + кавычки", rep),
+            (label + u" + кавычки + запятые", _remove_trailing_commas(rep)),
+            (label + u" + переносы + кавычки", rep_esc),
+            (label + u" + переносы + кавычки + запятые", _remove_trailing_commas(rep_esc)),
+        ])
+    for k, cand in enumerate(_find_action_json_candidates(base)):
+        pairs.append((u"вложенный объект №%d" % (k + 1), cand))
+    seen = set()
+    out = []
+    for label, cand in pairs:
+        if cand and cand not in seen:
+            seen.add(cand)
+            out.append((label, cand))
+    return out
+
+
 def parse_action_json(raw: str):
     """Пытается распарсить JSON блока agent_action.
-    Возвращает (dict_or_None, error_message_or_None)."""
+    Возвращает (dict_or_None, error_message_or_None).
+
+    v86.7: кандидаты без дублей и с метками (_build_candidates); среди
+    успешно разобранных предпочитается объект С КЛЮЧОМ "action" — раньше
+    побеждал ПЕРВЫЙ разобравшийся кандидат, даже если это был посторонний
+    JSON-фрагмент из текста ответа. Провалы копятся в золотой корпус
+    (_save_corpus_sample), счётчики — в _PARSE_STATS."""
     if raw is None:
         return None, None
     # v86.2: невидимые символы из DOM (NBSP/NUL/zero-width) ломают json.loads
     raw = sanitize_llm_text(raw)
-    base = _strip_code_fences(raw)
-    candidates = [base, _extract_json_object(base)]
-    for cand in list(candidates):
-        candidates.append(_remove_trailing_commas(cand))
-        candidates.append(_escape_raw_newlines_in_strings(cand))
-        candidates.append(_remove_trailing_commas(_escape_raw_newlines_in_strings(cand)))
-        # Починка несогласованного экранирования кавычек внутри строковых
-        # значений (см. _repair_unescaped_inner_quotes) — пробуем ПЕРЕД
-        # откатом на внешний json_repair, отдельно и в комбинации с уже
-        # накопленными починками.
-        candidates.append(_repair_unescaped_inner_quotes(cand))
-        candidates.append(_remove_trailing_commas(_repair_unescaped_inner_quotes(cand)))
-        candidates.append(_repair_unescaped_inner_quotes(_escape_raw_newlines_in_strings(cand)))
-        candidates.append(_remove_trailing_commas(_repair_unescaped_inner_quotes(_escape_raw_newlines_in_strings(cand))))
+    candidates = _build_candidates(raw)
     last_error = None
-    for cand in candidates:
+    winner = None
+    win_idx = -1
+    fallback = None
+    fallback_idx = -1
+    for idx, (_label, cand) in enumerate(candidates):
         try:
-            return json.loads(cand), None
+            obj = json.loads(cand)
         except Exception as e:
             last_error = str(e)
+            continue
+        if isinstance(obj, dict) and obj.get("action"):
+            winner, win_idx = obj, idx
+            break
+        if fallback is None:
+            fallback, fallback_idx = obj, idx
+    if winner is None and fallback is not None:
+        winner, win_idx = fallback, fallback_idx
+    if winner is not None:
+        if win_idx == 0:
+            _PARSE_STATS["ok_first"] += 1
+        else:
+            _PARSE_STATS["ok_repaired"] += 1
+            print(u"[parser_base] JSON разобран починкой «%s» (итого: сразу=%d, починкой=%d, json_repair=%d, провал=%d)"
+                  % (candidates[win_idx][0], _PARSE_STATS["ok_first"], _PARSE_STATS["ok_repaired"],
+                     _PARSE_STATS["ok_json_repair"], _PARSE_STATS["fail"]))
+        return winner, None
     try:
         from json_repair import repair_json
-        fixed = repair_json(_extract_json_object(base))
-        return json.loads(fixed), None
+        fixed = repair_json(_extract_json_object(_strip_code_fences(raw)))
+        obj = json.loads(fixed)
+        _PARSE_STATS["ok_json_repair"] += 1
+        print(u"[parser_base] JSON разобран только внешним json_repair (итого: сразу=%d, починкой=%d, json_repair=%d, провал=%d)"
+              % (_PARSE_STATS["ok_first"], _PARSE_STATS["ok_repaired"],
+                 _PARSE_STATS["ok_json_repair"], _PARSE_STATS["fail"]))
+        return obj, None
     except Exception as e:
-        last_error = f"{last_error}; json_repair: {e}"
+        last_error = "%s; json_repair: %s" % (last_error, e)
+    _PARSE_STATS["fail"] += 1
+    saved = _save_corpus_sample(raw, last_error)
+    if saved:
+        print(u"[parser_base] ответ не разобран — образец сохранён в золотой корпус: %s" % saved)
     return None, last_error
 
 
@@ -891,7 +1046,14 @@ class BaseSiteParser:
             try:
                 self.insert_input(driver, el, prompt)
                 time.sleep(0.2)
-                if driver.execute_script("return arguments[0].value;", el):
+                # v86.7: у contenteditable-полей (див вместо textarea у многих
+                # сайтов) нет .value — проверяем и innerText/textContent, иначе
+                # удачная вставка считалась провалом («не удалось вставить текст»).
+                _val = driver.execute_script(
+                    "var e=arguments[0];var t=(e.tagName||'').toUpperCase();"
+                    "if(t==='TEXTAREA'||t==='INPUT'){return e.value||'';}"
+                    "return e.innerText||e.textContent||'';", el)
+                if (_val or "").strip():
                     inserted = True
                     break
             except (JavascriptException, StaleElementReferenceException):

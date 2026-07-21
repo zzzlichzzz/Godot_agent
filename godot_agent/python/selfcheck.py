@@ -3241,5 +3241,67 @@ if _HAS_NP25:
 else:
     print("(numpy недоступен — проверки 25.8/25.9 пропущены)")
 
+# ---------------------------------------------------------------------------
+# РАЗДЕЛ 26 (v86.7): парсер — золотой корпус и починки
+# ---------------------------------------------------------------------------
+print("\n--- РАЗДЕЛ 26: парсер — золотой корпус и починки (v86.7) ---")
+import tempfile as _tf26
+import parser_base as _pb26
+
+# 26.1 хвостовой текст с '}' после действия не мешает разбору
+_a26, _e26 = _pb26.parse_action_json(u'{"action": "create_file", "path": "res://a.gd", "content": "x"}\n\nГотово, обращайтесь ещё :}')
+check("26.1 хвостовой текст с '}' после действия не мешает разбору",
+      isinstance(_a26, dict) and _a26.get("action") == "create_file" and _a26.get("content") == "x",
+      str(_e26))
+
+# 26.2 пропущенная запятая между полями чинится
+_a26b, _e26b = _pb26.parse_action_json(u'{"action": "patch_file", "path": "res://b.tscn"\n"find": "old", "replace": "new"}')
+check("26.2 пропущенная запятая между полями чинится",
+      isinstance(_a26b, dict) and _a26b.get("action") == "patch_file" and _a26b.get("find") == "old",
+      str(_e26b))
+
+# 26.3 предпочитается объект с ключом action, а не первый попавшийся JSON
+_a26c, _e26c = _pb26.parse_action_json(u'Сводка: {"файлов": 3}. Действие:\n{"action": "plan", "description": "d", "steps": []}')
+check("26.3 предпочитается объект с ключом action, а не первый попавшийся JSON",
+      isinstance(_a26c, dict) and _a26c.get("action") == "plan", str(_e26c))
+
+# 26.4 золотой корпус: образец провала сохраняется
+_cd26 = _tf26.mkdtemp(prefix="corpus26_")
+os.environ["GODOT_AGENT_CORPUS_DIR"] = _cd26
+try:
+    _p26 = _pb26._save_corpus_sample(u'совсем не JSON {"action": ', u"тестовая ошибка")
+    check("26.4 образец провала сохраняется в золотой корпус",
+          _p26 is not None and os.path.isfile(_p26) and os.path.dirname(_p26) == _cd26,
+          str(_p26))
+    # 26.5 прогон корпуса: parse_action_json не должен кидать исключения
+    _n26 = 0
+    _exc26 = None
+    try:
+        for _fn26 in sorted(os.listdir(_cd26)):
+            if _fn26.endswith(".txt"):
+                with open(os.path.join(_cd26, _fn26), "r", encoding="utf-8") as _f26:
+                    _pb26.parse_action_json(_f26.read())
+                _n26 += 1
+    except Exception as _e26x:
+        _exc26 = _e26x
+    check("26.5 прогон золотого корпуса без исключений (файлов: %d)" % _n26,
+          _exc26 is None, str(_exc26))
+finally:
+    os.environ.pop("GODOT_AGENT_CORPUS_DIR", None)
+
+# 26.6 подтверждение вставки учитывает contenteditable (по исходнику)
+_pb26_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "parser_base.py"), "r", encoding="utf-8").read()
+check("26.6 вставка текста подтверждается и для contenteditable-полей",
+      "innerText||e.textContent" in _pb26_src
+      and 'execute_script("return arguments[0].value;", el)' not in _pb26_src)
+
+# 26.7 кандидаты разбора без дублей, метрики доступны
+_cands26 = _pb26._build_candidates(u'{"action": "x"}')
+_st26 = _pb26.get_parse_stats()
+_tot26 = sum(_st26.get(_k26, 0) for _k26 in ("ok_first", "ok_repaired", "ok_json_repair", "fail"))
+check("26.7 кандидаты разбора без дублей, метрики доступны",
+      len(_cands26) == len(set(_c26 for _l26, _c26 in _cands26)) and _tot26 >= 3,
+      "candidates=%d, parses=%d" % (len(_cands26), _tot26))
+
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
