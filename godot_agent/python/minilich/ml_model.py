@@ -209,7 +209,24 @@ class TinyTransformer:
         return loss, g
 
     # ------------------------------------------------------------------
-    def adam_step(self, grads, lr=1e-3, beta1=0.9, beta2=0.999, eps=1e-8):
+    def adam_step(self, grads, lr=1e-3, beta1=0.9, beta2=0.999, eps=1e-8,
+                  weight_decay=0.0, clip_norm=None):
+        """v85 (GPT review): необязательные gradient clipping (по общей L2-норме
+        всех градиентов сразу, как советуют для трансформеров) и decoupled
+        weight decay (AdamW) — вычитается из ВЕСА, а не подмешивается в градиент,
+        поэтому не искажает статистику Adam. По умолчанию оба выключены
+        (weight_decay=0.0, clip_norm=None) — старые вызовы без этих аргументов
+        ведут себя как раньше; расписание/включение — на стороне ml_train.py.
+        Decay не трогает векторы (bias/LayerNorm) и эмбеддинги (tok/pos) —
+        так принято, потому что «затухание к нулю» не имеет смысла для них."""
+        if clip_norm is not None and clip_norm > 0:
+            total_sq = 0.0
+            for gk in grads.values():
+                total_sq += float(np.sum(gk.astype(np.float64) ** 2))
+            norm = total_sq ** 0.5
+            if norm > clip_norm:
+                scale = clip_norm / (norm + 1e-12)
+                grads = {k: (gk * scale).astype(gk.dtype) for k, gk in grads.items()}
         self.step += 1
         t = self.step
         for k, v in self.p.items():
@@ -219,7 +236,10 @@ class TinyTransformer:
             st["v"] = beta2 * st["v"] + (1 - beta2) * (gk * gk)
             mhat = st["m"] / (1 - beta1 ** t)
             vhat = st["v"] / (1 - beta2 ** t)
-            v -= (lr * mhat / (np.sqrt(vhat) + eps)).astype(np.float32)
+            update = lr * mhat / (np.sqrt(vhat) + eps)
+            if weight_decay and v.ndim >= 2 and k not in ("tok", "pos"):
+                update = update + lr * weight_decay * v
+            v -= update.astype(np.float32)
 
     # ------------------------------------------------------------------
     def generate(self, prompt_ids, max_new=256, eos_id=None, repetition_penalty=1.0, repetition_window=32, temperature=0.0, rng=None):
@@ -229,7 +249,7 @@ class TinyTransformer:
         прямо перед argmax логиты токенов, встретившихся в последних
         repetition_window токенах, делятся (если позитивный) или умножаются
         (если отрицательный) на этот коэффициент — стоит микросекунды,
-        но хорошо рвёт циклы. При repetition_penalty == 1.0 поведение тождественно
+        но хорошо ��вёт циклы. При repetition_penalty == 1.0 поведение тождественно
         обычному жадному декодированию (ничего не меняется).
         """
         C = self.cfg["n_ctx"]
