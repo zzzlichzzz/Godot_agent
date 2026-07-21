@@ -2416,7 +2416,7 @@ with open('sites.py', encoding='utf-8') as _f31c:
 check('21.31 v73: qwen_parser boevye selektory + similarity v ekzamene',
       'message-input-textarea' in _q31 and 'qwen-chat-message-assistant' in _q31
       and 'chat-prompt-send-button' in _q31 and '_extract_json_object' in _q31
-      and '_norm_scene(e.get("fixed") or "")).ratio()' in _m31
+      and '_similarity(fix, e.get("fixed") or "")' in _m31
       and '"name": "Qwen"' in _s31)
 
 # 21.32 v74: forma kollizii bez roditelya-fizicheskogo tela = oshibka linta
@@ -2458,6 +2458,114 @@ check('21.34 v76: qwen ne prinimaet prostoy tekst za JSON-deystvie, no nakhodit 
       and _qp34._action_raw_from_text(_bad34) is None
       and (_qp34._action_raw_from_text(_act34) or '').startswith('{')
       and '"action"' in (_qp34._action_raw_from_text(_act34) or ''))
+
+# 21.35 v78: nezakrytye skobki/kavychki v znacheniyah svoystv (Parse Error)
+import tscn_lint as _tl35
+_bad35 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node3D"]', '', '[node name="SpawnPoint" type="Marker3D" parent="."]', 'position = Vector3(0, 5, 0', ''])
+_ok35 = _bad35.replace('Vector3(0, 5, 0', 'Vector3(0, 5, 0)')
+_multi35 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node2D"]', 'metadata/info = {', '"a": 1,', '"b": [1, 2, 3]', '}', ''])
+_fx35, _pr35 = _tl35.lint_and_fix_tscn(_bad35)
+_fx35b, _pr35b = _tl35.lint_and_fix_tscn(_ok35)
+_fx35c, _pr35c = _tl35.lint_and_fix_tscn(_multi35)
+check('21.35 v78: tscn_lint lovit nezakrytuyu skobku v znachenii svoystva, mnogostrochnye slovari ne trogaet',
+      any('Parse Error' in p for p in _pr35) and not _pr35b and not _pr35c)
+
+# 21.36 v78: [ext_resource] na nesushchestvuyushchiy fayl + planned_paths plana
+import tempfile as _tf36
+import os as _os36
+import tscn_lint as _tl36
+_d36 = _tf36.mkdtemp()
+_sc36 = '\n'.join(['[gd_scene load_steps=2 format=3]', '', '[ext_resource type="Script" path="res://scripts/player.gd" id="1"]', '', '[node name="Root" type="Node2D"]', 'script = ExtResource("1")', ''])
+_fx36, _pr36 = _tl36.lint_and_fix_tscn(_sc36, project_root=_d36)
+_fx36b, _pr36b = _tl36.lint_and_fix_tscn(_sc36, project_root=_d36, planned_paths=['res://scripts/player.gd'])
+_os36.makedirs(_os36.path.join(_d36, 'scripts'))
+with open(_os36.path.join(_d36, 'scripts', 'player.gd'), 'w') as _f36:
+    _f36.write('extends Node2D')
+_fx36c, _pr36c = _tl36.lint_and_fix_tscn(_sc36, project_root=_d36)
+check('21.36 v78: lint trebuet sozdat otsutstvuyushchiy fayl iz ext_resource; planned_paths plana eto razreshaet',
+      any('Missing dependencies' in p for p in _pr36)
+      and not any('Missing dependencies' in p for p in _pr36b)
+      and not any('Missing dependencies' in p for p in _pr36c))
+
+# 21.37 v78: reviziya dataseta — stuhshie pary + zamena otveta (source=self)
+import tempfile as _tf37
+from minilich import ml_data as _md37
+_d37 = _tf37.mkdtemp()
+_md37.set_storage_base(None)
+_broken37 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node2D"]', '', '[node name="Col" type="CollisionShape2D" parent="."]', '', '[node name="Col" type="CollisionShape2D" parent="."]', ''])
+_oldfix37 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node2D"]', '', '[node name="Col" type="CollisionShape2D" parent="."]', ''])
+_newfix37 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node2D"]', '', '[node name="Body" type="StaticBody2D" parent="."]', '', '[node name="Col" type="CollisionShape2D" parent="Body"]', ''])
+_rec37 = _md37.record_pair(_d37, _broken37, ['p'], _oldfix37)
+_st37, _tot37 = _md37.revalidate_pairs(_d37)
+_p37 = _md37.load_pairs(_d37)
+_rep37 = _md37.replace_pair_fixed(_d37, _broken37, _newfix37, similarity=0.87)
+_p37b = _md37.load_pairs(_d37)
+check('21.37 v78: stuhshaya para pomechaetsya stale i poluchaet novyy otvet source=self (teacher_fixed sohranyon)',
+      _rec37 and _st37 == 1 and _tot37 == 1 and _p37 and _p37[0].get('stale') is True
+      and _rep37 and _p37b[0].get('stale') is False and _p37b[0].get('source') == 'self'
+      and _p37b[0].get('teacher_fixed') == _oldfix37.strip() and _p37b[0].get('fixed') == _newfix37.strip())
+
+# 21.38 v78: pohozhest PO SIMVOLAM (odno slovo v kroshechnoy scene = neskolko %) + strahovka ot amputatsii
+from minilich import ml_train as _mt38
+_a38 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node2D"]', '', '[node name="Enemy" type="Sprite2D" parent="."]', 'position = Vector2(1, 1)', ''])
+_b38 = _a38.replace('"Enemy"', '"Hero"')
+_sim38 = _mt38._similarity(_a38, _b38)
+_big38 = _a38 + ''.join('\n[node name="N%d" type="Node2D" parent="."]\n' % _i for _i in range(1, 5))
+_amp38 = '\n'.join(['[gd_scene format=3]', '', '[node name="Root" type="Node2D"]', ''])
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f38:
+    _m38 = _f38.read()
+check('21.38 v78: similarity po simvolam >90% pri zamene odnogo slova + kandidat-amputatsiya otvergaetsya',
+      _sim38 > 0.9 and _mt38._keeps_enough_nodes(_big38, _big38)
+      and not _mt38._keeps_enough_nodes(_big38, _amp38)
+      and '_repair_stale' in _m38 and 'random.sample' in _m38 and 'REPAIR_TEMPS' in _m38)
+
+# 21.39 v79: dlinnye pary uchatsya fragmentami + ekzamen po 3 kategoriyam + chestnyy log
+from minilich import ml_fix as _mf39
+_nodes39 = ''.join('\n[node name="N%d" type="Node2D" parent="."]\nposition = Vector2(%d, %d)\n' % (_i, _i, _i) for _i in range(40))
+_long39 = '[gd_scene format=3]\n\n[node name="Root" type="Node2D"]\n' + _nodes39 + '\n[node name="Broken" type="Node2D" parent="."]\n'
+_tb39, _tf39 = _mf39.trim_pair_for_context(_long39, ['uzel name="Broken" sloman'], _long39, 100)
+_sb39, _sf39 = _mf39.trim_pair_for_context('[gd_scene format=3]', [], '[gd_scene format=3]', 400)
+with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f39:
+    _t39 = _f39.read()
+check('21.39 v79: trim_pair_for_context rezhet paru sinhronno po fokusu problemy + trener uchit fragmenty + ekzamen 3 kategorii + sat-log',
+      'Broken' in _tb39 and 'Broken' in _tf39 and 'N25' not in _tb39 and 'N25' not in _tf39
+      and len(_tb39) < len(_long39) and _sb39 == '[gd_scene format=3]'
+      and 'trim_pair_for_context' in _t39 and 'EXAM_PER_CATEGORY = 2' in _t39
+      and '_fresh_exam_pairs' in _t39 and 'fit_examples' in _t39 and 'sat_bursts' in _t39
+      and 'max(0.0, float(np.mean(losses)))' in _t39)
+
+# 21.40 v80: sintaksis svoystv: net '=', stroka bez kavychek, neizvestnaya sekciya
+import tscn_lint as _tl40
+_brk40 = '[gd_scene format=3]\n\n[node name="Root" type="Node3D"]\ntransform Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)\nunquoted_string = Hello World\n\n[weird_section id="x"]\nfoo = 1\n'
+_f40, _p40 = _tl40.lint_and_fix_tscn(_brk40)
+_j40 = '\n'.join(_p40)
+_ok40 = '[gd_scene format=3]\n\n[node name="Root" type="Node3D"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)\nunquoted_string = "Hello World"\nspeed = 5.5\nflag = true\nsname = &"anim"\n'
+_f40b, _p40b = _tl40.lint_and_fix_tscn(_ok40)
+check('21.40 v80: linter lovit propushchennyy "=", stroku bez kavychek i neizvestnuyu sekciyu razom',
+      "'='" in _j40 and 'Hello World' in _j40 and 'weird_section' in _j40 and len(_p40) >= 3 and _p40b == [],
+      repr(_p40) + ' | ok-scena: ' + repr(_p40b))
+
+# 21.41 v80: parent/connection na nesushchestvuyushchiy uzel; instance-sceny ne trogaem
+_brk41 = '[gd_scene format=3]\n\n[node name="Main" type="Node3D"]\n\n[node name="GameTimer" type="Timer" parent="."]\n\n[node name="Extra" type="Node3D" parent="WrongParent"]\n\n[connection signal="timeout" from="GameTimer" to="NotHere" method="_on_t"]\n'
+_f41, _p41 = _tl40.lint_and_fix_tscn(_brk41)
+_j41 = '\n'.join(_p41)
+_inst41 = '[gd_scene format=3]\n\n[ext_resource type="PackedScene" path="res://a.tscn" id="1_a"]\n\n[node name="Main" type="Node3D"]\n\n[node name="Inst" parent="." instance=ExtResource("1_a")]\n\n[node name="Extra" type="Node3D" parent="Inst/Deep"]\n'
+_f41b, _p41b = _tl40.lint_and_fix_tscn(_inst41)
+check('21.41 v80: parent="WrongParent" i connection to="NotHere" -> problems; instance-sceny ne trogaem',
+      'WrongParent' in _j41 and 'NotHere' in _j41 and _p41b == [],
+      repr(_p41) + ' | instance-scena: ' + repr(_p41b))
+
+# 21.42 v80: dashboard + parser zhdet konets generacii pered otpravkoy
+import dashboard as _dash42
+with open('parser_base.py', encoding='utf-8') as _f42:
+    _pb42 = _f42.read()
+with open('main.py', encoding='utf-8') as _f42b:
+    _mn42 = _f42b.read()
+check('21.42 v80: dashboard-stranitsa + zhurnal servera + v80-wait-before-send v parsere',
+      hasattr(_dash42, 'install') and hasattr(_dash42, 'get_lines')
+      and 'rawlog' in _dash42.DASHBOARD_HTML
+      and "'/dashboard/data'" in _mn42 and 'dashboard.install()' in _mn42
+      and 'v80-wait-before-send' in _pb42)
 
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

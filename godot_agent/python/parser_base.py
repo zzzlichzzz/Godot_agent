@@ -851,6 +851,29 @@ class BaseSiteParser:
         self.switch_to_site_window(driver, prefer_url=prefer_url)
         from browser_manager import harden_background_tab
         harden_background_tab(driver)
+        # v80-wait-before-send: НЕ отправляем новое сообщение, пока модель ещё
+        # пишет предыдущий ответ (частый случай — быстрые шаги плана): иначе
+        # отправка молча теряется, а ожидание принимает ЕЩЁ ПЕЧАТАЮЩЕЕСЯ старое
+        # сообщение за ответ на новый промпт — и настоящий последний ответ
+        # остаётся непрочитанным.
+        _busy_start = time.time()
+        _busy_logged = False
+        while time.time() - _busy_start < 240.0:
+            try:
+                if not self.is_generating(driver):
+                    break
+            except Exception:
+                break
+            if not _busy_logged:
+                self._log("модель ещё дописывает предыдущий ответ — жду его конца перед отправкой нового сообщения.")
+                _busy_logged = True
+            if cancel_cb is not None and cancel_cb():
+                raise ParserCancelled("остановлено пользователем")
+            time.sleep(0.5)
+        else:
+            self._log("предыдущий ответ пишется дольше 240 с — отправляю новое сообщение как есть.")
+        if _busy_logged:
+            time.sleep(1.5)  # даём странице дописать DOM до конца
         el = None
         for _ in range(retries):
             el = self.find_input(driver)

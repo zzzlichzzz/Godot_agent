@@ -483,7 +483,221 @@ def _scene_node_paths(disk_path):
     return paths, fuzzy
 
 
-def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
+_BRACKET_OPEN = "([{"
+_BRACKET_CLOSE = ")]}"
+
+
+_KNOWN_SECTION_KINDS = ("gd_scene", "gd_resource", "ext_resource", "sub_resource", "node", "resource", "connection", "editable")
+_ANY_SECTION_RE = re.compile(r'^\[\s*([A-Za-z_][A-Za-z0-9_]*)')
+_CONNECTION_RE = re.compile(r'^\[connection\b([^\]\n]*)\]', re.M)
+_NUM_VALUE_RE = re.compile(r'^-?(?:\d|\.\d)')
+_KEYWORD_VALUE_RE = re.compile(r'^(?:true|false|null|nan|inf|-inf)$')
+_CTOR_VALUE_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\s*\(')  # v80: tochka radi PlaneMesh.new() - ego dalee razbiraet etap 0.67
+
+
+def _value_looks_parseable(value):
+    """v80: значение, которое Godot сможет распарсить: число, true/false/null,
+    строка в кавычках, StringName (&"..."), NodePath (^"..."), массив, словарь
+    или конструктор вида Vector3(...)/SubResource(...)."""
+    v = value.strip()
+    if not v:
+        return False
+    if v[0] in '"[{(':
+        return True
+    if v.startswith('&"') or v.startswith('^"'):
+        return True
+    if _NUM_VALUE_RE.match(v):
+        return True
+    if _KEYWORD_VALUE_RE.match(v):
+        return True
+    if _CTOR_VALUE_RE.match(v):
+        return True
+    return False
+
+
+def _scan_property_syntax(text):
+    """v80: построчный синтаксис свойств (только на глубине 0, вне многострочных
+    значений): пропущенный знак '=', строковое значение без кавычек, неизвестный
+    заголовок секции. Чинить вслепую нельзя — только problems."""
+    problems = []
+    depth = 0
+    in_str = False
+    for i, raw_line in enumerate(text.split("\n")):
+        line = raw_line.rstrip("\r")
+        at_top = (depth == 0 and not in_str)
+        is_header = False
+        if at_top:
+            stripped = line.strip()
+            if not stripped or stripped.startswith(";"):
+                continue
+            if stripped.startswith("["):
+                m = _ANY_SECTION_RE.match(stripped)
+                if m:
+                    is_header = True
+                    kind = m.group(1)
+                    if kind not in _KNOWN_SECTION_KINDS:
+                        problems.append(
+                            "строка %d: неизвестный заголовок секции [%s] — в .tscn бывают только "
+                            "[gd_scene], [ext_resource], [sub_resource], [node], [connection] и "
+                            "[editable]. Godot упадёт с «Parse Error». Убери эту секцию или замени "
+                            "на правильную." % (i + 1, kind))
+            elif not stripped.startswith('"'):
+                if "=" not in stripped:
+                    problems.append(
+                        "строка %d: нет знака '=' между именем свойства и значением («%s»). "
+                        "Godot упадёт с «Parse Error» при загрузке сцены. Пиши: свойство = значение."
+                        % (i + 1, stripped[:80]))
+                else:
+                    key, _eq, value = stripped.partition("=")
+                    if key.strip() and not _value_looks_parseable(value):
+                        problems.append(
+                            "строка %d: значение свойства %s не в кавычках и не является числом, "
+                            "true/false или конструктором вида Vector3(...): «%s». Строку пиши в "
+                            "кавычках, иначе Godot упадёт с «Parse Error»."
+                            % (i + 1, key.strip(), value.strip()[:80]))
+        if is_header:
+            continue
+        j = 0
+        n = len(line)
+        while j < n:
+            ch = line[j]
+            if in_str:
+                if ch == "\\":
+                    j += 2
+                    continue
+                if ch == '"':
+                    in_str = False
+            else:
+                if ch == '"':
+                    in_str = True
+                elif ch in _BRACKET_OPEN:
+                    depth += 1
+                elif ch in _BRACKET_CLOSE:
+                    if depth > 0:
+                        depth -= 1
+            j += 1
+    return problems
+
+
+def _check_connections_and_parents(text):
+    """v80: parent="..." у узлов и from=/to= у [connection] должны указывать на
+    объявленные в этой же сцене узлы. Если в сцене есть instance= — не судим:
+    часть узлов приходит из инстанс-сцены и здесь не видна."""
+    problems = []
+    paths = set()
+    root_seen = False
+    for m in _NODE_RE.finditer(text):
+        a = _attrs(m.group(1))
+        if a.get("instance") is not None or a.get("instance_placeholder") is not None:
+            return problems
+        name = a.get("name", "?")
+        parent = a.get("parent")
+        if parent is None:
+            if root_seen:
+                continue
+            root_seen = True
+        elif parent == ".":
+            paths.add(name)
+        else:
+            paths.add(parent + "/" + name)
+    if not root_seen:
+        return problems
+
+    def _known(p):
+        return p in (".", "") or p in paths
+
+    for m in _NODE_RE.finditer(text):
+        a = _attrs(m.group(1))
+        parent = a.get("parent")
+        if parent is None or parent == ".":
+            continue
+        if not _known(parent):
+            problems.append(
+                '[node name="%s"]: parent="%s" — такого узла в сцене нет, Godot не сможет '
+                'построить дерево. Родителя объявляй ВЫШЕ по файлу и указывай его ПУТЬ от корня '
+                '(parent="." для детей корня, parent="A/B" для вложенных).'
+                % (a.get("name", "?"), parent))
+    for m in _CONNECTION_RE.finditer(text):
+        a = _attrs(m.group(1))
+        for key in ("from", "to"):
+            tgt = a.get(key)
+            if tgt is None or _known(tgt):
+                continue
+            problems.append(
+                '[connection signal="%s"]: %s="%s" — такого узла в сцене нет, Godot не сможет '
+                'подключить сигнал. Укажи путь существующего узла (например "." для корня).'
+                % (a.get("signal", "?"), key, tgt))
+    return problems
+
+
+def _scan_value_balance(text):
+    """v78: незакрытые скобки/кавычки в ЗНАЧЕНИЯХ свойств (не в заголовках).
+
+    Godot валится на таком файле с «Parse Error» (resource_format_text.cpp),
+    например: position = Vector3(0, 5, 0  — без закрывающей «)».
+    Значения МОГУТ легально занимать несколько строк (словари/массивы в
+    анимациях, встроенные скрипты со строками) — поэтому баланс считается
+    сквозь строки, а ошибкой считается только значение, которое так и не
+    закрылось к началу СЛЕДУЮЩЕЙ секции или к концу файла.
+    Чинить вслепую нельзя (обрыв значения неоднозначен) — только в problems."""
+    problems = []
+    depth = 0
+    in_str = False
+    open_line = None
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if not in_str and depth == 0 and _SECTION_START_RE.match(line):
+            continue  # заголовок секции: закрытость «]» проверяет этап 0
+        if (in_str or depth > 0) and _SECTION_START_RE.match(line):
+            problems.append(
+                "строка %d: значение свойства не закрыто (не хватает закрывающей "
+                "скобки или кавычки) до начала следующей секции — Godot упадёт с "
+                "«Parse Error» при загрузке сцены. Допиши недостающую «)», «]», «}» "
+                "или кавычку в этом значении." % ((open_line or i),))
+            depth = 0
+            in_str = False
+            continue
+        j = 0
+        n = len(line)
+        while j < n:
+            ch = line[j]
+            if in_str:
+                if ch == "\\":
+                    j += 2
+                    continue
+                if ch == '"':
+                    in_str = False
+            else:
+                if ch == '"':
+                    if depth == 0 and open_line is None:
+                        open_line = i + 1
+                    in_str = True
+                elif ch in _BRACKET_OPEN:
+                    if depth == 0 and open_line is None:
+                        open_line = i + 1
+                    depth += 1
+                elif ch in _BRACKET_CLOSE:
+                    depth -= 1
+                    if depth < 0:
+                        problems.append(
+                            "строка %d: лишняя закрывающая скобка «%s» в значении "
+                            "свойства — Godot упадёт с «Parse Error». Убери её или "
+                            "допиши парную открывающую." % (i + 1, ch))
+                        depth = 0
+            j += 1
+        if depth == 0 and not in_str:
+            open_line = None
+    if depth > 0 or in_str:
+        problems.append(
+            "строка %d: значение свойства не закрыто (не хватает закрывающей "
+            "скобки или кавычки) до конца файла — Godot упадёт с «Parse Error» "
+            "при загрузке сцены. Допиши недостающее, например "
+            "position = Vector3(0, 5, 0) вместо position = Vector3(0, 5, 0."
+            % ((open_line or len(lines)),))
+    return problems
+
+
+def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
       неверным); в остальном идентичен входном��.
@@ -540,6 +754,13 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     if problems:
         return fixed, problems
 
+    # --- 0.55) v78: незакрытые скобки/кавычки в значениях свойств — Godot
+    # падает с «Parse Error»; чинить вслепую нельзя (обрыв значения) — модели.
+    problems.extend(_scan_value_balance(fixed))
+    problems.extend(_scan_property_syntax(fixed))  # v80: ves sintaksis odnim otchetom
+    if problems:
+        return fixed, problems
+
     # --- 0.6) ссылающийся внутренний ресурс должен идти РАНЬШЕ ресурса, на
     # который он ссылается (так документирован сам формат .tscn): переставляем
     # [ext_resource]/[sub_resource] перед первым [node], не трогая узлы/коннекты.
@@ -556,6 +777,9 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     fixed = _toposort_sub_resources(fixed)
 
     text = fixed  # дальнейший анализ — по уже исправленному (автопочиненному) тексту
+
+    # --- v80: parent="..." i [connection] from/to dolzhny ukazyvat na obyavlennye uzly ---
+    problems.extend(_check_connections_and_parents(text))
 
     ext_ids = set()
     sub_ids = set()
@@ -576,6 +800,36 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None):
     if refixed != text:
         fixed = refixed
         text = fixed
+
+    # --- 0.45) v78: [ext_resource] указывает на файл, которого НЕТ в проекте.
+    # Типовой провал: сцена объявляет скрипт/сцену/текстуру, но сам файл никто
+    # не создал — Godot не откроет такую сцену («Missing dependencies»).
+    # planned_paths — пути, которые СОЗДАДУТ другие шаги того же плана
+    # (action=plan): их отсутствие на диске прямо сейчас — не ошибка.
+    if project_root:
+        _planned = set()
+        for _pp in (planned_paths or []):
+            _planned.add((_pp or "").replace("res://", "").replace("\\", "/").strip("/").lower())
+        for m in _EXT_RE.finditer(text):
+            a = _attrs(m.group(1))
+            rpath = a.get("path")
+            if not isinstance(rpath, str) or not rpath.startswith("res://"):
+                continue
+            rel = rpath[len("res://"):].replace("\\", "/").strip("/")
+            if not rel:
+                continue
+            if rel.lower() in _planned:
+                continue
+            abs_p = os.path.join(os.path.abspath(project_root), *rel.split("/"))
+            if os.path.isfile(abs_p):
+                continue
+            rtype = a.get("type") or "?"
+            problems.append(
+                '[ext_resource path="%s"] (%s): такого файла НЕТ в проекте — Godot не '
+                'откроет сцену («Missing dependencies»). СНАЧАЛА создай этот файл отдельным '
+                'действием create_file (в плане поставь шаг создания файла РАНЬШЕ шага этой '
+                'сцены), и только потом сцену. Либо убери объявление и все ссылки на него, '
+                'если файл не нужен.' % (rpath, rtype))
 
     # --- 0.5) узлы, ошибочно объявленные как [sub_resource] ---
     for m in _SUB_RE.finditer(text):

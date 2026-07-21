@@ -341,3 +341,101 @@ def generate_synthetic(project_root, addon_dir=None, limit=12):
             if record_pair(project_root, broken, probs, fixed_ok, source="synthetic"):
                 added += 1
     return added
+
+
+# ---------------------------------------------------------------------------
+# v78: ревизия датасета при изменении линтера + «ремонт» стухших пар.
+# Линтер ужесточается от версии к версии: старый ответ учителя мог быть
+# чистым тогда, но не проходить сейчас. Такие пары помечаются stale=True:
+# они НЕ идут в обучение/экзамен, а становятся «ремонтными задачами»
+# (ml_train._repair_stale): модель ищет СВОЙ вариант — линтер чист и
+# максимально похоже на учителя — и он становится новым ответом пары.
+# ---------------------------------------------------------------------------
+
+def revalidate_pairs(project_root, addon_dir=None):
+    """Помечает пары, чей учительский ответ БОЛЬШЕ НЕ проходит текущий
+    линтер: stale=True (и снимает пометку, если ответ снова чист).
+    Возвращает (сколько стухших, сколько всего пар)."""
+    import tscn_lint
+    path = _dataset_path(project_root)
+    lines = _read_lines(path)
+    if not lines:
+        return (0, 0)
+    out = []
+    stale_n = 0
+    total = 0
+    changed = False
+    for line in lines:
+        try:
+            e = json.loads(line)
+        except Exception:
+            continue
+        if not (isinstance(e, dict) and e.get("broken") and e.get("fixed")):
+            continue
+        total += 1
+        try:
+            _f, probs = tscn_lint.lint_and_fix_tscn(e["fixed"], project_root, addon_dir)
+        except Exception:
+            probs = []
+        now = bool(probs)
+        if now:
+            stale_n += 1
+        if bool(e.get("stale")) != now:
+            e["stale"] = now
+            out.append(json.dumps(e, ensure_ascii=False))
+            changed = True
+        else:
+            out.append(line)
+    if changed:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            for l in out:
+                f.write(l + "\n")
+        os.replace(tmp, path)
+    return (stale_n, total)
+
+
+def replace_pair_fixed(project_root, broken, new_fixed, similarity=None):
+    """Записывает НОВЫЙ правильный ответ для пары (обычно стухшей):
+    старый ответ учителя сохраняется в teacher_fixed, пара получает
+    source="self" и перестаёт быть стухшей. True при успехе."""
+    broken = (broken or "").strip()
+    new_fixed = (new_fixed or "").strip()
+    if not broken or not new_fixed or broken == new_fixed:
+        return False
+    if len(new_fixed) > MAX_SCENE_CHARS:
+        return False
+    path = _dataset_path(project_root)
+    lines = _read_lines(path)
+    out = []
+    done = False
+    for line in lines:
+        try:
+            e = json.loads(line)
+        except Exception:
+            continue
+        if not done and isinstance(e, dict) and (e.get("broken") or "").strip() == broken:
+            if not e.get("teacher_fixed"):
+                e["teacher_fixed"] = e.get("fixed")
+            e["fixed"] = new_fixed
+            e["source"] = "self"
+            e["stale"] = False
+            if similarity is not None:
+                e["teacher_similarity"] = round(float(similarity), 4)
+            out.append(json.dumps(e, ensure_ascii=False))
+            done = True
+        else:
+            out.append(line)
+    if not done:
+        return False
+    manifest = _load_manifest(project_root)
+    ph = pair_hash(broken, new_fixed)
+    if ph not in manifest["hashes"]:
+        manifest["hashes"].append(ph)
+        _save_manifest(project_root, manifest)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        for l in out:
+            f.write(l + "\n")
+    os.replace(tmp, path)
+    return True

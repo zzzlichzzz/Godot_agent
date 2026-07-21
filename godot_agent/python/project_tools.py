@@ -2,7 +2,10 @@ import os
 import shutil
 
 EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__',
-                 'node_modules', '.vs', '.vscode', '.agent_history'}
+                 'node_modules', '.vs', '.vscode', '.agent_history',
+                 # v77: мозг mini-lich (датасет+чекпоинты) меняется сам по себе постояннововремя обучения
+                 # — это не внешнее изменение проекта, о котором нужно сообщать модели.
+                 'minilich_brain'}
 EXCLUDED_FILES = {'.DS_Store'}
 
 HISTORY_DIR_NAME = ".agent_history"
@@ -71,7 +74,7 @@ def read_project_file(project_root, godot_path, max_chars=50000):
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(f"Файл не найден: {godot_path}")
-    with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
+    with open(abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
         content = f.read()
     truncated = len(content) > max_chars
     return content[:max_chars], truncated
@@ -101,7 +104,7 @@ def patch_project_file(project_root, godot_path, search_code, replace_code):
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(f"Файл не найден: {godot_path}")
-    with open(abs_path, 'r', encoding='utf-8') as f:
+    with open(abs_path, 'r', encoding='utf-8-sig') as f:
         original_content = f.read()
     content = original_content.replace('\r\n', '\n')
     search_norm = search_code.replace('\r\n', '\n')
@@ -169,7 +172,7 @@ def search_project_text(project_root, query, max_results=30, context_lines=2):
                 continue
             abs_path = os.path.join(dirpath, fname)
             try:
-                with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
+                with open(abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
                     lines = f.read().replace('\r\n', '\n').split('\n')
             except Exception:
                 continue
@@ -194,7 +197,7 @@ def describe_scene(project_root, godot_path, max_chars=12000):
         raise FileNotFoundError("Файл не найден: %s" % godot_path)
     if os.path.splitext(abs_path)[1].lower() not in (".tscn", ".scn"):
         raise ValueError("list_scene работает только со сценами .tscn: %s" % godot_path)
-    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as f:
         text = f.read()
     # id ext-ресурса -> путь (скрипты, вложенные сцены)
     ext = {}
