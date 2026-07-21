@@ -89,6 +89,49 @@ def set_training_mode(project_root, training):
     return data
 
 
+BRAIN_PROFILES = ("smart",)
+
+# v81: фоновый сбор обучающих пар с GitHub (один за раз).
+_github_thread = None
+
+
+def get_brain(project_root):
+    # v84: быстрый профиль убран — «умный» (окно 1024) единственный и
+    # используется всегда, независимо от старых сохранённых настроек.
+    return "smart"
+
+
+def github_fetch_async(project_root, addon_dir, repos_text):
+    """v81: сбор обучающих пар с GitHub в фоне. False — если сбор уже идёт."""
+    global _github_thread
+    import threading
+    if _github_thread is not None and _github_thread.is_alive():
+        return False
+    if addon_dir:
+        try:
+            ml_data.set_storage_base(addon_dir, project_root)
+        except Exception:
+            pass
+
+    def _run():
+        log = print
+        try:
+            from . import ml_train
+            log = ml_train._log
+        except Exception:
+            pass
+        try:
+            from . import ml_github
+            added = ml_github.fetch_and_add_examples(project_root, addon_dir, repos_text=repos_text, log=log)
+            log(u"[github] Готово: добавлено пар: %d." % added)
+        except Exception as e:
+            log(u"[github] Ошибка сбора: %s" % e)
+
+    _github_thread = threading.Thread(target=_run, name="minilich-github", daemon=True)
+    _github_thread.start()
+    return True
+
+
 def _dir_size(path):
     total = 0
     for root, _dirs, files in os.walk(path):
@@ -156,6 +199,8 @@ def status(project_root, addon_dir=None):
         out["training_mode"] = is_training_mode(project_root)
     except Exception:
         out["training_mode"] = True
+    out["brain"] = get_brain(project_root)
+    out["github_busy"] = bool(_github_thread is not None and _github_thread.is_alive())
     try:
         out["storage"] = ml_data.storage_dir(project_root)
     except Exception:

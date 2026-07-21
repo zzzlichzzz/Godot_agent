@@ -1,0 +1,305 @@
+[gd_scene format=3 uid="uid://y2e8f4lnj3cy"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.25, 0.45, 0.75, 1)
+sky_horizon_color = Color(0.7, 0.75, 0.85, 1)
+ground_bottom_color = Color(0.15, 0.14, 0.13, 1)
+ground_horizon_color = Color(0.35, 0.32, 0.3, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_color = Color(0.5, 0.55, 0.65, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="ground_mat"]
+albedo_color = Color(0.3, 0.3, 0.35, 1)
+roughness = 0.85
+
+[sub_resource type="PlaneMesh" id="ground_mesh"]
+size = Vector2(40, 40)
+
+[sub_resource type="BoxShape3D" id="ground_shape"]
+size = Vector3(40, 0.2, 40)
+
+[sub_resource type="MeshLibrary" id="gridmap_lib"]
+
+[sub_resource type="CapsuleShape3D" id="capsule_shape"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="rock_mat"]
+albedo_color = Color(0.5, 0.5, 0.5, 1)
+roughness = 0.7
+
+[sub_resource type="SphereMesh" id="rock_mesh"]
+radius = 0.6
+height = 1.2
+
+[sub_resource type="Animation" id="idle_anim"]
+resource_name = "idle"
+loop_mode = 1
+tracks/0/type = "rotation_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("../Skeleton3D:Root")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array()
+
+[sub_resource type="AnimationLibrary" id="anim_lib"]
+_data = {
+&"idle": SubResource("idle_anim")
+}
+
+[sub_resource type="BoxShape3D" id="crate_shape"]
+
+[sub_resource type="StandardMaterial3D" id="crate_mat"]
+albedo_color = Color(0.8, 0.3, 0.2, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="crate_mesh"]
+
+[sub_resource type="WorldBoundaryShape3D" id="boundary_shape"]
+
+[sub_resource type="MultiMesh" id="crowd_multimesh"]
+transform_format = 1
+instance_count = 3
+mesh = SubResource("rock_mesh")
+buffer = PackedFloat32Array(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, -2, 0, 1, 0, 0, 0, 0, 1, 0)
+
+[sub_resource type="Curve3D" id="waypoint_curve"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 5, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0),
+"tilts": PackedFloat32Array(0, 0, 0)
+}
+point_count = 3
+
+[sub_resource type="NavigationMesh" id="navmesh"]
+
+[sub_resource type="ParticleProcessMaterial" id="particle_mat"]
+direction = Vector3(0, 1, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 4.0
+scale_min = 0.2
+scale_max = 0.5
+
+[sub_resource type="SphereMesh" id="particle_mesh"]
+radius = 0.1
+height = 0.2
+
+[node name="TechDemo" type="Node3D" unique_id=871073000]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=282513345]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1436964552]
+transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.6123724, 0.6123724, 0, 10, 0)
+light_energy = 1.4
+shadow_enabled = true
+
+[node name="Lighting" type="Node3D" parent="." unique_id=871754992]
+
+[node name="OmniLamp" type="OmniLight3D" parent="Lighting" unique_id=1034201039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 3, -3)
+light_color = Color(1, 0.8, 0.5, 1)
+light_energy = 1.2
+omni_range = 6.0
+
+[node name="Spotlight" type="SpotLight3D" parent="Lighting" unique_id=1351893162]
+transform = Transform3D(1, 0, 0, 0, 0.70710677, -0.70710677, 0, 0.70710677, 0.70710677, 0, 4, -6)
+light_color = Color(0.8, 0.9, 1, 1)
+spot_range = 10.0
+spot_angle = 35.0
+
+[node name="SceneVoxelGI" type="VoxelGI" parent="Lighting" unique_id=1245645044]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+
+[node name="SceneLightmapGI" type="LightmapGI" parent="Lighting" unique_id=510957954]
+bounces = 1
+
+[node name="MainReflectionProbe" type="ReflectionProbe" parent="Lighting" unique_id=1801250381]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+max_distance = 50.0
+size = Vector3(10, 10, 10)
+
+[node name="CameraRig" type="Node3D" parent="." unique_id=821990428]
+
+[node name="CameraArm" type="SpringArm3D" parent="CameraRig" unique_id=1305497095]
+spring_length = 4.0
+
+[node name="MainCamera" type="Camera3D" parent="CameraRig/CameraArm" unique_id=1220624964]
+current = true
+fov = 70.0
+
+[node name="CSGShapes" type="CSGCombiner3D" parent="." unique_id=1445185553]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, 6)
+
+[node name="BaseBox" type="CSGBox3D" parent="CSGShapes" unique_id=80673777]
+use_collision = true
+size = Vector3(4, 2, 4)
+
+[node name="CutSphere" type="CSGSphere3D" parent="CSGShapes" unique_id=2094437899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+operation = 2
+radius = 1.5
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=126430186]
+material_override = SubResource("ground_mat")
+mesh = SubResource("ground_mesh")
+
+[node name="GroundBody" type="StaticBody3D" parent="." unique_id=1581222002]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundBody" unique_id=1773366556]
+shape = SubResource("ground_shape")
+
+[node name="WorldGrid" type="GridMap" parent="." unique_id=494077899]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
+mesh_library = SubResource("gridmap_lib")
+
+[node name="WallDecal" type="Decal" parent="." unique_id=1363760348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -10)
+size = Vector3(3, 4, 3)
+
+[node name="Characters" type="Node3D" parent="." unique_id=1620791157]
+
+[node name="Player" type="CharacterBody3D" parent="Characters" unique_id=1132495093]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Characters/Player" unique_id=1122738744]
+shape = SubResource("capsule_shape")
+
+[node name="Skeleton3D" type="Skeleton3D" parent="Characters/Player" unique_id=753230912]
+bones/0/name = "Root"
+bones/0/parent = -1
+bones/0/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+bones/0/enabled = true
+bones/0/position = Vector3(0, 0, 0)
+bones/0/rotation = Quaternion(0, 0, 0, 1)
+bones/0/scale = Vector3(1, 1, 1)
+
+[node name="BoneAttachment3D" type="BoneAttachment3D" parent="Characters/Player/Skeleton3D" unique_id=1699359872]
+bone_name = "Root"
+bone_idx = 0
+
+[node name="HeadMesh" type="MeshInstance3D" parent="Characters/Player/Skeleton3D/BoneAttachment3D" unique_id=758500744]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 1.6, 0)
+material_override = SubResource("rock_mat")
+mesh = SubResource("rock_mesh")
+
+[node name="PlayerRay" type="RayCast3D" parent="Characters/Player" unique_id=631901051]
+target_position = Vector3(0, 0, -3)
+
+[node name="PlayerShapeCast" type="ShapeCast3D" parent="Characters/Player" unique_id=1791267667]
+shape = SubResource("capsule_shape")
+target_position = Vector3(0, 0, -2)
+
+[node name="PlayerAnim" type="AnimationPlayer" parent="Characters/Player" unique_id=1001006162]
+libraries/ = SubResource("anim_lib")
+autoplay = &"idle"
+
+[node name="PlayerNavAgent" type="NavigationAgent3D" parent="Characters/Player" unique_id=1616687931]
+path_desired_distance = 0.5
+target_desired_distance = 0.5
+radius = 0.4
+
+[node name="Physics" type="Node3D" parent="." unique_id=1979448481]
+
+[node name="CrateA" type="RigidBody3D" parent="Physics" unique_id=852552522]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 3, 0)
+mass = 2.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Physics/CrateA" unique_id=73006592]
+shape = SubResource("crate_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Physics/CrateA" unique_id=1700183839]
+material_override = SubResource("crate_mat")
+mesh = SubResource("crate_mesh")
+
+[node name="CrateB" type="RigidBody3D" parent="Physics" unique_id=1105030711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 3, 0)
+mass = 2.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Physics/CrateB" unique_id=495603732]
+shape = SubResource("crate_shape")
+
+[node name="Mesh" type="MeshInstance3D" parent="Physics/CrateB" unique_id=604089576]
+material_override = SubResource("crate_mat")
+mesh = SubResource("crate_mesh")
+
+[node name="CratesPin" type="PinJoint3D" parent="Physics" unique_id=248130292]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+node_a = NodePath("../CrateA")
+node_b = NodePath("../CrateB")
+
+[node name="CratesHinge" type="HingeJoint3D" parent="Physics" unique_id=794036734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+node_a = NodePath("../CrateA")
+node_b = NodePath("../CrateB")
+
+[node name="CratesGeneric6DOF" type="Generic6DOFJoint3D" parent="Physics" unique_id=1693593807]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+node_a = NodePath("../CrateA")
+node_b = NodePath("../CrateB")
+
+[node name="JellyBlob" type="SoftBody3D" parent="Physics" unique_id=1711387130]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 4)
+material_override = SubResource("rock_mat")
+mesh = SubResource("rock_mesh")
+total_mass = 1.0
+
+[node name="FloorBoundary" type="StaticBody3D" parent="Physics" unique_id=115081234]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Physics/FloorBoundary" unique_id=859145082]
+shape = SubResource("boundary_shape")
+
+[node name="Interactables" type="Node3D" parent="." unique_id=468049251]
+
+[node name="TriggerZone" type="Area3D" parent="Interactables" unique_id=1148141888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, 6)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Interactables/TriggerZone" unique_id=1532751584]
+shape = SubResource("crate_shape")
+
+[node name="CameraRemote" type="RemoteTransform3D" parent="Interactables" unique_id=337288672]
+remote_path = NodePath("../../CameraRig/CameraArm/MainCamera")
+
+[node name="CrowdMultiMesh" type="MultiMeshInstance3D" parent="Interactables" unique_id=869429400]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -6)
+multimesh = SubResource("crowd_multimesh")
+
+[node name="Waypoints" type="Path3D" parent="." unique_id=1710370201]
+curve = SubResource("waypoint_curve")
+
+[node name="Follower" type="PathFollow3D" parent="Waypoints" unique_id=252635543]
+
+[node name="FollowerMesh" type="MeshInstance3D" parent="Waypoints/Follower" unique_id=172588697]
+transform = Transform3D(0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0.5, 0)
+material_override = SubResource("rock_mat")
+mesh = SubResource("rock_mesh")
+
+[node name="Navigation" type="NavigationRegion3D" parent="." unique_id=903896880]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+navigation_mesh = SubResource("navmesh")
+
+[node name="Effects" type="Node3D" parent="." unique_id=675953876]
+
+[node name="Sparkles" type="GPUParticles3D" parent="Effects" unique_id=221773578]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+amount = 32
+lifetime = 2.0
+visibility_aabb = AABB(-5, -5, -5, 10, 10, 10)
+process_material = SubResource("particle_mat")
+draw_pass_1 = SubResource("particle_mesh")
+
+[node name="AmbientSound" type="AudioStreamPlayer3D" parent="Effects" unique_id=1289513388]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+unit_size = 15.0
+
+[node name="SpawnPoint" type="Marker3D" parent="." unique_id=1410364809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)

@@ -444,11 +444,11 @@ _COLLISION_SHAPE_2D = {"CollisionShape2D", "CollisionPolygon2D"}
 _COLLISION_SHAPE_3D = {"CollisionShape3D", "CollisionPolygon3D"}
 _COLLISION_OWNER_2D = {
     "Area2D", "StaticBody2D", "AnimatableBody2D", "CharacterBody2D",
-    "RigidBody2D", "PhysicsBody2D",
+    "RigidBody2D", "PhysicsBody2D", "PhysicalBone2D",  # v86: PhysicalBone2D наследуется от RigidBody2D
 }
 _COLLISION_OWNER_3D = {
     "Area3D", "StaticBody3D", "AnimatableBody3D", "CharacterBody3D",
-    "RigidBody3D", "VehicleBody3D", "PhysicsBody3D",
+    "RigidBody3D", "VehicleBody3D", "PhysicsBody3D", "PhysicalBone3D",  # v86: то же для 3D
 }
 
 
@@ -697,6 +697,161 @@ def _scan_value_balance(text):
     return problems
 
 
+# --- v82: смысловые проверки, которые линтер раньше пропускал (тест-сцена
+# от большой модели). Всё из списка ниже роняет загрузку сцены в самом Godot:
+# 1) [node] без обязательного атрибута name;
+# 2) дублирующиеся id у [ext_resource]/[sub_resource];
+# 3) instance=ExtResource(...) на не-сцену (инстансить можно только .tscn/.scn);
+# 4) строки вместо чисел в аргументах математических конструкторов;
+# 5) число вместо ресурса в свойствах вида mesh/texture/material.
+_MATH_CTORS = ("Vector2", "Vector2i", "Vector3", "Vector3i", "Vector4", "Vector4i",
+               "Quaternion", "Color", "Rect2", "Rect2i", "AABB", "Plane", "Basis",
+               "Transform2D", "Transform3D")
+_MATH_CTOR_ARGS_RE = re.compile(r'\b(%s)\(([^()]*)\)' % "|".join(_MATH_CTORS))
+_NUM_ARG_RE = re.compile(r'^-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$|^-?inf$|^nan$')
+_RESOURCE_PROPS = ("mesh", "texture", "material", "material_override", "shader",
+                   "environment", "sky", "font", "skeleton", "skin", "animation",
+                   "sprite_frames", "stylebox", "shape", "script")
+_SCENE_EXTS = (".tscn", ".scn", ".res")
+
+
+def _scan_scene_semantics(text):
+    problems = []
+    ext_types = {}
+    seen_ids = {}
+    for ln, line in enumerate(text.split("\n"), 1):
+        stripped = line.strip()
+        if stripped.startswith("[node"):
+            if ' name="' not in stripped:
+                problems.append('строка %d: у узла нет обязательного атрибута name — Godot не загрузит сцену: «%s»' % (ln, stripped[:80]))
+            m_i = re.search(r'instance=ExtResource\(\s*"?([^")\s]+)"?\s*\)', stripped)
+            if m_i and m_i.group(1) in ext_types:
+                rtype, rpath = ext_types[m_i.group(1)]
+                if (rtype and rtype != "PackedScene") or (rpath and not rpath.lower().endswith(_SCENE_EXTS)):
+                    problems.append('строка %d: instance= ссылается на ext_resource id="%s" типа %s (%s) — инстансить можно только сцену (.tscn/.scn, type="PackedScene")' % (ln, m_i.group(1), rtype or "?", rpath or "?"))
+            continue
+        if stripped.startswith("[ext_resource") or stripped.startswith("[sub_resource"):
+            kind = "ext_resource" if stripped.startswith("[ext") else "sub_resource"
+            m_id = re.search(r'\bid="([^"]+)"', stripped)
+            if m_id:
+                rid = m_id.group(1)
+                key = (kind, rid)
+                if key in seen_ids:
+                    problems.append('строка %d: id="%s" у %s уже используется на строке %d — id должны быть уникальны' % (ln, rid, kind, seen_ids[key]))
+                else:
+                    seen_ids[key] = ln
+                if kind == "ext_resource":
+                    m_t = re.search(r'\btype="([^"]+)"', stripped)
+                    m_p = re.search(r'\bpath="([^"]+)"', stripped)
+                    ext_types[rid] = (m_t.group(1) if m_t else "", m_p.group(1) if m_p else "")
+            continue
+        if stripped.startswith("["):
+            continue
+        for m_c in _MATH_CTOR_ARGS_RE.finditer(line):
+            bad = None
+            for arg in (a.strip() for a in m_c.group(2).split(",") if a.strip()):
+                if arg.startswith('"') or not _NUM_ARG_RE.match(arg):
+                    bad = arg
+                    break
+            if bad is not None:
+                problems.append('строка %d: в конструкторе %s(...) аргумент %s — не число' % (ln, m_c.group(1), bad[:40]))
+        m_pv = re.match(r'^([A-Za-z_][\w/]*)\s*=\s*(-?\d+\.?\d*)\s*$', stripped)
+        if m_pv and m_pv.group(1) in _RESOURCE_PROPS:
+            problems.append('строка %d: свойство %s ожидает ресурс (SubResource(...)/ExtResource(...)), а не число %s' % (ln, m_pv.group(1), m_pv.group(2)))
+    return problems
+
+
+# --- v83: eshe 5 problem, kotorye nashel Gemini vo vtorom raunde stress-testa ---
+_NAME_ATTR_RE_V83 = re.compile(r'\bname="([^"]*)"')
+_METHOD_ATTR_RE_V83 = re.compile(r'\bmethod="([^"]*)"')
+_VALID_METHOD_RE_V83 = re.compile(r'^[A-Za-z_]\w*$')
+_BAD_NAME_CHARS_V83 = set('./:@%"')
+
+
+def _scan_scene_semantics_v83(text):
+    """v83: nedopustimye simvoly/pustoe imya uzla, sub_resource bez type=,
+    nevalidnoe imya metoda v [connection] (dolzhno nachinatsya s bukvy/_)."""
+    problems = []
+    for ln, line in enumerate(text.split("\n"), 1):
+        stripped = line.strip()
+        if stripped.startswith("[node"):
+            m_name = _NAME_ATTR_RE_V83.search(stripped)
+            if m_name:
+                name_val = m_name.group(1)
+                if name_val == "":
+                    problems.append(
+                        'строка %d: у узла пустое имя (name="") — Godot не примет пустое имя узла' % ln)
+                else:
+                    bad = sorted(set(ch for ch in name_val if ch in _BAD_NAME_CHARS_V83))
+                    if bad:
+                        problems.append(
+                            'строка %d: имя узла "%s" содержит недопустимые символы (%s) — имена узлов '
+                            'в Godot не могут содержать . / : @ %% и кавычки' % (ln, name_val, " ".join(bad)))
+            continue
+        if stripped.startswith("[sub_resource"):
+            if 'type="' not in stripped:
+                m_id = re.search(r'\bid="([^"]+)"', stripped)
+                problems.append(
+                    'строка %d: [sub_resource id="%s"] объявлен без type= — Godot не поймёт, какой '
+                    'ресурс создавать' % (ln, m_id.group(1) if m_id else "?"))
+            continue
+        if stripped.startswith("[connection"):
+            m_method = _METHOD_ATTR_RE_V83.search(stripped)
+            if m_method and not _VALID_METHOD_RE_V83.match(m_method.group(1)):
+                problems.append(
+                    'строка %d: [connection method="%s"]: недопустимое имя метода — оно должно '
+                    'начинаться с буквы или "_", GDScript не примет такой идентификатор' % (ln, m_method.group(1)))
+            continue
+    return problems
+
+
+def _find_resource_cycles(text):
+    """v83: sub_resource, ssylayushiysya (napryamuyu ili cherez cep) sam na sebya
+    (naprimer next_pass = SubResource svoego zhe id) -- Godot ne postroit takoy resurs."""
+    edges = {}
+    cur_id = None
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("["):
+            m_sub = re.match(r'\[sub_resource\b([^\]]*)\]', stripped)
+            if m_sub:
+                m_id = re.search(r'\bid="([^"]+)"', stripped)
+                cur_id = m_id.group(1) if m_id else None
+                if cur_id is not None:
+                    edges.setdefault(cur_id, [])
+            else:
+                cur_id = None
+            continue
+        if cur_id is not None:
+            for m_ref in _SUBCALL_RE.finditer(line):
+                edges[cur_id].append(m_ref.group(1))
+
+    problems = []
+    color = {}
+
+    def _dfs(node, path):
+        color[node] = 1
+        path.append(node)
+        for nxt in edges.get(node, []):
+            if nxt not in edges:
+                continue
+            if color.get(nxt) == 1:
+                idx = path.index(nxt)
+                cycle = path[idx:] + [nxt]
+                chain = " -> ".join('SubResource("%s")' % x for x in cycle)
+                problems.append(
+                    'циклическая зависимость ресурсов: %s — Godot не сможет построить такой ресурс' % chain)
+            elif color.get(nxt, 0) == 0:
+                _dfs(nxt, path)
+        path.pop()
+        color[node] = 2
+
+    for node in list(edges.keys()):
+        if color.get(node, 0) == 0:
+            _dfs(node, [])
+    return problems
+
+
 def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
@@ -758,6 +913,9 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
     # падает с «Parse Error»; чинить вслепую нельзя (обрыв значения) — модели.
     problems.extend(_scan_value_balance(fixed))
     problems.extend(_scan_property_syntax(fixed))  # v80: ves sintaksis odnim otchetom
+    problems.extend(_scan_scene_semantics(fixed))  # v82: imena uzlov, dubli id, instance ne-sceny, konstruktory, resursnye svoystva
+    problems.extend(_scan_scene_semantics_v83(fixed))  # v83: bad node name/empty name, sub_resource bez type, nevalidnoe imya metoda
+    problems.extend(_find_resource_cycles(fixed))  # v83: ciklicheskie zavisimosti resursov
     if problems:
         return fixed, problems
 
@@ -770,7 +928,7 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
     # --- 0.66) v45: узлы, чей parent объявлен позже по файлу — переставляем.
     fixed = _reorder_nodes_for_parent_order(fixed)
     # --- 0.67) v50: prop = Type.new() — конструкторы GDScript в .tscn:
-    # однозначные превращаем в [sub_resource] + SubResource(...), спорные — модели.
+    # однозначные превращаем в [sub_resource] + SubResource(...), ��порные — модели.
     fixed = _convert_ctor_values(fixed, problems)
     # --- 0.68) v50: sub_resource со ссылкой на другой sub_resource должен
     # идти ПОЗЖЕ него — переставляем топологически.
@@ -1015,7 +1173,7 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
             problems.append(
                 '[ext_resource id="%s"] (PackedScene, %s) объявлен, но НЕ используется ни одним узлом — '
                 'эта сцена НЕ появится на экране, а Godot удалит неиспользуемое объявление при '
-                'пересохранении. Добавь узел-экземпляр: [node name="..." parent="." '
+                'пересохранении. Добавь узел-экзем��ляр: [node name="..." parent="." '
                 'instance=ExtResource("%s")] (без type= — тип берётся из самой сцены).'
                 % (rid, rpath, rid))
         else:

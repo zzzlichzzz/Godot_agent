@@ -1,6 +1,8 @@
 import os
 import shutil
 
+from text_sanitize import sanitize_llm_text
+
 EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__',
                  'node_modules', '.vs', '.vscode', '.agent_history',
                  # v77: мозг mini-lich (датасет+чекпоинты) меняется сам по себе постояннововремя обучения
@@ -93,8 +95,10 @@ def create_project_file(project_root, godot_path, content):
     # newline='\n': пишем LF, как это делает сам редактор Godot. Иначе на Windows
     # Python записал бы CRLF, а пересохранение файла в Godot меняло бы
     # каждый перенос строки — и откат ложно считал бы файл "изменённым".
+    # v86.2: страховка на записи — невидимые символы из веб-DOM (NBSP, NUL,
+    # zero-width) не должны попасть в файлы проекта, даже если парсер их пропустил.
     with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(content.replace('\r\n', '\n'))
+        f.write(sanitize_llm_text(content.replace('\r\n', '\n')) or '')
     return existed
 
 
@@ -107,8 +111,11 @@ def patch_project_file(project_root, godot_path, search_code, replace_code):
     with open(abs_path, 'r', encoding='utf-8-sig') as f:
         original_content = f.read()
     content = original_content.replace('\r\n', '\n')
-    search_norm = search_code.replace('\r\n', '\n')
-    replace_norm = replace_code.replace('\r\n', '\n')
+    # v86.2: чистим И искомый блок, И замену: файл на диске уже чистый, а блоки из
+    # ответа модели могут нести NBSP/zero-width — поиск бы ложно проваливался,
+    # а замена заражала бы файл невидимым мусором.
+    search_norm = sanitize_llm_text(search_code.replace('\r\n', '\n')) or ''
+    replace_norm = sanitize_llm_text(replace_code.replace('\r\n', '\n')) or ''
     occurrences = content.count(search_norm)
     if occurrences == 0:
         raise ValueError("Ошибка: Указанный старый блок кода не найден в файле.")
