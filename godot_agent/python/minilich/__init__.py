@@ -89,6 +89,24 @@ def set_training_mode(project_root, training):
     return data
 
 
+def set_train_pause(project_root, seconds):
+    """v86.6: пауза между всплесками обучения (сек, зажим 0..10).
+    Меньше пауза — быстрее учится и выше нагрузка на CPU. Подхватывается
+    обучением на лету (см. ml_train._burst_pause), перезапуск не нужен."""
+    try:
+        val = max(0.0, min(10.0, float(seconds)))
+    except (TypeError, ValueError):
+        return _load_settings(project_root)
+    data = _load_settings(project_root)
+    data["train_pause_sec"] = val
+    path = _settings_path(project_root)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, path)
+    return data
+
+
 BRAIN_PROFILES = ("smart",)
 
 # v81: фоновый сбор обучающих пар с GitHub (один за раз).

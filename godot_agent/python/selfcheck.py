@@ -3120,5 +3120,126 @@ with open(os.path.join(_root24, "src", "main.gd"), "r", encoding="utf-8") as _f2
 check("24.7 патч с NBSP в блоках находит и пишет чистый код",
       _disk24b.startswith("extends Node2D\n"), repr(_disk24b))
 
+# =====================================================================
+# РАЗДЕЛ 25 (v86.3): битые NodePath, вырожденные полигоны, живучесть мозга
+# =====================================================================
+print("\n--- 25. v86.3: NodePath-проверка линтера + сохранение прогресса mini-lich ---")
+import tscn_lint as _tl25
+
+_SCENE25 = """[gd_scene format=3]
+
+[node name="Root" type="Node2D"]
+
+[node name="BadPolygon" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(0, 0, 10, 0)
+
+[node name="BadTransform" type="RemoteTransform2D" parent="."]
+remote_path = NodePath("../GhostNode")
+
+[node name="PlayerSprite" type="Sprite2D" parent="."]
+
+[connection signal="ready" from="." to="." method="_on_ready"]
+"""
+_f25, _p25 = _tl25.lint_and_fix_tscn(_SCENE25)
+check("25.1 битый NodePath (../GhostNode) пойман", any("GhostNode" in p for p in _p25), _p25)
+check("25.2 полигон из 2 точек пойман", any("polygon" in p for p in _p25), _p25)
+
+_ok25 = _SCENE25.replace('NodePath("../GhostNode")', 'NodePath("../PlayerSprite")').replace(
+    "PackedVector2Array(0, 0, 10, 0)", "PackedVector2Array(0, 0, 10, 0, 10, 10)")
+_p25b = _tl25.lint_and_fix_tscn(_ok25)[1]
+check("25.3 валидные NodePath и полигон проходят чисто", not _p25b, _p25b)
+
+_p25c = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("/root/Global")'))[1]
+check("25.4 абсолютный путь (/root/...) не судим", not _p25c, _p25c)
+
+_p25u = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("%UniqueThing")'))[1]
+check("25.5 %UniqueName не судим", not _p25u, _p25u)
+
+_p25d = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("../../TooHigh")'))[1]
+check("25.6 путь выше корня сцены пойман", any(u"выше корня" in p for p in _p25d), _p25d)
+
+_p25e = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("../PlayerSprite:position")'))[1]
+check("25.7 путь со свойством (:position) на существующий узел проходит", not _p25e, _p25e)
+
+try:
+    import numpy as _np25  # noqa: F401
+    _HAS_NP25 = True
+except Exception:
+    _HAS_NP25 = False
+if _HAS_NP25:
+    import tempfile as _tmp25
+    import history_manager as _hm25
+    import minilich.ml_data as _mld25
+    import minilich.ml_train as _mlt25
+    _prev_base25 = _mld25._BASE_OVERRIDE
+    _prev_hist25 = _hm25._STORAGE_OVERRIDE
+    try:
+        _histbase25 = _tmp25.mkdtemp(prefix="ml25_hist_")
+        _proj25 = _tmp25.mkdtemp(prefix="ml25_proj_")
+        _hm25.set_storage_dir(_histbase25)
+        _old25 = os.path.join(_hm25.get_storage_dir(_proj25), _mld25.STORAGE_SUBDIR)
+        os.makedirs(os.path.join(_old25, "checkpoints_smart"), exist_ok=True)
+        with open(os.path.join(_old25, "checkpoints_smart", "ckpt_77.npz"), "wb") as _f25w:
+            _f25w.write(b"fake")
+        with open(os.path.join(_old25, _mld25.DATASET_FILE), "w", encoding="utf-8") as _f25w:
+            _f25w.write("")
+        _addon25 = _tmp25.mkdtemp(prefix="ml25_addon_")
+        _mld25._BASE_OVERRIDE = None
+        _mld25.set_storage_base(_addon25, _proj25)
+        check("25.8 миграция мозга переносит checkpoints_smart",
+              os.path.isfile(os.path.join(_addon25, "minilich_brain", "checkpoints_smart", "ckpt_77.npz")))
+
+        _addon25b = _tmp25.mkdtemp(prefix="ml25_addon2_")
+        _mld25.set_storage_base(_addon25b, None)  # «переустановка плагина»: мозг пуст
+        _bdir25 = _mlt25._backup_dir(_proj25)
+        with open(os.path.join(_bdir25, "ckpt_123.npz"), "wb") as _f25w:
+            _f25w.write(b"fake")
+        _n25 = _mlt25._rescue_checkpoints(_proj25)
+        check("25.9 спасение чекпоинтов из резерва вне папки плагина",
+              _n25 >= 1 and os.path.isfile(os.path.join(_mlt25.ckpt_dir(_proj25), "ckpt_123.npz")),
+              "спасено: %s" % _n25)
+
+        # 25.10 (v86.4): чекпоинт чужого профиля уходит в архив и не блокирует обучение
+        from minilich.ml_model import TinyTransformer as _TT25, default_config as _dc25
+        from minilich.ml_tokenizer import MiniLichTokenizer as _tk25
+        _cfg25 = _dc25(_tk25().vocab_size)  # старый профиль по умолчанию: 512x96
+        _oldm25 = _TT25(_cfg25, seed=1)
+        _oldm25.step = 111000
+        _oldm25.save(os.path.join(_mlt25.ckpt_dir(_proj25), "ckpt_111000.npz"))
+        _newm25 = _mlt25._ensure_model(_proj25)
+        _arch25 = os.path.join(_mlt25.ckpt_dir(_proj25), "archive_512x96")
+        check("25.10 чекпоинт чужого профиля в архиве, обучение не заблокировано",
+              _newm25.step == 0 and os.path.isfile(os.path.join(_arch25, "ckpt_111000.npz")),
+              "step=%s, dir=%s" % (_newm25.step, os.listdir(_mlt25.ckpt_dir(_proj25))))
+
+        # 25.11 (v86.5): _log обновляет метку «пульса»
+        import time as _time25
+        _mlt25._log(u"selfcheck: проверка пульса")
+        check("25.11 _log обновляет метку пульса (last_line_ts)",
+              abs(_time25.time() - (_mlt25._state.get("last_line_ts") or 0)) < 10,
+              "last_line_ts=%s" % _mlt25._state.get("last_line_ts"))
+        # 25.12 (v86.5): пульс-поток и отключение QuickEdit на месте
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py"), "r", encoding="utf-8") as _f25:
+            _main25 = _f25.read()
+        check("25.12 пульс-поток и отключение QuickEdit на месте",
+              callable(getattr(_mlt25, "_heartbeat_loop", None)) and "_disable_quickedit()" in _main25)
+
+        # 25.13 (v86.6): пауза обучения настраивается через settings.json на лету
+        import json as _json25
+        _sp25 = os.path.join(_mld25.storage_dir(_proj25), "settings.json")
+        if os.path.isfile(_sp25):
+            os.remove(_sp25)
+        _def25 = _mlt25._burst_pause(_proj25)
+        with open(_sp25, "w", encoding="utf-8") as _f25b:
+            _json25.dump({"train_pause_sec": 0.1}, _f25b)
+        check("25.13 пауза обучения настраивается через settings.json",
+              _def25 == _mlt25.BURST_PAUSE_SEC and abs(_mlt25._burst_pause(_proj25) - 0.1) < 1e-9,
+              "def=%s now=%s" % (_def25, _mlt25._burst_pause(_proj25)))
+    finally:
+        _mld25._BASE_OVERRIDE = _prev_base25
+        _hm25._STORAGE_OVERRIDE = _prev_hist25
+else:
+    print("(numpy недоступен — проверки 25.8/25.9 пропущены)")
+
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)
