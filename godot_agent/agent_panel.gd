@@ -122,6 +122,9 @@ var _minilich_set_pending: bool = false  # true пока ответ на minilic
 # v58: кнопка «Обучение модели» + живая консоль прогресса обучения.
 var _minilich_train_check: CheckBox = null
 var _minilich_train_warn: Label = null
+var _minilich_repos_edit: LineEdit = null
+var _minilich_github_btn: Button = null
+var _minilich_github_label: Label = null
 
 
 func _locale():
@@ -1348,13 +1351,20 @@ func _on_progress_response(_result: int, response_code: int, _headers: PackedStr
 func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = true) -> void:
 	if _link == null:
 		return
-	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status" and kind != "minilich_status" and kind != "minilich_set":
+	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status" and kind != "minilich_status" and kind != "minilich_set" and kind != "minilich_github":
 		_log_error(_t("wait_current"))
 		return
 	_link.request(kind, extra, allow_autostart)
 
 
 func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> void:
+	if kind == "minilich_github":
+		if _minilich_github_label:
+			if json.has("error"):
+				_minilich_github_label.text = str(json.get("error", ""))
+			else:
+				_minilich_github_label.text = _t("github_fetch_running")
+		return
 	if kind == "minilich_status" or kind == "minilich_set":
 		_on_minilich_payload(kind, json)
 		return
@@ -1788,6 +1798,17 @@ func _on_settings_pressed() -> void:
 		_minilich_train_warn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.2))
 		_minilich_train_warn.visible = false
 		box.add_child(_minilich_train_warn)
+		box.add_child(HSeparator.new())
+		_minilich_repos_edit = LineEdit.new()
+		_minilich_repos_edit.custom_minimum_size = Vector2(360, 0)
+		box.add_child(_minilich_repos_edit)
+		_minilich_github_btn = Button.new()
+		_minilich_github_btn.pressed.connect(_on_github_fetch_pressed)
+		box.add_child(_minilich_github_btn)
+		_minilich_github_label = Label.new()
+		_minilich_github_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_minilich_github_label.custom_minimum_size = Vector2(360, 0)
+		box.add_child(_minilich_github_label)
 		_settings_dialog.add_child(box)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
@@ -1795,6 +1816,12 @@ func _on_settings_pressed() -> void:
 	_minilich_check.text = _t("minilich_toggle")
 	_minilich_train_check.text = _t("train_mode_toggle")
 	_minilich_train_warn.text = _t("train_mode_warn")
+	if _minilich_repos_edit:
+		_minilich_repos_edit.placeholder_text = _t("github_repos_hint")
+	if _minilich_github_btn:
+		_minilich_github_btn.text = _t("github_fetch_btn")
+	if _minilich_github_label:
+		_minilich_github_label.text = ""
 	_minilich_status_label.text = _t("minilich_loading")
 	_settings_dialog.popup_centered()
 	# Статус запрашиваем БЕЗ автозапуска сервера — просто открытие настроек
@@ -1820,6 +1847,20 @@ func _on_minilich_toggled(pressed: bool) -> void:
 	_minilich_set_pending = true
 	# Здесь автозапуск разрешён: пользователь явно меняет настройку.
 	_request_chats("minilich_set", {"enabled": pressed})
+
+
+func _on_github_fetch_pressed() -> void:
+	# v81: сбор обучающих пар со сцен GitHub-репозиториев (только Godot 4, format=3).
+	var repos := ""
+	if _minilich_repos_edit:
+		repos = _minilich_repos_edit.text.strip_edges()
+	if repos == "":
+		if _minilich_github_label:
+			_minilich_github_label.text = _t("github_repos_empty")
+		return
+	if _minilich_github_label:
+		_minilich_github_label.text = _t("github_fetch_started")
+	_request_chats("minilich_github", {"repos": repos})
 
 
 func _on_minilich_payload(kind: String, json: Dictionary) -> void:

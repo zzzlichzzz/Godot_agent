@@ -31,6 +31,7 @@ const SITES_LIST_URL = "http://" + HOST + "/sites/list"
 const BROWSER_STATUS_URL = "http://" + HOST + "/browser/status"
 const MINILICH_STATUS_URL = "http://" + HOST + "/minilich/status"
 const MINILICH_SET_URL = "http://" + HOST + "/minilich/set"
+const MINILICH_GITHUB_URL = "http://" + HOST + "/minilich/github_fetch"
 const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
 
 var _http: HTTPRequest = null
@@ -106,6 +107,7 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 		"status": url = BROWSER_STATUS_URL
 		"minilich_status": url = MINILICH_STATUS_URL
 		"minilich_set": url = MINILICH_SET_URL
+		"minilich_github": url = MINILICH_GITHUB_URL
 	_kind = kind
 	_extra = extra
 	_autostart_ok = allow_autostart
@@ -141,7 +143,7 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 		server_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)
 		if kind == "status":
 			return
-		if kind == "minilich_status" or kind == "minilich_set":
+		if kind == "minilich_status" or kind == "minilich_set" or kind == "minilich_github":
 			# Отдельная ветка: клик по галочке не должен незаметно пытаться
 			# автозапускать вторую копию сервера — важнее сразу показать панели
 			# ошибку (раньше это молча уходило в автозапуск, и галочка просто

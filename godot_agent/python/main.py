@@ -1250,7 +1250,7 @@ def chat():
         if note:
             prompt = f"{note}\n\n{prompt}"
 
-        # Сводка «что изменилось, пока чат был неактивен» (готовится при
+        # Сводка «что изменилось, пока чат был неа��тивен» (готовится при
         # открытии чата, отправляется ОДИН раз с первым сообщением).
         stale = STATE.get("stale_note", "")
         if stale:
@@ -1726,6 +1726,24 @@ def minilich_set():
     except Exception as e:
         print("[minilich] /set: ошибка:", e)
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/minilich/github_fetch', methods=['POST'])
+def minilich_github_fetch():
+    """v81: сбор обучающих пар со сцен GitHub по кнопке из панели (в фоне)."""
+    data = request.json or {}
+    _apply_session_context(data)
+    root = STATE.get("project_root")
+    if not root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    repos_text = (data.get("repos") or "").strip()
+    if not repos_text:
+        return jsonify({"error": "Укажи ссылки на репозитории GitHub (через запятую или пробел)."}), 400
+    started = minilich.github_fetch_async(root, STATE.get("addon_dir"), repos_text)
+    if not started:
+        return jsonify({"error": "Сбор с GitHub уже идёт — прогресс в журнале обучения."}), 409
+    print("[minilich] /github_fetch: запущен сбор, repos=%s" % repos_text)
+    return jsonify({"started": True})
 
 
 @app.route('/project/api_cache_status', methods=['POST'])

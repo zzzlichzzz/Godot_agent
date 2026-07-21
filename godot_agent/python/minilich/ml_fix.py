@@ -116,9 +116,24 @@ def _focus_names(problems):
     return names
 
 
+_RES_REF_RE = re.compile(r'(?:SubResource|ExtResource)\("([^"]+)"\)')
+
+
+def _referenced_ids(text):
+    """id ресурсов (Sub/ExtResource), на которые ссылается текст блока."""
+    return set(_RES_REF_RE.findall(text or ""))
+
+
 def trim_scene_for_context(scene, problems, tok, max_ids):
     """если сцена не влезает в max_ids токенов — оставляет сломанный
-    узел + ближайших родителей/детей (+ заголовок и ресурсы)."""
+    узел + ближайших родителей/детей (+ заголовок и только ДЕЙСТВИТЕЛЬНО
+    используемые этими узлами ресурсы).
+    v86: раньше сюда безусловно попадали ВСЕ ext_resource/sub_resource сцены
+    целиком — на сценах с десятками ресурсов (богатые эталонные сцены,
+    крупные проекты) это само по себе переполняло контекст, и обрезка не
+    спасала. Теперь ресурсы тянутся по замыканию ссылок SubResource/
+    ExtResource, начиная от оставленных узлов (и друг от друга — ресурс
+    может ссылаться на другой ресурс, например Environment -> Sky)."""
     if len(tok.encode(scene)) <= max_ids:
         return scene, None
     blocks = _split_blocks(scene)
@@ -136,22 +151,43 @@ def trim_scene_for_context(scene, problems, tok, max_ids):
             par_last = info[2].split("/")[-1] if info[2] else ""
             if par_last in focus:
                 keep_names.add(info[1])
-    kept_blocks = []
-    kept_keys = []
-    for block, info in zip(blocks, infos):
-        if info[0] in ("header", "ext_resource", "sub_resource"):
-            kept_blocks.append(block)
-            kept_keys.append(info)
-        elif info[0] == "node" and info[1] in keep_names:
-            kept_blocks.append(block)
-            kept_keys.append(info)
-    if not any(info[0] == "node" for info in kept_keys):
+    node_blocks = [block for block, info in zip(blocks, infos)
+                   if info[0] == "node" and info[1] in keep_names]
+    if not node_blocks:
+        # запасной путь: не нашли узлы по имени — добираем их по бюджету,
+        # начиная с заголовка, ресурсы сюда пока не считаем.
+        budget_blocks = [b for b, info in zip(blocks, infos) if info[0] == "header"]
         for block, info in zip(blocks, infos):
             if info[0] != "node":
                 continue
-            trial = kept_blocks + [block]
+            trial = budget_blocks + [block]
             if len(tok.encode("\n\n".join(trial))) > max_ids:
                 break
+            budget_blocks.append(block)
+            node_blocks.append(block)
+            keep_names.add(info[1])
+    res_by_id = {info[1]: block for block, info in zip(blocks, infos)
+                 if info[0] in ("ext_resource", "sub_resource")}
+    needed = set()
+    frontier = set()
+    for block in node_blocks:
+        frontier |= _referenced_ids(block)
+    while frontier:
+        rid = frontier.pop()
+        if rid in needed or rid not in res_by_id:
+            continue
+        needed.add(rid)
+        frontier |= _referenced_ids(res_by_id[rid])
+    kept_blocks = []
+    kept_keys = []
+    for block, info in zip(blocks, infos):
+        if info[0] == "header":
+            kept_blocks.append(block)
+            kept_keys.append(info)
+        elif info[0] in ("ext_resource", "sub_resource") and info[1] in needed:
+            kept_blocks.append(block)
+            kept_keys.append(info)
+        elif info[0] == "node" and info[1] in keep_names:
             kept_blocks.append(block)
             kept_keys.append(info)
     return "\n\n".join(kept_blocks), kept_keys
@@ -160,15 +196,23 @@ def trim_scene_for_context(scene, problems, tok, max_ids):
 def trim_pair_for_context(broken, problems, fixed, max_ids):
     """v79: обрезает ПАРУ (сломано, исправлено) до одинакового набора узлов,
     чтобы длинные пары можно было учить фрагментами — ровно так же, как
-    neural_fix обрезает сцену в бою. Если пара влезает целиком — не трогает."""
+    neural_fix обрезает сцену в бою. Если пара влезает целиком — не трогает.
+    v86: раньше сторона «fixed» тут тащила все ext_resource/sub_resource безусловно
+    (даже когда сторона «broken» уже была аккуратно обрезана по замыканию) — на
+    богатых ресурсами сценах это одно перечёркивало весь выигрыш от обрезки брокенной
+    стороны. Теперь обе стороны держат один и тот же набор id ресурсов (из
+    kept_keys от trim_scene_for_context), а не все ресурсы сцены."""
     trimmed_broken, kept_keys = trim_scene_for_context(broken, problems, _TOK, max_ids)
     if kept_keys is None:
         return broken, fixed
     keep_nodes = set(info[1] for info in kept_keys if info[0] == "node")
+    keep_res = set(info[1] for info in kept_keys if info[0] in ("ext_resource", "sub_resource"))
     kept = []
     for block in _split_blocks(fixed):
         info = _block_info(block)
-        if info[0] in ("header", "ext_resource", "sub_resource"):
+        if info[0] == "header":
+            kept.append(block)
+        elif info[0] in ("ext_resource", "sub_resource") and info[1] in keep_res:
             kept.append(block)
         elif info[0] == "node" and info[1] in keep_nodes:
             kept.append(block)
@@ -326,7 +370,7 @@ def build_training_ids(broken, problems, fixed):
     return ids, answer_start
 
 
-def neural_fix(scene_text, problems, project_root, temperature=0.0):
+def neural_fix(scene_text, problems, project_root, temperature=0.0, model=None):
     """Пытается починить сцену обученной моделью. None, если чекпоинта нет
     или вход не помещается в контекст даже после обрезки (v58).
 
@@ -334,7 +378,10 @@ def neural_fix(scene_text, problems, project_root, temperature=0.0):
     окружения (Gemini review); исправленный фрагмент сшивается обратно в полную
     сцену; итог всё равно должен пройти полный линтер в try_fix_scene (verify)."""
     from . import ml_train
-    model = ml_train.load_latest_model(project_root)
+    # v86.1: model можно передать снаружи — массовые прогоны (мастерство/экзамен
+    # памяти эталонов) не перечитывают чекпоинт с диска на каждую пару.
+    if model is None:
+        model = ml_train.load_latest_model(project_root)
     if model is None:
         return None
     # v70: сначала пробуем полную сцену — так модель видит примеры при обучении;

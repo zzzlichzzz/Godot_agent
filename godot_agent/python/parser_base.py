@@ -20,6 +20,8 @@ import json
 import re
 import time
 
+from text_sanitize import sanitize_llm_text
+
 from selenium.common.exceptions import (
     JavascriptException,
     StaleElementReferenceException,
@@ -188,6 +190,8 @@ def parse_action_json(raw: str):
     Возвращает (dict_or_None, error_message_or_None)."""
     if raw is None:
         return None, None
+    # v86.2: невидимые символы из DOM (NBSP/NUL/zero-width) ломают json.loads
+    raw = sanitize_llm_text(raw)
     base = _strip_code_fences(raw)
     candidates = [base, _extract_json_object(base)]
     for cand in list(candidates):
@@ -954,8 +958,10 @@ class BaseSiteParser:
                 return {"text": "[Ошибка]: модель не дала НОВЫЙ ответ (на странице найден только старый). "
                                 "Отправьте сообщение ещё раз.",
                         "action": None}
-        text = (result or {}).get("text") or ""
-        raw_action = (result or {}).get("actionRaw")
+        # v86.2: чистим невидимый мусор из веб-DOM (кейс qwen: NBSP U+00A0, NUL,
+        # zero-width) — иначе он попадает в .gd/.tscn и Godot падает на парсинге.
+        text = sanitize_llm_text((result or {}).get("text") or "")
+        raw_action = sanitize_llm_text((result or {}).get("actionRaw"))
         error = (result or {}).get("error")
         if error:
             self._log("JS extraction error: %s" % error)
