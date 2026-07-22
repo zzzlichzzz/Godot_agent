@@ -3120,5 +3120,472 @@ with open(os.path.join(_root24, "src", "main.gd"), "r", encoding="utf-8") as _f2
 check("24.7 патч с NBSP в блоках находит и пишет чистый код",
       _disk24b.startswith("extends Node2D\n"), repr(_disk24b))
 
+# =====================================================================
+# РАЗДЕЛ 25 (v86.3): битые NodePath, вырожденные полигоны, живучесть мозга
+# =====================================================================
+print("\n--- 25. v86.3: NodePath-проверка линтера + сохранение прогресса mini-lich ---")
+import tscn_lint as _tl25
+
+_SCENE25 = """[gd_scene format=3]
+
+[node name="Root" type="Node2D"]
+
+[node name="BadPolygon" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(0, 0, 10, 0)
+
+[node name="BadTransform" type="RemoteTransform2D" parent="."]
+remote_path = NodePath("../GhostNode")
+
+[node name="PlayerSprite" type="Sprite2D" parent="."]
+
+[connection signal="ready" from="." to="." method="_on_ready"]
+"""
+_f25, _p25 = _tl25.lint_and_fix_tscn(_SCENE25)
+check("25.1 битый NodePath (../GhostNode) пойман", any("GhostNode" in p for p in _p25), _p25)
+check("25.2 полигон из 2 точек пойман", any("polygon" in p for p in _p25), _p25)
+
+_ok25 = _SCENE25.replace('NodePath("../GhostNode")', 'NodePath("../PlayerSprite")').replace(
+    "PackedVector2Array(0, 0, 10, 0)", "PackedVector2Array(0, 0, 10, 0, 10, 10)")
+_p25b = _tl25.lint_and_fix_tscn(_ok25)[1]
+check("25.3 валидные NodePath и полигон проходят чисто", not _p25b, _p25b)
+
+_p25c = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("/root/Global")'))[1]
+check("25.4 абсолютный путь (/root/...) не судим", not _p25c, _p25c)
+
+_p25u = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("%UniqueThing")'))[1]
+check("25.5 %UniqueName не судим", not _p25u, _p25u)
+
+_p25d = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("../../TooHigh")'))[1]
+check("25.6 путь выше корня сцены пойман", any(u"выше корня" in p for p in _p25d), _p25d)
+
+_p25e = _tl25.lint_and_fix_tscn(_ok25.replace('NodePath("../PlayerSprite")', 'NodePath("../PlayerSprite:position")'))[1]
+check("25.7 путь со свойством (:position) на существующий узел проходит", not _p25e, _p25e)
+
+try:
+    import numpy as _np25  # noqa: F401
+    _HAS_NP25 = True
+except Exception:
+    _HAS_NP25 = False
+if _HAS_NP25:
+    import tempfile as _tmp25
+    import history_manager as _hm25
+    import minilich.ml_data as _mld25
+    import minilich.ml_train as _mlt25
+    _prev_base25 = _mld25._BASE_OVERRIDE
+    _prev_hist25 = _hm25._STORAGE_OVERRIDE
+    try:
+        _histbase25 = _tmp25.mkdtemp(prefix="ml25_hist_")
+        _proj25 = _tmp25.mkdtemp(prefix="ml25_proj_")
+        _hm25.set_storage_dir(_histbase25)
+        _old25 = os.path.join(_hm25.get_storage_dir(_proj25), _mld25.STORAGE_SUBDIR)
+        os.makedirs(os.path.join(_old25, "checkpoints_smart"), exist_ok=True)
+        with open(os.path.join(_old25, "checkpoints_smart", "ckpt_77.npz"), "wb") as _f25w:
+            _f25w.write(b"fake")
+        with open(os.path.join(_old25, _mld25.DATASET_FILE), "w", encoding="utf-8") as _f25w:
+            _f25w.write("")
+        _addon25 = _tmp25.mkdtemp(prefix="ml25_addon_")
+        _mld25._BASE_OVERRIDE = None
+        _mld25.set_storage_base(_addon25, _proj25)
+        check("25.8 миграция мозга переносит checkpoints_smart",
+              os.path.isfile(os.path.join(_addon25, "minilich_brain", "checkpoints_smart", "ckpt_77.npz")))
+
+        _addon25b = _tmp25.mkdtemp(prefix="ml25_addon2_")
+        _mld25.set_storage_base(_addon25b, None)  # «переустановка плагина»: мозг пуст
+        _bdir25 = _mlt25._backup_dir(_proj25)
+        with open(os.path.join(_bdir25, "ckpt_123.npz"), "wb") as _f25w:
+            _f25w.write(b"fake")
+        _n25 = _mlt25._rescue_checkpoints(_proj25)
+        check("25.9 спасение чекпоинтов из резерва вне папки плагина",
+              _n25 >= 1 and os.path.isfile(os.path.join(_mlt25.ckpt_dir(_proj25), "ckpt_123.npz")),
+              "спасено: %s" % _n25)
+
+        # 25.10 (v86.4): чекпоинт чужого профиля уходит в архив и не блокирует обучение
+        from minilich.ml_model import TinyTransformer as _TT25, default_config as _dc25
+        from minilich.ml_tokenizer import MiniLichTokenizer as _tk25
+        _cfg25 = _dc25(_tk25().vocab_size)  # старый профиль по умолчанию: 512x96
+        _oldm25 = _TT25(_cfg25, seed=1)
+        _oldm25.step = 111000
+        _oldm25.save(os.path.join(_mlt25.ckpt_dir(_proj25), "ckpt_111000.npz"))
+        _newm25 = _mlt25._ensure_model(_proj25)
+        _arch25 = os.path.join(_mlt25.ckpt_dir(_proj25), "archive_512x96")
+        check("25.10 чекпоинт чужого профиля в архиве, обучение не заблокировано",
+              _newm25.step == 0 and os.path.isfile(os.path.join(_arch25, "ckpt_111000.npz")),
+              "step=%s, dir=%s" % (_newm25.step, os.listdir(_mlt25.ckpt_dir(_proj25))))
+
+        # 25.11 (v86.5): _log обновляет метку «пульса»
+        import time as _time25
+        _mlt25._log(u"selfcheck: проверка пульса")
+        check("25.11 _log обновляет метку пульса (last_line_ts)",
+              abs(_time25.time() - (_mlt25._state.get("last_line_ts") or 0)) < 10,
+              "last_line_ts=%s" % _mlt25._state.get("last_line_ts"))
+        # 25.12 (v86.5): пульс-поток и отключение QuickEdit на месте
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py"), "r", encoding="utf-8") as _f25:
+            _main25 = _f25.read()
+        check("25.12 пульс-поток и отключение QuickEdit на месте",
+              callable(getattr(_mlt25, "_heartbeat_loop", None)) and "_disable_quickedit()" in _main25)
+
+        # 25.13 (v86.6): пауза обучения настраивается через settings.json на лету
+        import json as _json25
+        _sp25 = os.path.join(_mld25.storage_dir(_proj25), "settings.json")
+        if os.path.isfile(_sp25):
+            os.remove(_sp25)
+        _def25 = _mlt25._burst_pause(_proj25)
+        with open(_sp25, "w", encoding="utf-8") as _f25b:
+            _json25.dump({"train_pause_sec": 0.1}, _f25b)
+        check("25.13 пауза обучения настраивается через settings.json",
+              _def25 == _mlt25.BURST_PAUSE_SEC and abs(_mlt25._burst_pause(_proj25) - 0.1) < 1e-9,
+              "def=%s now=%s" % (_def25, _mlt25._burst_pause(_proj25)))
+    finally:
+        _mld25._BASE_OVERRIDE = _prev_base25
+        _hm25._STORAGE_OVERRIDE = _prev_hist25
+else:
+    print("(numpy недоступен — проверки 25.8/25.9 пропущены)")
+
+# ---------------------------------------------------------------------------
+# РАЗДЕЛ 26 (v86.7): парсер — золотой корпус и починки
+# ---------------------------------------------------------------------------
+print("\n--- РАЗДЕЛ 26: парсер — золотой корпус и починки (v86.7) ---")
+import tempfile as _tf26
+import parser_base as _pb26
+
+# 26.1 хвостовой текст с '}' после действия не мешает разбору
+_a26, _e26 = _pb26.parse_action_json(u'{"action": "create_file", "path": "res://a.gd", "content": "x"}\n\nГотово, обращайтесь ещё :}')
+check("26.1 хвостовой текст с '}' после действия не мешает разбору",
+      isinstance(_a26, dict) and _a26.get("action") == "create_file" and _a26.get("content") == "x",
+      str(_e26))
+
+# 26.2 пропущенная запятая между полями чинится
+_a26b, _e26b = _pb26.parse_action_json(u'{"action": "patch_file", "path": "res://b.tscn"\n"find": "old", "replace": "new"}')
+check("26.2 пропущенная запятая между полями чинится",
+      isinstance(_a26b, dict) and _a26b.get("action") == "patch_file" and _a26b.get("find") == "old",
+      str(_e26b))
+
+# 26.3 предпочитается объект с ключом action, а не первый попавшийся JSON
+_a26c, _e26c = _pb26.parse_action_json(u'Сводка: {"файлов": 3}. Действие:\n{"action": "plan", "description": "d", "steps": []}')
+check("26.3 предпочитается объект с ключом action, а не первый попавшийся JSON",
+      isinstance(_a26c, dict) and _a26c.get("action") == "plan", str(_e26c))
+
+# 26.4 золотой корпус: образец провала сохраняется
+_cd26 = _tf26.mkdtemp(prefix="corpus26_")
+os.environ["GODOT_AGENT_CORPUS_DIR"] = _cd26
+try:
+    _p26 = _pb26._save_corpus_sample(u'совсем не JSON {"action": ', u"тестовая ошибка")
+    check("26.4 образец провала сохраняется в золотой корпус",
+          _p26 is not None and os.path.isfile(_p26) and os.path.dirname(_p26) == _cd26,
+          str(_p26))
+    # 26.5 прогон корпуса: parse_action_json не должен кидать исключения
+    _n26 = 0
+    _exc26 = None
+    try:
+        for _fn26 in sorted(os.listdir(_cd26)):
+            if _fn26.endswith(".txt"):
+                with open(os.path.join(_cd26, _fn26), "r", encoding="utf-8") as _f26:
+                    _pb26.parse_action_json(_f26.read())
+                _n26 += 1
+    except Exception as _e26x:
+        _exc26 = _e26x
+    check("26.5 прогон золотого корпуса без исключений (файлов: %d)" % _n26,
+          _exc26 is None, str(_exc26))
+finally:
+    os.environ.pop("GODOT_AGENT_CORPUS_DIR", None)
+
+# 26.6 подтверждение вставки учитывает contenteditable (по исходнику)
+_pb26_src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "parser_base.py"), "r", encoding="utf-8").read()
+check("26.6 вставка текста подтверждается и для contenteditable-полей",
+      "innerText||e.textContent" in _pb26_src
+      and 'execute_script("return arguments[0].value;", el)' not in _pb26_src)
+
+# 26.7 кандидаты разбора без дублей, метрики доступны
+_cands26 = _pb26._build_candidates(u'{"action": "x"}')
+_st26 = _pb26.get_parse_stats()
+_tot26 = sum(_st26.get(_k26, 0) for _k26 in ("ok_first", "ok_repaired", "ok_json_repair", "fail"))
+check("26.7 кандидаты разбора без дублей, метрики доступны",
+      len(_cands26) == len(set(_c26 for _l26, _c26 in _cands26)) and _tot26 >= 3,
+      "candidates=%d, parses=%d" % (len(_cands26), _tot26))
+
+# ---------------------------------------------------------------------------
+# РАЗДЕЛ 27 (v86.8): маркер-часовой конец ответа ===DONE===
+# ---------------------------------------------------------------------------
+print("\n--- РАЗДЕЛ 27: маркер-часовой конец ответа (v86.8) ---")
+import time as _t27
+import parser_base as _pb27
+import agent_prompts as _ap27
+
+# 27.1 промпт и парсер синхронизированы (оба знают о маркере ===DONE===)
+check("27.1 PRIMING_TEMPLATE требует маркер ===DONE===, парсер его знает",
+      _pb27.DONE_MARKER in _ap27.PRIMING_TEMPLATE and _pb27.DONE_MARKER == "===DONE===")
+
+# 27.2 _has_done_marker: позитивные и отрицательные варианты
+_true27 = [
+    u"текст ответа\n===DONE===",
+    u"текст ответа\n===DONE===\n\n",
+    u"текст\n=== done ===",
+    u"текст\n====DONE====   ",
+    u"```agent_action\n{\"action\": \"create_file\"}\n```\n===DONE===",
+]
+_false27 = [
+    u"просто текст без маркера",
+    u"текст ===DONСН=== что-то ещё после",
+    u"",
+    None,
+    u"# === DONE === (в середине кода)\nfunc f(): pass",
+]
+check("27.2 _has_done_marker распознаёт маркер (разные отстуупы/регистр/хвост) и не путает его в середине текста",
+      all(_pb27._has_done_marker(c) for c in _true27) and not any(_pb27._has_done_marker(c) for c in _false27))
+
+# 27.3 _strip_done_marker: убирает маркер и хвостовые переносы, не трогает текст без маркера
+check("27.3 _strip_done_marker убирает маркер, не портит текст без него",
+      _pb27._strip_done_marker(u"ответ\n===DONE===") == u"ответ"
+      and _pb27._strip_done_marker(u"ответ\n===DONE===\n\n") == u"ответ"
+      and _pb27._strip_done_marker(u"без маркера") == u"без маркера"
+      and _pb27._strip_done_marker(u"") == u""
+      and _pb27._strip_done_marker(None) is None
+      and _pb27._strip_done_marker((u"x" * 200) + u"\n===DONE===") == u"x" * 200)
+
+# 27.4 центральная точка очистки в send_message_and_get_response на месте (источник)
+_src27 = open(os.path.join(_here, "parser_base.py"), "r", encoding="utf-8").read()
+check("27.4 send_message_and_get_response чистит маркер перед выдачей текста",
+      "text = _strip_done_marker(text)" in _src27)
+check("27.5 agent_prompts.py содержит правило про ===DONE===",
+      "===DONE===" in open(os.path.join(_here, "agent_prompts.py"), "r", encoding="utf-8").read())
+
+# 27.6 поведение: wait_for_new_answer завершается гораздо быстрее с маркером, без ожидания тишины
+class _FP27(_pb27.BaseSiteParser):
+    LOG_TAG = "t27"
+    def __init__(self, text, marker):
+        self._text = text + ("\n===DONE===" if marker else "")
+        self._gen_until = _t27.time() + 0.05
+    def count_answers(self, driver):
+        return 2
+    def answer_len(self, driver):
+        return len(self._text)
+    def answer_preview(self, driver):
+        return self._text[:80]
+    def answer_stream(self, driver):
+        return self._text
+    def is_generating(self, driver):
+        return _t27.time() < self._gen_until
+    def extract_answer(self, driver):
+        return {"text": self._text, "actionRaw": None, "error": None}
+
+_kw27 = dict(timeout=8, quiet_period=3.0, hard_quiet_period=10.0, poll_interval=0.05, post_quiet_grace=0.05)
+_t0_27 = _t27.time()
+_p27m = _FP27(u"готово", marker=True)
+_r27m = _p27m.wait_for_new_answer(None, 1, **_kw27)
+_dt27m = _t27.time() - _t0_27
+_t0_27b = _t27.time()
+_p27n = _FP27(u"готово", marker=False)
+_r27n = _p27n.wait_for_new_answer(None, 1, **_kw27)
+_dt27n = _t27.time() - _t0_27b
+check("27.6 wait_for_new_answer с ===DONE=== завершается без ожидания quiet_period",
+      _dt27m < 1.0 and (_r27m or {}).get("text") == u"готово\n===DONE===",
+      "%.2f c" % _dt27m)
+check("27.7 без маркера по-старому ждёт quiet_period (обратная совместимость)",
+      _dt27n >= 3.0 and (_r27n or {}).get("text") == u"готово", "%.2f c" % _dt27n)
+check("27.8 маркер даёт существенное ускорение (>=3x)",
+      _dt27n / max(_dt27m, 0.01) >= 3.0, "%.1fx" % (_dt27n / max(_dt27m, 0.01)))
+
+# ---------------------------------------------------------------------------
+# РАЗДЕЛ 28 (v86.9): content_ref/search_ref/replace_ref — код без экранирования
+# ---------------------------------------------------------------------------
+print("\n--- РАЗДЕЛ 28: content_ref/search_ref/replace_ref (v86.9) ---")
+import parser_base as _pb28
+
+_raw28_create = (
+    '```agent_action\n'
+    '{"action": "create_file", "path": "res://scripts/x.gd", "content_ref": "FILE_1"}\n'
+    '===FILE_1===\n'
+    'extends Node2D\nfunc _ready():\n\tprint("quotes \\" and backslash \\\\\\\\ inside, no escaping needed")\n\tpass\n'
+    '===END_FILE_1===\n'
+    '```'
+)
+_obj28a, _err28a = _pb28.parse_action_json(_raw28_create)
+check("28.1 create_file + content_ref: тело подставлено буквально, ref-ключ убран",
+      _err28a is None and _obj28a is not None
+      and "content_ref" not in _obj28a
+      and _obj28a.get("content") == 'extends Node2D\nfunc _ready():\n\tprint("quotes \\" and backslash \\\\ inside, no escaping needed")\n\tpass')
+
+_raw28_patch = (
+    '```agent_action\n'
+    '{"action": "patch_file", "path": "res://scripts/p.gd", "search_ref": "FILE_1", "replace_ref": "FILE_2", "summary": "fix"}\n'
+    '===FILE_1===\nvar hp = 100\n===END_FILE_1===\n'
+    '===FILE_2===\nvar hp = 200  # кавычки и слэш \\\\\n===END_FILE_2===\n'
+    '```'
+)
+_obj28b, _err28b = _pb28.parse_action_json(_raw28_patch)
+check("28.2 patch_file + search_ref/replace_ref: два блока разведены корректно",
+      _err28b is None and _obj28b is not None
+      and _obj28b.get("search") == "var hp = 100"
+      and _obj28b.get("replace") == u"var hp = 200  # кавычки и слэш \\\\"
+      and "search_ref" not in _obj28b and "replace_ref" not in _obj28b)
+
+_raw28_plan = (
+    '```agent_action\n'
+    '{"action": "plan", "description": "d", "steps": ['
+    '{"action": "create_file", "path": "res://a.gd", "content_ref": "FILE_1"}, '
+    '{"action": "patch_file", "path": "res://b.gd", "search_ref": "FILE_2", "replace_ref": "FILE_3", "summary": "s"}'
+    ']}\n'
+    '===FILE_1===\ncontent A\n===END_FILE_1===\n'
+    '===FILE_2===\nold B\n===END_FILE_2===\n'
+    '===FILE_3===\nnew B\n===END_FILE_3===\n'
+    '```'
+)
+_obj28c, _err28c = _pb28.parse_action_json(_raw28_plan)
+check("28.3 plan: у каждого шага своя метка, обе резолвятся независимо",
+      _err28c is None and _obj28c is not None
+      and _obj28c["steps"][0].get("content") == "content A"
+      and _obj28c["steps"][1].get("search") == "old B"
+      and _obj28c["steps"][1].get("replace") == "new B")
+
+_raw28_old = '```agent_action\n{"action": "create_file", "path": "res://y.gd", "content": "extends Node"}\n```'
+_obj28d, _err28d = _pb28.parse_action_json(_raw28_old)
+check("28.4 обратная совместимость: старый прямой content без ref работает как раньше",
+      _err28d is None and _obj28d is not None and _obj28d.get("content") == "extends Node")
+
+_raw28_missing = '```agent_action\n{"action": "create_file", "path": "res://z.gd", "content_ref": "FILE_9"}\n```'
+_obj28e, _err28e = _pb28.parse_action_json(_raw28_missing)
+check("28.5 отсутствующее тело метки — явная ошибка для self-heal, а не тихая потеря content",
+      _obj28e is None and _err28e is not None and "FILE_9" in _err28e)
+
+_raw28_hash = (
+    '```agent_action\n'
+    '{"action": "create_file", "path": "res://c.gd", "content_ref": "FILE_1"}\n'
+    '===FILE_1===\n# ===================\nextends Node\n# ===================\n'
+    '===END_FILE_1===\n'
+    '```'
+)
+_obj28f, _err28f = _pb28.parse_action_json(_raw28_hash)
+check("28.6 случайные '===' внутри содержимого (разделители-комментарии) не путают границы блока",
+      _err28f is None and _obj28f is not None
+      and _obj28f.get("content") == "# ===================\nextends Node\n# ===================")
+
+check("28.7 промпт описывает content_ref/search_ref/replace_ref и формат ===МЕТКА===/===END_МЕТКА===",
+      "content_ref" in _ap27.PRIMING_TEMPLATE and "search_ref" in _ap27.PRIMING_TEMPLATE
+      and "replace_ref" in _ap27.PRIMING_TEMPLATE and "===END_" in _ap27.PRIMING_TEMPLATE)
+
+
+# ---------------------------------------------------------------------------
+# РАЗДЕЛ 29 (v86.10): wait_for_new_answer — состояние-машина (шаг 4 плана)
+# ---------------------------------------------------------------------------
+print("\n--- РАЗДЕЛ 29: wait_for_new_answer — состояние-машина (v86.10) ---")
+import parser_base as _pb29
+
+class _FakeDriver29(object):
+    pass
+
+class _Script29(object):
+    """events: [(state_dict, hold_seconds), ...]. Состояние "сайта" выбирается
+    по реальному времени с начала сценария; последнее состояние держится навечно."""
+    def __init__(self, events):
+        self.events = events
+        self.t0 = time.time()
+
+    def cur(self):
+        elapsed = time.time() - self.t0
+        acc = 0.0
+        for state, hold in self.events:
+            acc += hold
+            if elapsed < acc:
+                return state
+        return self.events[-1][0]
+
+class _FakeParser29(_pb29.BaseSiteParser):
+    def __init__(self, script):
+        self.script = script
+        self.logs29 = []
+
+    def _log(self, msg):
+        self.logs29.append(msg)
+
+    def count_answers(self, driver):
+        return self.script.cur()["count"]
+
+    def is_generating(self, driver):
+        return self.script.cur()["generating"]
+
+    def answer_len(self, driver):
+        return self.script.cur()["length"]
+
+    def answer_preview(self, driver):
+        return self.script.cur().get("preview", "")
+
+    def answer_stream(self, driver):
+        return self.script.cur().get("stream", "")
+
+    def get_live_activity(self, driver):
+        return self.script.cur().get("activity", {}) or {}
+
+    def extract_answer(self, driver):
+        e = self.script.cur()
+        return {"text": e.get("text", ""), "actionRaw": e.get("actionRaw")}
+
+def _run29(events, **kw):
+    p = _FakeParser29(_Script29(events))
+    kw.setdefault("timeout", 3.0)
+    kw.setdefault("quiet_period", 0.05)
+    kw.setdefault("hard_quiet_period", 0.2)
+    kw.setdefault("poll_interval", 0.01)
+    kw.setdefault("post_quiet_grace", 0.1)
+    return p, kw
+
+# 29.1 обычный успешный путь: WAIT_NEW_MESSAGE -> WAIT_FIRST_TEXT -> STABILIZE -> VERIFY_COMPLETE -> DONE
+_p29a, _kw29a = _run29([
+    ({"count": 1, "generating": True, "length": 0, "text": "", "actionRaw": None}, 0.05),
+    ({"count": 2, "generating": True, "length": 5, "text": "hello", "actionRaw": None, "stream": "hello"}, 0.05),
+    ({"count": 2, "generating": False, "length": 5, "text": "hello", "actionRaw": None, "stream": "hello"}, 5.0),
+])
+_r29a = _p29a.wait_for_new_answer(_FakeDriver29(), 1, **_kw29a)
+check("29.1 обычный путь по всем состояниям возвращает готовый ответ",
+      _r29a is not None and _r29a.get("text") == "hello")
+
+# 29.2 маркер ===DONE=== в потоке — досрочный выход из STABILIZE, как и раньше (v86.8)
+_p29b, _kw29b = _run29([
+    ({"count": 1, "generating": True, "length": 0, "text": "", "actionRaw": None}, 0.05),
+    ({"count": 2, "generating": True, "length": 4, "text": "done", "actionRaw": None, "stream": "done\n===DONE==="}, 0.05),
+    ({"count": 2, "generating": False, "length": 4, "text": "done", "actionRaw": None, "stream": "done\n===DONE==="}, 5.0),
+])
+_r29b = _p29b.wait_for_new_answer(_FakeDriver29(), 1, **_kw29b)
+check("29.2 маркер ===DONE=== завершает STABILIZE досрочно (лог + верный результат)",
+      _r29b is not None and _r29b.get("text") == "done"
+      and any(u"===DONE===" in m for m in _p29b.logs29))
+
+# 29.3 анти-дубль: STABILIZE застывает на старом ответе -> ANTI_STALE -> дожидается настоящего нового
+_stale_text = "старый ответ"
+_p29c, _kw29c = _run29([
+    ({"count": 1, "generating": True, "length": len(_stale_text), "text": _stale_text, "actionRaw": None, "stream": _stale_text}, 0.05),
+    ({"count": 1, "generating": False, "length": len(_stale_text), "text": _stale_text, "actionRaw": None, "stream": _stale_text}, 0.3),
+    ({"count": 2, "generating": True, "length": 5, "text": "новый", "actionRaw": None, "stream": "новый"}, 0.1),
+    ({"count": 2, "generating": False, "length": 5, "text": "новый", "actionRaw": None, "stream": "новый"}, 5.0),
+])
+_r29c = _p29c.wait_for_new_answer(_FakeDriver29(), 1, **_kw29c)
+check("29.3 анти-дубль (ANTI_STALE) дожидается настоящего нового ответа, не возвращает старый",
+      _r29c is not None and _r29c.get("text") == "новый"
+      and any(u"анти-дубль" in m for m in _p29c.logs29))
+
+# 29.4 таймаут в WAIT_NEW_MESSAGE, если ответ вообще не появляется
+_p29d, _kw29d = _run29([
+    ({"count": 1, "generating": False, "length": 0, "text": "", "actionRaw": None}, 5.0),
+], timeout=0.05)
+try:
+    _p29d.wait_for_new_answer(_FakeDriver29(), 1, **_kw29d)
+    check("29.4 WAIT_NEW_MESSAGE бросает TimeoutError, если ответ не появился", False)
+except TimeoutError as _e29d:
+    check("29.4 WAIT_NEW_MESSAGE бросает TimeoutError, если ответ не появился",
+          u"не появился" in str(_e29d))
+
+# 29.5 незавершённый JSON-действие продлевает VERIFY_COMPLETE, но не виснет навечно
+_p29e, _kw29e = _run29([
+    ({"count": 1, "generating": True, "length": 0, "text": "", "actionRaw": None}, 0.05),
+    ({"count": 2, "generating": False, "length": 10, "text": "code", "actionRaw": '{"action": "x"', "stream": "code"}, 5.0),
+], post_quiet_grace=0.08)
+_r29e = _p29e.wait_for_new_answer(_FakeDriver29(), 1, **_kw29e)
+check("29.5 незавершённый JSON — grace-период истекает, результат всё равно возвращается",
+      _r29e is not None and _r29e.get("actionRaw") == '{"action": "x"')
+
+check("29.6 состояния конвейера остаются приватной деталью реализации метода "
+      "(нет побочных остаточных атрибутов на self после вызова)",
+      not hasattr(_p29a, "state") and not hasattr(_p29a, "_STATE_HANDLERS"))
+
+
 print("\n=== RESULT: %d passed, %d failed ===" % (PASS, FAIL))
 sys.exit(1 if FAIL else 0)

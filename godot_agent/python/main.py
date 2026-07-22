@@ -1704,6 +1704,9 @@ def minilich_set():
         if "training_mode" in data:
             minilich.set_training_mode(root, bool(data.get("training_mode")))
             print("[minilich] /set: training_mode=%s" % bool(data.get("training_mode")))
+        if "train_pause_sec" in data:
+            minilich.set_train_pause(root, data.get("train_pause_sec"))
+            print("[minilich] /set: train_pause_sec=%s" % data.get("train_pause_sec"))
         if enabled and has_enabled:
             _started = minilich.start_training(root, STATE.get("addon_dir"))
             if _started:
@@ -1890,8 +1893,33 @@ def _boot_browser_background():
         set_driver_error(e)
 
 
+def _disable_quickedit():
+    """v86.5: консоль Windows в режиме QuickEdit «замирает» от одного случайного
+    клика мышью: выделение текста блокирует print() у ВСЕХ потоков, и сервер
+    (включая обучение mini-lich) стоит, пока не нажата клавиша. Выключаем
+    QuickEdit у своей консоли; выделять текст по-прежнему можно через меню окна
+    (правый клик по заголовку -> Изменить -> Пометить)."""
+    try:
+        import ctypes
+        import os as _os
+        if _os.name != "nt":
+            return
+        k32 = ctypes.windll.kernel32
+        h = k32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+        mode = ctypes.c_uint32()
+        if not k32.GetConsoleMode(h, ctypes.byref(mode)):
+            return  # своей консоли нет (запуск без окна) — нечего чинить
+        ENABLE_QUICK_EDIT = 0x0040
+        ENABLE_EXTENDED_FLAGS = 0x0080
+        k32.SetConsoleMode(h, (mode.value & ~ENABLE_QUICK_EDIT) | ENABLE_EXTENDED_FLAGS)
+        print("--> Защита консоли: QuickEdit выключен — случайный клик мышью больше не замораживает сервер.")
+    except Exception:
+        pass
+
+
 if __name__ == '__main__':
     try:
+        _disable_quickedit()
         import logging
         import threading
         log = logging.getLogger('werkzeug')
