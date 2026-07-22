@@ -298,11 +298,45 @@ def build_copy_click_js(blocks_js, blocks_fn, code_block_selector, copy_button_s
     return blocks_js + js
 
 
+# v86.16: проверка ПОЛНОТЫ ответа с действием: у всех меток *_ref из JSON
+# должны быть ЗАВЕРШЁННЫЕ тела ===МЕТКА===...===END_МЕТКА=== в том же тексте.
+# Непустой результат обычно означает, что ответ ещё дописывается (JSON плана
+# генерируется РАНЬШЕ тел файлов) — парсеру сайта стоит подождать и
+# перечитать ответ, прежде чем отдавать его на разбор.
+_REF_LABEL_RE = re.compile(
+    r'"(?:content_ref|search_ref|replace_ref)"\s*:\s*"([A-Za-z0-9_\-]+)"')
+
+
+def missing_ref_bodies(action_raw, text):
+    """Список меток *_ref из JSON действия, для которых в тексте нет
+    завершённого тела (нет маркера ===END_МЕТКА===). Пустой список —
+    ответ полон (или меток нет вовсе)."""
+    if not action_raw or not text:
+        return []
+    out = []
+    seen = set()
+    for label in _REF_LABEL_RE.findall(action_raw):
+        if label in seen:
+            continue
+        seen.add(label)
+        if ("===END_%s===" % label) not in text:
+            out.append(label)
+    return out
+
+
 def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_click_js=None):
     """Выполняет JS от build_composed_answer_js; возвращает текст ('' при неудаче).
 
     Если для каких-то код-блоков модель Monaco недоступна, а copy_click_js задан —
-    добирает их полный текст перехватом кнопки Copy (v86.15)."""
+    добирает их полный текст перехватом кнопки Copy (v86.15).
+
+    v86.17: результат перехвата КЭШИРУЕТСЯ (на объекте driver) по «отпечатку»
+    блока (число блоков + отсортированный видимый текст). Сторожевой таймер
+    ожидания перечитывает последний ответ каждые ~20 с, и без кэша КАЖДОЕ
+    перечитывание нажимало Copy у всех код-блоков уже завершённого сообщения —
+    сайт спамил подсказкой «скопировать текст», пока модель думала над новым
+    ответом. Теперь повторный клик выполняется только если блок реально
+    изменился (например, идёт генерация нового ответа)."""
     res = _safe_execute(driver, composed_js, default=None)
     if not isinstance(res, dict) or not isinstance(res.get("text"), str):
         return ""
@@ -315,15 +349,31 @@ def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_clic
         n_code = 0
     if n_code and res.get("monacoUsed"):
         print("%s блок(и) кода прочитаны целиком из модели Monaco-редактора (v86.14)." % log_tag)
-    if missing:
-        print("%s глобальный monaco недоступен (monacoGlobal=%s) — читаю %d код-блок(ов) "
-              "через перехват кнопки Copy (v86.15)."
-              % (log_tag, res.get("monacoGlobal"), len(missing)))
+    cache = getattr(driver, "_ai_copy_block_cache", None)
+    if cache is None:
+        cache = {}
+        try:
+            setattr(driver, "_ai_copy_block_cache", cache)
+        except Exception:
+            pass
     used_copy = 0
+    used_cache = 0
+    clicked_any = False
     for idx in missing:
         placeholder = "\ue000CODE_BLOCK_%d\ue000" % int(idx)
+        fb = fallbacks.get(str(idx)) or fallbacks.get(idx) or ""
+        sig = (n_code, fb)
         captured = None
-        if copy_click_js:
+        cached = cache.get(int(idx))
+        if cached and cached[0] == sig and cached[1]:
+            captured = cached[1]
+            used_cache += 1
+        elif copy_click_js:
+            if not clicked_any:
+                print("%s глобальный monaco недоступен (monacoGlobal=%s) — читаю код-блок(и) "
+                      "через перехват кнопки Copy (v86.15)."
+                      % (log_tag, res.get("monacoGlobal")))
+            clicked_any = True
             armed = _safe_execute(
                 driver, copy_click_js.replace("__CB_IDX__", str(int(idx))), default=False)
             if armed:
@@ -333,22 +383,25 @@ def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_clic
                     if isinstance(got, str) and got.strip():
                         captured = got
                         break
+            if captured is not None:
+                cache[int(idx)] = (sig, captured)
+                used_copy += 1
         if captured is not None:
             text = text.replace(placeholder, captured)
-            used_copy += 1
         else:
-            fb = fallbacks.get(str(idx)) or fallbacks.get(idx) or ""
             text = text.replace(placeholder, fb)
             print("%s ВНИМАНИЕ: код-блок #%s: Monaco недоступен и перехват кнопки Copy "
                   "не сработал — использована только видимая часть, разбор действия "
                   "может не удаться (v86.15)." % (log_tag, idx))
-    if missing and copy_click_js:
+    if clicked_any:
         _safe_execute(driver, _COPY_INTERCEPT_RESTORE_JS, default=None)
     if used_copy:
         print("%s %d код-блок(ов) прочитаны целиком перехватом кнопки Copy (v86.15)."
               % (log_tag, used_copy))
+    if used_cache:
+        print("%s %d код-блок(ов) взяты из кэша без повторного нажатия Copy (v86.17)."
+              % (log_tag, used_cache))
     return text
-
 
 
 def _escape_bbcode_py(text: str) -> str:
@@ -616,6 +669,7 @@ def _build_candidates(raw):
 
 
 _REF_BLOCK_RE_CACHE = {}
+_REF_BLOCK_LENIENT_RE_CACHE = {}
 
 
 def _extract_ref_block(raw, label):
@@ -623,7 +677,14 @@ def _extract_ref_block(raw, label):
     ===МЕТКА===\n...\n===END_МЕТКА=== в тексте actionRaw (raw), ПОСЛЕ JSON,
     но внутри того же ```agent_action. Регэксп привязан к конкретной метке
     из самого JSON, а не угадывает границы вслепую — случайное "===" в
-    комментарии кода не совпадёт с чужой меткой (не тот label/END_label)."""
+    комментарии кода не совпадёт с чужой меткой (не тот label/END_label).
+
+    v86.18 (терпимый разбор «невалидных» ответов): если строгий блок не
+    найден (модель забыла или оборвала ===END_МЕТКА===), пробуем терпимый
+    вариант: тело от ===МЕТКА=== до СЛЕДУЮЩЕГО маркера вида ===ЧТО-ТО===
+    (другая метка, чужой END, ===DONE===) или до конца текста. Лучше принять
+    содержимое без идеальной обёртки (с громким предупреждением в консоли
+    и последующей проверкой линтерами), чем отбросить весь шаг плана."""
     if not raw or not label or not isinstance(label, str):
         return None
     pat = _REF_BLOCK_RE_CACHE.get(label)
@@ -634,9 +695,27 @@ def _extract_ref_block(raw, label):
         )
         _REF_BLOCK_RE_CACHE[label] = pat
     m = pat.search(raw)
+    if m:
+        return m.group(1)
+    lpat = _REF_BLOCK_LENIENT_RE_CACHE.get(label)
+    if lpat is None:
+        lpat = re.compile(
+            r"===\s*" + re.escape(label) + r"\s*===\r?\n(.*?)"
+            r"(?=\r?\n===[^\r\n]{0,120}===[ \t]*(?:\r?\n|$)|\Z)",
+            re.DOTALL,
+        )
+        _REF_BLOCK_LENIENT_RE_CACHE[label] = lpat
+    m = lpat.search(raw)
     if not m:
         return None
-    return m.group(1)
+    body = m.group(1)
+    if not body.strip():
+        return None
+    print(u"[parser_base] ВНИМАНИЕ: у метки %s не найден закрывающий ===END_%s=== — "
+          u"тело принято до следующего маркера/конца текста (терпимый разбор, "
+          u"v86.18). Содержимое могло быть оборвано — проверь итоговый файл."
+          % (label, label))
+    return body
 
 
 _REF_FIELD_MAP = (("content_ref", "content"), ("search_ref", "search"), ("replace_ref", "replace"))
