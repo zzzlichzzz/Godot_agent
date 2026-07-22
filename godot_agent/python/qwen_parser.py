@@ -292,6 +292,29 @@ def extract_answer(driver):
     return {"text": text, "actionRaw": raw, "error": None}
 
 
+# v87.9: кнопка «Сгенерировать заново» у ПОСЛЕДНЕГО ответа (появляется, когда
+# сервер qwen сбоит: генерация оборвалась или не началась). Ищем по боевому
+# классу кнопки; aria-label — запасной вариант (он локализован, поэтому
+# перечислены несколько языков). Берём ПОСЛЕДНЮЮ кнопку на странице — она
+# относится к последнему ответу. Кнопка может быть скрыта до наведения мыши
+# (enable-hover) — если видимой нет, жмём последнюю найденную как есть.
+JS_CLICK_REGENERATE = r"""try {
+    var byClass = document.querySelectorAll('.qwen-chat-package-comp-new-action-control-container-regenerate');
+    var byAria = document.querySelectorAll('[role="button"][aria-label="Сгенерировать заново"], [role="button"][aria-label="Regenerate"], [role="button"][aria-label*="重新"]');
+    var list = byClass.length ? byClass : byAria;
+    if (!list.length) return false;
+    var btn = null;
+    for (var i = list.length - 1; i >= 0; i--) {
+        var r = list[i].getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) { btn = list[i]; break; }
+    }
+    if (!btn) btn = list[list.length - 1];
+    try { btn.scrollIntoView({block: 'center'}); } catch (e2) {}
+    btn.click();
+    return true;
+} catch (e) { return false; }"""
+
+
 class QwenParser(BaseSiteParser):
     """Qwen: сайт-специфичная часть поверх BaseSiteParser (v73, боевые селекторы)."""
 
@@ -357,6 +380,13 @@ class QwenParser(BaseSiteParser):
 
     def confirm_sent(self, driver, el):
         return not self._input_leftover(driver, el)
+
+    def try_regenerate(self, driver):
+        # v87.9: авто-повтор сбойной генерации кликом по «Сгенерировать заново».
+        clicked = bool(_safe_execute(driver, JS_CLICK_REGENERATE, default=False))
+        if clicked:
+            time.sleep(1.2)  # даём сайту убрать сбойный блок и начать новую генерацию
+        return clicked
 
 
 PARSER = QwenParser()

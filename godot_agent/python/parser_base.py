@@ -832,7 +832,7 @@ def _normalize_llm_literals(cand):
 
 def _convert_single_quoted_json(cand):
     """v86.20 (восстанавливающий JSON, часть 2): JSON с одинарными
-    кавычками ({'action': 'plan'}) -> двойные. Применяется только если
+    кавычками ({'action': 'plan'}) -> двойные. ��рименяется только если
     одинарных кавычек заметно больше, чем двойных — иначе легко
     испортить апострофы внутри нормальных строк. Внутренние двойные
     кавычки экранируются, \\' -> '. Если эвристика не подходит —
@@ -1501,6 +1501,11 @@ class BaseSiteParser:
     # сколько раз повторить submit, если confirm_sent вернул False (сообщение не ушло) —
     # прежде чем сдаваться и показывать ошибку пользователю.
     SEND_RETRIES = 2
+    # v87.9: сколько раз автоматически нажать «Сгенерировать заново», если ответ
+    # не дождались (таймаут) или он пришёл ПУСТЫМ (сервер сайта сбоил и оборвал
+    # генерацию) — прежде чем отдать ошибку/пустоту пользователю. Работает только
+    # у сайтов, где переопределён try_regenerate (пока qwen).
+    REGENERATE_RETRIES = 2
 
     # ---- сайт-специфичные методы (переопределяются наследниками) ----
 
@@ -1563,6 +1568,13 @@ class BaseSiteParser:
         """Убедиться, что сообщение реально ушло (наследник может проверить
         поле ввода). По умолчанию считаем, что отправлено."""
         return True
+
+    def try_regenerate(self, driver):
+        """v87.9: нажать у ПОСЛЕДНЕГО ответа кнопку «Сгенерировать заново»,
+        если сайт её показывает (сервер сайта сбоил, генерация оборвалась или
+        не началась). Возвращает True, если кнопка найдена и нажата — тогда
+        общий конвейер ждёт ответ заново. По умолчанию сайт этого не умеет."""
+        return False
 
     def _log(self, msg):
         print("[%s] %s" % (self.LOG_TAG, msg))
@@ -1836,7 +1848,7 @@ class BaseSiteParser:
                     st["quiet_since"] = None
                     st["length_only_quiet_since"] = None
                 if length > 0:
-                    # v56: пока не увидели рост счётчика реплик или текст, отличный от
+                    # v56: пока не увидели рост счёт��ика реплик или текст, отличный от
                     # того, что было ДО отправки — это ещё Старый ответ (модель «думает»,
                     # генерация уже идёт, но новый блок в DOM не появился). Сравниваем со
                     # свежим текстом (а не с закешированным 1 раз/сек preview_txt/stream_txt
@@ -1922,6 +1934,13 @@ class BaseSiteParser:
                 answer_empty = (not text.strip()) and (raw is None)
                 if (not still_generating) and cur_len == st["last_length"] and (not action_incomplete) and (not answer_empty):
                     break
+                if still_generating and not _deadline_hit():
+                    # v87.9: генерация ЕЩЁ ИДЁТ (модель долго «думает» или дописывает
+                    # длинный ответ) — грейс-период НЕ расходуем, а отсчитываем заново:
+                    # ждём конца генерации вплоть до общего дедлайна. Раньше «думанье»
+                    # дольше empty_grace (90 с) обрывало ожидание именно здесь, и в чат
+                    # уходил ПУСТОЙ ответ, хотя модель в итоге отвечала (репорт тестера).
+                    grace_start = time.time()
                 limit = empty_grace if (answer_empty or still_generating) else post_quiet_grace
                 if time.time() - grace_start >= limit:
                     break
@@ -2019,7 +2038,7 @@ class BaseSiteParser:
     def send_message_and_get_response(self, driver, prompt, input_retries=None, progress_cb=None, cancel_cb=None, prefer_url=None):
         """Общий конвейер «промпт -> ответ» для любого сайта."""
         retries = input_retries or self.INPUT_RETRIES
-        # v54: prefer_url — адрес страницы ТЕКУЩЕГО чата: печатаем именно в его
+        # v54: prefer_url — ��дрес страницы ТЕКУЩЕГО чата: печатаем именно в его
         # вкладку, а не в первую попавшуюся вкладку этого сайта.
         self.switch_to_site_window(driver, prefer_url=prefer_url)
         from browser_manager import harden_background_tab
@@ -2115,25 +2134,57 @@ class BaseSiteParser:
                             "(текст остался в поле ввода; возможная причина — слишком большой текст сообщения). "
                             "Попробуйте ещё раз." % send_retries,
                     "action": None}
-        result = self.wait_for_new_answer(driver, initial_count, progress_cb=progress_cb,
-                                          cancel_cb=cancel_cb)
-        time.sleep(0.5)
-        # ПЛАН Б: основной парсер дал пустоту -> многоуровневое чтение заново.
-        empty = (not result) or (
-            not ((result.get("text") or "").strip()) and result.get("actionRaw") is None)
-        if empty:
-            result = self.extract_answer_robust(driver)
-            # v51: анти-дубль для «Плана Б» — грубое извлечение могло схватить
-            # СТАРЫЙ ответ (тот, что был на странице ещё до отправки). Дубль не
-            # возвращаем: лучше явная ошибка, чем повторно выполненный старый план.
-            _sig_b = (((result or {}).get("text") or "") + "\x00" + ((result or {}).get("actionRaw") or ""))
-            if (_sig_b.replace("\x00", "").strip()
-                    and (_sig_b == _pre_sig or _sig_b in getattr(self, "_returned_sigs", ()))
-                    and self.count_answers(driver) <= initial_count):
-                self._log("анти-дубль (План Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
-                return {"text": "[Ошибка]: модель не дала НОВЫЙ ответ (на странице найден только старый). "
-                                "Отправьте сообщение ещё раз.",
-                        "action": None}
+        # v87.9: авто-«Сгенерировать заново». Если ответ не дождались (таймаут)
+        # или он пришёл ПУСТЫМ (сервер сайта сбоил и оборвал/не начал генерацию),
+        # пробуем нажать у последнего ответа кнопку повтора (try_regenerate
+        # наследника) и ждём ответ заново — не более REGENERATE_RETRIES раз.
+        # initial_count снимается ДО клика: повтор генерации может как заменить
+        # сбойный блок (счётчик не меняется — тогда выручит is_generating), так
+        # и добавить новый (счётчик вырастет).
+        result = None
+        _regen_used = 0
+        while True:
+            try:
+                result = self.wait_for_new_answer(driver, initial_count, progress_cb=progress_cb,
+                                                  cancel_cb=cancel_cb)
+            except TimeoutError:
+                if _regen_used < self.REGENERATE_RETRIES:
+                    _cnt_before_regen = self.count_answers(driver)
+                    if self.try_regenerate(driver):
+                        _regen_used += 1
+                        initial_count = _cnt_before_regen
+                        self._log("ответ не дождались (таймаут) — нажал «Сгенерировать заново» "
+                                  "(попытка %d/%d), жду ответ заново." % (_regen_used, self.REGENERATE_RETRIES))
+                        continue
+                raise
+            time.sleep(0.5)
+            # ПЛАН Б: основной парсер дал пустоту -> многоуровневое чтение заново.
+            empty = (not result) or (
+                not ((result.get("text") or "").strip()) and result.get("actionRaw") is None)
+            if empty:
+                result = self.extract_answer_robust(driver)
+                # v51: анти-дубль для «Плана Б» — грубое извлечение могло схватить
+                # СТАРЫЙ ответ (тот, что был на странице ещё до отправки). Дубль не
+                # возвращаем: лучше явная ошибка, чем повторно выполненный старый план.
+                _sig_b = (((result or {}).get("text") or "") + "\x00" + ((result or {}).get("actionRaw") or ""))
+                if (_sig_b.replace("\x00", "").strip()
+                        and (_sig_b == _pre_sig or _sig_b in getattr(self, "_returned_sigs", ()))
+                        and self.count_answers(driver) <= initial_count):
+                    self._log("анти-дубль (План Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
+                    return {"text": "[Ошибка]: модель не дала НОВЫЙ ответ (на странице найден только старый). "
+                                    "Отправьте сообщение ещё раз.",
+                            "action": None}
+            _still_empty = (not result) or (
+                not ((result.get("text") or "").strip()) and result.get("actionRaw") is None)
+            if _still_empty and _regen_used < self.REGENERATE_RETRIES:
+                _cnt_before_regen = self.count_answers(driver)
+                if self.try_regenerate(driver):
+                    _regen_used += 1
+                    initial_count = _cnt_before_regen
+                    self._log("ответ пришёл ПУСТЫМ — нажал «Сгенерировать заново» "
+                              "(попытка %d/%d), жду ответ заново." % (_regen_used, self.REGENERATE_RETRIES))
+                    continue
+            break
         # v86.2: чистим невидимый мусор из веб-DOM (кейс qwen: NBSP U+00A0, NUL,
         # zero-width) — иначе он попадает в .gd/.tscn и Godot падает на парсинге.
         text = sanitize_llm_text((result or {}).get("text") or "")

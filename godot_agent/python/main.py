@@ -272,7 +272,7 @@ def _plan_collect_final(action):
 # последняя часть (без continues).
 def _content_part_add(action):
     """Принимает часть многочастной передачи content (action=create_file с
-    \"continues\": true, поля content_part/content_parts_total). Возвращает
+    \"continues\": true, поля content_part/content_parts_total). Во��вращает
     (ok, followup_для_модели); при ошибке накопленное сбрасывается."""
     if action.get("action") != "create_file":
         STATE["content_parts"] = None
@@ -507,7 +507,7 @@ def _read_functions_part(project_root, f):
     path = f["path"]
     if not str(path).endswith(".gd"):
         return ("[Система]: read_function работает только для .gd-скриптов. "
-                "Файл %s запроси целиком через read_file." % path)
+                "Файл %s запроси ц��ликом через read_file." % path)
     try:
         content, _truncated = read_project_file(project_root, path, max_chars=PER_FILE_CHAR_LIMIT * 4)
     except Exception as e:
@@ -620,7 +620,7 @@ def _package_model_reply(text, action, project_root, depth=0):
         return _package_model_reply(text2, act2, project_root, depth + 1)
     if action and action.get("action") == "plan":
         STATE["pending_action"] = None
-        # Многочастный план: модель присылает шаги несколькими сообщениями
+        # Многочастный план: модель присылает шаги нескольким�� сообщениями
         # ("continues": true), если все шаги не помещаются в один ответ
         # (не хватает выходного лимита токенов). Пользователь увидит и
         # подтвердит склеенный план ОДИН раз — целиком, за один проход.
@@ -1282,6 +1282,18 @@ def _external_changes_note(project_root):
     return format_fs_changes(added, changed, deleted, diffs=diffs)
 
 
+def _short_godot_version(raw):
+    """v87.9: «4.4.1.stable.official.49a5bc7b6» -> «4.4.1» — в мега-промпт идёт
+    только числовая часть версии движка (major.minor[.patch])."""
+    parts = []
+    for p in str(raw or "").split("."):
+        if p.isdigit():
+            parts.append(p)
+        else:
+            break
+    return ".".join(parts)
+
+
 def _build_priming_context(project_root):
     """Мега-промпт: умное д��рево (полное для маленького проекта, сводка по
     папкам для большого) + описание архитектуры проекта. Если проект пустой —
@@ -1310,7 +1322,22 @@ def _build_priming_context(project_root):
     if compact:
         print("--> Проект большой: в мега-промпт идёт компактная сводка по папкам вместо полного дерева")
     _refresh_fs_snapshot(project_root)  # созданные ��апки — не «внешние» изменения
-    return PRIMING_TEMPLATE.replace("{tree}", tree).replace("{architecture}", arch)
+    # v87.9: в промпт подставляется ТОЧНАЯ версия Godot проекта (правила и API
+    # между версиями меняются): сперва версия из /init (плагин шлёт
+    # Engine.get_version_info()), затем версия из кеша API (плагин обновляет его
+    # при старте), и только если ничего нет — «4», как раньше.
+    godot_version = _short_godot_version(STATE.get("godot_version"))
+    if not godot_version:
+        try:
+            godot_version = _short_godot_version(
+                gd_api_cache.get_cached_version(project_root, STATE.get("addon_dir")))
+        except Exception:
+            godot_version = ""
+    if not godot_version:
+        godot_version = "4"
+    return (PRIMING_TEMPLATE.replace("{tree}", tree)
+            .replace("{architecture}", arch)
+            .replace("{godot_version}", godot_version))
 
 
 # ---------------------------------------------------------------------------
@@ -1321,6 +1348,10 @@ def _build_priming_context(project_root):
 def init_session():
     data = request.json or {}
     STATE["project_root"] = data.get('project_root')
+    # v87.9: точная версия движка для мега-промпта (плагин шлёт её в /init).
+    _gv = str(data.get("godot_version") or "").strip()
+    if _gv:
+        STATE["godot_version"] = _gv
     _apply_session_context(data)
     STATE["pending_action"] = None
     STATE["pending_batch"] = None
