@@ -324,6 +324,20 @@ def missing_ref_bodies(action_raw, text):
     return out
 
 
+def answer_transfer_incomplete(action_raw, text):
+    """v86.19 (база для ВСЕХ парсеров): возвращает список «чего ещё не хватает»
+    в снятом тексте ответа, если передача, судя по всему, не завершена:
+    - метки *_ref из JSON, для которых нет ===END_МЕТКА=== (см. missing_ref_bodies);
+    - '===DONE===', если JSON ссылается на метки, а завершающего маркера нет.
+    Пустой список — текст можно отдавать в разбор."""
+    missing = missing_ref_bodies(action_raw, text)
+    if missing:
+        return missing
+    if action_raw and text and _REF_LABEL_RE.search(action_raw) and "===DONE===" not in text:
+        return ["===DONE==="]
+    return []
+
+
 def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_click_js=None):
     """Выполняет JS от build_composed_answer_js; возвращает текст ('' при неудаче).
 
@@ -402,6 +416,83 @@ def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_clic
         print("%s %d код-блок(ов) взяты из кэша без повторного нажатия Copy (v86.17)."
               % (log_tag, used_cache))
     return text
+
+
+def read_answer_stable(driver, composed_js, log_tag="[parser_base]", copy_click_js=None,
+                       attempts=4, delay=2.0):
+    """v86.19 (база для ВСЕХ парсеров): «двойное чтение» — текст принимается,
+    только когда два чтения подряд совпали (страница устоялась). Режет гонки
+    с генерацией/дорисовкой, которые не поймал детектор окончания. Кэш
+    перехвата Copy (v86.17) делает повторные чтения дешёвыми: без изменений —
+    без кликов. Если текст так и не устоялся за attempts перечитываний —
+    возвращается последний вариант (дальше сработают проверки полноты
+    answer_transfer_incomplete и самоисцеление)."""
+    prev = read_composed_answer(driver, composed_js, log_tag, copy_click_js=copy_click_js)
+    for i in range(attempts):
+        time.sleep(delay)
+        cur = read_composed_answer(driver, composed_js, log_tag, copy_click_js=copy_click_js)
+        if cur == prev:
+            return cur
+        print(u"%s текст ответа изменился между чтениями — перечитываю (%d/%d, v86.19)…"
+              % (log_tag, i + 1, attempts))
+        prev = cur
+    print(u"%s текст не устоялся за %d перечитываний — беру последний вариант (v86.19)."
+          % (log_tag, attempts))
+    return prev
+
+
+def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
+                           log_tag=u"[parser_base]", attempts=4, delay=2.0,
+                           max_wait=240.0, post_gen_tries=8, poll=2.5):
+    """v86.23: универсальное «устоявшееся» извлечение ответа для
+    парсеров с одношаговым чтением (DeepSeek, AI Studio) — те же
+    гарантии, что qwen получил в v86.19, без композитного чтения:
+    1) двойное чтение: результат принимается, только когда text двух
+       чтений подряд совпал (режем гонку с ещё идущей генерацией);
+    2) ожидание докачки: пока answer_transfer_incomplete(actionRaw, text)
+       возвращает недостающее (тела меток, ===DONE===) и генерация ещё
+       идёт (либо не исчерпан бюджет post_gen_tries после её конца),
+       ждём и перечитываем. По исчерпании бюджета/времени отдаём как
+       есть — дальше сработают терпимый разбор (v86.18) и автодосыл
+       (v86.22).
+    extract_fn(driver) -> dict с ключами text/actionRaw."""
+    result = extract_fn(driver) or {}
+    prev_text = result.get("text") or u""
+    total = max(1, int(attempts))
+    for i in range(1, total):
+        time.sleep(delay)
+        nxt = extract_fn(driver) or {}
+        nxt_text = nxt.get("text") or u""
+        if nxt_text == prev_text:
+            result = nxt
+            break
+        print(u"%s текст ответа изменился между чтениями — перечитываю (%d/%d, v86.23)…"
+              % (log_tag, i, total - 1))
+        prev_text = nxt_text
+        result = nxt
+    start = time.time()
+    tries_after_gen = 0
+    while True:
+        raw = result.get("actionRaw")
+        text = result.get("text") or u""
+        missing = answer_transfer_incomplete(raw, text)
+        if not missing:
+            return result
+        still = bool(is_generating_fn(driver)) if is_generating_fn else False
+        if not still:
+            tries_after_gen += 1
+            if tries_after_gen > post_gen_tries:
+                print(u"%s передача так и не завершилась (не хватает: %s) — отдаю как есть, дальше решит самоисцеление (v86.23)."
+                      % (log_tag, u", ".join(missing)))
+                return result
+        if time.time() - start > max_wait:
+            print(u"%s превышено время ожидания докачки (%.0f с) — отдаю как есть (v86.23)."
+                  % (log_tag, max_wait))
+            return result
+        print(u"%s ответ ещё не докачан: не хватает %s — жду и перечитываю (генерация идёт=%s, v86.23)…"
+              % (log_tag, u", ".join(missing), u"да" if still else u"нет"))
+        time.sleep(poll)
+        result = extract_fn(driver) or {}
 
 
 def _escape_bbcode_py(text: str) -> str:
@@ -635,6 +726,114 @@ def _save_corpus_sample(raw, error):
         return None
 
 
+def _is_word_boundary(s, i, wlen):
+    """v86.20: слово s[i:i+wlen] не является частью более длинного
+    идентификатора (TrueX, _None и т.п. не трогаем)."""
+    before = s[i - 1] if i > 0 else u''
+    after = s[i + wlen] if i + wlen < len(s) else u''
+
+    def wordish(ch):
+        return bool(ch) and (ch.isalnum() or ch == u'_')
+
+    return not wordish(before) and not wordish(after)
+
+
+def _normalize_llm_literals(cand):
+    """v86.20 (восстанавливающий JSON, часть 1): типовые «python-измы»
+    нейросетей ВНЕ строковых значений: True/False/None -> true/false/null,
+    комментарии // ... и /* ... */ убираются. Содержимое строк не трогается
+    (посимвольный проход с учётом экранирования)."""
+    if not cand:
+        return cand
+    out = []
+    i = 0
+    n = len(cand)
+    in_str = False
+    while i < n:
+        c = cand[i]
+        if in_str:
+            out.append(c)
+            if c == u'\\' and i + 1 < n:
+                out.append(cand[i + 1])
+                i += 2
+                continue
+            if c == u'"':
+                in_str = False
+            i += 1
+            continue
+        if c == u'"':
+            in_str = True
+            out.append(c)
+            i += 1
+            continue
+        if c == u'/' and i + 1 < n and cand[i + 1] == u'/':
+            j = cand.find(u'\n', i)
+            i = n if j == -1 else j
+            continue
+        if c == u'/' and i + 1 < n and cand[i + 1] == u'*':
+            j = cand.find(u'*/', i + 2)
+            i = n if j == -1 else j + 2
+            continue
+        replaced = False
+        for word, repl in ((u'True', u'true'), (u'False', u'false'), (u'None', u'null')):
+            if cand.startswith(word, i) and _is_word_boundary(cand, i, len(word)):
+                out.append(repl)
+                i += len(word)
+                replaced = True
+                break
+        if not replaced:
+            out.append(c)
+            i += 1
+    return u''.join(out)
+
+
+def _convert_single_quoted_json(cand):
+    """v86.20 (восстанавливающий JSON, часть 2): JSON с одинарными
+    кавычками ({'action': 'plan'}) -> двойные. Применяется только если
+    одинарных кавычек заметно больше, чем двойных — иначе легко
+    испортить апострофы внутри нормальных строк. Внутренние двойные
+    кавычки экранируются, \\' -> '. Если эвристика не подходит —
+    текст возвращается как есть (дедупликация кандидатов его отбросит)."""
+    if not cand or cand.count(u"'") < 2:
+        return cand
+    if cand.count(u'"') * 2 > cand.count(u"'"):
+        return cand
+    out = []
+    i = 0
+    n = len(cand)
+    in_str = False
+    while i < n:
+        c = cand[i]
+        if not in_str:
+            if c == u"'":
+                in_str = True
+                out.append(u'"')
+            else:
+                out.append(c)
+            i += 1
+            continue
+        if c == u'\\' and i + 1 < n:
+            if cand[i + 1] == u"'":
+                out.append(u"'")
+            else:
+                out.append(c)
+                out.append(cand[i + 1])
+            i += 2
+            continue
+        if c == u"'":
+            in_str = False
+            out.append(u'"')
+            i += 1
+            continue
+        if c == u'"':
+            out.append(u'\\"')
+            i += 1
+            continue
+        out.append(c)
+        i += 1
+    return u''.join(out)
+
+
 def _build_candidates(raw):
     """v86.7: упорядоченный список (метка, текст) кандидатов разбора БЕЗ
     дублей — раньше комбинации починок давали одинаковые строки, и
@@ -648,6 +847,13 @@ def _build_candidates(raw):
         esc = _escape_raw_newlines_in_strings(cand)
         rep = _repair_unescaped_inner_quotes(cand)
         rep_esc = _repair_unescaped_inner_quotes(esc)
+        # v86.20: восстанавливающий JSON — python-литералы/комментарии и
+        # одинарные кавычки (типовые ошибки нейросетей). Дедупликация ниже
+        # отбрасывает варианты-пустышки, так что лишних json.loads не будет.
+        lit = _normalize_llm_literals(cand)
+        lit_esc = _normalize_llm_literals(esc)
+        sq = _convert_single_quoted_json(cand)
+        sq_lit = _normalize_llm_literals(sq)
         pairs.extend([
             (label + u" + запятые", _remove_trailing_commas(cand)),
             (label + u" + переносы", esc),
@@ -656,6 +862,13 @@ def _build_candidates(raw):
             (label + u" + кавычки + запятые", _remove_trailing_commas(rep)),
             (label + u" + переносы + кавычки", rep_esc),
             (label + u" + переносы + кавычки + запятые", _remove_trailing_commas(rep_esc)),
+            (label + u" + литералы/комментарии", lit),
+            (label + u" + литералы/комментарии + запятые", _remove_trailing_commas(lit)),
+            (label + u" + переносы + литералы", lit_esc),
+            (label + u" + переносы + литералы + запятые", _remove_trailing_commas(lit_esc)),
+            (label + u" + одинарные кавычки", sq),
+            (label + u" + одинарные кавычки + литералы", sq_lit),
+            (label + u" + одинарные кавычки + литералы + запятые", _remove_trailing_commas(sq_lit)),
         ])
     for k, cand in enumerate(_find_action_json_candidates(base)):
         pairs.append((u"вложенный объект №%d" % (k + 1), cand))
@@ -672,7 +885,7 @@ _REF_BLOCK_RE_CACHE = {}
 _REF_BLOCK_LENIENT_RE_CACHE = {}
 
 
-def _extract_ref_block(raw, label):
+def _extract_ref_block(raw, label, info=None, _fuzzy=True):
     """v86.9: ищет тело content_ref/search_ref/replace_ref — сырой блок
     ===МЕТКА===\n...\n===END_МЕТКА=== в тексте actionRaw (raw), ПОСЛЕ JSON,
     но внутри того же ```agent_action. Регэксп привязан к конкретной метке
@@ -707,15 +920,113 @@ def _extract_ref_block(raw, label):
         _REF_BLOCK_LENIENT_RE_CACHE[label] = lpat
     m = lpat.search(raw)
     if not m:
+        if _fuzzy:
+            # v86.24: пробуем нечёткую метку (FILE1 ≈ FILE_1, без регистра).
+            return _extract_ref_block_fuzzy(raw, label, info)
         return None
     body = m.group(1)
     if not body.strip():
         return None
+    if isinstance(info, dict):
+        info["lenient"] = True
     print(u"[parser_base] ВНИМАНИЕ: у метки %s не найден закрывающий ===END_%s=== — "
           u"тело принято до следующего маркера/конца текста (терпимый разбор, "
           u"v86.18). Содержимое могло быть оборвано — проверь итоговый файл."
           % (label, label))
     return body
+
+
+_NORM_LABEL_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _norm_label(s):
+    """v86.24: нормализованная форма метки: без регистра, '_' и '-'."""
+    return _NORM_LABEL_RE.sub(u"", (s or u"").lower())
+
+
+_ANY_LABEL_RE = re.compile(r"(?m)^===\s*([A-Za-z0-9_\-]+)\s*===")
+
+
+def _extract_ref_block_fuzzy(raw, label, info=None):
+    """v86.24: нечёткий поиск метки — модель могла написать ===FILE1===
+    вместо ===FILE_1=== или сменить регистр. Совпадение считается по
+    нормализованной форме (_norm_label); принимается только ЕДИНСТВЕННЫЙ
+    кандидат — при неоднозначности безопаснее считать тело не найденным
+    (дальше сработает автодосыл v86.22)."""
+    want = _norm_label(label)
+    if not raw or not want:
+        return None
+    cands = []
+    for lab in _ANY_LABEL_RE.findall(raw):
+        u = lab.upper()
+        if u.startswith(u"END_") or u == u"DONE":
+            continue
+        if lab != label and _norm_label(lab) == want and lab not in cands:
+            cands.append(lab)
+    if len(cands) != 1:
+        if len(cands) > 1:
+            print(u"[parser_base] метка %s: несколько нечётких кандидатов (%s) — "
+                  u"не рискую, считаю тело не найденным (v86.24)."
+                  % (label, u", ".join(cands)))
+        return None
+    actual = cands[0]
+    body = _extract_ref_block(raw, actual, info, _fuzzy=False)
+    if body is not None:
+        if isinstance(info, dict):
+            info["fuzzy_label"] = actual
+        print(u"[parser_base] метка %s не найдена, но есть нечёткий вариант "
+              u"===%s=== — тело взято по нему (v86.24)." % (label, actual))
+    return body
+
+
+_FENCE_BODY_RE = re.compile(r"(?ms)^```[^\r\n]*\r?\n(.*?)\r?\n```[ \t]*$")
+
+
+def _resolve_refs_from_fences(obj, raw, missing):
+    """v86.24: запасной путь — модель проигнорировала протокол
+    ===МЕТКА=== и прислала тела файлов обычными ```-блоками. Строгое
+    правило: применяется только когда ЧИСЛО закрытых ```-блоков (без
+    ```json-обёртки самого JSON действия) В ТОЧНОСТИ равно числу
+    неразрешённых ссылок — тогда тела подставляются ПО ПОРЯДКУ
+    СЛЕДОВАНИЯ. Поля помечаются lenient_transfer_fields (v86.22): если
+    линтер недоволен, модель попросят прислать файл ЦЕЛИКОМ заново.
+    Возвращает новый список missing (пустой при успехе)."""
+    if not missing or not raw or not isinstance(obj, dict):
+        return missing
+    steps = obj.get("steps")
+    units = [obj] + (steps if isinstance(steps, list) else [])
+    pending = []
+    for unit in units:
+        if not isinstance(unit, dict):
+            continue
+        for ref_key, target_key in _REF_FIELD_MAP:
+            if unit.get(ref_key):
+                pending.append((unit, ref_key, target_key))
+    if not pending or len(pending) != len(missing):
+        return missing
+    bodies = []
+    for b in _FENCE_BODY_RE.findall(raw):
+        t = b.lstrip()
+        if t.startswith(u"{") and u'"action"' in b:
+            continue  # это сам JSON действия в ```-обёртке, не тело файла
+        bodies.append(b)
+    if len(bodies) != len(pending):
+        if bodies:
+            print(u"[parser_base] метки %s не найдены, а число ```-блоков (%d) "
+                  u"не совпадает с числом ссылок (%d) — по порядку не рискую "
+                  u"(v86.24)." % (u", ".join(missing), len(bodies), len(pending)))
+        return missing
+    for (unit, ref_key, target_key), body in zip(pending, bodies):
+        label = unit.get(ref_key)
+        unit[target_key] = body
+        unit.pop(ref_key, None)
+        lf = unit.setdefault("lenient_transfer_fields", [])
+        if target_key not in lf:
+            lf.append(target_key)
+        print(u"[parser_base] метка %s не найдена — тело взято из ```-блока по "
+              u"порядку следования и помечено как возможно неполное (v86.24)."
+              % label)
+    return []
 
 
 _REF_FIELD_MAP = (("content_ref", "content"), ("search_ref", "search"), ("replace_ref", "replace"))
@@ -729,12 +1040,34 @@ def _resolve_one_ref(step, raw, missing):
         label = step.get(ref_key)
         if not label:
             continue
-        body = _extract_ref_block(raw, label)
+        _ref_info = {}
+        body = _extract_ref_block(raw, label, _ref_info)
         if body is None:
             missing.append(label)
             continue
         step[target_key] = body
         step.pop(ref_key, None)
+        # v86.25: контрольная сумма строк — если модель объявила
+        # "<ref>_lines" (например content_ref_lines), сверяем с фактом.
+        declared = step.pop(ref_key + "_lines", None)
+        if declared is not None:
+            try:
+                declared = int(declared)
+            except (TypeError, ValueError):
+                declared = None
+        if declared is not None:
+            actual = len(body.split("\n"))
+            if declared != actual:
+                print(u"[parser_base] ВНИМАНИЕ: у метки %s объявлено %d строк(и), "
+                      u"а получено %d — тело могло быть обрезано при передаче "
+                      u"(v86.25)." % (label, declared, actual))
+                _ref_info["lines_mismatch"] = True
+        # v86.22: помечаем терпимо восстановленные/подозрительные поля —
+        # при провале линтера main.py попросит прислать файл ЦЕЛИКОМ заново.
+        if _ref_info.get("lenient") or _ref_info.get("lines_mismatch"):
+            _lf = step.setdefault("lenient_transfer_fields", [])
+            if target_key not in _lf:
+                _lf.append(target_key)
 
 
 def _resolve_content_refs(obj, raw):
@@ -752,7 +1085,102 @@ def _resolve_content_refs(obj, raw):
     if isinstance(steps, list):
         for step in steps:
             _resolve_one_ref(step, raw, missing)
+    if missing:
+        # v86.24: запасной путь — тела из ```-блоков по порядку следования.
+        missing = _resolve_refs_from_fences(obj, raw, missing)
     return obj, missing
+
+
+_KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
+                  u"read_file", u"read_files", u"read_function", u"copy_file",
+                  u"parse_error"}
+
+_ACTION_SYNONYMS = {
+    u"create": u"create_file", u"write_file": u"create_file",
+    u"new_file": u"create_file", u"add_file": u"create_file",
+    u"createfile": u"create_file", u"write": u"create_file",
+    u"patch": u"patch_file", u"edit_file": u"patch_file",
+    u"modify_file": u"patch_file", u"update_file": u"patch_file",
+    u"patchfile": u"patch_file", u"edit": u"patch_file",
+    u"move": u"move_file", u"rename": u"move_file",
+    u"rename_file": u"move_file", u"movefile": u"move_file",
+    u"read": u"read_file", u"readfile": u"read_file",
+    u"open_file": u"read_file",
+    u"copy": u"copy_file", u"copyfile": u"copy_file",
+}
+
+_DEST_SYNONYMS = (u"destination", u"new_path", u"dest_path", u"target", u"to")
+_READ_ACTIONS = (u"read_file", u"read_files", u"read_function")
+_TEXT_LIST_FIELDS = (u"content", u"search", u"replace")
+
+
+def _coerce_one_action(d, fixes, prefix):
+    """v86.21: мягкое приведение ОДНОГО действия к схеме (in-place).
+    Только безопасные однозначные починки; старые поля НЕ удаляются
+    (лишние ключи безвредны, а потерять данные нельзя)."""
+    act = d.get(u"action")
+    if isinstance(act, str):
+        norm = act.strip().lower().replace(u"-", u"_").replace(u" ", u"_")
+        if norm not in _KNOWN_ACTIONS and norm in _ACTION_SYNONYMS:
+            new = _ACTION_SYNONYMS[norm]
+            fixes.append(prefix + u"action '%s' -> '%s'" % (act, new))
+            d[u"action"] = new
+        elif norm in _KNOWN_ACTIONS and norm != act:
+            fixes.append(prefix + u"action '%s' -> '%s'" % (act, norm))
+            d[u"action"] = norm
+    act = d.get(u"action")
+    if act in _READ_ACTIONS:
+        if not d.get(u"paths") and isinstance(d.get(u"path"), str):
+            d[u"paths"] = [d[u"path"]]
+            fixes.append(prefix + u"path -> paths (список из 1)")
+        if isinstance(d.get(u"paths"), str):
+            d[u"paths"] = [d[u"paths"]]
+            fixes.append(prefix + u"paths: строка -> список")
+    else:
+        p = d.get(u"path")
+        if (isinstance(p, list) and len(p) == 1
+                and isinstance(p[0], str)):
+            d[u"path"] = p[0]
+            fixes.append(prefix + u"path: список из 1 -> строка")
+        ps = d.get(u"paths")
+        if (not d.get(u"path") and isinstance(ps, list) and len(ps) == 1
+                and isinstance(ps[0], str)):
+            d[u"path"] = ps[0]
+            fixes.append(prefix + u"paths (список из 1) -> path")
+    if act == u"move_file" and not d.get(u"dest"):
+        for syn in _DEST_SYNONYMS:
+            if isinstance(d.get(syn), str) and d.get(syn):
+                d[u"dest"] = d[syn]
+                fixes.append(prefix + u"%s -> dest" % syn)
+                break
+    for field in _TEXT_LIST_FIELDS:
+        v = d.get(field)
+        if (isinstance(v, list) and v
+                and all(isinstance(x, str) for x in v)):
+            d[field] = u"\n".join(v)
+            fixes.append(prefix + u"%s: список строк -> текст" % field)
+
+
+def coerce_action_schema(obj):
+    """v86.21 (приведение к схеме, третий пункт плана улучшений):
+    после успешного разбора JSON мягко чинит типовые отклонения от
+    схемы: синонимы действий (create/patch/move/rename/read/copy и
+    регистр/дефисы/пробелы), path<->paths, синонимы dest у move_file,
+    content/search/replace списком строк -> текст. Шаги плана
+    обрабатываются рекурсивно. Возвращает (obj, список починок) —
+    пустой список означает, что объект уже соответствовал схеме.
+    Неизвестные действия не трогаются — их обработает штатная
+    валидация main.py с понятной ошибкой для самоисцеления."""
+    fixes = []
+    if not isinstance(obj, dict):
+        return obj, fixes
+    _coerce_one_action(obj, fixes, u"")
+    steps = obj.get(u"steps")
+    if obj.get(u"action") == u"plan" and isinstance(steps, list):
+        for k, step in enumerate(steps):
+            if isinstance(step, dict):
+                _coerce_one_action(step, fixes, u"шаг %d: " % (k + 1))
+    return obj, fixes
 
 
 def parse_action_json(raw: str):
@@ -805,6 +1233,9 @@ def parse_action_json(raw: str):
             if saved:
                 print(u"[parser_base] для content_ref/search_ref/replace_ref не найдено тело — образец сохранён в золотой корпус: %s" % saved)
             return None, _ref_err
+        winner, _schema_fixes = coerce_action_schema(winner)
+        if _schema_fixes:
+            print(u"[parser_base] действие приведено к схеме: %s (v86.21)" % u"; ".join(_schema_fixes))
         return winner, None
     try:
         from json_repair import repair_json
@@ -821,6 +1252,9 @@ def parse_action_json(raw: str):
                          u"внутри того же блока agent_action, после JSON"
                          % u", ".join(sorted(set(_missing_refs2))))
             return None, _ref_err2
+        obj, _schema_fixes2 = coerce_action_schema(obj)
+        if _schema_fixes2:
+            print(u"[parser_base] действие приведено к схеме: %s (v86.21)" % u"; ".join(_schema_fixes2))
         return obj, None
     except Exception as e:
         last_error = "%s; json_repair: %s" % (last_error, e)
