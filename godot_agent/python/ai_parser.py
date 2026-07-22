@@ -18,6 +18,7 @@ from parser_base import (
     _remove_trailing_commas,
     parse_action_json,
     _looks_json_balanced,
+    extract_answer_settled,
 )
 
 # ---------------------------------------------------------------------------
@@ -170,15 +171,18 @@ JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
             }
         }
         let fullText = '';
+        let blockHeight = 0;
         try {
             if (chunks.length === 0) {
                 const cmarkRoot = lastModelTurn.querySelector('ms-cmark-node.cmark-node') || lastModelTurn;
                 fullText += walk(cmarkRoot) + '\n';
+                try { blockHeight += cmarkRoot.getBoundingClientRect().height || 0; } catch (eh) {}
             } else {
                 for (const chunk of chunks) {
                     if (isThoughtNode(chunk)) continue;
                     const cmarkRoot = chunk.querySelector('ms-cmark-node.cmark-node') || chunk;
                     fullText += walk(cmarkRoot) + '\n';
+                    try { blockHeight += cmarkRoot.getBoundingClientRect().height || 0; } catch (eh) {}
                 }
             }
         } catch (e) {
@@ -200,7 +204,7 @@ JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
                 }
             }
         }
-        return { text: fullText, actionRaw: capturedActionRaw, error: null };
+        return { text: fullText, actionRaw: capturedActionRaw, error: null, blockHeight: blockHeight };
     }
     return extractLastAnswer();
 } catch (outerErr) {
@@ -363,11 +367,19 @@ def get_answer_stream(driver):
     return val if isinstance(val, str) else ""
 
 
-def extract_last_answer(driver):
+def _extract_last_answer_once(driver):
     return _safe_execute(
         driver, JS_EXTRACT_LAST_ANSWER,
         default={"text": "", "actionRaw": None, "error": "execute_script failed"}
     )
+
+
+def extract_last_answer(driver):
+    # v86.23: двойное чтение + ожидание докачки тел меток/===DONE===
+    # (универсальный хелпер базового парсера, как у qwen в v86.19).
+    return extract_answer_settled(
+        driver, _extract_last_answer_once, is_generating_fn=is_generating,
+        log_tag=u"[ai_parser]")
 
 
 # Шапка реплики в textContent: "Model 4:50 PM" / "User 12:03" в начале строки.

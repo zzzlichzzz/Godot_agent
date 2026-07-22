@@ -34,7 +34,8 @@ STATE = {
     "progress": {"active": False},
     "fs_snapshot": None,       # отпечаток файлов проекта (mtime+size) для обнаружения ВНЕШНИХ изменений
     "fs_snapshot_root": None,
-    "file_cache": None,       # rel_path -> содержимое, которое уже видела модель (для точечных diff)  # корень проекта, для которого снят fs_snapshot
+    "file_cache": None,       # rel_path -> содержимое, которое уже видела модель (для точечных diff)  # корень проекта, для которого снят fs_snapshot,
+    "content_parts": None,     # v86.26: накопитель частей многочастного create_file (path/chunks/parts_total/count)
 }
 
 # Драйвер браузера храним в держателе: он создаётся уже после импорта.
