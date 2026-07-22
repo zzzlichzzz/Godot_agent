@@ -88,6 +88,269 @@ def _safe_execute(driver, script, retries=5, delay=0.2, default=None):
     return default
 
 
+
+# ---------------------------------------------------------------------------
+# v86.14/v86.15: универсальный сборщик ПОЛНОГО текста ответа для сайтов,
+# которые рендерят длинные код-блоки через Monaco-редактор (движок VS Code)
+# с ВИРТУАЛИЗАЦИЕЙ строк: в DOM существуют только видимые на экране строки,
+# причём в произвольном порядке (absolute-позиционирование по style.top),
+# поэтому .innerText возвращает неполный и перемешанный текст. Первым таким
+# сайтом оказался Qwen (см. v86.13 в README).
+# Порядок попыток для каждого код-блока:
+#   1) модель Monaco (monaco.editor.getModels() по data-uri) — работает, только
+#      если сайт выставляет глобальный monaco (на реальном Qwen его НЕТ —
+#      выяснено в v86.15 по повторному HTML от пользователя);
+#   2) ПЕРЕХВАТ КНОПКИ Copy код-блока (v86.15): подменяем
+#      navigator.clipboard.writeText/write и document.execCommand('copy') на
+#      перехватчики и программно нажимаем кнопку Copy — сайт сам отдаёт
+#      ПОЛНЫЙ текст блока из своего хранилища; текст ловится БЕЗ обращения
+#      к реальному буферу обмена (не требует фокуса окна и разрешений,
+#      буфер пользователя не портится); после чтения подмены снимаются;
+#   3) аварийно: видимые .view-line, отсортированные по style.top (частично).
+# Использование в парсере сайта:
+#   js = build_composed_answer_js(<JS с функцией блоков>, '<имя функции>',
+#                                 '<css-селектор код-блока>')
+#   click_js = build_copy_click_js(<JS с функцией блоков>, '<имя функции>',
+#                                  '<css-селектор код-блока>',
+#                                  '<css-селектор кнопки Copy внутри блока>')
+#   text = read_composed_answer(driver, js, '[my_parser]', copy_click_js=click_js)
+_MONACO_HELPERS_JS = r"""
+function __monacoValueByUri(pre) {
+    try {
+        var ed = pre.querySelector('.monaco-editor[data-uri]');
+        if (!ed) return null;
+        var uri = ed.getAttribute('data-uri') || '';
+        var me = null;
+        try { if (typeof monaco !== 'undefined' && monaco && monaco.editor) me = monaco.editor; } catch (e) {}
+        if (!me && typeof window !== 'undefined' && window.monaco && window.monaco.editor) me = window.monaco.editor;
+        if (!me || !me.getModels) return null;
+        var models = me.getModels();
+        for (var i = 0; i < models.length; i++) {
+            try {
+                if (String(models[i].uri) === uri) return models[i].getValue();
+            } catch (e) {}
+        }
+    } catch (e) {}
+    return null;
+}
+function __sortedVisibleCodeText(pre) {
+    var rows = [];
+    var lines = pre.querySelectorAll('.view-line');
+    for (var i = 0; i < lines.length; i++) {
+        var t = parseFloat((lines[i].style && lines[i].style.top) || '0');
+        rows.push([isNaN(t) ? 0 : t, lines[i].textContent || '']);
+    }
+    if (!rows.length) return pre.innerText || '';
+    rows.sort(function(a, b) { return a[0] - b[0]; });
+    var out = [];
+    for (var j = 0; j < rows.length; j++) out.push(rows[j][1]);
+    return out.join('\n');
+}
+"""
+
+_COMPOSED_ANSWER_TEMPLATE_JS = r"""
+function __composedAnswer() {
+    var b = __BLOCKS_FN__();
+    if (!b.length) return {text: '', partialCode: false, monacoUsed: false, codeBlocks: 0,
+                           missing: [], fallbacks: {}, monacoGlobal: false};
+    var mg = false;
+    try { mg = (typeof monaco !== 'undefined' && !!monaco) || !!(window && window.monaco); } catch (e) {}
+    var root = b[b.length - 1];
+    var pres = root.querySelectorAll('__CODE_SEL__');
+    if (!pres.length) return {text: root.innerText || '', partialCode: false, monacoUsed: false,
+                              codeBlocks: 0, missing: [], fallbacks: {}, monacoGlobal: mg};
+    var preList = Array.prototype.slice.call(pres);
+    var state = {monaco: false, missing: [], fallbacks: {}};
+    function textOf(node) {
+        if (node.nodeType === 3) return node.textContent || '';
+        if (node.nodeType !== 1) return '';
+        if (node.matches && node.matches('__CODE_SEL__')) {
+            var idx = preList.indexOf(node);
+            var val = __monacoValueByUri(node);
+            if (val !== null && val !== undefined) { state.monaco = true; return val; }
+            state.missing.push(idx);
+            state.fallbacks[idx] = __sortedVisibleCodeText(node);
+            return '\uE000CODE_BLOCK_' + idx + '\uE000';
+        }
+        if (node.querySelector && node.querySelector('__CODE_SEL__')) {
+            var parts = [];
+            for (var i = 0; i < node.childNodes.length; i++) parts.push(textOf(node.childNodes[i]));
+            return parts.join('\n');
+        }
+        return (node.innerText !== undefined ? node.innerText : (node.textContent || ''));
+    }
+    var parts = [];
+    for (var i = 0; i < root.childNodes.length; i++) {
+        var piece = textOf(root.childNodes[i]);
+        if (piece && piece.trim()) parts.push(piece);
+    }
+    return {text: parts.join('\n'), partialCode: state.missing.length > 0,
+            monacoUsed: state.monaco, codeBlocks: preList.length,
+            missing: state.missing, fallbacks: state.fallbacks, monacoGlobal: mg};
+}
+"""
+
+# Скрипт «взвести перехват и нажать Copy у блока N». Токен __CB_IDX__
+# подставляется в read_composed_answer номером блока (execute_script без
+# аргументов — чтобы не менять _safe_execute).
+_COPY_CLICK_TEMPLATE_JS = r"""
+var __cbIdx = __CB_IDX__;
+var b = __BLOCKS_FN__();
+if (!b.length) return false;
+var root = b[b.length - 1];
+var pres = root.querySelectorAll('__CODE_SEL__');
+if (__cbIdx < 0 || __cbIdx >= pres.length) return false;
+var btn = pres[__cbIdx].querySelector('__COPY_BTN_SEL__');
+if (!btn) return false;
+if (!window.__aiCopyIntercept) {
+    var st = {captured: null, origWriteText: null, origWrite: null, origExec: document.execCommand};
+    try {
+        if (navigator.clipboard) {
+            st.origWriteText = navigator.clipboard.writeText;
+            st.origWrite = navigator.clipboard.write;
+            navigator.clipboard.writeText = function (t) { st.captured = String(t); return Promise.resolve(); };
+            navigator.clipboard.write = function (items) {
+                try {
+                    for (var i = 0; i < items.length; i++) {
+                        var it = items[i];
+                        if (it && it.getType) {
+                            it.getType('text/plain').then(function (blob) {
+                                return blob.text();
+                            }).then(function (t) {
+                                if (t) st.captured = String(t);
+                            }).catch(function () {});
+                        }
+                    }
+                } catch (e) {}
+                return Promise.resolve();
+            };
+        }
+    } catch (e) {}
+    try {
+        document.execCommand = function (cmd) {
+            if (String(cmd).toLowerCase() === 'copy') {
+                try {
+                    var ae = document.activeElement;
+                    var t = null;
+                    if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT')) {
+                        t = ae.value || '';
+                        if (typeof ae.selectionStart === 'number' &&
+                                ae.selectionEnd > ae.selectionStart) {
+                            t = t.substring(ae.selectionStart, ae.selectionEnd);
+                        }
+                    } else {
+                        var sel = document.getSelection();
+                        t = sel ? String(sel) : null;
+                    }
+                    if (t) st.captured = String(t);
+                } catch (e) {}
+                return true;
+            }
+            return st.origExec.apply(document, arguments);
+        };
+    } catch (e) {}
+    window.__aiCopyIntercept = st;
+}
+window.__aiCopyIntercept.captured = null;
+btn.click();
+return true;
+"""
+
+_COPY_CAPTURE_READ_JS = (
+    "var st = window.__aiCopyIntercept;"
+    " if (!st) { return null; }"
+    " return st.captured;")
+
+_COPY_INTERCEPT_RESTORE_JS = (
+    "var st = window.__aiCopyIntercept;"
+    " if (!st) { return true; }"
+    " try { if (st.origWriteText) navigator.clipboard.writeText = st.origWriteText; } catch (e) {}"
+    " try { if (st.origWrite) navigator.clipboard.write = st.origWrite; } catch (e) {}"
+    " try { document.execCommand = st.origExec; } catch (e) {}"
+    " window.__aiCopyIntercept = null;"
+    " return true;")
+
+
+def build_composed_answer_js(blocks_js, blocks_fn, code_block_selector):
+    """Собирает готовый JS для чтения ПОЛНОГО текста последнего ответа (v86.14).
+
+    blocks_js  — JS с определением функции, возвращающей список корневых
+                 элементов ответов модели (сайт-специфично);
+    blocks_fn  — имя этой функции, например '__qwenBlocks';
+    code_block_selector — css-селектор контейнера код-блока, например
+                 'pre.qwen-markdown-code' (сайт-специфично).
+    """
+    js = _COMPOSED_ANSWER_TEMPLATE_JS.replace('__BLOCKS_FN__', blocks_fn)
+    js = js.replace('__CODE_SEL__', code_block_selector)
+    return blocks_js + _MONACO_HELPERS_JS + js + "return __composedAnswer();"
+
+
+def build_copy_click_js(blocks_js, blocks_fn, code_block_selector, copy_button_selector):
+    """Собирает JS «перехватить буфер и нажать Copy у блока №__CB_IDX__» (v86.15).
+
+    copy_button_selector — css-селектор кнопки Copy ВНУТРИ код-блока.
+    Перед выполнением подставь номер блока: js.replace('__CB_IDX__', str(i)).
+    После чтения результата выполни _COPY_INTERCEPT_RESTORE_JS.
+    """
+    js = _COPY_CLICK_TEMPLATE_JS.replace('__BLOCKS_FN__', blocks_fn)
+    js = js.replace('__CODE_SEL__', code_block_selector)
+    js = js.replace('__COPY_BTN_SEL__', copy_button_selector)
+    return blocks_js + js
+
+
+def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_click_js=None):
+    """Выполняет JS от build_composed_answer_js; возвращает текст ('' при неудаче).
+
+    Если для каких-то код-блоков модель Monaco недоступна, а copy_click_js задан —
+    добирает их полный текст перехватом кнопки Copy (v86.15)."""
+    res = _safe_execute(driver, composed_js, default=None)
+    if not isinstance(res, dict) or not isinstance(res.get("text"), str):
+        return ""
+    text = res.get("text") or ""
+    missing = res.get("missing") or []
+    fallbacks = res.get("fallbacks") or {}
+    try:
+        n_code = int(res.get("codeBlocks") or 0)
+    except Exception:
+        n_code = 0
+    if n_code and res.get("monacoUsed"):
+        print("%s блок(и) кода прочитаны целиком из модели Monaco-редактора (v86.14)." % log_tag)
+    if missing:
+        print("%s глобальный monaco недоступен (monacoGlobal=%s) — читаю %d код-блок(ов) "
+              "через перехват кнопки Copy (v86.15)."
+              % (log_tag, res.get("monacoGlobal"), len(missing)))
+    used_copy = 0
+    for idx in missing:
+        placeholder = "\ue000CODE_BLOCK_%d\ue000" % int(idx)
+        captured = None
+        if copy_click_js:
+            armed = _safe_execute(
+                driver, copy_click_js.replace("__CB_IDX__", str(int(idx))), default=False)
+            if armed:
+                for _ in range(6):
+                    time.sleep(0.25)
+                    got = _safe_execute(driver, _COPY_CAPTURE_READ_JS, default=None)
+                    if isinstance(got, str) and got.strip():
+                        captured = got
+                        break
+        if captured is not None:
+            text = text.replace(placeholder, captured)
+            used_copy += 1
+        else:
+            fb = fallbacks.get(str(idx)) or fallbacks.get(idx) or ""
+            text = text.replace(placeholder, fb)
+            print("%s ВНИМАНИЕ: код-блок #%s: Monaco недоступен и перехват кнопки Copy "
+                  "не сработал — использована только видимая часть, разбор действия "
+                  "может не удаться (v86.15)." % (log_tag, idx))
+    if missing and copy_click_js:
+        _safe_execute(driver, _COPY_INTERCEPT_RESTORE_JS, default=None)
+    if used_copy:
+        print("%s %d код-блок(ов) прочитаны целиком перехватом кнопки Copy (v86.15)."
+              % (log_tag, used_copy))
+    return text
+
+
+
 def _escape_bbcode_py(text: str) -> str:
     """[ и ] -> [lb]/[rb], чтобы сырой текст не ломал BBCode в панели."""
     return text.replace('[', '[lb]').replace(']', '[rb]')

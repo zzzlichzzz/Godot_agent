@@ -56,6 +56,21 @@ JS_IS_GENERATING = (
     "   if (!last.querySelector('.response-message-footer .qwen-chat-package-comp-new-action-control-icons')) return true; }"
     " return !!document.querySelector('button[aria-label*=\"Stop\"],"
     " [class*=\"stop\"] button, button[class*=\"stop\"]');")
+# v86.12: Qwen periodicheski (chashche na PERVOM soobshchenii v chate) pokazyvaet
+# DVA alʹternativnykh otveta ryadom ("Response 1"/"Response 2", smulti-o-*) s
+# podskazkoy "Which response do you prefer? Select one to continue." — dialog
+# NE prodolzhitsya, poka polzovatel (ili avtomatizatsiya) ne vyberet odin iz
+# nikh knopkoy "I prefer this response" (class smulti-make-better). Eti knopki
+# poyavlyayutsya TOLʹKO kogda OBE generatsii uzhe zaversheny — poetomu ikh
+# prisutstvie v kolichestve >= 2 sluzhit nadezhnym signalom gotovnosti vybora.
+# Avtomatizatsiya vsegda vybiraet PERVYY (levyy, "Response 1") variant — eto
+# prosto i predskazuemo; poryadok knopok v DOM sovpadaet s poryadkom otvetov
+# (podtverzhdeno cherez data-spm-anchor-id i1/i2 na realnom HTML sayta).
+JS_DUAL_CHOICE_BUTTON_COUNT = (
+    "return document.querySelectorAll('button.smulti-make-better').length;")
+JS_CLICK_PREFER_FIRST_RESPONSE = (
+    "var btns = document.querySelectorAll('button.smulti-make-better');"
+    " if (btns.length) { btns[0].click(); return true; } return false;")
 JS_FIND_INPUT = ("return document.querySelector('textarea.message-input-textarea')"
                  " || document.querySelector('textarea#chat-input')"
                  " || document.querySelector('textarea[placeholder]')"
@@ -82,6 +97,29 @@ JS_CLICK_SEND = ("var b = document.querySelector('div.chat-prompt-send-button bu
                  " if (b && !b.disabled) { b.click(); return true; } return false;")
 
 
+# ---------------------------------------------------------------------------
+# v86.13/v86.14/v86.15: Qwen рендерит ДЛИННЫЕ блоки кода (в т.ч. agent_action)
+# через Monaco-редактор с виртуализацией строк: в DOM существуют только видимые
+# строки, причём в произвольном порядке — .innerText даёт неполный и
+# перемешанный текст, JSON действия в нём отсутствует. Полный текст собирается
+# универсальным помощником из parser_base: модель Monaco -> ПЕРЕХВАТ КНОПКИ
+# Copy код-блока (на реальном Qwen глобальный monaco НЕ выставлен — выяснено
+# по HTML от пользователя, поэтому рабочий путь — именно перехват Copy) ->
+# аварийно видимые строки. Qwen-специфичные селекторы передаются параметрами.
+from parser_base import (build_composed_answer_js, build_copy_click_js,
+                         read_composed_answer)
+
+JS_COMPOSED_ANSWER = build_composed_answer_js(
+    _BLOCKS_JS, '__qwenBlocks', 'pre.qwen-markdown-code')
+# Кнопка Copy — ПЕРВЫЙ .qwen-markdown-code-header-action-item в шапке блока
+# (в шапке два значка: Copy и Download; querySelector берёт первый — Copy,
+# подтверждено обоими HTML-дампами от пользователя: #icon-line-copy-right идёт
+# перед #icon-line-download-02).
+JS_COPY_CLICK = build_copy_click_js(
+    _BLOCKS_JS, '__qwenBlocks', 'pre.qwen-markdown-code',
+    '.qwen-markdown-code-header-action-item')
+
+
 def count_answers(driver):
     return _safe_execute(driver, JS_COUNT_ANSWERS, default=0) or 0
 
@@ -101,6 +139,17 @@ def answer_preview(driver):
 
 
 def is_generating(driver):
+    # v86.12: esli Qwen pokazal vybor "Response 1"/"Response 2" (obe knopki
+    # "I prefer this response" uzhe otrisovany — znachit, OBE generatsii
+    # zaversheny) — avtomaticheski vybiraem PERVYY variant, chtoby dialog
+    # prodolzhilsya sam, bez ruchnogo vybora polzovatelem. Posle klika DOM
+    # eshchyo mgnovenie perestraivaetsya (dual-kartochka skladyvaetsya v obychnyy
+    # odinarnyy otvet) — na etom cikle schitaem "eshchyo generiruet", chtoby
+    # ne popytatsya prochitat otvet do zaversheniya perestroyki DOM.
+    n = _safe_execute(driver, JS_DUAL_CHOICE_BUTTON_COUNT, default=0) or 0
+    if n >= 2:
+        _safe_execute(driver, JS_CLICK_PREFER_FIRST_RESPONSE, default=False)
+        return True
     return bool(_safe_execute(driver, JS_IS_GENERATING, default=False))
 
 
@@ -110,11 +159,25 @@ def _action_raw_from_text(text):
     figurnykh skobok celikom schitalsya kandidatom (_extract_json_object
     vozvrashchaet iskhodnuyu stroku, a _looks_json_balanced schitaet tekst bez
     skobok sbalansirovannym) -> parse_error -> lozhnyy sistemnyy povtor na
-    prostoe privetstvie."""
+    prostoe privetstvie.
+
+    v86.11: Qwen otdayet VESʹ otvet odnim sploshnym tekstom (net otdelnogo
+    <pre>/<code>-elementa dlya agent_action) — content_ref/search_ref/
+    replace_ref (v86.9) khranyat svoi tela kak ===METKA===...===END_METKA===
+    POSLE JSON, v TOM ZHE tekste. _extract_json_object rezhet ot pervoy '{'
+    do POSLEDNEY '}' vo VSYOM tekste — dlya deystviy s *_ref eto sluchayno
+    otrezalo vse ===METKA=== bloki (v .gd/.tscn kontente net figurnykh
+    skobok, poetomu 'poslednyaya }' — eto zakryvayushchaya skobka SAMOGO
+    JSON), i _resolve_content_refs() v parser_base.py potom NIKOGDA ikh ne
+    nakhodil — vesʹ plan padal s oshibkoy "ne naydeno telo dlya metki",
+    khotya model prislala vsyo pravilno. Teper posle proverok JSON-kandidata
+    voobshche vozvrashchaem OT nachala JSON DO KONTsA vsego teksta, chtoby
+    lyubye ===METKA=== bloki posle JSON ostalisʹ dostupny dlya razbora."""
     if not text:
         return None
+    stripped = _strip_code_fences(text)
     try:
-        cand = _extract_json_object(_strip_code_fences(text))
+        cand = _extract_json_object(stripped)
     except Exception:
         return None
     if not cand:
@@ -124,11 +187,22 @@ def _action_raw_from_text(text):
         return None
     if u'"action"' not in cand:
         return None
-    return cand if _looks_json_balanced(cand) else None
+    if not _looks_json_balanced(cand):
+        return None
+    start = stripped.find("{")
+    if start == -1:
+        return cand
+    return stripped[start:]
 
 
 def extract_answer(driver):
-    text = answer_stream(driver)
+    # v86.13/v86.14/v86.15: сначала пытаемся собрать ПОЛНЫЙ текст ответа
+    # (код-блоки — из модели Monaco или перехватом кнопки Copy, см.
+    # parser_base). Если составной сбор не удался — старый путь через innerText.
+    text = read_composed_answer(driver, JS_COMPOSED_ANSWER, "[qwen_parser]",
+                                copy_click_js=JS_COPY_CLICK)
+    if not text.strip():
+        text = answer_stream(driver)
     if not text:
         return {"text": "", "actionRaw": None, "error": "пустой ответ (qwen): проверь, что чат открыт и ответ дописан"}
     raw = _action_raw_from_text(text)
