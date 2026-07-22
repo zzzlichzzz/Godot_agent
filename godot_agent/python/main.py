@@ -854,6 +854,28 @@ def _guess_step_path(raw_step_text):
 # fix-prompt с просьбой переслать ВСЁ действие заново.
 # ---------------------------------------------------------------------------
 
+def _lenient_resend_note(action, msg):
+    """v86.22 (автодосыл после терпимого разбора): если тело этого действия
+    было восстановлено терпимым разбором v86.18 (без ===END_МЕТКА=== —
+    возможно, оборвано при передаче) и файл не прошёл проверку — не просим
+    модель «чинить код» (она будет латать обрезанный кусок), а прямо
+    говорим прислать содержимое ЦЕЛИКОМ заново. Для обычных действий
+    (без пометки от parser_base) сообщение не меняется."""
+    if not isinstance(action, dict) or msg is None:
+        return msg
+    fields = action.get("lenient_transfer_fields")
+    if not fields:
+        return msg
+    return msg + (
+        "\n[Система]: ВАЖНО: поле(я) %s этого действия были восстановлены из "
+        "ОБОРВАННОЙ передачи (закрывающий ===END_МЕТКА=== не был получен), "
+        "поэтому содержимое могло оборваться на середине. НЕ пытайся точечно "
+        "чинить присланный кусок — пришли это действие заново ЦЕЛИКОМ, с полным "
+        "содержимым файла, и обязательно заверши тело строкой ===END_МЕТКА=== "
+        "и весь ответ — маркером ===DONE===."
+    ) % ", ".join(str(f) for f in fields)
+
+
 def _reply_with_self_heal(prompt, project_root):
     text, action = _reply(prompt)
     retries = 0
@@ -956,7 +978,7 @@ def _reply_with_self_heal(prompt, project_root):
                     break
                 retries += 1
                 print(f"--> [self-heal] Код в patch_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
-                text, action = _reply(lint_msg)
+                text, action = _reply(_lenient_resend_note(action, lint_msg))
                 continue
             retries += 1
             path = action.get("path", "")
@@ -987,7 +1009,7 @@ def _reply_with_self_heal(prompt, project_root):
                     break
                 retries += 1
                 print(f"--> [self-heal] Код в create_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
-                text, action = _reply(lint_msg)
+                text, action = _reply(_lenient_resend_note(action, lint_msg))
                 continue
             retries += 1
             print(f"--> [self-heal] create_file поверх файла, изменённого другим чатом, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
@@ -1546,7 +1568,7 @@ def plan_step():
                     break
                 fail_reason = result["message"]
             else:
-                fail_reason = lint_msg
+                fail_reason = _lenient_resend_note(step, lint_msg)
             # шаг не прошёл проверку/применение — прежде чем останавливать весь план
             # и звать ручной откат, пытаемся самоисцелиться через зачинку обратно модели.
             if heal_attempts >= MAX_ACTION_FIX_RETRIES:

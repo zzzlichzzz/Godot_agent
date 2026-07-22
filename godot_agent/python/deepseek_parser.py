@@ -29,6 +29,7 @@ from parser_base import (
     _extract_json_object,
     _strip_code_fences,
     parse_action_json,
+    extract_answer_settled,
 )
 
 ANSWER_SEL = "div.ds-markdown.ds-assistant-message-main-content"
@@ -245,11 +246,19 @@ def is_generating(driver):
     return bool(_safe_execute(driver, JS_IS_GENERATING, default=False))
 
 
-def extract_answer(driver):
+def _extract_answer_once(driver):
     return _safe_execute(
         driver, JS_EXTRACT,
         default={"text": "", "actionRaw": None, "error": "execute_script failed"}
     )
+
+
+def extract_answer(driver):
+    # v86.23: двойное чтение + ожидание докачки тел меток/===DONE===
+    # (универсальный хелпер базового парсера, как у qwen в v86.19).
+    return extract_answer_settled(
+        driver, _extract_answer_once, is_generating_fn=is_generating,
+        log_tag=u"[deepseek_parser]")
 
 
 class DeepSeekParser(BaseSiteParser):
