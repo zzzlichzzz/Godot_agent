@@ -338,6 +338,35 @@ def answer_transfer_incomplete(action_raw, text):
     return []
 
 
+# v86.27 (база для ВСЕХ парсеров): проверка полноты по высоте DOM-блока.
+# answer_transfer_incomplete ловит обрезание только через метки *_ref и
+# ===DONE===. Обычный текстовый ответ без action таких меток не имеет, и
+# если сайт виртуализирует/обрезает innerText, двойное чтение дважды подряд
+# совпадёт с одинаково ОБРЕЗАННЫМ текстом и будет принят за устоявшийся.
+# Сайт-парсер, если умеет, измеряет высоту блока ответа в px (blockHeight) —
+# сравниваем её с числом строк снятого текста: если высота явно намекает на
+# большее число строк, чем есть в тексте — похоже на обрезание, стоит
+# подождать и перечитать. blockHeight <= 0 или отсутствует — данных нет,
+# считаем ответ полным (проверка только дополняет остальные, не заменяет).
+PX_PER_LINE_DEFAULT = 20.0
+
+
+def height_says_incomplete(text, block_height_px, px_per_line=PX_PER_LINE_DEFAULT,
+                           min_gap_lines=3.0, tolerance=1.25):
+    """True, если высота блока (px) заметно больше, чем объясняет число
+    строк в тексте — вероятный признак того, что часть ответа не попала в
+    снятый текст (виртуализация/обрезание), хотя текст «устоялся»."""
+    if not block_height_px or block_height_px <= 0:
+        return False
+    try:
+        height_px = float(block_height_px)
+    except (TypeError, ValueError):
+        return False
+    actual_lines = text.count("\n") + 1 if text else 0
+    expected_lines = height_px / float(px_per_line or PX_PER_LINE_DEFAULT)
+    return expected_lines > (actual_lines * tolerance) + min_gap_lines
+
+
 def read_composed_answer(driver, composed_js, log_tag="[parser_base]", copy_click_js=None):
     """Выполняет JS от build_composed_answer_js; возвращает текст ('' при неудаче).
 
@@ -476,21 +505,35 @@ def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
         raw = result.get("actionRaw")
         text = result.get("text") or u""
         missing = answer_transfer_incomplete(raw, text)
-        if not missing:
+        # v86.27: доп. проверка по высоте блока — только если меток хватает
+        # и сайт-парсер отдал blockHeight в extract_fn.
+        height_short = (not missing) and height_says_incomplete(text, result.get("blockHeight"))
+        if not missing and not height_short:
             return result
         still = bool(is_generating_fn(driver)) if is_generating_fn else False
         if not still:
             tries_after_gen += 1
             if tries_after_gen > post_gen_tries:
-                print(u"%s передача так и не завершилась (не хватает: %s) — отдаю как есть, дальше решит самоисцеление (v86.23)."
-                      % (log_tag, u", ".join(missing)))
+                if missing:
+                    print(u"%s передача так и не завершилась (не хватает: %s) — отдаю как есть, дальше решит самоисцеление (v86.23)."
+                          % (log_tag, u", ".join(missing)))
+                else:
+                    print(u"%s высота блока ответа (%.0fpx) заметно больше, чем объясняет полученный текст (%d строк(и)) — похоже на обрезание, но бюджет ожидания исчерпан, отдаю как есть (v86.27)."
+                          % (log_tag, float(result.get("blockHeight") or 0),
+                             (text.count("\n") + 1) if text else 0))
                 return result
         if time.time() - start > max_wait:
             print(u"%s превышено время ожидания докачки (%.0f с) — отдаю как есть (v86.23)."
                   % (log_tag, max_wait))
             return result
-        print(u"%s ответ ещё не докачан: не хватает %s — жду и перечитываю (генерация идёт=%s, v86.23)…"
-              % (log_tag, u", ".join(missing), u"да" if still else u"нет"))
+        if missing:
+            print(u"%s ответ ещё не докачан: не хватает %s — жду и перечитываю (генерация идёт=%s, v86.23)…"
+                  % (log_tag, u", ".join(missing), u"да" if still else u"нет"))
+        else:
+            print(u"%s текст устоялся, но высота блока (%.0fpx) намекает на больше текста, чем распознано (%d строк(и)) — жду и перечитываю (генерация идёт=%s, v86.27)…"
+                  % (log_tag, float(result.get("blockHeight") or 0),
+                     (text.count("\n") + 1) if text else 0,
+                     u"да" if still else u"нет"))
         time.sleep(poll)
         result = extract_fn(driver) or {}
 

@@ -17,6 +17,7 @@ try:
     import ai_parser as _static_ai_parser  # noqa: F401
     import deepseek_parser as _static_deepseek_parser  # noqa: F401
     import qwen_parser as _static_qwen_parser  # noqa: F401
+    import kimi_parser as _static_kimi_parser  # noqa: F401
 except Exception:
     pass
 
@@ -47,6 +48,14 @@ SITES = [
         "new_chat_url": "https://chat.qwen.ai/",
         "match": ["chat.qwen.ai", "qwen.ai"],
         "parser": "qwen_parser",
+        "builtin": True,
+    },
+    {
+        "id": "kimi",
+        "name": "Kimi",
+        "new_chat_url": "https://www.kimi.com/",
+        "match": ["kimi.com"],
+        "parser": "kimi_parser",
         "builtin": True,
     },
 ]

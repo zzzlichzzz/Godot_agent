@@ -165,7 +165,9 @@ JS_EXTRACT = _BLOCKS_JS + r"""try {
         } catch (e) { return ''; }
     }
     var text = walk(root).replace(/\n{3,}/g, '\n\n').trim();
-    return { text: text, actionRaw: actionRaw, error: null };
+    var blockHeight = 0;
+    try { blockHeight = root.getBoundingClientRect().height || root.scrollHeight || 0; } catch (eh) {}
+    return { text: text, actionRaw: actionRaw, error: null, blockHeight: blockHeight };
 } catch (e) {
     return { text: '', actionRaw: null, error: String(e && e.message || e) };
 }""".replace("__SEL__", ANSWER_SEL)

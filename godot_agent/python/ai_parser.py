@@ -171,15 +171,18 @@ JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
             }
         }
         let fullText = '';
+        let blockHeight = 0;
         try {
             if (chunks.length === 0) {
                 const cmarkRoot = lastModelTurn.querySelector('ms-cmark-node.cmark-node') || lastModelTurn;
                 fullText += walk(cmarkRoot) + '\n';
+                try { blockHeight += cmarkRoot.getBoundingClientRect().height || 0; } catch (eh) {}
             } else {
                 for (const chunk of chunks) {
                     if (isThoughtNode(chunk)) continue;
                     const cmarkRoot = chunk.querySelector('ms-cmark-node.cmark-node') || chunk;
                     fullText += walk(cmarkRoot) + '\n';
+                    try { blockHeight += cmarkRoot.getBoundingClientRect().height || 0; } catch (eh) {}
                 }
             }
         } catch (e) {
@@ -201,7 +204,7 @@ JS_EXTRACT_LAST_ANSWER = r"""try {""" + _JS_IS_THOUGHT + r"""
                 }
             }
         }
-        return { text: fullText, actionRaw: capturedActionRaw, error: null };
+        return { text: fullText, actionRaw: capturedActionRaw, error: null, blockHeight: blockHeight };
     }
     return extractLastAnswer();
 } catch (outerErr) {

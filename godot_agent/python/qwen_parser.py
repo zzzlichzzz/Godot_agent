@@ -123,7 +123,8 @@ JS_CLICK_SEND = ("var b = document.querySelector('div.chat-prompt-send-button bu
 # аварийно видимые строки. Qwen-специфичные селекторы передаются параметрами.
 from parser_base import (answer_transfer_incomplete, build_composed_answer_js,
                          build_copy_click_js, missing_ref_bodies,
-                         read_answer_stable, read_composed_answer)
+                         read_answer_stable, read_composed_answer,
+                         height_says_incomplete)
 
 JS_COMPOSED_ANSWER = build_composed_answer_js(
     _BLOCKS_JS, '__qwenBlocks', 'pre.qwen-markdown-code')
@@ -152,6 +153,24 @@ def answer_stream(driver):
 
 def answer_preview(driver):
     return answer_stream(driver)[-160:]
+
+
+# v86.27: высота (px) последнего блока ответа — для height_says_incomplete
+# из parser_base.
+JS_BLOCK_HEIGHT = _BLOCKS_JS + (
+    "var b = __qwenBlocks(); if (!b.length) return 0;"
+    " var el = b[b.length-1];"
+    " var h = 0;"
+    " try { h = el.getBoundingClientRect().height || 0; } catch (e) {}"
+    " return Math.max(h, el.scrollHeight || 0);")
+
+
+def block_height(driver):
+    val = _safe_execute(driver, JS_BLOCK_HEIGHT, default=0)
+    try:
+        return float(val or 0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def is_generating(driver):
@@ -234,7 +253,14 @@ def extract_answer(driver):
     tries = 0
     post_gen_tries = 0
     wait_start = time.time()
-    while raw and answer_transfer_incomplete(raw, text):
+    while True:
+        missing = answer_transfer_incomplete(raw, text) if raw else []
+        # v86.27: даже без action (обычный текстовый ответ) высота блока
+        # может подсказать, что реально отрендерено больше строк, чем
+        # попало в innerText (виртуализация/обрезание).
+        height_short = (not missing) and height_says_incomplete(text, block_height(driver))
+        if not missing and not height_short:
+            break
         try:
             still_generating = bool(is_generating(driver))
         except Exception:
@@ -248,10 +274,15 @@ def extract_answer(driver):
                   "отдаю ответ как есть (v86.18).")
             break
         tries += 1
-        print("[qwen_parser] передача ещё не завершена, не хватает: %s — жду и перечитываю "
-              "(попытка %d, генерация идёт=%s, v86.19)…"
-              % (", ".join(answer_transfer_incomplete(raw, text)), tries,
-                 "да" if still_generating else "нет"))
+        if missing:
+            print("[qwen_parser] передача ещё не завершена, не хватает: %s — жду и перечитываю "
+                  "(попытка %d, генерация идёт=%s, v86.19)…"
+                  % (", ".join(missing), tries,
+                     "да" if still_generating else "нет"))
+        else:
+            print("[qwen_parser] текст устоялся, но высота блока намекает на больше текста, чем "
+                  "распознано — жду и перечитываю (попытка %d, генерация идёт=%s, v86.27)…"
+                  % (tries, "да" if still_generating else "нет"))
         time.sleep(2.5)
         new_text = read_composed_answer(driver, JS_COMPOSED_ANSWER, "[qwen_parser]",
                                         copy_click_js=JS_COPY_CLICK)
