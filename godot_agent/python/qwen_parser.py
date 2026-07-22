@@ -48,7 +48,22 @@ function __qwenBlocks() {
 """
 
 JS_COUNT_ANSWERS = _BLOCKS_JS + "return __qwenBlocks().length;"
-JS_ANSWER_LEN = _BLOCKS_JS + "var b = __qwenBlocks(); return b.length ? (b[b.length-1].innerText || '').length : -1;"
+# v86.16: к длине видимого текста добавляем высоту тел код-блоков (px):
+# у виртуализированного Monaco-блока innerText постоянен (~39 видимых
+# строк), а высота растёт с каждой новой строкой (~20px) — так метрика
+# прогресса видит генерацию до самого конца и quiet-периоды не срабатывают
+# посреди ответа.
+JS_ANSWER_LEN = _BLOCKS_JS + (
+    "var b = __qwenBlocks(); if (!b.length) return -1;"
+    " var el = b[b.length-1];"
+    " var n = (el.innerText || '').length;"
+    " var bodies = el.querySelectorAll('pre.qwen-markdown-code .qwen-markdown-code-body');"
+    " for (var i = 0; i < bodies.length; i++) {"
+    "   var h = parseFloat((bodies[i].style && bodies[i].style.height) || '0');"
+    "   if (!isNaN(h) && h > 0) { n += Math.round(h); }"
+    "   else { n += (bodies[i].scrollHeight || 0); }"
+    " }"
+    " return n;")
 JS_ANSWER_TEXT = _BLOCKS_JS + "var b = __qwenBlocks(); return b.length ? (b[b.length-1].innerText || '') : '';"
 JS_IS_GENERATING = (
     "var msgs = document.querySelectorAll('div.qwen-chat-message-assistant');"
@@ -107,7 +122,7 @@ JS_CLICK_SEND = ("var b = document.querySelector('div.chat-prompt-send-button bu
 # по HTML от пользователя, поэтому рабочий путь — именно перехват Copy) ->
 # аварийно видимые строки. Qwen-специфичные селекторы передаются параметрами.
 from parser_base import (build_composed_answer_js, build_copy_click_js,
-                         read_composed_answer)
+                         missing_ref_bodies, read_composed_answer)
 
 JS_COMPOSED_ANSWER = build_composed_answer_js(
     _BLOCKS_JS, '__qwenBlocks', 'pre.qwen-markdown-code')
@@ -206,6 +221,45 @@ def extract_answer(driver):
     if not text:
         return {"text": "", "actionRaw": None, "error": "пустой ответ (qwen): проверь, что чат открыт и ответ дописан"}
     raw = _action_raw_from_text(text)
+    # v86.16: если JSON действия ссылается на метки (content_ref и т.п.), а их
+    # тел ===МЕТКА===...===END_МЕТКА=== в тексте ещё нет — ответ, скорее
+    # всего, ЕЩЁ ДОПИСЫВАЕТСЯ: JSON плана становится сбалансированным задолго
+    # до конца тел файлов.
+    # v86.18: ожидание дозаписи больше не ограничено фиксированными ~20 с:
+    # пока сайт РЕАЛЬНО генерирует (is_generating), продолжаем ждать и
+    # перечитывать (длинный ответ с 6+ файлами пишется минутами — именно
+    # так терялись FILE_4..FILE_6). После остановки генерации — ещё до 8
+    # контрольных перечитываний. Общий предохранитель — 240 с на вызов,
+    # чтобы никогда не зависнуть навечно. Если тела так и не появились —
+    # отдаём как есть: дальше сработает терпимый разбор тел (v86.18 в
+    # parser_base) и штатное самоисцеление/частичное восстановление.
+    tries = 0
+    post_gen_tries = 0
+    wait_start = time.time()
+    while raw and missing_ref_bodies(raw, text):
+        try:
+            still_generating = bool(is_generating(driver))
+        except Exception:
+            still_generating = False
+        if not still_generating:
+            post_gen_tries += 1
+            if post_gen_tries > 8:
+                break
+        if time.time() - wait_start > 240:
+            print("[qwen_parser] лимит ожидания дозаписи (240 с) исчерпан — "
+                  "отдаю ответ как есть (v86.18).")
+            break
+        tries += 1
+        print("[qwen_parser] в ответе пока нет тел для меток: %s — жду и перечитываю "
+              "(попытка %d, генерация идёт=%s, v86.18)…"
+              % (", ".join(missing_ref_bodies(raw, text)), tries,
+                 "да" if still_generating else "нет"))
+        time.sleep(2.5)
+        new_text = read_composed_answer(driver, JS_COMPOSED_ANSWER, "[qwen_parser]",
+                                        copy_click_js=JS_COPY_CLICK)
+        if new_text.strip():
+            text = new_text
+            raw = _action_raw_from_text(text)
     return {"text": text, "actionRaw": raw, "error": None}
 
 
