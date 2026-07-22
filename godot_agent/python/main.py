@@ -50,6 +50,7 @@ from agent_prompts import (
     MAX_PLAN_STEPS,
     MAX_PLAN_TOTAL_STEPS,
     MAX_PLAN_PARTS,
+    MAX_CONTENT_PARTS,
 )
 
 # шаги plan-режима ограничены теми же write-действиями, что и одиночные действия,
@@ -99,6 +100,7 @@ import sites
 import parser_base      # noqa: F401
 import ai_parser        # noqa: F401
 import deepseek_parser  # noqa: F401
+import kimi_parser      # noqa: F401
 
 from chat_routes import chats_bp
 
@@ -262,6 +264,94 @@ def _plan_collect_final(action):
         STATE["plan_parts"] = None
         print(f"--> Многочастный план склеен: {len(steps)} шаг(ов) из {parts['count'] + 1} частей.")
     return steps, description
+
+
+# v86.26: многочастная передача большого content для create_file (та же идея, что и
+# у многочастного plan выше: модели может не хватить выходного лимита токенов
+# на весь файл целиком — содержимое копится в STATE["content_parts"], пока не придёт
+# последняя часть (без continues).
+def _content_part_add(action):
+    """Принимает часть многочастной передачи content (action=create_file с
+    \"continues\": true, поля content_part/content_parts_total). Возвращает
+    (ok, followup_для_модели); при ошибке накопленное сбрасывается."""
+    if action.get("action") != "create_file":
+        STATE["content_parts"] = None
+        return False, ("[Система]: многочастная передача (\"continues\": true) поддерживается "
+                       "только для create_file. Пришли файл заново одним действием или частями "
+                       "create_file.")
+    path = action.get("path")
+    chunk = action.get("content")
+    if not path or not isinstance(chunk, str):
+        STATE["content_parts"] = None
+        return False, ("[Система]: часть файла отклонена: нужны непустой 'path' и текстовый "
+                       "'content' (саму часть, можно через content_ref). Накопленное сброшено — "
+                       "пришли заново с первой части.")
+    try:
+        part_no = int(action.get("content_part"))
+        parts_total = int(action.get("content_parts_total"))
+    except (TypeError, ValueError):
+        STATE["content_parts"] = None
+        return False, ("[Система]: часть файла отклонена: нужны числовые 'content_part' и "
+                       "'content_parts_total'. Накопленное сброшено — пришли заново с первой части.")
+    parts = STATE.get("content_parts")
+    if parts and parts.get("path") != path:
+        parts = None  # части для другого файла — считаем, что начинается новая передача
+    if not parts:
+        if part_no != 1:
+            STATE["content_parts"] = None
+            return False, ("[Система]: часть файла отклонена: первая часть должна иметь "
+                           "\"content_part\": 1. Пришли заново с первой части.")
+        if parts_total < 2 or parts_total > MAX_CONTENT_PARTS:
+            STATE["content_parts"] = None
+            return False, ("[Система]: часть файла отклонена: 'content_parts_total' должен быть "
+                           "от 2 до %d. Если файл столько не весит — пришли его ОДНИМ действием, "
+                           "без continues." % MAX_CONTENT_PARTS)
+        parts = {"path": path, "chunks": [], "parts_total": parts_total, "count": 0}
+    if part_no != parts["count"] + 1:
+        STATE["content_parts"] = None
+        return False, ("[Система]: часть файла отклонена: ожидалась часть %d, а пришла %d. "
+                       "Накопленное сброшено — пришли заново с первой части." % (parts["count"] + 1, part_no))
+    if parts_total != parts["parts_total"]:
+        STATE["content_parts"] = None
+        return False, ("[Система]: часть файла отклонена: 'content_parts_total' изменился по ходу "
+                       "передачи (%d -> %d). Накопленное сброшено — пришли заново с первой части."
+                       % (parts["parts_total"], parts_total))
+    parts["chunks"].append(chunk)
+    parts["count"] += 1
+    STATE["content_parts"] = parts
+    print("--> Принята часть %d/%d содержимого файла %s (v86.26)." % (parts["count"], parts["parts_total"], path))
+    return True, ("[Система]: часть %d/%d файла %s принята (%d симв.). Пришли СЛЕДУФЩУю часть тем же "
+                  "действием (action=create_file, тот же 'path'): \"content_part\": %d, "
+                  "\"content_parts_total\": %d, \"continues\": true — если после неё будут ещё части, "
+                  "или без \"continues\", если это последняя. Уже присланное НЕ повторяй."
+                  % (parts["count"], parts["parts_total"], path, len(chunk),
+                     parts["count"] + 1, parts["parts_total"]))
+
+
+def _content_collect_final(action):
+    """Последняя часть многочастной передачи content (или обычный
+    одночастный create_file): склеивает накопленные части (если были) с content
+    из текущего action. Возвращает целый текст файла и очищает накопитель."""
+    chunk = action.get("content") if isinstance(action.get("content"), str) else ""
+    parts = STATE.get("content_parts")
+    if parts and parts.get("path") == action.get("path"):
+        full = "".join(parts["chunks"]) + chunk
+        declared_total = action.get("content_total_lines")
+        part_count = parts["count"]
+        STATE["content_parts"] = None
+        try:
+            declared_total = int(declared_total) if declared_total is not None else None
+        except (TypeError, ValueError):
+            declared_total = None
+        if declared_total is not None:
+            actual = len(full.split("\n"))
+            if declared_total != actual:
+                print(u"[main] ВНИМАНИЕ: для %s объявлено %d строк(и) итогового файла, а "
+                      u"собрано %d — возможна потеря части при склейке (v86.26)." % (action.get("path"), declared_total, actual))
+        print("--> Многочастная передача файла %s склеена: %d частей." % (action.get("path"), part_count + 1))
+        return full
+    STATE["content_parts"] = None
+    return chunk
 
 
 def _apply_write_step(action, project_root, chain_id=None):
@@ -448,6 +538,27 @@ def _package_model_reply(text, action, project_root, depth=0):
             "answer": text + "\n\n[Система]: ⚠ Не удалось получить корректный JSON действия даже после нескольких повторных попыток (включая точечное восстановление шагов плана, если сломанный ответ был похож на план).",
             "pending_action": None,
         })
+    # v86.26: многочастная передача большого content для create_file: если это не последняя часть
+    # ("continues": true) — копим и просим следующую, не доводя дело до подтверждения.
+    if action and action.get("action") == "create_file" and action.get("continues"):
+        STATE["pending_action"] = None
+        ok_part, followup = _content_part_add(action)
+        if depth >= MAX_CONTENT_PARTS + 3 or (not ok_part and depth >= 2):
+            STATE["content_parts"] = None
+            return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
+        text2, act2 = _reply_with_self_heal(followup, project_root)
+        return _package_model_reply(text2, act2, project_root, depth + 1)
+    # Последняя часть (или обычный одночастный create_file) — склеиваем с накопленным и выкусываем
+    # служебные поля из действия (не-multi-part create_file проходит через то же без изменений).
+    if action and action.get("action") == "create_file" and not action.get("continues"):
+        merged = _content_collect_final(action)
+        if (merged != action.get("content") or "content_part" in action
+                or "content_parts_total" in action or "content_total_lines" in action):
+            action = dict(action)
+            action["content"] = merged
+            action.pop("content_part", None)
+            action.pop("content_parts_total", None)
+            action.pop("content_total_lines", None)
     if action and action.get("action") in ("read_file", "read_files", "read_function"):
         STATE["pending_action"] = None
         STATE["pending_batch"] = _start_read_batch(action, project_root)
@@ -854,6 +965,28 @@ def _guess_step_path(raw_step_text):
 # fix-prompt с просьбой переслать ВСЁ действие заново.
 # ---------------------------------------------------------------------------
 
+def _lenient_resend_note(action, msg):
+    """v86.22 (автодосыл после терпимого разбора): если тело этого действия
+    было восстановлено терпимым разбором v86.18 (без ===END_МЕТКА=== —
+    возможно, оборвано при передаче) и файл не прошёл проверку — не просим
+    модель «чинить код» (она будет латать обрезанный кусок), а прямо
+    говорим прислать содержимое ЦЕЛИКОМ заново. Для обычных действий
+    (без пометки от parser_base) сообщение не меняется."""
+    if not isinstance(action, dict) or msg is None:
+        return msg
+    fields = action.get("lenient_transfer_fields")
+    if not fields:
+        return msg
+    return msg + (
+        "\n[Система]: ВАЖНО: поле(я) %s этого действия были восстановлены из "
+        "ОБОРВАННОЙ передачи (закрывающий ===END_МЕТКА=== не был получен), "
+        "поэтому содержимое могло оборваться на середине. НЕ пытайся точечно "
+        "чинить присланный кусок — пришли это действие заново ЦЕЛИКОМ, с полным "
+        "содержимым файла, и обязательно заверши тело строкой ===END_МЕТКА=== "
+        "и весь ответ — маркером ===DONE===."
+    ) % ", ".join(str(f) for f in fields)
+
+
 def _reply_with_self_heal(prompt, project_root):
     text, action = _reply(prompt)
     retries = 0
@@ -956,7 +1089,7 @@ def _reply_with_self_heal(prompt, project_root):
                     break
                 retries += 1
                 print(f"--> [self-heal] Код в patch_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
-                text, action = _reply(lint_msg)
+                text, action = _reply(_lenient_resend_note(action, lint_msg))
                 continue
             retries += 1
             path = action.get("path", "")
@@ -987,7 +1120,7 @@ def _reply_with_self_heal(prompt, project_root):
                     break
                 retries += 1
                 print(f"--> [self-heal] Код в create_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
-                text, action = _reply(lint_msg)
+                text, action = _reply(_lenient_resend_note(action, lint_msg))
                 continue
             retries += 1
             print(f"--> [self-heal] create_file поверх файла, изменённого другим чатом, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
@@ -1546,7 +1679,7 @@ def plan_step():
                     break
                 fail_reason = result["message"]
             else:
-                fail_reason = lint_msg
+                fail_reason = _lenient_resend_note(step, lint_msg)
             # шаг не прошёл проверку/применение — прежде чем останавливать весь план
             # и звать ручной откат, пытаемся самоисцелиться через зачинку обратно модели.
             if heal_attempts >= MAX_ACTION_FIX_RETRIES:
