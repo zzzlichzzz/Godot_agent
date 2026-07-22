@@ -80,7 +80,12 @@ def set_storage_base(addon_dir, project_root=None):
         if os.path.isdir(old):
             import shutil
             moved = False
-            for name in (DATASET_FILE, MANIFEST_FILE, "train_log.json"):
+            # v86.3: раньше переезжали только датасет и СТАРАЯ папка «checkpoints»,
+            # а рабочие веса лежат в «checkpoints_smart» (профили v81+) — при
+            # смене хранилища они терялись и обучение начиналось с нуля.
+            for name in (DATASET_FILE, MANIFEST_FILE, "train_log.json",
+                         "example_stats.json", "settings.json",
+                         REFERENCE_EXAM_FILE, REFERENCE_LOG_FILE):
                 src = os.path.join(old, name)
                 dst = os.path.join(new, name)
                 if os.path.isfile(src) and not os.path.exists(dst):
@@ -89,14 +94,15 @@ def set_storage_base(addon_dir, project_root=None):
                         moved = True
                     except OSError:
                         pass
-            src_ck = os.path.join(old, "checkpoints")
-            dst_ck = os.path.join(new, "checkpoints")
-            if os.path.isdir(src_ck) and not os.path.isdir(dst_ck):
-                try:
-                    shutil.copytree(src_ck, dst_ck)
-                    moved = True
-                except OSError:
-                    pass
+            for sub in ("checkpoints", "checkpoints_smart", REFERENCE_SUBDIR):
+                src_ck = os.path.join(old, sub)
+                dst_ck = os.path.join(new, sub)
+                if os.path.isdir(src_ck) and not os.path.isdir(dst_ck):
+                    try:
+                        shutil.copytree(src_ck, dst_ck)
+                        moved = True
+                    except OSError:
+                        pass
             if moved:
                 print(u"[minilich] мозг перенесён в папку плагина: %s" % new)
     _BASE_OVERRIDE = new
