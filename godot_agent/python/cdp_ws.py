@@ -78,6 +78,16 @@ class MiniWebSocket:
             import ssl
             self._sock = ssl.create_default_context().wrap_socket(self._sock, server_hostname=host)
         leftover = _ws_handshake(self._sock, "%s:%s" % (host, port), path)
+        # v87.7: timeout из create_connection() действует на ВСЕ операции сокета,
+        # включая recv(). Если после хендшейка оставить его (10с), то любые 10с
+        # ТИШИНЫ в CDP-событиях (страница просто ничего не грузит, пока модель
+        # думает/пользователь читает) роняют recv() по socket.timeout, и
+        # CDPSession._read_loop молча умирает - монитор навсегда глохнет:
+        # никакие Network.* события больше не приходят, все send_command ловят
+        # 15с-таймауты. Repro: событие до 10с тишины доходит, после - нет.
+        # Поэтому после хендшейка снимаем таймаут: recv() блокируется до данных
+        # или закрытия сокета (close() будит его исключением).
+        self._sock.settimeout(None)
         self._buf = bytearray(leftover)
         self._closed = False
         self._send_lock = threading.Lock()
@@ -171,11 +181,17 @@ class CDPSession:
     def on_event(self, method, callback):
         self._event_handlers.setdefault(method, []).append(callback)
 
+    def is_alive(self):
+        """v87.7: жива ли сессия (читающий поток работает и не было stop)."""
+        return (not self._stop) and self._reader.is_alive()
+
     def _read_loop(self):
+        err = None
         while not self._stop:
             try:
                 raw = self._ws.recv_message()
-            except Exception:
+            except Exception as e:
+                err = e
                 break
             if raw is None:
                 break
@@ -199,8 +215,24 @@ class CDPSession:
                             cb(params)
                         except Exception as e:
                             print("[cdp_ws] event handler for %s failed: %s" % (msg["method"], e))
+        # v87.7: read_loop завершился (закрытие/ошибка сокета). Раньше это
+        # происходило МОЛЧА: все уже ожидающие send_command висели до своего
+        # 15с-таймаута, а новые - тоже, хотя ответа быть не может. Теперь:
+        # 1) все ожидающие команды будятся с явной ошибкой сразу;
+        # 2) при неожиданном выходе (не через close()) пишется диагностика.
+        with self._lock:
+            pending = list(self._pending.values())
+            self._pending.clear()
+        for slot in pending:
+            slot["error"] = {"message": "CDP connection closed (%r)" % (err,)}
+            slot["event"].set()
+        if not self._stop:
+            print("[cdp_ws] read loop exited unexpectedly: %r - CDP-сессия мертва, нужно переподключение" % (err,))
 
     def send_command(self, method, params=None, timeout=15.0):
+        # v87.7: если сессия уже мертва, не ждать таймаут впустую.
+        if not self.is_alive():
+            raise WSError("CDP session is closed (reader thread not running).")
         with self._lock:
             cmd_id = self._next_id
             self._next_id += 1
@@ -262,6 +294,34 @@ def decode_connect_frames(raw_bytes):
             continue
         out.append((flags, obj))
     return out
+
+
+def decode_connect_frames_partial(raw_bytes):
+    """v87.8: инкрементный вариант decode_connect_frames для живого
+    стрима (Network.streamResourceContent / Network.dataReceived): чанки
+    приходят произвольными кусками и могут резать Connect-конверт
+    посередине. Возвращает (frames, consumed): разобранные ПОЛНЫЕ кадры
+    и число съеденных байт; неполный хвост НЕ выбрасывается (в отличие
+    от decode_connect_frames) - вызывающий хранит его и доклеивает
+    следующий чанк."""
+    out = []
+    i = 0
+    n = len(raw_bytes)
+    while i + 5 <= n:
+        flags = raw_bytes[i]
+        length = int.from_bytes(raw_bytes[i + 1:i + 5], "big")
+        start = i + 5
+        end = start + length
+        if end > n:
+            break
+        payload = raw_bytes[start:end]
+        i = end
+        try:
+            obj = json.loads(payload.decode("utf-8"))
+        except Exception:
+            continue
+        out.append((flags, obj))
+    return out, i
 
 
 def encode_connect_frame(obj, flags=0):
