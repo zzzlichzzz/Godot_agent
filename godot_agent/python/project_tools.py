@@ -528,10 +528,36 @@ def describe_architecture(project_root, max_dirs=6):
     return '\n'.join(lines)
 
 
-def snapshot_files(project_root):
-    """Отпечаток файлов проекта (mtime+size) — для обнаружения изменений,
-    сделанных ВНЕ агента (пользователь удалил/поменял файлы руками)."""
+HASH_MAX_BYTES = 8 * 1024 * 1024  # файлы крупнее не хэшируются (сравнение по mtime+size)
+
+
+def _file_digest(abs_path, size):
+    """v88.5: md5 содержимого (hex) или None для слишком больших файлов."""
+    if size > HASH_MAX_BYTES:
+        return None
+    import hashlib
+    h = hashlib.md5()
+    try:
+        with open(abs_path, 'rb') as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b''):
+                h.update(chunk)
+    except OSError:
+        return None
+    return h.hexdigest()
+
+
+def snapshot_files(project_root, prev=None):
+    """Отпечаток файлов проекта — для обнаружения изменений, сделанных ВНЕ
+    агента (пользователь удалил/поменял файлы руками).
+
+    v88.5: значение — (mtime, size, md5_содержимого). Хэш нужен, чтобы НЕ
+    считать файл изменённым, когда поменялось только время правки: Godot
+    пересохраняет открытую сцену (.tscn) с тем же содержимым, и раньше это
+    давало ложное «файл ИЗМЕНИЛСЯ вне диалога» с просьбой перечитать.
+    Дорогое хэширование не повторяется зря: если передан prev (прошлый
+    снапшот) и mtime+size файла не менялись — хэш берётся из prev."""
     project_root = os.path.abspath(project_root)
+    prev = prev or {}
     snap = {}
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
@@ -544,15 +570,33 @@ def snapshot_files(project_root):
             except OSError:
                 continue
             rel = os.path.relpath(abs_path, project_root).replace(os.sep, '/')
-            snap[rel] = (int(st.st_mtime), int(st.st_size))
+            mtime, size = int(st.st_mtime), int(st.st_size)
+            old = prev.get(rel)
+            if old is not None and len(old) > 2 and old[0] == mtime and old[1] == size:
+                digest = old[2]  # mtime+size не менялись — верим прошлому хэшу
+            else:
+                digest = _file_digest(abs_path, size)
+            snap[rel] = (mtime, size, digest)
     return snap
+
+
+def _entry_content_differs(old_e, new_e):
+    """v88.5: изменение = другое СОДЕРЖИМОЕ. Если у обеих записей есть хэш —
+    сравниваем хэши (mtime игнорируется: пересохранение без правок, как Godot
+    делает с открытой сценой, — НЕ изменение). Без хэша (слишком большой файл
+    или снапшот старого формата) — как раньше, по mtime+size."""
+    old_h = old_e[2] if len(old_e) > 2 else None
+    new_h = new_e[2] if len(new_e) > 2 else None
+    if old_h is not None and new_h is not None:
+        return old_h != new_h
+    return tuple(old_e[:2]) != tuple(new_e[:2])
 
 
 def diff_snapshots(old, new):
     """Сравнение двух снапшотов: (добавлены, изменены, удалены)."""
     added = sorted(set(new) - set(old))
     deleted = sorted(set(old) - set(new))
-    changed = sorted(p for p in new if p in old and new[p] != old[p])
+    changed = sorted(p for p in new if p in old and _entry_content_differs(old[p], new[p]))
     return added, changed, deleted
 
 

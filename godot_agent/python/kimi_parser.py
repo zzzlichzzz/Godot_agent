@@ -36,6 +36,8 @@ from parser_base import BaseSiteParser, _safe_execute
 from cdp_ws import (CDPSession, decode_connect_frames,
                     decode_connect_frames_partial, find_page_ws_url)
 
+from net_monitor import BaseNetMonitor
+
 
 # ---------------------------------------------------------------------------
 # Extraction of the agent_action fence from already-assembled markdown text.
@@ -69,321 +71,36 @@ def split_text_and_action(full_text):
 # for the schema this is based on.
 # ---------------------------------------------------------------------------
 
-class KimiChatMonitor:
+class KimiChatMonitor(BaseNetMonitor):
     """Tracks the live chat state of www.kimi.com purely from network
-    events (no DOM access at all)."""
+    events (no DOM access at all).
+
+    v87.10: вся общая механика (живой стрим тела, защита от устаревших
+    запросов, сбросы generating, дедлок-безопасное завершение, счётчик
+    исходящих POST для confirm_sent) переехала в net_monitor.BaseNetMonitor и
+    переиспользуется новыми парсерами. Здесь остался только формат Kimi:
+    Connect-RPC кадры и схема событий block/message (см. шапку файла).
+    """
 
     CHAT_URL_SUBSTR = "ChatService/Chat"
+    RESPONSE_MIME_SUBSTR = "connect+json"
+    LOG_TAG = "kimi_parser"
 
-    def __init__(self, cdp):
-        self._cdp = cdp
-        self._lock = threading.Lock()
-        self._active_request_id = None
+    def _reset_answer_state_locked(self):
         self._blocks = {}
         self._block_order = []
         self._message_status = None
         self._current_message_id = None
-        self._assistant_message_count = 0
-        self._generating = False
-        # v87.7: счётчик ИСХОДЯЩИХ POST к ChatService/Chat (Network.requestWillBeSent).
-        # Нужен confirm_sent: если после клика по «Отправить» счётчик вырос -
-        # сообщение ФАКТИЧЕСКИ ушло в сеть, даже если поле ввода ещё не
-        # очистилось (именно ложные «не ушло» порождали повторные POST,
-        # обрывавшие чтение настоящего ответа - лог пользователя 2026-07-22).
-        self._chat_request_count = 0
-        # v87.8: живой захват стрима (Network.streamResourceContent).
-        # Причина: тело СТРИМИНГОВОГО ответа (connect+json), которое
-        # страница читает через ReadableStream, Chrome НЕ хранит в буфере
-        # DevTools: Network.getResponseBody после loadingFinished отдаёт
-        # огрызок (живой лог 2026-07-22: ответ виден в чате, а в теле
-        # "кадров=1, длина_текста=0" без единого повторного POST).
-        # Поэтому чанки тела читаются В РЕАЛЬНОМ ВРЕМЕНИ через
-        # Network.dataReceived (поле data появляется после включения
-        # streamResourceContent), а getResponseBody остаётся запасным путём
-        # для старых Chrome без этого CDP-метода.
-        self._stream_bufs = {}    # req_id -> bytearray неразобранного хвоста
-        self._stream_mode = {}    # req_id -> True, если стрим включён
-        self._stream_done = {}    # req_id -> threading.Event (попытка включения завершена)
-        cdp.on_event("Network.requestWillBeSent", self._on_request_will_be_sent)
-        cdp.on_event("Network.responseReceived", self._on_response_received)
-        cdp.on_event("Network.dataReceived", self._on_data_received)
-        cdp.on_event("Network.loadingFinished", self._on_loading_finished)
 
-    def _on_request_will_be_sent(self, params):
-        try:
-            req = params.get("request") or {}
-            url = req.get("url") or ""
-            method = req.get("method") or ""
-        except Exception:
-            return
-        if self.CHAT_URL_SUBSTR in url and method.upper() == "POST":
-            with self._lock:
-                self._chat_request_count += 1
-                cnt = self._chat_request_count
-            print("[kimi_parser] исходящий POST к ChatService/Chat #%d: %s" % (cnt, params.get("requestId")))
+    def _decode_frames_partial(self, raw_bytes):
+        frames, consumed = decode_connect_frames_partial(raw_bytes)
+        return [obj for _flags, obj in frames], consumed
 
-    def chat_request_count(self):
-        with self._lock:
-            return self._chat_request_count
+    def _decode_frames(self, raw_bytes):
+        return [obj for _flags, obj in decode_connect_frames(raw_bytes)]
 
-    def _on_response_received(self, params):
-        try:
-            resp = params.get("response") or {}
-            url = resp.get("url") or ""
-            mime = resp.get("mimeType") or ""
-        except Exception:
-            return
-        if self.CHAT_URL_SUBSTR in url and "connect+json" in mime:
-            req_id = params.get("requestId")
-            with self._lock:
-                prev = self._active_request_id
-                self._active_request_id = req_id
-                self._generating = True
-                self._blocks = {}
-                self._block_order = []
-                self._message_status = None
-                self._current_message_id = None
-                # v87.8: свежие стрим-буферы только для нового запроса
-                self._stream_bufs = {req_id: bytearray()}
-                self._stream_mode = {}
-                self._stream_done = {req_id: threading.Event()}
-            # включение стрима требует send_command - нельзя из read_loop
-            # (дедлок, см. v87.4) - уходит в отдельный поток.
-            threading.Thread(
-                target=self._enable_stream, args=(req_id,), daemon=True
-            ).start()
-            # v87.6: диагностика - сколько реальных POST-запросов к ChatService/Chat
-            # ушло за одну оттравку сообщения - если из-за ложных повторов
-            # confirm_sent их несколько, каждый новый заменяет трекаемый активный
-            # запрос и сбрасывает уже накопленный текст - причина висания
-            # 2026-07-22 могла быть именно в этом (лог показал кадров=1,
-            # длина_текста=0 - похоже на оборванный/отменённый предыдущий запрос).
-            print("[kimi_parser] новый запрос к ChatService/Chat: %s (был активным: %s)" % (req_id, prev))
-
-    def _enable_stream(self, req_id):
-        """v87.8: включает живой стрим тела ответа. bufferedData из ответа
-        команды - всё, что пришло ДО включения; оно ПОДКЛЕИВАЕТСЯ СПЕРЕДИ
-        к чанкам, которые dataReceived мог успеть добавить, пока этот
-        поток просыпался (чанки с data идут только ПОСЛЕ включения,
-        поэтому порядок байт сохраняется)."""
-        try:
-            res = self._cdp.send_command(
-                "Network.streamResourceContent", {"requestId": req_id})
-            buffered = res.get("bufferedData") or ""
-            data = base64.b64decode(buffered) if buffered else b""
-            with self._lock:
-                buf = self._stream_bufs.get(req_id)
-                if buf is None or req_id != self._active_request_id:
-                    return
-                self._stream_bufs[req_id] = bytearray(data) + buf
-                self._stream_mode[req_id] = True
-                self._parse_stream_locked(req_id)
-            print("[kimi_parser] живой стрим тела включён для %s (буфер %d байт)"
-                  % (req_id, len(data)))
-        except Exception as e:
-            # старый Chrome без Network.streamResourceContent или ответ уже
-            # закрыт - остаётся запасной путь через getResponseBody.
-            print("[kimi_parser] streamResourceContent недоступен для %s (%s) - запасной путь через getResponseBody"
-                  % (req_id, e))
-        finally:
-            evt = self._stream_done.get(req_id)
-            if evt is not None:
-                evt.set()
-
-    def _parse_stream_locked(self, req_id):
-        """v87.8: разбирает ПОЛНЫЕ Connect-кадры из накопленного буфера и
-        применяет события; неполный хвост остаётся ждать следующего чанка.
-        Вызывать ТОЛЬКО под self._lock. Без send_command - безопасно из
-        read_loop (не повторяет дедлок v87.4)."""
-        buf = self._stream_bufs.get(req_id)
-        if buf is None:
-            return
-        frames, consumed = decode_connect_frames_partial(bytes(buf))
-        if consumed:
-            del buf[:consumed]
-        for _flags, obj in frames:
-            self._apply_event(obj)
-
-    def _on_data_received(self, params):
-        # v87.8: поле data присутствует только когда стрим включён
-        # (streamResourceContent); без него это обычное уведомление о
-        # размере - игнорируем.
-        data = params.get("data")
-        if not data:
-            return
-        req_id = params.get("requestId")
-        try:
-            chunk = base64.b64decode(data)
-        except Exception:
-            return
-        with self._lock:
-            if req_id != self._active_request_id:
-                return
-            buf = self._stream_bufs.get(req_id)
-            if buf is None:
-                return
-            buf.extend(chunk)
-            if self._stream_mode.get(req_id):
-                self._parse_stream_locked(req_id)
-
-    def _finalize_stream(self, req_id):
-        """v87.8: завершение запроса, чьё тело читалось живым стримом:
-        всё уже применено по ходу, getResponseBody не нужен."""
-        with self._lock:
-            if req_id != self._active_request_id:
-                return
-            self._parse_stream_locked(req_id)
-            self._active_request_id = None
-            leftover = len(self._stream_bufs.get(req_id) or b"")
-            self._stream_bufs.pop(req_id, None)
-            self._stream_mode.pop(req_id, None)
-            self._stream_done.pop(req_id, None)
-            text_len = sum(len(v) for v in self._blocks.values())
-            status = self._message_status
-            still_generating = self._generating
-        print("[kimi_parser] стрим тела завершён: длина_текста=%d, message_status=%s, generating=%s, неразобранный хвост=%d байт"
-              % (text_len, status, still_generating, leftover))
-        if still_generating:
-            self._reset_after_finish(req_id, "ответ закрыт без явного статуса завершения")
-
-    def _finish_request(self, req_id):
-        """v87.8: дожидается исхода попытки включения стрима (чтобы не
-        гадать на гонке «быстрый ответ vs медленный streamResourceContent»),
-        затем завершает запрос стрим-путём либо запасным getResponseBody."""
-        evt = self._stream_done.get(req_id)
-        if evt is not None:
-            evt.wait(5.0)
-        with self._lock:
-            streamed = bool(self._stream_mode.get(req_id))
-        if streamed:
-            self._finalize_stream(req_id)
-        else:
-            self._fetch_and_apply_body(req_id)
-
-    def _on_loading_finished(self, params):
-        req_id = params.get("requestId")
-        with self._lock:
-            if req_id != self._active_request_id:
-                return
-        # v87.4: Network.getResponseBody НЕЛьЗЯ звать отсюда напрямую - этот
-        # метод вызывается СИНХРОННО из CDPSession._read_loop (см. cdp_ws.py:
-        # "for cb in handlers: cb(params)"), а send_command() блокирующе ждёт
-        # ответ, который может прочитать с сокета Только этот же _read_loop -
-        # он же сейчас занят выполнением этого самого callback'а. Результат -
-        # гарантированный дедлок/таймаут на КАЖДОМ запросе (живой лог
-        # пользователя: "Timed out waiting for CDP response to
-        # Network.getResponseBody", после чего answers/len застревают на 0,
-        # а generating=True навечно, потому что _active_request_id/_generating
-        # никогда не сбрасывались при ошибке). Чтобы не блокировать читающий
-        # поток, сам fetch+разбор тела уходит в отдельный поток.
-        # v87.8: вместо прямого _fetch_and_apply_body - сначала стрим-путь,
-        # getResponseBody только как запасной (тело стримингового ответа
-        # в буфере DevTools не хранится - именно поэтому приходило
-        # "кадров=1, длина_текста=0" при ответе, видимом в чате).
-        threading.Thread(
-            target=self._finish_request, args=(req_id,), daemon=True
-        ).start()
-
-    def _reset_after_finish(self, req_id, reason):
-        """v87.5: единая точка сброса состояния запроса. Вызывается и при
-        ошибке (сеть/декодирование), и при УСПЕШНОМ разборе - Network.
-        loadingFinished означает, что HTTP-ответ получен ПОЛНОСТЬЮ, поэтому
-        больше данных по этому запросу не придёт: если после разбора кадров
-        MESSAGE_STATUS_COMPLETED так и не появился, оставлять generating=True
-        значило бы виснуть до общего таймаута (900с), хотя ждать больше
-        нечего (именно это произошло 2026-07-22: answers=0, len=0,
-        generating=True до самого TimeoutError, без единой строки ошибки -
-        значит исключение вылетало где-то ПОСЛЕ send_command и тихо гасилось
-        потоком, т.к. decode_connect_frames/_apply_event не были обёрнуты в
-        try/except)."""
-        with self._lock:
-            # v87.7: если активен уже ДРУГОЙ запрос (повторная отправка успела
-            # создать новый POST), завершение СТАРОГО запроса не должно
-            # сбрасывать состояние нового (раньше generating гасился
-            # безусловно - ожидание считало генерацию законченной, хотя
-            # настоящий ответ ещё шёл по новому запросу).
-            if self._active_request_id is not None and req_id != self._active_request_id:
-                print("[kimi_parser] запрос %s завершён (%s), но активен уже %s - состояние не трогаю"
-                      % (req_id, reason, self._active_request_id))
-                return
-            self._active_request_id = None
-            self._generating = False
-        print("[kimi_parser] запрос %s завершён (%s), generating сброшен" % (req_id, reason))
-
-    def _fetch_and_apply_body(self, req_id):
-        # v87.7: если пока мы сюда шли браузер уже отправил НОВЫЙ POST
-        # (повтор confirm_sent и т.п.), тело СТАРОГО запроса применять нельзя:
-        # раньше оно затирало блоки нового запроса И безусловно обнуляло
-        # _active_request_id, из-за чего Network.loadingFinished НОВОГО запроса
-        # отбрасывался проверкой req_id != _active_request_id - настоящий ответ
-        # (видимый в чате kimi) так никогда и не читался (лог 2026-07-22:
-        # "кадров=1, длина_текста=0 ... generating сброшен", дальше тишина).
-        with self._lock:
-            if req_id != self._active_request_id:
-                print("[kimi_parser] тело запроса %s устарело (активен %s) - пропускаю"
-                      % (req_id, self._active_request_id))
-                return
-        try:
-            body = self._cdp.send_command("Network.getResponseBody", {"requestId": req_id})
-        except Exception as e:
-            print("[kimi_parser] Network.getResponseBody failed: %s" % e)
-            # v87.4: не оставляем generating=True навечно - без этого сброса
-            # is_generating() держит True до общего таймаута (900с), хотя
-            # ответ давно готов на странице (сообщение пользователя от
-            # 2026-07-22: ответ виден в чате kimi, а агент висит).
-            self._reset_after_finish(req_id, "getResponseBody упал")
-            return
-        # v87.5: всё, что ниже (декодирование base64, разбор Connect-кадров,
-        # применение событий), раньше НЕ было обёрнуто в try/except. Если
-        # decode_connect_frames или _apply_event падали на неожиданной форме
-        # кадра, исключение тихо гасилось в фоновом потоке (Python по
-        # умолчанию просто печатает traceback через threading.excepthook,
-        # что может быть не видно в логе агента) - НИЧЕГО не печаталось тегом
-        # "[kimi_parser]", а _active_request_id/_generating НЕ сбрасывались,
-        # то есть жду ответ [стабилизация] крутилось answers=0/len=0/
-        # generating=True до полного 900-секундного таймаута без единой
-        # диагностической строки - ровно то, что пользователь увидел
-        # 2026-07-22 после исправления дедлока v87.4.
-        try:
-            raw = body.get("body") or ""
-            if body.get("base64Encoded"):
-                raw_bytes = base64.b64decode(raw)
-            else:
-                raw_bytes = raw.encode("utf-8")
-            frames = decode_connect_frames(raw_bytes)
-            with self._lock:
-                # v87.7: повторная проверка актуальности УЖЕ ПОСЛЕ скачивания
-                # тела: новый POST мог появиться, пока шёл send_command.
-                if req_id != self._active_request_id:
-                    print("[kimi_parser] тело запроса %s устарело после скачивания (активен %s) - пропускаю"
-                          % (req_id, self._active_request_id))
-                    return
-                for _flags, obj in frames:
-                    self._apply_event(obj)
-                self._active_request_id = None
-                frame_count = len(frames)
-                text_len = sum(len(v) for v in self._blocks.values())
-                status = self._message_status
-                still_generating = self._generating
-        except Exception as e:
-            import traceback
-            print("[kimi_parser] ошибка разбора тела ответа (%d байт): %r" % (len(body.get("body") or ""), e))
-            traceback.print_exc()
-            self._reset_after_finish(req_id, "ошибка разбора тела")
-            return
-        print("[kimi_parser] тело ответа разобрано: кадров=%d, длина_текста=%d, message_status=%s, generating=%s"
-              % (frame_count, text_len, status, still_generating))
-        if still_generating:
-            # loadingFinished => HTTP-ответ получен целиком, больше данных по
-            # этому requestId не будет. Если статус так и не дошёл до явного
-            # завершения, не виснем до общего 900с таймаута - завершение уже
-            # физически невозможно на этом соединении.
-            # v87.7: раньше было условие status != "MESSAGE_STATUS_GENERATING",
-            # и оборванный поток, чей ПОСЛЕДНИЙ увиденный статус -
-            # MESSAGE_STATUS_GENERATING (обрыв до COMPLETED), оставлял
-            # generating=True навечно - то же зависание до 900с, которое
-            # v87.5 чинил для случая status=None.
-            self._reset_after_finish(req_id, "ответ закрыт без явного статуса завершения")
+    def _answer_len_locked(self):
+        return sum(len(v) for v in self._blocks.values())
 
     def _apply_event(self, obj):
         if not isinstance(obj, dict):
@@ -429,18 +146,6 @@ class KimiChatMonitor:
             ordered = sorted(self._block_order, key=_key)
             return "".join(self._blocks[b] for b in ordered)
 
-    def is_generating(self):
-        with self._lock:
-            return bool(self._generating or self._active_request_id is not None)
-
-    def assistant_message_count(self):
-        with self._lock:
-            return self._assistant_message_count
-
-    def message_status(self):
-        with self._lock:
-            return self._message_status
-
 
 # ---------------------------------------------------------------------------
 # DOM-side: only used for typing the prompt and clicking send. Selectors are
@@ -482,7 +187,7 @@ class KimiParser(BaseSiteParser):
             old = KimiParser._monitor
             if old is not None:
                 # v87.7: раньше синглтон возвращался без проверки живости:
-                # если CDP-соединение умерло (тишина в сокете до v87.7,
+                # если CDP-соединение умерл�� (тишина в сокете до v87.7,
                 # перезапуск/закрытие вкладки, обрыв сокета), монитор
                 # навсегда глох (ни событий, ни тел) до перезапуска сервера.
                 if old._cdp.is_alive():
