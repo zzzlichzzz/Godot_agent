@@ -1,6 +1,7 @@
 import time
 import json
 import re
+import threading
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import (
     JavascriptException,
@@ -20,6 +21,13 @@ from parser_base import (
     _looks_json_balanced,
     extract_answer_settled,
 )
+
+# v88.0: сетевой захват ответа (как у kimi) - общая база net_monitor +
+# формат чанков AI Studio в ai_studio_net. Это ДОПОЛНЕНИЕ к DOM-парсеру:
+# при недоступном CDP всё работает по-старому, только по DOM.
+from cdp_ws import CDPSession, find_page_ws_url
+from ai_studio_net import AiStudioChatMonitor
+from kimi_parser import split_text_and_action
 
 # ---------------------------------------------------------------------------
 # JS: извлечение последнего ответа модели.
@@ -376,10 +384,17 @@ def _extract_last_answer_once(driver):
 
 def extract_last_answer(driver):
     # v86.23: двойное чтение + ожидание докачки тел меток/===DONE===
-    # (универсальный хелпер базового парсера, как у qwen в v86.19).
+    # v88.1: net_fallback_fn — если DOM обрезал ответ, сеть отдаёт полный
+    # текст мгновенно (не ждём 8 циклов × 2.5с).
+    def _net_fallback():
+        try:
+            mon = AiStudioParser._monitor
+            return mon.current_text() if mon is not None else u""
+        except Exception:
+            return u""
     return extract_answer_settled(
         driver, _extract_last_answer_once, is_generating_fn=is_generating,
-        log_tag=u"[ai_parser]")
+        log_tag=u"[ai_parser]", net_fallback_fn=_net_fallback)
 
 
 # Шапка реплики в textContent: "Model 4:50 PM" / "User 12:03" в начале строки.
@@ -436,19 +451,84 @@ class AiStudioParser(BaseSiteParser):
     QUIET_PERIOD = 2.5
     POLL_INTERVAL = 0.25
 
+    # v88.0: сетевой монитор GenerateContent (общий на процесс, как у kimi)
+    _monitor = None
+    _monitor_lock = threading.Lock()
+    _monitor_next_retry = 0.0
+    _req_count_before_send = None
+
+    def _ensure_monitor(self):
+        """Возвращает живой AiStudioChatMonitor или None (чистый DOM-режим).
+        Неудачные попытки подключения кэшируются на 30 секунд, чтобы не
+        дёргать DevTools-порт на каждый опрос цикла ожидания."""
+        with AiStudioParser._monitor_lock:
+            mon = AiStudioParser._monitor
+            try:
+                if mon is not None and mon._cdp.is_alive():
+                    return mon
+            except Exception:
+                pass
+            now = time.time()
+            if now < AiStudioParser._monitor_next_retry:
+                return None
+            try:
+                ws_url = find_page_ws_url(self.WINDOW_URL_MATCH)
+                cdp = CDPSession(ws_url)
+                # подписки регистрируются в конструкторе ДО Network.enable,
+                # чтобы не потерять первые события (как у kimi, v87.1)
+                new_mon = AiStudioChatMonitor(cdp)
+                if mon is not None:
+                    # переподключение: счётчики не обнуляются
+                    new_mon._assistant_message_count = mon.assistant_message_count()
+                    new_mon._chat_request_count = mon.chat_request_count()
+                cdp.send_command("Network.enable")
+                AiStudioParser._monitor = new_mon
+                print("[ai_parser] сетевой монитор GenerateContent подключён")
+                return new_mon
+            except Exception as e:
+                AiStudioParser._monitor_next_retry = now + 30.0
+                print("[ai_parser] сетевой монитор недоступен (%s) - работаю только по DOM" % e)
+                return None
+
     def count_answers(self, driver):
         return get_model_turn_count(driver)
 
     def answer_len(self, driver):
-        return get_answer_text_length(driver)
+        dom_len = get_answer_text_length(driver)
+        # v88.0: пока идёт сетевой запрос, текст из сети опережает DOM -
+        # прогресс виден даже когда DOM ещё «молчит» (класс проблем
+        # «долго думала - ПУСТОЙ ответ», см. kimi v87.8). После завершения
+        # запроса источник длины снова DOM, чтобы устаревший сетевой текст
+        # прошлого обмена не ломал quiet-период.
+        mon = self._ensure_monitor()
+        if mon is not None and mon.is_generating():
+            try:
+                net_len = len(mon.current_text())
+            except Exception:
+                net_len = 0
+            if net_len > max(dom_len, 0):
+                return net_len
+        return dom_len
 
     def answer_preview(self, driver):
         return get_answer_preview(driver)
 
     def answer_stream(self, driver):
-        return get_answer_stream(driver)
+        text = get_answer_stream(driver)
+        if text:
+            return text
+        # v88.0: DOM ещё пуст, но сеть уже стримит ответ - показываем его
+        mon = self._ensure_monitor()
+        if mon is not None and mon.is_generating():
+            return mon.current_text()
+        return ""
 
     def is_generating(self, driver):
+        # v88.0: сетевой признак (активный запрос GenerateContent) надёжнее
+        # DOM-спиннера; DOM остаётся запасным признаком
+        mon = self._ensure_monitor()
+        if mon is not None and mon.is_generating():
+            return True
         return is_generating(driver)
 
     def get_live_activity(self, driver):
@@ -457,12 +537,33 @@ class AiStudioParser(BaseSiteParser):
     def extract_answer(self, driver):
         return extract_last_answer(driver)
 
+    def extract_answer_snapshot(self, driver):
+        # v88.3: мгновенный снимок для анти-дубля перед отправкой — БЕЗ
+        # «устаканивания» (extract_last_answer ждала докачку тел меток до
+        # 8×2.5 с и задерживала отправку уже вставленного текста).
+        return _extract_last_answer_once(driver)
+
     def extract_raw_fallback(self, driver):
         raw = _safe_execute(driver, JS_EXTRACT_RAW_FALLBACK, default=None) or {}
-        return {
+        result = {
             "text": _strip_turn_chrome(raw.get("text") or ""),
             "actionRaw": raw.get("actionRaw"),
         }
+        if result["text"] or result["actionRaw"]:
+            return result
+        # v88.0: план В - DOM пуст, но сеть захватила ответ (страховка от
+        # смены разметки AI Studio). Сетевой текст берётся только если
+        # после submit() реально ушёл НОВЫЙ POST - защита от устаревшего
+        # ответа прошлого обмена.
+        mon = AiStudioParser._monitor
+        before = AiStudioParser._req_count_before_send
+        if mon is not None and before is not None and mon.chat_request_count() > before:
+            net = (mon.current_text() or "").strip()
+            if net:
+                text, action_raw = split_text_and_action(net)
+                print("[ai_parser] план В: ответ взят из сетевого захвата (%d симв.)" % len(net))
+                return {"text": text, "actionRaw": action_raw}
+        return result
 
     def find_input(self, driver):
         return driver.execute_script(_JS_FIND_INPUT)
@@ -483,6 +584,11 @@ class AiStudioParser(BaseSiteParser):
         time.sleep(0.5)
 
     def submit(self, driver, el):
+        # v88.0: снимок счётчика POST до отправки - страховка от устаревшего
+        # сетевого текста в extract_raw_fallback (как _req_count_before_send у kimi)
+        mon = self._ensure_monitor()
+        AiStudioParser._req_count_before_send = (
+            mon.chat_request_count() if mon is not None else None)
         el.send_keys(Keys.CONTROL, Keys.ENTER)
 
 

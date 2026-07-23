@@ -290,6 +290,11 @@ class DeepSeekParser(BaseSiteParser):
     def extract_answer(self, driver):
         return extract_answer(driver)
 
+    def extract_answer_snapshot(self, driver):
+        # v88.3: мгновенный снимок для анти-дубля перед отправкой — без
+        # ожидания докачки тел меток (см. parser_base.extract_answer_snapshot).
+        return _extract_answer_once(driver)
+
     def find_input(self, driver):
         return driver.execute_script(JS_FIND_INPUT)
 

@@ -173,13 +173,9 @@ class _FakeCDPReadLoopDeadlockCheck:
         self._delivered.set()
 
     def send_command(self, method, params=None, timeout=2.0):
-        # v87.8: фейк имитирует СТАРЫЙ Chrome без Network.streamResourceContent -
-        # тест проверяет запасной путь через getResponseBody.
-        if method == "Network.streamResourceContent":
-            raise Exception("'Network.streamResourceContent' wasn't found")
         if threading.current_thread() is threading.main_thread():
             # вызов из "read_loop" (тест играет read_loop в main thread) -
-            # никто не вызовет _deliver извне, так что это неизбежно истечёт таймаут.
+            # ��икто не вызовет _deliver извне, так что это неизбежно истечёт таймаут.
             if not self._delivered.wait(timeout):
                 raise Exception("Timed out waiting for CDP response to %s" % method)
         else:
@@ -231,15 +227,12 @@ class _FakeCDPBodyOnly:
         pass
 
     def send_command(self, method, params=None, timeout=2.0):
-        # v87.8: имитация старого Chrome - только getResponseBody.
-        if method == "Network.streamResourceContent":
-            raise Exception("'Network.streamResourceContent' wasn't found")
         return self._response_body
 
 
 def test_on_loading_finished_recovers_from_bad_frame_decode():
     # v87.5 regression: до v87.5 всё, что после успешного send_command
-    # (разбор base64/Connect-к����ров/применение событий) было вне
+    # (разбор base64/Connect-ка��ров/применение событий) было вне
     # try/except - при любой ошибке разбора (например невалидный base64)
     # исключение тихо гасило фоновый поток, а generating оставался True
     # навечно. Живой признак: лог без единой строки Ошибки
@@ -322,299 +315,234 @@ def test_on_loading_finished_failure_does_not_hang_generating_forever():
         "pipeline would hang until the 900s timeout otherwise")
 
 
-# ---------------------------------------------------------------------------
-# v87.7 regressions: гонки отставших тел, тишина на сокете, confirm_sent по сети
-# ---------------------------------------------------------------------------
+class _RecordingCDP:
+    """запоминает, какие CDP-команды вызывались."""
 
-class _FakeCDPWithBodies:
-    """Старый Chrome: только getResponseBody (с настраиваемыми задержками),
-    живого стрима нет - тесты проверяют запасной путь."""
+    def __init__(self):
+        self.calls = []
 
-    def __init__(self, bodies, delays=None):
-        self._handlers = {}
-        self._bodies = bodies
-        self._delays = delays or {}
-
-    def on_event(self, method, cb):
-        self._handlers.setdefault(method, []).append(cb)
-
-    def emit(self, method, params):
-        for cb in self._handlers.get(method, []):
-            cb(params)
+    def on_event(self, method, callback):
+        pass
 
     def send_command(self, method, params=None, timeout=2.0):
-        import base64 as _b64
-        if method == "Network.streamResourceContent":
-            raise Exception("'Network.streamResourceContent' wasn't found")
-        if method == "Network.getResponseBody":
-            req_id = (params or {}).get("requestId")
-            time.sleep(self._delays.get(req_id, 0))
-            raw = self._bodies[req_id]
-            return {"body": _b64.b64encode(raw).decode("ascii"),
-                    "base64Encoded": True}
-        return {}
-
-
-def _kimi_frames(*objs):
-    return b"".join(cdp_ws.encode_connect_frame(o) for o in objs)
-
-
-def _kimi_resp_params(req_id):
-    return {
-        "requestId": req_id,
-        "response": {
-            "url": "https://www.kimi.com/api/kimi.chat.v1.ChatService/Chat",
-            "mimeType": "application/connect+json",
-        },
-    }
+        self.calls.append(method)
+        return {"body": "", "base64Encoded": False}
 
 
 def test_stale_request_body_does_not_clobber_new_request():
-    # v87.7: отставшее тело СТАРОГО запроса (медленный getResponseBody)
-    # не должно затирать состояние уже активного НОВОГО запроса.
-    old_body = _kimi_frames(
-        {"op": "set", "mask": "message",
-         "message": {"id": "m1", "role": "assistant",
-                     "status": "MESSAGE_STATUS_GENERATING"}},
-        {"op": "set", "mask": "block.text",
-         "block": {"id": "1", "text": {"content": "СТАРЫЙ ответ"}}})
-    new_body = _kimi_frames(
-        {"op": "set", "mask": "message",
-         "message": {"id": "m2", "role": "assistant",
-                     "status": "MESSAGE_STATUS_GENERATING"}},
-        {"op": "set", "mask": "block.text",
-         "block": {"id": "1", "text": {"content": "НОВЫЙ ответ"}}},
-        {"op": "set", "mask": "message.status",
-         "message": {"id": "m2", "status": "MESSAGE_STATUS_COMPLETED"}})
-    cdp = _FakeCDPWithBodies({"req-1": old_body, "req-2": new_body},
-                             delays={"req-1": 0.5})
-    mon = KimiChatMonitor(cdp)
-    cdp.emit("Network.responseReceived", _kimi_resp_params("req-1"))
-    cdp.emit("Network.loadingFinished", {"requestId": "req-1"})
-    time.sleep(0.1)
-    # пока тело req-1 ещё скачивается, приходит новый запрос
-    cdp.emit("Network.responseReceived", _kimi_resp_params("req-2"))
-    cdp.emit("Network.loadingFinished", {"requestId": "req-2"})
-    deadline = time.time() + 3.0
-    while time.time() < deadline and "НОВЫЙ" not in mon.current_text():
-        time.sleep(0.02)
-    time.sleep(0.7)  # даём отставшему телу req-1 шанс всё испортить
-    assert "НОВЫЙ ответ" in mon.current_text(), mon.current_text()
-    assert "СТАРЫЙ" not in mon.current_text(), (
-        "отставшее тело старого запроса затёрло новый: %r"
-        % mon.current_text())
-    assert not mon.is_generating()
+    # v87.7 regression: пока тело СТАРОГО запроса шло к разбору, браузер уже
+    # отправил НОВЫЙ POST (повтор confirm_sent). Старое тело нельзя ни
+    # применять, ни сбрасывать им состояние нового запроса - иначе
+    # loadingFinished НОВОГО запроса отбрасывался и настоящий ответ
+    # никогда не читался (лог 2026-07-22: "кадров=1, длина_текста=0").
+    from kimi_parser import KimiChatMonitor
+
+    cdp = _RecordingCDP()
+    monitor = KimiChatMonitor(cdp)
+    monitor._active_request_id = "req-NEW"
+    monitor._generating = True
+    monitor._blocks = {"1": "текст нового ответа"}
+    monitor._block_order = ["1"]
+
+    monitor._fetch_and_apply_body("req-OLD")
+    assert cdp.calls == [], (
+        "тело устаревшего запроса не должно даже запрашиваться: %r" % cdp.calls)
+    assert monitor._active_request_id == "req-NEW"
+    assert monitor.is_generating()
+
+    # завершение СТАРОГО запроса тоже не должно трогать состояние нового
+    monitor._reset_after_finish("req-OLD", "тест")
+    assert monitor._active_request_id == "req-NEW"
+    assert monitor.is_generating()
+    assert "текст нового ответа" in monitor.current_text()
 
 
-def test_generating_resets_when_stream_truncated_at_generating():
-    # v87.7: если ответ оборвался на MESSAGE_STATUS_GENERATING (без
-    # COMPLETED), после loadingFinished generating всё равно должен
-    # сброситься - больше данных по этому соединению не придёт.
-    body = _kimi_frames(
-        {"op": "set", "mask": "message",
-         "message": {"id": "m1", "role": "assistant",
-                     "status": "MESSAGE_STATUS_GENERATING"}},
-        {"op": "set", "mask": "block.text",
-         "block": {"id": "1", "text": {"content": "оборванный текст"}}})
-    cdp = _FakeCDPWithBodies({"req-1": body})
-    mon = KimiChatMonitor(cdp)
-    cdp.emit("Network.responseReceived", _kimi_resp_params("req-1"))
-    cdp.emit("Network.loadingFinished", {"requestId": "req-1"})
-    deadline = time.time() + 2.0
-    while time.time() < deadline and mon.is_generating():
-        time.sleep(0.02)
-    assert not mon.is_generating(), (
-        "generating обязан сброситься после loadingFinished даже без "
-        "MESSAGE_STATUS_COMPLETED")
-    assert "оборванный текст" in mon.current_text()
+class _StreamOnlyCDP:
+    """v87.8: стрим включается, а getResponseBody НЕДОСТУПЕН - как в реальном
+    Chrome, где тело стримингового ответа не хранится в буфере DevTools."""
 
+    def __init__(self):
+        self.body_calls = 0
 
-def test_read_loop_survives_socket_silence():
-    # v87.7 (BUG 1): MiniWebSocket оставлял 10с таймаут на сокете и
-    # _read_loop умирал на первой же паузе длиннее таймаута. Здесь
-    # реальный WS-сервер молчит ДОЛЬШЕ таймаута (1.6с > 1.0с) и только
-    # потом шлёт событие - сессия обязана дожить и принять его.
-    import base64 as _b64
-    import hashlib
-    import json as _json
-    import socket
-
-    def _serve(srv):
-        conn, _ = srv.accept()
-        data = b""
-        while b"\r\n\r\n" not in data:
-            data += conn.recv(4096)
-        key = ""
-        for line in data.decode("latin-1").split("\r\n"):
-            if line.lower().startswith("sec-websocket-key:"):
-                key = line.split(":", 1)[1].strip()
-        accept = _b64.b64encode(hashlib.sha1(
-            (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")
-        ).digest()).decode("ascii")
-        conn.sendall(("HTTP/1.1 101 Switching Protocols\r\n"
-                      "Upgrade: websocket\r\n"
-                      "Connection: Upgrade\r\n"
-                      "Sec-WebSocket-Accept: %s\r\n\r\n" % accept)
-                     .encode("ascii"))
-        time.sleep(1.6)  # тишина длиннее таймаута сокета (1.0с)
-        payload = _json.dumps({"method": "Test.ping", "params": {}})\
-            .encode("utf-8")
-        conn.sendall(b"\x81" + bytes([len(payload)]) + payload)
-        time.sleep(1.0)
-        try:
-            conn.close()
-        except Exception:
-            pass
-
-    srv = socket.socket()
-    srv.bind(("127.0.0.1", 0))
-    srv.listen(1)
-    port = srv.getsockname()[1]
-    threading.Thread(target=_serve, args=(srv,), daemon=True).start()
-    sess = cdp_ws.CDPSession("ws://127.0.0.1:%d/devtools" % port, timeout=1.0)
-    got = threading.Event()
-    sess.on_event("Test.ping", lambda p: got.set())
-    assert got.wait(4.0), (
-        "read loop умер на тишине сокета - событие после паузы не принято")
-    assert sess.is_alive(), "сессия должна быть жива после паузы без данных"
-    try:
-        sess.close()
-    except Exception:
+    def on_event(self, method, callback):
         pass
 
-
-class _FakeDriverLeftoverText:
-    """Поле ввода НЕ очистилось (сайт медленный) - до v87.7 это давало
-    ложное «не ушло» и реальный повторный POST."""
-
-    def execute_script(self, script, *args):
-        if "innerText" in script:
-            return "текст, который сайт ещё не очистил"
-        return None
-
-
-class _FakeMonitorCounter:
-    def __init__(self, count):
-        self._count = count
-
-    def chat_request_count(self):
-        return self._count
-
-
-def test_confirm_sent_treats_new_chat_post_as_sent():
-    # v87.7 (BUG 2): главный критерий «ушло» - СЕТЬ: новый POST к
-    # ChatService/Chat после клика => отправлено, даже если поле ввода
-    # ещё не очистилось (ложные «не ушло» порождали дубли POST,
-    # обрывавшие чтение настоящего ответа - лог 2026-07-22).
-    from kimi_parser import KimiParser
-    parser = KimiParser()
-    old_monitor = KimiParser._monitor
-    try:
-        KimiParser._monitor = _FakeMonitorCounter(1)
-        parser._req_count_before_send = 0  # до клика было 0, стало 1
-        t0 = time.time()
-        ok = parser.confirm_sent(_FakeDriverLeftoverText(), object())
-        elapsed = time.time() - t0
-    finally:
-        KimiParser._monitor = old_monitor
-    assert ok is True, (
-        "новый POST в сети обязан считаться подтверждением отправки, "
-        "даже если поле ввода не очистилось")
-    assert elapsed < 2.0, "при видимом POST ответ должен быть быстрым, без 5с опроса"
-
-
-# ---------------------------------------------------------------------------
-# v87.8 regressions: живой стрим тела (streamResourceContent/dataReceived)
-# ---------------------------------------------------------------------------
-
-def test_decode_connect_frames_partial_keeps_tail():
-    # v87.8: чанки dataReceived режут Connect-конверты посередине - декодер
-    # обязан вернуть полные кадры и НЕ потерять неполный хвост.
-    f1 = cdp_ws.encode_connect_frame({"a": 1})
-    f2 = cdp_ws.encode_connect_frame({"b": 2})
-    blob = f1 + f2
-    cut = len(f1) + 3  # второй кадр обрезан посередине
-    frames1, consumed1 = cdp_ws.decode_connect_frames_partial(blob[:cut])
-    assert len(frames1) == 1 and frames1[0][1] == {"a": 1}
-    assert consumed1 == len(f1), "неполный хвост должен остаться в буфере"
-    frames2, consumed2 = cdp_ws.decode_connect_frames_partial(blob[consumed1:])
-    assert len(frames2) == 1 and frames2[0][1] == {"b": 2}
-    assert consumed2 == len(f2)
-
-
-class _FakeCDPStreamingChrome:
-    """v87.8: имитация НОВОГО Chrome: streamResourceContent работает, а
-    getResponseBody для стримингового тела данных НЕ возвращает (как в
-    реальности: тело, прочитанное страницей через ReadableStream, в буфере
-    DevTools не хранится; живой лог 2026-07-22: кадров=1, длина_текста=0
-    при ответе, видимом в чате)."""
-
-    def __init__(self, buffered=b""):
-        self._handlers = {}
-        self._buffered = buffered
-        self.get_body_called = False
-
-    def on_event(self, method, cb):
-        self._handlers.setdefault(method, []).append(cb)
-
-    def emit(self, method, params):
-        for cb in self._handlers.get(method, []):
-            cb(params)
-
-    def emit_chunk(self, req_id, raw):
-        import base64 as _b64
-        self.emit("Network.dataReceived", {
-            "requestId": req_id,
-            "dataLength": len(raw),
-            "encodedDataLength": len(raw),
-            "data": _b64.b64encode(raw).decode("ascii"),
-        })
-
     def send_command(self, method, params=None, timeout=2.0):
-        import base64 as _b64
         if method == "Network.streamResourceContent":
-            return {"bufferedData":
-                    _b64.b64encode(self._buffered).decode("ascii")}
+            return {"bufferedData": ""}
         if method == "Network.getResponseBody":
-            self.get_body_called = True
-            return {"body": "", "base64Encoded": False}
+            self.body_calls += 1
+            raise Exception("стриминговое тело в буфере DevTools не хранится")
         return {}
 
 
-def test_streaming_body_captured_live():
-    # v87.8: главный сценарий нового Chrome - тело читается ЖИВЫМ стримом
-    # (bufferedData + чанки dataReceived, в т.ч. с разрезом кадра посередине),
-    # getResponseBody вообще не вызывается.
-    first = cdp_ws.encode_connect_frame(
-        {"op": "set", "mask": "message",
-         "message": {"id": "m1", "role": "assistant",
-                     "status": "MESSAGE_STATUS_GENERATING"}})
-    text_frame = cdp_ws.encode_connect_frame(
-        {"op": "set", "mask": "block.text",
-         "block": {"id": "1", "text": {"content": "Привет. Готов к работе."}}})
-    done = cdp_ws.encode_connect_frame(
-        {"op": "set", "mask": "message.status",
-         "message": {"id": "m1", "status": "MESSAGE_STATUS_COMPLETED"}})
-    cdp = _FakeCDPStreamingChrome(buffered=first)
-    mon = KimiChatMonitor(cdp)
-    cdp.emit("Network.responseReceived", _kimi_resp_params("req-1"))
-    time.sleep(0.3)  # даём потоку _enable_stream включить стрим
-    cut = len(text_frame) // 2
-    cdp.emit_chunk("req-1", text_frame[:cut])  # кадр разрезан посередине
-    assert mon.is_generating() is True
-    cdp.emit_chunk("req-1", text_frame[cut:] + done)
-    assert "Привет. Готов к работе." in mon.current_text(), (
-        "текст должен собираться live по чанкам, ещё до loadingFinished")
-    cdp.emit("Network.loadingFinished", {"requestId": "req-1"})
+def _start_stream_request(monitor, req_id="req-1"):
+    monitor._on_response_received({
+        "requestId": req_id,
+        "response": {
+            "url": "https://www.kimi.com/apiv2/kimi.chat.v1.ChatService/Chat",
+            "mimeType": "application/connect+json",
+        },
+    })
     deadline = time.time() + 2.0
-    while time.time() < deadline and mon.is_generating():
+    while time.time() < deadline and not monitor._stream_mode.get(req_id):
         time.sleep(0.02)
-    assert mon.is_generating() is False
-    assert mon.message_status() == "MESSAGE_STATUS_COMPLETED"
-    assert mon.assistant_message_count() == 1
-    assert "Привет. Готов к работе." in mon.current_text()
-    assert cdp.get_body_called is False, (
-        "при работающем живом стриме getResponseBody вызываться не должен")
+    assert monitor._stream_mode.get(req_id), "живой стрим так и не включился"
+
+
+def test_decode_connect_frames_partial_keeps_tail():
+    # v87.8: инкрементный декодер для живого стрима: чанки режут
+    # Connect-конверт посередине - неполный хвост НЕ выбрасывается
+    # (в отличие от decode_connect_frames), а ждёт следующего чанка.
+    obj1 = {"op": "set", "mask": "block.text", "block": {"id": "1", "text": {"content": "a"}}}
+    obj2 = {"op": "append", "mask": "block.text.content", "block": {"id": "1", "text": {"content": "b"}}}
+    f1 = cdp_ws.encode_connect_frame(obj1)
+    f2 = cdp_ws.encode_connect_frame(obj2)
+    raw = f1 + f2
+    cut = len(f1) + 3  # второй конверт разрезан посередине
+
+    frames, consumed = cdp_ws.decode_connect_frames_partial(raw[:cut])
+    assert [o for _f, o in frames] == [obj1]
+    assert consumed == len(f1), "неполный хвост не должен быть съеден"
+
+    tail = raw[consumed:]
+    frames2, consumed2 = cdp_ws.decode_connect_frames_partial(tail)
+    assert [o for _f, o in frames2] == [obj2]
+    assert consumed2 == len(f2)
+
+
+def test_streaming_body_captured_live():
+    # v87.8: тело стримингового ответа собирается ЖИВЬЁМ из
+    # Network.dataReceived; getResponseBody (буфер DevTools) не нужен вовсе.
+    import base64 as _b64
+    from cdp_ws import encode_connect_frame
+    from kimi_parser import KimiChatMonitor
+
+    cdp = _StreamOnlyCDP()
+    monitor = KimiChatMonitor(cdp)
+    _start_stream_request(monitor)
+
+    raw = (
+        encode_connect_frame({"op": "set", "mask": "message",
+                              "message": {"id": "m1", "role": "assistant",
+                                          "status": "MESSAGE_STATUS_GENERATING"}})
+        + encode_connect_frame({"op": "set", "mask": "block.text",
+                                "block": {"id": "1", "text": {"content": "Привет из живого стрима"}}})
+        + encode_connect_frame({"op": "set", "mask": "message.status",
+                                "message": {"id": "m1", "status": "MESSAGE_STATUS_COMPLETED"}})
+    )
+    cut = len(raw) // 2  # чанки режут Connect-конверт произвольно
+    for chunk in (raw[:cut], raw[cut:]):
+        monitor._on_data_received({"requestId": "req-1",
+                                   "data": _b64.b64encode(chunk).decode("ascii")})
+
+    assert "Привет из живого стрима" in monitor.current_text(), (
+        "текст должен собираться живьём из dataReceived, ДО loadingFinished")
+    assert monitor.message_status() == "MESSAGE_STATUS_COMPLETED"
+
+    monitor._on_loading_finished({"requestId": "req-1"})
+    deadline = time.time() + 2.0
+    while time.time() < deadline and monitor.is_generating():
+        time.sleep(0.02)
+    assert not monitor.is_generating()
+    assert cdp.body_calls == 0, "getResponseBody не должен вызываться при живом стриме"
+
+
+def test_generating_resets_when_stream_truncated_at_generating():
+    # v87.7/v87.8: соединение закрылось, а ПОСЛЕДНИЙ увиденный статус -
+    # MESSAGE_STATUS_GENERATING (COMPLETED так и не пришёл, обрыв). generating
+    # обязан сброситься: данных по этому запросу больше не будет,
+    # иначе ожидание висит до полного 900с таймаута.
+    import base64 as _b64
+    from cdp_ws import encode_connect_frame
+    from kimi_parser import KimiChatMonitor
+
+    cdp = _StreamOnlyCDP()
+    monitor = KimiChatMonitor(cdp)
+    _start_stream_request(monitor)
+
+    raw = (
+        encode_connect_frame({"op": "set", "mask": "message",
+                              "message": {"id": "m1", "role": "assistant",
+                                          "status": "MESSAGE_STATUS_GENERATING"}})
+        + encode_connect_frame({"op": "set", "mask": "block.text",
+                                "block": {"id": "1", "text": {"content": "текст обрезан на полусл"}}})
+    )
+    monitor._on_data_received({"requestId": "req-1",
+                               "data": _b64.b64encode(raw).decode("ascii")})
+    assert monitor.is_generating()
+
+    monitor._on_loading_finished({"requestId": "req-1"})
+    deadline = time.time() + 2.0
+    while time.time() < deadline and monitor.is_generating():
+        time.sleep(0.02)
+    assert not monitor.is_generating(), (
+        "обрыв стрима на статусе GENERATING не должен оставлять generating=True навечно")
+    assert "текст обрезан" in monitor.current_text()
+
+
+def test_read_loop_survives_socket_silence():
+    # v87.7: после хендшейка таймаут сокета СНИМАЕТСЯ (settimeout(None)) -
+    # иначе любые 10с ТИШИНЫ в CDP-событиях (модель думает, пользователь
+    # читает) роняли recv() по socket.timeout и read_loop МОЛЧА умирал -
+    # монитор навсегда глох, все send_command ловили таймауты.
+    import cdp_ws as _c
+
+    class _FakeSock:
+        def __init__(self):
+            self.timeouts = []
+
+        def settimeout(self, value):
+            self.timeouts.append(value)
+
+        def sendall(self, data):
+            pass
+
+        def close(self):
+            pass
+
+    fake = _FakeSock()
+    orig_create = _c.socket.create_connection
+    orig_handshake = _c._ws_handshake
+    _c.socket.create_connection = lambda addr, timeout=None: fake
+    _c._ws_handshake = lambda sock, hostport, path: b""
+    try:
+        ws = _c.MiniWebSocket("ws://127.0.0.1:9222/devtools/page/x", timeout=10.0)
+    finally:
+        _c.socket.create_connection = orig_create
+        _c._ws_handshake = orig_handshake
+    assert ws._sock is fake
+    assert fake.timeouts and fake.timeouts[-1] is None, (
+        "после хендшейка таймаут сокета должен быть снят (settimeout(None)), "
+        "иначе тишина дольше таймаута убивает read_loop: %r" % (fake.timeouts,))
+
+
+def test_confirm_sent_treats_new_chat_post_as_sent():
+    # v87.7: главный критерий «ушло» - СЕТЬ: если после клика появился новый
+    # POST к ChatService/Chat, сообщение отправлено, даже если сайт ещё не
+    # очистил поле ввода (ложные «не ушло» порождали дубли POST,
+    # обрывавшие чтение настоящего ответа).
+    from kimi_parser import KimiParser, PARSER
+
+    class _MonStub:
+        def chat_request_count(self):
+            return 1  # вырос относительно снимка до отправки (0)
+
+    class _DriverLeftover:
+        def execute_script(self, script, *args):
+            return "текст всё ещё в поле ввода"  # DOM говорит «не ушло»
+
+    old_mon = KimiParser._monitor
+    KimiParser._monitor = _MonStub()
+    try:
+        PARSER._req_count_before_send = 0
+        started = time.time()
+        result = PARSER.confirm_sent(_DriverLeftover(), _FakeElement())
+        elapsed = time.time() - started
+    finally:
+        KimiParser._monitor = old_mon
+    assert result is True, "новый POST в сети = сообщение ушло, даже при непустом поле ввода"
+    assert elapsed < 1.0, "ответ должен быть мгновенным, без 5-секундного ожидания DOM"
 
 
 def _run_all():
