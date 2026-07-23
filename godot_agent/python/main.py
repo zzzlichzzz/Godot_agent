@@ -272,7 +272,7 @@ def _plan_collect_final(action):
 # последняя часть (без continues).
 def _content_part_add(action):
     """Принимает часть многочастной передачи content (action=create_file с
-    \"continues\": true, поля content_part/content_parts_total). Во��вращает
+    \"continues\": true, поля content_part/content_parts_total). Во����вращает
     (ok, followup_для_модели); при ошибке накопленное сбрасывается."""
     if action.get("action") != "create_file":
         STATE["content_parts"] = None
@@ -611,7 +611,7 @@ def _package_model_reply(text, action, project_root, depth=0):
             followup = ("[Система]: copy_file пришёл без пар src/dest. Пришли заново: "
                         '{"action":"copy_file","copies":[{"src":"res://...","dest":"res://..."}]}.')
         else:
-            followup = ("[Система]: Результат копирования (файлы скопированы БЕЗ изменений; "
+            followup = ("[Система]: Результат копирования (файлы ско��ированы БЕЗ изменений; "
                         "адаптацию под проект делай через patch_file, он ��отребует подтверждения):\n"
                         + "\n".join(results))
         if depth >= 3:
@@ -956,12 +956,12 @@ def _guess_step_path(raw_step_text):
 # Если бюджет попыток исчерпан, а lenient_bad всё ещё не пуст, но
 # lenient_good не пуст — план всё равно собирается из того, что удалось
 # распознать (лучше отдать пользователю частичный результат, чем ничего), а
-# в text дописывается явное предупреждение: сколько шагов принято, сколько и
+# в text дописывается явное пр��дупреждение: сколько шагов принято, сколько и
 # какие (номер + путь, если удалось угадать) отброшены и почему, с советом
 # попросить модель прислать отброшенные шаги отдельным сообщением.
 #
 # Если сырой ответ вообще не похож на план, или из него не удалось вытащить
-# ни одного шага (ни good, ни bad) — ведём себя как раньше: обычный общий
+# ни одног�� шага (ни good, ни bad) — ведём себя как раньше: обычный общий
 # fix-prompt с просьбой переслать ВСЁ действие заново.
 # ---------------------------------------------------------------------------
 
@@ -1002,7 +1002,7 @@ def _reply_with_self_heal(prompt, project_root):
                     "[Система]: Твой предыдущий блок agent_action содержал невалидный JSON "
                     "и не был обработан. Пришли ТО ЖЕ действие заново одним корректным JSON-блоком "
                     "agent_action, строго экранируя переносы строк (\\n) и кавычки (\\\") внутри "
-                    "строковых значений. Никакого текста вне JSON-блока."
+                    "стро��овых значений. Никакого текста вне JSON-блока."
                 )
                 text, action = _reply(fix_prompt)
                 continue
@@ -1108,7 +1108,7 @@ def _reply_with_self_heal(prompt, project_root):
                     f"Пришли новый agent_action patch_file, где 'search' дословно совпадает "
                     f"с текстом файла выше."
                 )
-                # Модель только что увидела АКТУАЛЬНОЕ содержимое файла с диска.
+                # Модель только что увидела АКТУАЛЬНОЕ содержим��е файла с диска.
                 _touch_file_read(path)
             text, action = _reply(fix_prompt)
             continue
@@ -1205,7 +1205,8 @@ def _refresh_fs_snapshot(project_root):
     if not project_root:
         return
     try:
-        STATE["fs_snapshot"] = snapshot_files(project_root)
+        # v88.5: prev — чтобы не перехэшировать файлы, чьи mtime+size не менялись
+        STATE["fs_snapshot"] = snapshot_files(project_root, prev=STATE.get("fs_snapshot"))
         STATE["fs_snapshot_root"] = project_root
     except Exception:
         pass
@@ -1245,7 +1246,7 @@ def _forget_file(godot_path):
 
 def _external_changes_note(project_root):
     """Сообщение модели о файлах, изменённых ВНЕ агента с прошлого обмена
-    (пользователь удалил сцену, поменял скрипт руками, что-то добавил), или "".
+    (пользователь удалил сцену, поменял ск��ипт руками, что-то добавил), или "".
     Заодно обновляет снапшот, чтобы одно изменение не сообщалось дважды."""
     if not project_root:
         return ""
@@ -1254,7 +1255,7 @@ def _external_changes_note(project_root):
         _refresh_fs_snapshot(project_root)
         return ""
     try:
-        new = snapshot_files(project_root)
+        new = snapshot_files(project_root, prev=old)
     except Exception:
         return ""
     STATE["fs_snapshot"] = new
@@ -1388,7 +1389,7 @@ def chat():
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
     # Каждое НОВОе сообщение пользователя занова решает, ��азрешены ли в этом ходе действия над
     # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
-    # задаётся заново на каждое такое сообщение, а не один раз, чтобы досту�� к аддонам не застревал навсегда.
+    # задаётся заново на каждое такое сообщение, а не один раз, чтобы досту�� к аддонам не застревал нав��егда.
     STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
     _ensure_current_chat(prompt)
@@ -2058,7 +2059,7 @@ def _boot_browser_background():
 
 
 def _disable_quickedit():
-    """v86.5: консоль Windows в режиме QuickEdit «замирает» от одного случайного
+    """v86.5: консол�� Windows в режиме QuickEdit «замирает» от одного случайного
     клика мышью: выделение текста блокирует print() у ВСЕХ потоков, и сервер
     (включая обучение mini-lich) стоит, пока не нажата клавиша. Выключаем
     QuickEdit у своей консоли; выделять текст по-прежнему можно через меню окна

@@ -12,6 +12,7 @@
   - конец генерации: у последнего ответа появились иконки действий в футере.
 Если Qwen обновит вёрстку — обнови селекторы здесь.
 """
+import threading
 import time
 
 from selenium.webdriver.common.keys import Keys
@@ -86,11 +87,24 @@ JS_DUAL_CHOICE_BUTTON_COUNT = (
 JS_CLICK_PREFER_FIRST_RESPONSE = (
     "var btns = document.querySelectorAll('button.smulti-make-better');"
     " if (btns.length) { btns[0].click(); return true; } return false;")
-JS_FIND_INPUT = ("return document.querySelector('textarea.message-input-textarea')"
-                 " || document.querySelector('textarea#chat-input')"
-                 " || document.querySelector('textarea[placeholder]')"
-                 " || document.querySelector('textarea')"
-                 " || document.querySelector('[contenteditable=\"true\"]');")
+# v88.7: поиск поля также в ОТКРЫТЫХ shadow-root'ах (новая вёрстка qwen
+# может прятать textarea в веб-компоненте — обычный querySelector её НЕ видит).
+# Сначала быстрые селекторы по документу, обход shadow DOM — только если не нашли.
+JS_FIND_INPUT = (
+    "function pick(root){"
+    " return root.querySelector('textarea.message-input-textarea')"
+    " || root.querySelector('textarea#chat-input')"
+    " || root.querySelector('textarea[placeholder]')"
+    " || root.querySelector('textarea')"
+    " || root.querySelector('[contenteditable=\"true\"]');}"
+    "var el = pick(document);"
+    "if (el) return el;"
+    "var all = document.querySelectorAll('*');"
+    "for (var i = 0; i < all.length; i++) {"
+    "  var sr = all[i].shadowRoot;"
+    "  if (sr) { el = pick(sr); if (el) return el; }"
+    "}"
+    "return null;")
 JS_SET_INPUT = ("var el = arguments[0], text = arguments[1];"
                 " if (el.tagName && el.tagName.toLowerCase() === 'textarea') {"
                 "   var proto = Object.getPrototypeOf(el);"
@@ -124,7 +138,12 @@ JS_CLICK_SEND = ("var b = document.querySelector('div.chat-prompt-send-button bu
 from parser_base import (answer_transfer_incomplete, build_composed_answer_js,
                          build_copy_click_js, missing_ref_bodies,
                          read_answer_stable, read_composed_answer,
-                         height_says_incomplete)
+                         height_says_incomplete, split_net_text_and_action)
+
+# v88.6: сетевой захват ответа (как у kimi v87.x и AI Studio v88.0) —
+# общая база net_monitor + Qwen-специфика SSE-стрима в qwen_net
+from cdp_ws import CDPSession, find_page_ws_url
+from qwen_net import QwenChatMonitor
 
 JS_COMPOSED_ANSWER = build_composed_answer_js(
     _BLOCKS_JS, '__qwenBlocks', 'pre.qwen-markdown-code')
@@ -230,7 +249,7 @@ def _action_raw_from_text(text):
     return stripped[start:]
 
 
-def extract_answer(driver):
+def extract_answer(driver, net_fallback_fn=None, net_finished_fn=None):
     # v86.13/v86.14/v86.15: сначала пытаемся собрать ПОЛНЫЙ текст ответа
     # (код-блоки — из модели Monaco или перехватом кнопки Copy, см.
     # parser_base). Если составной сбор не удался — старый путь через innerText.
@@ -265,6 +284,36 @@ def extract_answer(driver):
             still_generating = bool(is_generating(driver))
         except Exception:
             still_generating = False
+        # v88.6: сетевой фолбэк (как v88.1/v88.2 у AI Studio): если DOM
+        # обрезал/не докачал ответ (Monaco-виртуализация), а сеть уже
+        # получила его целиком — берём текст из сетевого захвата сразу,
+        # не тратя до 8 циклов × 2.5 с на перечитывания.
+        # v88.8: DOM-индикатор генерации у qwen отстаёт от сети — если стрим
+        # уже FINISHED, фолбэк разрешён даже при «генерация идёт=да», иначе
+        # зря крутились циклы «высота блока намекает…» по 2.5 с.
+        net_done = False
+        if net_finished_fn is not None:
+            try:
+                net_done = bool(net_finished_fn())
+            except Exception:
+                net_done = False
+        if net_fallback_fn is not None and (not still_generating or net_done):
+            try:
+                net_text = (net_fallback_fn() or "").strip()
+            except Exception:
+                net_text = ""
+            if len(net_text) > len(text or ""):
+                _prose, _action_raw = split_net_text_and_action(net_text)
+                net_missing = (answer_transfer_incomplete(_action_raw, net_text)
+                               if _action_raw else [])
+                if not net_missing:
+                    print("[qwen_parser] сетевой фолбэк решил проблему докачки "
+                          "(DOM=%d симв. → сеть=%d симв., не хватало: %s, "
+                          "действие выделено=%s, v88.6)"
+                          % (len(text or ""), len(net_text),
+                             ", ".join(missing) if missing else "высота блока",
+                             "да" if _action_raw else "нет"))
+                    return {"text": _prose, "actionRaw": _action_raw, "error": None}
         if not still_generating:
             post_gen_tries += 1
             if post_gen_tries > 8:
@@ -324,23 +373,167 @@ class QwenParser(BaseSiteParser):
     QUIET_PERIOD = 4.0
     POLL_INTERVAL = 0.3
 
+    # v88.6: сетевой монитор chat/completions (общая база net_monitor)
+    _monitor = None
+    _monitor_lock = threading.Lock()
+    _monitor_next_retry = 0.0
+    _req_count_before_send = None
+
+    def _ensure_monitor(self):
+        """Возвращает живой QwenChatMonitor или None (чистый DOM-режим).
+        Неудачные попытки подключения кэшируются на 30 секунд, чтобы не
+        дёргать DevTools-порт на каждый опрос (как у AI Studio, v88.0)."""
+        with QwenParser._monitor_lock:
+            mon = QwenParser._monitor
+            try:
+                if mon is not None and mon._cdp.is_alive():
+                    return mon
+            except Exception:
+                pass
+            now = time.time()
+            if now < QwenParser._monitor_next_retry:
+                return None
+            try:
+                ws_url = find_page_ws_url(self.WINDOW_URL_MATCH)
+                cdp = CDPSession(ws_url)
+                # подписки регистрируются в конструкторе ДО Network.enable,
+                # чтобы не потерять первые события (как у kimi, v87.1)
+                new_mon = QwenChatMonitor(cdp)
+                if mon is not None:
+                    # переподключение: счётчики не обнуляются
+                    new_mon._assistant_message_count = mon.assistant_message_count()
+                    new_mon._chat_request_count = mon.chat_request_count()
+                cdp.send_command("Network.enable")
+                QwenParser._monitor = new_mon
+                print("[qwen_parser] сетевой монитор chat/completions подключён")
+                return new_mon
+            except Exception as e:
+                QwenParser._monitor_next_retry = now + 30.0
+                print("[qwen_parser] сетевой монитор недоступен (%s) - работаю только по DOM" % e)
+                return None
+
     def count_answers(self, driver):
         return count_answers(driver)
 
+    def _net_live_text(self):
+        # v88.9: живой текст из сетевого захвата для трансляции в панель
+        # агента. DOM у qwen отстаёт (Monaco-блоки, перехват Copy), поэтому
+        # во время генерации текст в агенте мог не показываться, хотя чат
+        # его уже стримил. Защита от УСТАРЕВШЕГО текста: после submit()
+        # должен уйти НОВЫЙ POST, иначе current_text() — ещё прошлый ответ.
+        # Возвращает None, если сетевой текст брать нельзя (тогда — DOM).
+        mon = QwenParser._monitor
+        if mon is None:
+            return None
+        try:
+            if not mon._cdp.is_alive():
+                return None
+            before = QwenParser._req_count_before_send
+            # v88.10: answer_request_count, а не chat_request_count — иначе в
+            # окне «POST уже ушёл, ответ ещё не пришёл» буфер с ПРОШЛЫМ
+            # ответом транслировался в панель как живой текст (дубль).
+            if before is not None and mon.answer_request_count() <= before:
+                return None
+            return mon.current_text() or ""
+        except Exception:
+            return None
+
     def answer_len(self, driver):
+        net = self._net_live_text()
+        if net:
+            return len(net)
         return answer_len(driver)
 
     def answer_preview(self, driver):
+        net = self._net_live_text()
+        if net:
+            return net[-160:]
         return answer_preview(driver)
 
     def answer_stream(self, driver):
+        net = self._net_live_text()
+        if net:
+            return net
         return answer_stream(driver)
 
     def is_generating(self, driver):
         return is_generating(driver)
 
     def extract_answer(self, driver):
-        return extract_answer(driver)
+        # v88.8: сеть — ОСНОВНОЙ источник текста (как у kimi): если стрим
+        # уже завершён (status=finished в /api/v2/chat/completions), берём
+        # ответ из захвата СРАЗУ, вообще не читая DOM — двойные чтения с
+        # тишиной, перехваты кнопки Copy и проверки высоты блока медленные
+        # и заставляли qwen отставать от чата. Защита от устаревшего текста:
+        # после submit() должен уйти НОВЫЙ POST (счётчик запросов).
+        mon = self._ensure_monitor()
+        if mon is not None:
+            try:
+                before = QwenParser._req_count_before_send
+                # v88.10: сверяемся с answer_request_count — номером POST, чей
+                # ответ РЕАЛЬНО лежит в буфере. chat_request_count растёт уже
+                # при отправке запроса, а буфер сбрасывается только с приходом
+                # ответа — в этом окне старый текст выглядел «свежим».
+                fresh = (before is None) or (mon.answer_request_count() > before)
+                if fresh and mon.is_finished():
+                    net = (mon.current_text() or "").strip()
+                    if net:
+                        prose, action_raw = split_net_text_and_action(net)
+                        net_missing = (answer_transfer_incomplete(action_raw, net)
+                                       if action_raw else [])
+                        if not net_missing:
+                            print("[qwen_parser] ответ взят напрямую из сетевого "
+                                  "захвата — DOM не читаем (%d симв., действие "
+                                  "выделено=%s, v88.8)"
+                                  % (len(net), "да" if action_raw else "нет"))
+                            return {"text": prose, "actionRaw": action_raw,
+                                    "error": None}
+            except Exception as e:
+                print("[qwen_parser] быстрый сетевой путь не сработал (%r) — "
+                      "читаю по DOM (v88.8)" % (e,))
+
+        # сеть ещё не закончила или недоступна — старый гибрид: DOM +
+        # мгновенный сетевой фолбэк докачки (v88.6)
+        def _net_fallback():
+            try:
+                mon2 = QwenParser._monitor
+                return mon2.current_text() if mon2 is not None else ""
+            except Exception:
+                return ""
+
+        def _net_finished():
+            try:
+                mon2 = QwenParser._monitor
+                return mon2.is_finished() if mon2 is not None else False
+            except Exception:
+                return False
+        return extract_answer(driver, net_fallback_fn=_net_fallback,
+                              net_finished_fn=_net_finished)
+
+    def extract_answer_snapshot(self, driver):
+        # v88.3: мгновенный снимок для анти-дубля перед отправкой — одно
+        # чтение без цикла ожидания дозаписи (см. parser_base.extract_answer_snapshot).
+        text = read_composed_answer(driver, JS_COMPOSED_ANSWER, "[qwen_parser]",
+                                    copy_click_js=JS_COPY_CLICK)
+        if not (text or "").strip():
+            text = answer_stream(driver) or ""
+        return {"text": text, "actionRaw": _action_raw_from_text(text) if text else None,
+                "error": None}
+
+    def extract_raw_fallback(self, driver):
+        # v88.6: план В — DOM пуст, но сеть захватила ответ (страховка от
+        # смены разметки qwen). Сетевой текст берётся только если после
+        # submit() реально ушёл НОВЫЙ POST — защита от устаревшего ответа
+        # прошлого обмена (как у kimi/AI Studio).
+        mon = QwenParser._monitor
+        before = QwenParser._req_count_before_send
+        if mon is not None and before is not None and mon.chat_request_count() > before:
+            net = (mon.current_text() or "").strip()
+            if net:
+                text, action_raw = split_net_text_and_action(net)
+                print("[qwen_parser] план В: ответ взят из сетевого захвата (%d симв.)" % len(net))
+                return {"text": text, "actionRaw": action_raw}
+        return None
 
     def find_input(self, driver):
         return driver.execute_script(JS_FIND_INPUT)
@@ -352,6 +545,11 @@ class QwenParser(BaseSiteParser):
         time.sleep(0.4)
 
     def submit(self, driver, el):
+        # v88.6: снимок счётчика POST до отправки — страховка от устаревшего
+        # сетевого текста в extract_raw_fallback (как у AI Studio/kimi)
+        mon = self._ensure_monitor()
+        QwenParser._req_count_before_send = (
+            mon.chat_request_count() if mon is not None else None)
         el.send_keys(Keys.ENTER)
 
     def _input_leftover(self, driver, el):

@@ -470,9 +470,35 @@ def read_answer_stable(driver, composed_js, log_tag="[parser_base]", copy_click_
     return prev
 
 
+# v88.2: тот же сплит, что kimi_parser.split_text_and_action — отделяет
+# ПОСЛЕДНИЙ блок ```agent_action и убирает ===DONE===. Нужен здесь,
+# потому что сетевой текст — готовый markdown с оградой, а тела меток
+# решатель _resolve_content_refs ищет ИМЕННО внутри actionRaw.
+_NET_AGENT_ACTION_FENCE_RE = re.compile(r"```agent_action\s*\n(.*?)\n?```", re.DOTALL)
+_NET_DONE_MARKER_RE = re.compile(r"={2,}\s*DONE\s*={2,}", re.IGNORECASE)
+
+
+def split_net_text_and_action(full_text):
+    """v88.2: делит полный сетевой текст на (проза, action_raw|None):
+    отделяет последнюю ограду ```agent_action (внутри неё — JSON и тела
+    ===МЕТОК===) и стирает маркер ===DONE=== из прозы."""
+    if not full_text:
+        return full_text, None
+    text = full_text
+    action_raw = None
+    matches = list(_NET_AGENT_ACTION_FENCE_RE.finditer(text))
+    if matches:
+        m = matches[-1]
+        action_raw = m.group(1)
+        text = text[:m.start()] + text[m.end():]
+    text = _NET_DONE_MARKER_RE.sub("", text).strip()
+    return text, action_raw
+
+
 def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
                            log_tag=u"[parser_base]", attempts=4, delay=2.0,
-                           max_wait=240.0, post_gen_tries=8, poll=2.5):
+                           max_wait=240.0, post_gen_tries=8, poll=2.5,
+                           net_fallback_fn=None):
     """v86.23: универсальное «устоявшееся» извлечение ответа для
     парсеров с одношаговым чтением (DeepSeek, AI Studio) — те же
     гарантии, что qwen получил в v86.19, без композитного чтения:
@@ -512,6 +538,39 @@ def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
             return result
         still = bool(is_generating_fn(driver)) if is_generating_fn else False
         if not still:
+            # v88.0: если есть сетевой фолбэк и DOM неполный — сразу
+            # подставляем текст из сети (не ждём 8 циклов × 2.5с).
+            if missing and net_fallback_fn is not None:
+                net_text = u""
+                try:
+                    net_text = net_fallback_fn() or u""
+                except Exception:
+                    pass
+                if net_text and len(net_text) > len(text):
+                    # v88.2: режем сетевой текст правильно: проза — в text,
+                    # ВЕСЬ блок agent_action (JSON + тела ===МЕТОК===) — в
+                    # actionRaw, иначе решатель меток не найдёт тела и
+                    # действие пропадёт («действие: нет»).
+                    net_body, net_raw = split_net_text_and_action(net_text)
+                    if net_raw is not None and missing_ref_bodies(net_raw, net_raw):
+                        # тела меток оказались вне ограды — отдаём весь текст,
+                        # терпимый разбор сам вытащит JSON и найдёт тела рядом.
+                        net_raw = net_text
+                    if net_raw is None and u'"action"' in net_text:
+                        # ограды нет вовсе (сайт отдал без ```): весь текст как raw.
+                        net_raw = net_text
+                    check_raw = net_raw if net_raw is not None else result.get("actionRaw")
+                    net_missing = answer_transfer_incomplete(check_raw, net_text)
+                    if not net_missing or len(net_missing) < len(missing):
+                        print(u"%s сетевой фолбэк решил пр������блему докачки (DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s→%s, v88.2)."
+                              % (log_tag, len(text), len(net_text),
+                                 u"да" if net_raw is not None else u"нет",
+                                 u", ".join(missing) if missing else u"нет",
+                                 u", ".join(net_missing) if net_missing else u"нет"))
+                        result = dict(result)
+                        result["text"] = net_body
+                        result["actionRaw"] = net_raw
+                        return result
             tries_after_gen += 1
             if tries_after_gen > post_gen_tries:
                 if missing:
@@ -555,7 +614,7 @@ def _strip_code_fences(raw: str) -> str:
 
 
 def _extract_json_object(raw: str) -> str:
-    """Вырезает подстроку от первой '{' до последней '}'."""
+    """Вырезает подстро��у от первой '{' до последней '}'."""
     start = raw.find('{')
     end = raw.rfind('}')
     if start == -1 or end == -1 or end < start:
@@ -653,7 +712,7 @@ def _repair_unescaped_inner_quotes(raw: str) -> str:
     считается битым, хотя реально повреждён только один шаг.
 
     Эвристика: пока мы внутри JSON-строки и встречаем '"', смотрим на
-    следующий (после пробелов/переносов) символ. Если это ',', '}', ':'
+    следующий (после пробелов/перенос��в) символ. Если это ',', '}', ':'
     или конец текста — кавычка действительно ЗАКРЫВАЕТ строку (обычная
     граница JSON: конец значения перед следующим полем/концом объекта).
     Иначе — это НЕэкранированная кавычка ВНУТРИ значения; достраиваем перед
@@ -704,7 +763,7 @@ def _repair_unescaped_inner_quotes(raw: str) -> str:
                 continue
             # v86.7: пропущенная запятая между полями: `"знач" "ключ": ...` —
             # следующий непробельный символ — кавычка, за которой ключ с ':'.
-            # Раньше кавычка ключа ошибочно экранировалась и два поля
+            # ��аньше кавычка ключа ошибочно экранировалась и два поля
             # склеивались в одно значение. Закрываем строку и достраиваем ','.
             if nxt == '"' and _MISSING_COMMA_KEY_RE.match(raw, j):
                 out.append('",')
@@ -973,7 +1032,7 @@ def _extract_ref_block(raw, label, info=None, _fuzzy=True):
     if isinstance(info, dict):
         info["lenient"] = True
     print(u"[parser_base] ВНИМАНИЕ: у метки %s не найден закрывающий ===END_%s=== — "
-          u"тело принято до следующего маркера/конца текста (терпимый разбор, "
+          u"тело принято до следующего маркера/к��нца текста (терпимый разбор, "
           u"v86.18). Содержимое могло быть оборвано — проверь итоговый файл."
           % (label, label))
     return body
@@ -1494,10 +1553,14 @@ class BaseSiteParser:
 
     TIMEOUT = 900                 # общий лимит ожидания ответа, с
     QUIET_PERIOD = 2.5            # тишина (длина не растёт, генерации нет), с
-    HARD_QUIET_PERIOD = 45.0      # тишина по длине даже при «генерации», с
+    HARD_QUIET_PERIOD = 45.0      # тишина по длине даже при «гене��ац��и», ��
     POLL_INTERVAL = 0.25          # период опроса, с
     POST_QUIET_GRACE = 6.0        # добор после тишины (обрыв JSON и т.п.), с
     INPUT_RETRIES = 3
+    # v88.7: сколько ждать появления поля ввода, если быстрые попытки не нашли
+    # его (авто-инициализация шлёт промпт сразу после открытия сайта —
+    # страница могла ещё грузиться, а старые 3x0.5 с роняли весь шаг).
+    INPUT_WAIT_TIMEOUT = 45.0
     # сколько раз повторить submit, если confirm_sent вернул False (сообщение не ушло) —
     # прежде чем сдаваться и показывать ошибку пользователю.
     SEND_RETRIES = 2
@@ -1539,7 +1602,7 @@ class BaseSiteParser:
         return None
 
     def get_live_activity(self, driver):
-        """Чем модель занята сейчас: {'code': bool, 'lang': str} (опционально)."""
+        """Чем модель занята сейча��: {'code': bool, 'lang': str} (опционально)."""
         return {"code": False, "lang": ""}
 
     def find_input(self, driver):
@@ -1568,6 +1631,27 @@ class BaseSiteParser:
         """Убедиться, что сообщение реально ушло (наследник может проверить
         поле ввода). По умолчанию считаем, что отправлено."""
         return True
+
+    def extract_answer_snapshot(self, driver):
+        """v88.3: БЫСТРЫЙ одноразовый снимок последнего ответа ПЕРЕД отправкой.
+        Нужен только для анти-дубля (сравнение подписи старого ответа с новым),
+        поэтому полнота тел меток здесь не важна. Раньше вызывалась полная
+        «устаканенная» выемка extract_answer(): если последний ответ в DOM
+        обрезан (нет тел ===FILE_N===), она перечитывала его до 8×2.5 с —
+        текст уже вставлен в поле, а отправка задерживалась на ~20 с
+        (репорт тестера 23.07). Наследники с быстрым одноразовым чтением
+        переопределяют этот метод; по умолчанию — старое поведение."""
+        return self.extract_answer(driver)
+
+    def _insert_text_matches(self, field_text, prompt):
+        """v88.4: совпадает ли текст поля ввода с отправляемым промптом
+        (идея тестера 23.07: сверять строки, чтобы случайно не отправить
+        НЕ ТО сообщение). Сравнение БЕЗ пробельных символов:
+        contenteditable-поля меняют переводы строк/пробелы (<br>, NBSP)
+        при вставке, поэтому дословное сравнение давало бы ложные «не совпало»."""
+        def _norm(s):
+            return u"".join((s or u"").split())
+        return _norm(field_text) == _norm(prompt)
 
     def try_regenerate(self, driver):
         """v87.9: нажать у ПОСЛЕДНЕГО ответа кнопку «Сгенерировать заново»,
@@ -1781,7 +1865,7 @@ class BaseSiteParser:
             "last_length": -1,
             "quiet_since": None,
             "length_only_quiet_since": None,
-            "revealed": False,  # v56: True, когда на странице виден ДЕИСТВИТЕЛьНО новый текст
+            "revealed": False,  # v56: True, когда на странице виден ДЕИСТВИТЕЛьНО нов��й текст
             "result": None,
         }
 
@@ -1797,7 +1881,7 @@ class BaseSiteParser:
             # важно: сравниваем с initial_count на Неравенство (а не только на рост),
             # потому что сайт иногда перестраивает DOM так, что старый блок удаляется
             # раньше, чем появится новый (счётчик временно уменьшается), и строгое
-            # "только больше" никогда не срабатывало и ждало сторожевого таймера (~20 с)
+            # "только больше" никогда не срабатывало и жд��ло сторожевого таймера (~20 с)
             # вместо того, чтобы сразу заметить изменившийся счётчик. Аналогично выходим
             # раньше, если генерация уже идёт — это уже достаточный сигнал, что новый ответ
             # начался, даже если счётчик пока не изменился.
@@ -1827,7 +1911,7 @@ class BaseSiteParser:
                 time.sleep(poll_interval)
             # Как и в оригинале: эта фаза не бросает TimeoutError сама — если
             # общий дедлайн истёк именно тут, STABILIZE увидит это на первой
-            # же проверке и бросит тот же TimeoutError, что и раньше.
+            # же пров��рке и бросит тот же TimeoutError, что и раньше.
             return ST_STABILIZE
 
         def _state_stabilize():
@@ -1936,7 +2020,7 @@ class BaseSiteParser:
                     break
                 if still_generating and not _deadline_hit():
                     # v87.9: генерация ЕЩЁ ИДЁТ (модель долго «думает» или дописывает
-                    # длинный ответ) — грейс-период НЕ расходуем, а отсчитываем заново:
+                    # длинный ответ) — гре��с-период НЕ расходуем, а отсчитываем заново:
                     # ждём конца генерации вплоть до общего дедлайна. Раньше «думанье»
                     # дольше empty_grace (90 с) обрывало ожидание именно здесь, и в чат
                     # уходил ПУСТОЙ ответ, хотя модель в итоге отвечала (репорт тестера).
@@ -2035,6 +2119,57 @@ class BaseSiteParser:
                 time.sleep(delay)
         return result or {"text": "", "actionRaw": None, "error": "extraction failed"}
 
+    def _input_diagnostics(self, driver):
+        """v88.7: краткая сводка о странице для ошибки «Поле ввода не найдено»:
+        по ней видно, ЧТО именно открыто вместо чата (логин/капча/пустая
+        вкладка/недогруженная страница) без повторного воспроизведения."""
+        try:
+            info = driver.execute_script(
+                "return {href: location.href, state: document.readyState,"
+                " ta: document.querySelectorAll('textarea').length,"
+                " ce: document.querySelectorAll('[contenteditable=\"true\"]').length,"
+                " fr: document.querySelectorAll('iframe').length,"
+                " head: (document.body ? (document.body.innerText || '').slice(0, 120) : '')};")
+        except Exception as e:
+            return "диагностика недоступна (%r)" % (e,)
+        if not isinstance(info, dict):
+            return "диагностика недоступна"
+        return ("url=%s, readyState=%s, textarea=%s, contenteditable=%s, "
+                "iframe=%s, начало_текста=%r" % (
+                    info.get("href"), info.get("state"), info.get("ta"),
+                    info.get("ce"), info.get("fr"),
+                    (info.get("head") or "").strip()[:120]))
+
+    def _wait_for_input(self, driver, retries, cancel_cb=None):
+        """v88.7: сначала быстрые попытки (как раньше), затем терпеливое
+        ожидание до INPUT_WAIT_TIMEOUT — недогруженная страница больше не
+        валит отправку мгновенным «Поле ввода не найдено»."""
+        el = None
+        for _ in range(max(1, int(retries))):
+            try:
+                el = self.find_input(driver)
+            except Exception:
+                el = None
+            if el:
+                return el
+            time.sleep(0.5)
+        self._log("поле ввода не найдено сразу — жду загрузку страницы до %.0f с (v88.7)."
+                  % float(self.INPUT_WAIT_TIMEOUT))
+        deadline = time.time() + float(self.INPUT_WAIT_TIMEOUT)
+        while time.time() < deadline:
+            if cancel_cb is not None and cancel_cb():
+                raise ParserCancelled("остановлено пользователем")
+            try:
+                el = self.find_input(driver)
+            except Exception:
+                el = None
+            if el:
+                self._log("поле ввода появилось после ожидания — продолжаю отправку.")
+                return el
+            time.sleep(0.5)
+        raise Exception("Поле ввода не найдено (%s). Страница: %s"
+                        % (self.LOG_TAG, self._input_diagnostics(driver)))
+
     def send_message_and_get_response(self, driver, prompt, input_retries=None, progress_cb=None, cancel_cb=None, prefer_url=None):
         """Общий конвейер «промпт -> ответ» для любого сайта."""
         retries = input_retries or self.INPUT_RETRIES
@@ -2043,7 +2178,7 @@ class BaseSiteParser:
         self.switch_to_site_window(driver, prefer_url=prefer_url)
         from browser_manager import harden_background_tab
         harden_background_tab(driver)
-        # v80-wait-before-send: НЕ отправляем новое сообщение, пока модель ещё
+        # v80-wait-before-send: НЕ отправляем новое сообщ��ние, пока модель ещё
         # пишет предыдущий ответ (частый случай — быстрые шаги плана): иначе
         # отправка молча теряется, а ожидание принимает ЕЩЁ ПЕЧАТАЮЩЕЕСЯ старое
         # сообщение за ответ на новый промпт — и настоящий последний ответ
@@ -2066,15 +2201,10 @@ class BaseSiteParser:
             self._log("предыдущий ответ пишется дольше 240 с — отправляю новое сообщение как есть.")
         if _busy_logged:
             time.sleep(1.5)  # даём странице дописать DOM до конца
-        el = None
-        for _ in range(retries):
-            el = self.find_input(driver)
-            if el:
-                break
-            time.sleep(0.5)
-        if not el:
-            raise Exception("Поле ввода не найдено (%s)." % self.LOG_TAG)
+        # v88.7: ожидание поля вынесено в _wait_for_input (до 45 с + диагностика)
+        el = self._wait_for_input(driver, retries, cancel_cb=cancel_cb)
         inserted = False
+        _mismatch_val = None  # v88.4: последний НЕСОВПАВШИЙ текст поля
         for _ in range(retries):
             try:
                 self.insert_input(driver, el, prompt)
@@ -2087,17 +2217,33 @@ class BaseSiteParser:
                     "if(t==='TEXTAREA'||t==='INPUT'){return e.value||'';}"
                     "return e.innerText||e.textContent||'';", el)
                 if (_val or "").strip():
-                    inserted = True
-                    break
+                    # v88.4: сверяем текст поля с отправляемым промптом — защита
+                    # от отправки «не того сообщения» (обрезанная вставка,
+                    # остатки старого текста в поле).
+                    if self._insert_text_matches(_val, prompt):
+                        inserted = True
+                        _mismatch_val = None
+                        break
+                    _mismatch_val = _val
+                    self._log("проверка вставки: текст в поле НЕ совпал с отправляемым "
+                              "(в поле %d симв., должно быть %d) — вставляю заново (v88.4)."
+                              % (len(_val), len(prompt)))
             except (JavascriptException, StaleElementReferenceException):
                 el = self.find_input(driver)
             time.sleep(0.3)
+        if not inserted and (_mismatch_val or "").strip():
+            # v88.4: поле непустое, но текст так и не совпал: некоторые поля
+            # меняют отображение текста (разметка) — не роняем отправку,
+            # но предупреждаем в логе.
+            self._log("текст в поле так и не совпал с отправляемым после всех попыток — "
+                      "отправляю как есть (возможно, поле меняет отображение текста; v88.4).")
+            inserted = True
         if not inserted:
             raise Exception("Не удалось вставить текст в поле ввода (%s)." % self.LOG_TAG)
         self.before_submit(driver, el)
         # v51: снимок ПОСЛЕДНЕГО ответа модели ДО отправки — для анти-дубля
         # (защита от возврата СТАРОГО сообщения вместо нового ответа).
-        _pre = self.extract_answer(driver) or {}
+        _pre = self.extract_answer_snapshot(driver) or {}  # v88.3: быстрый снимок, без ожидания докачки
         _pre_sig = ((_pre.get("text") or "") + "\x00" + (_pre.get("actionRaw") or ""))
         initial_count = self.count_answers(driver)
         try:
@@ -2108,7 +2254,7 @@ class BaseSiteParser:
                 self.submit(driver, el)
         self.after_submit(driver, el)
         sent = self.confirm_sent(driver, el)
-        # Сообщение могло не уйти из-за временного глюка сайта (особенно на больших сообщениях/вложениях) —
+        # Сообщение могло не уйти из-за временного глюка сайта (осо��енно на больших сообщениях/вложениях) —
         # прежде чем сдаваться и терять введённый текст, пробуем повторить отправку (не вставляя текст заново —
         # он всё ещё в поле ввода) несколько раз с нарастающей паузой, давая сайту больше времени на обработку большого текста.
         send_retries = max(0, self.SEND_RETRIES)
@@ -2170,7 +2316,7 @@ class BaseSiteParser:
                 if (_sig_b.replace("\x00", "").strip()
                         and (_sig_b == _pre_sig or _sig_b in getattr(self, "_returned_sigs", ()))
                         and self.count_answers(driver) <= initial_count):
-                    self._log("анти-дубль (План Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
+                    self._log("анти-дубль (Пла�� Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
                     return {"text": "[Ошибка]: модель не дала НОВЫЙ ответ (на странице найден только старый). "
                                     "Отправьте сообщение ещё раз.",
                             "action": None}
@@ -2216,7 +2362,7 @@ class BaseSiteParser:
                 for cand in _find_action_json_candidates(raw_stream):
                     salv_action, _ = parse_action_json(cand)
                     if salv_action is not None:
-                        self._log("Страховка (план В): JSON-действие найдено в тексте "
+                        self._log("��траховка (план В): JSON-действие найдено в тексте "
                                   "ответа вне ожидаемых тегов — забираю его.")
                         action = salv_action
                         break
