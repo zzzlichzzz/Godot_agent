@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
+_sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
+import _bootstrap  # noqa: E402,F401
 """Тесты v88.7: терпеливое ожидание поля ввода (_wait_for_input) и
 диагностика страницы в ошибке «Поле ввода не найдено».
 Сценарий из реального бага: авто-инициализация шлёт мега-промпт сразу

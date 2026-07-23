@@ -33,6 +33,7 @@ const PLAN_STEP_URL = "http://" + HOST + "/chat/plan/step"
 const PLAN_STOP_URL = "http://" + HOST + "/chat/plan/stop"
 const CHAT_STOP_URL = "http://" + HOST + "/chat/stop"
 const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
+const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -90,6 +91,19 @@ var _guard_until_msec: int = 0        # до какого момента кно�
 # Живая трансляция: пока идёт запрос, отдельный HTTPRequest раз в секунду
 # опрашивает /chat/progress и показывает статус + хвост ответа модели.
 var _progress_http: HTTPRequest = null
+
+# v88.11: живой ввод — текст из поля панели зеркалируется в поле ввода сайта
+# по мере набора (тротлинг-таймер + отдельный HTTPRequest, настройка в
+# «Расширенных»; сервер вставляет текст без отправки).
+const LIVE_INPUT_SETTING_FILE := "user://godot_agent_live_input.txt"
+var _live_http: HTTPRequest = null
+var _live_timer: Timer = null
+var _live_toggle: CheckBox = null
+var _live_enabled: bool = true
+var _live_dirty: bool = false
+var _live_inflight: bool = false
+var _live_seq: int = 0
+var _live_last_sent: String = ""
 var _progress_timer: Timer = null
 var _progress_inflight: bool = false
 # Весь визуал чата (пузыри, печать, стрим, статус) — в agent_chat_view.gd.
@@ -202,6 +216,29 @@ func _ready() -> void:
 		_progress_http.timeout = 4.0
 		add_child(_progress_http)
 		_progress_http.request_completed.connect(_on_progress_response)
+	# v88.11: живой ввод — зеркалирование текста в браузер по мере набора
+	_live_enabled = _load_live_input_setting()
+	if _live_timer == null:
+		_live_timer = Timer.new()
+		_live_timer.wait_time = 0.35
+		_live_timer.one_shot = false
+		add_child(_live_timer)
+		_live_timer.timeout.connect(_on_live_input_tick)
+		_live_timer.start()
+	if _live_http == null:
+		_live_http = HTTPRequest.new()
+		_live_http.timeout = 5.0
+		add_child(_live_http)
+		_live_http.request_completed.connect(_on_live_input_response)
+	if input_field and not input_field.text_changed.is_connected(_on_live_input_changed):
+		input_field.text_changed.connect(_on_live_input_changed)
+	if advanced_box and _live_toggle == null:
+		_live_toggle = CheckBox.new()
+		_live_toggle.text = _t("live_input_toggle")
+		_live_toggle.tooltip_text = _t("live_input_tip")
+		_live_toggle.button_pressed = _live_enabled
+		advanced_box.add_child(_live_toggle)
+		_live_toggle.toggled.connect(_on_live_input_toggled)
 	if has_node("ChatView"):
 		_view = get_node("ChatView")
 	else:
@@ -441,13 +478,68 @@ func _on_input_field_gui_input(event: InputEvent) -> void:
 			accept_event()
 
 
+# --- v88.11: живой ввод — зеркалирование текста панели в поле сайта ---
+
+func _on_live_input_changed() -> void:
+	if _live_enabled:
+		_live_dirty = true
+
+
+func _on_live_input_tick() -> void:
+	if not _live_enabled or not _live_dirty or _live_inflight: return
+	if _is_network_busy: return  # идёт обмен — конвейер сам вставит финальный промпт
+	if input_field == null or _live_http == null: return
+	var txt: String = input_field.text
+	if txt == _live_last_sent:
+		_live_dirty = false
+		return
+	_live_seq += 1
+	var body = {"text": txt, "seq": _live_seq}
+	_live_http.set_http_proxy("", 0)
+	var err = _live_http.request(LIVE_INPUT_URL, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		return  # сервер занят/недоступен — молча попробуем на следующем тике
+	_live_inflight = true
+	_live_last_sent = txt
+	_live_dirty = false
+
+
+func _on_live_input_response(_result: int, _code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
+	# Ошибки молча игнорируем: зеркалирование — best effort, отправке оно
+	# не мешает (конвейер v88.4 сам вставляет и сверяет финальный промпт).
+	_live_inflight = false
+
+
+func _on_live_input_toggled(pressed: bool) -> void:
+	_live_enabled = pressed
+	_save_live_input_setting(pressed)
+	if pressed:
+		_live_dirty = true  # сразу дослать текущий текст поля
+
+
+func _load_live_input_setting() -> bool:
+	if not FileAccess.file_exists(LIVE_INPUT_SETTING_FILE):
+		return true  # по умолчанию включено
+	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.READ)
+	if f == null:
+		return true
+	return f.get_as_text().strip_edges() != "0"
+
+
+func _save_live_input_setting(enabled: bool) -> void:
+	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string("1" if enabled else "0")
+
+
 func _on_reinit_pressed() -> void:
 	if _is_network_busy: return
 	chat_log.text += "[color=gray]" + _t("tree_refresh") + "[/color]\n"
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "reinit": true}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -1036,7 +1128,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_view.add_agent_message(str(json["answer"]))
 			_request_chats("list", {})  # обновить авто-названия чатов
 
-		# Промежуточное подтверждение файла из пачки на чтение:
+		# Промежуточное подтверждение файла из пачки на чтени��:
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
 		var nxt = json.get("next_confirmation")
 		if nxt != null and action_label and pending_action_box:

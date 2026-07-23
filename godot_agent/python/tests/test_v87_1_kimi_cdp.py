@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
+_sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
+import _bootstrap  # noqa: E402,F401
 """Offline tests for v87.1 (kimi.com CDP-based parser pilot).
 
 No live browser/network needed: uses the two real HAR captures already
@@ -17,7 +20,7 @@ import threading
 import time
 import types
 
-sys.path.insert(0, "/data/godot_agent_v86/godot_agent_update/python")
+# (путь настраивается в шапке файла — v104-restructure)
 
 # selenium is not installed in this sandbox; parser_base/kimi_parser only
 # need a few names from it at import time (mirrors dump_js2.py's stub).

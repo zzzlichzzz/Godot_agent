@@ -18,7 +18,8 @@ import time
 from selenium.webdriver.common.keys import Keys
 
 from parser_base import (BaseSiteParser, _safe_execute, _extract_json_object,
-                         _looks_json_balanced, _strip_code_fences)
+                         _looks_json_balanced, _strip_code_fences,
+                         _find_action_json_candidates, _try_merge_multi_action_blocks)
 
 _BLOCKS_JS = r"""
 function __qwenBlocks() {
@@ -230,6 +231,16 @@ def _action_raw_from_text(text):
     if not text:
         return None
     stripped = _strip_code_fences(text)
+    # v88.13: DOM-версия той же проблемы, что и у split_net_text_and_action —
+    # если модель прислала НЕСКОЛЬКО отдельных agent_action блоков подряд
+    # (в составном DOM-тексте они идут БЕЗ оград ```, просто как JSON подряд),
+    # старый разбор ниже (первый сбалансированный объект) молча отбрасывал
+    # все кроме ПЕРВОГО. Сначала пробуем собрать ВСЕ такие блоки в один план.
+    multi = _find_action_json_candidates(stripped)
+    if len(multi) > 1:
+        merged = _try_merge_multi_action_blocks(multi)
+        if merged is not None:
+            return merged
     try:
         cand = _extract_json_object(stripped)
     except Exception:
@@ -437,6 +448,25 @@ class QwenParser(BaseSiteParser):
             return mon.current_text() or ""
         except Exception:
             return None
+
+    def net_answer_ready(self, driver):
+        # v88.12: сеть подтверждает готовый ответ на НАШ запрос: после
+        # submit ушёл новый POST (answer_request_count вырос) и стрим уже
+        # FINISHED. Сторожевой таймер parser_base принимает такой ответ
+        # сразу — лечит вечное «жду начала ответа», когда базовый снимок
+        # случайно захватил уже новый ответ, а счётчик DOM-реплик не вырос.
+        mon = QwenParser._monitor
+        if mon is None:
+            return False
+        try:
+            if not mon._cdp.is_alive():
+                return False
+            before = QwenParser._req_count_before_send
+            if before is not None and mon.answer_request_count() <= before:
+                return False
+            return bool(mon.is_finished())
+        except Exception:
+            return False
 
     def answer_len(self, driver):
         net = self._net_live_text()

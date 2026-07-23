@@ -1,3 +1,4 @@
+import _bootstrap  # noqa: F401  # v104-restructure: пути к parsers/, browser/, godot_tools/, server/
 import os
 import time
 import traceback
@@ -84,6 +85,7 @@ def _addon_blocked_message(path):
         "Если это действительно нужно — спроси пользователя напрямую, прежде чем предлагать действие "
         "над файлами аддона; не запрашивай и не изменяй файлы аддона по своей инициативе." % path
     )
+import live_input
 import server_state
 from server_state import (
     STATE, get_driver, set_driver, wait_driver, set_driver_error,
@@ -135,6 +137,9 @@ def _current_parser():
 def _reply(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
     server_state.clear_cancel()
+    # v88.11: на время обмена «промпт->ответ» живой ввод (/chat/live_input)
+    # не трогает браузер — конвейер сам вставит и сверит финальный промпт.
+    server_state.begin_exchange()
     _set_progress({"phase": "отправляю запрос в браузер"})
     try:
         # v54: адрес текущего чата — чтобы печатать в ЕГО вкладку, а не в первую
@@ -149,6 +154,7 @@ def _reply(prompt):
         return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     finally:
         _clear_progress()
+        server_state.end_exchange()
     if isinstance(result, dict):
         text, action = result.get("text") or "", result.get("action")
     else:
@@ -272,7 +278,7 @@ def _plan_collect_final(action):
 # последняя часть (без continues).
 def _content_part_add(action):
     """Принимает часть многочастной передачи content (action=create_file с
-    \"continues\": true, поля content_part/content_parts_total). Во����вращает
+    \"continues\": true, поля content_part/content_parts_total). Во������вращает
     (ok, followup_для_модели); при ошибке накопленное сбрасывается."""
     if action.get("action") != "create_file":
         STATE["content_parts"] = None
@@ -1185,7 +1191,7 @@ def _validate_patch_against_disk(action, project_root):
 
 
 def _format_search_results(query, results, truncated):
-    """Собирает ОДНО сообщение для модели с результатами поиска по проекту."""
+    """Собирает ОДНО сообщение для модели с ре��ультатами поиска по проекту."""
     fence = "`" * 3
     if not results:
         return ("[Система]: Поиск по проекту «%s» — совпадений НЕ найдено ни в одном файле проекта." % query)
@@ -1397,7 +1403,13 @@ def chat():
     # и мега-промпт нужен ВСЕГДА: глобальный флаг мог остаться от старого чата
     # или подгрузиться с диска при /init уже П��СЛЕ создания нового чата.
     _cur_chat = server_state.get_current_chat()
-    if _cur_chat is not None and not _cur_chat.get("transcript"):
+    if (_cur_chat is not None and not _cur_chat.get("transcript")
+            and not _cur_chat.get("primed")):
+        # v104.2: страховка теперь учитывает и флаг primed самой записи чата:
+        # раньше пустой ПАНЕЛЬНЫЙ транскрипт (например, запись чата
+        # пересоздана после перезапуска сервера) заново слал мега-промпт
+        # в чат, где на САЙТЕ он уже есть (репорт 23.07: «мегапромпт
+        # прислался ещё раз, хотя не менялся»).
         STATE["is_primed"] = False
     if not data.get("ignore_site_mismatch"):
         mm = server_state.site_mismatch_for_current()
@@ -1428,6 +1440,17 @@ def chat():
         if ext_note:
             print("--> Обнаружены внешние изменения файлов проекта, сообщаем модели")
             prompt = f"{ext_note}\n\n{prompt}"
+
+        # v104.2: источник истины про мега-промпт — запись САМОГО чата, а не
+        # глобальный флаг проекта (тот перетирается при создании/открытии
+        # других чатов и перезапусках сервера) — репорт 23.07: мега-промпт
+        # улетал повторно в чат, где он уже есть.
+        from agent_prompts import PROMPT_HASH as _ph
+        if (not STATE.get("is_primed", False)
+                and server_state.chat_already_primed(_ph)):
+            STATE["is_primed"] = True
+            _save_primed(current_root, True)
+            print("--> Чат уже обучен мега-промптом этой версии — повторная отправка не нужна (v104.2).")
 
         if not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
@@ -1465,7 +1488,7 @@ def confirm_action():
             return jsonify({"answer": "[Система]: План отклонён пользователем.", "pending_action": None})
         # План одобрен: переводим в режим выполнения. Сами шаги вызывает клиент (Godot-панель)
         # через /chat/plan/step — здесь мы только снимаем pending_action, чтобы освободить UI подтверждения.
-        print(f"--> План из {plan['total']} шаг(ов) подтверждён. Выполнение будет идти пошагово через /chat/plan/step.")
+        print(f"--> План из {plan['total']} шаг(о��) подтверждён. Выполнение будет идти пошагово через /chat/plan/step.")
         STATE["pending_action"] = None
         return jsonify({"answer": "[Система]: План подтверждён, начинается выполнение шагов.", "pending_action": None,
                         "plan_started": True, "plan_total": plan["total"]})
@@ -1509,7 +1532,7 @@ def confirm_action():
             print(f"--> Действие '{act_type}' ОТКЛОНЕНО пользователем.")
             server_state.queue_action_note(f"[Система: Пользователь ОТКЛОНИЛ ваше действие {act_type} для {path}. Изменение НЕ было применено! Скорректируй подход.]")
             STATE["pending_action"] = None
-            return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
+            return jsonify({"answer": "[Система]: ��ействие отклонено пользователем.", "pending_action": None})
 
         if act_type in ("create_file", "patch_file", "move_file"):
             print(f"--> {act_type} {path}. Выполняем локально...")
@@ -1988,18 +2011,60 @@ def send_log_errors():
         note = server_state.pop_action_note_for_current()  # v45: только заметка своего чата
         if note:
             message = f"{note}\n\n{message}"
-        if not STATE.get("is_primed", False):
+        # v104.2: сверка с записью чата — как в /chat (не шлём мега-промпт
+        # повторно в уже обученный чат).
+        from agent_prompts import PROMPT_HASH as _ph
+        if (not STATE.get("is_primed", False)
+                and server_state.chat_already_primed(_ph)):
+            STATE["is_primed"] = True
+            _save_primed(project_root, True)
+        _need_prime = not STATE.get("is_primed", False)
+        if _need_prime:
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
             system_context = _build_priming_context(project_root)
             message = f"{system_context}\n\n{message}"
-            STATE["is_primed"] = True
         print(f"--> Отправка отчёта об ошибках запуска ({len(message)} симв.)")
         text, action = _reply_with_self_heal(message, project_root)
+        if _need_prime:
+            # v104.2: флаг — только ПОСЛЕ успешной отправки, и теперь он ещё и
+            # сохраняется (раньше здесь не было ни _save_primed, ни
+            # mark_chat_prompt_version — после перезапуска мега-промпт уходил заново).
+            STATE["is_primed"] = True
+            _save_primed(project_root, True)
+            server_state.mark_chat_prompt_version()
         return _package_model_reply(text, action, project_root)
     except Exception as e:
         print(f"❌ ОШИБКА send_log_errors: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# --- v88.11: живой ввод — зеркалирование текста панели в поле сайта ---
+
+def _live_prefer_url():
+    """Адрес вкладки ТЕКУЩЕГО чата — печатаем в неё, а не в первую попавшуюся."""
+    rec = server_state.get_current_chat() or {}
+    return rec.get("url") or None
+
+
+def _live_parser():
+    return getattr(_current_parser(), "PARSER", None)
+
+
+_live_mirror = live_input.LiveInputMirror(
+    get_driver=server_state.get_driver,   # БЕЗ wait_driver: нет браузера — просто пропуск
+    get_parser=_live_parser,
+    busy_fn=server_state.exchange_active,
+    prefer_url_fn=_live_prefer_url)
+
+
+@app.route('/chat/live_input', methods=['POST'])
+def chat_live_input():
+    """v88.11: живой ввод — панель шлёт текст по мере набора, сервер вставляет
+    его в поле ввода сайта (без отправки). Best effort: любые проблемы ->
+    {"applied": false, "reason": ...}, ошибок наружу не бросаем."""
+    data = request.json or {}
+    return jsonify(_live_mirror.apply(data.get("seq"), data.get("text", "")))
 
 
 @app.route('/chat/stop', methods=['POST'])
