@@ -7,10 +7,39 @@ EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__',
                  'node_modules', '.vs', '.vscode', '.agent_history',
                  # v77: мозг mini-lich (датасет+чекпоинты) меняется сам по себе постояннововремя обучения
                  # — это не внешнее изменение проекта, о котором нужно сообщать модели.
-                 'minilich_brain'}
+                 'minilich_brain',
+                 # v104.3: папка самого плагина (внутри — python-сборка сервера:
+                 # build/, dist/_internal/ с numpy, selenium и т.п.) — служебная,
+                 # к игре не относится и раздувала мега-промпт десятками строк.
+                 # 'Godot_agent' — имя папки из дистрибутива (запасной вариант);
+                 # точное имя добавляется динамически из addon_dir при /init
+                 # (см. exclude_agent_addon_dirs).
+                 'Godot_agent'}
 EXCLUDED_FILES = {'.DS_Store'}
 
 HISTORY_DIR_NAME = ".agent_history"
+
+
+def exclude_agent_addon_dirs(addon_dir):
+    """v104.3: исключает папку САМОГО плагина из дерева проекта, сводки,
+    search_project и снапшота внешних изменений (все они фильтруют обход по
+    EXCLUDED_DIRS). Плагин обычно лежит как addons/<Обёртка>/<папка_аддона> —
+    исключаем и папку аддона, и обёртку. Явный read_file по пути внутри
+    аддона по-прежнему работает (_resolve_safe_path это не фильтрует)."""
+    try:
+        norm = os.path.normpath(str(addon_dir or "")).replace(os.sep, "/")
+    except Exception:
+        return
+    parts = [p for p in norm.split("/") if p]
+    if not parts:
+        return
+    if parts[-1] != "addons":
+        EXCLUDED_DIRS.add(parts[-1])
+    if "addons" in parts:
+        i = parts.index("addons")
+        if i + 1 < len(parts):
+            EXCLUDED_DIRS.add(parts[i + 1])
+
 
 
 def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=None, subdir=None):

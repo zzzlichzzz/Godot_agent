@@ -19,7 +19,7 @@ missing module named pwd - imported by posixpath (delayed, conditional, optional
 missing module named grp - imported by shutil (delayed, optional), tarfile (optional), pathlib (optional), subprocess (delayed, conditional, optional), setuptools._vendor.backports.tarfile (optional), setuptools._distutils.archive_util (optional)
 missing module named _scproxy - imported by urllib.request (conditional)
 missing module named fcntl - imported by pathlib._os (optional), subprocess (optional), _pyrepl.unix_console (top-level)
-missing module named posix - imported by os (conditional, optional), posixpath (optional), shutil (conditional), importlib._bootstrap_external (conditional), pathlib._os (optional), _pyrepl.trace (conditional), _pyrepl.unix_console (optional)
+missing module named posix - imported by posixpath (optional), shutil (conditional), importlib._bootstrap_external (conditional), pathlib._os (optional), os (conditional, optional), _pyrepl.trace (conditional), _pyrepl.unix_console (optional)
 missing module named resource - imported by posix (top-level), numpy.linalg.tests.test_linalg (delayed, conditional)
 missing module named _frozen_importlib_external - imported by importlib._bootstrap (delayed), importlib (optional), importlib.abc (optional), zipimport (top-level)
 excluded module named _frozen_importlib - imported by importlib (optional), importlib.abc (optional), zipimport (top-level)
