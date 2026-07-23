@@ -478,19 +478,69 @@ _NET_AGENT_ACTION_FENCE_RE = re.compile(r"```agent_action\s*\n(.*?)\n?```", re.D
 _NET_DONE_MARKER_RE = re.compile(r"={2,}\s*DONE\s*={2,}", re.IGNORECASE)
 
 
+def _try_merge_multi_action_blocks(raw_blocks):
+    """v88.13: пытается собрать НЕСКОЛЬКО самостоятельных JSON-блоков
+    действий (каждый — отдельный ```agent_action, как их иногда шлёт qwen
+    вместо ОДНОГО action=plan с "steps") в один синтетический план.
+
+    Реальный случай из лога пользователя: модель прислала подряд ТРИ
+    отдельных ```agent_action блока (patch_file x3) в одном ответе — но
+    выживал только ОДИН (последний в сетевом пути, первый в DOM-пути),
+    остальные два патча молча терялись, хотя чат показывал их как
+    «написанные». Возвращает JSON-строку {"action":"plan","steps":[...]}
+    или None, если блоков меньше двух или хотя бы один НЕ разобрался как
+    самостоятельное действие — тогда вызывающий код обязан вести себя как
+    раньше (не плодим ложные склейки на всяком постороннем JSON в тексте)."""
+    if not raw_blocks or len(raw_blocks) < 2:
+        return None
+    steps = []
+    for block in raw_blocks:
+        obj, err = parse_action_json(block)
+        if err or not isinstance(obj, dict) or not obj.get("action"):
+            return None
+        if obj.get("action") == "plan":
+            return None
+        steps.append(obj)
+    try:
+        return json.dumps({"action": "plan", "steps": steps, "total": len(steps)}, ensure_ascii=False)
+    except Exception:
+        return None
+
+
 def split_net_text_and_action(full_text):
     """v88.2: делит полный сетевой текст на (проза, action_raw|None):
-    отделяет последнюю ограду ```agent_action (внутри неё — JSON и тела
-    ===МЕТОК===) и стирает маркер ===DONE=== из прозы."""
+    отделяет ограду(ы) ```agent_action (внутри — JSON и тела ===МЕТОК===)
+    и стирает маркер ===DONE=== из прозы.
+
+    v88.13: раньше при НЕСКОЛЬКИХ отдельных ```agent_action блоках в одном
+    ответе (см. _try_merge_multi_action_blocks) побеждал ТОЛЬКО ПОСЛЕДНИЙ
+    блок — все предыдущие действия молча терялись. Теперь если КАЖДЫЙ
+    найденный блок разбирается как самостоятельное действие, все они
+    собираются в один синтетический план и проходят через штатное
+    пошаговое подтверждение плана. Если слияние не удалось — прежнее
+    поведение (последний блок) как подстраховка."""
     if not full_text:
         return full_text, None
     text = full_text
     action_raw = None
     matches = list(_NET_AGENT_ACTION_FENCE_RE.finditer(text))
     if matches:
-        m = matches[-1]
-        action_raw = m.group(1)
-        text = text[:m.start()] + text[m.end():]
+        merged = _try_merge_multi_action_blocks([m.group(1) for m in matches]) if len(matches) > 1 else None
+        if merged is not None:
+            action_raw = merged
+            out = []
+            last_end = 0
+            for m in matches:
+                out.append(text[last_end:m.start()])
+                last_end = m.end()
+            out.append(text[last_end:])
+            text = "".join(out)
+            print(u"[parser_base] обнаружено %d отдельных agent_action-блоков — собраны в один план из %d шаг(ов) (v88.13)."
+                  % (len(matches), len(matches)))
+        else:
+            m = matches[-1]
+            action_raw = m.group(1)
+            text = text[:m.start()] + text[m.end():]
     text = _NET_DONE_MARKER_RE.sub("", text).strip()
     return text, action_raw
 
@@ -562,7 +612,7 @@ def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
                     check_raw = net_raw if net_raw is not None else result.get("actionRaw")
                     net_missing = answer_transfer_incomplete(check_raw, net_text)
                     if not net_missing or len(net_missing) < len(missing):
-                        print(u"%s сетевой фолбэк решил пр������блему докачки (DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s→%s, v88.2)."
+                        print(u"%s сетевой фолбэк решил пр������������блему докачки (DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s→%s, v88.2)."
                               % (log_tag, len(text), len(net_text),
                                  u"да" if net_raw is not None else u"нет",
                                  u", ".join(missing) if missing else u"нет",
@@ -712,7 +762,7 @@ def _repair_unescaped_inner_quotes(raw: str) -> str:
     считается битым, хотя реально повреждён только один шаг.
 
     Эвристика: пока мы внутри JSON-строки и встречаем '"', смотрим на
-    следующий (после пробелов/перенос��в) символ. Если это ',', '}', ':'
+    следующий (пос��е пробелов/перенос��в) символ. Если это ',', '}', ':'
     или конец текста — кавычка действительно ЗАКРЫВАЕТ строку (обычная
     граница JSON: конец значения перед следующим полем/концом объекта).
     Иначе — это НЕэкранированная кавычка ВНУТРИ значения; достраиваем перед
@@ -894,7 +944,7 @@ def _convert_single_quoted_json(cand):
     кавычками ({'action': 'plan'}) -> двойные. ��рименяется только если
     одинарных кавычек заметно больше, чем двойных — иначе легко
     испортить апострофы внутри нормальных строк. Внутренние двойные
-    кавычки экранируются, \\' -> '. Если эвристика не подходит —
+    кавычки экранируются, \\' -> '. Если э��ристика не подходит —
     текст возвращается как есть (дедупликация кандидатов его отбросит)."""
     if not cand or cand.count(u"'") < 2:
         return cand
@@ -988,7 +1038,7 @@ _REF_BLOCK_LENIENT_RE_CACHE = {}
 
 
 def _extract_ref_block(raw, label, info=None, _fuzzy=True):
-    """v86.9: ищет тело content_ref/search_ref/replace_ref — сырой блок
+    """v86.9: ищет тело content_ref/search_ref/replace_ref — сырой ��лок
     ===МЕТКА===\n...\n===END_МЕТКА=== в тексте actionRaw (raw), ПОСЛЕ JSON,
     но внутри того же ```agent_action. Регэксп привязан к конкретной метке
     из самого JSON, а не угадывает границы вслепую — случайное "===" в
@@ -1053,7 +1103,7 @@ def _extract_ref_block_fuzzy(raw, label, info=None):
     """v86.24: нечёткий поиск метки — модель могла написать ===FILE1===
     вместо ===FILE_1=== или сменить регистр. Совпадение считается по
     нормализованной форме (_norm_label); принимается только ЕДИНСТВЕННЫЙ
-    кандидат — при неоднозначности безопаснее считать тело не найденным
+    кандидат — при неоднозначности безопа��нее считать тело не найденным
     (дальше сработает автодосыл v86.22)."""
     want = _norm_label(label)
     if not raw or not want:
@@ -1218,7 +1268,7 @@ _TEXT_LIST_FIELDS = (u"content", u"search", u"replace")
 
 def _coerce_one_action(d, fixes, prefix):
     """v86.21: мягкое приведение ОДНОГО действия к схеме (in-place).
-    Только безопасные однозначные починки; старые поля НЕ удаляются
+    Только безопасные од��озна��ны�� починки; старые поля НЕ удаляются
     (лишние ключи безвредны, а потерять данные нельзя)."""
     act = d.get(u"action")
     if isinstance(act, str):
@@ -1260,7 +1310,7 @@ def _coerce_one_action(d, fixes, prefix):
         if (isinstance(v, list) and v
                 and all(isinstance(x, str) for x in v)):
             d[field] = u"\n".join(v)
-            fixes.append(prefix + u"%s: список строк -> текст" % field)
+            fixes.append(prefix + u"%s: спи��ок строк -> текст" % field)
 
 
 def coerce_action_schema(obj):
@@ -1553,7 +1603,7 @@ class BaseSiteParser:
 
     TIMEOUT = 900                 # общий лимит ожидания ответа, с
     QUIET_PERIOD = 2.5            # тишина (длина не растёт, генерации нет), с
-    HARD_QUIET_PERIOD = 45.0      # тишина по длине даже при «гене��ац��и», ��
+    HARD_QUIET_PERIOD = 45.0      # тишина по длине даж�� при «г��не��ац��и», ��
     POLL_INTERVAL = 0.25          # период опроса, с
     POST_QUIET_GRACE = 6.0        # добор после тишины (обрыв JSON и т.п.), с
     INPUT_RETRIES = 3
@@ -1590,6 +1640,16 @@ class BaseSiteParser:
 
     def is_generating(self, driver):
         """Идёт ли генерация прямо сейчас (опционально, подстраховка)."""
+        return False
+
+    def net_answer_ready(self, driver):
+        """v88.12: сеть подтверждает, что ответ на НАШ запрос достримлен целиком.
+
+        Переопределяется сайтами с сетевым монитором (qwen): True означает,
+        что после submit() ушёл НОВЫЙ POST и его стрим уже завершён (FINISHED) —
+        такому ответу сторожевой таймер верит сразу, без сравнения с базовым
+        снимком и без второго подтверждающего замера.
+        """
         return False
 
     def extract_answer(self, driver):
@@ -1653,10 +1713,409 @@ class BaseSiteParser:
             return u"".join((s or u"").split())
         return _norm(field_text) == _norm(prompt)
 
+    def _read_field_text_quick(self, driver, el):
+        """Быстрое чтение текста поля (textarea/input/contenteditable)."""
+        try:
+            val = driver.execute_script(
+                "var e=arguments[0]; if(!e) return '';"
+                " var t=(e.tagName||'').toUpperCase();"
+                " if(t==='TEXTAREA'||t==='INPUT') return e.value||'';"
+                " return e.innerText||e.textContent||'';", el)
+        except Exception:
+            return u""
+        return val if isinstance(val, str) else (u"" if val is None else str(val))
+
+    def _set_clipboard_text(self, driver, text):
+        """Кладёт text в буфер обмена страницы (для последующего Ctrl+V).
+
+        1) CDP Browser.grantPermissions + navigator.clipboard.writeText
+        2) запасной execCommand('copy') через скрытый textarea
+        Возвращает True, если хотя бы один способ не упал с исключением.
+        """
+        text = u"" if text is None else (text if isinstance(text, str) else str(text))
+        # Разрешение clipboard (Chrome) — best effort
+        try:
+            origin = driver.execute_script("return location.origin;") or ""
+            if origin and origin.startswith("http") and hasattr(driver, "execute_cdp_cmd"):
+                try:
+                    driver.execute_cdp_cmd("Browser.grantPermissions", {
+                        "origin": origin,
+                        "permissions": ["clipboardReadWrite", "clipboardSanitizedWrite"],
+                    })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # async clipboard API
+        try:
+            ok = driver.execute_async_script(
+                "var text=arguments[0], cb=arguments[arguments.length-1];"
+                " try {"
+                "   if (!navigator.clipboard || !navigator.clipboard.writeText) { cb(false); return; }"
+                "   navigator.clipboard.writeText(text).then(function(){ cb(true); })"
+                "     .catch(function(){ cb(false); });"
+                " } catch (e) { cb(false); }",
+                text)
+            if ok:
+                return True
+        except Exception:
+            pass
+        # fallback: hidden textarea + execCommand('copy')
+        try:
+            ok = driver.execute_script(
+                "var text=arguments[0];"
+                " var ta=document.getElementById('__godot_agent_clip_ta');"
+                " if(!ta){ ta=document.createElement('textarea');"
+                "   ta.id='__godot_agent_clip_ta';"
+                "   ta.setAttribute('readonly','');"
+                "   ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;';"
+                "   document.body.appendChild(ta); }"
+                " ta.value=text; ta.focus(); ta.select();"
+                " try { return document.execCommand('copy'); } catch(e) { return false; }",
+                text)
+            return bool(ok)
+        except Exception:
+            return False
+
+    def _verify_clipboard_text(self, driver, text):
+        """v88.16: сверить содержимое буфера обмена с text (починка «плана А»).
+
+        Репорт 23.07: после Ctrl+V в поле оказалось 50 симв. вместо 22198 —
+        вероятнее всего вставилось СТАРОЕ содержимое буфера (запись не удалась,
+        хотя execCommand('copy') вернул true). Теперь буфер сверяем явно.
+
+        Возвращает True/False, либо None, если буфер прочитать нельзя
+        (нет permission/фокуса документа) — тогда решаем по итогу самого paste.
+        """
+        try:
+            got = driver.execute_async_script(
+                "var cb=arguments[arguments.length-1];"
+                " try {"
+                "   if (!navigator.clipboard || !navigator.clipboard.readText) { cb(null); return; }"
+                "   navigator.clipboard.readText().then(function(t){ cb(t); })"
+                "     .catch(function(){ cb(null); });"
+                " } catch (e) { cb(null); }")
+        except Exception:
+            return None
+        if not isinstance(got, str):
+            return None
+        return self._insert_text_matches(got, text)
+
+    def _wait_field_matches(self, driver, el, desired, timeout):
+        """v88.16: ждать поллингом, пока поле не совпадёт с desired.
+
+        Большой paste (десятки КБ) тяжёлые редакторы «дожёвывают» с задержкой —
+        фиксированные 0.15/0.25 с (v88.15) на 22 КБ давали ложный «не совпал».
+        Пока текст в поле продолжает расти, дедлайн продлевается (но не более
+        чем на 10 с сверх исходного таймаута).
+        """
+        deadline = time.time() + max(0.5, float(timeout))
+        hard_deadline = deadline + 10.0
+        last_len = -1
+        while time.time() < min(deadline, hard_deadline):
+            got = self._read_field_text_quick(driver, el)
+            if self._insert_text_matches(got, desired):
+                return True
+            n = len(got or u"")
+            if n > last_len:
+                last_len = n
+                # поле ещё наполняется — продлеваем ожидание
+                deadline = max(deadline, time.time() + 1.5)
+            time.sleep(0.2)
+        got = self._read_field_text_quick(driver, el)
+        return self._insert_text_matches(got, desired)
+
+    def _dispatch_ctrl_v(self, driver, el):
+        """v104.2: Ctrl+V «трастовыми» событиями CDP Input.dispatchKeyEvent
+        (modifiers=2 + editing-команда Paste). CDP-события проходят настоящий
+        input-пайплайн браузера, поэтому вставка срабатывает и в кастомных
+        редакторах, которые синтетический модификатор Selenium игнорируют.
+        True — события отправлены; сам факт вставки сверяется снаружи."""
+        if not hasattr(driver, "execute_cdp_cmd"):
+            return False
+        base = {"modifiers": 2, "key": "v", "code": "KeyV",
+                "windowsVirtualKeyCode": 86, "nativeVirtualKeyCode": 86}
+        try:
+            down = dict(base)
+            down["type"] = "keyDown"
+            down["commands"] = ["Paste"]
+            driver.execute_cdp_cmd("Input.dispatchKeyEvent", down)
+            up = dict(base)
+            up["type"] = "keyUp"
+            driver.execute_cdp_cmd("Input.dispatchKeyEvent", up)
+            return True
+        except Exception as e:
+            self._log("CDP Ctrl+V недоступен (%s) — пробую клавиши Selenium" % e)
+            return False
+
+    def insert_input_paste_like(self, driver, el, prompt):
+        """v88.16: вставка промпта/system «как Ctrl+V», не через value=.
+
+        План А, починен (репорт 23.07: на 22 КБ в поле оказывалось 50 симв.
+        и шёл fallback). Шаги:
+          1) focus + Ctrl+A + Backspace (очистить поле под полную замену)
+          2) положить текст в clipboard И СВЕРИТЬ буфер (_verify_clipboard_text;
+             раньше не сверяли — Ctrl+V мог вставить старое содержимое буфера)
+          3) вернуть каретку в поле (_focus_input_caret_end, а не просто click)
+          4) Ctrl+V (реальные key-события Selenium)
+          5) дождаться вставки поллингом (_wait_field_matches): таймаут растёт
+             с размером текста — большой paste редактор дожёвывает не мгновенно
+          6) при несовпадении — одна повторная попытка Ctrl+V
+        True — только если поле РЕАЛЬНО совпало с prompt (whitespace-эквивалент).
+        """
+        from selenium.webdriver.common.keys import Keys
+        prompt = u"" if prompt is None else (prompt if isinstance(prompt, str) else str(prompt))
+
+        def _clear_and_focus():
+            try:
+                el.click()
+            except Exception:
+                pass
+            try:
+                driver.execute_script("arguments[0].focus();", el)
+            except Exception:
+                pass
+            # v104.2: чистим программной подстановкой пустого значения (как это
+            # делает сам сайт), а не Ctrl+A/Backspace: кастомный редактор qwen
+            # обрабатывал синтетический Ctrl БЕЗ модификатора и вместо очистки
+            # печатал буквы в поле (репорт 23.07: «vv»)
+            cleared = False
+            try:
+                self.insert_input(driver, el, u"")
+                cleared = not (self._read_field_text_quick(driver, el) or u"").strip()
+            except Exception:
+                cleared = False
+            if not cleared:
+                try:
+                    el.clear()
+                except Exception:
+                    pass
+
+        try:
+            _clear_and_focus()
+            if not prompt:
+                return True
+            # клипборд: записать и сверить (до 2 попыток записи)
+            clip_ok = False
+            for _attempt in (1, 2):
+                if not self._set_clipboard_text(driver, prompt):
+                    continue
+                verified = self._verify_clipboard_text(driver, prompt)
+                if verified is False:
+                    self._log("clipboard: буфер не совпал с текстом (попытка записи %d/2) — перезаписываю" % _attempt)
+                    continue
+                # True — буфер точно наш; None — сверить нельзя, пробуем paste
+                clip_ok = True
+                break
+            if not clip_ok:
+                self._log("clipboard: не удалось записать буфер — paste-путь пропускаю")
+                return False
+            # таймаут ожидания вставки пропорционален размеру текста
+            wait_s = min(12.0, 1.0 + len(prompt) / 4000.0)
+            # v104.2: Ctrl+V шлём в первую очередь «трастовыми» CDP-событиями
+            # (настоящий input-пайплайн браузера). Синтетический
+            # send_keys(Keys.CONTROL, "v") редактор qwen обрабатывал БЕЗ
+            # модификатора: вставки не было, а в поле печаталась буква «v».
+            for _try in (1, 2):
+                # вернуть фокус И КАРЕТКУ в поле чата (copy мог увести фокус
+                # на hidden textarea; просто click() каретку не гарантирует)
+                self._focus_input_caret_end(driver, el)
+                sent = self._dispatch_ctrl_v(driver, el) if _try == 1 else False
+                if not sent:
+                    try:
+                        from selenium.webdriver.common.action_chains import ActionChains
+                        (ActionChains(driver).key_down(Keys.CONTROL)
+                         .send_keys("v").key_up(Keys.CONTROL).perform())
+                    except Exception:
+                        el.send_keys(Keys.CONTROL, "v")
+                if self._wait_field_matches(driver, el, prompt, wait_s):
+                    return True
+                got = self._read_field_text_quick(driver, el)
+                self._log("paste-like: после Ctrl+V текст не совпал "
+                          "(в поле %d, нужно %d, попытка %d/2)"
+                          % (len(got or u""), len(prompt), _try))
+                # v104.2: чистим после КАЖДОЙ неудачной попытки (раньше — только после
+                # первой): огрызки вроде «v» не должны оставаться в поле и
+                # попадать в следующую отправку
+                _clear_and_focus()
+            return False
+        except Exception as e:
+            self._log("paste-like insert failed: %s" % e)
+            return False
+
+    def insert_input_for_send(self, driver, el, prompt):
+        """v104.2: вставка при отправке — ДВА плана (медленная посимвольная
+        печать из лестницы отправки УБРАНА по запросу пользователя 23.07:
+        она и отправляла сообщение раньше времени — перевод строки в тексте
+        набирался как Enter и уходила только первая строка. Печать осталась
+        только в живом вводе mirror_input (там она построчная и безопасна).
+
+          план А: безопасная вставка Ctrl+V из буфера обмена
+                  (insert_input_paste_like: сверяет буфер и поле, ждёт большие
+                  вставки; Ctrl+V шлётся трастовыми CDP-событиями);
+          план Б: старый быстрый insert_input сайта (JS) — резерв, чтобы
+                  сообщение не потерялось.
+
+        Возвращает "paste" | "insert". В лог сервера всегда пишет явный итог.
+        """
+        nchars = len(prompt or u"")
+        pasted = False
+        try:
+            pasted = bool(self.insert_input_paste_like(driver, el, prompt))
+        except Exception as e:
+            self._log("вставка: Ctrl+V не удался (%s)" % e)
+            pasted = False
+        if pasted:
+            self._log("вставка: Ctrl+V (paste) OK — %d симв." % nchars)
+            return "paste"
+        # план Б: быстрый программный insert_input сайта. Поле к этому
+        # моменту очищено (insert_input_paste_like чистит после каждой
+        # неудачной попытки) — огрызки Ctrl+V («v») в сообщение не попадут.
+        self.insert_input(driver, el, prompt)
+        self._log("вставка: быстрый insert_input (план Б) — %d симв." % nchars)
+        return "insert"
+
+    def _read_input_text(self, driver, el):
+        """Текущий текст поля ввода (textarea/input/contenteditable)."""
+        try:
+            val = driver.execute_script(
+                "var e=arguments[0];"
+                " if (!e) return '';"
+                " var t=(e.tagName||'').toUpperCase();"
+                " if (t==='TEXTAREA' || t==='INPUT') return e.value || '';"
+                " return e.innerText || e.textContent || '';",
+                el)
+        except Exception:
+            return u""
+        return val if isinstance(val, str) else (u"" if val is None else str(val))
+
+    def _focus_input_caret_end(self, driver, el):
+        """Фокус в поле и каретка в конец — чтобы send_keys дописывал, а не писал в середину."""
+        try:
+            driver.execute_script(
+                "var el=arguments[0]; if(!el) return;"
+                " try { el.focus(); } catch(e) {}"
+                " try {"
+                "   var t=(el.tagName||'').toUpperCase();"
+                "   if (t==='TEXTAREA' || t==='INPUT') {"
+                "     var n=(el.value||'').length;"
+                "     if (el.setSelectionRange) el.setSelectionRange(n, n);"
+                "     return;"
+                "   }"
+                "   var range=document.createRange();"
+                "   range.selectNodeContents(el);"
+                "   range.collapse(false);"
+                "   var sel=window.getSelection();"
+                "   sel.removeAllRanges();"
+                "   sel.addRange(range);"
+                " } catch(e) {}",
+                el)
+        except Exception:
+            try:
+                el.click()
+            except Exception:
+                pass
+
+    def _mirror_type_human(self, driver, el, desired):
+        """v88.14: довести поле до desired КЛАВИШАМИ, без insert_input/value=.
+
+        Человек печатает в Godot — на сайте должны идти события набора
+        (send_keys), а не программная подстановка всего текста.
+        Алгоритм: общий префикс → BACKSPACE лишнего хвоста → send_keys нового
+        хвоста. Selenium send_keys(string) шлёт посимвольные key-события.
+        """
+        from selenium.webdriver.common.keys import Keys
+
+        desired = desired if desired is not None else u""
+        if not isinstance(desired, str):
+            desired = str(desired)
+
+        current = self._read_input_text(driver, el)
+        if current == desired:
+            return True
+
+        n = 0
+        lim = min(len(current), len(desired))
+        while n < lim and current[n] == desired[n]:
+            n += 1
+        back = len(current) - n
+        tail = desired[n:]
+
+        self._focus_input_caret_end(driver, el)
+
+        # Слишком длинный «чужой» хвост — select-all + набрать заново (клавишами)
+        if back > 80 and n < 8:
+            try:
+                el.send_keys(Keys.CONTROL, "a")
+                el.send_keys(Keys.BACKSPACE)
+            except Exception:
+                if current:
+                    el.send_keys(Keys.BACKSPACE * min(len(current), 500))
+            tail = desired
+            back = 0
+
+        if back > 0:
+            left = back
+            while left > 0:
+                chunk = 40 if left > 40 else left
+                el.send_keys(Keys.BACKSPACE * chunk)
+                left -= chunk
+
+        if tail:
+            i = 0
+            step = 48
+            while i < len(tail):
+                el.send_keys(tail[i:i + step])
+                i += step
+
+        got = self._read_input_text(driver, el)
+        if got == desired or self._insert_text_matches(got, desired):
+            return True
+        try:
+            self._focus_input_caret_end(driver, el)
+            el.send_keys(Keys.CONTROL, "a")
+            el.send_keys(Keys.BACKSPACE)
+            if desired:
+                i = 0
+                step = 48
+                while i < len(desired):
+                    el.send_keys(desired[i:i + step])
+                    i += step
+        except Exception:
+            return False
+        got2 = self._read_input_text(driver, el)
+        return got2 == desired or self._insert_text_matches(got2, desired)
+
+    def mirror_input(self, driver, text, prefer_url=None):
+        """v88.14: живой ввод — набрать text в поле сайта КАК С КЛАВИАТУРЫ,
+        без submit (см. live_input.py).
+
+        Раньше (v88.11) вызывался insert_input() (JS value=/insertText пачкой) —
+        для сайта это выглядело как программная подстановка, хотя текст
+        набирал человек в Godot. Теперь diff + send_keys (BACKSPACE/символы).
+
+        Быстрый best-effort: одна попытка find_input (без ожидания 45 с).
+        True — поле приведено к text (или whitespace-эквиваленту).
+        """
+        try:
+            self.switch_to_site_window(driver, prefer_url=prefer_url)
+        except Exception:
+            pass
+        try:
+            el = self.find_input(driver)
+        except Exception:
+            el = None
+        if not el:
+            return False
+        try:
+            return bool(self._mirror_type_human(driver, el, text if text is not None else u""))
+        except Exception:
+            return False
+
     def try_regenerate(self, driver):
         """v87.9: нажать у ПОСЛЕДНЕГО ответа кнопку «Сгенерировать заново»,
         если сайт её показывает (сервер сайта сбоил, генерация оборвалась или
-        не началась). Возвращает True, если кнопка найдена и нажата — тогда
+        не началась). Возвращает True, если кнопка найден�� и нажата — тогда
         общий конвейер ждёт ответ заново. По умолчанию сайт этого не умеет."""
         return False
 
@@ -1720,7 +2179,7 @@ class BaseSiteParser:
     def wait_for_new_answer(self, driver, initial_count, timeout=None,
                             quiet_period=None, hard_quiet_period=None,
                             poll_interval=None, post_quiet_grace=None,
-                            progress_cb=None, cancel_cb=None):
+                            progress_cb=None, cancel_cb=None, baseline=None):
         """Ждёт новый ответ модели и возвращает результат extract_answer().
         Завершение — стабилизация длины текста ответа + проверка целостности
         JSON действия; всё через методы наследника.
@@ -1784,7 +2243,17 @@ class BaseSiteParser:
         # подряд — возвращаем его как результат, не дожидаясь зависшего
         # основного ожидания. Это лечит «ответ на сайте есть, а агент
         # пишет „модель думает…“ бесконечно».
-        _base = self.extract_answer(driver) or {}
+        # v88.12: базовый снимок «что было ДО отправки» больше НЕ читается здесь
+        # полным extract_answer: у qwen тот блокировался на весь цикл генерации
+        # (перечитывания «высота блока намекает…» v86.27, до 240 с) и в итоге
+        # записывал в снимок уже НОВЫЙ ответ (через сетевой фолбэк v88.6) —
+        # после чего сторожевой таймер отбрасывал настоящий ответ как «старый»
+        # до общего таймаута, а панель бесконечно показывала «модель думает…».
+        # Теперь конвейер отправки передаёт сюда снимок, снятый СТРОГО ДО
+        # submit(); без него берём быстрый extract_answer_snapshot (без циклов
+        # ожидания докачки).
+        _base = (baseline if baseline is not None
+                 else (self.extract_answer_snapshot(driver) or {}))
         _baseline_sig = (_base.get("text") or "") + "\x00" + (_base.get("actionRaw") or "")
         _salv = {"ts": time.time(), "sig": None}
         _diag = {"ts": time.time()}
@@ -1809,6 +2278,20 @@ class BaseSiteParser:
             if not sig.replace("\x00", "").strip():
                 _salv["sig"] = None
                 return None
+            # v88.12: сетевой монитор подтверждает, что это ответ именно на НАШ
+            # запрос (новый POST после submit) и стрим завершён — принимаем
+            # СРАЗУ: без сравнения с базовым снимком (тот мог случайно
+            # захватить уже новый ответ) и без второго подтверждающего замера
+            # через 20 с. Целостность JSON действия проверяем как и раньше.
+            try:
+                _net_ok = bool(self.net_answer_ready(driver))
+            except Exception:
+                _net_ok = False
+            if _net_ok and (raw is None or _looks_json_balanced(
+                    _extract_json_object(_strip_code_fences(raw)))):
+                self._log("сторожевой таймер: сеть подтвердила готовый НОВЫЙ ответ — "
+                          "забираю его сразу (v88.12).")
+                return r
             if (sig == _baseline_sig or sig in getattr(self, "_returned_sigs", ())
                     or self.is_generating(driver)):
                 _salv["sig"] = None
@@ -1831,7 +2314,7 @@ class BaseSiteParser:
                 return
             _diag["ts"] = time.time()
             try:
-                self._log("жду ответ [%s]: answers=%s (было %s), len=%s, generating=%s"
+                self._log("жду ��твет [%s]: answers=%s (было %s), len=%s, generating=%s"
                           % (stage, self.count_answers(driver), initial_count,
                              self.answer_len(driver), self.is_generating(driver)))
             except Exception:
@@ -1849,7 +2332,7 @@ class BaseSiteParser:
             # нет» проверяем как «счётчик НЕ ВОСОСЛ», а не «равен исходному».
             if self.count_answers(driver) > initial_count:
                 return False
-            # После перестройки DOM последним блоком может оказаться и более старый
+            # После перестр��йки DOM последним блоком может оказаться и более старый
             # ответ, не совпадающий со снимком до отправки, — ловим его по памяти
             # ранее возвращённых ответов (_returned_sigs).
             return s == _baseline_sig or s in getattr(self, "_returned_sigs", ())
@@ -2023,7 +2506,7 @@ class BaseSiteParser:
                     # длинный ответ) — гре��с-период НЕ расходуем, а отсчитываем заново:
                     # ждём конца генерации вплоть до общего дедлайна. Раньше «думанье»
                     # дольше empty_grace (90 с) обрывало ожидание именно здесь, и в чат
-                    # уходил ПУСТОЙ ответ, хотя модель в итоге отвечала (репорт тестера).
+                    # уходил ПУСТОЙ ответ, хотя модель в итоге о��вечала (репорт тестера).
                     grace_start = time.time()
                 limit = empty_grace if (answer_empty or still_generating) else post_quiet_grace
                 if time.time() - grace_start >= limit:
@@ -2050,7 +2533,7 @@ class BaseSiteParser:
             stale_logged = False
             while _is_stale(result):
                 if _deadline_hit():
-                    raise TimeoutError("Модель не дала НОВЫЙ ответ: на странице только сообщение, "
+                    raise TimeoutError("Модель не дала НОВЫЙ ответ: на странице только со��бщение, "
                                        "которое было там ещё до отправки (дубль не возвращаю).")
                 if not stale_logged:
                     self._log("анти-дубль: прочитан ТОТ ЖЕ ответ, что был до отправки, "
@@ -2078,7 +2561,7 @@ class BaseSiteParser:
                             break
                     else:
                         stable_since = None
-                    _report("модель пишет ответ…", chars=max(ln, 0))
+                    _report("модель ��ишет ответ…", chars=max(ln, 0))
                     last_len = ln
                     time.sleep(poll_interval)
                 result = self.extract_answer(driver)
@@ -2100,7 +2583,7 @@ class BaseSiteParser:
         """ПЛАН Б: многоуровневое извлечение ответа.
           1) основной парсер наследника (форматирование + agent_action);
           2) грубый фолбэк наследника — текст без оформления лучше пустоты;
-          3) пауза и повтор с нуля (DOM мог перерисоваться во время чтения)."""
+          3) пауз�� и повтор с нуля (DOM мог перерисоваться во время чтения)."""
         result = None
         for attempt in range(retries):
             result = self.extract_answer(driver) or {}
@@ -2207,7 +2690,8 @@ class BaseSiteParser:
         _mismatch_val = None  # v88.4: последний НЕСОВПАВШИЙ текст поля
         for _ in range(retries):
             try:
-                self.insert_input(driver, el, prompt)
+                _ins_mode = self.insert_input_for_send(driver, el, prompt)
+                # _ins_mode: "paste" (Ctrl+V) или "insert" (старый метод сайта)
                 time.sleep(0.2)
                 # v86.7: у contenteditable-полей (див вместо textarea у многих
                 # сайтов) нет .value — проверяем и innerText/textContent, иначе
@@ -2285,14 +2769,14 @@ class BaseSiteParser:
         # пробуем нажать у последнего ответа кнопку повтора (try_regenerate
         # наследника) и ждём ответ заново — не более REGENERATE_RETRIES раз.
         # initial_count снимается ДО клика: повтор генерации может как заменить
-        # сбойный блок (счётчик не меняется — тогда выручит is_generating), так
+        # сбой����й блок (счётчик не меняется — тогда выручит is_generating), так
         # и добавить новый (счётчик вырастет).
         result = None
         _regen_used = 0
         while True:
             try:
                 result = self.wait_for_new_answer(driver, initial_count, progress_cb=progress_cb,
-                                                  cancel_cb=cancel_cb)
+                                                  cancel_cb=cancel_cb, baseline=_pre)
             except TimeoutError:
                 if _regen_used < self.REGENERATE_RETRIES:
                     _cnt_before_regen = self.count_answers(driver)

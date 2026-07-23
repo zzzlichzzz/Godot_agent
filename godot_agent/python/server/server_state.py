@@ -7,6 +7,7 @@
 """
 import os
 import json as _json
+import threading
 
 import history_manager as history
 import chat_store
@@ -40,6 +41,27 @@ STATE = {
 
 # Драйвер браузера храним в держателе: он создаётся уже после импорта.
 _holder = {"driver": None, "driver_error": None}
+
+# v88.11: флаг «идёт обмен промпт->ответ» — на это время живой ввод
+# (/chat/live_input) не трогает браузер, чтобы не мешать конвейеру отправки
+# (вставка финального промпта, сверка v88.4, ожидание ответа).
+_exchange = {"count": 0}
+_exchange_lock = threading.Lock()
+
+
+def begin_exchange():
+    with _exchange_lock:
+        _exchange["count"] += 1
+
+
+def end_exchange():
+    with _exchange_lock:
+        _exchange["count"] = max(0, _exchange["count"] - 1)
+
+
+def exchange_active():
+    with _exchange_lock:
+        return _exchange["count"] > 0
 
 
 def set_driver(d):
@@ -269,6 +291,20 @@ def _apply_session_context(data):
         if history.migrate_from_project(STATE.get("project_root")):
             print("--> История изменений перенесена из проекта в:",
                   history.get_storage_dir(STATE.get("project_root")))
+
+
+def chat_already_primed(current_prompt_hash=None):
+    """v104.2: True, если ТЕКУЩИЙ чат уже обучен мега-промптом этой версии.
+
+    Источник истины — запись САМОГО чата (флаг primed + prompt_hash), а не
+    глобальный флаг проекта: тот перетирается при создании/открытии других
+    чатов и перезапусках сервера, из-за чего мега-промпт улетал повторно
+    в чат, где он уже есть (репорт 23.07). Пустой prompt_hash у старых
+    записей считаем совпадением — лучше не слать лишний раз, чем заспамить."""
+    rec = get_current_chat()
+    if not rec or not rec.get("primed"):
+        return False
+    return rec.get("prompt_hash") in (None, "", current_prompt_hash)
 
 
 def mark_chat_prompt_version():
