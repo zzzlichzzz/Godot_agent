@@ -12,6 +12,7 @@ import threading
 import history_manager as history
 import chat_store
 import sites
+import project_tools
 
 # Глобальное состояние сессии
 STATE = {
@@ -284,6 +285,8 @@ def _apply_session_context(data):
         STATE["project_root"] = data["project_root"]
     if data.get("addon_dir"):
         STATE["addon_dir"] = data["addon_dir"]
+        # v104.3: папка плагина не должна попадать в дерево/сводку/поиск/снапшот
+        project_tools.exclude_agent_addon_dirs(data["addon_dir"])
     udd = data.get("user_data_dir")
     if udd and udd != STATE.get("user_data_dir"):
         STATE["user_data_dir"] = udd
