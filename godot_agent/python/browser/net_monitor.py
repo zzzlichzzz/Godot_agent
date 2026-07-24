@@ -143,6 +143,19 @@ class BaseNetMonitor:
             mime = resp.get("mimeType") or ""
         except Exception:
             return
+        # v104.12: HTTP 429/5xx на чат-эндпоинте — признак лимита запросов.
+        # Ловим ДО проверки mime: ответ-ошибка обычно text/html или json
+        # и в _match_response не попадает. Читается однократно через
+        # pop_http_error() (спящий режим в main._reply).
+        try:
+            _status = int(resp.get("status") or 0)
+        except (TypeError, ValueError):
+            _status = 0
+        if (_status == 429 or _status >= 500) and self.CHAT_URL_SUBSTR and \
+                self.CHAT_URL_SUBSTR in url:
+            with self._lock:
+                self._last_http_error = _status
+            self._log("HTTP %d на чат-эндпоинте — возможен лимит запросов (v104.12)" % _status)
         if self._match_response(url, mime):
             req_id = params.get("requestId")
             with self._lock:
@@ -358,6 +371,15 @@ class BaseNetMonitor:
             self._reset_after_finish(req_id, "ответ закрыт без явного статуса завершения")
 
     # -- показания -------------------------------------------------------------
+
+    def pop_http_error(self):
+        """v104.12: последний HTTP-статус ошибки (429/5xx) чат-эндпоинта;
+        читается ОДИН раз и сбрасывается — чтобы старая ошибка не считалась
+        признаком лимита в следующем обмене."""
+        with self._lock:
+            st = getattr(self, "_last_http_error", None)
+            self._last_http_error = None
+        return st
 
     def is_generating(self):
         with self._lock:
