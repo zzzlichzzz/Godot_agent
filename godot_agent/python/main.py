@@ -34,6 +34,7 @@ import tscn_lint
 import scene_deps
 import minilich
 import gd_functions
+import librarian
 import log_reader
 import chat_store
 import dashboard
@@ -183,7 +184,7 @@ def _reply_once(prompt):
     _set_progress({"phase": "отправляю запрос в браузер"})
     try:
         # v54: адрес текущего чата — чтобы печатать в ЕГО вкладку, а не в первую
-        # попавшуюся вкладку сайта (у пользователя могла быть открыта вкладка старого чата).
+        # попавшуюся вкладку сайта (у пользователя могла быть открыта вкладка ста��ого чата).
         _chat_rec = server_state.get_current_chat() or {}
         result = _current_parser().send_message_and_get_response(
             wait_driver(), prompt, progress_cb=_set_progress,
@@ -434,6 +435,14 @@ def _apply_write_step(action, project_root, chain_id=None):
     elif act_type == "move_file":
         _forget_file(path)
         _remember_file(project_root, action.get("dest", ""))
+    try:
+        # v105: микро-обновление индекса Библиотекаря (без полной пересборки)
+        if act_type == "move_file":
+            librarian.note_files_changed(project_root, [action.get("dest", "")], deleted=[path])
+        else:
+            librarian.note_files_changed(project_root, [path])
+    except Exception:
+        pass
     if act_type != "move_file":
         _touch_file_read(path)
     if act_type == "create_file":
@@ -618,6 +627,22 @@ def _package_model_reply(text, action, project_root, depth=0):
             text2, act2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, act2, project_root, depth + 1)
         return jsonify({"answer": text, "next_confirmation": nxt})
+    if action and action.get("action") == "ask_librarian":
+        # v105: справка Библиотекаря — read-only, диск не меняется, поэтому
+        # выполняется АВТОМАТИЧЕСКИ, без подтверждения (как copy_file).
+        STATE["pending_action"] = None
+        query = str(action.get("query") or action.get("q") or "").strip()
+        print("--> ask_librarian: «%s»" % query)
+        try:
+            followup = librarian.answer(project_root, query,
+                                        addon_dir=STATE.get("addon_dir"))
+        except Exception as e:
+            followup = ("[Librarian]: internal error: %s. Fall back to search_project / "
+                        "list_files / read_file." % e)
+        if depth >= 3:
+            return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
+        text2, act2 = _reply_with_self_heal(followup, project_root)
+        return _package_model_reply(text2, act2, project_root, depth + 1)
     if action and action.get("action") == "copy_file":
         STATE["pending_action"] = None
         raw_copies = action.get("copies")
@@ -651,6 +676,7 @@ def _package_model_reply(text, action, project_root, depth=0):
             results.append("\u2713 %s -> %s" % (s, d))
             print("--> copy_file %s -> %s" % (s, d))
             _remember_file(project_root, d)
+            librarian.note_files_changed(project_root, [d])  # v105: индекс Библиотекаря
         if pairs:
             _refresh_fs_snapshot(project_root)
         if not pairs:
@@ -955,7 +981,7 @@ def _lint_action_scene(action, project_root, kind, path, planned_paths=None):
 
 
 def _guess_step_path(raw_step_text):
-    """Извлекает 'path' из СЫРОГО (возможно, невалидного JSON) текста ОДНОГО
+    """Извлекает 'path' из СЫРОГО (возможно, невалидн��го JSON) текста ОДНОГО
     шага плана — только для сообщений пользователю/модели о том, какой из
     шагов не распознан (парсить сам JSON тут не пытаемся)."""
     if not raw_step_text:
@@ -974,7 +1000,7 @@ def _guess_step_path(raw_step_text):
 #
 # v44: раньше один БИТЫЙ шаг плана (action=plan) ронял ВЕСЬ план целиком —
 # parse_action_json не мог разобрать общий JSON, если хотя бы один шаг
-# содержал несогласованное экранирование кавычек (типичный случай — большой
+# содержал несогласованное экранирование кавычек (типичный сл��чай — большой
 # .tscn-контент, где часть кавычек внутри значения экранирована, а часть —
 # нет). Модель получала общий "пришли всё заново", план терялся целиком, и
 # пользователь оставался без уже готового кода — даже если 3 из 4 шагов были
@@ -1165,7 +1191,7 @@ def _reply_with_self_heal(prompt, project_root):
                 if lint_msg is None:
                     break
                 retries += 1
-                print(f"--> [self-heal] Код в create_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
+                print(f"--> [self-heal] ��од в create_file не прошёл проверку, попытка {retries}/{MAX_ACTION_FIX_RETRIES}")
                 text, action = _reply(_lenient_resend_note(action, lint_msg))
                 continue
             retries += 1
@@ -1206,7 +1232,7 @@ def _reply_with_self_heal(prompt, project_root):
 
 def _validate_patch_against_disk(action, project_root):
     """Проверяет, что action['search'] реально присутствует (и уникален)
-    в файле на диске ПРЯМО СЕЙЧАС — до показа pending_action пользователю.
+    в файле на диске ��РЯМО СЕЙЧАС — до показа pending_action пользователю.
     Возвращает (ok, real_file_content_or_None, error_or_None)."""
     path = action.get("path", "")
     search = action.get("search", "") or ""
@@ -1234,7 +1260,7 @@ def _format_search_results(query, results, truncated):
     """Собирает ОДНО сообщение для модели с ре��ультатами поиска по проекту."""
     fence = "`" * 3
     if not results:
-        return ("[Система]: Поиск по проекту «%s» — совпадений НЕ найдено ни в одном файле проекта." % query)
+        return ("[Система]: Поиск по проекту «%s» — совпадений НЕ найдено ни в одном файл�� проекта." % query)
     head = "[Система]: Поиск по проекту «%s» — совпадений: %d" % (query, len(results))
     if truncated:
         head += " (показаны первые, список обрезан — уточни запрос)"
@@ -1326,6 +1352,11 @@ def _external_changes_note(project_root):
             cache.pop(rel, None)       # правка слишком большая — модель перечитает файл
     for rel in deleted:
         cache.pop(rel, None)
+    try:
+        # v105: внешние правки тоже попадают в индекс Библиотекаря точечно
+        librarian.note_files_changed(project_root, list(added) + list(changed), deleted=list(deleted))
+    except Exception:
+        pass
     return format_fs_changes(added, changed, deleted, diffs=diffs)
 
 
@@ -1690,6 +1721,13 @@ def rollback():
     if ok:
         _refresh_fs_snapshot(STATE.get("project_root"))
         STATE["file_cache"] = None  # содержимое откатилось — кэш diff устарел
+        # Багфикс v105.8: откат меняет файлы на диске, а снапшот уже обновлён —
+        # детектор «внешних правок» их не увидит. Обновляем индекс Библиотекаря
+        # сами: update_entries сам разберётся, что восстановлено, а что удалено.
+        try:
+            librarian.note_files_changed(STATE.get("project_root"), paths or [])
+        except Exception:
+            pass  # худший случай — индекс достроится лениво по STALE_SEC
         note = f"[Система: Пользователь ОТМЕНИЛ (откатил) ваше последнее действие! {msg}."
         if diff:
             # Точный обратный дифф — модели НЕ нужно перечитывать файл целиком.
@@ -1724,7 +1762,7 @@ def rollback():
 
 
 # ---------------------------------------------------------------------------
-# Plan-режим (ц��почка действий): после подтверж��ения всего плана в confirm_action
+# Plan-режим (ц��почка действи��): после подтверж��ения всего плана в confirm_action
 # клиент (Godot-панель) сам вызывает /chat/plan/step в цикле, пока не закончатся
 # шаги, не придёт ошибка линта/привинения, или пользователь не нажмёт "Стоп".
 #
@@ -1869,6 +1907,12 @@ def plan_rollback_chain():
     if ok:
         _refresh_fs_snapshot(STATE.get("project_root"))
         STATE["file_cache"] = None  # содержимое откатилось — кэш diff устарел
+        # Багфикс v105.8: как и в rollback_last — сообщаем индексу Библиотекаря
+        # о файлах, затронутых откатом цепочки.
+        try:
+            librarian.note_files_changed(STATE.get("project_root"), paths or [])
+        except Exception:
+            pass  # худший случай — индекс достроится лениво по STALE_SEC
         note = (
             "[Система: Пользователь откатил всю цепочку вашего плана! %s. Скорректируйте подход, если эти файлы всё ещё нужны."
         ) % msg
@@ -1893,7 +1937,7 @@ def plan_rollback_chain():
 # ---------------------------------------------------------------------------
 # Ошибки последнего запуска игры: панель сперва получает сводку (в браузер
 # НИЧЕГО не уходит), пользователь подтверждает — и только тогда модели
-# отпр��вляется ОДИН отчёт. Повторная отправка того же лога блокируется
+# отпр��вляется ОДИН отчёт. Повторная о��правка того же лога блокируется
 # по отпечатку (mtime + размер), который переживает перезапуск сервера.
 # ---------------------------------------------------------------------------
 
@@ -1978,6 +2022,22 @@ def minilich_github_fetch():
         return jsonify({"error": "Сбор с GitHub уже идёт — прогресс в журнале обучения."}), 409
     print("[minilich] /github_fetch: запущен сбор, repos=%s" % repos_text)
     return jsonify({"started": True})
+
+
+@app.route('/librarian/query', methods=['POST'])
+def librarian_query():
+    """v105: та же справка Библиотекаря, но для панели Godot и отладки:
+    можно посмотреть, что именно увидит модель по данному запросу."""
+    data = request.json or {}
+    root = data.get("project_root") or STATE.get("project_root")
+    if not root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        answer_text = librarian.answer(root, str(data.get("query") or ""),
+                                       addon_dir=STATE.get("addon_dir"))
+        return jsonify({"success": True, "answer": answer_text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/project/api_cache_status', methods=['POST'])
