@@ -86,6 +86,7 @@ def _addon_blocked_message(path):
         "над файлами аддона; не запрашивай и не изменяй файлы аддона по своей инициативе." % path
     )
 import live_input
+import rate_limit  # v104.12: детект 429/лимитов + спящий режим
 import server_state
 from server_state import (
     STATE, get_driver, set_driver, wait_driver, set_driver_error,
@@ -135,6 +136,45 @@ def _current_parser():
 
 
 def _reply(prompt):
+    """v104.12: обёртка над _reply_once — спящий режим при лимитах запросов.
+
+    Признаки лимита: HTTP 429/5xx на чат-эндпоинте (сетевой монитор) или
+    короткий ответ-баннер («Высокая нагрузка», too many requests — см.
+    rate_limit.MARKERS). Реакция: нарастающие паузы rate_limit.SLEEPS с
+    повтором ТОГО ЖЕ запроса; пауза прерывается кнопкой «Стоп». Если
+    лимит не отпустил — честная остановка с сообщением в панель."""
+    attempt = 0
+    while True:
+        text, action = _reply_once(prompt)
+        try:
+            net_status = _current_parser().pop_rate_limit_network_status()
+        except Exception:
+            net_status = None
+        reason = (rate_limit.reason_from_status(net_status)
+                  or rate_limit.reason_from_text(text, action))
+        if not reason:
+            return text, action
+        wait_s = rate_limit.sleep_seconds(attempt)
+        if wait_s is None:
+            print("<-- [лимит] не отпустило после %d пауз — останавливаюсь честно." % attempt)
+            return (u"[Лимит запросов]: сайт ограничивает запросы (%s). "
+                    u"Подождите несколько минут и повторите запрос." % reason), None
+        attempt += 1
+        print("--> [лимит] %s — спящий режим %d с (пауза %d/%d)"
+              % (reason, wait_s, attempt, len(rate_limit.SLEEPS)))
+        _set_progress({"phase": u"лимит запросов — сплю %d с" % wait_s})
+        t_end = time.time() + wait_s
+        try:
+            while time.time() < t_end:
+                if server_state.cancel_requested():
+                    print("<-- [лимит] пауза прервана кнопкой «Стоп».")
+                    return u"[Остановлено] Прерван во время паузы лимита.", None
+                time.sleep(0.5)
+        finally:
+            _clear_progress()
+
+
+def _reply_once(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
     server_state.clear_cancel()
     # v88.11: на время обмена «промпт->ответ» живой ввод (/chat/live_input)
