@@ -8,7 +8,7 @@ hiddenimports += collect_submodules('numpy')
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=['parsers', 'browser', 'godot_tools', 'server'],
     binaries=[],
     datas=[],
     hiddenimports=hiddenimports,
