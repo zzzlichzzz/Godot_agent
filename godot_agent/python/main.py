@@ -1455,7 +1455,10 @@ def chat():
         if not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
             system_context = _build_priming_context(current_root)
-            final_prompt = f"{system_context}\n\n[ЗАДАНИЕ ОТ ПОЛЬЗОВАТЕЛЯ]:\n{prompt}"
+            # v104.6: маркер без синтаксиса «[метка]: адрес» — старый вид Markdown считал
+            # link reference definition (если задание — одно слово) и СКРЫВАЛ его при отображении
+            # отправленного сообщения на AI Studio/Qwen и др. (модель текст получала, но в чате он был невидим).
+            final_prompt = f"{system_context}\n\n=== ЗАДАНИЕ ОТ ПОЛЬЗОВАТЕЛЯ ===\n{prompt}"
             text, action = _reply_with_self_heal(final_prompt, current_root)
             STATE["is_primed"] = True
             _save_primed(current_root, True)

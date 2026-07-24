@@ -446,6 +446,10 @@ class AiStudioParser(BaseSiteParser):
     """Google AI Studio: сайт-специфичная часть поверх BaseSiteParser."""
 
     LOG_TAG = "ai_parser"
+    # v104.5: на AI Studio эмулированный Ctrl+V ломает первую генерацию
+    # («permission denied» / «An internal error has occurred», репорт 24.07);
+    # старая программная вставка работала без ошибок — возвращаем её.
+    PASTE_PLAN_A = False
     WINDOW_URL_MATCH = "aistudio.google.com"
     START_PHASE = "жду начала ответа"
     QUIET_PERIOD = 2.5
