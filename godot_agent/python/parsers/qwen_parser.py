@@ -512,10 +512,18 @@ class QwenParser(BaseSiteParser):
                         net_missing = (answer_transfer_incomplete(action_raw, net)
                                        if action_raw else [])
                         if not net_missing:
-                            print("[qwen_parser] ответ взят напрямую из сетевого "
-                                  "захвата — DOM не читаем (%d симв., действие "
-                                  "выделено=%s, v88.8)"
-                                  % (len(net), "да" if action_raw else "нет"))
+                            # v104.11: эта ветка опрашивается циклом ожидания
+                            # каждые ~0.25 с — пишем строку только при ИЗМЕНЕНИИ
+                            # (новый POST / длина / действие), иначе 16 одинаковых
+                            # строк выглядят как 16 запросов к сайту (репорт 24.07).
+                            _sig = (mon.answer_request_count(), len(net),
+                                    bool(action_raw))
+                            if _sig != getattr(self, "_v888_log_sig", None):
+                                self._v888_log_sig = _sig
+                                print("[qwen_parser] ответ взят напрямую из сетевого "
+                                      "захвата — DOM не читаем (%d симв., действие "
+                                      "выделено=%s, v88.8)"
+                                      % (len(net), "да" if action_raw else "нет"))
                             return {"text": prose, "actionRaw": action_raw,
                                     "error": None}
             except Exception as e:
@@ -592,22 +600,43 @@ class QwenParser(BaseSiteParser):
             val = ""
         return (val or "").strip()
 
+    def _sent_by_network(self):
+        """v104.4: сообщение точно ушло, если после ENTER появился новый POST
+        к /api/v2/chat/completions (как у kimi v87.7: СЕТЬ надёжнее DOM).
+        После большой вставки qwen чистит поле с задержкой, и запасной Enter
+        в after_submit отправлял ДУБЛЬ сообщения (репорт 24.07)."""
+        try:
+            mon = self._ensure_monitor()
+            before = getattr(QwenParser, "_req_count_before_send", None)
+            return (before is not None and mon is not None
+                    and mon.chat_request_count() > before)
+        except Exception:
+            return False
+
     def after_submit(self, driver, el):
-        time.sleep(1.2)
-        if not self._input_leftover(driver, el):
-            return
+        # v104.4: прежде чем жать запасной Enter/кнопку, ждём подтверждения
+        # СЕТЬЮ (новый POST) или очистки поля до 3 с: раньше через 1.2 с после
+        # большой вставки поле ещё не было очищено и запасной Enter слал дубль.
+        deadline = time.time() + 3.0
+        while time.time() < deadline:
+            if self._sent_by_network():
+                return
+            if not self._input_leftover(driver, el):
+                return
+            time.sleep(0.3)
         try:
             driver.execute_script(JS_DISPATCH_ENTER, el)
         except Exception:
             pass
         time.sleep(1.0)
-        if not self._input_leftover(driver, el):
+        if self._sent_by_network() or not self._input_leftover(driver, el):
             return
         _safe_execute(driver, JS_CLICK_SEND, default=False)
         time.sleep(1.0)
 
     def confirm_sent(self, driver, el):
-        return not self._input_leftover(driver, el)
+        # v104.4: сначала сетевой критерий, DOM — запасной
+        return self._sent_by_network() or not self._input_leftover(driver, el)
 
     def try_regenerate(self, driver):
         # v87.9: авто-повтор сбойной генерации кликом по «Сгенерировать заново».

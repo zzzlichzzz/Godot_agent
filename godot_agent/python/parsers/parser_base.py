@@ -18,6 +18,7 @@ BaseSiteParser реализует общий конвейер целиком:
 """
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -1599,6 +1600,12 @@ class BaseSiteParser:
 
     LOG_TAG = "parser"            # префикс для печати в лог
     WINDOW_URL_MATCH = ""         # подстрока адреса вкладки сайта
+    # v104.5: можно ли на этом сайте использовать план А (эмуляцию Ctrl+V через CDP).
+    # False — сразу программный insert_input сайта (бывший план Б).
+    # Репорт 24.07: AI Studio после эмулированного Ctrl+V стабильно отвечал
+    # «permission denied» / «An internal error has occurred» на первую генерацию,
+    # а со старой программной вставкой такого не было.
+    PASTE_PLAN_A = True
     START_PHASE = "жду начала ответа"
 
     TIMEOUT = 900                 # общий лимит ожидания ответа, с
@@ -1665,6 +1672,13 @@ class BaseSiteParser:
         """Чем модель занята сейча��: {'code': bool, 'lang': str} (опционально)."""
         return {"code": False, "lang": ""}
 
+    def count_composer_attachments(self, driver):
+        """v104.4: число карточек-вложений в ОБЛАСТИ ВВОДА (не в истории чата).
+        Некоторые сайты (kimi) превращают большую вставку во вложение .txt —
+        тогда текст поля и НЕ ДОЛЖЕН совпасть с промптом, а повторная вставка
+        лишь плодит дубликаты файлов (репорт 24.07). None — сайт так не делает/неизвестно."""
+        return None
+
     def find_input(self, driver):
         """Возвращает элемент поля ввода или None."""
         raise NotImplementedError
@@ -1712,6 +1726,17 @@ class BaseSiteParser:
         def _norm(s):
             return u"".join((s or u"").split())
         return _norm(field_text) == _norm(prompt)
+
+    def _field_text_too_short(self, field_text, prompt):
+        """v104.8: явно ли текст поля КОРОЧЕ отправляемого (сравнение длин
+        без пробельных символов). True — в поле обрезок недоехавшей вставки
+        или вовсе чужой текст (например, зеркалированный ввод панели), и
+        отправлять его «как есть» НЕЛЬЗЯ (репорт 24.07: qwen отправил голое
+        задание, а доехавшая позже вставка ушла вторым сообщением)."""
+        def _n(s):
+            return len(u"".join((s or u"").split()))
+        need = _n(prompt)
+        return bool(need) and _n(field_text) < int(need * 0.9)
 
     def _read_field_text_quick(self, driver, el):
         """Быстрое чтение текста поля (textarea/input/contenteditable)."""
@@ -1807,10 +1832,10 @@ class BaseSiteParser:
         Большой paste (десятки КБ) тяжёлые редакторы «дожёвывают» с задержкой —
         фиксированные 0.15/0.25 с (v88.15) на 22 КБ давали ложный «не совпал».
         Пока текст в поле продолжает расти, дедлайн продлевается (но не более
-        чем на 10 с сверх исходного таймаута).
+        чем на 45 с сверх исходного таймаута; v104.8).
         """
         deadline = time.time() + max(0.5, float(timeout))
-        hard_deadline = deadline + 10.0
+        hard_deadline = deadline + 45.0  # v104.8: было +10 с — медленной вставке qwen не хватало
         last_len = -1
         while time.time() < min(deadline, hard_deadline):
             got = self._read_field_text_quick(driver, el)
@@ -1819,8 +1844,8 @@ class BaseSiteParser:
             n = len(got or u"")
             if n > last_len:
                 last_len = n
-                # поле ещё наполняется — продлеваем ожидание
-                deadline = max(deadline, time.time() + 1.5)
+                # поле ещё наполняется — продлеваем ожидание (v104.8: 1.5 -> 4.0 с)
+                deadline = max(deadline, time.time() + 4.0)
             time.sleep(0.2)
         got = self._read_field_text_quick(driver, el)
         return self._insert_text_matches(got, desired)
@@ -1895,6 +1920,12 @@ class BaseSiteParser:
             _clear_and_focus()
             if not prompt:
                 return True
+            # v104.4: снимок числа вложений в поле ввода ДО вставки — если сайт
+            # превратит вставку во вложение, примем это как успех, а не ретрай
+            try:
+                _att_before = self.count_composer_attachments(driver)
+            except Exception:
+                _att_before = None
             # клипборд: записать и сверить (до 2 попыток записи)
             clip_ok = False
             for _attempt in (1, 2):
@@ -1910,8 +1941,11 @@ class BaseSiteParser:
             if not clip_ok:
                 self._log("clipboard: не удалось записать буфер — paste-путь пропускаю")
                 return False
-            # таймаут ожидания вставки пропорционален размеру текста
-            wait_s = min(12.0, 1.0 + len(prompt) / 4000.0)
+            # v104.8: таймаут ожидания вставки пропорционален размеру текста.
+            # Медленные редакторы (репорт 24.07: qwen) «дожёвывают» большую
+            # вставку дольше старого лимита — вставка «доезжала» уже ПОСЛЕ
+            # отправки и уходила ВТОРЫМ сообщением.
+            wait_s = min(30.0, 2.0 + len(prompt) / 1500.0)
             # v104.2: Ctrl+V шлём в первую очередь «трастовыми» CDP-событиями
             # (настоящий input-пайплайн браузера). Синтетический
             # send_keys(Keys.CONTROL, "v") редактор qwen обрабатывал БЕЗ
@@ -1929,6 +1963,18 @@ class BaseSiteParser:
                     except Exception:
                         el.send_keys(Keys.CONTROL, "v")
                 if self._wait_field_matches(driver, el, prompt, wait_s):
+                    return True
+                # v104.4: сайт мог превратить вставку во вложение (.txt) — тогда
+                # это УСПЕХ: повторный Ctrl+V создал бы ВТОРОЙ файл (репорт 24.07: kimi, 2 шт.)
+                try:
+                    _att_now = self.count_composer_attachments(driver)
+                except Exception:
+                    _att_now = None
+                if (_att_before is not None and _att_now is not None
+                        and _att_now > _att_before):
+                    self._insert_became_attachment = True
+                    self._log("вставка преобразована сайтом во вложение (карточек в поле: %d) — "
+                              "отправляю как вложение, без повторных вставок (v104.4)" % _att_now)
                     return True
                 got = self._read_field_text_quick(driver, el)
                 self._log("paste-like: после Ctrl+V текст не совпал "
@@ -1959,6 +2005,13 @@ class BaseSiteParser:
         Возвращает "paste" | "insert". В лог сервера всегда пишет явный итог.
         """
         nchars = len(prompt or u"")
+        self._insert_became_attachment = False  # v104.4
+        if not getattr(self, "PASTE_PLAN_A", True):
+            # v104.5: сайт плохо переносит эмуляцию Ctrl+V — без попыток плана А
+            self.insert_input(driver, el, prompt)
+            self._log("вставка: программный insert_input — %d симв. "
+                      "(эмуляция Ctrl+V отключена для этого сайта; v104.5)" % nchars)
+            return "insert"
         pasted = False
         try:
             pasted = bool(self.insert_input_paste_like(driver, el, prompt))
@@ -2016,6 +2069,26 @@ class BaseSiteParser:
             except Exception:
                 pass
 
+    def _type_text_soft_newlines(self, el, s):
+        """v104.9: набрать текст клавишами, но перевод строки — Shift+Enter.
+
+        send_keys строки с "\\n" нажимает ГОЛЫЙ Enter, а для чат-полей это
+        ОТПРАВКА (репорт 24.07: Ctrl+V многострочного текста в панель —
+        зеркало напечатало его на сайте, и на первом же переводе строки
+        сообщение ушло само). Shift+Enter на всех наших сайтах вставляет
+        мягкий перенос без отправки."""
+        from selenium.webdriver.common.keys import Keys
+        s = u"" if s is None else s
+        parts = s.replace(u"\r\n", u"\n").replace(u"\r", u"\n").split(u"\n")
+        for idx, part in enumerate(parts):
+            if idx > 0:
+                el.send_keys(Keys.SHIFT, Keys.ENTER)
+            i = 0
+            step = 48
+            while i < len(part):
+                el.send_keys(part[i:i + step])
+                i += step
+
     def _mirror_type_human(self, driver, el, desired):
         """v88.14: довести поле до desired КЛАВИШАМИ, без insert_input/value=.
 
@@ -2062,11 +2135,8 @@ class BaseSiteParser:
                 left -= chunk
 
         if tail:
-            i = 0
-            step = 48
-            while i < len(tail):
-                el.send_keys(tail[i:i + step])
-                i += step
+            # v104.9: переводы строки — Shift+Enter, иначе сайт отправит сообщение
+            self._type_text_soft_newlines(el, tail)
 
         got = self._read_input_text(driver, el)
         if got == desired or self._insert_text_matches(got, desired):
@@ -2076,11 +2146,8 @@ class BaseSiteParser:
             el.send_keys(Keys.CONTROL, "a")
             el.send_keys(Keys.BACKSPACE)
             if desired:
-                i = 0
-                step = 48
-                while i < len(desired):
-                    el.send_keys(desired[i:i + step])
-                    i += step
+                # v104.9: переводы строки — Shift+Enter, иначе сайт отправит сообщение
+                self._type_text_soft_newlines(el, desired)
         except Exception:
             return False
         got2 = self._read_input_text(driver, el)
@@ -2107,10 +2174,29 @@ class BaseSiteParser:
             el = None
         if not el:
             return False
+        text = text if text is not None else u""
         try:
-            return bool(self._mirror_type_human(driver, el, text if text is not None else u""))
+            ok = bool(self._mirror_type_human(driver, el, text))
         except Exception:
-            return False
+            ok = False
+        if ok:
+            return True
+        # v104.10: клавишная печать не привела поле к нужному тексту (репорт
+        # 24.07: редактор qwen игнорирует синтетический набор send_keys) —
+        # фолбэк: программная вставка сайта (тот же путь, что план Б
+        # отправки, который на qwen работает). Живой ввод лучше программный,
+        # чем мёртвый.
+        try:
+            self.insert_input(driver, el, text)
+            got = self._read_input_text(driver, el)
+            ok = (got == text) or self._insert_text_matches(got, text)
+        except Exception:
+            ok = False
+        if ok and not getattr(self, "_mirror_js_fallback_logged", False):
+            self._mirror_js_fallback_logged = True
+            self._log("живой ввод: клавишная печать не сработала — переключился на "
+                      "программную вставку для этого сайта (v104.10)")
+        return ok
 
     def try_regenerate(self, driver):
         """v87.9: нажать у ПОСЛЕДНЕГО ответа кнопку «Сгенерировать заново»,
@@ -2687,12 +2773,20 @@ class BaseSiteParser:
         # v88.7: ожидание поля вынесено в _wait_for_input (до 45 с + диагностика)
         el = self._wait_for_input(driver, retries, cancel_cb=cancel_cb)
         inserted = False
+        try:
+            _att_base = self.count_composer_attachments(driver)  # v104.4
+        except Exception:
+            _att_base = None
         _mismatch_val = None  # v88.4: последний НЕСОВПАВШИЙ текст поля
         for _ in range(retries):
             try:
                 _ins_mode = self.insert_input_for_send(driver, el, prompt)
                 # _ins_mode: "paste" (Ctrl+V) или "insert" (старый метод сайта)
                 time.sleep(0.2)
+                # v104.4: текст уехал во вложение — поле и НЕ ДОЛЖНО совпасть
+                if getattr(self, "_insert_became_attachment", False):
+                    inserted = True
+                    break
                 # v86.7: у contenteditable-полей (див вместо textarea у многих
                 # сайтов) нет .value — проверяем и innerText/textContent, иначе
                 # удачная вставка считалась провалом («не удалось вставить текст»).
@@ -2708,6 +2802,16 @@ class BaseSiteParser:
                         inserted = True
                         _mismatch_val = None
                         break
+                    try:
+                        _att_now = self.count_composer_attachments(driver)
+                    except Exception:
+                        _att_now = None
+                    if (_att_base is not None and _att_now is not None
+                            and _att_now > _att_base):
+                        self._log("вставка преобразована сайтом во вложение (.txt) — "
+                                  "отправляю как вложение, без повторных вставок (v104.4)")
+                        inserted = True
+                        break
                     _mismatch_val = _val
                     self._log("проверка вставки: текст в поле НЕ совпал с отправляемым "
                               "(в поле %d симв., должно быть %d) — вставляю заново (v88.4)."
@@ -2715,15 +2819,67 @@ class BaseSiteParser:
             except (JavascriptException, StaleElementReferenceException):
                 el = self.find_input(driver)
             time.sleep(0.3)
+        _as_is = False
         if not inserted and (_mismatch_val or "").strip():
-            # v88.4: поле непустое, но текст так и не совпал: некоторые поля
-            # меняют отображение текста (разметка) — не роняем отправку,
-            # но предупреждаем в логе.
-            self._log("текст в поле так и не совпал с отправляемым после всех попыток — "
-                      "отправляю как есть (возможно, поле меняет отображение текста; v88.4).")
-            inserted = True
+            if self._field_text_too_short(_mismatch_val, prompt):
+                # v104.8: в поле явно НЕ наш текст (обрезок недоехавшей вставки
+                # или чужое сообщение — например, зеркалированный ввод панели) —
+                # отправлять его нельзя (репорт 24.07: qwen отправил голое
+                # задание, а доехавшая позже вставка ушла вторым сообщением).
+                # Последний шанс: финальная программная вставка + ожидание.
+                self._log("в поле лишь %d симв. вместо %d — похоже, вставка не доехала; "
+                          "финальная программная вставка (v104.8)."
+                          % (len(_mismatch_val or u""), len(prompt or u"")))
+                try:
+                    self.insert_input(driver, el, prompt)
+                    if self._wait_field_matches(driver, el, prompt, 8.0):
+                        inserted = True
+                except Exception as _e_fin:
+                    self._log("финальная вставка не удалась: %s" % _e_fin)
+                if not inserted:
+                    _val_fin = self._read_input_text(driver, el)
+                    if ((_val_fin or "").strip()
+                            and not self._field_text_too_short(_val_fin, prompt)):
+                        self._log("после финальной вставки длина сопоставима — "
+                                  "отправляю как есть (v104.8).")
+                        inserted = True
+                        _as_is = True
+                    else:
+                        self._log("«как есть» НЕ отправляю: в поле обрезок/чужой текст "
+                                  "(%d симв. вместо %d; v104.8)."
+                                  % (len(_val_fin or u""), len(prompt or u"")))
+            else:
+                # v88.4: поле непустое, длина сопоставима, но текст так и не совпал:
+                # некоторые поля меняют отображение текста (разметка) — не роняем
+                # отправку, но предупреждаем в логе.
+                self._log("текст в поле так и не совпал с отправляемым после всех попыток — "
+                          "отправляю как есть (возможно, поле меняет отображение текста; v88.4).")
+                inserted = True
+                _as_is = True
         if not inserted:
             raise Exception("Не удалось вставить текст в поле ввода (%s)." % self.LOG_TAG)
+        # v104.4: короткая «человеческая» пауза между вставкой и отправкой:
+        # человек не жмёт Enter через 15 мс после вставки; заодно сайт успевает
+        # обработать большую вставку (репорт 24.07: AI Studio отвечал
+        # «permission denied» на мгновенную отправку сразу после вставки мега-промпта).
+        time.sleep(0.8 + random.uniform(0.4, 1.4))
+        # v104.8: контрольная сверка ПЕРЕД самой отправкой: медленная вставка
+        # могла «доехать» и подменить содержимое поля уже ПОСЛЕ проверки
+        # (репорт 24.07: qwen), либо текст изменило живое зеркало ввода.
+        if not _as_is and not getattr(self, "_insert_became_attachment", False):
+            _val_pre = self._read_input_text(driver, el)
+            if not self._insert_text_matches(_val_pre, prompt):
+                self._log("поле изменилось после проверки (поздняя вставка?) — "
+                          "восстанавливаю текст перед отправкой (v104.8).")
+                try:
+                    self.insert_input(driver, el, prompt)
+                    self._wait_field_matches(driver, el, prompt, 6.0)
+                except Exception as _e_re:
+                    self._log("восстановление текста перед отправкой не удалось: %s" % _e_re)
+                _val_pre = self._read_input_text(driver, el)
+                if self._field_text_too_short(_val_pre, prompt):
+                    raise Exception("Поле ввода подменилось перед отправкой, восстановить "
+                                    "текст не удалось (%s)." % self.LOG_TAG)
         self.before_submit(driver, el)
         # v51: снимок ПОСЛЕДНЕГО ответа модели ДО отправки — для анти-дубля
         # (защита от возврата СТАРОГО сообщения вместо нового ответа).
