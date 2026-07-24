@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
+_sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
+import _bootstrap  # noqa: E402,F401
 """Тесты v87.9: авто-«Сгенерировать заново» в BaseSiteParser.
 
 Сценарии:
@@ -84,9 +87,12 @@ class _FakeDriver(object):
     current_url = "https://chat.qwen.ai/c/test"
     window_handles = ["w1"]
 
+    field_text = "x"  # v104.8: эмулируемое содержимое поля ввода
+
     def execute_script(self, *a, **k):
-        # используется только проверкой «текст вставился» — вернём непустое.
-        return "x"
+        # v104.8: после ужесточения пути «отправляю как есть» (v88.4)
+        # заглушка обязана честно хранить вставленный текст поля.
+        return self.field_text
 
 
 class _FakeRegenParser(BaseSiteParser):
@@ -129,7 +135,7 @@ class _FakeRegenParser(BaseSiteParser):
         return object()
 
     def insert_input(self, driver, el, prompt):
-        pass
+        driver.field_text = prompt  # v104.8: честно «вставляем» текст в поле
 
     def submit(self, driver, el):
         pass

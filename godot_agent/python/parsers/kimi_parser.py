@@ -91,6 +91,11 @@ class KimiChatMonitor(BaseNetMonitor):
         self._block_order = []
         self._message_status = None
         self._current_message_id = None
+        # v104.7: текст блоков с tool-флагом (поиск/размышления K2.6) — отдельно
+        # от основного ответа; + сырые события для отладочного дампа.
+        self._tool_blocks = {}
+        self._tool_block_order = []
+        self._debug_events = []
 
     def _decode_frames_partial(self, raw_bytes):
         frames, consumed = decode_connect_frames_partial(raw_bytes)
@@ -105,6 +110,11 @@ class KimiChatMonitor(BaseNetMonitor):
     def _apply_event(self, obj):
         if not isinstance(obj, dict):
             return
+        # v104.7: копим сырые события — если текст не распознан, они уйдут в
+        # отладочный дамп (см. _finalize_stream), по которому можно добавить
+        # разбор нового формата, а не гадать (репорт 24.07: K2.6 Мгновенный).
+        if len(self._debug_events) < 500:
+            self._debug_events.append(obj)
         op = obj.get("op")
         msg = obj.get("message")
         if isinstance(msg, dict):
@@ -126,15 +136,26 @@ class KimiChatMonitor(BaseNetMonitor):
         if isinstance(block, dict):
             bid = block.get("id")
             text_obj = block.get("text")
-            if block.get("tool") is None and isinstance(text_obj, dict):
+            content = None
+            if isinstance(text_obj, dict):
                 content = text_obj.get("content")
-                if content is not None:
-                    if op == "set" or bid not in self._blocks:
-                        self._blocks[bid] = content
-                        if bid not in self._block_order:
-                            self._block_order.append(bid)
-                    else:
-                        self._blocks[bid] = self._blocks.get(bid, "") + content
+            elif isinstance(text_obj, str):
+                # v104.7: страховка — text может прийти строкой, а не объектом
+                content = text_obj
+            if content is not None:
+                # v104.7: блоки с tool-флагом (поиск/размышления K2.6) копятся в
+                # ОТДЕЛЬНОЕ ведро: в основной ответ не подмешиваются, но дают
+                # живой стрим/прогресс, когда «обычных» блоков нет совсем.
+                if block.get("tool") is None:
+                    target, order = self._blocks, self._block_order
+                else:
+                    target, order = self._tool_blocks, self._tool_block_order
+                if op == "set" or bid not in target:
+                    target[bid] = content
+                    if bid not in order:
+                        order.append(bid)
+                else:
+                    target[bid] = target.get(bid, "") + content
 
     def current_text(self):
         with self._lock:
@@ -145,6 +166,51 @@ class KimiChatMonitor(BaseNetMonitor):
                     return 0
             ordered = sorted(self._block_order, key=_key)
             return "".join(self._blocks[b] for b in ordered)
+
+    def live_text(self):
+        """v104.7: текст для живого стрима/прогресса: обычные текстовые блоки,
+        а если их нет — текст tool-блоков (K2.6 Мгновенный + веб-поиск кладут
+        ответ туда; репорт 24.07: длина_текста=0 при готовом ответе на сайте).
+        В ФИНАЛЬНЫЙ ответ tool-текст не подмешивается — его при пустом
+        current_text спасает DOM-фолбэк extract_raw_fallback."""
+        with self._lock:
+            def _key(bid):
+                try:
+                    return int(bid)
+                except Exception:
+                    return 0
+            ordered = sorted(self._block_order, key=_key)
+            text = "".join(self._blocks[b] for b in ordered)
+            if text:
+                return text
+            ordered = sorted(self._tool_block_order, key=_key)
+            return "".join(self._tool_blocks[b] for b in ordered)
+
+    def _finalize_stream(self, req_id):
+        # v104.7: если стрим завершился, а текстовых блоков нашей формы нет —
+        # сохраняем сырые события в файл: по нему добавляется точный разбор
+        # нового формата (K2.6 Мгновенный/поиск), без повторной охоты вслепую.
+        super()._finalize_stream(req_id)
+        with self._lock:
+            main_len = self._answer_len_locked()
+            tool_len = sum(len(v) for v in self._tool_blocks.values())
+            events = (list(self._debug_events)
+                      if (main_len == 0 and self._current_message_id is not None)
+                      else [])
+        if not events:
+            return
+        try:
+            import json as _json, os as _os
+            path = _os.path.abspath(_os.path.join(
+                _os.path.dirname(_os.path.abspath(__file__)), _os.pardir,
+                "kimi_stream_debug.json"))
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump(events, fh, ensure_ascii=False, indent=1)
+            self._log("текстовых блоков нашей формы нет (tool-текста: %d симв.) — "
+                      "сырые события (%d шт.) сохранены в %s; пришлите этот файл, "
+                      "чтобы добавить разбор формата" % (tool_len, len(events), path))
+        except Exception as e:
+            self._log("не удалось сохранить отладочный дамп событий: %r" % (e,))
 
 
 # ---------------------------------------------------------------------------
@@ -221,10 +287,11 @@ class KimiParser(BaseSiteParser):
         return self._ensure_monitor(driver).assistant_message_count()
 
     def answer_len(self, driver):
-        return len(self._ensure_monitor(driver).current_text())
+        # v104.7: live_text — прогресс/стрим видны и когда текст идёт tool-блоками
+        return len(self._ensure_monitor(driver).live_text())
 
     def answer_stream(self, driver):
-        return self._ensure_monitor(driver).current_text()
+        return self._ensure_monitor(driver).live_text()
 
     def is_generating(self, driver):
         return self._ensure_monitor(driver).is_generating()
@@ -234,6 +301,26 @@ class KimiParser(BaseSiteParser):
         full_text = monitor.current_text()
         text, action_raw = split_text_and_action(full_text)
         return {"text": text, "actionRaw": action_raw, "error": None}
+
+    def extract_raw_fallback(self, driver):
+        """v104.7: план В — сеть разобрана, но current_text пуст (текст ответа
+        пришёл в блоках нераспознанной формы: K2.6 Мгновенный + веб-поиск).
+        Берём текст последнего сообщения прямо из DOM: без оформления,
+        но лучше пустоты; agent_action/===DONE=== вырезаются как обычно."""
+        try:
+            txt = driver.execute_script(
+                "var items=document.querySelectorAll('.chat-content-item');"
+                " if(!items.length) return '';"
+                " var el=items[items.length-1];"
+                " return (el.innerText||el.textContent||'');")
+        except Exception:
+            return None
+        txt = (txt or "").strip()
+        if not txt:
+            return None
+        text, action_raw = split_text_and_action(txt)
+        self._log("план В: ответ взят из DOM (%d симв.) — сетевые текстовые блоки не распознаны (v104.7)" % len(txt))
+        return {"text": text, "actionRaw": action_raw}
 
     def find_input(self, driver):
         return _safe_execute(driver, JS_FIND_INPUT, default=None)
@@ -257,6 +344,26 @@ class KimiParser(BaseSiteParser):
         else:
             from selenium.webdriver.common.keys import Keys
             el.send_keys(Keys.ENTER)
+
+    def count_composer_attachments(self, driver):
+        """v104.4: kimi превращает вставку >4000 байт во вложение .txt
+        (плашка «Объём вставленного содержимого превышает 4000 байт...»).
+        Считаем карточки файлов ВНЕ истории сообщений (.chat-content-item) — т.е.
+        в области ввода; без этого ретраи вставки плодили дубли-файлы (репорт 24.07)."""
+        try:
+            n = driver.execute_script(
+                "var all=document.querySelectorAll('.file-card-container');"
+                " var n=0;"
+                " for(var i=0;i<all.length;i++){"
+                "   if(!all[i].closest('.chat-content-item')) n++;"
+                " }"
+                " return n;")
+        except Exception:
+            return None
+        try:
+            return int(n)
+        except (TypeError, ValueError):
+            return None
 
     def _input_leftover(self, driver, el):
         """текст, оставшийся в поле ввода (пусто => сообщение отправлено).
