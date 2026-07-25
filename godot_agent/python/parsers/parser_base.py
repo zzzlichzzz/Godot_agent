@@ -2069,6 +2069,20 @@ class BaseSiteParser:
             except Exception:
                 pass
 
+    def pop_rate_limit_network_status(self):
+        """v104.12: HTTP 429/5xx чат-эндпоинта из сетевого монитора (одноразово).
+
+        Мониторы лежат в классовых атрибутах _monitor конкретных парсеров
+        (qwen/kimi/AI Studio); у DeepSeek монитора нет — вернётся None, и
+        детект лимита сработает только по текстовым маркерам."""
+        mon = getattr(type(self), "_monitor", None)
+        if mon is None:
+            return None
+        try:
+            return mon.pop_http_error()
+        except Exception:
+            return None
+
     def _type_text_soft_newlines(self, el, s):
         """v104.9: набрать текст клавишами, но перевод строки — Shift+Enter.
 
