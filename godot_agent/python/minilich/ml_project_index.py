@@ -39,13 +39,77 @@ EXTS = {".tscn", ".gd", ".tres", ".cfg", ".md", ".txt", ".json", ".import"}
 SKIP_DIRS = {".git", ".godot", ".import", "addons", ".agent_history", "__pycache__", "dist", "build"}
 
 _NODE_RE = re.compile(r"^\[node name=\"([^\"]+)\"[^\]]*?(?:type=\"([^\"]+)\")?[^\]]*\]", re.M)
-_FUNC_RE = re.compile(r"^(?:static\s+)?func\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
-_CLASS_RE = re.compile(r"^class_name\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
-_SIGNAL_RE = re.compile(r"^signal\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
+# v105.10 (шаг 3): имена — юникодные. GDScript разрешает кириллицу в
+# идентификаторах, а шаблон [A-Za-z_] терял «func лечить()» целиком:
+# файл попадал в MAP, но без единого символа. [^\W\d]\w* = буква/_
+# в начале, дальше буквы/цифры/_ (в Python 3 \w юникодный по умолчанию).
+_FUNC_RE = re.compile(r"^(?:static\s+)?func\s+([^\W\d]\w*)", re.M | re.U)
+_CLASS_RE = re.compile(r"^class_name\s+([^\W\d]\w*)", re.M | re.U)
+_SIGNAL_RE = re.compile(r"^signal\s+([^\W\d]\w*)", re.M | re.U)
 # Только топ-уровень (без отступа): локальные var внутри функций — шум.
 # (?:@[^\n]*?\s+)? покрывает @export var, @onready var, @export_range(...) var.
-_VAR_RE = re.compile(r"^(?:@[^\n]*?\s+)?var\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
-_CONST_RE = re.compile(r"^const\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
+_VAR_RE = re.compile(r"^(?:@[^\n]*?\s+)?var\s+([^\W\d]\w*)", re.M | re.U)
+_CONST_RE = re.compile(r"^const\s+([^\W\d]\w*)", re.M | re.U)
+
+# v105.12 (раунд 4, п.3): все регулярки выше — ^-якорные, поэтому члены
+# вложенных классов в индекс не попадали. STRUCTURE в раунде 3 починили,
+# а индекс — нет: файл с FSM-паттерном (class Idle: / class Run: внутри
+# одного скрипта) давал символы только топ-уровня, и запрос «field_a Inner»
+# не находил файл вообще — ответ шёл без MAP и без STRUCTURE.
+_NESTED_CLASS_RE = re.compile(r"^[ \t]*class\s+([^\W\d]\w*)\s*(?:extends\s+\S+\s*)?:", re.U)
+_NESTED_FUNC_RE = re.compile(r"^[ \t]+(?:static\s+)?func\s+([^\W\d]\w*)", re.U)
+_NESTED_VAR_RE = re.compile(r"^[ \t]+(?:@[^\n]*?\s+)?var\s+([^\W\d]\w*)", re.U)
+_NESTED_CONST_RE = re.compile(r"^[ \t]+const\s+([^\W\d]\w*)", re.U)
+
+
+def _nested_symbols(text):
+    """Символы вложенных классов: class Inner: и его члены.
+
+    Голой регуляркой вида «\\s+var» это не решается: локальные var внутри тел
+    функций — тоже строки с отступом, и в индекс уехал бы весь шум, от
+    которого избавлялись раньше (см. комментарий к _VAR_RE). Поэтому идём
+    построчно и следим за отступами (та же механика, что в
+    librarian._gd_signatures): берём только члены НЕПОСРЕДСТВЕННО внутри
+    class-блока и вне тел его функций.
+    """
+    out = []
+    class_indent = None
+    func_indent = None
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        # Порядок важен: сначала закрываем тело функции, потом блок класса,
+        # и только затем распознаём объявление нового класса.
+        if func_indent is not None and indent <= func_indent:
+            func_indent = None
+        if class_indent is not None and indent <= class_indent:
+            class_indent = None
+            func_indent = None
+        m = _NESTED_CLASS_RE.match(line)
+        if m:
+            out.append("class:" + m.group(1))
+            class_indent = indent
+            func_indent = None
+            continue
+        # Топ-уровень уже разобран ^-якорными регулярками; тело функции — шум.
+        if class_indent is None or func_indent is not None:
+            continue
+        mf = _NESTED_FUNC_RE.match(line)
+        if mf:
+            out.append("func:" + mf.group(1))
+            func_indent = indent
+            continue
+        mv = _NESTED_VAR_RE.match(line)
+        if mv:
+            out.append("var:" + mv.group(1))
+            continue
+        mc = _NESTED_CONST_RE.match(line)
+        if mc:
+            out.append("const:" + mc.group(1))
+    return out
+
+
 _CAMEL_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 
@@ -76,6 +140,18 @@ def _build_entry(root, rel):
             entry["symbols"] += ["signal:" + m.group(1) for m in _SIGNAL_RE.finditer(text)]
             entry["symbols"] += ["var:" + m.group(1) for m in _VAR_RE.finditer(text)]
             entry["symbols"] += ["const:" + m.group(1) for m in _CONST_RE.finditer(text)]
+            # v105.12 (раунд 4, п.3): члены вложенных классов (FSM-паттерн).
+            entry["symbols"] += _nested_symbols(text)
+            # Порядок сохраняем, дубли убираем: имя метода вложенного
+            # класса может совпасть с уже взятым с топ-уровня.
+            _seen_syms = set()
+            _uniq = []
+            for s in entry["symbols"]:
+                if s in _seen_syms:
+                    continue
+                _seen_syms.add(s)
+                _uniq.append(s)
+            entry["symbols"] = _uniq
         entry["symbols"] = entry["symbols"][:60]
     return entry
 
@@ -188,7 +264,8 @@ def _tokens(text):
     (take_damage -> take_damage, take, damage), чтобы запрос "damage"
     находил take_damage (v105)."""
     out = set()
-    for raw in re.split(r"[^A-Za-z0-9_\u0410-\u042f\u0430-\u044f\u0401\u0451]+", str(text or "")):
+    # v105.10: \W+ — юникод целиком (был ручной диапазон только для кириллицы)
+    for raw in re.split(r"\W+", str(text or ""), flags=re.U):
         if not raw:
             continue
         low = raw.lower()
@@ -201,6 +278,23 @@ def _tokens(text):
     return out
 
 
+# Служебные префиксы символов .gd (см. _build_entry) — НЕ токены поиска:
+# из-за них запрос со словом «class»/«func»/«var» совпадал с почти каждым
+# .gd проекта и MAP набирал шумной хвост. Багфикс v105.9 (пункт 2).
+# Символы узлов .tscn («Имя:Тип») не трогаем — там до двоеточия имя узла.
+_SYM_PREFIXES = ("class:", "func:", "signal:", "var:", "const:")
+
+
+def _symbol_search_text(sym):
+    """Текст символа для токенов поиска: известный префикс .gd срезается,
+    остальное (включая «Имя:Тип» узлов сцен) возвращается как есть."""
+    s = str(sym)
+    for p in _SYM_PREFIXES:
+        if s.startswith(p):
+            return s[len(p):]
+    return s
+
+
 def search(project_root, query, limit=8):
     """Ищет файлы/символы по запросу. Возвращает список записей с score."""
     data = _load_index(project_root)
@@ -209,7 +303,8 @@ def search(project_root, query, limit=8):
         return []
     scored = []
     for e in data.get("files", []):
-        hay = _tokens(e.get("path", "")) | _tokens(" ".join(e.get("symbols", [])))
+        hay = _tokens(e.get("path", "")) | _tokens(
+            " ".join(_symbol_search_text(s) for s in e.get("symbols", [])))
         score = len(q & hay)
         # бонус за подстроку в пути
         ql = (query or "").lower()
