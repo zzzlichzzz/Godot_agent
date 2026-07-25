@@ -33,7 +33,17 @@ import time
 from . import ml_data
 
 INDEX_FILE = "project_index.json"
-MAX_FILES = 2000
+# v105.13 (патч производительности, п.1): было MAX_FILES = 2000 — потолок
+# из времён, когда индекс строился на демо-проектах. Реальный крупный
+# проект (несколько тысяч сцен и скриптов) в него не влезал, и лишние
+# файлы отбрасывались МОЛЧА: агент уверенно отвечал по половине проекта.
+# Новое значение выбрано замером, а не на глаз (см. tests/test_librarian.py,
+# test_index_size_budget): типичный проект — ~0.2 КБ индекса на файл,
+# «болтливый» (длинные вложенные пути + упор в лимит 60 символов на файл) —
+# до ~3 КБ. При 12000 файлах это ~2.5 МБ на типичном проекте и ~10 МБ на
+# смешанном профиле (~0.8 КБ/файл) — верхняя граница, за которой разбор
+# json начинает стоить заметную долю времени ответа.
+MAX_FILES = 12000
 STALE_SEC = 300  # перестроить, если индексу больше 5 минут
 EXTS = {".tscn", ".gd", ".tres", ".cfg", ".md", ".txt", ".json", ".import"}
 SKIP_DIRS = {".git", ".godot", ".import", "addons", ".agent_history", "__pycache__", "dist", "build"}
@@ -112,6 +122,67 @@ def _nested_symbols(text):
 
 _CAMEL_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
+# v105.13 (п.1): приоритет расширения при обрезке по MAX_FILES. Раньше
+# лимит применялся в порядке os.walk (фактически почти алфавитно по
+# каталогам): на проекте с большим docs/ в индекс уезжала документация,
+# а скрипты из src/, идущие позже, выпадали — то есть терялось ровно то,
+# ради чего индекс и существует. Теперь порядок обхода решает только
+# внутри одного приоритета: 0 — код и сцены, 1 — ресурсы/конфиги и всё
+# незнакомое, 2 — текст и да��ные (их всегда много, а пользы для поиска
+# по структуре меньше всего).
+_EXT_PRIORITY = {
+    ".gd": 0, ".tscn": 0,
+    ".tres": 1, ".cfg": 1, ".import": 1,
+    ".md": 2, ".txt": 2, ".json": 2,
+}
+
+
+def _ext_priority(rel):
+    """Приоритет файла при обрезке индекса: меньше — важнее (0..2)."""
+    ext = os.path.splitext(str(rel or ""))[1].lower()
+    return _EXT_PRIORITY.get(ext, 1)
+
+
+# v105.13 (п.2): кэш распарсенного индекса в памяти процесса.
+# Было: _read_index_raw() читал и разбирал json НА КАЖДЫЙ вызов —
+# и на search(), и на update_entries(), и на каждый слой ответа
+# Библиотекаря. На индексе в 2000 файлов это доли миллисекунды, но после
+# п.1 индекс вырастает до мегабайтов, и разбор становится заметной частью
+# времени ответа — при том, что между вызовами файл обычно не менялся.
+# Ключ — abs_root (как и везде в модуле: при «мозге в папке плагина»
+# индексы разных проектов живут в одном файле, путать их нельзя).
+# Инвалидация — по (mtime, size) файла индекса: если его переписал кто-то
+# другой, отпечаток не совпадёт и данные перечитаются. size добавлен к
+# mtime не из паранойи: на Windows/FAT гранулярность mtime грубая, и две
+# записи подряд могут получить одинаковую метку.
+_MEM_CACHE = {}  # abs_root -> {"stamp": (mtime, size), "data": dict}
+
+
+def _cache_key(project_root):
+    return os.path.abspath(project_root or ".")
+
+
+def _index_stamp(path):
+    """Отпечаток файла индекса (mtime, size) или None, если файла нет.
+    Ввод-вывод обёрнут, как и весь остальной в модуле: отсутствие индекса —
+    штатная ситуация, а не ошибка."""
+    try:
+        st = os.stat(path)
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+
+
+def _cache_store(project_root, data):
+    """Положить только что сохранённые данные в кэш вместе со свежим
+    отпечатком файла — чтобы следующий локальный вызов не читал диск."""
+    try:
+        stamp = _index_stamp(_index_path(project_root))
+        if stamp is not None:
+            _MEM_CACHE[_cache_key(project_root)] = {"stamp": stamp, "data": data}
+    except Exception:
+        _MEM_CACHE.pop(_cache_key(project_root), None)  # лучше без кэша, чем с враньём
+
 
 def _index_path(project_root):
     return os.path.join(ml_data.storage_dir(project_root), INDEX_FILE)
@@ -162,12 +233,20 @@ def _save(project_root, data):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
     os.replace(tmp, path)
+    # v105.13 (п.2): оба писателя индекса (build_index и update_entries)
+    # ходят через _save, поэтому кэш обновляем здесь — так невозможно
+    # забыть его в новом месте записи и отдать следующему вызову старьё.
+    _cache_store(project_root, data)
 
 
 def build_index(project_root):
     """Обходит проект и сохраняет компактный индекс. Возвращает число файлов."""
     root = os.path.abspath(project_root or ".")
-    entries = []
+    # v105.13 (п.1): раньше обход ПРЕРЫВАЛСЯ по MAX_FILES, и решение,
+    # какой файл важен, принимал порядок каталогов на диске. Сначала
+    # собираем все пути (только строки, парсинга ещё нет — дёшево),
+    # потом выбираем лучшие по приоритету и только затем читаем файлы.
+    rels = []
     for cur, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for fn in files:
@@ -175,26 +254,73 @@ def build_index(project_root):
             if ext not in EXTS or ext == ".import":
                 continue
             full = os.path.join(cur, fn)
-            rel = os.path.relpath(full, root).replace(os.sep, "/")
-            entries.append(_build_entry(root, rel))
-            if len(entries) >= MAX_FILES:
-                break
-        if len(entries) >= MAX_FILES:
-            break
-    _save(project_root, {"built": time.time(), "root": root, "files": entries})
+            rels.append(os.path.relpath(full, root).replace(os.sep, "/"))
+    skipped = 0
+    if len(rels) > MAX_FILES:
+        skipped = len(rels) - MAX_FILES
+        # Сортировка только ДЛЯ ОТБОРА: ключ (приоритет, номер в обходе),
+        # потом выжившие возвращаются в исходный порядок обхода.
+        # Это важно для совместимости: пока лимит не сработал, содержимое
+        # и порядок files байт-в-байт такие же, как до патча.
+        order = sorted(range(len(rels)), key=lambda i: (_ext_priority(rels[i]), i))
+        rels = [rels[i] for i in sorted(order[:MAX_FILES])]
+    entries = [_build_entry(root, rel) for rel in rels]
+    data = {"built": time.time(), "root": root, "files": entries}
+    if skipped:
+        # Индекс — единственное место, где факт усечения известен. Ключи
+        # добавляются ТОЛЬКО при усечении: на обычном проекте формат
+        # файла индекса не меняется вообще.
+        data["truncated"] = True
+        data["skipped_files"] = skipped
+    _save(project_root, data)
     return len(entries)
 
 
 def _read_index_raw(project_root):
-    """Читает индекс с диска БЕЗ проверки свежести (для микро-обновлений)."""
+    """Читает индекс БЕЗ проверки свежести (для микро-обновлений).
+
+    v105.13 (п.2): источник данных — сначала кэш в памяти, и только при
+    промахе — диск. Сами данные не меняются ни на байт: это тот же dict,
+    который вернул бы json.load, просто без повторного разбора."""
+    path = _index_path(project_root)
+    stamp = _index_stamp(path)
+    key = _cache_key(project_root)
+    if stamp is not None:
+        cached = _MEM_CACHE.get(key)
+        if cached is not None and cached.get("stamp") == stamp:
+            return cached.get("data")
     try:
-        with open(_index_path(project_root), "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict) and isinstance(data.get("files"), list):
+            if stamp is not None:
+                _MEM_CACHE[key] = {"stamp": stamp, "data": data}
             return data
     except Exception:
         pass
+    # Битый/отсутствующий индекс — кэшировать нечего; чистим запись,
+    # чтобы не отдать её позже по совпавшему отпечатку.
+    _MEM_CACHE.pop(key, None)
     return None
+
+
+def index_meta(project_root):
+    """v105.13 (п.1): служебные поля индекса для вызывающего кода
+    (Библиотекарь) — без доступа к внутренним _-функциям модуля.
+    Возвращает {"truncated": bool, "skipped_files": int}; если индекса нет
+    или он от ДРУГОГО проекта («мозг в папке плагина») — пустое
+    состояние, чтобы не предупреждать об усечении чужого индекса.
+    Чтение идёт через кэш (п.2), то есть лишнего разбора json нет."""
+    try:
+        data = _read_index_raw(project_root)
+        if not isinstance(data, dict):
+            return {"truncated": False, "skipped_files": 0}
+        if data.get("root") != os.path.abspath(project_root or "."):
+            return {"truncated": False, "skipped_files": 0}
+        return {"truncated": bool(data.get("truncated")),
+                "skipped_files": int(data.get("skipped_files") or 0)}
+    except Exception:
+        return {"truncated": False, "skipped_files": 0}
 
 
 def _load_index(project_root, auto_build=True):
@@ -237,7 +363,13 @@ def update_entries(project_root, changed_rels=(), deleted_rels=()):
             by_path[e["path"]] = e
     for rel in deleted_rels or ():
         by_path.pop(_norm_rel(rel), None)
-    for rel in changed_rels or ():
+    skipped_now = 0
+    # v105.13 (п.1): тот же приоритет, что и в build_index. Раньше при упоре
+    # в потолок выигрывал тот, кто раньше оказался в списке изменённых,
+    # то есть случайность: новый .md мог занять последний слот и вытеснить
+    # новый скрипт. Сортировка устойчивая и влияет только на порядок
+    # ОБРАБОТКИ: итоговый files всё равно сортируется по path ниже.
+    for rel in sorted(changed_rels or (), key=lambda r: _ext_priority(_norm_rel(r))):
         nrel = _norm_rel(rel)
         if not nrel:
             continue
@@ -249,12 +381,19 @@ def update_entries(project_root, changed_rels=(), deleted_rels=()):
         full = os.path.join(root, nrel.replace("/", os.sep))
         if os.path.isfile(full):
             if nrel not in by_path and len(by_path) >= MAX_FILES:
+                skipped_now += 1
                 continue  # потолок индекса — как в build_index
             by_path[nrel] = _build_entry(root, nrel)
         else:
             by_path.pop(nrel, None)
     data["files"] = sorted(by_path.values(), key=lambda e: e.get("path", ""))
     data["root"] = root
+    if skipped_now:
+        # v105.13 (п.1): микро-обновление тоже умеет терять файлы по лимиту,
+        # и раньше делало это молча. Счётчик накапливается: полная
+        # пересборка по STALE_SEC пересчитает его точно.
+        data["truncated"] = True
+        data["skipped_files"] = int(data.get("skipped_files") or 0) + skipped_now
     _save(project_root, data)
     return True
 
