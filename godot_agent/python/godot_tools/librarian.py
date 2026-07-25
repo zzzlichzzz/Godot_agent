@@ -257,6 +257,28 @@ _SYN_GREP_LIMIT = 5      # максимум синонимов-grep на оди�
                          # словарь большой, а каждый grep — проход по файлам проекта;
                          # потолок держит время ответа предсказуемым даже на 2000 файлах
 
+# v105.13 (патч производительности, п.3): _SYN_GREP_LIMIT — потолок НА ТОКЕН,
+# и этого оказалось мало: при FRAGMENT_TOKENS = 4 запрос из нетипичных имён
+# (ни одно не находится дословно) давал до 4 × 5 = 20 ПОЛНЫХ обходов
+# диска на ОДИН ответ. На большом проекте именно это, а не размер индекса,
+# давало основную задержку. Теперь есть ОБЩИЙ бюджет проходов на весь
+# вызов _fragments().
+#
+# v105.14 (п.1): исправлены и цифра, и описание. Было: «8 — это два прямых
+# прохода плюс шесть синонимных» — комментарий не соответствовал коду:
+# прямых проходов бывает до FRAGMENT_TOKENS = 4, и они тоже списывались
+# с бюджета, а остаток целиком выбирал ПЕРВЫЙ же не нашедшийся токен.
+# Почему плохо: многословный разведочный запрос терял слой FRAGMENTS
+# целиком и отвечал «ничего не найдено». Теперь честно: это потолок
+# ТОЛЬКО на СИНОНИМНЫЕ проходы (прямые не списываются вовсе и уже
+# ограничены FRAGMENT_TOKENS), и он делится между токенами поровну.
+# 12 подобрано по тестам: четырёхсловный разведочный запрос получает
+# не меньше 3 синонимных проходов на КАЖДЫЙ токен даже в худшем
+# случае (обычно больше — неизрасходованное возвращается в котёл), а
+# вырожденный запрос даёт не более 12 синонимных обходов вместо
+# полного веера FRAGMENT_TOKENS × _SYN_GREP_LIMIT = 20.
+_FRAG_GREP_BUDGET = 12
+
 
 def _synonyms(token):
     """Синонимы токена (без самого токена), отсортированы для детерминизма."""
@@ -531,25 +553,70 @@ def _grep_token(project_root, tok, seen, out, frags_left, case_insensitive=False
     return added
 
 
+def _grep_patterns(project_root, patterns, max_results):
+    """v105.14 (п.2): ищет СРАЗУ все шаблоны слоя за ОДИН обход проекта
+    и возвращает {шаблон: [результаты в порядке обхода]}.
+
+    Было: CALLERS и SIGNALS вызывали search_project_text отдельно на КАЖДЫЙ
+    шаблон: до 6 × CALLERS_FUNCS = 12 и до 13 × SIGNALS_MAX = 26 полных обходов
+    диска на ОДИН ответ. Почему плохо: бюджет v105.13 ограничивал только
+    FRAGMENTS, а главный веер обходов был здесь — на проекте в 2700 файлов
+    запрос с сигналами был самым медленным ответом (1.49 с). Квота
+    max_results считается на каждый шаблон отдельно, а порядок результатов —
+    порядок обхода, поэтому выдача обоих слоёв остаётся побайтно той же,
+    что при отдельных вызовах."""
+    by_needle = {}
+    if not patterns:
+        return by_needle
+    try:
+        results, _tr = search_project_text(project_root, None, max_results=max_results,
+                                           context_lines=0,
+                                           exclude_rel_prefixes=_SEARCH_EXCLUDE,
+                                           needles=list(patterns))
+    except Exception:
+        return by_needle  # как и раньше: ошибка поиска — просто пустой слой
+    for r in results:
+        by_needle.setdefault(str(r.get("needle", "")), []).append(r)
+    return by_needle
+
+
 def _fragments(project_root, query):
-    """Слой 3: дословные совпадения токенов запроса; если токен дословн�� не
+    """Слой 3: дословные совпадения токенов запроса; если токен дословно не
     нашёлся — пробуем его геймдев-синонимы (патч 1), первый удачный."""
     seen, out, frags = set(), [], 0
-    for tok in _query_tokens(query):
-        # v105.11 (раунд 3, п.2): раньше регистронезависимый проход был ФОЛБЭКОМ
-        # и запускался только при added == 0. Если хоть одно точное совпадение
-        # находилось, вариант в другом регистре в ОСТАЛЬНЫХ файлах так и не
-        # искался: запрос «health» находил var health, но терял HealthUp.
-        # Один регистронезависимый проход покрывает оба направления сразу
-        # и НЕ стоит лишнего обхода диска — проход всегда ровно один.
+    toks = list(_query_tokens(query))
+    # v105.14 (п.1): бюджет тратится ТОЛЬКО на синонимные проходы.
+    # Было (v105.13): «grep_budget -= 1» списывалось и за ПРЯМОЙ проход по
+    # самому токену, то есть 4 из 8 единиц уходили ещё до первого синонима.
+    # Почему плохо: прямых проходов и так не больше FRAGMENT_TOKENS, и именно
+    # они дают ТОЧНЫЕ совпадения — экономить на них нельзя (в v105.13 это
+    # было написано в комментарии, но сделано ровно наоборот).
+    syn_budget = _FRAG_GREP_BUDGET
+    for i, tok in enumerate(toks):
+        # v105.11 (раунд 3, п.2): один регистронезависимый проход вместо связки
+        # «строгий + фолбэк»: запрос «health» находит и var health, и HealthUp,
+        # и стоит ровно один обход диска.
         added = _grep_token(project_root, tok, seen, out, FRAGMENT_LIMIT - frags,
                             case_insensitive=True)
-        if added == 0:
-            for syn in _synonyms(tok)[:_SYN_GREP_LIMIT]:
+        if added == 0 and syn_budget > 0:
+            # v105.14 (п.1): честная доля вместо «кто первый — того и бюджет».
+            # Было: первый же не нашедшийся токен выбирал весь остаток (до
+            # _SYN_GREP_LIMIT = 5 проходов), и на все последующие токены
+            # синонимных проходов не оставалось вовсе. Почему плохо:
+            # многословный разведочный запрос («inventory crafting shop ui
+            # save») — обычный сценарий, а он терял слой FRAGMENTS целиком и
+            # отвечал «ничего не найдено». Чиним делением остатка на число
+            # ЕЩЁ НЕ ОБРАБОТАННЫХ токенов; неизрасходованная часть доли сама
+            # остаётся в общем котле (списываем только фактические проходы),
+            # так что токены без синонимов отдают свою долю следующим.
+            share = max(1, syn_budget // max(1, len(toks) - i))
+            share = min(share, _SYN_GREP_LIMIT, syn_budget)
+            for syn in _synonyms(tok)[:share]:
                 added = _grep_token(project_root, syn, seen, out, FRAGMENT_LIMIT - frags,
                                     case_insensitive=True)
+                syn_budget -= 1
                 if added:
-                    break
+                    break  # per-token break оставлен как был: первый удачный синоним
         frags += added
         if frags >= FRAGMENT_LIMIT:
             break
@@ -574,8 +641,15 @@ def _callers(project_root, query, hits):
                     names.append(name)
     cands, seen = [], set()
     more_names = names[CALLERS_FUNCS:]  # v105.10: что не поместилось в CALLERS_FUNCS
+    # v105.14 (п.2): шаблоны всех имён собираются ЗАРАНЕЕ и ищутся за ОДИН
+    # обход проекта. Было: search_project_text на КАЖДЫЙ шаблон, то есть до
+    # 6 шаблонов × CALLERS_FUNCS (2) = 12 полных обходов диска на ОДИН ответ.
+    # Почему плохо: бюджет v105.13 ограничивал только FRAGMENTS, а главный
+    # веер обходов был здесь и в SIGNALS — и на большом проекте именно он
+    # давал самые медленные ответы. Порядок перебора (имя-мажор, шаблон-минор)
+    # и max_results на каждый шаблон сохранены, поэтому выдача побайтно та же.
+    specs = []  # (имя, шаблон, это_имя_в_кавычках)
     for name in names[:CALLERS_FUNCS]:
-        def_re = re.compile(r"\bfunc\s+%s\s*[(]" % re.escape(name))
         # v105.10 (шаг 6): вызов не всегда записан как «имя(» вплотную:
         #   p.take_damage (7)          — пробел перед скобкой (валидный GDScript);
         #   p.callv("take_damage", [3]) и call_deferred('take_damage') — косвенный
@@ -585,47 +659,46 @@ def _callers(project_root, query, hits):
         # v105.12 (раунд 4, п.4): повседневная связка Godot 4 — Callable без
         # скобки вызова сразу после имени: p.take_damage.bind(4) в tween_callback
         # и connect с аргументами, или p.take_damage.call(4)/.call_deferred(4).
-        # Несогласованность шага 6: «.bind(» уже был в _INDIRECT_CALL_CTX, но он
-        # только ПОДТВЕРЖДАЕТ кандидата с именем в кавычках, а шаблона,
-        # который такую строку НАХОДИТ, не было — секция CALLERS не появлялась
-        # вовсе. Эти шаблоны безопасны: имя идёт без кавычек и вплотную
-        # к .bind(/.call — в комментарии или подписи кнопки такого не бывает,
-        # поэтому проверка контекста им не нужна (она только для quoted).
+        # Эти шаблоны безопасны: имя идёт без кавычек и вплотную к .bind(/.call —
+        # в комментарии или подписи кнопки такого не бывает, поэтому проверка
+        # контекста им не нужна (она только для quoted).
         callable_forms = (name + ".bind(", name + ".call")
         for pattern in direct + quoted + callable_forms:
-            try:
-                results, _tr = search_project_text(project_root, pattern, max_results=10, context_lines=0,
-                                                   exclude_rel_prefixes=_SEARCH_EXCLUDE)
-            except Exception:
-                continue
-            for r in results:
-                snippet = str(r.get("snippet", "")).strip()
-                if _is_addon_rel(r.get("path", "")) or def_re.search(snippet):
-                    continue  # определение — не вызов; аддоны не выдаём
-                code = re.sub(r"^\d+:\s*", "", snippet)  # убрать префикс «N: » сниппета
-                # Регрессия шага 6, найдена рецензентом: шаблоны "имя"/'имя'
-                # ловили любое упоминание имени в тексте — комментарий,
-                # print("имя"), has_method("имя"), присваивание в переменную —
-                # и выдавали их за места вызова. Косвенный вызов отличается
-                # от упоминания только контекстом строки — требуем его явно.
-                if pattern in quoted:
-                    low = code.lower()
-                    if not any(ctx in low for ctx in _INDIRECT_CALL_CTX):
-                        continue
-                if code.lstrip().startswith("#"):
-                    continue  # закомментированная строка — не вызов
-                key = (str(r.get("path", "")), r.get("line"))
-                if key in seen:
-                    continue  # одна и та же строка могла совпасть несколькими шаблонами
-                seen.add(key)
-                cands.append((str(r.get("path", "")), int(r.get("line") or 0), code))
+            specs.append((name, pattern, pattern in quoted))
+    by_needle = _grep_patterns(project_root, [p for _n, p, _q in specs], max_results=10)
+    def_res = {}
+    for name, pattern, is_quoted in specs:
+        def_re = def_res.get(name)
+        if def_re is None:
+            def_re = def_res[name] = re.compile(r"\bfunc\s+%s\s*[(]" % re.escape(name))
+        for r in by_needle.get(pattern, []):
+            snippet = str(r.get("snippet", "")).strip()
+            if _is_addon_rel(r.get("path", "")) or def_re.search(snippet):
+                continue  # определение — не вызов; аддоны не выдаём
+            code = re.sub(r"^\d+:\s*", "", snippet)  # убрать префикс «N: » сниппета
+            # Регрессия шага 6, найдена рецензентом: шаблоны "имя"/'имя'
+            # ловили любое упоминание имени в тексте — комментарий,
+            # print("имя"), has_method("имя"), присваивание в переменную —
+            # и выдавали их за места вызова. Косвенный вызов отличается
+            # от упоминания только контекстом строки — требуем его явно.
+            if is_quoted:
+                low = code.lower()
+                if not any(ctx in low for ctx in _INDIRECT_CALL_CTX):
+                    continue
+            if code.lstrip().startswith("#"):
+                continue  # закомментированная строка — не вызов
+            key = (str(r.get("path", "")), r.get("line"))
+            if key in seen:
+                continue  # одна и та же строка могла совпасть несколькими шаблонами
+            seen.add(key)
+            cands.append((str(r.get("path", "")), int(r.get("line") or 0), code))
     # Рецензент также верно заметил: порядок «10, 3, 4, 7, 8» выглядит как
     # ошибка — это был порядок перебора шаблонов. Собираем всё и сортируем
     # по файлу и номеру строки, и только потом режем по CALLERS_LIMIT.
     cands.sort(key=lambda c: (c[0], c[1]))
     out = ["- %s line %d: %s" % c for c in cands[:CALLERS_LIMIT]]
     if out and len(cands) > CALLERS_LIMIT:
-        out.append("  (+%d more call sites not shown — refine the query)"
+        out.append("  (+%d more call sites not shown \u2014 refine the query)"
                    % (len(cands) - CALLERS_LIMIT))
     # v105.10 (шаг 6): раньше третья и дальнейшие функции отбрасывались
     # молча — модель считала, что вызовов нет.
@@ -700,13 +773,13 @@ def _signal_wiring(project_root, query, hits):
     """Слой 3.6 (патч 4): карта сигналов, чьё имя ТОЧНО совпало с токеном
     запроса: связи [connection ...] в .tscn + подключения в коде (v105.9:
     «name.connect(…)» Godot 4 и «connect("name"…)» legacy) + места эмита в .gd.
-    Как и CALLERS — чистый дословный поиск, без парсинга кода. Шабло��ы
+    Как и CALLERS — чистый дословный поиск, без парсинга кода. Шаблоны
     привязаны к имени сигнала, поэтому чужие connect (таймеры и пр.)
     не цепляются.
 
     v105.11 (раунд 3, п.3): добавлены три повседневные формы Godot 4 —
     «await $P.sig», «is_connected("sig"» и «disconnect("sig"», а также запись
-    с пробелом «$P.sig .connect(». М��тка те��ерь вычисляется по САМОЙ СТРОКЕ,
+    с пробелом «$P.sig .connect(». Метка теперь вычисляется по САМОЙ СТРОКЕ,
     а не по шаблону: раньше connect("sig" совпадал как ПОДСТРОКА внутри
     disconnect("sig", и отписка показывалась как подписка."""
     q_full = {t.lower() for t in re.split(r"\W+", str(query or ""), flags=re.U) if len(t) >= 3}
@@ -722,55 +795,58 @@ def _signal_wiring(project_root, query, hits):
     # в CALLERS. Раньше вывод шёл в порядке перебора шаблонов
     # (a_ui:4, z_hud:4, player:6, a_ui:6, a_ui:7) и выглядел как сбой.
     cands, seen_lines = [], set()
+    # v105.14 (п.2): то же, что в CALLERS — все шаблоны слоя ищутся за ОДИН
+    # обход проекта. Было: до 12 шаблонов × SIGNALS_MAX (2) = до 24 полных
+    # обходов диска на один ответ; на проекте в 2700 файлов запрос со словом
+    # signal был самым медленным именно из-за этого веера. Порядок перебора,
+    # метки, фильтры и max_results на шаблон сохранены без изменений.
+    specs = []  # (имя, шаблон, метка)
     for name in names[:SIGNALS_MAX]:
         # v105.10 (шаг 2): в GDScript строка может быть в ЛЮБЫХ кавычках —
         # у шаблонов со строковым именем сигнала есть парные варианты с '.
         # signal="..." остаётся только с ", т.к. это формат сериализации .tscn
-        # (его пишет сам Godot), а name.connect(/name.emit кавычек не содержат.
-        patterns = (('signal="%s"' % name, "scene connection"),
-                    ("%s.connect(" % name, "connect"),
-                    ("%s .connect(" % name, "connect"),
-                    ('connect("%s"' % name, "connect"),
-                    ("connect('%s'" % name, "connect"),
-                    ("%s.emit" % name, "emit"),
-                    ('emit_signal("%s"' % name, "emit"),
-                    ("emit_signal('%s'" % name, "emit"),
-                    # v105.11: «is_connected(» НЕ ловится шаблоном connect("sig" —
-                    # в нём «connected(», а не «connect(»; и имя в кавычках, так что
-                    # широкий шаблон «.sig» его тоже не видит. Нужен явный.
-                    ('is_connected("%s"' % name, "is_connected"),
-                    ("is_connected('%s'" % name, "is_connected"),
-                    ('disconnect("%s"' % name, "disconnect"),
-                    ("disconnect('%s'" % name, "disconnect"),
-                    # v105.11: «await $P.sig» — между await и именем стоит узел,
-                    # поэтому ищем «.sig» и фильтруем по контексту ниже.
-                    (".%s" % name, None))
-        for pattern, label in patterns:
-            try:
-                results, _tr = search_project_text(project_root, pattern, max_results=6, context_lines=0,
-                                                   exclude_rel_prefixes=_SEARCH_EXCLUDE)
-            except Exception:
+        # (его пишет сам Godot), а name.connect(/name.emit кавычек не содержит.
+        for pattern, label in ((('signal="%s"' % name), "scene connection"),
+                               ("%s.connect(" % name, "connect"),
+                               ("%s .connect(" % name, "connect"),
+                               ('connect("%s"' % name, "connect"),
+                               ("connect('%s'" % name, "connect"),
+                               ("%s.emit" % name, "emit"),
+                               ('emit_signal("%s"' % name, "emit"),
+                               ("emit_signal('%s'" % name, "emit"),
+                               # v105.11: «is_connected(» НЕ ловится шаблоном connect("sig" —
+                               # в нём «connected(», а не «connect(»; и имя в кавычках, так что
+                               # широкий шаблон «.sig» его тоже не видит. Нужен явный.
+                               ('is_connected("%s"' % name, "is_connected"),
+                               ("is_connected('%s'" % name, "is_connected"),
+                               ('disconnect("%s"' % name, "disconnect"),
+                               ("disconnect('%s'" % name, "disconnect"),
+                               # v105.11: «await $P.sig» — между await и именем стоит узел,
+                               # поэтому ищем «.sig» и фильтруем по контексту ниже.
+                               (".%s" % name, None)):
+            specs.append((name, pattern, label))
+    by_needle = _grep_patterns(project_root, [p for _n, p, _l in specs], max_results=6)
+    for name, pattern, label in specs:
+        for r in by_needle.get(pattern, []):
+            if _is_addon_rel(r.get("path", "")):
                 continue
-            for r in results:
-                if _is_addon_rel(r.get("path", "")):
+            code = re.sub(r"^\d+:\s*", "", str(r.get("snippet", "")).strip())
+            if code.lstrip().startswith("#"):
+                continue  # закомментированная строка — не проводка
+            # Широкий шаблон «.sig» без метки: пускаем только то, где имя —
+            # целое слово (не died_count) и есть сигнальный контекст.
+            if label is None:
+                if not re.search(r"\.%s\b" % re.escape(name), code):
                     continue
-                code = re.sub(r"^\d+:\s*", "", str(r.get("snippet", "")).strip())
-                if code.lstrip().startswith("#"):
-                    continue  # закомментированная строка — не проводка
-                # Широкий шаблон «.sig» без метки: пускаем только то, где имя —
-                # целое слово (не died_count) и есть сигнальный контекст.
-                if label is None:
-                    if not re.search(r"\.%s\b" % re.escape(name), code):
-                        continue
-                    if not any(m in code.lower() for m in _SIGNAL_CTX):
-                        continue
-                # v105.11 (раунд 3, п.3): метк�� — по строке, а не по шаблону.
-                line_label = _signal_label(code, label)
-                line_txt = "- %s line %d (%s): %s" % (r["path"], r["line"], line_label, code)
-                if line_txt in seen_lines:
+                if not any(m in code.lower() for m in _SIGNAL_CTX):
                     continue
-                seen_lines.add(line_txt)
-                cands.append((str(r.get("path", "")), int(r.get("line") or 0), line_txt))
+            # v105.11 (раунд 3, п.3): метка — по строке, а не по шаблону.
+            line_label = _signal_label(code, label)
+            line_txt = "- %s line %d (%s): %s" % (r["path"], r["line"], line_label, code)
+            if line_txt in seen_lines:
+                continue
+            seen_lines.add(line_txt)
+            cands.append((str(r.get("path", "")), int(r.get("line") or 0), line_txt))
     # Сортировка по (path, line) — та же, что в CALLERS. Резать по SIGNALS_LIMIT
     # ПОСЛЕ сортировки: иначе порядок перебора шаблонов решал бы, что
     # показать, и выдача зависела бы от порядка в кортеже patterns.
@@ -868,6 +944,23 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
     if syn_used:
         lines.append("(gamedev synonyms also searched: %s)" % ", ".join(syn_used))
     base_len = len(lines)  # сколько строк было ДО ��лоёв — для детекта пустого ответа
+    # v105.13 (п.1): если проект не влез в потолок индекса, модель обязана это знать:
+    # раньше ответ по половине проекта выглядел ровно так же, как полный, а
+    # «nothing found» читалось как «такого в проекте нет». Строка идёт ПОСЛЕ base_len
+    # (то есть в теле ответа) и учитывается в детекте пустоты отдельно (warn_len):
+    # предупреждение — не данные и не должно превращать пустой ответ в непустой.
+    # Специально обычная строка lines, а не отдельный хвост после обрезки:
+    # иначе она не попадала бы под учёт char budget и ответ мог бы вылезть за него.
+    try:
+        _meta = ml_project_index.index_meta(project_root)
+    except Exception:
+        _meta = {}  # предупреждение не должно убить ответ
+    index_truncated = bool(_meta.get("truncated"))
+    if index_truncated:
+        lines.append("⚠ project index incomplete: %d files not indexed "
+                     "(project exceeds the index limit) — results may miss some files."
+                     % int(_meta.get("skipped_files") or 0))
+    warn_len = 1 if index_truncated else 0
     if hits:
         lines.append("MAP (most relevant files, best first):")
         for h in hits:
@@ -914,15 +1007,25 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
     if api_lines:
         lines.append("GODOT API (from the project's API cache):")
         lines += api_lines
-    if len(lines) == base_len:
+    # v105.13 (п.1): + warn_len — строка об усечении не считается данными,
+    # иначе ответ без единого совпадения перестал бы попадать в ветку
+    # «nothing matches» с подсказкой по похожим именам.
+    if len(lines) == base_len + warn_len:
         try:
             near = _near_tokens(project_root, q)
         except Exception:
             near = []
         hint = (" Similar identifiers that DO exist in the project index: %s." %
                 ", ".join(near)) if near else ""
-        _log_query(project_root, {"query": q, "result": "no_matches",
-                                  "synonyms": syn_used, "near": near})
+        _no_match_rec = {"query": q, "result": "no_matches",
+                         "synonyms": syn_used, "near": near}
+        if index_truncated:
+            # Поле добавляется ТОЛЬКО при усечении: записи журнала на обычных
+            # проектах остаются такими же, как до патча. Здесь это важнее
+            # всего: «no_matches» на усечённом индексе может означать не то,
+            # что файла нет, а что он отброшен по лимиту.
+            _no_match_rec["index_truncated"] = True
+        _log_query(project_root, _no_match_rec)
         return ("[Librarian]: nothing in the project index matches «%s». Try other English "
                 "terms (synonyms of function/class/signal/node names), or search_project for "
                 "literal text, or list_files for a directory tree.%s" % (q, hint))
@@ -968,12 +1071,17 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
         kept[-1] = _BUDGET_NOTE  # честнее, чем «truncated»: данных не было вовсе
     kept.append(FOOTER)
     text = "\n".join(kept)
-    _log_query(project_root, {
+    _rec = {
         "query": q, "result": "ok" if has_content else "empty_budget",
         "hits": len(hits), "synonyms": syn_used,
         "sections": [n for n in _LOG_SECTIONS if any(ln.startswith(n + " (") for ln in kept)],
         "chars": len(text), "cut": cut,
-    })
+    }
+    if index_truncated:
+        # v105.13 (п.1): чтобы неполнота индекса была видна при разборе
+        # обкатки, а не только в тексте ответа (его в журнал не пишем).
+        _rec["index_truncated"] = True
+    _log_query(project_root, _rec)
     return text
 
 
