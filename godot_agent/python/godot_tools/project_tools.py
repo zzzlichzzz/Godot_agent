@@ -192,14 +192,31 @@ SEARCH_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.json', '.txt',
                '.md', '.gdshader', '.shader', '.csv'}
 
 
-def search_project_text(project_root, query, max_results=30, context_lines=2):
+def search_project_text(project_root, query, max_results=30, context_lines=2,
+                        exclude_rel_prefixes=None, case_insensitive=False):
     """Поиск текста по файлам проекта (аналог «Поиска по проекту» в Godot).
-    Возвращает (список совпадений, был_ли_список_обрезан)."""
+    Возвращает (список совпадений, был_ли_список_обрезан).
+
+    exclude_rel_prefixes (v105.10): кортеж/список префиксов ОТНОСИТЕЛЬНЫХ
+    путей (например ("addons/",)), которые пропускаются ДО набора квоты
+    max_results. Нужно Библиотекарю: раньше он фильтровал аддоны ПОСЛЕ
+    поиска, и файлы addons/ (обход идёт по алфавиту, addons почти всегда
+    первая) выбирали всю квоту — слои FRAGMENTS/CALLERS/SIGNALS молча
+    пустели на любом проекте с установленными аддонами. По умолчанию
+    None — поведение для остальных вызывающих не меняется.
+
+    case_insensitive (v105.10): сравнение без учёта регистра. Нужно
+    Библиотекарю как фолбэк: MAP регистронезависим, а FRAGMENTS был
+    строгим — запрос «health» не находил код с «Health». По умолчанию
+    False — точный поиск для инструмента search_project остаётся как был."""
     project_root_abs = os.path.abspath(project_root)
     query_norm = (query or '').replace('\r\n', '\n')
     results = []
     if not query_norm.strip():
         return results, False
+    needle = query_norm.lower() if case_insensitive else query_norm
+    skip = tuple(p.replace('\\', '/').lstrip('/')
+                 for p in (exclude_rel_prefixes or ()) if p)
     for dirpath, dirnames, filenames in os.walk(project_root_abs):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         for fname in sorted(filenames):
@@ -207,21 +224,44 @@ def search_project_text(project_root, query, max_results=30, context_lines=2):
             if ext not in SEARCH_EXTS:
                 continue
             abs_path = os.path.join(dirpath, fname)
+            rel = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
+            # v105.10: отсев ДО чтения файла и ДО набора квоты max_results
+            if skip and rel.lstrip('/').startswith(skip):
+                continue
             try:
                 with open(abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
                     lines = f.read().replace('\r\n', '\n').split('\n')
             except Exception:
                 continue
-            rel = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
             godot_path = 'res://' + rel
-            for idx, line in enumerate(lines):
-                if query_norm in line:
-                    lo = max(0, idx - context_lines)
-                    hi = min(len(lines), idx + context_lines + 1)
-                    snippet = '\n'.join('%d: %s' % (n + 1, lines[n]) for n in range(lo, hi))
-                    results.append({'path': godot_path, 'line': idx + 1, 'snippet': snippet})
-                    if len(results) >= max_results:
-                        return results, True
+            hits = [idx for idx, line in enumerate(lines)
+                    if needle in (line.lower() if case_insensitive else line)]
+            if not hits:
+                continue
+            # v105.12 (раунд 4, п.2): соседние совпадения давали почти
+            # одинаковые сниппеты: ключ дедупликации выше по стеку — (path, line),
+            # а окно контекста шире одной строки. var health / var health_max /
+            # var health_bar подряд съедали три слота бюджета, повторяя друг друга.
+            # Склеиваем совпадения, попавшие в окно ±context_lines, в один сниппет.
+            # При context_lines=0 разница между соседними строками (1) уже больше
+            # окна, поэтому склейки не происходит вообще — CALLERS и SIGNALS,
+            # которые ходят с context_lines=0 и рассчитывают на отдельную строку
+            # на каждый вызов, работают точно как раньше.
+            groups = []
+            for idx in hits:
+                if groups and context_lines > 0 and idx - groups[-1][-1] <= context_lines:
+                    groups[-1].append(idx)
+                else:
+                    groups.append([idx])
+            for grp in groups:
+                lo = max(0, grp[0] - context_lines)
+                hi = min(len(lines), grp[-1] + context_lines + 1)
+                snippet = '\n'.join('%d: %s' % (n + 1, lines[n]) for n in range(lo, hi))
+                # 'line' — первое совпадение группы: так вывод остаётся
+                # стабильным и сортируется по (path, line) как раньше.
+                results.append({'path': godot_path, 'line': grp[0] + 1, 'snippet': snippet})
+                if len(results) >= max_results:
+                    return results, True
     return results, False
 
 def describe_scene(project_root, godot_path, max_chars=12000):
@@ -479,7 +519,7 @@ def clean_dangling_autoloads(project_root):
 
 
 def has_architecture(project_root):
-    """Есть ли у проекта СВОЯ структура: типовые папки или любой .gd/.tscn
+    """Есть ли у проекта СВО�� структура: типовые папки или любой .gd/.tscn
     вне addons/. Если есть — агент ИСПОЛЬЗУЕТ её, а не навязывает свою."""
     project_root = os.path.abspath(project_root)
     for name in ('src', 'scripts', 'scenes', 'game', 'core', 'levels'):
