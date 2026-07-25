@@ -193,7 +193,8 @@ SEARCH_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.json', '.txt',
 
 
 def search_project_text(project_root, query, max_results=30, context_lines=2,
-                        exclude_rel_prefixes=None, case_insensitive=False):
+                        exclude_rel_prefixes=None, case_insensitive=False,
+                        needles=None):
     """Поиск текста по файлам проекта (аналог «Поиска по проекту» в Godot).
     Возвращает (список совпадений, был_ли_список_обрезан).
 
@@ -210,11 +211,32 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
     строгим — запрос «health» не находил код с «Health». По умолчанию
     False — точный поиск для инструмента search_project остаётся как был."""
     project_root_abs = os.path.abspath(project_root)
-    query_norm = (query or '').replace('\r\n', '\n')
     results = []
-    if not query_norm.strip():
+    # v105.14 (п.2): одна и та же механика для одной подстроки и для списка:
+    # одиночный query — частный случай списка из одного элемента. Двух
+    # реализаций обхода быть не должно — иначе фильтры (SEARCH_EXTS,
+    # EXCLUDED_DIRS, exclude_rel_prefixes) разъедутся при первой же правке.
+    #
+    # needles (v105.14, п.2): список подстрок, которые ищутся ЗА ОДИН обход
+    # проекта (query тогда игнорируется). Было: слои CALLERS и SIGNALS
+    # Библиотекаря вызывали эту функцию отдельно на КАЖДЫЙ шаблон (до 12 и
+    # до 24 полных обходов диска на ОДИН ответ) — это, а не размер индекса,
+    # давало самые медленные ответы на больших проектах. Каждый результат
+    # помечен полем 'needle' (какая подстрока совпала): метка нужна CALLERS
+    # (отличить прямой вызов от имени в кавычках) и SIGNALS (_signal_label).
+    # max_results считается НА КАЖДУЮ подстроку отдельно — ровно как при
+    # отдельных вызовах, чтобы выдача слоёв осталась побайтно той же.
+    if needles is not None:
+        raw_needles = [str(n) for n in needles if str(n or '').strip()]
+    else:
+        raw_needles = [query] if str(query or '').strip() else []
+    raw_needles = [str(n).replace('\r\n', '\n') for n in raw_needles]
+    if not raw_needles:
         return results, False
-    needle = query_norm.lower() if case_insensitive else query_norm
+    keys = [n.lower() if case_insensitive else n for n in raw_needles]
+    tagged = needles is not None
+    counts = [0] * len(raw_needles)
+    truncated = False
     skip = tuple(p.replace('\\', '/').lstrip('/')
                  for p in (exclude_rel_prefixes or ()) if p)
     for dirpath, dirnames, filenames in os.walk(project_root_abs):
@@ -234,10 +256,13 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
             except Exception:
                 continue
             godot_path = 'res://' + rel
-            hits = [idx for idx, line in enumerate(lines)
-                    if needle in (line.lower() if case_insensitive else line)]
-            if not hits:
-                continue
+            haystack = [ln.lower() for ln in lines] if case_insensitive else lines
+            for ni, needle in enumerate(keys):
+                if counts[ni] >= max_results:
+                    continue  # эта подстрока уже набрала свою квоту
+                hits = [idx for idx, line in enumerate(haystack) if needle in line]
+                if not hits:
+                    continue
             # v105.12 (раунд 4, п.2): соседние совпадения давали почти
             # одинаковые сниппеты: ключ дедупликации выше по стеку — (path, line),
             # а окно контекста шире одной строки. var health / var health_max /
@@ -247,22 +272,31 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
             # окна, поэтому склейки не происходит вообще — CALLERS и SIGNALS,
             # которые ходят с context_lines=0 и рассчитывают на отдельную строку
             # на каждый вызов, работают точно как раньше.
-            groups = []
-            for idx in hits:
-                if groups and context_lines > 0 and idx - groups[-1][-1] <= context_lines:
-                    groups[-1].append(idx)
-                else:
-                    groups.append([idx])
-            for grp in groups:
-                lo = max(0, grp[0] - context_lines)
-                hi = min(len(lines), grp[-1] + context_lines + 1)
-                snippet = '\n'.join('%d: %s' % (n + 1, lines[n]) for n in range(lo, hi))
+                groups = []
+                for idx in hits:
+                    if groups and context_lines > 0 and idx - groups[-1][-1] <= context_lines:
+                        groups[-1].append(idx)
+                    else:
+                        groups.append([idx])
+                for grp in groups:
+                    lo = max(0, grp[0] - context_lines)
+                    hi = min(len(lines), grp[-1] + context_lines + 1)
+                    snippet = '\n'.join('%d: %s' % (n + 1, lines[n]) for n in range(lo, hi))
                 # 'line' — первое совпадение группы: так вывод остаётся
                 # стабильным и сортируется по (path, line) как раньше.
-                results.append({'path': godot_path, 'line': grp[0] + 1, 'snippet': snippet})
-                if len(results) >= max_results:
-                    return results, True
-    return results, False
+                    row = {'path': godot_path, 'line': grp[0] + 1, 'snippet': snippet}
+                    if tagged:
+                        row['needle'] = raw_needles[ni]
+                    results.append(row)
+                    counts[ni] += 1
+                    if counts[ni] >= max_results:
+                        # Одиночный поиск выходил сразу по квоте — сохраняем то же
+                        # поведение; при списке ждём, пока квоту наберут все.
+                        truncated = True
+                        if all(c >= max_results for c in counts):
+                            return results, True
+                        break
+    return results, truncated
 
 def describe_scene(project_root, godot_path, max_chars=12000):
     """Краткая структура сцены .tscn для модели: дерево узлов (имя, тип),
