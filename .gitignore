@@ -1,2 +1,6 @@
 /godot_agent/python/__pycache__
 godot_agent/agent_panel.tscn
+/godot_agent/python/server/__pycache__
+*.pyc
+*.pyc
+/godot_agent/python/godot_tools/__pycache__
