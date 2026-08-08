@@ -28,6 +28,7 @@ v105 (Библиотекарь):
 import json
 import os
 import re
+import threading
 import time
 
 from . import ml_data
@@ -143,6 +144,60 @@ def _ext_priority(rel):
     return _EXT_PRIORITY.get(ext, 1)
 
 
+# v105.15: лимит символов на файл резал ПО КАТЕГОРИЯМ, а не по важности.
+# Символы добавляются фиксированными пачками (class -> func -> signal ->
+# var -> const -> вложенные), поэтому у скрипта с 60+ функциями срез [:60]
+# убивал ВСЕ signal/var/const и вложенные классы целиком. Последствия
+# тихие и неприятные: слой SIGNALS у больших скриптов пропадал (он ищет
+# имена по префиксу "signal:" в индексе), словарь подсказок при опечатках
+# терял эти идентификаторы, а MAP переставал видеть их в скоринге.
+# Ровно те файлы, где справка нужнее всего, отдавали её хуже прочих.
+MAX_SYMBOLS = 60
+
+# Порядок раздачи квот. Сигналы/константы/классы в реальных скриптах
+# немногочисленны, но ценны для поиска, а функций бывают сотни — поэтому
+# круговая раздача (по одному из каждой категории за круг) пускает
+# «редкие» категории вперёд, не отбирая у функций львиную долю мест.
+_SYM_ROUND_ROBIN = ("class", "signal", "const", "var", "func")
+
+
+def _cap_symbols(symbols, limit=MAX_SYMBOLS):
+    """Честно урезать символы одного .gd до limit штук.
+
+    Пока лимит не сработал — список возвращается КАК ЕСТЬ: на обычном
+    проекте содержимое и порядок индекса не меняются вообще (тот же
+    принцип совместимости, что и при обрезке по MAX_FILES).
+    """
+    if len(symbols) <= limit:
+        return symbols
+    buckets = {}
+    for i, s in enumerate(symbols):
+        kind = s.split(":", 1)[0] if ":" in s else ""
+        buckets.setdefault(kind, []).append((i, s))
+    # Известные категории — в заданном порядке, незнакомые — следом,
+    # чтобы неожиданный префикс не выпал из раздачи молча.
+    order = [k for k in _SYM_ROUND_ROBIN if k in buckets]
+    order += [k for k in buckets if k not in _SYM_ROUND_ROBIN]
+    picked = []
+    pos = dict((k, 0) for k in buckets)
+    while len(picked) < limit:
+        moved = False
+        for k in order:
+            if len(picked) >= limit:
+                break
+            b = buckets[k]
+            if pos[k] < len(b):
+                picked.append(b[pos[k]])
+                pos[k] += 1
+                moved = True
+        if not moved:  # все категории исчерпаны раньше лимита
+            break
+    # Возвращаем выживших в исходном порядке файла: STRUCTURE и глазами
+    # читают индекс сверху вниз, перетасовка сбивала бы и то, и другое.
+    picked.sort(key=lambda t: t[0])
+    return [s for _, s in picked]
+
+
 # v105.13 (п.2): кэш распарсенного индекса в памяти процесса.
 # Было: _read_index_raw() читал и разбирал json НА КАЖДЫЙ вызов —
 # и на search(), и на update_entries(), и на каждый слой ответа
@@ -188,12 +243,51 @@ def _index_path(project_root):
     return os.path.join(ml_data.storage_dir(project_root), INDEX_FILE)
 
 
+def _file_stamp(full):
+    """Отпечаток файла проекта (mtime, size) или None, если файла нет."""
+    try:
+        st = os.stat(full)
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+
+
+def _reuse_or_build(root, rel, prev):
+    """v105.15: запись индекса — переиспользованная или собранная заново.
+
+    build_index читал и разбирал регулярками КАЖДЫЙ файл при каждой
+    пересборке, а она случается раз в STALE_SEC (5 минут) на первом же
+    запросе. На большом проекте это тысячи open+read(200000)+6 проходов
+    регулярок в потоке Flask, без таймаута — при том, что между
+    пересборками меняются единицы файлов.
+
+    Штамп (mtime, size) хранится ТОЛЬКО у .gd/.tscn: остальные записи и
+    так не читают файл с диска, собрать их заново дешевле, чем хранить
+    для них лишние байты в индексе. size рядом с mtime не из паранойи —
+    на Windows гранулярность mtime грубая (та же причина, что и у
+    отпечатка самого файла индекса в _MEM_CACHE).
+    """
+    old = prev.get(rel)
+    if isinstance(old, dict) and "mtime" in old and "size" in old:
+        st = _file_stamp(os.path.join(root, rel.replace("/", os.sep)))
+        if st is not None and old.get("mtime") == st[0] and old.get("size") == st[1]:
+            return old
+    return _build_entry(root, rel)
+
+
 def _build_entry(root, rel):
     """Одна запись индекса для файла rel (путь с «/» относительно root)."""
     full = os.path.join(root, rel.replace("/", os.sep))
     ext = os.path.splitext(rel)[1].lower()
     entry = {"path": rel, "kind": ext.lstrip("."), "symbols": []}
     if ext in (".tscn", ".gd"):
+        # v105.15: штамп для инкрементальной пересборки (см. _reuse_or_build).
+        # Ставится только здесь — то есть ровно у тех файлов, которые
+        # действительно читаются с диска и разбираются регулярками.
+        st = _file_stamp(full)
+        if st is not None:
+            entry["mtime"] = st[0]
+            entry["size"] = st[1]
         try:
             # utf-8-sig: как read_project_file/search_project_text — иначе BOM
             # ломает ^-регулярки первой строки (терялся class_name). Багфикс v105.8.
@@ -205,6 +299,9 @@ def _build_entry(root, rel):
             for m in _NODE_RE.finditer(text):
                 sym = m.group(1) + ((":" + m.group(2)) if m.group(2) else "")
                 entry["symbols"].append(sym)
+            # У сцены символы — «Имя:Тип» узла, категорий нет: режем как
+            # раньше, по порядку узлов в файле (корень идёт первым).
+            entry["symbols"] = entry["symbols"][:MAX_SYMBOLS]
         else:
             entry["symbols"] += ["class:" + m.group(1) for m in _CLASS_RE.finditer(text)]
             entry["symbols"] += ["func:" + m.group(1) for m in _FUNC_RE.finditer(text)]
@@ -222,17 +319,37 @@ def _build_entry(root, rel):
                     continue
                 _seen_syms.add(s)
                 _uniq.append(s)
-            entry["symbols"] = _uniq
-        entry["symbols"] = entry["symbols"][:60]
+            # v105.15: было _uniq[:60] — срез по категориям, см. комментарий
+            # к _cap_symbols. Теперь квоты раздаются по кругу.
+            entry["symbols"] = _cap_symbols(_uniq, MAX_SYMBOLS)
     return entry
 
 
 def _save(project_root, data):
     path = _index_path(project_root)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
-    os.replace(tmp, path)
+    # v105.15: имя временного файла УНИКАЛЬНО на вызов. Было общее
+    # path + ".tmp", а сервер поднят с threaded=True (main.py): два
+    # одновременных писателя (например, note_files_changed из /ask и
+    # пересборка по STALE_SEC из соседнего запроса) открывали ОДИН И ТОТ
+    # ЖЕ файл на запись. os.replace атомарен, но к моменту подмены в .tmp
+    # уже могла лежать смесь двух дампов — то есть битый json. Ломалось
+    # это тихо: _read_index_raw глотает ошибку разбора и возвращает None,
+    # после чего индекс молча пересобирается целиком.
+    # Теперь у каждого писателя свой файл, и os.replace просто решает,
+    # чья версия победит (последний выигрывает — расхождение затянет
+    # ближайшая пересборка).
+    tmp = "%s.%d.%d.tmp" % (path, os.getpid(), threading.get_ident())
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        # Не оставляем мусор рядом с индексом, если запись сорвалась.
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     # v105.13 (п.2): оба писателя индекса (build_index и update_entries)
     # ходят через _save, поэтому кэш обновляем здесь — так невозможно
     # забыть его в новом месте записи и отдать следующему вызову старьё.
@@ -264,7 +381,23 @@ def build_index(project_root):
         # и порядок files байт-в-байт такие же, как до патча.
         order = sorted(range(len(rels)), key=lambda i: (_ext_priority(rels[i]), i))
         rels = [rels[i] for i in sorted(order[:MAX_FILES])]
-    entries = [_build_entry(root, rel) for rel in rels]
+    # v105.15: инкрементальная пересборка. Прошлый индекс — источник
+    # готовых записей для файлов, у которых совпал штамп (mtime, size):
+    # такие файлы не открываются и не парсятся вообще. Чтение прошлого
+    # индекса бесплатно — _read_index_raw отдаёт его из _MEM_CACHE
+    # (вызывающий _load_index только что его прочитал).
+    prev = {}
+    try:
+        old = _read_index_raw(project_root)
+        # Чужой индекс («мозг в папке плагина») переиспользовать нельзя:
+        # там записи ДРУГОГО проекта с такими же относительными путями.
+        if isinstance(old, dict) and old.get("root") == root:
+            for e in old.get("files", []):
+                if isinstance(e, dict) and e.get("path"):
+                    prev[e["path"]] = e
+    except Exception:
+        prev = {}  # без переиспользования пересборка просто станет полной
+    entries = [_reuse_or_build(root, rel, prev) for rel in rels]
     data = {"built": time.time(), "root": root, "files": entries}
     if skipped:
         # Индекс — единственное место, где факт усечения известен. Ключи
@@ -434,23 +567,79 @@ def _symbol_search_text(sym):
     return s
 
 
+# v105.15: инвертированный индекс в памяти процесса.
+# Было: search() на КАЖДЫЙ вызов заново токенизировал путь и все символы
+# каждой записи — два re.split на файл, причём второй по длинной склейке
+# всех символов. Замер на 6000 файлов: 492 мс на один search(), а
+# Библиотекарь зовёт его на каждый ask_librarian (и main.py разрешает
+# цепочку до 4 подряд). Кэш _MEM_CACHE от этого не спасал: он экономил
+# разбор json, а не токенизацию.
+# Ключ инвалидации — сам объект files (id + длина), а не отпечаток файла
+# индекса: и build_index, и update_entries кладут в data НОВЫЙ список,
+# поэтому смена содержимого всегда меняет id. Ссылку на files держим в
+# записи кэша, иначе сборщик мог бы освободить список, а его адрес занял
+# бы другой объект — и проверка по id совпала бы ложно.
+_SEARCH_MAPS = {}  # abs_root -> {"files_id", "len", "postings", "paths_low", "files"}
+
+
+def _build_search_maps(files):
+    """postings: токен -> [номера записей]; paths_low: пути в нижнем регистре."""
+    postings = {}
+    paths_low = []
+    for i, e in enumerate(files):
+        path = e.get("path", "") if isinstance(e, dict) else ""
+        paths_low.append(path.lower())
+        syms = e.get("symbols", []) if isinstance(e, dict) else []
+        hay = _tokens(path) | _tokens(
+            " ".join(_symbol_search_text(s) for s in syms))
+        for t in hay:
+            lst = postings.get(t)
+            if lst is None:
+                postings[t] = [i]
+            else:
+                lst.append(i)
+    return postings, paths_low
+
+
+def _search_maps(project_root, files):
+    """Карты поиска для этого списка записей — из кэша или построенные."""
+    key = _cache_key(project_root)
+    ent = _SEARCH_MAPS.get(key)
+    if (ent is not None and ent.get("files_id") == id(files)
+            and ent.get("len") == len(files)):
+        return ent["postings"], ent["paths_low"]
+    postings, paths_low = _build_search_maps(files)
+    _SEARCH_MAPS[key] = {"files_id": id(files), "len": len(files),
+                         "postings": postings, "paths_low": paths_low,
+                         "files": files}
+    return postings, paths_low
+
+
 def search(project_root, query, limit=8):
     """Ищет файлы/символы по запросу. Возвращает список записей с score."""
     data = _load_index(project_root)
     q = _tokens(query or "")
     if not q:
         return []
-    scored = []
-    for e in data.get("files", []):
-        hay = _tokens(e.get("path", "")) | _tokens(
-            " ".join(_symbol_search_text(s) for s in e.get("symbols", [])))
-        score = len(q & hay)
-        # бонус за подстроку в пути
-        ql = (query or "").lower()
-        if ql and ql in e.get("path", "").lower():
-            score += 2
-        if score > 0:
-            scored.append((score, e))
+    files = data.get("files", [])
+    postings, paths_low = _search_maps(project_root, files)
+    # score = сколько РАЗНЫХ токенов запроса встретилось в записи. В
+    # постингах каждая запись лежит не больше одного раза на токен (они
+    # строятся из множества), поэтому счётчик даёт ровно len(q & hay) —
+    # то же число, что считал прежний полный перебор.
+    counts = {}
+    for t in q:
+        for i in postings.get(t, ()):
+            counts[i] = counts.get(i, 0) + 1
+    # Бонус за подстроку в пути. Отдельным проходом, потому что он может
+    # вытащить запись, у которой НИ ОДНОГО токена не совпало: раньше такая
+    # получала score=2 и попадала в выдачу — поведение сохраняем.
+    ql = (query or "").lower()
+    if ql:
+        for i, pl in enumerate(paths_low):
+            if ql in pl:
+                counts[i] = counts.get(i, 0) + 2
+    scored = [(sc, files[i]) for i, sc in counts.items() if sc > 0]
     scored.sort(key=lambda s: (-s[0], s[1]["path"]))
     return [dict(e, score=sc) for sc, e in scored[:limit]]
 

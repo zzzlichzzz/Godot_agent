@@ -1003,7 +1003,15 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
     if signal_lines:
         lines.append("SIGNALS (scene connections and emit sites of exactly matched signals):")
         lines += signal_lines
-    api_lines = _godot_api(project_root, q, addon_dir=addon_dir)
+    # v105.15: последний необёрнутый слой. Внутри _godot_api try закрывает
+    # только обращения к кэшу (has_cache/get_class/collect_members), а
+    # _pick_members стоит уже вне его: нестроковое имя члена в кэше роняло
+    # n.lower() и уносило ВЕСЬ собранный ответ (MAP, STRUCTURE, FRAGMENTS)
+    # в except main.py — пользователь видел «internal error» вместо справки.
+    try:
+        api_lines = _godot_api(project_root, q, addon_dir=addon_dir)
+    except Exception:
+        api_lines = []
     if api_lines:
         lines.append("GODOT API (from the project's API cache):")
         lines += api_lines

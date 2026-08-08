@@ -1373,6 +1373,380 @@ def test_search_project_text_needles_compatibility():
     print("OK: needles даёт те же строки, что и отдельные вызовы, квота поштучная")
 
 
+def test_symbol_cap_keeps_rare_kinds():
+    """v105.15: лимит символов резал ПО КАТЕГОРИЯМ. Символы кладутся
+    пачками (class -> func -> signal -> var -> const -> вложенные), поэтому
+    срез [:60] у скрипта с 60+ функциями убивал ВСЕ signal/var/const.
+    Следствие было тихим: слой SIGNALS ищет имена по префиксу "signal:"
+    в индексе, значит у больших скриптов он просто пропадал."""
+    lines = [u"class_name BigBoss", u"extends Node",
+             u"signal boss_died", u"signal phase_changed",
+             u"const MAX_HP = 999", u"var current_hp := 999"]
+    lines += [u"func step_%02d():\n\tpass" % i for i in range(80)]
+    lines += [u"func kill():", u"\tboss_died.emit()"]
+    root = tempfile.mkdtemp()
+    os.makedirs(os.path.join(root, "src"))
+    _write(root, "src/boss.gd", u"\n".join(lines) + u"\n")
+    _write(root, "src/ui.gd",
+           u"extends Node\nfunc _ready():\n\tboss.boss_died.connect(_on_died)\n")
+
+    syms = ml_project_index._build_entry(root, "src/boss.gd")["symbols"]
+    assert len(syms) == ml_project_index.MAX_SYMBOLS, len(syms)
+    # Редкие категории обязаны выжить целиком — их единицы, а польза высока.
+    assert "signal:boss_died" in syms, syms
+    assert "signal:phase_changed" in syms, syms
+    assert "const:MAX_HP" in syms, syms
+    assert "var:current_hp" in syms, syms
+    assert "class:BigBoss" in syms, syms
+    # Функции забирают остаток, а не всё подряд.
+    assert sum(1 for s in syms if s.startswith("func:")) >= 50, syms
+    # Порядок — исходный (файл читают сверху вниз, тасовать нельзя).
+    assert syms == sorted(syms, key=lambda s: syms.index(s)), syms
+    assert syms[0] == "class:BigBoss", syms[:3]
+
+    # И главное — слой SIGNALS вернулся для большого скрипта.
+    ml_project_index.build_index(root)
+    out = librarian.answer(root, "boss_died")
+    assert "SIGNALS" in out, out
+    assert "(emit)" in out and "(connect)" in out, out
+    print("OK: лимит символов не съедает signal/var/const, SIGNALS работает "
+          "на скрипте с 80 функциями (%d символов)" % len(syms))
+
+
+def test_symbol_cap_small_files_unchanged():
+    """Пока лимит не сработал, состав и порядок символов обязаны быть
+    байт-в-байт как до патча: обычные проекты не должны заметить ничего."""
+    root = tempfile.mkdtemp()
+    _write(root, "p.gd", PLAYER_GD)
+    _write(root, "s.gd", STATS_GD)
+    assert ml_project_index._build_entry(root, "p.gd")["symbols"] == [
+        "class:Player", "func:take_damage", "func:_physics_process",
+        "signal:died", "var:health"]
+    assert ml_project_index._build_entry(root, "s.gd")["symbols"] == [
+        "func:recalc_stats", "var:move_speed", "var:aether_energy",
+        "const:MAX_LEVEL"]
+    # Ровно на границе среза тоже ничего не переставляется.
+    exact = [u"extends Node"] + [u"func f%02d():\n\tpass" % i for i in range(60)]
+    _write(root, "exact.gd", u"\n".join(exact) + u"\n")
+    syms = ml_project_index._build_entry(root, "exact.gd")["symbols"]
+    assert len(syms) == 60, len(syms)
+    assert syms == ["func:f%02d" % i for i in range(60)], syms[:4]
+    print("OK: малые файлы и граница ровно в 60 символов не изменились")
+
+
+def test_index_save_is_thread_safe():
+    """v105.15: _save писал в ОБЩИЙ path + ".tmp", а сервер поднят с
+    threaded=True (main.py): два одновременных писателя открывали один и
+    тот же файл, и в .tmp оказывалась смесь двух дампов. os.replace
+    атомарен — но подменял уже битый json. Ломалось тихо: _read_index_raw
+    глотает ошибку разбора, и индекс молча пересобирался целиком."""
+    import json as _json
+    import threading
+    import time as _time
+
+    root = _make_project()
+    ml_project_index.build_index(root)
+    data = ml_project_index._read_index_raw(root)
+
+    # Два набора записей заметно разного размера: при общем .tmp короткий
+    # дамп не затирал хвост длинного, и json оставался обрезанным.
+    small = dict(data, files=data["files"][:1])
+    big = dict(data, files=[dict(e, symbols=list(e.get("symbols", [])) + ["func:pad_%03d" % i for i in range(60)]) for e in data["files"]])
+
+    errors = []
+    corrupt = []
+    stop = threading.Event()
+
+    def writer(payload):
+        while not stop.is_set():
+            try:
+                ml_project_index._save(root, payload)
+            except OSError:
+                # Подмена занятого файла на Windows — штатная помеха, не порча.
+                pass
+            except Exception as e:  # noqa: BLE001
+                errors.append(repr(e))
+                return
+
+    def reader():
+        path = ml_project_index._index_path(root)
+        while not stop.is_set():
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    _json.load(f)
+            except ValueError as e:      # JSONDecodeError — ровно тот баг
+                corrupt.append(str(e))
+            except OSError:
+                pass                      # файл занят подменой — допустимо
+
+    threads = [threading.Thread(target=writer, args=(p,))
+               for p in (small, big, small, big)]
+    threads.append(threading.Thread(target=reader))
+    for t in threads:
+        t.start()
+    _time.sleep(0.8)
+    stop.set()
+    for t in threads:
+        t.join(5)
+    assert not errors, errors[:3]
+    # Замер до патча на этом же сценарии давал сотни битых чтений.
+    assert corrupt == [], corrupt[:3]
+    # Итоговый файл — валидный json со списком files.
+    path = ml_project_index._index_path(root)
+    with open(path, "r", encoding="utf-8") as f:
+        parsed = _json.load(f)
+    assert isinstance(parsed.get("files"), list), list(parsed.keys())
+    # И рядом не остаётся временных огрызков.
+    leftovers = [n for n in os.listdir(os.path.dirname(path)) if n.endswith(".tmp")]
+    assert leftovers == [], leftovers
+    print("OK: параллельная запись индекса не бьёт json (4 писателя + читатель)")
+
+
+def _search_bruteforce(project_root, query, limit=8):
+    """Прежний полный перебор — эталон для сверки инвертированного индекса."""
+    data = ml_project_index._load_index(project_root)
+    q = ml_project_index._tokens(query or "")
+    if not q:
+        return []
+    scored = []
+    for e in data.get("files", []):
+        hay = ml_project_index._tokens(e.get("path", "")) | ml_project_index._tokens(
+            " ".join(ml_project_index._symbol_search_text(s)
+                     for s in e.get("symbols", [])))
+        score = len(q & hay)
+        ql = (query or "").lower()
+        if ql and ql in e.get("path", "").lower():
+            score += 2
+        if score > 0:
+            scored.append((score, e))
+    scored.sort(key=lambda s: (-s[0], s[1]["path"]))
+    return [dict(e, score=sc) for sc, e in scored[:limit]]
+
+
+def test_search_matches_bruteforce():
+    """v105.15: search() перешёл с полного перебора на инвертированный
+    индекс в памяти. Выдача обязана совпадать с прежней ПОЛНОСТЬЮ —
+    и составом, и score, и порядком."""
+    root = _make_project()
+    _write(root, "src/ui/hud_panel.gd",
+           "class_name HudPanel\nextends Control\nsignal hud_changed\n"
+           "func HandleUI():\n\tpass\n")
+    _write(root, "docs/notes.md", "player damage notes\n")
+    ml_project_index.build_index(root)
+    queries = ["player", "damage", "take_damage", "HandleUI", "hud_changed",
+               "player damage", "src/scripts", "nonexistent_xyz", "",
+               "Player", "HUD", "notes", "scripts",
+               # Бонус +2 за подстроку в пути — единственный источник score
+               # для файла, у которого ни один токен не совпал.
+               "src/ui/hud_panel.gd"]
+    for q in queries:
+        for lim in (1, 8, 50):
+            ml_project_index._SEARCH_MAPS.clear()  # холодный старт карт
+            want = [(x["path"], x["score"]) for x in _search_bruteforce(root, q, lim)]
+            got = [(x["path"], x["score"]) for x in ml_project_index.search(root, q, lim)]
+            assert want == got, (q, lim, want, got)
+    print("OK: инвертированный индекс совпал с полным перебором (%d запросов)"
+          % (len(queries) * 3))
+
+
+def test_search_does_not_retokenize():
+    """Токенизация записей — один раз на версию индекса, а не на запрос.
+    Раньше каждый search() заново гонял re.split по пути и по склейке всех
+    символов КАЖДОГО файла: замер на 6000 файлов давал ~490 мс на вызов."""
+    root = _make_project()
+    ml_project_index.build_index(root)
+    ml_project_index._SEARCH_MAPS.clear()
+
+    calls = []
+    orig = ml_project_index._build_search_maps
+
+    def _counting(files):
+        calls.append(len(files))
+        return orig(files)
+
+    ml_project_index._build_search_maps = _counting
+    try:
+        for _ in range(5):
+            ml_project_index.search(root, "player damage")
+        assert len(calls) == 1, calls  # построено один раз на 5 поисков
+
+        # Правка файла обязана карты сбросить — иначе выдача устареет.
+        _write(root, "src/scripts/newbie.gd",
+               "func brand_new_marker():\n\tpass\n")
+        ml_project_index.update_entries(root, ["src/scripts/newbie.gd"])
+        hits = ml_project_index.search(root, "brand_new_marker")
+        assert len(calls) == 2, calls
+        assert any(h["path"] == "src/scripts/newbie.gd" for h in hits), hits
+    finally:
+        ml_project_index._build_search_maps = orig
+    print("OK: карты поиска строятся раз на версию индекса и сбрасываются правкой")
+
+
+def test_index_rebuild_is_incremental():
+    """v105.15: build_index читал и разбирал регулярками КАЖДЫЙ файл при
+    каждой пересборке, а она случается раз в STALE_SEC (5 минут) на первом
+    же запросе — синхронно, в потоке Flask, без таймаута. Теперь запись
+    переиспользуется, если совпал штамп (mtime, size)."""
+    import time as _time
+
+    root = _make_project()
+    ml_project_index.build_index(root)
+
+    built = []
+    orig = ml_project_index._build_entry
+
+    def _counting(r, rel):
+        built.append(rel)
+        return orig(r, rel)
+
+    ml_project_index._build_entry = _counting
+    try:
+        # 1) Ничего не менялось — ни один .gd/.tscn не должен разбираться.
+        ml_project_index.build_index(root)
+        parsed = [r for r in built if r.endswith((".gd", ".tscn"))]
+        assert parsed == [], parsed
+
+        # 2) Меняем ровно один файл — разбирается ровно он.
+        del built[:]
+        target = os.path.join(root, "src", "scripts", "player.gd")
+        _time.sleep(0.01)  # грубая гранулярность mtime на Windows
+        with open(target, "a", encoding="utf-8") as f:
+            f.write("\nfunc added_marker():\n\tpass\n")
+        ml_project_index.build_index(root)
+        parsed = [r for r in built if r.endswith((".gd", ".tscn"))]
+        assert parsed == ["src/scripts/player.gd"], parsed
+    finally:
+        ml_project_index._build_entry = orig
+
+    # 3) Правка реально попала в индекс, а не была переиспользована по старью.
+    data = ml_project_index._read_index_raw(root)
+    entry = [e for e in data["files"] if e["path"] == "src/scripts/player.gd"][0]
+    assert "func:added_marker" in entry["symbols"], entry["symbols"]
+    # Штамп есть у кода и сцен и отсутствует у прочих файлов — они и так
+    # собираются без чтения с диска, платить за них байтами индекса незачем.
+    assert "mtime" in entry and "size" in entry, entry
+    other = [e for e in data["files"] if e["path"].endswith(".md")]
+    assert all("mtime" not in e for e in other), other
+    print("OK: пересборка инкрементальная (0 разборов без правок, 1 после правки)")
+
+
+def test_index_rebuild_ignores_foreign_index():
+    """«Мозг в папке плагина»: индексы разных проектов лежат в одном файле.
+    Переиспользовать чужие записи нельзя — относительные пути совпадают,
+    а содержимое разное (тот же класс багов, что чинили в v105.8)."""
+    from minilich import ml_data
+
+    base = tempfile.mkdtemp()
+    ml_data.set_storage_base(base)
+    try:
+        a = _make_project()
+        b = _make_project()
+        # Делаем файлы проектов различимыми по символам.
+        _write(b, "src/scripts/player.gd",
+               PLAYER_GD.replace("take_damage", "b_only_marker"))
+        ml_project_index.build_index(a)
+        ml_project_index.build_index(b)  # индекс A лежит в том же файле
+        data = ml_project_index._read_index_raw(b)
+        entry = [e for e in data["files"] if e["path"] == "src/scripts/player.gd"][0]
+        assert "func:b_only_marker" in entry["symbols"], entry["symbols"]
+        assert "func:take_damage" not in entry["symbols"], entry["symbols"]
+    finally:
+        ml_data.set_storage_base(None)
+    print("OK: чужой индекс не переиспользуется при общем «мозге»")
+
+
+def test_godot_api_layer_survives_bad_cache():
+    """v105.15: _godot_api был ЕДИНСТВЕННЫМ необёрнутым слоем ответа.
+    Внутри него try закрывал только обращения к кэшу (has_cache/
+    get_class/collect_members), а _pick_members стоял уже вне try: имя
+    члена не строкового типа роняло n.lower() и уносило ВЕСЬ собранный
+    ответ (MAP, STRUCTURE, FRAGMENTS) в except main.py — пользователь
+    видел «internal error» вместо справки. Остальные слои обёрнуты давно
+    (v105.10), этот остался последним.
+
+    Ключи json всегда строки, а вот ЭЛЕМЕНТЫ массива — нет: "signals":
+    [123] переживает сериализацию и доезжает до _pick_members числом."""
+    import json as _json
+
+    import gd_api_cache
+
+    bad = {"godot_version": "4.3",
+           "classes": {"Node2D": {"inherits": None,
+                                  "methods": {"move_local_x": [0, 1]},
+                                  "properties": ["position"],
+                                  "signals": [123]}}}
+    root = tempfile.mkdtemp()
+    cdir = os.path.join(root, ".agent_history")
+    os.makedirs(cdir, exist_ok=True)
+    with open(os.path.join(cdir, gd_api_cache.CACHE_FILENAME),
+              "w", encoding="utf-8") as f:
+        _json.dump(bad, f, ensure_ascii=False)
+
+    # Сам слой обязан упасть — иначе тест ничего не проверяет.
+    gd_api_cache._cache["root"] = None
+    try:
+        raised = False
+        try:
+            librarian._godot_api(root, "Node2D move_local_x")
+        except Exception:
+            raised = True
+        assert raised, "кэш перестал быть битым — тест потерял смысл"
+
+        # А ответ целиком — обязан выжить без слоя GODOT API.
+        _write(root, "src/player.gd", PLAYER_GD)
+        ml_project_index.build_index(root)
+        gd_api_cache._cache["root"] = None
+        out = librarian.answer(root, "Node2D take_damage")
+    finally:
+        gd_api_cache._cache["root"] = None  # не течём в соседние тесты
+    assert "internal error" not in out.lower(), out
+    assert "MAP" in out, out
+    assert "GODOT API" not in out, out  # слой выпал, остальное на месте
+    print("OK: битый кэш Godot API роняет только свой слой, ответ жив")
+
+
+def test_ask_librarian_action_normalized():
+    """v105.15: ask_librarian не было ни в _KNOWN_ACTIONS, ни в синонимах,
+    поэтому «Ask_Librarian»/«ask-librarian» не приводились к норме, не
+    совпадали со строгим сравнением в main.py и уезжали в pending_action:
+    пользователю показывали подтверждение действия, которое затем
+    отвергалось как неизвестное. А это ОБЯЗАТЕЛЬНОЕ первое действие
+    разведки (agent_prompts, правило 5) — самый горячий путь."""
+    import parser_base
+
+    # Канон не трогаем: починок быть не должно вообще.
+    obj, fixes = parser_base.coerce_action_schema(
+        {"action": "ask_librarian", "query": "player take_damage"})
+    assert obj["action"] == "ask_librarian", obj
+    assert fixes == [], fixes
+
+    # Регистр, дефис, пробел + короткие формы, которые реально пишет модель.
+    variants = ["Ask_Librarian", "ASK_LIBRARIAN", "ask-librarian",
+                "ask librarian", " ask_librarian ", "librarian",
+                "asklibrarian", "ask_library", "query_librarian"]
+    for raw in variants:
+        obj, fixes = parser_base.coerce_action_schema(
+            {"action": raw, "query": "player take_damage"})
+        assert obj["action"] == "ask_librarian", (raw, obj)
+        # query обязан уцелеть: без него main.py отдаст пустую справку
+        assert obj["query"] == "player take_damage", (raw, obj)
+
+    # Внутри шага плана — тот же путь (_coerce_one_action рекурсивно).
+    obj, _ = parser_base.coerce_action_schema(
+        {"action": "plan", "steps": [{"action": "Ask-Librarian", "query": "hud"}]})
+    assert obj["steps"][0]["action"] == "ask_librarian", obj
+
+    # Чужие действия не задеты: синонимы не перетянули их на себя.
+    for raw, want in [("create", "create_file"), ("patch", "patch_file"),
+                      ("rename", "move_file"), ("copy", "copy_file"),
+                      ("read", "read_file")]:
+        obj, _ = parser_base.coerce_action_schema({"action": raw, "path": "res://a.gd"})
+        assert obj["action"] == want, (raw, obj)
+
+    print("OK: ask_librarian приводится к норме (%d вариантов), канон не тронут"
+          % len(variants))
+
+
 if __name__ == "__main__":
     test_subtokens_find_snake_case()
     test_answer_layers_and_budget()
@@ -1433,4 +1807,14 @@ if __name__ == "__main__":
     test_fragments_budget_ceiling_still_holds()
     test_callers_and_signals_single_walk()
     test_search_project_text_needles_compatibility()
+    # v105.15: ask_librarian в схеме действий парсера + честный лимит символов
+    test_ask_librarian_action_normalized()
+    test_symbol_cap_keeps_rare_kinds()
+    test_symbol_cap_small_files_unchanged()
+    test_godot_api_layer_survives_bad_cache()
+    test_index_save_is_thread_safe()
+    test_search_matches_bruteforce()
+    test_search_does_not_retokenize()
+    test_index_rebuild_is_incremental()
+    test_index_rebuild_ignores_foreign_index()
     print("ВСЕ ТЕСТЫ ПРОШЛИ")
