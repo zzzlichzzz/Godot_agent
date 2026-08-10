@@ -19,30 +19,32 @@ var _is_expanded: bool = true
 var _needs_collapse: bool = false
 
 
-# --- безопасное чтение темы редактора ---
-
-func _tc(theme_item: StringName, theme_type: StringName, fallback: Color) -> Color:
-	if has_theme_color(theme_item, theme_type):
-		return get_theme_color(theme_item, theme_type)
-	return fallback
+# Цвета, иконки и стили — единый модуль agent_theme.gd (см. _T()).
+static var _theme_script = null
+static var _locale_script = null
 
 
-func _tf(theme_item: StringName, theme_type: StringName) -> Font:
-	if has_theme_font(theme_item, theme_type):
-		return get_theme_font(theme_item, theme_type)
-	return null
+func _T():
+	# Путь считается от расположения скрипта, чтобы аддон работал из любой папки.
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
 
 
-func _tfs(theme_item: StringName, theme_type: StringName, fallback: int) -> int:
-	if has_theme_font_size(theme_item, theme_type):
-		return get_theme_font_size(theme_item, theme_type)
-	return fallback
-
-
-func _ti(theme_item: StringName) -> Texture2D:
-	if has_theme_icon(theme_item, "EditorIcons"):
-		return get_theme_icon(theme_item, "EditorIcons")
-	return null
+func _t(key: String) -> String:
+	if _locale_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(p):
+				_locale_script = load(p)
+	if _locale_script:
+		return _locale_script.t(key)
+	return key
 
 
 func _ready() -> void:
@@ -59,56 +61,32 @@ func _ready() -> void:
 
 
 func _setup_theme() -> void:
-	var accent := _tc("accent_color", "Editor", Color("#ffd54f"))
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = _tc("dark_color_2", "Editor", Color("#26303d"))
-	panel_style.border_color = Color(accent.r, accent.g, accent.b, 0.35)
-	panel_style.set_border_width_all(1)
-	panel_style.set_corner_radius_all(8)
-	panel_style.content_margin_left = 12
-	panel_style.content_margin_right = 12
-	panel_style.content_margin_top = 8
-	panel_style.content_margin_bottom = 8
-	add_theme_stylebox_override("panel", panel_style)
+	var T = _T()
+	if T == null:
+		return
+	add_theme_stylebox_override("panel", T.panel_style("agent"))
 
-	var agent_icon := _ti("Node")
-	if agent_icon == null:
-		agent_icon = _ti("Script")
+	var accent: Color = T.color("accent")
+	var agent_icon: Texture2D = T.first_icon(["Node", "Script"])
 	if agent_icon != null:
 		avatar.texture = agent_icon
 		avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		avatar.modulate = accent
+		avatar.visible = true
 	else:
 		avatar.visible = false
 
 	name_label.add_theme_color_override("font_color", accent)
-	status_label.add_theme_color_override("font_color", _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6)))
+	status_label.add_theme_color_override("font_color", T.color("dim"))
 
-	content.add_theme_color_override("default_color", _tc("font_color", "Label", Color.WHITE))
-	content.add_theme_color_override("selection_color", accent)
-	content.fit_content = true
-	content.scroll_active = false
+	# style_rich_text ставит fit_content/scroll_active/цвета: без fit_content
+	# RichTextLabel внутри контейнера получает нулевую высоту и текст не виден.
+	T.style_rich_text(content)
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	# Моно-шрифт для блоков кода внутри ответа.
-	var mono := _tf("font", "CodeEdit")
-	if mono != null:
-		content.add_theme_font_override("mono_font", mono)
-	content.add_theme_font_size_override("mono_size", _tfs("font_size", "CodeEdit", 13))
 	content.add_theme_color_override("table_odd_row_bg", Color(0, 0, 0, 0.15))
 
-	var dim := _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6))
-	var copy_icon := _ti("ActionCopy")
-	if copy_icon != null:
-		copy_btn.icon = copy_icon
-		copy_btn.text = ""
-	else:
-		copy_btn.text = "⧉"
-	copy_btn.add_theme_color_override("font_color", dim)
-	copy_btn.add_theme_color_override("icon_normal_color", dim)
-	copy_btn.add_theme_color_override("icon_hover_color", accent)
-	expand_btn.add_theme_color_override("font_color", dim)
-	expand_btn.add_theme_color_override("font_hover_color", accent)
+	T.style_icon_button(copy_btn, ["ActionCopy"], "⧉")
+	T.style_button(expand_btn, "dim")
 
 
 func setup(text: String, _time_str: String = "") -> void:
@@ -168,12 +146,12 @@ func _apply_expand_state() -> void:
 		content.fit_content = true
 		content.clip_contents = false
 		content.custom_minimum_size.y = 0
-		expand_btn.text = "Свернуть"
+		expand_btn.text = _t("collapse")
 	else:
 		content.fit_content = false
 		content.clip_contents = true
 		content.custom_minimum_size.y = COLLAPSED_HEIGHT
-		expand_btn.text = "Развернуть"
+		expand_btn.text = _t("expand")
 
 
 func _on_copy_pressed() -> void:
