@@ -7,13 +7,37 @@ extends Node
 # Логика агента (сеть, действия, подтверждения) остаётся в agent_panel.gd.
 # ============================================================================
 
-# Нативные цвета и иконки темы Godot Editor
-var _theme_colors := {}
-var _theme_icons := {}
+# Цвета, иконки и стили — единый модуль agent_theme.gd (см. _T()).
+var _theme_script = null
 
 # Кэшированные сцены карточек (путь считается от расположения скрипта,
 # чтобы аддон работал из любого места под res://addons/…).
 var _card_scene_cache := {}
+
+
+func _T():
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
+
+
+func _color(key: String) -> Color:
+	var T = _T()
+	if T == null:
+		return Color.WHITE
+	return T.color(key)
+
+
+func _icon(icon_name: String) -> Texture2D:
+	var T = _T()
+	if T == null:
+		return null
+	return T.icon(icon_name)
+
 
 func _load_card_scene(file_name: String) -> PackedScene:
 	if _card_scene_cache.has(file_name):
@@ -54,97 +78,6 @@ func _make_plan_card() -> PlanChecklistCard:
 
 func _make_diff_card() -> DiffPreviewCard:
 	return _instantiate_card("DiffPreviewCard.tscn") as DiffPreviewCard
-
-
-func _ed_theme() -> Theme:
-	if Engine.is_editor_hint():
-		return EditorInterface.get_editor_theme()
-	return null
-
-
-func _ed_color(theme_item: String, type: String, fallback: Color) -> Color:
-	var th := _ed_theme()
-	if th and th.has_color(theme_item, type):
-		return th.get_color(theme_item, type)
-	return fallback
-
-
-func _ed_font(theme_item: String, type: String) -> Font:
-	var th := _ed_theme()
-	if th and th.has_font(theme_item, type):
-		return th.get_font(theme_item, type)
-	return null
-
-
-func _ed_font_size(theme_item: String, type: String, fallback: int) -> int:
-	var th := _ed_theme()
-	if th and th.has_font_size(theme_item, type):
-		return th.get_font_size(theme_item, type)
-	return fallback
-
-
-func _ed_icon(theme_item: String) -> Texture2D:
-	var th := _ed_theme()
-	if th and th.has_icon(theme_item, "EditorIcons"):
-		return th.get_icon(theme_item, "EditorIcons")
-	return null
-
-
-func _with_alpha(color: Color, alpha: float) -> Color:
-	return Color(color.r, color.g, color.b, alpha)
-
-
-func _init_theme_cache() -> void:
-	# Берём только те элементы, которые реально есть в теме редактора:
-	# "bg_color"/"border_color" у PanelContainer не существует, из-за таких
-	# запросов Godot спамил ошибками, а цвета всегда падали на fallback.
-	var accent := _ed_color("accent_color", "Editor", Color("#ffd54f"))
-	var success := _ed_color("success_color", "Editor", Color("#7ddc84"))
-	var warning := _ed_color("warning_color", "Editor", Color("#ffb74d"))
-	_theme_colors = {
-		"agent_bg": _ed_color("dark_color_2", "Editor", Color("#26303d")),
-		"agent_border": _with_alpha(accent, 0.35),
-		"agent_header": accent,
-		"user_bg": _ed_color("dark_color_1", "Editor", Color("#1f3320")),
-		"user_border": _with_alpha(success, 0.45),
-		"user_header": success,
-		"hint_bg": _ed_color("dark_color_1", "Editor", Color("#3a3320")),
-		"hint_border": _with_alpha(warning, 0.45),
-		"hint_header": warning,
-		"status_text": _ed_color("font_color", "Label", Color(0.62, 0.74, 0.95)),
-		"code_bg": _ed_color("dark_color_3", "Editor", Color("#1f2430")),
-		"code_text": _ed_color("font_color", "CodeEdit", Color("#8ab4f8")),
-		"error_text": _ed_color("error_color", "Editor", Color("#f44336")),
-		"text_font": _ed_color("font_color", "Label", Color.WHITE),
-		"dim_text": _ed_color("font_disabled_color", "Button", Color(0.55, 0.55, 0.55)),
-	}
-
-	_theme_icons = {
-		"agent": _ed_icon("Node"),
-		"user": _ed_icon("Environment"),
-		"tools": _ed_icon("Tools"),
-		"script": _ed_icon("Script"),
-		"success": _ed_icon("StatusSuccess"),
-		"warning": _ed_icon("StatusWarning"),
-		"error": _ed_icon("StatusError"),
-		"play": _ed_icon("Play"),
-		"pause": _ed_icon("Pause"),
-		"copy": _ed_icon("ActionCopy"),
-		"folder": _ed_icon("Folder"),
-		"file": _ed_icon("File"),
-	}
-
-
-func _get_color(key: String) -> Color:
-	if _theme_colors.is_empty():
-		_init_theme_cache()
-	return _theme_colors.get(key, Color.WHITE)
-
-
-func _get_icon(key: String) -> Texture2D:
-	if _theme_icons.is_empty():
-		_init_theme_cache()
-	return _theme_icons.get(key)
 
 
 var _chat_container: VBoxContainer = null
@@ -227,7 +160,7 @@ func setup(vbox: VBoxContainer) -> void:
 		_status_label = Label.new()
 		_status_label.name = "ChatStatusLabel"
 		_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_status_label.add_theme_color_override("font_color", _get_color("status_text"))
+		_status_label.add_theme_color_override("font_color", _color("text"))
 		_status_label.visible = false
 		vbox.add_child(_status_label)
 		vbox.move_child(_status_label, insert_index + 1)
@@ -251,6 +184,9 @@ func clear() -> void:
 	# продолжил бы применять действия в другом контексте.
 	_auto_approve_all = false
 	_auto_banner = null
+	# Карточки-вопросы удаляются вместе с содержимым чата — иначе в словаре
+	# остались бы ссылки на освобождённые узлы.
+	_question_cards.clear()
 	if _chat_container:
 		for child in _chat_container.get_children():
 			_chat_container.remove_child(child)
@@ -259,20 +195,11 @@ func clear() -> void:
 
 # --- общий каркас простых карточек ---
 
-func _make_panel(bg: Color, border: Color, radius: int = 8) -> PanelContainer:
+func _make_panel(variant: String) -> PanelContainer:
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(radius)
-	# PanelContainer не понимает margin-константы (это есть только у
-	# MarginContainer), поэтому внутренние отступы задаёт сам StyleBox.
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", style)
+	var T = _T()
+	if T:
+		panel.add_theme_stylebox_override("panel", T.panel_style(variant))
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return panel
 
@@ -295,7 +222,7 @@ func add_user_message(escaped_text: String) -> void:
 		return
 	var card := _make_user_card()
 	if card == null:
-		_chat_container.add_child(_make_note_label(escaped_text, _get_color("user_header")))
+		_chat_container.add_child(_make_note_label(escaped_text, _color("success")))
 		_scroll_to_bottom()
 		return
 	_chat_container.add_child(card)
@@ -319,7 +246,7 @@ func add_agent_message(bbcode_text: String) -> void:
 	finalize_live_block()
 	var card := _make_agent_card()
 	if card == null:
-		_chat_container.add_child(_make_note_label(bbcode_text, _get_color("text_font")))
+		_chat_container.add_child(_make_note_label(bbcode_text, _color("text")))
 		_scroll_to_bottom()
 		return
 	_chat_container.add_child(card)
@@ -330,7 +257,7 @@ func add_agent_message(bbcode_text: String) -> void:
 func add_system(text: String) -> void:
 	flush()
 	if _chat_container:
-		_chat_container.add_child(_make_note_label(text, _get_color("dim_text")))
+		_chat_container.add_child(_make_note_label(text, _color("dim")))
 		_scroll_to_bottom()
 
 
@@ -338,18 +265,20 @@ func add_hint(text: String) -> void:
 	flush()
 	if _chat_container == null:
 		return
-	var panel := _make_panel(_get_color("hint_bg"), _get_color("hint_border"))
+	var panel := _make_panel("hint")
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
 
 	var title := Label.new()
 	title.text = _t("hint_title")
-	title.add_theme_color_override("font_color", _get_color("hint_header"))
-	title.add_theme_font_size_override("font_size", _ed_font_size("font_size", "Label", 14))
+	title.add_theme_color_override("font_color", _color("warning"))
+	var T = _T()
+	if T:
+		title.add_theme_font_size_override("font_size", T.font_size("Label", 14))
 
 	var content := Label.new()
 	content.text = text
-	content.add_theme_color_override("font_color", _get_color("text_font"))
+	content.add_theme_color_override("font_color", _color("text"))
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -363,7 +292,52 @@ func add_hint(text: String) -> void:
 func add_success(text: String) -> void:
 	flush()
 	if _chat_container:
-		_chat_container.add_child(_make_note_label(text, _get_color("user_header")))
+		_chat_container.add_child(_make_note_label(text, _color("success")))
+		_scroll_to_bottom()
+
+
+func add_error(text: String) -> void:
+	# Ошибки раньше уходили в скрытый ChatLog (agent_panel._log_error писал в
+	# RichTextLabel, который setup() прячет) — пользователь не видел их вообще.
+	# Теперь это заметная карточка с иконкой ошибки прямо в ленте чата.
+	flush()
+	if _chat_container == null:
+		return
+	var panel := _make_panel("error")
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	var icon_rect := TextureRect.new()
+	var err_icon := _icon("StatusError")
+	if err_icon != null:
+		icon_rect.texture = err_icon
+		icon_rect.custom_minimum_size = Vector2(16, 16)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		icon_rect.modulate = _color("error")
+	else:
+		icon_rect.visible = false
+
+	var label := Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", _color("error"))
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	row.add_child(icon_rect)
+	row.add_child(label)
+	panel.add_child(row)
+	_chat_container.add_child(panel)
+	_scroll_to_bottom()
+
+
+func add_warning(text: String) -> void:
+	# Предупреждения (принудительный откат, остановленный план) — жёлтым,
+	# чтобы отличались и от обычного статуса, и от ошибки.
+	flush()
+	if _chat_container:
+		_chat_container.add_child(_make_note_label(text, _color("warning")))
 		_scroll_to_bottom()
 
 
@@ -371,30 +345,24 @@ func add_code_preview(escaped_code: String) -> void:
 	flush()
 	if _chat_container == null:
 		return
-	var panel := _make_panel(_get_color("code_bg"), _get_color("agent_border"), 6)
+	var panel := _make_panel("code")
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
 
 	var title := Label.new()
 	title.text = "▸ " + _t("code_preview_title")
-	title.add_theme_color_override("font_color", _get_color("code_text"))
+	title.add_theme_color_override("font_color", _color("code_text"))
 
 	var code := RichTextLabel.new()
-	code.bbcode_enabled = true
 	code.text = escaped_code
-	# Без fit_content блок кода в контейнере получает нулевую высоту.
-	code.fit_content = true
-	code.scroll_active = false
+	# Моно-шрифт и цвет кода — из общего модуля темы. autowrap выключен
+	# намеренно: код не должен переноситься по словам.
+	var T2 = _T()
+	if T2:
+		T2.style_rich_text(code, true)
 	code.autowrap_mode = TextServer.AUTOWRAP_OFF
-	code.selection_enabled = true
-	code.context_menu_enabled = true
 	code.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var mono := _ed_font("font", "CodeEdit")
-	if mono:
-		code.add_theme_font_override("normal_font", mono)
-		code.add_theme_font_override("mono_font", mono)
-	code.add_theme_font_size_override("normal_font_size", _ed_font_size("font_size", "CodeEdit", 13))
-	code.add_theme_color_override("default_color", _get_color("code_text"))
+	code.add_theme_color_override("default_color", _color("code_text"))
 
 	vbox.add_child(title)
 	vbox.add_child(code)
@@ -529,6 +497,12 @@ func _on_tw_tick() -> void:
 		_tw_timer.stop()
 
 
+func scroll_to_end() -> void:
+	# Публичная обёртка для agent_panel: раньше панель прокручивала скрытый
+	# ChatLog, теперь просит прокрутить реальный список карточек.
+	_scroll_to_bottom()
+
+
 func _scroll_to_bottom() -> void:
 	if _scroll == null or not is_instance_valid(_scroll):
 		return
@@ -548,16 +522,10 @@ func _scroll_to_bottom() -> void:
 
 
 func _escape_bbcode(text: String) -> String:
-	var result := ""
-	for i in range(text.length()):
-		var c = text[i]
-		if c == "[":
-			result += "[lb]"
-		elif c == "]":
-			result += "[rb]"
-		else:
-			result += c
-	return result
+	var T = _T()
+	if T:
+		return T.escape_bbcode(text)
+	return text
 
 
 func _color_to_hex(color: Color) -> String:
@@ -587,7 +555,7 @@ func add_plan_checklist(plan_title: String, steps: Array) -> PlanChecklistCard:
 		return null
 	var card := _make_plan_card()
 	if card == null:
-		_chat_container.add_child(_make_note_label(plan_title, _get_color("agent_header")))
+		_chat_container.add_child(_make_note_label(plan_title, _color("accent")))
 		_scroll_to_bottom()
 		return null
 	_chat_container.add_child(card)
@@ -664,7 +632,7 @@ func _add_auto_approve_banner() -> void:
 		return
 	if _auto_banner and is_instance_valid(_auto_banner):
 		_auto_banner.queue_free()
-	var panel := _make_panel(_get_color("hint_bg"), _get_color("hint_border"))
+	var panel := _make_panel("hint")
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 
@@ -672,13 +640,13 @@ func _add_auto_approve_banner() -> void:
 	label.text = _t("auto_approve_on")
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_color_override("font_color", _get_color("hint_header"))
+	label.add_theme_color_override("font_color", _color("warning"))
 
 	var off_btn := Button.new()
 	off_btn.text = _t("auto_approve_off")
 	off_btn.flat = true
 	off_btn.custom_minimum_size = Vector2(0, 26)
-	off_btn.add_theme_color_override("font_color", _get_color("error_text"))
+	off_btn.add_theme_color_override("font_color", _color("error"))
 	off_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	off_btn.pressed.connect(func() -> void: set_auto_approve(false))
 
@@ -695,19 +663,18 @@ func add_confirmation_card(description: String, confirm_callback: Callable, reje
 		return null
 	# Режим «Разрешить всё»: не спрашиваем, только показываем что применили.
 	if _auto_approve_all:
-		_chat_container.add_child(_make_note_label(_t("auto_approved") % description, _get_color("dim_text")))
+		_chat_container.add_child(_make_note_label(_t("auto_approved") % description, _color("dim")))
 		_scroll_to_bottom()
 		confirm_callback.call_deferred()
 		return null
-
-	var panel := _make_panel(_get_color("agent_bg"), _get_color("agent_border"))
+	var panel := _make_panel("agent")
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 
 	var label := Label.new()
 	label.text = description
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_color_override("font_color", _get_color("text_font"))
+	label.add_theme_color_override("font_color", _color("text"))
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var hbox := HBoxContainer.new()
@@ -717,16 +684,16 @@ func add_confirmation_card(description: String, confirm_callback: Callable, reje
 	confirm_btn.text = _t("allow")
 	confirm_btn.custom_minimum_size = Vector2(100, 28)
 	confirm_btn.flat = true
-	confirm_btn.icon = _get_icon("success")
-	confirm_btn.add_theme_color_override("font_color", _get_color("user_header"))
+	confirm_btn.icon = _icon(&"StatusSuccess")
+	confirm_btn.add_theme_color_override("font_color", _color("success"))
 	confirm_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 
 	var reject_btn := Button.new()
 	reject_btn.text = _t("reject")
 	reject_btn.custom_minimum_size = Vector2(100, 28)
 	reject_btn.flat = true
-	reject_btn.icon = _get_icon("error")
-	reject_btn.add_theme_color_override("font_color", _get_color("error_text"))
+	reject_btn.icon = _icon(&"StatusError")
+	reject_btn.add_theme_color_override("font_color", _color("error"))
 	reject_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 
 	var all_btn := Button.new()
@@ -734,7 +701,7 @@ func add_confirmation_card(description: String, confirm_callback: Callable, reje
 	all_btn.tooltip_text = _t("allow_all_tip")
 	all_btn.custom_minimum_size = Vector2(0, 28)
 	all_btn.flat = true
-	all_btn.add_theme_color_override("font_color", _get_color("hint_header"))
+	all_btn.add_theme_color_override("font_color", _color("warning"))
 	all_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 
 	var lock := func() -> void:
@@ -768,5 +735,109 @@ func add_confirmation_card(description: String, confirm_callback: Callable, reje
 	panel.add_child(vbox)
 
 	_chat_container.add_child(panel)
+	_scroll_to_bottom()
+	return panel
+
+
+# --- карточки-вопросы вместо модальных окон ---
+#
+# Раньше откат, удаление чата, смена сайта и перезапуск проекта показывались
+# нативными ConfirmationDialog поверх редактора. Теперь это карточки в ленте
+# чата — тот же вид, что у подтверждений действий агента, и вопрос остаётся
+# в истории рядом с тем, к чему относится.
+#
+# ВАЖНО: режим «Разрешить всё» сюда НЕ распространяется. Он про действия
+# агента с файлами; молча откатывать изменения или удалять чат нельзя.
+
+# Активные карточки-вопросы по ключу: повторный показ того же вопроса
+# заменяет предыдущую карточку, а не копит их стопкой.
+var _question_cards := {}
+
+
+func add_question_card(key: String, title: String, description: String,
+		yes_label: String, no_label: String,
+		yes_callback: Callable, no_callback: Callable,
+		tone: String = "warning") -> PanelContainer:
+	if _chat_container == null:
+		return null
+
+	# Тот же вопрос ещё висит без ответа — убираем старую карточку.
+	if _question_cards.has(key):
+		var old = _question_cards[key]
+		if old != null and is_instance_valid(old):
+			old.queue_free()
+		_question_cards.erase(key)
+
+	var panel := _make_panel("hint" if tone == "warning" else "error")
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+
+	# Шапка: иконка + заголовок вопроса.
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 6)
+	var icon_rect := TextureRect.new()
+	var head_icon := _icon(&"StatusWarning" if tone == "warning" else &"StatusError")
+	if head_icon != null:
+		icon_rect.texture = head_icon
+		icon_rect.custom_minimum_size = Vector2(16, 16)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon_rect.modulate = _color(tone)
+	else:
+		icon_rect.visible = false
+	var title_label := Label.new()
+	title_label.text = title
+	title_label.add_theme_color_override("font_color", _color(tone))
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(icon_rect)
+	head.add_child(title_label)
+
+	var label := Label.new()
+	label.text = description
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_color_override("font_color", _color("text"))
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+
+	var yes_btn := Button.new()
+	yes_btn.text = yes_label
+	yes_btn.custom_minimum_size = Vector2(100, 28)
+	yes_btn.flat = true
+	yes_btn.icon = _icon(&"StatusSuccess")
+	yes_btn.add_theme_color_override("font_color", _color(tone))
+	yes_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+
+	var no_btn := Button.new()
+	no_btn.text = no_label
+	no_btn.custom_minimum_size = Vector2(100, 28)
+	no_btn.flat = true
+	no_btn.icon = _icon(&"StatusError")
+	no_btn.add_theme_color_override("font_color", _color("dim"))
+	no_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+
+	# Блокируем сразу: двойной клик не должен отправить ответ дважды.
+	var finish := func(cb: Callable) -> void:
+		yes_btn.disabled = true
+		no_btn.disabled = true
+		_question_cards.erase(key)
+		if cb.is_valid():
+			cb.call()
+		panel.queue_free()
+
+	yes_btn.pressed.connect(func() -> void: finish.call(yes_callback))
+	no_btn.pressed.connect(func() -> void: finish.call(no_callback))
+
+	hbox.add_child(yes_btn)
+	hbox.add_child(no_btn)
+	vbox.add_child(head)
+	vbox.add_child(label)
+	vbox.add_child(hbox)
+	panel.add_child(vbox)
+
+	_chat_container.add_child(panel)
+	_question_cards[key] = panel
 	_scroll_to_bottom()
 	return panel

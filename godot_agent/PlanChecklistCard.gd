@@ -20,16 +20,18 @@ signal plan_continued
 signal plan_rollback_requested
 
 
-func _tc(theme_item: StringName, theme_type: StringName, fallback: Color) -> Color:
-	if has_theme_color(theme_item, theme_type):
-		return get_theme_color(theme_item, theme_type)
-	return fallback
+# Цвета и стили — единый модуль agent_theme.gd.
+static var _theme_script = null
 
 
-func _tfs(theme_item: StringName, theme_type: StringName, fallback: int) -> int:
-	if has_theme_font_size(theme_item, theme_type):
-		return get_theme_font_size(theme_item, theme_type)
-	return fallback
+func _T():
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
 
 
 func _ready() -> void:
@@ -43,34 +45,26 @@ func _ready() -> void:
 
 
 func _setup_theme() -> void:
-	var accent := _tc("accent_color", "Editor", Color("#ffd54f"))
-	var style := StyleBoxFlat.new()
-	style.bg_color = _tc("dark_color_1", "Editor", Color("#232333"))
-	style.border_color = Color(accent.r, accent.g, accent.b, 0.35)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	add_theme_stylebox_override("panel", style)
+	var T = _T()
+	if T == null:
+		return
+	# Фон плана — bg_1 (как было: dark_color_1), рамка акцентная.
+	add_theme_stylebox_override("panel", T.make_panel_style(T.color("bg_1"), T.alpha("accent", 0.35), 8, 12, 8))
 
-	title_label.add_theme_color_override("font_color", _tc("font_color", "Label", Color.WHITE))
-	title_label.add_theme_font_size_override("font_size", _tfs("font_size", "Label", 14) + 1)
+	title_label.add_theme_color_override("font_color", T.color("text"))
+	title_label.add_theme_font_size_override("font_size", T.font_size("Label", 14) + 1)
 
 	var bg_style := StyleBoxFlat.new()
-	bg_style.bg_color = _tc("dark_color_3", "Editor", Color("#2a2a3a"))
+	bg_style.bg_color = T.color("bg_3")
 	bg_style.set_corner_radius_all(4)
 	progress_bar.add_theme_stylebox_override("background", bg_style)
 	var fill_style := StyleBoxFlat.new()
-	fill_style.bg_color = accent
+	fill_style.bg_color = T.color("accent")
 	fill_style.set_corner_radius_all(4)
 	progress_bar.add_theme_stylebox_override("fill", fill_style)
 
 	for btn: Button in [pause_btn, continue_btn, rollback_btn]:
-		btn.flat = true
-		btn.add_theme_color_override("font_color", _tc("font_color", "Button", Color.WHITE))
-		btn.add_theme_color_override("font_hover_color", accent)
+		T.style_button(btn, "neutral")
 
 
 func setup(plan_title: String, steps: Array) -> void:

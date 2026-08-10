@@ -30,22 +30,31 @@ signal diff_rejected(file_path: String)
 signal apply_all_requested
 
 
-func _tc(theme_item: StringName, theme_type: StringName, fallback: Color) -> Color:
-	if has_theme_color(theme_item, theme_type):
-		return get_theme_color(theme_item, theme_type)
-	return fallback
+# Цвета, шрифты и стили — единый модуль agent_theme.gd.
+static var _theme_script = null
+static var _locale_script = null
 
 
-func _tf(theme_item: StringName, theme_type: StringName) -> Font:
-	if has_theme_font(theme_item, theme_type):
-		return get_theme_font(theme_item, theme_type)
-	return null
+func _T():
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
 
 
-func _tfs(theme_item: StringName, theme_type: StringName, fallback: int) -> int:
-	if has_theme_font_size(theme_item, theme_type):
-		return get_theme_font_size(theme_item, theme_type)
-	return fallback
+func _t(key: String) -> String:
+	if _locale_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(p):
+				_locale_script = load(p)
+	if _locale_script:
+		return _locale_script.t(key)
+	return key
 
 
 func _ready() -> void:
@@ -61,54 +70,35 @@ func _ready() -> void:
 
 
 func _setup_theme() -> void:
-	var accent := _tc("accent_color", "Editor", Color("#ffd54f"))
-	var style := StyleBoxFlat.new()
-	style.bg_color = _tc("dark_color_2", "Editor", Color("#1e1e2e"))
-	style.border_color = Color(accent.r, accent.g, accent.b, 0.35)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	add_theme_stylebox_override("panel", style)
+	var T = _T()
+	if T == null:
+		return
+	add_theme_stylebox_override("panel", T.panel_style("agent"))
 
-	title_label.add_theme_color_override("font_color", accent)
-	title_label.add_theme_font_size_override("font_size", _tfs("font_size", "Label", 13))
+	title_label.add_theme_color_override("font_color", T.color("accent"))
+	title_label.add_theme_font_size_override("font_size", T.font_size("Label", 13))
 
-	file_path_label.add_theme_color_override("font_color", _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6)))
+	file_path_label.add_theme_color_override("font_color", T.color("dim"))
 	# Длинный res:// путь не должен растягивать карточку — обрезаем троеточием.
 	file_path_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	file_path_label.clip_text = true
 
 	# Тело диффа: моно-шрифт редактора, свой фон и собственный скролл.
-	var code_style := StyleBoxFlat.new()
-	code_style.bg_color = _tc("dark_color_3", "Editor", Color("#16161f"))
-	code_style.set_corner_radius_all(6)
-	code_style.content_margin_left = 8
-	code_style.content_margin_right = 8
-	code_style.content_margin_top = 6
-	code_style.content_margin_bottom = 6
-	diff_container.add_theme_stylebox_override("normal", code_style)
-	diff_container.add_theme_color_override("default_color", _tc("font_color", "Label", Color.WHITE))
-	diff_container.add_theme_color_override("selection_color", accent)
-	var mono := _tf("font", "CodeEdit")
+	# Здесь scroll_active/fit_content выставляет _apply_diff_view(), поэтому
+	# style_rich_text не используем — он бы включил fit_content всегда.
+	diff_container.add_theme_stylebox_override("normal", T.panel_style("code_plain"))
+	diff_container.add_theme_color_override("default_color", T.color("text"))
+	diff_container.add_theme_color_override("selection_color", T.color("accent"))
+	var mono: Font = T.mono_font()
 	if mono != null:
 		diff_container.add_theme_font_override("normal_font", mono)
 		diff_container.add_theme_font_override("mono_font", mono)
-	diff_container.add_theme_font_size_override("normal_font_size", _tfs("font_size", "CodeEdit", 13))
+	diff_container.add_theme_font_size_override("normal_font_size", T.font_size("CodeEdit", 13))
 
-	_style_button(apply_btn, _tc("success_color", "Editor", Color("#7ddc84")))
-	_style_button(reject_btn, _tc("error_color", "Editor", Color("#f44336")))
-	_style_button(view_full_btn, _tc("font_color", "Button", Color.WHITE))
-	_style_button(apply_all_btn, accent)
-
-
-func _style_button(btn: Button, color: Color) -> void:
-	btn.flat = true
-	btn.add_theme_color_override("font_color", color)
-	btn.add_theme_color_override("font_hover_color", Color.WHITE)
-	btn.add_theme_color_override("font_pressed_color", color)
+	T.style_button(apply_btn, "success")
+	T.style_button(reject_btn, "error")
+	T.style_button(view_full_btn, "neutral")
+	T.style_button(apply_all_btn, "accent")
 
 
 func setup(file_path: String, diff_text: String) -> void:
@@ -152,10 +142,13 @@ func _apply_diff_view() -> void:
 
 func _highlight_diff(diff_text: String) -> String:
 	# Нативные цвета редактора вместо захардкоженных.
-	var add_color := _tc("success_color", "Editor", Color("#7ddc84")).to_html(false)
-	var del_color := _tc("error_color", "Editor", Color("#f44336")).to_html(false)
-	var hunk_color := _tc("accent_color", "Editor", Color("#ffd54f")).to_html(false)
-	var ctx_color := _tc("font_color", "Label", Color(0.78, 0.78, 0.78)).to_html(false)
+	var T = _T()
+	if T == null:
+		return _escape_bbcode(diff_text)
+	var add_color: String = T.hex("success")
+	var del_color: String = T.hex("error")
+	var hunk_color: String = T.hex("accent")
+	var ctx_color: String = T.hex("text")
 
 	var lines := diff_text.split("\n")
 	var result := ""
@@ -173,16 +166,10 @@ func _highlight_diff(diff_text: String) -> String:
 
 
 func _escape_bbcode(text: String) -> String:
-	var result := ""
-	for i in range(text.length()):
-		var c = text[i]
-		if c == "[":
-			result += "[lb]"
-		elif c == "]":
-			result += "[rb]"
-		else:
-			result += c
-	return result
+	var T = _T()
+	if T:
+		return T.escape_bbcode(text)
+	return text
 
 
 func get_file_path() -> String:

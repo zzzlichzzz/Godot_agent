@@ -21,7 +21,12 @@ signal settings_requested()
 
 const URL_BOOSTY := "https://boosty.to/zzzlichzzz"
 const URL_TIPS := "https://pay.cloudtips.ru/p/50d418af"
+# Запасной ASCII-спиннер: используется, только если иконки редактора нет.
 const SPIN_FRAMES := ["|", "/", "-", "\\"]
+# Высота кнопок главного экрана. Раньше кнопки тянулись на всю высоту панели
+# и выглядели как две плашки во весь экран — теперь фиксированная высота.
+const MAIN_BUTTON_HEIGHT := 42
+const SECONDARY_BUTTON_HEIGHT := 30
 
 var _home: VBoxContainer = null
 var _chats_view: VBoxContainer = null
@@ -32,18 +37,40 @@ var _chats_data: Array = []
 var _sites_data: Array = []
 var _built: bool = false
 var _status: Label = null
+var _status_panel: PanelContainer = null
+var _api_key_btn: Button = null  # заготовка «Использовать API-ключ»
 var _loading_view: VBoxContainer = null
 var _loading_spinner: Label = null
+var _loading_icon: TextureRect = null
 var _loading_label: Label = null
 var _spin_timer: Timer = null
 var _spin_idx: int = 0
 var _return_view: String = "home"
 var _loc = null
+var _theme_script = null
 var _server_btn: Button = null
 var _server_hint: Label = null
 var _server_running: bool = false  # v41: раньше по умолчанию считали сервер уже запущенным (кнопка скрыта)
 var _loading_server_btn: Button = null  # v41: та же кнопка, но продублирована прямо на экране ожидания,
 var _loading_server_hint: Label = null  # где её реально видит пользователь, а не только у языковой строки.
+
+
+func _T():
+	# Единый модуль оформления — тот же, что у карточек чата.
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
+
+
+func _color(key: String) -> Color:
+	var T = _T()
+	if T == null:
+		return Color.WHITE
+	return T.color(key)
 
 
 func _ready() -> void:
@@ -98,8 +125,10 @@ func _rebuild_ui() -> void:
 	_chats_list = null
 	_sites_list = null
 	_status = null
+	_status_panel = null
 	_loading_view = null
 	_loading_spinner = null
+	_loading_icon = null
 	_loading_label = null
 	_spin_timer = null
 	_loading_server_btn = null
@@ -134,8 +163,10 @@ func _build() -> void:
 	if _built:
 		return
 	_built = true
+	var T = _T()
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 8)
 	add_child(root)
 
 	# Отдельная строка НАД языковой (v38): кнопка ручного запуска сервера.
@@ -153,6 +184,9 @@ func _build() -> void:
 	_server_btn.text = _t("srv_open_folder_btn")
 	_server_btn.tooltip_text = _t("srv_open_folder_tip") + " " + _t("srv_manual_hint")
 	_server_btn.pressed.connect(func(): open_server_requested.emit())
+	if T:
+		T.style_button(_server_btn, "warning")
+		_server_btn.icon = T.first_icon(["Load", "Folder"])
 	server_row.add_child(_server_btn)
 	_server_hint = Label.new()
 	_server_hint.text = _t("srv_manual_hint")
@@ -160,6 +194,7 @@ func _build() -> void:
 	# переносим часть текста на следующую строку, а не уменьшаем сам текст.
 	_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_server_hint.size_flags_horizontal = SIZE_EXPAND_FILL
+	_server_hint.add_theme_color_override("font_color", _color("dim"))
 	server_row.add_child(_server_hint)
 
 	# Верхняя строка: заголовок + переключатель языка (теперь без кнопки сервера —
@@ -171,6 +206,7 @@ func _build() -> void:
 	top.add_child(top_spacer)
 	var lang_lbl := Label.new()
 	lang_lbl.text = _t("lang_label")
+	lang_lbl.add_theme_color_override("font_color", _color("dim"))
 	top.add_child(lang_lbl)
 	var lang_btn := OptionButton.new()
 	lang_btn.add_item("Русский", 0)
@@ -180,44 +216,106 @@ func _build() -> void:
 	top.add_child(lang_btn)
 	var settings_btn := Button.new()
 	settings_btn.name = "MiniLichSettingsBtn"
-	settings_btn.text = "⚙"
 	settings_btn.tooltip_text = _t("settings_title")
 	settings_btn.pressed.connect(func(): settings_requested.emit())
+	# Иконка редактора вместо символа «⚙» — как в строке чатов.
+	if T:
+		T.style_icon_button(settings_btn, ["Tools", "GDScript"], "⚙")
+	else:
+		settings_btn.text = "⚙"
 	top.add_child(settings_btn)
+
+	# Заголовок в карточке-шапке: тот же StyleBoxFlat, что у сообщений чата.
+	var title_panel := PanelContainer.new()
+	if T:
+		title_panel.add_theme_stylebox_override("panel", T.panel_style("agent"))
 	var title := Label.new()
 	title.text = _t("title")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = SIZE_EXPAND_FILL
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_color_override("font_color", _color("accent"))
 	title.add_theme_font_size_override("font_size", 20)
-	root.add_child(title)
+	title_panel.add_child(title)
+	root.add_child(title_panel)
 	_apply_server_visibility()
 
-	# ---- ГЛАВНАЯ: две большие кнопки, сверху и снизу ----
+	# ---- ГЛАВНАЯ: основные действия по центру экрана ----
+	# Раньше две кнопки растягивались на всю высоту (SIZE_EXPAND_FILL по
+	# вертикали) и выглядели как две огромные плашки — главная страница почти
+	# не отличалась от списков чатов/сайтов. Теперь кнопки фиксированной
+	# высоты, собраны в карточку по центру и разделены на «основные» и
+	# «дополнительные».
 	_home = VBoxContainer.new()
 	_home.size_flags_horizontal = SIZE_EXPAND_FILL
 	_home.size_flags_vertical = SIZE_EXPAND_FILL
+	_home.add_theme_constant_override("separation", 10)
 	root.add_child(_home)
+
+	# Верхний отступ прижимает блок кнопок к центру.
+	var top_pad := Control.new()
+	top_pad.size_flags_vertical = SIZE_EXPAND_FILL
+	top_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_home.add_child(top_pad)
+
 	var hint := Label.new()
 	hint.text = _t("hint")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_color_override("font_color", _color("dim"))
 	_home.add_child(hint)
-	# Вертикальное деление экрана: верхняя кнопка и нижняя кнопка.
-	var split := VBoxContainer.new()
-	split.size_flags_horizontal = SIZE_EXPAND_FILL
-	split.size_flags_vertical = SIZE_EXPAND_FILL
-	_home.add_child(split)
-	var b_load := Button.new()
-	b_load.text = _t("btn_load")
-	b_load.size_flags_horizontal = SIZE_EXPAND_FILL
-	b_load.size_flags_vertical = SIZE_EXPAND_FILL
-	b_load.pressed.connect(func(): chats_tab_requested.emit())
-	split.add_child(b_load)
+
+	# Карточка с действиями — тот же стиль, что у сообщений чата.
+	var actions_card := PanelContainer.new()
+	if T:
+		actions_card.add_theme_stylebox_override("panel", T.panel_style("agent"))
+	_home.add_child(actions_card)
+	var actions := VBoxContainer.new()
+	actions.add_theme_constant_override("separation", 8)
+	actions_card.add_child(actions)
+
 	var b_new := Button.new()
 	b_new.text = _t("btn_new")
+	b_new.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
 	b_new.size_flags_horizontal = SIZE_EXPAND_FILL
-	b_new.size_flags_vertical = SIZE_EXPAND_FILL
 	b_new.pressed.connect(func(): sites_tab_requested.emit())
-	split.add_child(b_new)
+	# Главное действие — акцентная и не плоская.
+	if T:
+		T.style_button(b_new, "accent", false)
+		b_new.icon = T.first_icon(["Add", "Script"])
+	actions.add_child(b_new)
+
+	var b_load := Button.new()
+	b_load.text = _t("btn_load")
+	b_load.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
+	b_load.size_flags_horizontal = SIZE_EXPAND_FILL
+	b_load.pressed.connect(func(): chats_tab_requested.emit())
+	if T:
+		T.style_button(b_load, "neutral", false)
+		b_load.icon = T.first_icon(["Load", "Folder"])
+	actions.add_child(b_load)
+
+	actions.add_child(HSeparator.new())
+
+	# ЗАГОТОВКА: работа напрямую через API нейросети вместо браузера.
+	# Кнопка неактивна — как «Добавить свою страницу» в списке сайтов.
+	_api_key_btn = Button.new()
+	_api_key_btn.name = "ApiKeyBtn"
+	_api_key_btn.text = _t("btn_api_key")
+	_api_key_btn.tooltip_text = _t("btn_api_key_tip")
+	_api_key_btn.disabled = true
+	_api_key_btn.custom_minimum_size = Vector2(0, SECONDARY_BUTTON_HEIGHT)
+	_api_key_btn.size_flags_horizontal = SIZE_EXPAND_FILL
+	if T:
+		T.style_button(_api_key_btn, "dim")
+		_api_key_btn.icon = T.first_icon(["Key", "Lock", "Tools"])
+	actions.add_child(_api_key_btn)
+
+	# Нижний отступ — вторая половина центрирования.
+	var bottom_pad := Control.new()
+	bottom_pad.size_flags_vertical = SIZE_EXPAND_FILL
+	bottom_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_home.add_child(bottom_pad)
 
 	# ---- Блок «Поддержать автора» (маленькая строка под кнопками) ----
 	var support := HBoxContainer.new()
@@ -225,20 +323,24 @@ func _build() -> void:
 	_home.add_child(support)
 	var sup_lbl := Label.new()
 	sup_lbl.text = _t("support")
+	sup_lbl.add_theme_color_override("font_color", _color("dim"))
 	support.add_child(sup_lbl)
 	if _lang() != "en":
 		var tips_btn := LinkButton.new()
 		tips_btn.text = _t("support_tips")
 		tips_btn.uri = URL_TIPS
 		tips_btn.tooltip_text = URL_TIPS
+		tips_btn.add_theme_color_override("font_color", _color("accent"))
 		support.add_child(tips_btn)
 		var sep := Label.new()
 		sep.text = " · "
+		sep.add_theme_color_override("font_color", _color("dim"))
 		support.add_child(sep)
 	var boosty_btn := LinkButton.new()
 	boosty_btn.text = _t("support_boosty")
 	boosty_btn.uri = URL_BOOSTY
 	boosty_btn.tooltip_text = URL_BOOSTY
+	boosty_btn.add_theme_color_override("font_color", _color("accent"))
 	support.add_child(boosty_btn)
 
 	# ---- СПИСОК ЧАТОВ ----
@@ -272,26 +374,56 @@ func _build() -> void:
 	st_scroll.add_child(_sites_list)
 
 	# ---- СТАТУСНАЯ СТРОКА (запуск сервера, загрузка страниц и т.п.) ----
+	# Обёрнута в панель со стилем — как строка статуса в чате.
+	_status_panel = PanelContainer.new()
+	if T:
+		_status_panel.add_theme_stylebox_override("panel", T.panel_style("agent"))
+	_status_panel.visible = false
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.visible = false
-	root.add_child(_status)
+	_status_panel.add_child(_status)
+	root.add_child(_status_panel)
 
 	_loading_view = VBoxContainer.new()
 	_loading_view.size_flags_horizontal = SIZE_EXPAND_FILL
 	_loading_view.size_flags_vertical = SIZE_EXPAND_FILL
 	_loading_view.alignment = BoxContainer.ALIGNMENT_CENTER
+	_loading_view.add_theme_constant_override("separation", 10)
 	_loading_view.visible = false
 	root.add_child(_loading_view)
+
+	# Спиннер: вращающаяся иконка редактора, как в AgentStatusBar.
+	# ASCII-кадры («|/-\») остаются запасным вариантом, если иконки нет.
+	var spin_icon: Texture2D = null
+	if T:
+		spin_icon = T.first_icon(["Progress1", "ProgressIndicator", "Reload"])
+	_loading_icon = TextureRect.new()
+	if spin_icon != null:
+		_loading_icon.texture = spin_icon
+		_loading_icon.custom_minimum_size = Vector2(32, 32)
+		_loading_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_loading_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_loading_icon.size_flags_horizontal = SIZE_SHRINK_CENTER
+		_loading_icon.pivot_offset = Vector2(16, 16)
+		_loading_icon.modulate = _color("accent")
+	else:
+		_loading_icon.visible = false
+	_loading_view.add_child(_loading_icon)
+
 	_loading_spinner = Label.new()
 	_loading_spinner.text = "|"
 	_loading_spinner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_loading_spinner.add_theme_font_size_override("font_size", 32)
+	_loading_spinner.add_theme_color_override("font_color", _color("accent"))
+	# Текстовый спиннер нужен только когда иконки нет.
+	_loading_spinner.visible = spin_icon == null
 	_loading_view.add_child(_loading_spinner)
+
 	_loading_label = Label.new()
 	_loading_label.text = "..."
 	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_loading_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_loading_label.add_theme_color_override("font_color", _color("text"))
 	_loading_view.add_child(_loading_label)
 	# v41: дубликат кнопки ручного запуска сервера — прямо на экране ожидания.
 	# Верхняя строка (server_row, рядом с языком) в некоторых случаях не была замечена
@@ -306,12 +438,16 @@ func _build() -> void:
 	_loading_server_btn.text = _t("srv_open_folder_btn")
 	_loading_server_btn.tooltip_text = _t("srv_open_folder_tip") + " " + _t("srv_manual_hint")
 	_loading_server_btn.pressed.connect(func(): open_server_requested.emit())
+	if T:
+		T.style_button(_loading_server_btn, "warning")
+		_loading_server_btn.icon = T.first_icon(["Load", "Folder"])
 	loading_srv_row.add_child(_loading_server_btn)
 	_loading_server_hint = Label.new()
 	_loading_server_hint.text = _t("srv_manual_hint")
 	# аналогично _server_hint выше — длинный текст подсказки переносится на строки, а не съедается краем экрана.
 	_loading_server_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_loading_server_hint.size_flags_horizontal = SIZE_EXPAND_FILL
+	_loading_server_hint.add_theme_color_override("font_color", _color("dim"))
 	loading_srv_row.add_child(_loading_server_hint)
 	_spin_timer = Timer.new()
 	_spin_timer.wait_time = 0.12
@@ -321,14 +457,19 @@ func _build() -> void:
 
 
 func _make_header(text: String) -> HBoxContainer:
+	var T = _T()
 	var head := HBoxContainer.new()
 	var back := Button.new()
 	back.text = _t("back")
 	back.pressed.connect(show_home)
+	if T:
+		T.style_button(back, "neutral")
+		back.icon = T.first_icon(["Back", "ArrowLeft"])
 	head.add_child(back)
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	lbl.add_theme_color_override("font_color", _color("accent"))
 	head.add_child(lbl)
 	return head
 
@@ -355,10 +496,14 @@ func _clear_container(c: Node) -> void:
 func _rebuild_chats() -> void:
 	if _chats_list == null:
 		return
+	var T = _T()
 	_clear_container(_chats_list)
 	if _chats_data.is_empty():
 		var empty := Label.new()
 		empty.text = _t("no_chats")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_theme_color_override("font_color", _color("dim"))
 		_chats_list.add_child(empty)
 		return
 	for c in _chats_data:
@@ -379,10 +524,14 @@ func _rebuild_chats() -> void:
 			info.append(_t("prompt_stale_short"))
 		btn.text = t if info.is_empty() else (t + "   — " + " · ".join(info))
 		btn.tooltip_text = _t("tip_chat_times") % [_fmt_ts(int(c.get("created", 0))), _fmt_ts(used_ts)]
+		if T:
+			# «Промпт устарел» — предупреждающим цветом темы вместо хардкода.
+			T.style_button(btn, "warning" if stale else "neutral")
+			btn.icon = T.first_icon(["Script", "File"])
 		if stale:
 			btn.tooltip_text += "\n" + _t("prompt_stale_tip")
-			btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.clip_text = true
 		btn.size_flags_horizontal = SIZE_EXPAND_FILL
 		btn.pressed.connect(_pick_chat.bind(str(c.get("id", ""))))
 		_chats_list.add_child(btn)
@@ -403,10 +552,14 @@ func _fmt_ts(ts: int) -> String:
 func _rebuild_sites() -> void:
 	if _sites_list == null:
 		return
+	var T = _T()
 	_clear_container(_sites_list)
 	if _sites_data.is_empty():
 		var empty := Label.new()
 		empty.text = _t("sites_empty")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_theme_color_override("font_color", _color("dim"))
 		_sites_list.add_child(empty)
 		return
 	for s in _sites_data:
@@ -415,8 +568,12 @@ func _rebuild_sites() -> void:
 		var btn := Button.new()
 		btn.text = str(s.get("name", _t("site_fallback")))
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.clip_text = true
 		btn.size_flags_horizontal = SIZE_EXPAND_FILL
 		btn.pressed.connect(_pick_site.bind(str(s.get("id", ""))))
+		if T:
+			T.style_button(btn, "neutral")
+			btn.icon = T.first_icon(["Environment", "Node"])
 		_sites_list.add_child(btn)
 	# ЗАГОТОВКА: кнопка «добавить свою страницу» (универсальный парсер) — позже.
 	var add_own := Button.new()
@@ -424,6 +581,9 @@ func _rebuild_sites() -> void:
 	add_own.disabled = true
 	add_own.tooltip_text = _t("add_own_tip")
 	add_own.size_flags_horizontal = SIZE_EXPAND_FILL
+	if T:
+		T.style_button(add_own, "dim")
+		add_own.icon = T.first_icon(["Add"])
 	_sites_list.add_child(add_own)
 
 
@@ -465,15 +625,19 @@ func set_status(text: String, kind: String = "info") -> void:
 	if _status == null:
 		return
 	_status.text = text
+	# Панель прячется вместе с текстом, иначе оставалась бы пустая рамка.
+	if _status_panel:
+		_status_panel.visible = text != ""
 	_status.visible = text != ""
-	var color := Color(0.85, 0.85, 0.85)
+	# Цвета из темы редактора вместо захардкоженных.
+	var key := "text"
 	if kind == "success":
-		color = Color(0.49, 0.99, 0.6)
+		key = "success"
 	elif kind == "error":
-		color = Color(1.0, 0.54, 0.5)
+		key = "error"
 	elif kind == "status":
-		color = Color(1.0, 0.84, 0.4)
-	_status.add_theme_color_override("font_color", color)
+		key = "warning"
+	_status.add_theme_color_override("font_color", _color(key))
 
 
 func show_loading(text: String) -> void:
@@ -520,5 +684,8 @@ func _stop_loading_visual() -> void:
 
 func _on_spin_tick() -> void:
 	_spin_idx = (_spin_idx + 1) % SPIN_FRAMES.size()
-	if _loading_spinner:
+	if _loading_spinner and _loading_spinner.visible:
 		_loading_spinner.text = SPIN_FRAMES[_spin_idx]
+	# Иконка крутится с тем же шагом: 12 кадров на оборот (0.12с × 12 ≈ 1.4с).
+	if _loading_icon and _loading_icon.visible:
+		_loading_icon.rotation = TAU * (float(_spin_idx % 12) / 12.0)
