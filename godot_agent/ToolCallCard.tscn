@@ -1,0 +1,52 @@
+[gd_scene load_steps=2 format=3 uid="uid://dkxn7k7x7hqk7"]
+
+[ext_resource type="Script" uid="uid://n0os24ib0b3l" path="res://addons/Godot_agent/godot_agent/ToolCallCard.gd" id="1_dkxn7"]
+
+[node name="ToolCallCard" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("1_dkxn7")
+
+[node name="RootVBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ToolIcon" type="TextureRect" parent="RootVBox/Header"]
+visible = false
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TitleLabel" type="Label" parent="RootVBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Tool Call"
+autowrap_mode = 1
+
+[node name="ToggleButton" type="Button" parent="RootVBox/Header"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+flat = true
+
+[node name="ContentBox" type="VBoxContainer" parent="RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ParamsLabel" type="RichTextLabel" parent="RootVBox/ContentBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+context_menu_enabled = true
+selection_enabled = true
