@@ -1246,7 +1246,7 @@ def _resolve_content_refs(obj, raw):
 
 _KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
-                  u"parse_error"}
+                  u"ask_librarian", u"parse_error"}
 
 _ACTION_SYNONYMS = {
     u"create": u"create_file", u"write_file": u"create_file",
@@ -1260,6 +1260,14 @@ _ACTION_SYNONYMS = {
     u"read": u"read_file", u"readfile": u"read_file",
     u"open_file": u"read_file",
     u"copy": u"copy_file", u"copyfile": u"copy_file",
+    # v105.15: ask_librarian — обязательное ПЕРВОЕ действие разведки
+    # (agent_prompts, критическое правило 5), поэтому путь горячий.
+    # Раньше действия не было ни в _KNOWN_ACTIONS, ни здесь: "Ask_Librarian"
+    # и "ask-librarian" не приводились к норме, не совпадали со строгим
+    # сравнением в main.py и уезжали в pending_action — пользователю
+    # показывалось подтверждение действия, которое затем отвергалось.
+    u"librarian": u"ask_librarian", u"asklibrarian": u"ask_librarian",
+    u"ask_library": u"ask_librarian", u"query_librarian": u"ask_librarian",
 }
 
 _DEST_SYNONYMS = (u"destination", u"new_path", u"dest_path", u"target", u"to")

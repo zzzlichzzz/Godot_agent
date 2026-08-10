@@ -1,0 +1,73 @@
+[gd_scene load_steps=2 format=3 uid="uid://dpjsmjbpnautg"]
+
+[ext_resource type="Script" uid="uid://cl63hvh8h5dg5" path="res://addons/Godot_agent/godot_agent/DiffPreviewCard.gd" id="1_hkxn7"]
+
+[node name="DiffPreviewCard" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("1_hkxn7")
+
+[node name="RootVBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="HeaderBox" type="HBoxContainer" parent="RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="RootVBox/HeaderBox"]
+layout_mode = 2
+text = "Предпросмотр изменений"
+
+[node name="FilePathLabel" type="Label" parent="RootVBox/HeaderBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "res://path/to/file.gd"
+clip_text = true
+
+[node name="DiffContainer" type="RichTextLabel" parent="RootVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 180)
+focus_mode = 2
+bbcode_enabled = true
+autowrap_mode = 0
+context_menu_enabled = true
+selection_enabled = true
+scroll_active = true
+
+[node name="ActionsBox" type="HBoxContainer" parent="RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ApplyButton" type="Button" parent="RootVBox/ActionsBox"]
+custom_minimum_size = Vector2(100, 28)
+layout_mode = 2
+text = "Применить"
+flat = true
+
+[node name="RejectButton" type="Button" parent="RootVBox/ActionsBox"]
+custom_minimum_size = Vector2(100, 28)
+layout_mode = 2
+text = "Отклонить"
+flat = true
+
+[node name="ViewFullButton" type="Button" parent="RootVBox/ActionsBox"]
+custom_minimum_size = Vector2(100, 28)
+layout_mode = 2
+text = "Полный дифф"
+flat = true
+
+[node name="ActionsSpacer" type="Control" parent="RootVBox/ActionsBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="ApplyAllButton" type="Button" parent="RootVBox/ActionsBox"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+text = "Разрешить всё"
+flat = true

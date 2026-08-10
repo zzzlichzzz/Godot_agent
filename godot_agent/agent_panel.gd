@@ -37,6 +37,11 @@ const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
+# Есть ли сейчас неотвеченное подтверждение. РАНЬШЕ этим флагом служило
+# pending_action_box.visible, из-за чего старая панель кнопок рисовалась над
+# строкой ввода одновременно с карточкой в чате. Теперь состояние живёт в
+# переменной, а сама панель не показывается никогда (см. _set_pending_action).
+var _pending_action_active: bool = false
 
 # Plan-режим (цепочка действий): активен, когда пользователь подтвердил план
 # и панель сама выполняет шаги через PLAN_STEP_URL по одному.
@@ -49,6 +54,9 @@ var _stop_button: Button = null
 var _plan_rollback_dialog: ConfirmationDialog = null
 var _plan_rollback_chain_id: String = ""
 var _plan_rollback_force_next: bool = false
+
+# Визуальная карточка-чеклист активного плана (в чате).
+var _active_plan_card: PlanChecklistCard = null
 
 # Запоминаем детали последнего примененного WRITE-действия для сброса кэша
 var _last_pending_action_type: String = ""
@@ -167,6 +175,16 @@ func _ready() -> void:
 	chat_log.text = "[color=green]" + _t("system_ready") + "[/color]\n"
 	if pending_action_box:
 		pending_action_box.visible = false
+	# Подтверждения показываются ТОЛЬКО карточкой в чате. Старая панель
+	# PendingActionBox остаётся в дереве (её кнопки — приёмники сигналов и
+	# охранник _guard_confirm_buttons), но больше никогда не показывается:
+	# состояние «есть неотвеченное действие» держит _pending_action_active.
+	if action_label:
+		action_label.visible = false
+	if confirm_button:
+		confirm_button.visible = false
+	if reject_button:
+		reject_button.visible = false
 	if not send_button.pressed.is_connected(_on_send_pressed):
 		send_button.pressed.connect(_on_send_pressed)
 	if not http_request.request_completed.is_connected(_on_request_completed):
@@ -246,7 +264,7 @@ func _ready() -> void:
 		_view = view_script.new()
 		_view.name = "ChatView"
 		add_child(_view)
-	_view.setup(chat_log, $VBoxContainer)
+	_view.setup($VBoxContainer)
 	if _hl == null:
 		var hl_script = load(get_script().resource_path.get_base_dir() + "/agent_highlight.gd")
 		_hl = hl_script.new()
@@ -366,6 +384,20 @@ func _ready() -> void:
 		input_field.gui_input.connect(_on_input_field_gui_input)
 	if has_node("VBoxContainer/SettingsBox"):
 		$VBoxContainer/SettingsBox.hide()
+
+
+func _set_pending_action(active: bool, description: String = "") -> void:
+	# Единая точка вкл/выкл состояния «ждём ответа на подтверждение».
+	# Саму панель не показываем — её роль выполняет карточка в чате.
+	_pending_action_active = active
+	if action_label and description != "":
+		action_label.text = description
+	if pending_action_box:
+		pending_action_box.visible = false
+
+
+func _has_pending_action() -> bool:
+	return _pending_action_active
 
 
 func _escape_bbcode(text: String) -> String:
@@ -548,7 +580,7 @@ func _on_reinit_pressed() -> void:
 
 func _on_send_pressed() -> void:
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible:
+	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
 	var user_text = input_field.text.strip_edges()
@@ -591,8 +623,7 @@ func _on_reject_pressed() -> void:
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
-	if pending_action_box:
-		pending_action_box.visible = false
+	_set_pending_action(false)
 	# Подтверждение отправки отчёта об ошибках запуска — отдельная ветка:
 	# при отказе сервер вообще не трогаем (и браузер тоже).
 	if _pending_log_send:
@@ -630,7 +661,14 @@ func _start_plan_execution(total: int) -> void:
 	_plan_active = true
 	_plan_total = total
 	_plan_index = 0
-	chat_log.text += "[color=gray]" + (_t("plan_started") % total) + "[/color]\n"
+	# Карточка-чеклист плана прямо в чате (чистый визуал, логика не меняется).
+	var step_descs := []
+	for i in range(total):
+		step_descs.append(_t("plan_step_n") % (i + 1))
+	_active_plan_card = _view.add_plan_checklist(_t("plan_started") % total, step_descs)
+	if _active_plan_card:
+		# Кнопка «Пауза» на карточке = обычная остановка плана (та же логика).
+		_active_plan_card.plan_paused.connect(_on_plan_stop_pressed)
 	_show_plan_stop_button()
 	_request_plan_step()
 
@@ -651,6 +689,9 @@ func _request_plan_step() -> void:
 func _end_plan_execution() -> void:
 	_plan_active = false
 	_hide_plan_stop_button()
+	if _active_plan_card:
+		_active_plan_card.queue_free()
+		_active_plan_card = null
 
 
 func _show_plan_stop_button() -> void:
@@ -838,7 +879,7 @@ func _ensure_file_logging_enabled() -> void:
 
 func _on_check_log_pressed() -> void:
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible:
+	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
 	chat_log.text += "[color=gray]" + _t("reading_log") + "[/color]\n"
@@ -894,7 +935,7 @@ func _schedule_api_cache_check_retry() -> void:
 
 func _on_export_api_pressed() -> void:
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible:
+	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
 	_export_api_to_server(false)
@@ -970,6 +1011,17 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var p_ok := bool(json.get("ok", false))
 			var p_done := bool(json.get("done", false))
 			var p_stopped := bool(json.get("stopped", false))
+			# Обновляем карточку-чеклист плана (чистый визуал, логика не меняется).
+			if _active_plan_card and _active_plan_card.steps_container.get_child_count() > p_index:
+				var step_item := _active_plan_card.steps_container.get_child(p_index) as PlanStepItem
+				if step_item:
+					step_item.description_label.text = p_msg
+				if p_done:
+					_active_plan_card.update_step(p_index, "done")
+				elif p_ok:
+					_active_plan_card.update_step(p_index, "active")
+				else:
+					_active_plan_card.update_step(p_index, "error")
 			if p_ok:
 				chat_log.text += "[color=gray]" + _escape_bbcode(p_msg) + "[/color]\n"
 			else:
@@ -983,15 +1035,20 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_auto_reload_changed_scene(str(p_ch_path))
 			if p_done:
 				_end_plan_execution()
+				if _active_plan_card:
+					_active_plan_card.queue_free()
+					_active_plan_card = null
 				chat_log.text += "[color=green]" + _t("plan_done") + "[/color]\n"
 			elif p_stopped:
 				_end_plan_execution()
+				if _active_plan_card:
+					_active_plan_card.queue_free()
+					_active_plan_card = null
 				chat_log.text += "[color=orange]" + (_t("plan_stopped_desc") % [p_index, p_total]) + "[/color]\n"
 				_show_plan_rollback_dialog(p_chain, _t("plan_rb_step_desc") % [p_index, p_total])
 			else:
 				_request_plan_step()
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
 
 		if kind == "plan_stop":
@@ -999,6 +1056,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var s_total := int(json.get("total", _plan_total))
 			var s_chain := str(json.get("chain_id", _plan_chain_id))
 			_end_plan_execution()
+			if _active_plan_card:
+				_active_plan_card.queue_free()
+				_active_plan_card = null
 			chat_log.text += "[color=orange]" + (_t("plan_stopped_manual") % [s_index, s_total]) + "[/color]\n"
 			if s_index > 0:
 				_show_plan_rollback_dialog(s_chain, _t("plan_rb_step_desc") % [s_index, s_total])
@@ -1089,19 +1149,23 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var log_info := str(json.get("log_time", "?"))
 			if found == 0:
 				if was_auto:
-					chat_log.text += "[color=gray]" + (_t("log_auto_ok") % log_info) + "[/color]\n"
+					_view.add_system(_t("log_auto_ok") % log_info)
 				else:
-					chat_log.text += "\n[color=green]" + (_t("log_ok") % log_info) + "[/color]\n"
+					_view.add_success(_t("log_ok") % log_info)
 			else:
 				var head := _t("log_errs_auto") if was_auto else _t("log_errs")
-				chat_log.text += "\n[color=orange]" + head + str(found) + " (" + _t("log_from") + " " + log_info + ")[/color]\n" + _escape_bbcode(str(json.get("summary", ""))) + "\n"
+				_view.add_system(head + str(found) + " (" + _t("log_from") + " " + log_info + ")\n" + str(json.get("summary", "")))
 				if action_label and pending_action_box:
-					action_label.text = _t("send_errors_q") % str(found)
-					pending_action_box.visible = true
+					var desc_text = _t("send_errors_q") % str(found)
+					_set_pending_action(true, desc_text)
 					_pending_log_send = true
 					_guard_confirm_buttons()
+					_view.add_confirmation_card(
+						desc_text,
+						func(): _on_confirm_pressed(),
+						func(): _on_reject_pressed()
+					)
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
 
 		# После подтверждённого WRITE-действия — синхронизируем открытую вкладку.
@@ -1132,11 +1196,15 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
 		var nxt = json.get("next_confirmation")
 		if nxt != null and action_label and pending_action_box:
-			action_label.text = str(nxt.get("description", _t("agent_wants_file")))
-			pending_action_box.visible = true
+			var desc = str(nxt.get("description", _t("agent_wants_file")))
+			_set_pending_action(true, desc)
 			_guard_confirm_buttons()
+			_view.add_confirmation_card(
+				desc,
+				func(): _on_confirm_pressed(),
+				func(): _on_reject_pressed()
+			)
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 			return
 
 		# WRITE-действие, требующее подтверждения
@@ -1146,22 +1214,31 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if description == null: description = _t("agent_wants_action")
 			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки).
 			var pcode = json.get("pending_action_code")
-			if pcode != null and str(pcode) != "":
-				_view.add_code_preview(_escape_bbcode(str(pcode)))
-			action_label.text = str(description)
-			pending_action_box.visible = true
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
+			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
+
+			if pcode != null and str(pcode) != "":
+				var file_path = _last_pending_action_path if _last_pending_action_path != "" else _last_pending_action_dest
+				var card = _view.add_diff_preview(file_path, str(pcode))
+				if card:
+					card.diff_applied.connect(func(_p): _on_confirm_pressed())
+					card.diff_rejected.connect(func(_p): _on_reject_pressed())
+			else:
+				_view.add_confirmation_card(
+					str(description),
+					func(): _on_confirm_pressed(),
+					func(): _on_reject_pressed()
+				)
 		elif pending_action_box:
-			pending_action_box.visible = false
+			_set_pending_action(false)
 			# Ни текста, ни действий — не молчим, чтобы ответ не "пропадал" бесследно.
 			if not has_answer and (kind == "chat" or kind == "confirm"):
-				chat_log.text += "[color=gray]" + _t("empty_response") + "[/color]\n"
+				_view.add_system(_t("empty_response"))
 
 		await get_tree().process_frame
-		chat_log.scroll_to_line(chat_log.get_line_count() - 1)
 	else:
 		if kind == "check_log" and _auto_check:
 			# Авто-проверка не спамит в чат: нет лога, лог уже отправлялся,
@@ -1233,7 +1310,7 @@ func _reconcile_confirm_buttons() -> void:
 	# если окно подтверждения открыто, сеть свободна и время охраны прошло.
 	if not confirm_button or not reject_button:
 		return
-	if not pending_action_box or not pending_action_box.visible:
+	if not _has_pending_action():
 		return
 	if _is_network_busy:
 		return
@@ -1378,7 +1455,7 @@ func _auto_check_log() -> void:
 	# Не мешаем текущей работе: если идёт запрос или ждём подтверждения —
 	# тихо пропускаем (ручная кнопка всегда доступна).
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible: return
+	if _has_pending_action(): return
 	_auto_check = true
 	_pending_log_send = false
 	var headers = ["Content-Type: application/json"]
