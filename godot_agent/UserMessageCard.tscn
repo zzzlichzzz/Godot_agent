@@ -1,0 +1,90 @@
+[gd_scene format=3 uid="uid://bkxn7k7x7hqk7"]
+
+[ext_resource type="Script" uid="uid://b0400nt65h8bs" path="res://addons/Godot_agent/godot_agent/UserMessageCard.gd" id="1_bkxn7"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_nhwvs"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lpebc"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.12156863, 0.2, 0.1254902, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.49019608, 0.8627451, 0.5176471, 0.45)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="UserMessageCard" type="PanelContainer" unique_id=1100993168]
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_nhwvs")
+script = ExtResource("1_bkxn7")
+
+[node name="Row" type="HBoxContainer" parent="." unique_id=1214988389]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Spacer" type="Control" parent="Row" unique_id=416287398]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Bubble" type="PanelContainer" parent="Row" unique_id=1662364437]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_styles/panel = SubResource("StyleBoxFlat_lpebc")
+
+[node name="MessageBox" type="VBoxContainer" parent="Row/Bubble" unique_id=712411710]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Row/Bubble/MessageBox" unique_id=558113386]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NameLabel" type="Label" parent="Row/Bubble/MessageBox/Header" unique_id=1665363153]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.49019608, 0.8627451, 0.5176471, 1)
+text = "Вы"
+
+[node name="TimeLabel" type="Label" parent="Row/Bubble/MessageBox/Header" unique_id=1319829985]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.875, 0.875, 0.875, 0.5)
+text = "00:00"
+
+[node name="HeaderSpacer" type="Control" parent="Row/Bubble/MessageBox/Header" unique_id=971331114]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="CopyButton" type="Button" parent="Row/Bubble/MessageBox/Header" unique_id=867145432]
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(22, 22)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Копировать"
+focus_mode = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.875, 0.875, 0.875, 0.5)
+theme_override_colors/icon_normal_color = Color(0.875, 0.875, 0.875, 0.5)
+theme_override_colors/icon_hover_color = Color(0.49019608, 0.8627451, 0.5176471, 1)
+disabled = true
+text = "⧉"
+flat = true
+
+[node name="Content" type="RichTextLabel" parent="Row/Bubble/MessageBox" unique_id=234853023]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/default_color = Color(1, 1, 1, 1)
+theme_override_colors/selection_color = Color(1, 0.8352941, 0.30980393, 1)
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+context_menu_enabled = true
+selection_enabled = true
