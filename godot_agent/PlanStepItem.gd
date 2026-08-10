@@ -35,6 +35,10 @@ func _setup_theme() -> void:
 	var T = _T()
 	if T == null:
 		return
+	# Сцена открыта во вкладке редактора — оформление не применяем, иначе
+	# Godot запечёт иконки и шрифты в .tscn при сохранении (см. is_edited_scene).
+	if T.is_edited_scene(self):
+		return
 	step_label.add_theme_color_override("font_color", T.color("text"))
 	description_label.add_theme_color_override("font_color", T.color("dim"))
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

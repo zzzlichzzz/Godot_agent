@@ -323,6 +323,10 @@ func _ready() -> void:
 		_view.name = "ChatView"
 		add_child(_view)
 	_view.setup($VBoxContainer)
+	# Откат прямо из карточки ответа агента: карточка шлёт сигнал, а вопрос
+	# и запрос на сервер — уже здесь, тем же путём, что и кнопка «Откатить».
+	if not _view.message_rollback_requested.is_connected(_on_message_rollback_requested):
+		_view.message_rollback_requested.connect(_on_message_rollback_requested)
 	if _hl == null:
 		var hl_script = load(get_script().resource_path.get_base_dir() + "/agent_highlight.gd")
 		_hl = hl_script.new()
@@ -846,6 +850,7 @@ func _on_reload_project_confirmed() -> void:
 func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
 	_plan_rollback_chain_id = chain_id
 	# Вопрос показывается карточкой в чате вместо модального окна.
+	# Тон "ask": это обычное подтверждение, а не предупреждение об аварии.
 	if _view:
 		_view.add_question_card(
 			"plan_rollback",
@@ -854,7 +859,9 @@ func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
 			_t("rb_yes"),
 			_t("rb_no"),
 			func(): _on_plan_rollback_confirmed(),
-			func(): pass
+			func(): pass,
+			"ask",
+			["UndoRedo", "Undo", "Reload"]
 		)
 
 
@@ -882,6 +889,20 @@ func _send_plan_rollback_chain_request(force: bool) -> void:
 	if err != OK:
 		_log_error(_t("err_rollback"))
 		_set_ui_busy(false)
+
+
+func _on_message_rollback_requested() -> void:
+	# Откат по клику на карточке ответа агента.
+	# ВАЖНО: сервер умеет откатывать только ПОСЛЕДНЕЕ зафиксированное действие
+	# (history.last_committed_info) — привязки к конкретному сообщению в API нет.
+	# Поэтому идём тем же путём, что и кнопка «Откатить последнее изменение»:
+	# сначала спрашиваем сервер, что именно будет отменено, и показываем это
+	# в карточке подтверждения — вслепую ничего не откатывается.
+	if _is_network_busy:
+		# Молча игнорировать клик нельзя: пользователь решит, что кнопка сломана.
+		_log_error(_t("wait_current"))
+		return
+	_on_rollback_pressed()
 
 
 func _on_rollback_pressed() -> void:
@@ -919,15 +940,19 @@ func _send_rollback_request(force: bool) -> void:
 func _show_rollback_dialog(desc: String) -> void:
 	# Вопрос об откате — карточкой в чате, а не модальным окном: так он
 	# остаётся в истории рядом с изменением, которое откатывается.
+	# Тон "ask": откат — обычное действие, а не авария. Раньше карточка была
+	# жёлтой, со знаком «внимание», и рутинный откат выглядел как проблема.
 	if _view:
 		_view.add_question_card(
 			"rollback",
 			_t("rb_title"),
-			_t("rb_text") % desc,
+			desc,
 			_t("rb_yes"),
 			_t("rb_no"),
 			func(): _on_rollback_confirmed(),
-			func(): pass
+			func(): pass,
+			"ask",
+			["UndoRedo", "Undo", "Reload"]
 		)
 
 
@@ -1181,7 +1206,11 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				else:
 					_show_rollback_dialog(str(json.get("description", "")))
 			else:
+				# Откатывать нечего — это ответ на нажатие кнопки, поэтому
+				# прокручиваем принудительно: иначе человек, читавший историю
+				# выше, решит, что кнопка отката просто не сработала.
 				_view.add_system(_t("rb_nothing"))
+				_view.scroll_to_end(true)
 			return
 
 		if kind == "rollback":

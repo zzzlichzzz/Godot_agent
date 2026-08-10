@@ -142,6 +142,26 @@ static func font_size(theme_type: String, fallback: int) -> int:
 
 # --- панели ---
 
+static func is_edited_scene(node: Node) -> bool:
+	# true, когда узел принадлежит сцене, открытой во вкладке редактора.
+	#
+	# Зачем: карточки помечены @tool, поэтому их _ready() выполняется и в
+	# редакторе. Если при этом присвоить иконки/шрифты из темы, Godot запечёт
+	# их в .tscn при сохранении сцены — AgentMessageCard.tscn так вырос с
+	# 4 КБ до 3 МБ (встроенные FontFile и DPITexture). В режиме
+	# редактирования оформление не применяем: в доке плагина карточки
+	# создаются кодом и под это условие не попадают.
+	if not Engine.is_editor_hint():
+		return false
+	var tree := node.get_tree()
+	if tree == null:
+		return false
+	var root := tree.edited_scene_root
+	if root == null:
+		return false
+	return node == root or root.is_ancestor_of(node)
+
+
 static func make_panel_style(bg: Color, border: Color, radius: int, margin_h: int, margin_v: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg

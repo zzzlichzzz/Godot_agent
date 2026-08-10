@@ -126,6 +126,7 @@ func _rebuild_ui() -> void:
 	_sites_list = null
 	_status = null
 	_status_panel = null
+	_api_key_btn = null
 	_loading_view = null
 	_loading_spinner = null
 	_loading_icon = null
