@@ -37,6 +37,11 @@ const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
+# Есть ли сейчас неотвеченное подтверждение. РАНЬШЕ этим флагом служило
+# pending_action_box.visible, из-за чего старая панель кнопок рисовалась над
+# строкой ввода одновременно с карточкой в чате. Теперь состояние живёт в
+# переменной, а сама панель не показывается никогда (см. _set_pending_action).
+var _pending_action_active: bool = false
 
 # Plan-режим (цепочка действий): активен, когда пользователь подтвердил план
 # и панель сама выполняет шаги через PLAN_STEP_URL по одному.
@@ -170,13 +175,10 @@ func _ready() -> void:
 	chat_log.text = "[color=green]" + _t("system_ready") + "[/color]\n"
 	if pending_action_box:
 		pending_action_box.visible = false
-	# Подтверждения показываются ТОЛЬКО карточкой в чате. Сам PendingActionBox
-	# остаётся в дереве как ФЛАГ состояния — его `visible` читают проверки
-	# «сначала разрешите действие» (_on_send_pressed, _on_check_log_pressed,
-	# _on_export_api_pressed, _reconcile_confirm_buttons), а кнопки — охранник
-	# _guard_confirm_buttons. Скрываем содержимое: HBoxContainer со скрытыми
-	# детьми занимает нулевую высоту и ничего не рисует, поэтому дубль кнопок
-	# из интерфейса исчезает, а вся прежняя логика продолжает работать.
+	# Подтверждения показываются ТОЛЬКО карточкой в чате. Старая панель
+	# PendingActionBox остаётся в дереве (её кнопки — приёмники сигналов и
+	# охранник _guard_confirm_buttons), но больше никогда не показывается:
+	# состояние «есть неотвеченное действие» держит _pending_action_active.
 	if action_label:
 		action_label.visible = false
 	if confirm_button:
@@ -384,6 +386,20 @@ func _ready() -> void:
 		$VBoxContainer/SettingsBox.hide()
 
 
+func _set_pending_action(active: bool, description: String = "") -> void:
+	# Единая точка вкл/выкл состояния «ждём ответа на подтверждение».
+	# Саму панель не показываем — её роль выполняет карточка в чате.
+	_pending_action_active = active
+	if action_label and description != "":
+		action_label.text = description
+	if pending_action_box:
+		pending_action_box.visible = false
+
+
+func _has_pending_action() -> bool:
+	return _pending_action_active
+
+
 func _escape_bbcode(text: String) -> String:
 	var result = ""
 	for i in range(text.length()):
@@ -564,7 +580,7 @@ func _on_reinit_pressed() -> void:
 
 func _on_send_pressed() -> void:
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible:
+	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
 	var user_text = input_field.text.strip_edges()
@@ -607,8 +623,7 @@ func _on_reject_pressed() -> void:
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
-	if pending_action_box:
-		pending_action_box.visible = false
+	_set_pending_action(false)
 	# Подтверждение отправки отчёта об ошибках запуска — отдельная ветка:
 	# при отказе сервер вообще не трогаем (и браузер тоже).
 	if _pending_log_send:
@@ -864,7 +879,7 @@ func _ensure_file_logging_enabled() -> void:
 
 func _on_check_log_pressed() -> void:
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible:
+	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
 	chat_log.text += "[color=gray]" + _t("reading_log") + "[/color]\n"
@@ -920,7 +935,7 @@ func _schedule_api_cache_check_retry() -> void:
 
 func _on_export_api_pressed() -> void:
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible:
+	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
 	_export_api_to_server(false)
@@ -1142,8 +1157,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_view.add_system(head + str(found) + " (" + _t("log_from") + " " + log_info + ")\n" + str(json.get("summary", "")))
 				if action_label and pending_action_box:
 					var desc_text = _t("send_errors_q") % str(found)
-					action_label.text = desc_text
-					pending_action_box.visible = true
+					_set_pending_action(true, desc_text)
 					_pending_log_send = true
 					_guard_confirm_buttons()
 					_view.add_confirmation_card(
@@ -1183,8 +1197,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		var nxt = json.get("next_confirmation")
 		if nxt != null and action_label and pending_action_box:
 			var desc = str(nxt.get("description", _t("agent_wants_file")))
-			action_label.text = desc
-			pending_action_box.visible = true
+			_set_pending_action(true, desc)
 			_guard_confirm_buttons()
 			_view.add_confirmation_card(
 				desc,
@@ -1204,8 +1217,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
-			action_label.text = str(description)
-			pending_action_box.visible = true
+			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
 
 			if pcode != null and str(pcode) != "":
@@ -1221,7 +1233,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 					func(): _on_reject_pressed()
 				)
 		elif pending_action_box:
-			pending_action_box.visible = false
+			_set_pending_action(false)
 			# Ни текста, ни действий — не молчим, чтобы ответ не "пропадал" бесследно.
 			if not has_answer and (kind == "chat" or kind == "confirm"):
 				_view.add_system(_t("empty_response"))
@@ -1298,7 +1310,7 @@ func _reconcile_confirm_buttons() -> void:
 	# если окно подтверждения открыто, сеть свободна и время охраны прошло.
 	if not confirm_button or not reject_button:
 		return
-	if not pending_action_box or not pending_action_box.visible:
+	if not _has_pending_action():
 		return
 	if _is_network_busy:
 		return
@@ -1443,7 +1455,7 @@ func _auto_check_log() -> void:
 	# Не мешаем текущей работе: если идёт запрос или ждём подтверждения —
 	# тихо пропускаем (ручная кнопка всегда доступна).
 	if _is_network_busy: return
-	if pending_action_box and pending_action_box.visible: return
+	if _has_pending_action(): return
 	_auto_check = true
 	_pending_log_send = false
 	var headers = ["Content-Type: application/json"]

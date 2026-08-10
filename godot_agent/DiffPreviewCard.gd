@@ -14,9 +14,17 @@ class_name DiffPreviewCard
 var _file_path: String = ""
 var _diff_data: String = ""
 
+# Состояние разворота: по умолчанию показываем первые 40 строк диффа,
+# «Полный дифф» открывает остальное прямо в карточке.
+const PREVIEW_MAX_LINES := 40
+const COLLAPSED_HEIGHT := 180.0
+var _full_diff_text: String = ""
+var _show_full: bool = false
+var _view_full_label: String = "Полный дифф"
+var _view_hide_label: String = "Свернуть дифф"
+
 signal diff_applied(file_path: String)
 signal diff_rejected(file_path: String)
-signal view_full_requested(file_path: String, diff_text: String)
 # «Разрешить всё»: клик по кнопке на карточке включает автоподтверждение
 # и применяет текущий дифф. Обработчик подключает agent_chat_view.gd.
 signal apply_all_requested
@@ -108,7 +116,38 @@ func setup(file_path: String, diff_text: String) -> void:
 	_diff_data = diff_text
 	file_path_label.text = file_path
 	file_path_label.tooltip_text = file_path
-	diff_container.text = _highlight_diff(diff_text)
+	_full_diff_text = _highlight_diff(diff_text)
+	_show_full = false
+	_apply_diff_view()
+
+
+func set_view_full_texts(show_label: String, hide_label: String) -> void:
+	_view_full_label = show_label
+	_view_hide_label = hide_label
+	_apply_diff_view()
+
+
+func _apply_diff_view() -> void:
+	# Раньше «Полный дифф» лишь слал сигнал view_full_requested, который никто
+	# не слушал — кнопка ничего не делала. Теперь она реально доклеивает
+	# скрытый хвост диффа прямо в карточке.
+	var total := _diff_data.split("\n").size()
+	var need_cut := total > PREVIEW_MAX_LINES
+	view_full_btn.visible = need_cut
+	if not need_cut or _show_full:
+		diff_container.text = _full_diff_text
+		view_full_btn.text = _view_hide_label
+		# Развёрнутый дифф показываем целиком, без внутреннего скролла.
+		diff_container.fit_content = _show_full
+		diff_container.scroll_active = not _show_full
+		diff_container.custom_minimum_size.y = 0.0 if _show_full else COLLAPSED_HEIGHT
+		return
+	var head := _diff_data.split("\n").slice(0, PREVIEW_MAX_LINES)
+	diff_container.text = _highlight_diff("\n".join(head))
+	diff_container.fit_content = false
+	diff_container.scroll_active = true
+	diff_container.custom_minimum_size.y = COLLAPSED_HEIGHT
+	view_full_btn.text = "%s (%d)" % [_view_full_label, total]
 
 
 func _highlight_diff(diff_text: String) -> String:
@@ -186,4 +225,5 @@ func _lock_actions() -> void:
 
 
 func _on_view_full_pressed() -> void:
-	view_full_requested.emit(_file_path, _diff_data)
+	_show_full = not _show_full
+	_apply_diff_view()

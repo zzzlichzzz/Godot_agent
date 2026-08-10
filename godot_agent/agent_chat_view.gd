@@ -611,6 +611,7 @@ func add_diff_preview(file_path: String, diff_text: String) -> DiffPreviewCard:
 	_chat_container.add_child(card)
 	card.setup(file_path, diff_text)
 	card.set_allow_all_texts(_t("allow_all"), _t("allow_all_tip"))
+	card.set_view_full_texts(_t("diff_show_full"), _t("diff_hide_full"))
 	# Сигналы карточки agent_panel подключает уже после возврата, поэтому
 	# и авто-применение, и «Разрешить всё» уходят в отложенный вызов.
 	if not card.apply_all_requested.is_connected(_on_diff_allow_all):
