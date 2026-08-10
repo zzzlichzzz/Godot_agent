@@ -10,6 +10,13 @@ class_name AgentMessageCard
 @onready var expand_btn: Button = $Row/MessageBox/Header/ExpandButton
 @onready var tool_calls_container: VBoxContainer = $Row/MessageBox/ToolCallsContainer
 
+# Кнопка отката создаётся КОДОМ, а не в .tscn — намеренно.
+# Карточка помечена @tool: когда её сцена открыта во вкладке редактора,
+# _ready() отрабатывает прямо в редакторе, присваивает иконки и шрифты из
+# темы, и Godot запекает их в .tscn при сохранении (так сцена однажды
+# распухла с 4 КБ до 3 МБ). Узлы, созданные кодом, в файл не попадают.
+var rollback_btn: Button = null
+
 # Порог, после которого длинный ответ схлопывается до COLLAPSED_HEIGHT.
 const COLLAPSE_THRESHOLD := 1200
 const COLLAPSED_HEIGHT := 260.0
@@ -17,6 +24,11 @@ const COLLAPSED_HEIGHT := 260.0
 var _full_text: String = ""
 var _is_expanded: bool = true
 var _needs_collapse: bool = false
+
+# Откат последнего изменения агента прямо из карточки сообщения.
+# Саму логику отката карточка не знает: только просит, а подтверждение и
+# запрос на сервер делает agent_panel (см. agent_chat_view.add_agent_message).
+signal rollback_requested
 
 
 # Цвета, иконки и стили — единый модуль agent_theme.gd (см. _T()).
@@ -48,9 +60,12 @@ func _t(key: String) -> String:
 
 
 func _ready() -> void:
+	_ensure_rollback_button()
 	_setup_theme()
 	if not copy_btn.pressed.is_connected(_on_copy_pressed):
 		copy_btn.pressed.connect(_on_copy_pressed)
+	if rollback_btn and not rollback_btn.pressed.is_connected(_on_rollback_pressed):
+		rollback_btn.pressed.connect(_on_rollback_pressed)
 	if not expand_btn.pressed.is_connected(_on_expand_pressed):
 		expand_btn.pressed.connect(_on_expand_pressed)
 	if not mouse_entered.is_connected(_show_actions):
@@ -60,9 +75,33 @@ func _ready() -> void:
 	_set_actions_shown(false)
 
 
+func _ensure_rollback_button() -> void:
+	# Создаём кнопку рядом с «Копировать» (слева от неё) — см. комментарий
+	# у объявления rollback_btn о том, почему не в .tscn.
+	if rollback_btn != null and is_instance_valid(rollback_btn):
+		return
+	var header := copy_btn.get_parent()
+	if header == null:
+		return
+	rollback_btn = Button.new()
+	rollback_btn.name = "RollbackButton"
+	rollback_btn.custom_minimum_size = Vector2(22, 22)
+	rollback_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rollback_btn.focus_mode = Control.FOCUS_NONE
+	rollback_btn.flat = true
+	rollback_btn.modulate.a = 0.0
+	rollback_btn.disabled = true
+	header.add_child(rollback_btn)
+	header.move_child(rollback_btn, copy_btn.get_index())
+
+
 func _setup_theme() -> void:
 	var T = _T()
 	if T == null:
+		return
+	# Сцена открыта во вкладке редактора — не трогаем оформление, иначе Godot
+	# запечёт иконки и шрифты в .tscn при сохранении (см. is_edited_scene).
+	if T.is_edited_scene(self):
 		return
 	add_theme_stylebox_override("panel", T.panel_style("agent"))
 
@@ -86,6 +125,11 @@ func _setup_theme() -> void:
 	content.add_theme_color_override("table_odd_row_bg", Color(0, 0, 0, 0.15))
 
 	T.style_icon_button(copy_btn, ["ActionCopy"], "⧉")
+	copy_btn.tooltip_text = _t("copy")
+	# Откат: иконка «отменить» из темы редактора, запасной вариант — символ.
+	if rollback_btn:
+		T.style_icon_button(rollback_btn, ["UndoRedo", "Undo", "Reload"], "⟲", "warning")
+		rollback_btn.tooltip_text = _t("msg_rollback_tip")
 	T.style_button(expand_btn, "dim")
 
 
@@ -159,6 +203,21 @@ func _on_copy_pressed() -> void:
 	DisplayServer.clipboard_set(content.get_parsed_text())
 
 
+func _on_rollback_pressed() -> void:
+	# Подтверждение и сам откат делает agent_panel — карточка только просит.
+	rollback_requested.emit()
+
+
+func set_rollback_available(available: bool) -> void:
+	# Живой карточке (пока идёт стрим) откат не предлагаем: изменения ещё
+	# не зафиксированы на сервере.
+	if rollback_btn == null or not is_instance_valid(rollback_btn):
+		return
+	rollback_btn.visible = available
+	if not available:
+		rollback_btn.disabled = true
+
+
 func _on_expand_pressed() -> void:
 	_is_expanded = not _is_expanded
 	_apply_expand_state()
@@ -172,6 +231,12 @@ func _set_actions_shown(shown: bool) -> void:
 	copy_btn.modulate.a = alpha
 	copy_btn.mouse_filter = filter
 	copy_btn.disabled = not shown
+	# Кнопка отката ведёт себя так же; visible ею управляет
+	# set_rollback_available (у живой карточки её нет вовсе).
+	if rollback_btn and is_instance_valid(rollback_btn) and rollback_btn.visible:
+		rollback_btn.modulate.a = alpha
+		rollback_btn.mouse_filter = filter
+		rollback_btn.disabled = not shown
 	# Кнопка сворачивания резервирует место только у длинных ответов.
 	expand_btn.visible = _needs_collapse
 	expand_btn.modulate.a = alpha

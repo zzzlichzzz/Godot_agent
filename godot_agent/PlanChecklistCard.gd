@@ -48,6 +48,10 @@ func _setup_theme() -> void:
 	var T = _T()
 	if T == null:
 		return
+	# Сцена открыта во вкладке редактора — оформление не применяем, иначе
+	# Godot запечёт иконки и шрифты в .tscn при сохранении (см. is_edited_scene).
+	if T.is_edited_scene(self):
+		return
 	# Фон плана — bg_1 (как было: dark_color_1), рамка акцентная.
 	add_theme_stylebox_override("panel", T.make_panel_style(T.color("bg_1"), T.alpha("accent", 0.35), 8, 12, 8))
 

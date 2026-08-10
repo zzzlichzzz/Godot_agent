@@ -7,6 +7,11 @@ extends Node
 # Логика агента (сеть, действия, подтверждения) остаётся в agent_panel.gd.
 # ============================================================================
 
+# Пользователь нажал «откатить» на карточке ответа агента.
+# Подтверждение и запрос на сервер делает agent_panel — вид чата не знает
+# ни про сеть, ни про историю изменений.
+signal message_rollback_requested
+
 # Цвета, иконки и стили — единый модуль agent_theme.gd (см. _T()).
 var _theme_script = null
 
@@ -92,7 +97,10 @@ var _live_sent: int = 0
 var _live_streamed: bool = false
 # «Разрешить всё»: подтверждения применяются без запроса до отключения.
 var _auto_approve_all: bool = false
-var _auto_banner: PanelContainer = null
+# Плашка-напоминание закреплена НАД полем ввода, а не в ленте чата: иначе она
+# уезжает вверх с историей, и человек забывает, что действия применяются молча.
+var _auto_bar: PanelContainer = null
+var _root_vbox: VBoxContainer = null
 var _loc = null
 
 func _locale():
@@ -115,8 +123,10 @@ func _t(key: String) -> String:
 func setup(vbox: VBoxContainer) -> void:
 	# Старый чат-лог (RichTextLabel) прячем, но НЕ удаляем: логика agent_panel.gd
 	# продолжает писать в него (chat_log.text += …) — всё бесшовно работает.
+	_root_vbox = vbox
 	var old_log: RichTextLabel = null
 	var stale_scroll: Node = null
+	var stale_auto_bar: Node = null
 	for child in vbox.get_children():
 		# Проверяем по имени, а не по типу: ChatScroll — ScrollContainer, и из-за
 		# лишнего `child is RichTextLabel` старая область никогда не удалялась,
@@ -125,9 +135,16 @@ func setup(vbox: VBoxContainer) -> void:
 			old_log = child
 		elif child.name == "ChatScroll" and child != _scroll:
 			stale_scroll = child
+		elif child.name == "AutoApproveBar" and child != _auto_bar:
+			stale_auto_bar = child
 	if stale_scroll:
 		vbox.remove_child(stale_scroll)
 		stale_scroll.queue_free()
+	# Плашка авто-подтверждения от прошлой сборки панели: иначе после
+	# переоткрытия дока их стало бы две, и крестик гасил бы только новую.
+	if stale_auto_bar:
+		vbox.remove_child(stale_auto_bar)
+		stale_auto_bar.queue_free()
 
 	var insert_index := 0
 	if old_log:
@@ -173,6 +190,10 @@ func setup(vbox: VBoxContainer) -> void:
 		add_child(_tw_timer)
 		_tw_timer.timeout.connect(_on_tw_tick)
 
+	# Панель могли собрать заново, пока режим «Разрешить всё» был включён —
+	# возвращаем плашку на место над вводом.
+	_update_auto_bar()
+
 
 func clear() -> void:
 	flush()
@@ -183,7 +204,9 @@ func clear() -> void:
 	# Новый чат — режим «Разрешить всё» не переносится: иначе он молча
 	# продолжил бы применять действия в другом контексте.
 	_auto_approve_all = false
-	_auto_banner = null
+	# Плашка над вводом живёт вне списка карточек, поэтому её надо убрать
+	# отдельно: очистка _chat_container её не затрагивает.
+	_update_auto_bar()
 	# Карточки-вопросы удаляются вместе с содержимым чата — иначе в словаре
 	# остались бы ссылки на освобождённые узлы.
 	_question_cards.clear()
@@ -241,6 +264,8 @@ func add_agent_message(bbcode_text: String) -> void:
 		_reset_live_state()
 		live.set_status("")
 		live.setup(bbcode_text)
+		# Стрим окончен — изменения зафиксированы, откат снова доступен.
+		_wire_card_rollback(live)
 		_scroll_to_bottom()
 		return
 	finalize_live_block()
@@ -251,7 +276,22 @@ func add_agent_message(bbcode_text: String) -> void:
 		return
 	_chat_container.add_child(card)
 	card.setup(bbcode_text)
+	_wire_card_rollback(card)
 	_scroll_to_bottom()
+
+
+func _wire_card_rollback(card: AgentMessageCard) -> void:
+	# Кнопка отката на карточке ответа. Сама карточка про откат ничего не
+	# знает — она только шлёт сигнал, а вопрос и запрос делает agent_panel.
+	if card == null or not is_instance_valid(card):
+		return
+	card.set_rollback_available(true)
+	if not card.rollback_requested.is_connected(_on_card_rollback_requested):
+		card.rollback_requested.connect(_on_card_rollback_requested)
+
+
+func _on_card_rollback_requested() -> void:
+	message_rollback_requested.emit()
 
 
 func add_system(text: String) -> void:
@@ -427,6 +467,9 @@ func feed_live_stream(stream: String) -> void:
 		_chat_container.add_child(_live_agent_card)
 		_live_agent_card.setup("")
 		_live_agent_card.set_status(_t("typing"))
+		# Пока ответ печатается, изменения ещё не зафиксированы на сервере —
+		# откат прячем до конца стрима (его вернёт add_agent_message).
+		_live_agent_card.set_rollback_available(false)
 		_scroll_to_bottom()
 	if stream.length() > _live_sent:
 		var delta := stream.substr(_live_sent)
@@ -497,19 +540,23 @@ func _on_tw_tick() -> void:
 		_tw_timer.stop()
 
 
-func scroll_to_end() -> void:
+func scroll_to_end(force: bool = false) -> void:
 	# Публичная обёртка для agent_panel: раньше панель прокручивала скрытый
 	# ChatLog, теперь просит прокрутить реальный список карточек.
-	_scroll_to_bottom()
+	# force=true — когда ответ на действие пользователя обязан попасться на глаза.
+	_scroll_to_bottom(force)
 
 
-func _scroll_to_bottom() -> void:
+func _scroll_to_bottom(force: bool = false) -> void:
 	if _scroll == null or not is_instance_valid(_scroll):
 		return
 	var bar := _scroll.get_v_scroll_bar()
 	# Если пользователь сам отлистал вверх — не выдёргиваем у него скролл.
+	# force=true только для карточек, которые ЖДУТ ответа (вопросы вроде отката):
+	# иначе пользователь нажимает «Откатить» у старого сообщения выше, карточка
+	# подтверждения появляется внизу — и он её просто не видит.
 	var was_at_bottom := bar == null or _scroll.scroll_vertical >= int(bar.max_value - bar.page - 24)
-	if not was_at_bottom:
+	if not force and not was_at_bottom:
 		return
 	# Двух кадров достаточно, чтобы контейнер пересчитал размеры карточек.
 	await get_tree().process_frame
@@ -618,44 +665,104 @@ func set_auto_approve(enabled: bool) -> void:
 	if _auto_approve_all == enabled:
 		return
 	_auto_approve_all = enabled
+	_update_auto_bar()
 	if enabled:
-		_add_auto_approve_banner()
+		# Разово пишем в ленту — чтобы в истории осталось, с какого момента
+		# действия начали применяться без вопросов.
+		add_system(_t("auto_approve_on"))
 	else:
-		if _auto_banner and is_instance_valid(_auto_banner):
-			_auto_banner.queue_free()
-		_auto_banner = null
 		add_system(_t("auto_approve_stopped"))
 
 
-func _add_auto_approve_banner() -> void:
-	if _chat_container == null:
+func _update_auto_bar() -> void:
+	# Плашка живёт ровно столько, сколько включён режим.
+	if not _auto_approve_all:
+		if _auto_bar and is_instance_valid(_auto_bar):
+			_auto_bar.queue_free()
+		_auto_bar = null
 		return
-	if _auto_banner and is_instance_valid(_auto_banner):
-		_auto_banner.queue_free()
+	if _root_vbox == null or not is_instance_valid(_root_vbox):
+		return
+	if _auto_bar and is_instance_valid(_auto_bar):
+		# Плашка от прошлой сборки панели: узел ещё жив, но висит в старом
+		# дереве и пользователю не виден — пересоздаём в актуальном.
+		if _auto_bar.get_parent() == _root_vbox:
+			return
+		_auto_bar.queue_free()
+		_auto_bar = null
+
 	var panel := _make_panel("hint")
+	panel.name = "AutoApproveBar"
+	var T = _T()
+	if T:
+		# Отступы меньше, чем у карточек в ленте: это узкая полоска-напоминание
+		# над вводом, а не сообщение — она не должна отбирать место у чата.
+		panel.add_theme_stylebox_override(
+			"panel", T.make_panel_style(T.color("bg_1"), T.alpha("warning", 0.45), 6, 8, 3)
+		)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
+
+	var icon_rect := TextureRect.new()
+	var head_icon: Texture2D = null
+	if T:
+		head_icon = T.first_icon(["StatusWarning", "AutoKey", "Play"])
+	if head_icon != null:
+		icon_rect.texture = head_icon
+		icon_rect.custom_minimum_size = Vector2(16, 16)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon_rect.modulate = _color("warning")
+	else:
+		icon_rect.visible = false
 
 	var label := Label.new()
-	label.text = _t("auto_approve_on")
+	label.text = _t("auto_approve_bar")
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	label.add_theme_color_override("font_color", _color("warning"))
+	if T:
+		label.add_theme_font_size_override("font_size", maxi(T.font_size("Label", 14) - 2, 9))
 
+	# Крестик: выключить режим в любой момент, не дожидаясь конца задачи.
 	var off_btn := Button.new()
-	off_btn.text = _t("auto_approve_off")
-	off_btn.flat = true
-	off_btn.custom_minimum_size = Vector2(0, 26)
-	off_btn.add_theme_color_override("font_color", _color("error"))
-	off_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	off_btn.name = "AutoApproveOffButton"
+	off_btn.tooltip_text = _t("auto_approve_off")
+	off_btn.custom_minimum_size = Vector2(20, 20)
+	off_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	off_btn.focus_mode = Control.FOCUS_NONE
+	if T:
+		T.style_icon_button(off_btn, ["Close", "Remove"], "✕", "error")
+	else:
+		off_btn.flat = true
+		off_btn.text = "✕"
 	off_btn.pressed.connect(func() -> void: set_auto_approve(false))
 
+	row.add_child(icon_rect)
 	row.add_child(label)
 	row.add_child(off_btn)
 	panel.add_child(row)
-	_chat_container.add_child(panel)
-	_auto_banner = panel
-	_scroll_to_bottom()
+	_root_vbox.add_child(panel)
+	# Место плашки — прямо над строкой ввода (HBoxContainer с InputField).
+	_root_vbox.move_child(panel, _input_row_index())
+	_auto_bar = panel
+
+
+func _input_row_index() -> int:
+	# Индекс строки ввода в корневом VBox. Дерево панели собирается кодом
+	# (plugin_universal.gd) и из .tscn, поэтому ищем по имени узла, а не по
+	# фиксированному номеру: порядок детей между сборками может отличаться.
+	if _root_vbox == null or not is_instance_valid(_root_vbox):
+		return 0
+	var input_row := _root_vbox.get_node_or_null("HBoxContainer")
+	if input_row:
+		return input_row.get_index()
+	# Запасной вариант: перед строкой статуса, если ввод почему-то не найден.
+	if _status_bar and is_instance_valid(_status_bar) and _status_bar.get_parent() == _root_vbox:
+		return _status_bar.get_index() + 1
+	return maxi(_root_vbox.get_child_count() - 1, 0)
 
 
 func add_confirmation_card(description: String, confirm_callback: Callable, reject_callback: Callable) -> PanelContainer:
@@ -757,7 +864,7 @@ var _question_cards := {}
 func add_question_card(key: String, title: String, description: String,
 		yes_label: String, no_label: String,
 		yes_callback: Callable, no_callback: Callable,
-		tone: String = "warning") -> PanelContainer:
+		tone: String = "warning", icon_names: Array = []) -> PanelContainer:
 	if _chat_container == null:
 		return null
 
@@ -768,27 +875,45 @@ func add_question_card(key: String, title: String, description: String,
 			old.queue_free()
 		_question_cards.erase(key)
 
-	var panel := _make_panel("hint" if tone == "warning" else "error")
+	# Тон "ask" — обычный вопрос без тревоги: карточка выглядит как сообщение
+	# агента, без жёлтой рамки и знака «внимание». Раньше даже рутинный откат
+	# показывался как предупреждение и выглядел пугающе.
+	var is_ask := tone == "ask"
+	var panel: PanelContainer
+	if is_ask:
+		panel = _make_panel("agent")
+	else:
+		panel = _make_panel("hint" if tone == "warning" else "error")
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
+
+	# Цвет заголовка: у обычного вопроса — как у текста, а не сигнальный.
+	var title_color := _color("text") if is_ask else _color(tone)
 
 	# Шапка: иконка + заголовок вопроса.
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 6)
 	var icon_rect := TextureRect.new()
-	var head_icon := _icon(&"StatusWarning" if tone == "warning" else &"StatusError")
+	var head_icon: Texture2D = null
+	if not icon_names.is_empty():
+		var T = _T()
+		if T:
+			head_icon = T.first_icon(icon_names)
+	elif not is_ask:
+		# Знак «внимание»/«ошибка» — только для настоящих предупреждений.
+		head_icon = _icon(&"StatusWarning" if tone == "warning" else &"StatusError")
 	if head_icon != null:
 		icon_rect.texture = head_icon
 		icon_rect.custom_minimum_size = Vector2(16, 16)
 		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		icon_rect.modulate = _color(tone)
+		icon_rect.modulate = title_color
 	else:
 		icon_rect.visible = false
 	var title_label := Label.new()
 	title_label.text = title
-	title_label.add_theme_color_override("font_color", _color(tone))
+	title_label.add_theme_color_override("font_color", title_color)
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(icon_rect)
 	head.add_child(title_label)
@@ -796,8 +921,10 @@ func add_question_card(key: String, title: String, description: String,
 	var label := Label.new()
 	label.text = description
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_color_override("font_color", _color("text"))
+	label.add_theme_color_override("font_color", _color("dim") if is_ask else _color("text"))
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Пустое описание не должно оставлять пустую строку в карточке.
+	label.visible = description != ""
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 10)
@@ -807,7 +934,7 @@ func add_question_card(key: String, title: String, description: String,
 	yes_btn.custom_minimum_size = Vector2(100, 28)
 	yes_btn.flat = true
 	yes_btn.icon = _icon(&"StatusSuccess")
-	yes_btn.add_theme_color_override("font_color", _color(tone))
+	yes_btn.add_theme_color_override("font_color", _color("accent") if is_ask else _color(tone))
 	yes_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 
 	var no_btn := Button.new()
@@ -839,5 +966,7 @@ func add_question_card(key: String, title: String, description: String,
 
 	_chat_container.add_child(panel)
 	_question_cards[key] = panel
-	_scroll_to_bottom()
+	# Вопрос без ответа блокирует работу, поэтому скролл принудительный:
+	# карточку видно сразу, даже если пользователь читал историю выше.
+	_scroll_to_bottom(true)
 	return panel

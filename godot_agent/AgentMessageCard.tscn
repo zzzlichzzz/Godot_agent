@@ -1,4 +1,4 @@
-[gd_scene format=4 uid="uid://ckxn7k7x7hqk7"]
+[gd_scene format=3 uid="uid://ckxn7k7x7hqk7"]
 
 [ext_resource type="Script" uid="uid://dayht28cwuhbr" path="res://addons/Godot_agent/godot_agent/AgentMessageCard.gd" id="1_ckxn7"]
 
