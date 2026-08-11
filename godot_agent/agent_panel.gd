@@ -1122,6 +1122,14 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_view.add_system(p_msg)
 			else:
 				_view.add_warning(p_msg)
+			# Шаг уже записан на диск, поэтому карточка идёт без кнопок —
+			# только «файл +N -M» с возможностью развернуть код.
+			var p_diff = json.get("step_diff")
+			if p_ok and p_diff is Dictionary:
+				var p_diff_path := str((p_diff as Dictionary).get("path", ""))
+				if p_diff_path == "":
+					p_diff_path = str(json.get("changed_path", ""))
+				_view.add_applied_diff(p_diff_path, p_diff)
 			var p_ch_path = json.get("changed_path")
 			var p_ch_block = json.get("changed_block")
 			if p_ch_path != null and p_ch_block != null and str(p_ch_block) != "":
@@ -1312,17 +1320,23 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if pending != null and action_label and pending_action_box:
 			var description = json.get("pending_action_description", _t("agent_wants_action"))
 			if description == null: description = _t("agent_wants_action")
-			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки).
+			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки)
+			# и, если смог посчитать, разобранный дифф — что добавится и что удалится.
 			var pcode = json.get("pending_action_code")
+			var pdiff = json.get("pending_action_diff")
+			var diff_data: Dictionary = pdiff if pdiff is Dictionary else {}
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
 
-			if pcode != null and str(pcode) != "":
+			# Дифф сам по себе достаточен для карточки: patch_file, который
+			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
+			# правке доставалась безликая карточка подтверждения.
+			if (pcode != null and str(pcode) != "") or not diff_data.is_empty():
 				var file_path = _last_pending_action_path if _last_pending_action_path != "" else _last_pending_action_dest
-				var card = _view.add_diff_preview(file_path, str(pcode))
+				var card = _view.add_diff_preview(file_path, str(pcode) if pcode != null else "", diff_data)
 				if card:
 					card.diff_applied.connect(func(_p): _on_confirm_pressed())
 					card.diff_rejected.connect(func(_p): _on_reject_pressed())
