@@ -243,7 +243,7 @@ def last_committed_info(project_root):
 def last_write_ts_by_others(project_root, path, chat_id):
     """Когда файл в последний раз меняли ДРУГИЕ чаты (0 — не меняли).
     Записи без chat_id (сделанные до обновления) не учитываются,
-    чтобы не блокир��вать стар��е проекты ложными срабатываниями."""
+    чтобы не блокировать старые проекты ложными срабатываниями."""
     ts = 0
     for e in _load_journal(project_root):
         if not e.get("committed"):

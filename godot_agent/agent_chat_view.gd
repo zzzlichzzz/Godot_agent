@@ -616,15 +616,22 @@ func update_plan_step(card: PlanChecklistCard, step_index: int, status: String) 
 		card.update_step(step_index, status)
 
 
-func add_diff_preview(file_path: String, diff_text: String) -> DiffPreviewCard:
+func add_diff_preview(file_path: String, diff_text: String, diff_data: Dictionary = {}) -> DiffPreviewCard:
 	if _chat_container == null:
 		return null
+	# diff_data — разобранный дифф с сервера (что добавилось и что удалилось).
+	# Его может не быть: старая сборка сервера или патч, который не сошёлся с
+	# диском. Тогда показываем предлагаемый код как раньше.
+	var has_diff := diff_data.has("lines") and diff_data["lines"] is Array and not (diff_data["lines"] as Array).is_empty()
 	var card := _make_diff_card()
 	if card == null:
-		add_code_preview(_escape_bbcode(diff_text))
+		add_code_preview(_escape_bbcode(_plain_diff_text(diff_text, diff_data) if has_diff else diff_text))
 		return null
 	_chat_container.add_child(card)
-	card.setup(file_path, diff_text)
+	if has_diff:
+		card.setup_diff(file_path, diff_data)
+	else:
+		card.setup(file_path, diff_text)
 	card.set_allow_all_texts(_t("allow_all"), _t("allow_all_tip"))
 	card.set_view_full_texts(_t("diff_show_full"), _t("diff_hide_full"))
 	# Сигналы карточки agent_panel подключает уже после возврата, поэтому
@@ -636,6 +643,37 @@ func add_diff_preview(file_path: String, diff_text: String) -> DiffPreviewCard:
 		card.call_deferred("emit_signal", "diff_applied", file_path)
 	_scroll_to_bottom()
 	return card
+
+
+func add_applied_diff(file_path: String, diff_data: Dictionary) -> DiffPreviewCard:
+	# Отчёт об уже применённом изменении (шаг плана). От предпросмотра
+	# отличается только отсутствием кнопок: спрашивать нечего, файл уже записан.
+	if _chat_container == null:
+		return null
+	if not (diff_data.has("lines") and diff_data["lines"] is Array and not (diff_data["lines"] as Array).is_empty()):
+		return null
+	var card := _make_diff_card()
+	if card == null:
+		return null
+	_chat_container.add_child(card)
+	card.setup_diff(file_path, diff_data)
+	card.set_view_full_texts(_t("diff_show_full"), _t("diff_hide_full"))
+	card.mark_applied()
+	_scroll_to_bottom()
+	return card
+
+
+func _plain_diff_text(diff_text: String, diff_data: Dictionary) -> String:
+	# Запасной вид, когда сцена карточки не загрузилась: обычный текстовый
+	# дифф вместо цветного — лучше, чем ничего не показать перед применением.
+	var raw = diff_data.get("lines")
+	if not (raw is Array):
+		return diff_text
+	var out := PackedStringArray()
+	for entry in raw:
+		if entry is Array and (entry as Array).size() >= 4:
+			out.append(str(entry[0]) + " " + str(entry[3]))
+	return "\n".join(out)
 
 
 func _on_diff_allow_all(card: DiffPreviewCard) -> void:
