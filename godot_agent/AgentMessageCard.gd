@@ -10,6 +10,13 @@ class_name AgentMessageCard
 @onready var expand_btn: Button = $Row/MessageBox/Header/ExpandButton
 @onready var tool_calls_container: VBoxContainer = $Row/MessageBox/ToolCallsContainer
 
+# Кнопка отката создаётся КОДОМ, а не в .tscn — намеренно.
+# Карточка помечена @tool: когда её сцена открыта во вкладке редактора,
+# _ready() отрабатывает прямо в редакторе, присваивает иконки и шрифты из
+# темы, и Godot запекает их в .tscn при сохранении (так сцена однажды
+# распухла с 4 КБ до 3 МБ). Узлы, созданные кодом, в файл не попадают.
+var rollback_btn: Button = null
+
 # Порог, после которого длинный ответ схлопывается до COLLAPSED_HEIGHT.
 const COLLAPSE_THRESHOLD := 1200
 const COLLAPSED_HEIGHT := 260.0
@@ -18,37 +25,47 @@ var _full_text: String = ""
 var _is_expanded: bool = true
 var _needs_collapse: bool = false
 
-
-# --- безопасное чтение темы редактора ---
-
-func _tc(theme_item: StringName, theme_type: StringName, fallback: Color) -> Color:
-	if has_theme_color(theme_item, theme_type):
-		return get_theme_color(theme_item, theme_type)
-	return fallback
+# Откат последнего изменения агента прямо из карточки сообщения.
+# Саму логику отката карточка не знает: только просит, а подтверждение и
+# запрос на сервер делает agent_panel (см. agent_chat_view.add_agent_message).
+signal rollback_requested
 
 
-func _tf(theme_item: StringName, theme_type: StringName) -> Font:
-	if has_theme_font(theme_item, theme_type):
-		return get_theme_font(theme_item, theme_type)
-	return null
+# Цвета, иконки и стили — единый модуль agent_theme.gd (см. _T()).
+static var _theme_script = null
+static var _locale_script = null
 
 
-func _tfs(theme_item: StringName, theme_type: StringName, fallback: int) -> int:
-	if has_theme_font_size(theme_item, theme_type):
-		return get_theme_font_size(theme_item, theme_type)
-	return fallback
+func _T():
+	# Путь считается от расположения скрипта, чтобы аддон работал из любой папки.
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
 
 
-func _ti(theme_item: StringName) -> Texture2D:
-	if has_theme_icon(theme_item, "EditorIcons"):
-		return get_theme_icon(theme_item, "EditorIcons")
-	return null
+func _t(key: String) -> String:
+	if _locale_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(p):
+				_locale_script = load(p)
+	if _locale_script:
+		return _locale_script.t(key)
+	return key
 
 
 func _ready() -> void:
+	_ensure_rollback_button()
 	_setup_theme()
 	if not copy_btn.pressed.is_connected(_on_copy_pressed):
 		copy_btn.pressed.connect(_on_copy_pressed)
+	if rollback_btn and not rollback_btn.pressed.is_connected(_on_rollback_pressed):
+		rollback_btn.pressed.connect(_on_rollback_pressed)
 	if not expand_btn.pressed.is_connected(_on_expand_pressed):
 		expand_btn.pressed.connect(_on_expand_pressed)
 	if not mouse_entered.is_connected(_show_actions):
@@ -58,57 +75,62 @@ func _ready() -> void:
 	_set_actions_shown(false)
 
 
-func _setup_theme() -> void:
-	var accent := _tc("accent_color", "Editor", Color("#ffd54f"))
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = _tc("dark_color_2", "Editor", Color("#26303d"))
-	panel_style.border_color = Color(accent.r, accent.g, accent.b, 0.35)
-	panel_style.set_border_width_all(1)
-	panel_style.set_corner_radius_all(8)
-	panel_style.content_margin_left = 12
-	panel_style.content_margin_right = 12
-	panel_style.content_margin_top = 8
-	panel_style.content_margin_bottom = 8
-	add_theme_stylebox_override("panel", panel_style)
+func _ensure_rollback_button() -> void:
+	# Создаём кнопку рядом с «Копировать» (слева от неё) — см. комментарий
+	# у объявления rollback_btn о том, почему не в .tscn.
+	if rollback_btn != null and is_instance_valid(rollback_btn):
+		return
+	var header := copy_btn.get_parent()
+	if header == null:
+		return
+	rollback_btn = Button.new()
+	rollback_btn.name = "RollbackButton"
+	rollback_btn.custom_minimum_size = Vector2(22, 22)
+	rollback_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rollback_btn.focus_mode = Control.FOCUS_NONE
+	rollback_btn.flat = true
+	rollback_btn.modulate.a = 0.0
+	rollback_btn.disabled = true
+	header.add_child(rollback_btn)
+	header.move_child(rollback_btn, copy_btn.get_index())
 
-	var agent_icon := _ti("Node")
-	if agent_icon == null:
-		agent_icon = _ti("Script")
+
+func _setup_theme() -> void:
+	var T = _T()
+	if T == null:
+		return
+	# Сцена открыта во вкладке редактора — не трогаем оформление, иначе Godot
+	# запечёт иконки и шрифты в .tscn при сохранении (см. is_edited_scene).
+	if T.is_edited_scene(self):
+		return
+	add_theme_stylebox_override("panel", T.panel_style("agent"))
+
+	var accent: Color = T.color("accent")
+	var agent_icon: Texture2D = T.first_icon(["Node", "Script"])
 	if agent_icon != null:
 		avatar.texture = agent_icon
 		avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		avatar.modulate = accent
+		avatar.visible = true
 	else:
 		avatar.visible = false
 
 	name_label.add_theme_color_override("font_color", accent)
-	status_label.add_theme_color_override("font_color", _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6)))
+	status_label.add_theme_color_override("font_color", T.color("dim"))
 
-	content.add_theme_color_override("default_color", _tc("font_color", "Label", Color.WHITE))
-	content.add_theme_color_override("selection_color", accent)
-	content.fit_content = true
-	content.scroll_active = false
+	# style_rich_text ставит fit_content/scroll_active/цвета: без fit_content
+	# RichTextLabel внутри контейнера получает нулевую высоту и текст не виден.
+	T.style_rich_text(content)
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	# Моно-шрифт для блоков кода внутри ответа.
-	var mono := _tf("font", "CodeEdit")
-	if mono != null:
-		content.add_theme_font_override("mono_font", mono)
-	content.add_theme_font_size_override("mono_size", _tfs("font_size", "CodeEdit", 13))
 	content.add_theme_color_override("table_odd_row_bg", Color(0, 0, 0, 0.15))
 
-	var dim := _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6))
-	var copy_icon := _ti("ActionCopy")
-	if copy_icon != null:
-		copy_btn.icon = copy_icon
-		copy_btn.text = ""
-	else:
-		copy_btn.text = "⧉"
-	copy_btn.add_theme_color_override("font_color", dim)
-	copy_btn.add_theme_color_override("icon_normal_color", dim)
-	copy_btn.add_theme_color_override("icon_hover_color", accent)
-	expand_btn.add_theme_color_override("font_color", dim)
-	expand_btn.add_theme_color_override("font_hover_color", accent)
+	T.style_icon_button(copy_btn, ["ActionCopy"], "⧉")
+	copy_btn.tooltip_text = _t("copy")
+	# Откат: иконка «отменить» из темы редактора, запасной вариант — символ.
+	if rollback_btn:
+		T.style_icon_button(rollback_btn, ["UndoRedo", "Undo", "Reload"], "⟲", "warning")
+		rollback_btn.tooltip_text = _t("msg_rollback_tip")
+	T.style_button(expand_btn, "dim")
 
 
 func setup(text: String, _time_str: String = "") -> void:
@@ -168,17 +190,32 @@ func _apply_expand_state() -> void:
 		content.fit_content = true
 		content.clip_contents = false
 		content.custom_minimum_size.y = 0
-		expand_btn.text = "Свернуть"
+		expand_btn.text = _t("collapse")
 	else:
 		content.fit_content = false
 		content.clip_contents = true
 		content.custom_minimum_size.y = COLLAPSED_HEIGHT
-		expand_btn.text = "Развернуть"
+		expand_btn.text = _t("expand")
 
 
 func _on_copy_pressed() -> void:
 	# Копируем видимый текст без BBCode-разметки.
 	DisplayServer.clipboard_set(content.get_parsed_text())
+
+
+func _on_rollback_pressed() -> void:
+	# Подтверждение и сам откат делает agent_panel — карточка только просит.
+	rollback_requested.emit()
+
+
+func set_rollback_available(available: bool) -> void:
+	# Живой карточке (пока идёт стрим) откат не предлагаем: изменения ещё
+	# не зафиксированы на сервере.
+	if rollback_btn == null or not is_instance_valid(rollback_btn):
+		return
+	rollback_btn.visible = available
+	if not available:
+		rollback_btn.disabled = true
 
 
 func _on_expand_pressed() -> void:
@@ -194,6 +231,12 @@ func _set_actions_shown(shown: bool) -> void:
 	copy_btn.modulate.a = alpha
 	copy_btn.mouse_filter = filter
 	copy_btn.disabled = not shown
+	# Кнопка отката ведёт себя так же; visible ею управляет
+	# set_rollback_available (у живой карточки её нет вовсе).
+	if rollback_btn and is_instance_valid(rollback_btn) and rollback_btn.visible:
+		rollback_btn.modulate.a = alpha
+		rollback_btn.mouse_filter = filter
+		rollback_btn.disabled = not shown
 	# Кнопка сворачивания резервирует место только у длинных ответов.
 	expand_btn.visible = _needs_collapse
 	expand_btn.modulate.a = alpha

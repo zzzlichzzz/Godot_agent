@@ -9,16 +9,18 @@ class_name PlanStepItem
 var _spin_tween: Tween = null
 
 
-func _tc(theme_item: StringName, theme_type: StringName, fallback: Color) -> Color:
-	if has_theme_color(theme_item, theme_type):
-		return get_theme_color(theme_item, theme_type)
-	return fallback
+# Цвета и иконки — единый модуль agent_theme.gd.
+static var _theme_script = null
 
 
-func _ti(theme_item: StringName) -> Texture2D:
-	if has_theme_icon(theme_item, "EditorIcons"):
-		return get_theme_icon(theme_item, "EditorIcons")
-	return null
+func _T():
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
 
 
 func _ready() -> void:
@@ -30,8 +32,15 @@ func _exit_tree() -> void:
 
 
 func _setup_theme() -> void:
-	step_label.add_theme_color_override("font_color", _tc("font_color", "Label", Color.WHITE))
-	description_label.add_theme_color_override("font_color", _tc("font_disabled_color", "Button", Color(0.62, 0.62, 0.62)))
+	var T = _T()
+	if T == null:
+		return
+	# Сцена открыта во вкладке редактора — оформление не применяем, иначе
+	# Godot запечёт иконки и шрифты в .tscn при сохранении (см. is_edited_scene).
+	if T.is_edited_scene(self):
+		return
+	step_label.add_theme_color_override("font_color", T.color("text"))
+	description_label.add_theme_color_override("font_color", T.color("dim"))
 	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
@@ -52,23 +61,27 @@ func update_status(index: int, current_index: int, status: String) -> void:
 
 func _update_icon(is_current: bool, status: String) -> void:
 	stop_spinner()
+	var T = _T()
+	if T == null:
+		return
 	match status:
 		"done":
-			_set_icon("StatusSuccess", _tc("success_color", "Editor", Color("#7ddc84")))
+			_set_icon("StatusSuccess", T.color("success"))
 		"active", "running", "working":
-			_set_icon("Progress1", _tc("accent_color", "Editor", Color("#ffd54f")))
+			_set_icon("Progress1", T.color("accent"))
 			if is_current:
 				_animate_spinner()
 		"error", "failed":
-			_set_icon("StatusError", _tc("error_color", "Editor", Color("#f44336")))
+			_set_icon("StatusError", T.color("error"))
 		_:
-			_set_icon("GuiRadioUnchecked", Color(0.5, 0.5, 0.5))
+			_set_icon("GuiRadioUnchecked", T.color("dim"))
 
 
 func _set_icon(icon_name: StringName, tint: Color) -> void:
-	var icon := _ti(icon_name)
-	if icon == null:
-		icon = _ti("StatusWarning")
+	var T = _T()
+	if T == null:
+		return
+	var icon: Texture2D = T.first_icon([icon_name, "StatusWarning"])
 	status_icon.visible = icon != null
 	if icon != null:
 		status_icon.texture = icon

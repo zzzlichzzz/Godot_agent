@@ -131,9 +131,12 @@ def create_project_file(project_root, godot_path, content):
     return existed
 
 
-def patch_project_file(project_root, godot_path, search_code, replace_code):
-    """Точечный патч кода. Резервная копия теперь хранится в журнале
-    изменений (.agent_history) — см. history_manager.py."""
+def patch_result_text(project_root, godot_path, search_code, replace_code):
+    """(старый_текст, новый_текст) для patch_file БЕЗ записи на диск.
+
+    Нужна предпросмотру: карточка диффа в панели обязана показывать ровно то,
+    что применится, поэтому нормализация и проверки здесь общие с настоящим
+    патчем — patch_project_file вызывает эту же функцию."""
     abs_path = _resolve_safe_path(project_root, godot_path)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(f"Файл не найден: {godot_path}")
@@ -150,7 +153,14 @@ def patch_project_file(project_root, godot_path, search_code, replace_code):
         raise ValueError("Ошибка: Указанный старый блок кода не найден в файле.")
     if occurrences > 1:
         raise ValueError("Ошибка: Блок кода не уникален (встречается несколько раз).")
-    new_content = content.replace(search_norm, replace_norm)
+    return content, content.replace(search_norm, replace_norm)
+
+
+def patch_project_file(project_root, godot_path, search_code, replace_code):
+    """Точечный патч кода. Резервная копия теперь хранится в журнале
+    изменений (.agent_history) — см. history_manager.py."""
+    abs_path = _resolve_safe_path(project_root, godot_path)
+    _, new_content = patch_result_text(project_root, godot_path, search_code, replace_code)
     # LF как в Godot (см. комментарий в create_project_file).
     with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(new_content)
@@ -499,7 +509,7 @@ def _parse_project_godot(project_root):
 
 
 def clean_dangling_autoloads(project_root):
-    """После откат��/удаления файлов убирает из project.godot записи секции
+    """После откатов/удаления файлов убирает из project.godot записи секции
     [autoload], которые ссылаются на файл, которого больше нет на диске
     (например, откат вернул create_file, добавивший автозагрузку, к состоянию
     ДО плана, а сама запись автозагрузки была добавлена другим patch_file и
@@ -553,7 +563,7 @@ def clean_dangling_autoloads(project_root):
 
 
 def has_architecture(project_root):
-    """Есть ли у проекта СВО�� структура: типовые папки или любой .gd/.tscn
+    """Есть ли у проекта СВОЯ структура: типовые папки или любой .gd/.tscn
     вне addons/. Если есть — агент ИСПОЛЬЗУЕТ её, а не навязывает свою."""
     project_root = os.path.abspath(project_root)
     for name in ('src', 'scripts', 'scenes', 'game', 'core', 'levels'):
@@ -754,3 +764,126 @@ def unified_diff_text(old_text, new_text, rel_path, max_lines=40, context=1):
     if len(diff) > max_lines:
         return None, changed
     return '\n'.join(diff), changed
+
+
+# ---------------------------------------------------------------------------
+# Структурный дифф для карточки предпросмотра в панели Godot.
+#
+# Модели уходит ТЕКСТОВЫЙ unified-diff (unified_diff_text выше) — ей так
+# привычнее. Панели текст не годится: чтобы красить строки и показывать номера,
+# ей пришлось бы парсить diff на GDScript. Поэтому здесь дифф отдаётся уже
+# разобранным: список [пометка, номер_старой, номер_новой, текст].
+#
+# Пометки: "+" добавлено, "-" удалено, " " контекст, "@" заголовок куска.
+# ---------------------------------------------------------------------------
+
+DIFF_PREVIEW_MAX_LINES = 600
+
+
+def build_diff_preview(old_text, new_text, context=3, max_lines=DIFF_PREVIEW_MAX_LINES):
+    """Структурный дифф для панели или None, если изменений нет.
+
+    old_text=None означает «файла не было» — тогда весь новый текст помечается
+    как добавленный (иначе пустая строка «до» превратилась бы в удалённую).
+    Счётчики added/removed считаются по ПОЛНОМУ диффу, даже если список строк
+    обрезан по max_lines: статистика в шапке карточки должна быть честной."""
+    import difflib
+    new_lines = _split_lines(new_text)
+    if old_text is None:
+        head = new_lines[:max_lines]
+        return {
+            "lines": [["+", None, i + 1, text] for i, text in enumerate(head)],
+            "added": len(new_lines),
+            "removed": 0,
+            "truncated": len(new_lines) > len(head),
+        }
+    old_lines = _split_lines(old_text)
+    if old_lines == new_lines:
+        return None
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
+    out = []
+    added = 0
+    removed = 0
+    for group in matcher.get_grouped_opcodes(context):
+        first = group[0]
+        last = group[-1]
+        old_from, old_len = first[1] + 1, last[2] - first[1]
+        new_from, new_len = first[3] + 1, last[4] - first[3]
+        out.append(["@", old_from, new_from,
+                    "@@ -%d,%d +%d,%d @@" % (old_from, old_len, new_from, new_len)])
+        for tag, a1, a2, b1, b2 in group:
+            if tag == "equal":
+                for k in range(a1, a2):
+                    out.append([" ", k + 1, b1 + (k - a1) + 1, old_lines[k]])
+                continue
+            if tag in ("replace", "delete"):
+                for k in range(a1, a2):
+                    out.append(["-", k + 1, None, old_lines[k]])
+                    removed += 1
+            if tag in ("replace", "insert"):
+                for k in range(b1, b2):
+                    out.append(["+", None, k + 1, new_lines[k]])
+                    added += 1
+    truncated = len(out) > max_lines
+    return {
+        "lines": out[:max_lines] if truncated else out,
+        "added": added,
+        "removed": removed,
+        "truncated": truncated,
+    }
+
+
+def _split_lines(text):
+    """Строки файла без «хвостовой пустышки».
+
+    'a\\nb\\n'.split('\\n') даёт ['a', 'b', ''] — этот пустой элемент существует
+    только из-за перевода строки в конце файла. В диффе он выглядел как лишняя
+    добавленная/удалённая строка и врал в счётчике «+N»."""
+    body = (text or '').replace('\r\n', '\n')
+    lines = body.split('\n')
+    if len(lines) > 1 and lines[-1] == '':
+        lines.pop()
+    return lines
+
+
+def action_diff_preview(project_root, action):
+    """Дифф предлагаемого write-действия для карточки подтверждения, или None.
+
+    Показывается ДО применения, поэтому ничего не пишет на диск: для patch_file
+    замена считается в памяти той же функцией, что и настоящий патч. Если патч
+    не сойдётся с диском (блок не найден/не уникален), возвращается None —
+    панель молча покажет прежний предпросмотр кода, а несовпадение и так
+    всплывёт при применении понятной ошибкой."""
+    if not isinstance(action, dict) or not project_root:
+        return None
+    act = action.get("action")
+    path = action.get("path", "")
+    if not path:
+        return None
+    try:
+        if act == "patch_file":
+            old_text, new_text = patch_result_text(
+                project_root, path, action.get("search", "") or "", action.get("replace", "") or "")
+            preview = build_diff_preview(old_text, new_text)
+        elif act == "create_file":
+            content = action.get("content", "")
+            if not isinstance(content, str):
+                return None
+            abs_path = _resolve_safe_path(project_root, path)
+            old_text = None
+            if os.path.isfile(abs_path):
+                # Существующий файл create_file ПЕРЕЗАПИСЫВАЕТ целиком —
+                # человеку важнее всего увидеть, что при этом потеряется.
+                with open(abs_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+                    old_text = f.read()
+            new_text = sanitize_llm_text(content.replace('\r\n', '\n')) or ''
+            preview = build_diff_preview(old_text, new_text)
+        else:
+            return None
+    except Exception:
+        return None
+    if not preview:
+        return None
+    preview["path"] = path
+    preview["action"] = act
+    return preview
