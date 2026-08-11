@@ -790,12 +790,12 @@ check("браузер стартует в фоне — сервер не ждё�
       "_boot_browser_background" in _main_src and "threading.Thread(target=_boot_browser_background" in _main_src)
 _bat_src = open(os.path.join(_here, "build_server_exe.bat"), encoding="utf-8", errors="replace").read()
 check("сборка exe в режиме onedir (без распаковки при старте)", "--onedir" in _bat_src and "--onefile" not in _bat_src)
-_gd_src = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gd_src = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель проверяет связь каждые 0.5 с и знает пути onedir",
       "wait_time = 0.5" in _gd_src and "dist/godot_agent_server/godot_agent_server.exe" in _gd_src)
 
 # v29: панель не должна запускать старый медленный onefile-exe вместо onedir
-_gd_link = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gd_link = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель предпочитает onedir-сборку (кэш пути и поиск)",
       "func _prefer_onedir" in _gd_link
       and "_prefer_onedir(_load_cached_server_path())" in _gd_link
@@ -825,7 +825,7 @@ _main_v30 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
 check("main.py выбирает парсер текущего чата",
       "def _current_parser" in _main_v30
       and "_current_parser().send_message_and_get_response(" in _main_v30)
-_gd_link30 = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gd_link30 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель: повторный запуск сервера без минутной блокировки",
       "< 10000" in _gd_link30 and "< 60000" not in _gd_link30
       and "Поиск и запуск сервера занял" in _gd_link30
@@ -863,7 +863,7 @@ check("DeepSeek: клик по кнопке отправки pointer-событ�
 check("DeepSeek: ступенчатая проверка, что сообщение ушло",
       "_input_leftover" in _dsp.DeepSeekParser.__dict__
       and "after_submit" in _dsp.DeepSeekParser.__dict__)
-_gd_link32 = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gd_link32 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель: замер времени ответа сервера после запуска exe",
       "Сервер ответил через" in _gd_link32)
 
@@ -886,20 +886,20 @@ check("не ждём ответ, если сообщение не отправи
 _routes33 = open(os.path.join(_here, "server", "chat_routes.py"), encoding="utf-8").read()
 check("чаты: понятная ошибка вместо зависания, пока браузер занят",
       "def _busy_error" in _routes33 and _routes33.count("_busy_error()") >= 3)
-_panel33 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_panel33 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
 check("панель: кнопка Стоп во время обработки запроса",
       "_on_stop_pressed" in _panel33 and "/chat/stop" in _panel33)
-_gdlink33 = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gdlink33 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель: файл-ссылка server_path.txt для запуска сервера",
       "server_path.txt" in _gdlink33)
 
 # v34: кнопка ручного запуска сервера, когда он не отвечает
-_panel34 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_panel34 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
 check("панель: кнопка «Сервер выключен — открыть папку exe»",
       "_on_server_state_changed" in _panel34
       and "_on_open_server_folder_pressed" in _panel34
       and "server_state_changed" in _panel34)
-_gdlink34 = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gdlink34 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("связь: сигнал состояния сервера и открытие папки exe",
       "signal server_state_changed" in _gdlink34
       and "func find_server_exe_path" in _gdlink34
@@ -956,18 +956,18 @@ check("tscn-линт: Variant (Color) в [sub_resource] помечается к�
 
 # v37: кнопка ручного запуска переехала на стартовый экран (рядом с языком — там её видно,
 # в отличие от v36, где её закрывал стартовый экран), и увеличенный бюджет ожидания автозапуска
-_start37 = open(os.path.join(_here, "..", "godot", "agent_start_screen.gd"), encoding="utf-8").read()
+_start37 = open(os.path.join(_here, "..", "agent_start_screen.gd"), encoding="utf-8").read()
 check("стартовый экран: кнопка/подсказка ручного запуска есть на стартовом экране",
       "signal open_server_requested" in _start37
       and "func set_server_running" in _start37
       and "_server_btn = Button.new()" in _start37
       and _start37.find("_server_btn = Button.new()") < _start37.find("OptionButton.new()"))
-_panel37 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_panel37 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
 check("панель: делегирует ручной запуск стартовому экрану (а не скрытой полоске в VBoxContainer)",
       "_start_screen.set_server_running" in _panel37
       and "open_server_requested.connect" in _panel37
       and "_server_bar" not in _panel37)
-_gdlink37 = open(os.path.join(_here, "..", "godot", "agent_server_link.gd"), encoding="utf-8").read()
+_gdlink37 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 import re as _re37
 _m37 = _re37.search(r"_server_wait_left\s*=\s*(\d+)\s*(?:#|\n)", _gdlink37)
 check("связь: бюджет ожидания автозапуска увеличен для медленных ПК (>1 минуты)",
@@ -1000,7 +1000,7 @@ check("промпт: явный запрет одинарной котировк
 # сжимал/обрезал содержимое, и кнопка становилась невидима/недоступной даже когда
 # сервер был остановлен и кнопка была visible = true. Кнопка/подсказка вынесены
 # в свою отдельную строку (server_row) НАД языковой строкой (top).
-_start39 = open(os.path.join(_here, "..", "godot", "agent_start_screen.gd"), encoding="utf-8").read()
+_start39 = open(os.path.join(_here, "..", "agent_start_screen.gd"), encoding="utf-8").read()
 check("стартовый экран: кнопка ручного запуска перенесена в свою строку над языковой (нет перегруза строки)",
       "server_row := HBoxContainer.new()" in _start39
       and _start39.find("root.add_child(server_row)") < _start39.find("var top := HBoxContainer.new()")
@@ -1017,12 +1017,12 @@ check("парсер: ожидание ответа реагирует на лю�
 
 # v40: кнопка "Откатить" для план-цепочки раньше молча ничего не делала, если откат
 # требовал needs_force=true — флаг не пересылался в диалог повторного подтверждения.
-_panel40 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_panel40 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
 check("панель: откат цепочки с needs_force снова показывает диалог подтверждения (а не молчит)",
       "_plan_rollback_force_next = true" in _panel40
       and 'kind == "plan_rollback_chain"' in _panel40
       and "_show_plan_rollback_dialog(_plan_rollback_chain_id" in _panel40)
-_locale40 = open(os.path.join(_here, "..", "godot", "agent_locale.gd"), encoding="utf-8").read()
+_locale40 = open(os.path.join(_here, "..", "agent_locale.gd"), encoding="utf-8").read()
 check("локализация: тексты для повторного (force) отката цепочки есть и в RU, и в EN",
       _locale40.count("plan_rb_needs_force") >= 2 and _locale40.count("plan_rb_force_desc") >= 2)
 
@@ -1047,7 +1047,7 @@ check("main.py: цикл самоисцеления ограничен MAX_ACTIO
 # v41: кнопка ручного запуска сервера всё ещё не появлялась у языка во время ожидания старта
 # сервера — из-за того что по умолчанию она считалась скрытой до первого ответа сервера,
 # а также жила только в одной строке рядом с языком, которую пользователь мог не застать.
-_ss41 = open(os.path.join(_here, "..", "godot", "agent_start_screen.gd"), encoding="utf-8").read()
+_ss41 = open(os.path.join(_here, "..", "agent_start_screen.gd"), encoding="utf-8").read()
 check("стартовый экран: кнопка ручного запуска видна по умолчанию (до подтверждённого запуска сервера), а не скрыта",
       "var _server_running: bool = false" in _ss41)
 check("стартовый экран: есть вторая копия кнопки/подсказки запуска сервера внутри экрана ожидания",
@@ -1154,7 +1154,7 @@ check("main.py: подсказка смягчена — новые sub_resource/
       "sub_resource]/[ext_resource" in _m46)
 
 # agent_panel.gd: автоперечитывание изменённых сцен и авто-включение автоперезагрузки скриптов.
-_panel46 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_panel46 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
 check("панель: есть автоперечитывание изменённых сцен (reload_scene_from_path)",
       "func _auto_reload_changed_scene" in _panel46 and "reload_scene_from_path" in _panel46)
 check("панель: автоперечитывание вызывается для подтверждений, шагов плана и откатов",
@@ -1395,15 +1395,15 @@ check("server_state: mark_chat_prompt_version записывает prompt_hash �
       "def mark_chat_prompt_version" in _ss48 and "prompt_hash=PROMPT_HASH" in _ss48)
 
 # Godot-сторона: локализация, стартовый экран, панель.
-_loc48 = open(os.path.join(_here, "..", "godot", "agent_locale.gd"), encoding="utf-8").read()
+_loc48 = open(os.path.join(_here, "..", "agent_locale.gd"), encoding="utf-8").read()
 check("locale: ключи v48 есть и в RU, и в EN",
       _loc48.count('"pick_model_hint"') == 2 and _loc48.count('"prompt_stale_short"') == 2
       and _loc48.count('"prompt_stale_tip"') == 2 and _loc48.count('"tip_chat_times"') == 2)
-_scr48 = open(os.path.join(_here, "..", "godot", "agent_start_screen.gd"), encoding="utf-8").read()
+_scr48 = open(os.path.join(_here, "..", "agent_start_screen.gd"), encoding="utf-8").read()
 check("start_screen: список сохранений показывает время, сайт и «промпт устарел»",
       "func _fmt_ts(" in _scr48 and "prompt_stale" in _scr48
       and "prompt_stale_tip" in _scr48 and "tip_chat_times" in _scr48)
-_pan48 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
+_pan48 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
 check("panel: новый чат начинается с напоминания, выпадающий список помечает устаревшие чаты",
       'add_hint(_t("pick_model_hint"))' in _pan48  # v49: напоминание стало окошком
       and 'c.get("prompt_stale", false)' in _pan48)
@@ -1412,9 +1412,9 @@ reset_state(root)
 
 print("\n--- 12) v49: закрытие сцен перед записью, окошко-подсказка ---")
 
-_pan49 = open(os.path.join(_here, "..", "godot", "agent_panel.gd"), encoding="utf-8").read()
-_view49 = open(os.path.join(_here, "..", "godot", "agent_chat_view.gd"), encoding="utf-8").read()
-_loc49 = open(os.path.join(_here, "..", "godot", "agent_locale.gd"), encoding="utf-8").read()
+_pan49 = open(os.path.join(_here, "..", "agent_panel.gd"), encoding="utf-8").read()
+_view49 = open(os.path.join(_here, "..", "agent_chat_view.gd"), encoding="utf-8").read()
+_loc49 = open(os.path.join(_here, "..", "agent_locale.gd"), encoding="utf-8").read()
 
 check("view: появилось окошко-пузырь add_hint с собственной рамкой",
       "func add_hint(" in _view49 and "HINT_BORDER" in _view49 and "HINT_BG" in _view49)
@@ -2086,7 +2086,7 @@ _src20m = open(os.path.join(_here, "main.py"), "r", encoding="utf-8").read()
 check("20.16 маркеры v57 в main.py (хук линтера + роуты)",
       "/minilich/set" in _src20m and "/minilich/status" in _src20m and
       "minilich.try_fix_scene" in _src20m and "minilich.note_scene_ok" in _src20m)
-_gdir20 = os.path.join(os.path.dirname(_here), "godot")
+_gdir20 = os.path.dirname(_here)
 if os.path.isdir(_gdir20):
     _src20p = open(os.path.join(_gdir20, "agent_panel.gd"), "r", encoding="utf-8").read()
     _src20l = open(os.path.join(_gdir20, "agent_server_link.gd"), "r", encoding="utf-8").read()
@@ -2161,7 +2161,7 @@ check("21.8 маркеры v58 в исходниках mini-lich (think-план
 
 # 21.9 v59 bugfix: кнопка настроек должна стоять рядом с языковым переключателем
 # на стартовом экране (agent_start_screen.gd), а не только в внутричатовой ChatsBar.
-_gdir21 = os.path.join(os.path.dirname(_here), "godot")
+_gdir21 = os.path.dirname(_here)
 if os.path.isdir(_gdir21):
     _src21ss = open(os.path.join(_gdir21, "agent_start_screen.gd"), "r", encoding="utf-8").read()
     _src21pp = open(os.path.join(_gdir21, "agent_panel.gd"), "r", encoding="utf-8").read()
@@ -2177,7 +2177,7 @@ else:
 # ответом minilich_status, полученным после того как пользователь уже переключил галочку
 # (открытие настроек сразу засылает minilich_status, и если пользователь успеет кликнуть до ответа,
 # старый ответ раньше сбрасывал галочку обратно).
-_gdir22 = os.path.join(os.path.dirname(_here), "godot")
+_gdir22 = os.path.dirname(_here)
 if os.path.isdir(_gdir22):
     _src22pp = open(os.path.join(_gdir22, "agent_panel.gd"), "r", encoding="utf-8").read()
     check("21.10 v59 багфикс: галочка mini-lich защищена от гонки статуса в очереди",
@@ -2191,7 +2191,7 @@ else:
 
 # 21.11 v60: диалог настроек без TabContainer — заголовок “Экспериментальные”
 # больше не дублируется (ни таба, ни второй оболочки с тем же текстом).
-_gdir23 = os.path.join(os.path.dirname(_here), "godot")
+_gdir23 = os.path.dirname(_here)
 if os.path.isdir(_gdir23):
     _src23pp = open(os.path.join(_gdir23, "agent_panel.gd"), "r", encoding="utf-8").read()
     check("21.11 v60: настройки без дублирующегося заголовка TabContainer",
@@ -2368,11 +2368,11 @@ with open(os.path.join('minilich', 'ml_fix.py'), encoding='utf-8') as _f27c:
     _mfx27 = _f27c.read()
 with open('main.py', encoding='utf-8') as _f27d:
     _mn27 = _f27d.read()
-with open(os.path.join('..', 'godot', 'agent_panel.gd'), encoding='utf-8') as _f27e:
+with open(os.path.join('..', 'agent_panel.gd'), encoding='utf-8') as _f27e:
     _pnl27 = _f27e.read()
-with open(os.path.join('..', 'godot', 'agent_locale.gd'), encoding='utf-8') as _f27f:
+with open(os.path.join('..', 'agent_locale.gd'), encoding='utf-8') as _f27f:
     _loc27 = _f27f.read()
-_static27 = ('temperature' in _mlm27 and 'def _marathon(' in _mlt27 and 'MARATHON_ATTEMPTS = 100' in _mlt27 and 'BURST_PAUSE_SEC = 2.0' in _mlt27 and 'REPORT_EVERY_STEPS' in _mlt27 and 'temperature=temperature' in _mfx27 and 'is_training_mode' in _mn27 and 'train_mode_toggle' in _pnl27 and 'train_mode_warn' in _loc27)
+_static27 = ('temperature' in _mlm27 and 'def _marathon(' in _mlt27 and 'MARATHON_ATTEMPTS = 100' in _mlt27 and 'BURST_PAUSE_SEC' in _mlt27 and 'REPORT_EVERY_STEPS' in _mlt27 and 'temperature=temperature' in _mfx27 and 'is_training_mode' in _mn27 and 'train_mode_toggle' in _pnl27 and 'train_mode_warn' in _loc27)
 import tempfile as _tf27
 _r27 = _tf27.mkdtemp(prefix='ml27root')
 try:
@@ -2394,7 +2394,7 @@ with open(os.path.join('minilich', 'ml_fix.py'), encoding='utf-8') as _f28b:
     _mfx28 = _f28b.read()
 with open('main.py', encoding='utf-8') as _f28c:
     _mn28 = _f28c.read()
-_p28 = os.path.join('..', 'godot', 'agent_panel.gd')
+_p28 = os.path.join('..', 'agent_panel.gd')
 _pnl28 = ''
 if os.path.exists(_p28):
     with open(_p28, encoding='utf-8') as _f28d:
@@ -2409,10 +2409,10 @@ check("21.28 v70: marafon s progressom i limitom vremeni + ekzamen na polnoy sce
 with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f29a:
     _mlt29 = _f29a.read()
 _q29 = ''
-if os.path.exists('qwen_parser.py'):
-    with open('qwen_parser.py', encoding='utf-8') as _f29b:
+if os.path.exists(os.path.join(_here, 'parsers', 'qwen_parser.py')):
+    with open(os.path.join(_here, 'parsers', 'qwen_parser.py'), encoding='utf-8') as _f29b:
         _q29 = _f29b.read()
-with open('sites.py', encoding='utf-8') as _f29c:
+with open(os.path.join(_here, 'browser', 'sites.py'), encoding='utf-8') as _f29c:
     _st29 = _f29c.read()
 check("21.29 v71: marafon ~1 popytka/sek (limit 100 sek) + zagotovka qwen_parser v sites.py",
       't_att = _time.time()' in _mlt29 and 'MARATHON_TIME_BUDGET_SEC = 100' in _mlt29 and
@@ -2435,7 +2435,7 @@ _bad30 = '\n'.join([_hdr30, '', _ext30, '', _root30, '', '[node name="Obstacle" 
 _ok30 = '\n'.join([_hdr30, '', _ext30, '', _root30, '', '[node name="Real" parent="."]', 'position = Vector2(1, 1)', ''])
 _fx30, _pr30 = _tl30.lint_and_fix_tscn(_bad30, project_root=_d30)
 _fx30b, _pr30b = _tl30.lint_and_fix_tscn(_ok30, project_root=_d30)
-with open('tscn_lint.py', 'r', encoding='utf-8') as _sf30:
+with open(os.path.join(_here, 'godot_tools', 'tscn_lint.py'), 'r', encoding='utf-8') as _sf30:
     _src30 = _sf30.read()
 check('21.30 v72: tscn_lint lovit pravki ischeznuvshih uzlov vnutri instansa (has vanished)',
       any('has vanished' in p for p in _pr30)
@@ -2443,11 +2443,11 @@ check('21.30 v72: tscn_lint lovit pravki ischeznuvshih uzlov vnutri instansa (ha
       and '_scene_node_paths' in _src30 and '_vanished_in_inst' in _src30)
 
 # 21.31 v73: qwen boevye selektory + pohozhest v ekzamene
-with open('qwen_parser.py', encoding='utf-8') as _f31:
+with open(os.path.join(_here, 'parsers', 'qwen_parser.py'), encoding='utf-8') as _f31:
     _q31 = _f31.read()
 with open(os.path.join('minilich', 'ml_train.py'), encoding='utf-8') as _f31b:
     _m31 = _f31b.read()
-with open('sites.py', encoding='utf-8') as _f31c:
+with open(os.path.join(_here, 'browser', 'sites.py'), encoding='utf-8') as _f31c:
     _s31 = _f31c.read()
 check('21.31 v73: qwen_parser boevye selektory + similarity v ekzamene',
       'message-input-textarea' in _q31 and 'qwen-chat-message-assistant' in _q31
@@ -2462,7 +2462,7 @@ _bad32 = '\n'.join(['[gd_scene load_steps=2 format=3]', '', _sub32, 'radius = 20
 _ok32 = _bad32.replace('[node name="PlayerCollision" type="CollisionShape2D" parent="."]', '[node name="PlayerCollision" type="CollisionShape2D" parent="Player"]')
 _fx32, _pr32 = _tl32.lint_and_fix_tscn(_bad32)
 _fx32b, _pr32b = _tl32.lint_and_fix_tscn(_ok32)
-with open('tscn_lint.py', 'r', encoding='utf-8') as _sf32:
+with open(os.path.join(_here, 'godot_tools', 'tscn_lint.py'), 'r', encoding='utf-8') as _sf32:
     _src32 = _sf32.read()
 check('21.32 v74: tscn_lint lovit CollisionShape2D bez fizicheskogo tela-roditelya',
       any('CollisionObject' in p for p in _pr32)
@@ -2471,7 +2471,7 @@ check('21.32 v74: tscn_lint lovit CollisionShape2D bez fizicheskogo tela-roditel
 
 # 21.33 v75: parsery vshity v exe — staticheskie importy v sites.py + hidden-import v bat
 import sites as _st33
-with open('sites.py', 'r', encoding='utf-8') as _sf33:
+with open(os.path.join(_here, 'browser', 'sites.py'), 'r', encoding='utf-8') as _sf33:
     _src33 = _sf33.read()
 with open('build_server_exe.bat', 'r', encoding='utf-8') as _bf33:
     _bat33 = _bf33.read()
@@ -2593,7 +2593,7 @@ check('21.41 v80: parent="WrongParent" i connection to="NotHere" -> problems; in
 
 # 21.42 v80: dashboard + parser zhdet konets generacii pered otpravkoy
 import dashboard as _dash42
-with open('parser_base.py', encoding='utf-8') as _f42:
+with open(os.path.join(_here, 'parsers', 'parser_base.py'), encoding='utf-8') as _f42:
     _pb42 = _f42.read()
 with open('main.py', encoding='utf-8') as _f42b:
     _mn42 = _f42b.read()
@@ -2632,11 +2632,11 @@ from minilich import ml_train as _mt45
 import minilich as _ml45
 with open("main.py", encoding="utf-8") as _f45:
     _mn45 = _f45.read()
-with open("../godot/agent_panel.gd", encoding="utf-8") as _f45b:
+with open("../agent_panel.gd", encoding="utf-8") as _f45b:
     _pnl45 = _f45b.read()
-with open("../godot/agent_server_link.gd", encoding="utf-8") as _f45c:
+with open("../agent_server_link.gd", encoding="utf-8") as _f45c:
     _lnk45 = _f45c.read()
-with open("../godot/agent_locale.gd", encoding="utf-8") as _f45d:
+with open("../agent_locale.gd", encoding="utf-8") as _f45d:
     _loc45 = _f45d.read()
 with open("minilich/ml_train.py", encoding="utf-8") as _f45e:
     _mtsrc45 = _f45e.read()
@@ -2788,7 +2788,7 @@ with open("minilich/ml_train.py", encoding="utf-8") as _f50:
     _mts50 = _f50.read()
 with open("minilich/__init__.py", encoding="utf-8") as _f50b:
     _init50 = _f50b.read()
-with open("../godot/agent_panel.gd", encoding="utf-8") as _f50c:
+with open("../agent_panel.gd", encoding="utf-8") as _f50c:
     _pnl50 = _f50c.read()
 import tempfile as _tmp50
 _tmpdir50 = _tmp50.mkdtemp()
@@ -3415,10 +3415,16 @@ _raw28_create = (
     '```'
 )
 _obj28a, _err28a = _pb28.parse_action_json(_raw28_create)
+# Тело между ===FILE_1===/===END_FILE_1=== должно доехать ДОСЛОВНО: весь смысл
+# content_ref в том, чтобы код не экранировался по правилам JSON. Поэтому
+# ожидаемое значение берём из самого исходного текста, а не переписываем
+# вручную: раньше здесь стоял литерал с \\\\ вместо \\\\\\\\, то есть тест
+# требовал JSON-разэкранирования — ровно того, чего механизм должен избегать.
+_body28a = _raw28_create.split('===FILE_1===\n', 1)[1].split('\n===END_FILE_1===', 1)[0]
 check("28.1 create_file + content_ref: тело подставлено буквально, ref-ключ убран",
       _err28a is None and _obj28a is not None
       and "content_ref" not in _obj28a
-      and _obj28a.get("content") == 'extends Node2D\nfunc _ready():\n\tprint("quotes \\" and backslash \\\\ inside, no escaping needed")\n\tpass')
+      and _obj28a.get("content") == _body28a)
 
 _raw28_patch = (
     '```agent_action\n'
@@ -3484,6 +3490,7 @@ check("28.7 промпт описывает content_ref/search_ref/replace_ref �
 # ---------------------------------------------------------------------------
 print("\n--- РАЗДЕЛ 29: wait_for_new_answer — состояние-машина (v86.10) ---")
 import parser_base as _pb29
+import time as _t29
 
 class _FakeDriver29(object):
     pass
@@ -3493,10 +3500,10 @@ class _Script29(object):
     по реальному времени с начала сценария; последнее состояние держится навечно."""
     def __init__(self, events):
         self.events = events
-        self.t0 = time.time()
+        self.t0 = _t29.time()
 
     def cur(self):
-        elapsed = time.time() - self.t0
+        elapsed = _t29.time() - self.t0
         acc = 0.0
         for state, hold in self.events:
             acc += hold

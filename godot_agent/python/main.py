@@ -15,6 +15,7 @@ from project_tools import (
     diff_snapshots,
     format_fs_changes,
     unified_diff_text,
+    action_diff_preview,
     read_project_file,
     create_project_file,
     patch_project_file,
@@ -757,6 +758,10 @@ def _package_model_reply(text, action, project_root, depth=0):
         "pending_action": action,
         "pending_action_description": _describe_action(action),
         "pending_action_code": code_preview,
+        # Разобранный дифф (что именно добавится и удалится) — панель красит по нему
+        # строки и сворачивает всё в одну строку с именем файла. Старые панели поля
+        # не знают и продолжают показывать pending_action_code как раньше.
+        "pending_action_diff": action_diff_preview(project_root, action),
     })
 
 
@@ -1806,10 +1811,15 @@ def plan_step():
     heal_attempts = 0
     try:
         result = None
+        step_diff = None
         while True:
             _plan_paths = set(s.get("path") or "" for s in plan["steps"] if s.get("action") == "create_file")
             lint_msg = _lint_action_code(step, project_root, planned_paths=_plan_paths) if step.get("action") != "move_file" else None
             if lint_msg is None:
+                # Дифф считаем ДО записи на диск: после неё «старого» текста уже
+                # нет, и показать в панели, что именно изменилось, стало бы нечем.
+                # Шаг мог прийти сюда исправленным self-heal — берём его текущую версию.
+                step_diff = action_diff_preview(project_root, step)
                 result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
                 if result["ok"]:
                     break
@@ -1862,6 +1872,10 @@ def plan_step():
         if result.get("changed_path"):
             resp["changed_path"] = result["changed_path"]
             resp["changed_block"] = result.get("changed_block", "")
+        if step_diff:
+            # Разобранный дифф шага — панель покажет его такой же свёрнутой
+            # карточкой, как у одиночных действий: «файл +N -M».
+            resp["step_diff"] = step_diff
         if done:
             STATE["pending_plan"] = None
             server_state.queue_action_note((

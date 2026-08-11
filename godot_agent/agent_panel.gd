@@ -51,7 +51,6 @@ var _plan_total: int = 0
 var _plan_index: int = 0
 var _plan_stop_button: Button = null
 var _stop_button: Button = null
-var _plan_rollback_dialog: ConfirmationDialog = null
 var _plan_rollback_chain_id: String = ""
 var _plan_rollback_force_next: bool = false
 
@@ -90,7 +89,6 @@ var _auto_check: bool = false
 var _hl = null  # подсистема подсветки (agent_highlight.gd)
 var _start_screen: Control = null
 var _pending_chat_prompt: String = ""
-var _site_dialog: ConfirmationDialog = null
 var _resend_after_open: bool = false
 var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
 var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
@@ -126,11 +124,8 @@ var _bar_btn_new: Button = null
 var _bar_btn_ren: Button = null
 var _bar_btn_del: Button = null
 var _bar_btn_home: Button = null
-var _delete_dialog: ConfirmationDialog = null
-var _rollback_dialog: ConfirmationDialog = null
 var _chat_select: OptionButton = null
-var _rename_dialog: AcceptDialog = null
-var _rename_edit: LineEdit = null
+var _rename_edit: LineEdit = null  # inline-правка названия в строке чатов
 var _current_chat_id: String = ""
 var _suppress_chat_select: bool = false
 
@@ -166,13 +161,76 @@ func _t(key: String) -> String:
 	return key
 
 
+var _theme_script = null
+
+
+func _T():
+	# Единый модуль оформления (цвета/иконки/стили) — agent_theme.gd.
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
+
+
+func _apply_panel_theme() -> void:
+	# Панель собирается кодом в plugin_universal.gd (agent_panel.tscn не
+	# используется — см. комментарий там), поэтому оформление навешивается
+	# здесь: так оно применяется при любом способе сборки дерева.
+	var T = _T()
+	if T == null:
+		return
+
+	# Поле ввода и кнопка отправки.
+	T.style_input(input_field)
+	if send_button:
+		T.style_button(send_button, "accent", false)
+		send_button.icon = T.icon(&"ArrowRight")
+
+	# «Дополнительно» и его кнопки.
+	if advanced_toggle_btn:
+		T.style_button(advanced_toggle_btn, "dim")
+		advanced_toggle_btn.icon = T.icon(&"Tools")
+	if reinit_button:
+		T.style_button(reinit_button, "neutral")
+		reinit_button.icon = T.icon(&"Reload")
+	if rollback_button:
+		T.style_button(rollback_button, "warning")
+		rollback_button.icon = T.first_icon(["UndoRedo", "Undo", "ArrowLeft"])
+	if _log_errors_button:
+		T.style_button(_log_errors_button, "neutral")
+		_log_errors_button.icon = T.first_icon(["StatusError", "Debug"])
+	if _api_export_button:
+		T.style_button(_api_export_button, "neutral")
+		_api_export_button.icon = T.first_icon(["Script", "File"])
+	if _plan_stop_button:
+		T.style_button(_plan_stop_button, "error")
+		_plan_stop_button.icon = T.first_icon(["Stop", "Pause"])
+
+	# Строка чатов: иконки редактора вместо эмодзи-символов.
+	if _bar_btn_new:
+		T.style_icon_button(_bar_btn_new, ["Add"], "＋", "success")
+	if _bar_btn_ren:
+		T.style_icon_button(_bar_btn_ren, ["Rename", "Edit"], "✏")
+	if _bar_btn_del:
+		T.style_icon_button(_bar_btn_del, ["Remove"], "🗑", "error")
+	if _bar_btn_home:
+		T.style_button(_bar_btn_home, "neutral")
+		_bar_btn_home.icon = T.first_icon(["Home", "GuiTabMenuHl", "ArrowLeft"])
+	if _bar_btn_settings:
+		T.style_icon_button(_bar_btn_settings, ["Tools", "GDScript"], "⚙")
+
+
 func _ready() -> void:
 	_ensure_script_autoreload_setting()
+	# ChatLog остаётся в дереве (его прячет agent_chat_view.setup), но больше
+	# ничего в него не пишется: все сообщения идут карточками через _view.
 	chat_log.selection_enabled = true
 	chat_log.context_menu_enabled = true
 	chat_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	chat_log.scroll_following = true
-	chat_log.text = "[color=green]" + _t("system_ready") + "[/color]\n"
 	if pending_action_box:
 		pending_action_box.visible = false
 	# Подтверждения показываются ТОЛЬКО карточкой в чате. Старая панель
@@ -265,6 +323,10 @@ func _ready() -> void:
 		_view.name = "ChatView"
 		add_child(_view)
 	_view.setup($VBoxContainer)
+	# Откат прямо из карточки ответа агента: карточка шлёт сигнал, а вопрос
+	# и запрос на сервер — уже здесь, тем же путём, что и кнопка «Откатить».
+	if not _view.message_rollback_requested.is_connected(_on_message_rollback_requested):
+		_view.message_rollback_requested.connect(_on_message_rollback_requested)
 	if _hl == null:
 		var hl_script = load(get_script().resource_path.get_base_dir() + "/agent_highlight.gd")
 		_hl = hl_script.new()
@@ -384,6 +446,9 @@ func _ready() -> void:
 		input_field.gui_input.connect(_on_input_field_gui_input)
 	if has_node("VBoxContainer/SettingsBox"):
 		$VBoxContainer/SettingsBox.hide()
+	# Оформление — последним: к этому моменту созданы и кнопки строки чатов,
+	# и кнопки «Дополнительно», иначе часть из них осталась бы без стиля.
+	_apply_panel_theme()
 
 
 func _set_pending_action(active: bool, description: String = "") -> void:
@@ -469,8 +534,13 @@ func _show_stop_button() -> void:
 			send_button.get_parent().add_child(_stop_button)
 		else:
 			add_child(_stop_button)
-	_stop_button.text = "■ Стоп"
-	_stop_button.tooltip_text = "Остановить обработку текущего запроса"
+		# Текст и иконка были захардкожены по-русски и не переводились.
+		var T = _T()
+		if T:
+			T.style_button(_stop_button, "error")
+			_stop_button.icon = T.first_icon(["Stop", "Pause"])
+	_stop_button.text = _t("stop_btn")
+	_stop_button.tooltip_text = _t("stop_tip")
 	_stop_button.visible = true
 	_stop_button.disabled = false
 
@@ -486,7 +556,7 @@ func _on_stop_pressed() -> void:
 	# и текущий запрос вернётся с пометкой [Остановлено].
 	if _stop_button:
 		_stop_button.disabled = true
-		_stop_button.text = "Останавливаю…"
+		_stop_button.text = _t("stopping")
 	var req := HTTPRequest.new()
 	add_child(req)
 	req.request_completed.connect(func(_r, _rc, _h, _b): req.queue_free())
@@ -495,7 +565,7 @@ func _on_stop_pressed() -> void:
 		req.queue_free()
 		if _stop_button:
 			_stop_button.disabled = false
-			_stop_button.text = "■ Стоп"
+			_stop_button.text = _t("stop_btn")
 
 
 func _on_advanced_toggle() -> void:
@@ -567,7 +637,7 @@ func _save_live_input_setting(enabled: bool) -> void:
 
 func _on_reinit_pressed() -> void:
 	if _is_network_busy: return
-	chat_log.text += "[color=gray]" + _t("tree_refresh") + "[/color]\n"
+	_view.add_system(_t("tree_refresh"))
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = ["Content-Type: application/json"]
@@ -629,9 +699,9 @@ func _send_confirm_request(approved: bool) -> void:
 	if _pending_log_send:
 		_pending_log_send = false
 		if not approved:
-			chat_log.text += "[color=gray]" + _t("errs_cancelled") + "[/color]\n"
+			_view.add_system(_t("errs_cancelled"))
 			return
-		chat_log.text += "[color=gray]" + _t("errs_sending") + "[/color]\n"
+		_view.add_system(_t("errs_sending"))
 		var log_headers = ["Content-Type: application/json"]
 		http_request.set_http_proxy("", 0)
 		_pending_request_kind = "chat"
@@ -644,7 +714,7 @@ func _send_confirm_request(approved: bool) -> void:
 	if approved:
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
-	chat_log.text += "[color=gray]" + label + _t("waiting_reply") + "[/color]\n"
+	_view.add_system(label + _t("waiting_reply"))
 	var headers = ["Content-Type: application/json"]
 	var body = {"approved": approved}
 	http_request.set_http_proxy("", 0)
@@ -726,16 +796,13 @@ func _on_plan_stop_pressed() -> void:
 		_end_plan_execution()
 
 
-var _reload_project_dialog: ConfirmationDialog = null
-
-
 func _note_autoload_removed(json) -> void:
 	# Откат мог оставить в project.godot висячую запись автозагрузки на файл,
 	# которого больше нет (см. clean_dangling_autoloads на серве��е) — сообщаем,
 	# что она уже убрана, чтобы пользователь не искал причину ошибок автозагрузки сам.
 	var removed = json.get("autoload_removed")
 	if removed is Array and removed.size() > 0:
-		chat_log.text += "[color=gray]" + (_t("autoload_cleaned") % ", ".join(removed)) + "[/color]\n"
+		_view.add_system(_t("autoload_cleaned") % ", ".join(removed))
 
 
 func _maybe_prompt_project_reload(json) -> void:
@@ -758,19 +825,22 @@ func _maybe_prompt_project_reload(json) -> void:
 			touched = true
 	if not touched:
 		return
-	if _reload_project_dialog == null:
-		_reload_project_dialog = ConfirmationDialog.new()
-		_reload_project_dialog.confirmed.connect(_on_reload_project_confirmed)
-		add_child(_reload_project_dialog)
-	_reload_project_dialog.title = _t("reload_project_title")
-	_reload_project_dialog.dialog_text = _t("reload_project_text")
-	_reload_project_dialog.ok_button_text = _t("reload_project_yes")
-	_reload_project_dialog.get_cancel_button().text = _t("reload_project_no")
-	_reload_project_dialog.popup_centered()
+	# Раньше здесь всплывал ConfirmationDialog поверх редактора. Теперь вопрос
+	# показывается карточкой в чате — рядом с откатом, который его вызвал.
+	if _view:
+		_view.add_question_card(
+			"reload_project",
+			_t("reload_project_title"),
+			_t("reload_project_text"),
+			_t("reload_project_yes"),
+			_t("reload_project_no"),
+			func(): _on_reload_project_confirmed(),
+			func(): pass
+		)
 
 
 func _on_reload_project_confirmed() -> void:
-	chat_log.text += "[color=gray]" + _t("reload_project_doing") + "[/color]\n"
+	_view.add_system(_t("reload_project_doing"))
 	if _view: _view.flush()
 	# true = перезапустить движок на том же проекте (Godot 4.3+); подхватывает
 	# свежий project.godot (автозагрузки, main scene и т.п.) без ручных действий.
@@ -779,15 +849,20 @@ func _on_reload_project_confirmed() -> void:
 
 func _show_plan_rollback_dialog(chain_id: String, desc: String) -> void:
 	_plan_rollback_chain_id = chain_id
-	if _plan_rollback_dialog == null:
-		_plan_rollback_dialog = ConfirmationDialog.new()
-		_plan_rollback_dialog.confirmed.connect(_on_plan_rollback_confirmed)
-		add_child(_plan_rollback_dialog)
-	_plan_rollback_dialog.title = _t("plan_rb_title")
-	_plan_rollback_dialog.dialog_text = _t("plan_rb_text") % desc
-	_plan_rollback_dialog.ok_button_text = _t("rb_yes")
-	_plan_rollback_dialog.get_cancel_button().text = _t("rb_no")
-	_plan_rollback_dialog.popup_centered()
+	# Вопрос показывается карточкой в чате вместо модального окна.
+	# Тон "ask": это обычное подтверждение, а не предупреждение об аварии.
+	if _view:
+		_view.add_question_card(
+			"plan_rollback",
+			_t("plan_rb_title"),
+			_t("plan_rb_text") % desc,
+			_t("rb_yes"),
+			_t("rb_no"),
+			func(): _on_plan_rollback_confirmed(),
+			func(): pass,
+			"ask",
+			["UndoRedo", "Undo", "Reload"]
+		)
 
 
 func _on_plan_rollback_confirmed() -> void:
@@ -796,7 +871,7 @@ func _on_plan_rollback_confirmed() -> void:
 	# раньше сюда всегда уходил force=false, и повторное нажатие «Да» просто
 	# бесконечно повторяло тот же отказ (внешне выглядело так, будто кнопка не работает).
 	if _plan_rollback_force_next:
-		chat_log.text += "[color=orange]" + _t("force_rollback") + "[/color]\n"
+		_view.add_warning(_t("force_rollback"))
 		_send_plan_rollback_chain_request(true)
 		return
 	_send_plan_rollback_chain_request(false)
@@ -816,11 +891,25 @@ func _send_plan_rollback_chain_request(force: bool) -> void:
 		_set_ui_busy(false)
 
 
+func _on_message_rollback_requested() -> void:
+	# Откат по клику на карточке ответа агента.
+	# ВАЖНО: сервер умеет откатывать только ПОСЛЕДНЕЕ зафиксированное действие
+	# (history.last_committed_info) — привязки к конкретному сообщению в API нет.
+	# Поэтому идём тем же путём, что и кнопка «Откатить последнее изменение»:
+	# сначала спрашиваем сервер, что именно будет отменено, и показываем это
+	# в карточке подтверждения — вслепую ничего не откатывается.
+	if _is_network_busy:
+		# Молча игнорировать клик нельзя: пользователь решит, что кнопка сломана.
+		_log_error(_t("wait_current"))
+		return
+	_on_rollback_pressed()
+
+
 func _on_rollback_pressed() -> void:
 	if _is_network_busy: return
 	if _rollback_force_next:
 		# Повторное нажатие после needs_force — откатываем без лишних вопросов.
-		chat_log.text += "[color=orange]" + _t("force_rollback") + "[/color]\n"
+		_view.add_warning(_t("force_rollback"))
 		_send_rollback_request(true)
 		return
 	# Сначала спрашиваем сервер, ЧТО именно будет отменено (и из какого
@@ -849,19 +938,26 @@ func _send_rollback_request(force: bool) -> void:
 
 
 func _show_rollback_dialog(desc: String) -> void:
-	if _rollback_dialog == null:
-		_rollback_dialog = ConfirmationDialog.new()
-		_rollback_dialog.confirmed.connect(_on_rollback_confirmed)
-		add_child(_rollback_dialog)
-	_rollback_dialog.title = _t("rb_title")
-	_rollback_dialog.dialog_text = _t("rb_text") % desc
-	_rollback_dialog.ok_button_text = _t("rb_yes")
-	_rollback_dialog.get_cancel_button().text = _t("rb_no")
-	_rollback_dialog.popup_centered()
+	# Вопрос об откате — карточкой в чате, а не модальным окном: так он
+	# остаётся в истории рядом с изменением, которое откатывается.
+	# Тон "ask": откат — обычное действие, а не авария. Раньше карточка была
+	# жёлтой, со знаком «внимание», и рутинный откат выглядел как проблема.
+	if _view:
+		_view.add_question_card(
+			"rollback",
+			_t("rb_title"),
+			desc,
+			_t("rb_yes"),
+			_t("rb_no"),
+			func(): _on_rollback_confirmed(),
+			func(): pass,
+			"ask",
+			["UndoRedo", "Undo", "Reload"]
+		)
 
 
 func _on_rollback_confirmed() -> void:
-	chat_log.text += "[color=gray]" + _t("rollback_msg") + "[/color]\n"
+	_view.add_system(_t("rollback_msg"))
 	_send_rollback_request(false)
 
 
@@ -882,7 +978,7 @@ func _on_check_log_pressed() -> void:
 	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
-	chat_log.text += "[color=gray]" + _t("reading_log") + "[/color]\n"
+	_view.add_system(_t("reading_log"))
 	_pending_log_send = false
 	_auto_check = false
 	_rollback_force_next = false
@@ -945,7 +1041,7 @@ func _on_export_api_pressed() -> void:
 # просто показывает одно сообщение, если реально пришлось пересобирать).
 func _export_api_to_server(silent: bool) -> void:
 	if not silent:
-		chat_log.text += "[color=gray]" + _t("api_export_sending") + "[/color]\n"
+		_view.add_system(_t("api_export_sending"))
 	var export_script = load(get_script().resource_path.get_base_dir() + "/agent_api_export.gd")
 	var classes: Dictionary = export_script.export_classes()
 	var headers = ["Content-Type: application/json"]
@@ -985,7 +1081,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			return
 
 		if kind == "init":
-			chat_log.text += "\n[color=green]" + _t("reinit_done") + "[/color]\n"
+			_view.add_success(_t("reinit_done"))
 			return
 
 		if kind == "confirm" and bool(json.get("plan_started", false)):
@@ -998,7 +1094,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_view.add_agent_message(str(json["answer"]))
 			_start_plan_execution(int(json.get("plan_total", 0)))
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			_scroll_chat_to_end()
 			return
 
 		if kind == "plan_step":
@@ -1023,9 +1119,17 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				else:
 					_active_plan_card.update_step(p_index, "error")
 			if p_ok:
-				chat_log.text += "[color=gray]" + _escape_bbcode(p_msg) + "[/color]\n"
+				_view.add_system(p_msg)
 			else:
-				chat_log.text += "[color=orange]" + _escape_bbcode(p_msg) + "[/color]\n"
+				_view.add_warning(p_msg)
+			# Шаг уже записан на диск, поэтому карточка идёт без кнопок —
+			# только «файл +N -M» с возможностью развернуть код.
+			var p_diff = json.get("step_diff")
+			if p_ok and p_diff is Dictionary:
+				var p_diff_path := str((p_diff as Dictionary).get("path", ""))
+				if p_diff_path == "":
+					p_diff_path = str(json.get("changed_path", ""))
+				_view.add_applied_diff(p_diff_path, p_diff)
 			var p_ch_path = json.get("changed_path")
 			var p_ch_block = json.get("changed_block")
 			if p_ch_path != null and p_ch_block != null and str(p_ch_block) != "":
@@ -1038,13 +1142,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				if _active_plan_card:
 					_active_plan_card.queue_free()
 					_active_plan_card = null
-				chat_log.text += "[color=green]" + _t("plan_done") + "[/color]\n"
+				_view.add_success(_t("plan_done"))
 			elif p_stopped:
 				_end_plan_execution()
 				if _active_plan_card:
 					_active_plan_card.queue_free()
 					_active_plan_card = null
-				chat_log.text += "[color=orange]" + (_t("plan_stopped_desc") % [p_index, p_total]) + "[/color]\n"
+				_view.add_warning(_t("plan_stopped_desc") % [p_index, p_total])
 				_show_plan_rollback_dialog(p_chain, _t("plan_rb_step_desc") % [p_index, p_total])
 			else:
 				_request_plan_step()
@@ -1059,16 +1163,16 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if _active_plan_card:
 				_active_plan_card.queue_free()
 				_active_plan_card = null
-			chat_log.text += "[color=orange]" + (_t("plan_stopped_manual") % [s_index, s_total]) + "[/color]\n"
+			_view.add_warning(_t("plan_stopped_manual") % [s_index, s_total])
 			if s_index > 0:
 				_show_plan_rollback_dialog(s_chain, _t("plan_rb_step_desc") % [s_index, s_total])
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			_scroll_chat_to_end()
 			return
 
 		if kind == "plan_rollback_chain":
 			var pr_msg = str(json.get("message", _t("rollback_done")))
-			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(pr_msg) + "[/color]\n"
+			_view.add_success(_t("success_prefix") + pr_msg)
 			_note_autoload_removed(json)
 			var pr_paths = json.get("paths")
 			if pr_paths is Array:
@@ -1081,12 +1185,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if _hl: _hl.clear()
 			_maybe_prompt_project_reload(json)
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			_scroll_chat_to_end()
 			return
 
 		if kind == "api_export":
 			var cnt := int(json.get("classes_count", 0))
-			chat_log.text += "[color=green]" + _t("api_export_done") % cnt + "[/color]\n"
+			_view.add_success(_t("api_export_done") % cnt)
 			return
 
 		if kind == "api_cache_status":
@@ -1110,12 +1214,16 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				else:
 					_show_rollback_dialog(str(json.get("description", "")))
 			else:
-				chat_log.text += "[color=gray]" + _t("rb_nothing") + "[/color]\n"
+				# Откатывать нечего — это ответ на нажатие кнопки, поэтому
+				# прокручиваем принудительно: иначе человек, читавший историю
+				# выше, решит, что кнопка отката просто не сработала.
+				_view.add_system(_t("rb_nothing"))
+				_view.scroll_to_end(true)
 			return
 
 		if kind == "rollback":
 			var msg = str(json.get("message", _t("rollback_done")))
-			chat_log.text += "\n[color=green]" + _t("success_prefix") + _escape_bbcode(msg) + "[/color]\n"
+			_view.add_success(_t("success_prefix") + msg)
 			_note_autoload_removed(json)
 			# Синхронизируем откаченные файлы с открытыми вкладками. Иначе
 			# вкладка показывает ДО-откатный текст, и Godot может позже
@@ -1139,7 +1247,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				if _hl: _hl.clear()
 			_maybe_prompt_project_reload(json)
 			await get_tree().process_frame
-			chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+			_scroll_chat_to_end()
 			return
 
 		if kind == "check_log":
@@ -1212,17 +1320,23 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if pending != null and action_label and pending_action_box:
 			var description = json.get("pending_action_description", _t("agent_wants_action"))
 			if description == null: description = _t("agent_wants_action")
-			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки).
+			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки)
+			# и, если смог посчитать, разобранный дифф — что добавится и что удалится.
 			var pcode = json.get("pending_action_code")
+			var pdiff = json.get("pending_action_diff")
+			var diff_data: Dictionary = pdiff if pdiff is Dictionary else {}
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
 
-			if pcode != null and str(pcode) != "":
+			# Дифф сам по себе достаточен для карточки: patch_file, который
+			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
+			# правке доставалась безликая карточка подтверждения.
+			if (pcode != null and str(pcode) != "") or not diff_data.is_empty():
 				var file_path = _last_pending_action_path if _last_pending_action_path != "" else _last_pending_action_dest
-				var card = _view.add_diff_preview(file_path, str(pcode))
+				var card = _view.add_diff_preview(file_path, str(pcode) if pcode != null else "", diff_data)
 				if card:
 					card.diff_applied.connect(func(_p): _on_confirm_pressed())
 					card.diff_rejected.connect(func(_p): _on_reject_pressed())
@@ -1266,19 +1380,31 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if json != null and json.get("needs_force") == true:
 			if kind == "plan_rollback_chain":
 				_plan_rollback_force_next = true
-				chat_log.text += "[color=orange]" + _t("plan_rb_needs_force") + "[/color]\n"
+				_view.add_warning(_t("plan_rb_needs_force"))
 				_show_plan_rollback_dialog(_plan_rollback_chain_id, _t("plan_rb_force_desc"))
 				await get_tree().process_frame
-				chat_log.scroll_to_line(chat_log.get_line_count() - 1)
+				_scroll_chat_to_end()
 				return
 			_rollback_force_next = true
 		_log_error((_t("srv_error") % str(response_code)) + err_msg)
 
 
 func _log_error(msg: String) -> void:
+	# Раньше текст уходил в chat_log — а его прячет agent_chat_view.setup(),
+	# поэтому ВСЕ ошибки были невидимы пользователю. Теперь это карточка в чате.
 	if _view:
 		_view.flush()
-	chat_log.text += "\n[color=red]" + _t("error_prefix") + msg + "[/color]\n"
+		_view.add_error(_t("error_prefix") + msg)
+	else:
+		# Панель ещё не собрана — хотя бы не теряем текст ошибки молча.
+		push_error("[Godot Agent] " + msg)
+
+
+func _scroll_chat_to_end() -> void:
+	# Раньше здесь дёргался chat_log.scroll_to_line(), но ChatLog скрыт —
+	# прокрутка уходила в невидимый узел. Карточки прокручивает сам вид чата.
+	if _view:
+		_view.scroll_to_end()
 
 
 func _guard_confirm_buttons() -> void:
@@ -1632,46 +1758,91 @@ func _on_chat_rename_pressed() -> void:
 	if _current_chat_id == "":
 		_log_error(_t("select_chat_hint"))
 		return
-	if _rename_dialog == null:
-		_rename_dialog = AcceptDialog.new()
-		_rename_dialog.title = _t("tip_rename")
-		_rename_edit = LineEdit.new()
-		_rename_edit.custom_minimum_size = Vector2(260, 0)
-		_rename_dialog.add_child(_rename_edit)
-		_rename_dialog.register_text_enter(_rename_edit)
-		_rename_dialog.confirmed.connect(_on_rename_confirmed)
-		add_child(_rename_dialog)
-	if _chat_select and _chat_select.selected >= 0:
+	# Вместо модального окна — правка прямо в строке чатов: OptionButton
+	# на время подменяется полем ввода. Enter — сохранить, Esc — отмена.
+	if _chat_select == null or not is_instance_valid(_chat_select):
+		return
+	if _rename_edit != null and is_instance_valid(_rename_edit):
+		# Правка уже открыта — просто возвращаем фокус.
+		_rename_edit.grab_focus()
+		return
+	var bar := _chat_select.get_parent()
+	if bar == null:
+		return
+
+	_rename_edit = LineEdit.new()
+	_rename_edit.name = "ChatRenameEdit"
+	_rename_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rename_edit.custom_minimum_size.x = 40.0
+	if _chat_select.selected >= 0:
 		_rename_edit.text = _chat_select.get_item_text(_chat_select.selected)
-	_rename_dialog.title = _t("tip_rename")
-	_rename_dialog.popup_centered()
+	_rename_edit.select_all()
+	var T = _T()
+	if T:
+		T.style_input(_rename_edit)
+
+	bar.add_child(_rename_edit)
+	bar.move_child(_rename_edit, _chat_select.get_index())
+	_chat_select.visible = false
+
+	_rename_edit.text_submitted.connect(func(new_title: String) -> void:
+		_finish_chat_rename(new_title)
+	)
+	# focus_exited = клик мимо: считаем это отменой, чтобы поле не зависало.
+	_rename_edit.focus_exited.connect(func() -> void:
+		_cancel_chat_rename()
+	)
+	_rename_edit.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_cancel_chat_rename()
+	)
 	_rename_edit.grab_focus()
 
 
-func _on_rename_confirmed() -> void:
-	var t := _rename_edit.text.strip_edges()
+func _finish_chat_rename(new_title: String) -> void:
+	var t := new_title.strip_edges()
+	_close_rename_edit()
 	if t == "":
 		return
 	_request_chats("rename", {"id": _current_chat_id, "title": t})
+
+
+func _cancel_chat_rename() -> void:
+	_close_rename_edit()
+
+
+func _close_rename_edit() -> void:
+	# Возвращаем выпадающий список на место и убираем поле ввода.
+	if _chat_select and is_instance_valid(_chat_select):
+		_chat_select.visible = true
+	if _rename_edit and is_instance_valid(_rename_edit):
+		var edit := _rename_edit
+		_rename_edit = null
+		edit.queue_free()
+	else:
+		_rename_edit = null
 
 
 func _on_chat_delete_pressed() -> void:
 	if _current_chat_id == "":
 		_log_error(_t("select_chat_first"))
 		return
-	# Защита от случайных нажатий: диалог подтверждения.
-	if _delete_dialog == null:
-		_delete_dialog = ConfirmationDialog.new()
-		_delete_dialog.confirmed.connect(_on_delete_confirmed)
-		add_child(_delete_dialog)
-	_delete_dialog.title = _t("del_title")
+	# Защита от случайных нажатий: подтверждение карточкой в чате.
+	# Удаление необратимо, поэтому тон «error», а не «warning».
 	var chat_title := ""
 	if _chat_select and _chat_select.selected >= 0:
 		chat_title = _chat_select.get_item_text(_chat_select.selected)
-	_delete_dialog.dialog_text = _t("del_text") % chat_title
-	_delete_dialog.ok_button_text = _t("del_yes")
-	_delete_dialog.get_cancel_button().text = _t("del_no")
-	_delete_dialog.popup_centered()
+	if _view:
+		_view.add_question_card(
+			"delete_chat",
+			_t("del_title"),
+			_t("del_text") % chat_title,
+			_t("del_yes"),
+			_t("del_no"),
+			func(): _on_delete_confirmed(),
+			func(): pass,
+			"error"
+		)
 
 
 func _on_delete_confirmed() -> void:
@@ -1795,16 +1966,19 @@ func _on_start_load_chat(chat_id: String) -> void:
 
 func _handle_site_mismatch(site_name: String, prompt: String) -> void:
 	_pending_chat_prompt = prompt
-	if _site_dialog == null:
-		_site_dialog = ConfirmationDialog.new()
-		_site_dialog.title = _t("site_mismatch_title")
-		_site_dialog.confirmed.connect(_on_site_switch_yes)
-		_site_dialog.canceled.connect(_on_site_switch_no)
-		add_child(_site_dialog)
-	_site_dialog.dialog_text = _t("site_mismatch_prefix") + ((" (" + site_name + ")") if site_name != "" else "") + "?"
-	_site_dialog.ok_button_text = _t("site_yes")
-	_site_dialog.get_cancel_button().text = _t("site_no")
-	_site_dialog.popup_centered()
+	# Карточкой в чате вместо модального окна. ВАЖНО: «Нет» здесь не отмена —
+	# запрос всё равно уходит, только без переключения страницы
+	# (см. _on_site_switch_no), поэтому колбэк обязателен.
+	if _view:
+		_view.add_question_card(
+			"site_mismatch",
+			_t("site_mismatch_title"),
+			_t("site_mismatch_prefix") + ((" (" + site_name + ")") if site_name != "" else "") + "?",
+			_t("site_yes"),
+			_t("site_no"),
+			func(): _on_site_switch_yes(),
+			func(): _on_site_switch_no()
+		)
 
 
 func _on_site_switch_yes() -> void:
@@ -1938,15 +2112,25 @@ func _after_ghost_close() -> void:
 # ---------------------------------------------------------------------------
 
 func _on_settings_pressed() -> void:
+	var T = _T()
 	if _settings_dialog == null:
 		_settings_dialog = AcceptDialog.new()
 		# v60: без TabContainer — с одной вкладкой он давал два одинаковых
 		# заголовка (таб + внутренняя надпись) и лишнюю стрелку вкладок сверху.
 		# Простой список: заголовок + подпись «ниже — экспериментальные настройки» + сами настройки.
+		# Содержимое обёрнуто в панель со стилем аддона, чтобы окно выглядело
+		# так же, как карточки чата, а не как голый диалог Godot.
+		var wrap := PanelContainer.new()
+		if T:
+			wrap.add_theme_stylebox_override("panel", T.panel_style("agent"))
 		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 6)
+		wrap.add_child(box)
 		_settings_exp_header = Label.new()
 		_settings_exp_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_settings_exp_header.custom_minimum_size = Vector2(360, 0)
+		if T:
+			_settings_exp_header.add_theme_color_override("font_color", T.color("accent"))
 		box.add_child(_settings_exp_header)
 		box.add_child(HSeparator.new())
 		_minilich_check = CheckBox.new()
@@ -1956,6 +2140,8 @@ func _on_settings_pressed() -> void:
 		_minilich_status_label = Label.new()
 		_minilich_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_status_label.custom_minimum_size = Vector2(360, 0)
+		if T:
+			_minilich_status_label.add_theme_color_override("font_color", T.color("dim"))
 		box.add_child(_minilich_status_label)
 		_minilich_train_check = CheckBox.new()
 		_minilich_train_check.button_pressed = false
@@ -1964,21 +2150,30 @@ func _on_settings_pressed() -> void:
 		_minilich_train_warn = Label.new()
 		_minilich_train_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_train_warn.custom_minimum_size = Vector2(360, 0)
-		_minilich_train_warn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.2))
+		# Цвет предупреждения — из темы редактора вместо захардкоженного.
+		if T:
+			_minilich_train_warn.add_theme_color_override("font_color", T.color("warning"))
 		_minilich_train_warn.visible = false
 		box.add_child(_minilich_train_warn)
 		box.add_child(HSeparator.new())
 		_minilich_repos_edit = LineEdit.new()
 		_minilich_repos_edit.custom_minimum_size = Vector2(360, 0)
+		if T:
+			T.style_input(_minilich_repos_edit)
 		box.add_child(_minilich_repos_edit)
 		_minilich_github_btn = Button.new()
 		_minilich_github_btn.pressed.connect(_on_github_fetch_pressed)
+		if T:
+			T.style_button(_minilich_github_btn, "accent", false)
+			_minilich_github_btn.icon = T.first_icon(["ExternalLink", "Load"])
 		box.add_child(_minilich_github_btn)
 		_minilich_github_label = Label.new()
 		_minilich_github_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_github_label.custom_minimum_size = Vector2(360, 0)
+		if T:
+			_minilich_github_label.add_theme_color_override("font_color", T.color("dim"))
 		box.add_child(_minilich_github_label)
-		_settings_dialog.add_child(box)
+		_settings_dialog.add_child(wrap)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
 	_settings_exp_header.text = _t("experimental_hdr") + ":"

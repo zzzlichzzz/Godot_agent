@@ -613,7 +613,7 @@ def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
                     check_raw = net_raw if net_raw is not None else result.get("actionRaw")
                     net_missing = answer_transfer_incomplete(check_raw, net_text)
                     if not net_missing or len(net_missing) < len(missing):
-                        print(u"%s сетевой фолбэк решил пр������������блему докачки (DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s→%s, v88.2)."
+                        print(u"%s сетевой фолбэк решил проблему докачки (DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s→%s, v88.2)."
                               % (log_tag, len(text), len(net_text),
                                  u"да" if net_raw is not None else u"нет",
                                  u", ".join(missing) if missing else u"нет",
@@ -2422,7 +2422,7 @@ class BaseSiteParser:
                 return
             _diag["ts"] = time.time()
             try:
-                self._log("жду ��твет [%s]: answers=%s (было %s), len=%s, generating=%s"
+                self._log("жду ответ [%s]: answers=%s (было %s), len=%s, generating=%s"
                           % (stage, self.count_answers(driver), initial_count,
                              self.answer_len(driver), self.is_generating(driver)))
             except Exception:
@@ -2624,7 +2624,7 @@ class BaseSiteParser:
                 st["last_length"] = cur_len
                 _report("проверяю, что ответ дописан", chars=max(cur_len, 0),
                         preview=st["preview_txt"], stream=st["stream_txt"])
-            # 5) v51: АНТИ-ДУБЛь старого ответа. Если «стабилизировавшийся» результат
+            # 5) v51: АНТИ-ДУБЛЬ старого ответа. Если «стабилизировавшийся» результат
             # побайтово совпадает с последним ответом модели, снятым ДО отправки
             # сообщения, и НОВых реплик модели на странице не появилось — значит,
             # прочитан СтАРый ответ (счётчик реплик «мигнул» при перестройке DOM,
@@ -2641,7 +2641,7 @@ class BaseSiteParser:
             stale_logged = False
             while _is_stale(result):
                 if _deadline_hit():
-                    raise TimeoutError("Модель не дала НОВЫЙ ответ: на странице только со��бщение, "
+                    raise TimeoutError("Модель не дала НОВЫЙ ответ: на странице только сообщение, "
                                        "которое было там ещё до отправки (дубль не возвращаю).")
                 if not stale_logged:
                     self._log("анти-дубль: прочитан ТОТ ЖЕ ответ, что был до отправки, "
@@ -2978,7 +2978,7 @@ class BaseSiteParser:
                 if (_sig_b.replace("\x00", "").strip()
                         and (_sig_b == _pre_sig or _sig_b in getattr(self, "_returned_sigs", ()))
                         and self.count_answers(driver) <= initial_count):
-                    self._log("анти-дубль (Пла�� Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
+                    self._log("анти-дубль (План Б): извлечён тот же ответ, что был до отправки — дубль не возвращаю.")
                     return {"text": "[Ошибка]: модель не дала НОВЫЙ ответ (на странице найден только старый). "
                                     "Отправьте сообщение ещё раз.",
                             "action": None}
@@ -3024,7 +3024,7 @@ class BaseSiteParser:
                 for cand in _find_action_json_candidates(raw_stream):
                     salv_action, _ = parse_action_json(cand)
                     if salv_action is not None:
-                        self._log("��траховка (план В): JSON-действие найдено в тексте "
+                        self._log("страховка (план В): JSON-действие найдено в тексте "
                                   "ответа вне ожидаемых тегов — забираю его.")
                         action = salv_action
                         break

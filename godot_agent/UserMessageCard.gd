@@ -16,18 +16,18 @@ const MIN_BUBBLE_WIDTH := 120.0
 var _hovered: bool = false
 
 
-# --- безопасное чтение темы редактора (has_* обязателен: иначе Godot спамит ошибками) ---
-
-func _tc(theme_item: StringName, theme_type: StringName, fallback: Color) -> Color:
-	if has_theme_color(theme_item, theme_type):
-		return get_theme_color(theme_item, theme_type)
-	return fallback
+# Цвета, иконки и стили — единый модуль agent_theme.gd.
+static var _theme_script = null
 
 
-func _ti(theme_item: StringName) -> Texture2D:
-	if has_theme_icon(theme_item, "EditorIcons"):
-		return get_theme_icon(theme_item, "EditorIcons")
-	return null
+func _T():
+	if _theme_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_theme.gd"
+			if FileAccess.file_exists(p):
+				_theme_script = load(p)
+	return _theme_script
 
 
 func _ready() -> void:
@@ -45,43 +45,25 @@ func _ready() -> void:
 
 
 func _setup_theme() -> void:
+	var T = _T()
+	if T == null:
+		return
+	# Сцена открыта во вкладке редактора — оформление не применяем, иначе
+	# Godot запечёт иконки и шрифты в .tscn при сохранении (см. is_edited_scene).
+	if T.is_edited_scene(self):
+		return
 	# Внешняя карточка — только позиционирование, фон рисует сам пузырь.
 	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	bubble.add_theme_stylebox_override("panel", T.panel_style("user"))
 
-	var accent := _tc("success_color", "Editor", Color("#7ddc84"))
-	var bubble_style := StyleBoxFlat.new()
-	bubble_style.bg_color = _tc("dark_color_1", "Editor", Color("#1f3320"))
-	bubble_style.border_color = Color(accent.r, accent.g, accent.b, 0.45)
-	bubble_style.set_border_width_all(1)
-	bubble_style.set_corner_radius_all(8)
-	# PanelContainer не умеет margin-константы, внутренние отступы задаёт сам стиль.
-	bubble_style.content_margin_left = 12
-	bubble_style.content_margin_right = 12
-	bubble_style.content_margin_top = 8
-	bubble_style.content_margin_bottom = 8
-	bubble.add_theme_stylebox_override("panel", bubble_style)
+	name_label.add_theme_color_override("font_color", T.color("success"))
+	time_label.add_theme_color_override("font_color", T.color("dim"))
 
-	name_label.add_theme_color_override("font_color", accent)
-
-	# У RichTextLabel цвет текста называется default_color, а не font_color.
-	content.add_theme_color_override("default_color", _tc("font_color", "Label", Color.WHITE))
-	content.add_theme_color_override("selection_color", _tc("accent_color", "Editor", Color("#ffd54f")))
-	# Без fit_content RichTextLabel в контейнере получает нулевую высоту и текст не виден.
-	content.fit_content = true
-	content.scroll_active = false
+	# style_rich_text ставит fit_content: без него текст в контейнере не виден.
+	T.style_rich_text(content)
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	time_label.add_theme_color_override("font_color", _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6)))
-
-	var copy_icon := _ti("ActionCopy")
-	if copy_icon != null:
-		copy_btn.icon = copy_icon
-		copy_btn.text = ""
-	else:
-		copy_btn.text = "⧉"
-	copy_btn.add_theme_color_override("font_color", _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6)))
-	copy_btn.add_theme_color_override("icon_normal_color", _tc("font_disabled_color", "Button", Color(0.6, 0.6, 0.6)))
-	copy_btn.add_theme_color_override("icon_hover_color", accent)
+	T.style_icon_button(copy_btn, ["ActionCopy"], "⧉")
 
 
 func setup(text: String, time_str: String = "") -> void:
