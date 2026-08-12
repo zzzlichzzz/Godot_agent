@@ -389,7 +389,28 @@ def extract_last_answer(driver):
     def _net_fallback():
         try:
             mon = AiStudioParser._monitor
-            return mon.current_text() if mon is not None else u""
+            if mon is None:
+                return u""
+            # v105: защита от УСТАРЕВШЕГО текста. Раньше калитка сетевого
+            # фолбэка открывалась только когда в DOM УЖЕ был текст (не хватало
+            # лишь тел меток) — там монитор почти наверняка держал текущий
+            # ответ. Теперь она открывается и при ПУСТОМ DOM (обрезание по
+            # высоте блока), а это ровно окно «наш POST ушёл, ответ ещё не
+            # пришёл», где current_text() — ещё ПРОШЛЫЙ ответ. Без сверки
+            # счётчика фолбэк отдал бы его как новый (дубль в панели).
+            #
+            # Сверяемся с answer_request_count (номер POST, чей ответ РЕАЛЬНО
+            # лежит в буфере), а не chat_request_count, который растёт уже на
+            # requestWillBeSent — урок v88.10, выученный на qwen.
+            try:
+                if not mon._cdp.is_alive():
+                    return u""
+            except Exception:
+                return u""
+            before = AiStudioParser._req_count_before_send
+            if before is not None and mon.answer_request_count() <= before:
+                return u""
+            return mon.current_text() or u""
         except Exception:
             return u""
     return extract_answer_settled(
@@ -534,6 +555,32 @@ class AiStudioParser(BaseSiteParser):
         if mon is not None and mon.is_generating():
             return True
         return is_generating(driver)
+
+    def net_answer_ready(self, driver):
+        """v105: сеть подтверждает готовый ответ на НАШ запрос.
+
+        Сторожевой таймер принимает такой ответ СРАЗУ (быстрый путь v88.12).
+        Раньше метод был только у qwen, а AI Studio наследовал базовый
+        return False — и в свёрнутом окне, где DOM пуст и answer_len()==0,
+        ожидание выезжало на МЕДЛЕННОМ пути: «один и тот же ответ должен быть
+        увиден дважды» (в логе — «готовый ответ найден на странице»). Отсюда
+        и было «читает, но заметно дольше, чем в развёрнутом».
+        """
+        mon = AiStudioParser._monitor
+        if mon is None:
+            return False
+        try:
+            if not mon._cdp.is_alive():
+                return False
+            before = AiStudioParser._req_count_before_send
+            # answer_request_count — номер POST, чей ответ РЕАЛЬНО лежит в
+            # буфере; chat_request_count растёт уже на requestWillBeSent, и
+            # сверка с ним пускала бы ПРОШЛЫЙ ответ (урок v88.10 у qwen).
+            if before is not None and mon.answer_request_count() <= before:
+                return False
+            return bool(mon.is_finished())
+        except Exception:
+            return False
 
     def get_live_activity(self, driver):
         return get_live_activity(driver)

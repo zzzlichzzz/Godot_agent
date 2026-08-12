@@ -591,7 +591,16 @@ def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
         if not still:
             # v88.0: если есть сетевой фолбэк и DOM неполный — сразу
             # подставляем текст из сети (не ждём 8 циклов × 2.5с).
-            if missing and net_fallback_fn is not None:
+            #
+            # v105: спрашиваем сеть ТАКЖЕ когда DOM пуст/обрезан по ВЫСОТЕ блока
+            # (height_short), а не только когда не хватает тел меток (missing).
+            # Раньше калитка открывалась лишь по missing — и самый частый случай
+            # «блок ответа в DOM есть, а текста в нём нет» (SPA придержал рендер
+            # в свёрнутом окне) до сети не доходил ВООБЩЕ, хотя полный ответ уже
+            # лежал в сетевом мониторе рядом. В логах это выглядело так:
+            # «высота блока (100px) больше, чем объясняет текст (0 строк)» —
+            # и ожидание молча выгорало до конца бюджета.
+            if (missing or height_short) and net_fallback_fn is not None:
                 net_text = u""
                 try:
                     net_text = net_fallback_fn() or u""
@@ -613,10 +622,15 @@ def extract_answer_settled(driver, extract_fn, is_generating_fn=None,
                     check_raw = net_raw if net_raw is not None else result.get("actionRaw")
                     net_missing = answer_transfer_incomplete(check_raw, net_text)
                     if not net_missing or len(net_missing) < len(missing):
-                        print(u"%s сетевой фолбэк решил проблему докачки (DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s→%s, v88.2)."
-                              % (log_tag, len(text), len(net_text),
+                        # height_short и missing взаимно исключают друг друга
+                        # (см. вычисление height_short выше) — печатаем то,
+                        # что реально сработало.
+                        _why = (u"пустой/обрезанный DOM по высоте блока (%.0fpx)"
+                                % float(result.get("blockHeight") or 0)) if height_short \
+                            else (u"не хватало: " + u", ".join(missing))
+                        print(u"%s сетевой фолбэк решил проблему докачки (причина: %s; DOM=%d симв. → сеть=%d симв., действие выделено=%s, осталось меток: %s, v105)."
+                              % (log_tag, _why, len(text), len(net_text),
                                  u"да" if net_raw is not None else u"нет",
-                                 u", ".join(missing) if missing else u"нет",
                                  u", ".join(net_missing) if net_missing else u"нет"))
                         result = dict(result)
                         result["text"] = net_body
@@ -1614,6 +1628,33 @@ class BaseSiteParser:
     # «permission denied» / «An internal error has occurred» на первую генерацию,
     # а со старой программной вставкой такого не было.
     PASTE_PLAN_A = True
+    # v105: нужна ли этому сайту подмена document.visibilityState/hidden.
+    # Раньше она ставилась при КАЖДОЙ отправке любому сайту — а это самый
+    # заметный след автоматизации из всего, что делает агент: страница видит
+    # подмену одной строкой JS. Нужна только там, где сайт придерживает рендер
+    # в свёрнутом окне И ответ читается из DOM. Наследник может выставить False
+    # (kimi: ответ целиком из сети), либо оставить None — тогда решает флаг
+    # needs_visibility_spoof в sites.SITES по адресу вкладки.
+    NEEDS_VISIBILITY_SPOOF = None
+    # v105: можно ли страховать живой ввод программной вставкой, если сайт
+    # игнорирует клавишную печать (см. mirror_input). Вставка через JS даёт
+    # события с isTrusted == false — на сайте с жёсткой антибот-защитой это
+    # лишний сигнал, причём НЕ разовый: зеркало вызывается каждые ~0.35 с, и
+    # фолбэк пробуется заново при каждом провале печати. Такому сайту ставим
+    # False: живой ввод молча выключится, отправка промпта не затронута.
+    ALLOW_MIRROR_JS_FALLBACK = True
+    # v105: подпись, дописываемая В ТЕЛО сообщения, когда сайт превратил вставку
+    # во вложение (kimi: вставка >4000 байт становится .txt). Без неё сообщение
+    # уходит вообще без текста — один файл, и модель не знает, что от неё хотят:
+    # к файлу она относится как к справочному материалу, а не как к инструкции,
+    # и протокол agent_action может не соблюсти. Подпись короткая (сильно меньше
+    # порога вложения), поэтому сама во вложение не превращается.
+    # Пустая строка — не дописывать ничего.
+    ATTACHMENT_NOTE = (
+        u"Выше приложен файл — это моё сообщение целиком (сайт превратил его в файл "
+        u"из-за размера). Прочитай файл ПОЛНОСТЬЮ и выполни то, что в нём написано, "
+        u"дословно соблюдая описанный там формат ответа."
+    )
     START_PHASE = "жду начала ответа"
 
     TIMEOUT = 900                 # общий лимит ожидания ответа, с
@@ -2203,6 +2244,19 @@ class BaseSiteParser:
             ok = False
         if ok:
             return True
+        # v105: сайтам с жёсткой антибот-защитой программная вставка запрещена
+        # (ALLOW_MIRROR_JS_FALLBACK = False): она даёт события с
+        # isTrusted == false, и не разово — зеркало зовётся каждые ~0.35 с, а
+        # фолбэк пробуется заново при каждом провале печати. Живой ввод молча
+        # выключается (live_input поймёт False как no_input_field), отправка
+        # самого промпта при этом не затрагивается.
+        if not self.ALLOW_MIRROR_JS_FALLBACK:
+            if not getattr(self, "_mirror_no_js_logged", False):
+                self._mirror_no_js_logged = True
+                self._log("живой ввод: клавишная печать не сработала, а программная "
+                          "вставка для этого сайта запрещена — зеркалирование "
+                          "выключено (v105)")
+            return False
         # v104.10: клавишная печать не привела поле к нужному тексту (репорт
         # 24.07: редактор qwen игнорирует синтетический набор send_keys) —
         # фолбэк: программная вставка сайта (тот же путь, что план Б
@@ -2219,6 +2273,61 @@ class BaseSiteParser:
             self._log("живой ввод: клавишная печать не сработала — переключился на "
                       "программную вставку для этого сайта (v104.10)")
         return ok
+
+    def _maybe_harden_background_tab(self, driver):
+        """v105: ставит спуф видимости, только если он этому сайту нужен.
+
+        Решение: сначала NEEDS_VISIBILITY_SPOOF парсера (если задан), иначе
+        флаг сайта из реестра по адресу текущей вкладки. Неизвестный сайт —
+        не ставим (см. sites.needs_visibility_spoof)."""
+        want = self.NEEDS_VISIBILITY_SPOOF
+        if want is None:
+            url = ""
+            try:
+                url = driver.current_url or ""
+            except Exception:
+                url = ""
+            try:
+                from sites import needs_visibility_spoof
+                want = needs_visibility_spoof(url=url)
+            except Exception:
+                # Реестр недоступен — ведём себя как раньше, чтобы не сломать
+                # чтение ответа: лучше лишний след, чем недорисованный DOM.
+                want = True
+        if not want:
+            return
+        try:
+            from browser_manager import harden_background_tab
+            harden_background_tab(driver)
+        except Exception as e:
+            self._log("не удалось применить спуф видимости: %s" % e)
+
+    def _type_attachment_note(self, driver, el):
+        """v105: дописать короткую подпись к сообщению, ушедшему во вложение.
+
+        Печатаем КЛАВИШАМИ (send_keys), а не через insert_input: программная
+        подстановка value= у сайтов с карточкой файла может затереть само
+        вложение, а клавиши просто набирают текст в пустое тело сообщения.
+        Подпись обязана быть ОДНОЙ строкой без переводов: Enter отправил бы
+        сообщение раньше времени.
+
+        Ошибки глушим: подпись — улучшение, а не условие отправки. Не набралась —
+        уйдёт как раньше, одним файлом.
+        """
+        note = (self.ATTACHMENT_NOTE or u"").replace(u"\r", u" ").replace(u"\n", u" ").strip()
+        if not note:
+            return
+        try:
+            self._focus_input_caret_end(driver, el)
+        except Exception:
+            pass
+        try:
+            el.send_keys(note)
+        except Exception as e:
+            self._log("подпись к вложению не набралась (%s) — отправляю только файл" % e)
+            return
+        self._log("к вложению дописана подпись (%d симв.): модель получит явное "
+                  "указание прочитать файл (v105)" % len(note))
 
     def try_regenerate(self, driver):
         """v87.9: нажать у ПОСЛЕДНЕГО ответа кнопку «Сгенерировать заново»,
@@ -2767,8 +2876,7 @@ class BaseSiteParser:
         # v54: prefer_url — ��дрес страницы ТЕКУЩЕГО чата: печатаем именно в его
         # вкладку, а не в первую попавшуюся вкладку этого сайта.
         self.switch_to_site_window(driver, prefer_url=prefer_url)
-        from browser_manager import harden_background_tab
-        harden_background_tab(driver)
+        self._maybe_harden_background_tab(driver)
         # v80-wait-before-send: НЕ отправляем новое сообщ��ние, пока модель ещё
         # пишет предыдущий ответ (частый случай — быстрые шаги плана): иначе
         # отправка молча теряется, а ожидание принимает ЕЩЁ ПЕЧАТАЮЩЕЕСЯ старое
@@ -2830,6 +2938,13 @@ class BaseSiteParser:
                         _att_now = None
                     if (_att_base is not None and _att_now is not None
                             and _att_now > _att_base):
+                        # v105: раньше флаг здесь НЕ выставлялся — только в
+                        # insert_input_paste_like. Из-за этого контрольная сверка
+                        # перед отправкой (ниже) видела «поле не совпало с
+                        # промптом» — а совпасть оно и не могло, текст уехал в
+                        # файл — и пыталась вставить промпт ЗАНОВО, рискуя
+                        # создать ВТОРОЕ вложение.
+                        self._insert_became_attachment = True
                         self._log("вставка преобразована сайтом во вложение (.txt) — "
                                   "отправляю как вложение, без повторных вставок (v104.4)")
                         inserted = True
@@ -2880,6 +2995,12 @@ class BaseSiteParser:
                 _as_is = True
         if not inserted:
             raise Exception("Не удалось вставить текст в поле ввода (%s)." % self.LOG_TAG)
+        # v105: сайт превратил вставку во вложение (kimi: >4000 байт уезжает в
+        # .txt) — сообщение уходит БЕЗ единого символа в теле, и модель получает
+        # файл без указаний, что с ним делать. Дописываем короткую подпись: она
+        # многократно короче порога вложения, поэтому остаётся inline.
+        if getattr(self, "_insert_became_attachment", False):
+            self._type_attachment_note(driver, el)
         # v104.4: короткая «человеческая» пауза между вставкой и отправкой:
         # человек не жмёт Enter через 15 мс после вставки; заодно сайт успевает
         # обработать большую вставку (репорт 24.07: AI Studio отвечал
