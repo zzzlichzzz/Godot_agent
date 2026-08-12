@@ -46,11 +46,30 @@ def _wait_for_debug_port(port=9222, timeout=15.0):
 # Без этого Angular-приложение AI Studio может приостанавливать рендер
 # ответа, когда окно Chrome свёрнуто или не активно — из-за этого парсер
 # видит недорисованный DOM.
+#
+# v105 (чище отпечаток): свойства определяются на Document.prototype, а не на
+# самом объекте document. Раньше они становились СОБСТВЕННЫМИ свойствами
+# экземпляра — чего у настоящего Chrome нет, и подмена читалась одной строкой:
+# Object.getOwnPropertyDescriptor(document, 'visibilityState') возвращал
+# дескриптор вместо undefined.
 VISIBILITY_SPOOF_JS = r"""(function() {
     try {
-        Object.defineProperty(document, 'visibilityState', { get: () => 'visible', configurable: true });
-        Object.defineProperty(document, 'hidden', { get: () => false, configurable: true });
-        Object.defineProperty(document, 'hasFocus', { value: () => true, configurable: true });
+        var proto = Document.prototype;
+        // Идемпотентность: скрипт выполняется при каждой отправке, и без этой
+        // проверки на каждый прогон навешивалась бы ещё одна четвёрка
+        // слушателей. Признак «уже стоит» берём из дескриптора геттера, а НЕ из
+        // флага на window: своё свойство на window само стало бы приметой.
+        var cur = Object.getOwnPropertyDescriptor(proto, 'visibilityState');
+        if (cur && cur.get && String(cur.get).indexOf('__gdspoof') >= 0) return;
+        var visGetter = function() { var __gdspoof = 1; return 'visible'; };
+        var hidGetter = function() { var __gdspoof = 1; return false; };
+        Object.defineProperty(proto, 'visibilityState', { get: visGetter, configurable: true });
+        Object.defineProperty(proto, 'hidden', { get: hidGetter, configurable: true });
+        // v105: hasFocus НЕ подменяем. document.hasFocus.toString() выдавал
+        // "() => true" вместо "function hasFocus() { [native code] }" — проверка
+        // toString() у нативных методов это классика антибот-фингерпринтинга.
+        // Для рендера он не нужен: хватает visibilityState/hidden и глушения
+        // событий ниже.
         const blockEvent = function(e) {
             if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
         };
@@ -71,14 +90,43 @@ def harden_background_tab(driver):
     2. Немедленно выполняет тот же скрипт на уже загруженной прямо сейчас
        странице — т.к. addScriptToEvaluateOnNewDocument не действует
        на уже отрендеренный документ.
+
+    ВАЖНО (v105): вызывать только для сайтов, которые читают ответ ИЗ DOM.
+    Подмена свойств document — самый заметный след автоматизации из всего,
+    что делает агент: она видна странице одной строкой JS. Сайтам, чей
+    ответ читается из СЕТИ (BaseNetMonitor), рендер не нужен вовсе —
+    троттлинг Chrome душит таймеры и рендер, но не сетевые потоки.
+    Управляется флагом needs_visibility_spoof в sites.SITES.
     """
+    # v105: регистрация «на будущие загрузки» делается ОДИН раз на вкладку.
+    # Функция зовётся при каждой отправке, а Page.addScriptToEvaluateOnNewDocument
+    # накапливает скрипты: после 50 отправок следующая же навигация выполнила бы
+    # 50 копий. Сам скрипт теперь идемпотентен, так что лишние копии безвредны,
+    # но плодить их в CDP незачем.
+    handle = None
     try:
-        driver.execute_cdp_cmd(
-            "Page.addScriptToEvaluateOnNewDocument",
-            {"source": VISIBILITY_SPOOF_JS}
-        )
-    except Exception as e:
-        print(f"[browser_manager] Не удалось зарегистрировать visibility spoof на будущее: {e}")
+        handle = driver.current_window_handle
+    except Exception:
+        handle = None
+    done = getattr(driver, "_gd_spoof_registered", None)
+    if done is None:
+        done = set()
+        try:
+            driver._gd_spoof_registered = done
+        except Exception:
+            done = None
+    if done is None or handle not in done:
+        try:
+            driver.execute_cdp_cmd(
+                "Page.addScriptToEvaluateOnNewDocument",
+                {"source": VISIBILITY_SPOOF_JS}
+            )
+            if done is not None:
+                done.add(handle)
+        except Exception as e:
+            print(f"[browser_manager] Не удалось зарегистрировать visibility spoof на будущее: {e}")
+    # На уже отрендеренный документ addScriptToEvaluateOnNewDocument не влияет,
+    # поэтому применяем и напрямую (повторный вызов гасится проверкой в JS).
     try:
         driver.execute_script(VISIBILITY_SPOOF_JS)
     except Exception as e:
@@ -119,6 +167,12 @@ def setup_browser():
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
     driver = webdriver.Chrome(options=options)
-    print("4. Отключаю троттлинг рендера для фонового/свёрнутого окна...")
-    harden_background_tab(driver)
+    # v105: спуф видимости БОЛЬШЕ НЕ ставится вслепую при старте браузера.
+    # Раньше он вешался здесь на стартовую вкладку (about:blank), а
+    # Page.addScriptToEvaluateOnNewDocument живёт до закрытия вкладки — значит
+    # ЛЮБОЙ сайт, открытый потом в этой же вкладке, получал подмену document
+    # ещё до первого запроса. Троттлинг рендера при этом и так придавлен
+    # флагами запуска выше (--disable-renderer-backgrounding и остальные).
+    # Теперь спуф ставится точечно, по флагу сайта — см.
+    # BaseSiteParser.send_message_and_get_response.
     return driver
