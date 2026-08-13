@@ -208,6 +208,15 @@ def discard_action_note_for_chat(chat_id):
     notes.pop(chat_id, None)
 
 
+def clear_pending_confirmations():
+    """Discard confirmations that belong to the chat being left."""
+    STATE["pending_action"] = None
+    STATE["pending_batch"] = None
+    STATE["pending_plan"] = None
+    STATE["plan_parts"] = None
+    STATE["content_parts"] = None
+
+
 def _sync_chat_after_reply():
     """После ответа обновляет URL страницы и флаг primed текущего чата."""
     base = _chats_dir()

@@ -178,8 +178,7 @@ def chats_new():
     S.STATE["current_chat_id"] = rec["id"]
     S.STATE["is_primed"] = False
     S._save_primed(S.STATE.get("project_root"), False)
-    S.STATE["pending_action"] = None
-    S.STATE["pending_batch"] = None
+    S.clear_pending_confirmations()
     S.STATE["stale_note"] = ""  # новый чат праймится свежим деревом — сводка не нужна
     # v48: первое сообщение нового чата — системное напоминание выбрать модель.
     chat_store.append_transcript(base, rec["id"], "system",
@@ -217,8 +216,7 @@ def chats_open():
     S.STATE["current_chat_id"] = cid
     S.STATE["is_primed"] = bool(rec.get("primed"))
     S._save_primed(S.STATE.get("project_root"), S.STATE["is_primed"])
-    S.STATE["pending_action"] = None
-    S.STATE["pending_batch"] = None
+    S.clear_pending_confirmations()
     prev_used = rec.get("last_used", 0)
     chat_store.touch_chat(base, cid)
     # Сводка «что изменилось в проекте, пока чат был неактивен» — уйдёт
@@ -270,6 +268,7 @@ def chats_delete():
     chat_store.delete_chat(base, cid)
     S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
     if S.STATE.get("current_chat_id") == cid:
+        S.clear_pending_confirmations()
         S.STATE["current_chat_id"] = None
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
                     "current_id": S.STATE.get("current_chat_id")})
