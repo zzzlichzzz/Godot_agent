@@ -176,6 +176,7 @@ def chats_new():
         chat_store.update_chat(base, rec["id"], site_id=site["id"], site_name=site["name"])
         rec = chat_store.find_chat(base, rec["id"]) or rec
     S.STATE["current_chat_id"] = rec["id"]
+    S.STATE["current_site_id"] = site["id"] if site else None
     S.STATE["is_primed"] = False
     S._save_primed(S.STATE.get("project_root"), False)
     S.clear_pending_confirmations()
@@ -214,6 +215,7 @@ def chats_open():
         if page_note:
             print("--> ВНИМАНИЕ:", page_note)
     S.STATE["current_chat_id"] = cid
+    S.STATE["current_site_id"] = rec.get("site_id")
     S.STATE["is_primed"] = bool(rec.get("primed"))
     S._save_primed(S.STATE.get("project_root"), S.STATE["is_primed"])
     S.clear_pending_confirmations()
@@ -270,5 +272,6 @@ def chats_delete():
     if S.STATE.get("current_chat_id") == cid:
         S.clear_pending_confirmations()
         S.STATE["current_chat_id"] = None
+        S.STATE["current_site_id"] = None
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
                     "current_id": S.STATE.get("current_chat_id")})

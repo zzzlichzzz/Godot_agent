@@ -72,6 +72,7 @@ def _judge_read_action(project_root, action):
     act = action.get("action")
     score = 55
     if act == "ask_librarian":
+        score = 75
         query = action.get("query")
         if not isinstance(query, str) or not query.strip():
             findings.append(_finding("blocking", "schema",
@@ -85,7 +86,6 @@ def _judge_read_action(project_root, action):
             score += 20
             evidence.append("Librarian found %d relevant project entries" % len(hits))
         else:
-            score -= 10
             findings.append(_finding("warning", "librarian",
                                      "Librarian query has no project hits"))
         # Automatic and broad orientation is valuable when paths are unknown,
@@ -226,6 +226,9 @@ def judge_answer(project_root, full_text, addon_dir=None):
         # response. It ranks below a proven project action, but must not trigger
         # Skip merely because no file operation is appropriate yet.
         score = 68 + (7 if prose.strip() else 0)
+        if "===DONE===" not in (full_text or ""):
+            findings.append(_finding("blocking", "protocol",
+                                     "plain answer is missing ===DONE==="))
     else:
         if answer_transfer_incomplete(action_raw, full_text or ""):
             findings.append(_finding("blocking", "protocol", "action transfer is incomplete"))

@@ -99,6 +99,27 @@ def test_plain_done_answer_is_acceptable_but_below_exact_action():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_librarian_beats_unfinished_prose_even_without_index_hits():
+    root = _project()
+    try:
+        unfinished = ("Сделаем классический 2D-платформер в духе Mario. "
+                      "Сначала быстро посмотрю, что уже есть в проекте.")
+        librarian = _answer({
+            "action": "ask_librarian",
+            "query": "definitely absent terms qzxv no index match",
+            "reason": "Нужно определить структуру проекта перед реализацией.",
+        })
+        key, _text, result, judged = select_best_project_answer(
+            root, [("A", unfinished), ("B", librarian)])
+        results = dict(judged)
+        assert key == "B"
+        assert result["acceptable"]
+        assert not results["A"]["acceptable"]
+        assert any(item["category"] == "protocol" for item in results["A"]["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def run_all():
     tests = [value for name, value in sorted(globals().items())
              if name.startswith("test_") and callable(value)]

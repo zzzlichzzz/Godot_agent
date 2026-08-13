@@ -3056,6 +3056,9 @@ class BaseSiteParser:
                 self._log("поле изменилось после проверки (поздняя вставка?) — "
                           "восстанавливаю текст перед отправкой (v104.8).")
                 try:
+                    # SPA may replace the composer after an Arena vote.
+                    # Never reuse its stale Selenium element for recovery.
+                    el = self.find_input(driver) or el
                     self.insert_input(driver, el, prompt)
                     self._wait_field_matches(driver, el, prompt, 6.0)
                 except Exception as _e_re:
