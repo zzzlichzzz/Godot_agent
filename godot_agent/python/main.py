@@ -106,6 +106,7 @@ import parser_base      # noqa: F401
 import ai_parser        # noqa: F401
 import deepseek_parser  # noqa: F401
 import kimi_parser      # noqa: F401
+import arena_parser     # noqa: F401
 
 from chat_routes import chats_bp
 

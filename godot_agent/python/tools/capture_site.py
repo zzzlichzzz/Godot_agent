@@ -67,11 +67,16 @@ def sanitize_post(data):
     if isinstance(data, dict):
         out = {}
         for k, v in data.items():
-            if k.lower() in ("cookie", "authorization", "token", "api_key", "apikey"):
+            key = str(k).lower()
+            if any(marker in key for marker in (
+                    "cookie", "authorization", "token", "api_key", "apikey",
+                    "credential", "secret")):
                 out[k] = "[REDACTED]"
             else:
-                out[k] = v
+                out[k] = sanitize_post(v)
         return out
+    if isinstance(data, list):
+        return [sanitize_post(v) for v in data]
     if isinstance(data, str):
         try:
             return sanitize_post(json.loads(data))
