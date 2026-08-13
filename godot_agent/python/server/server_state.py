@@ -19,6 +19,7 @@ STATE = {
     "project_root": None,
     "pending_action": None,   # ожидающее подтверждения WRITE-действие
     "current_chat_id": None,  # активный чат (см. chat_store.py)
+    "current_site_id": None,  # явный режим сайта, включая arena vs arena_battle
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
     "pending_plan": None,     # ожидающий подтверждения/выполнения план (plan-режим, цепочка шагов)
     "is_primed": False,
@@ -154,6 +155,14 @@ def _ensure_current_chat(first_prompt=""):
         url = get_driver().current_url or ""
     except Exception:
         pass
+    # Arena /text becomes /c/<id>; the URL itself does not say Direct or
+    # Battle. Reuse its saved chat record before host-based site detection.
+    rec = chat_store.find_chat_by_url(base, url)
+    if rec is not None:
+        STATE["current_chat_id"] = rec["id"]
+        STATE["current_site_id"] = rec.get("site_id")
+        print("--> Восстановлен чат: %s (%s)" % (rec["title"], rec["id"]))
+        return rec
     rec = chat_store.create_chat(base, url=url,
                                  title=chat_store.title_from_prompt(first_prompt),
                                  primed=bool(STATE.get("is_primed")))
@@ -162,6 +171,7 @@ def _ensure_current_chat(first_prompt=""):
         chat_store.update_chat(base, rec["id"], site_id=site["id"], site_name=site["name"])
         rec = chat_store.find_chat(base, rec["id"]) or rec
     STATE["current_chat_id"] = rec["id"]
+    STATE["current_site_id"] = rec.get("site_id")
     print("--> Создана запись чата: %s (%s)" % (rec["title"], rec["id"]))
     return rec
 

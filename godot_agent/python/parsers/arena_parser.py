@@ -6,6 +6,7 @@ import json
 import sys
 import threading
 import time
+import base64
 from urllib.parse import urlparse
 
 from selenium.webdriver.common.keys import Keys
@@ -62,6 +63,211 @@ class ArenaChatMonitor(BaseNetMonitor):
     RESPONSE_MIME_SUBSTR = "text/event-stream"
     LOG_TAG = "arena_parser"
 
+    def __init__(self, cdp):
+        self._battle_capture = False
+        self._battle_before_count = 0
+        self._battle_request_ids = []
+        self._battle_request_branches = {}
+        self._battle_completed = set()
+        self._battle_stream_bufs = {}
+        self._battle_stream_ready = {}
+        self._battle_streamed = set()
+        super().__init__(cdp)
+
+    def begin_battle_capture(self, before_count):
+        with self._lock:
+            self._battle_capture = True
+            self._battle_before_count = before_count
+            self._battle_request_ids = []
+            self._battle_request_branches = {}
+            self._battle_completed = set()
+            self._battle_stream_bufs = {}
+            self._battle_stream_ready = {}
+            self._battle_streamed = set()
+            self._reset_answer_state_locked()
+
+    def end_battle_capture(self):
+        with self._lock:
+            self._battle_capture = False
+
+    def battle_waiting_for_second_branch(self):
+        with self._lock:
+            nonempty = sum(1 for text in self._branch_texts.values() if text.strip())
+            return self._battle_capture and nonempty < 2
+
+    def _on_request_will_be_sent(self, params):
+        super()._on_request_will_be_sent(params)
+        if not self._battle_capture:
+            return
+        req = params.get("request") or {}
+        if not self._match_request(req.get("url") or "", req.get("method") or ""):
+            return
+        req_id = params.get("requestId")
+        with self._lock:
+            if (self._chat_request_count > self._battle_before_count
+                    and req_id not in self._battle_request_branches):
+                branch = len(self._battle_request_ids)
+                self._battle_request_ids.append(req_id)
+                self._battle_request_branches[req_id] = branch
+
+    def _on_response_received(self, params):
+        if not self._battle_capture:
+            return super()._on_response_received(params)
+        resp = params.get("response") or {}
+        if not self._match_response(resp.get("url") or "", resp.get("mimeType") or ""):
+            return
+        req_id = params.get("requestId")
+        with self._lock:
+            if req_id not in self._battle_request_branches:
+                return
+            self._generating = True
+            self._message_status = None
+            self._answer_request_count = self._chat_request_count
+            self._battle_stream_bufs[req_id] = bytearray()
+            self._battle_stream_ready[req_id] = threading.Event()
+        self._log("Battle: принят параллельный ответ %s как вариант %s"
+                  % (req_id, "A" if self._battle_request_branches[req_id] == 0 else "B"))
+        threading.Thread(target=self._enable_battle_stream,
+                         args=(req_id,), daemon=True).start()
+
+    def _on_data_received(self, params):
+        if not self._battle_capture:
+            return super()._on_data_received(params)
+        req_id = params.get("requestId")
+        data = params.get("data")
+        if not data:
+            return
+        try:
+            chunk = base64.b64decode(data)
+        except Exception:
+            return
+        with self._lock:
+            buf = self._battle_stream_bufs.get(req_id)
+            if buf is None:
+                return
+            buf.extend(chunk)
+            if req_id in self._battle_streamed:
+                self._parse_battle_stream_locked(req_id)
+
+    def _on_loading_finished(self, params):
+        if not self._battle_capture:
+            return super()._on_loading_finished(params)
+        req_id = params.get("requestId")
+        with self._lock:
+            if req_id not in self._battle_request_branches:
+                return
+        threading.Thread(target=self._finish_battle_request,
+                         args=(req_id,), daemon=True).start()
+
+    def _enable_battle_stream(self, req_id):
+        try:
+            response = self._cdp.send_command(
+                "Network.streamResourceContent", {"requestId": req_id})
+            buffered = response.get("bufferedData") or ""
+            raw = base64.b64decode(buffered) if buffered else b""
+            with self._lock:
+                buf = self._battle_stream_bufs.get(req_id)
+                if buf is None:
+                    return
+                self._battle_stream_bufs[req_id] = bytearray(raw) + buf
+                self._battle_streamed.add(req_id)
+                self._parse_battle_stream_locked(req_id)
+        except Exception as exc:
+            self._log("Battle: streamResourceContent недоступен для %s: %s" % (req_id, exc))
+        finally:
+            event = self._battle_stream_ready.get(req_id)
+            if event is not None:
+                event.set()
+
+    def _parse_battle_stream_locked(self, req_id):
+        buf = self._battle_stream_bufs.get(req_id)
+        if buf is None:
+            return
+        events, consumed = self._decode_frames_partial(bytes(buf))
+        if consumed:
+            del buf[:consumed]
+        branch = self._battle_request_branches.get(req_id)
+        for event in events:
+            if event.get("kind") == "text":
+                event = dict(event)
+                event["stream"] = branch
+                self._apply_event(event)
+
+    def _finish_battle_request(self, req_id):
+        event = self._battle_stream_ready.get(req_id)
+        if event is not None:
+            event.wait(5.0)
+        with self._lock:
+            streamed = req_id in self._battle_streamed
+        fallback_events = []
+        if not streamed:
+            # Fast Arena replies can finish before streamResourceContent is
+            # enabled. Unlike a live SSE body, CDP retains these for the
+            # ordinary getResponseBody fallback.
+            for attempt in range(3):
+                try:
+                    body = self._cdp.send_command(
+                        "Network.getResponseBody", {"requestId": req_id})
+                    raw = body.get("body") or ""
+                    raw_bytes = (base64.b64decode(raw) if body.get("base64Encoded")
+                                 else raw.encode("utf-8"))
+                    fallback_events = self._decode_frames(raw_bytes)
+                    if any(item.get("kind") == "text" and item.get("text")
+                           for item in fallback_events):
+                        self._log("Battle: вариант %s прочитан запасным getResponseBody"
+                                  % req_id)
+                        break
+                except Exception as exc:
+                    if attempt == 2:
+                        self._log("Battle: не удалось прочитать вариант %s: %s"
+                                  % (req_id, exc))
+                time.sleep(0.25)
+        with self._lock:
+            branch = self._battle_request_branches.get(req_id)
+            if branch is None:
+                return
+            if fallback_events:
+                # A single Battle POST can contain a0/a1 itself; preserve its
+                # stream ids. Separate POST bodies each use a0, so map those
+                # to their assigned A/B branch instead.
+                preserve_streams = len(self._battle_request_ids) == 1
+                for item in fallback_events:
+                    if item.get("kind") != "text":
+                        continue
+                    item = dict(item)
+                    if not preserve_streams:
+                        item["stream"] = branch
+                    self._apply_event(item)
+            elif req_id not in self._battle_streamed:
+                self._log("Battle: вариант %s не получил тело ответа" % req_id)
+            else:
+                self._parse_battle_stream_locked(req_id)
+                tail = bytes(self._battle_stream_bufs.get(req_id) or b"")
+                for item in self._decode_final_tail(tail):
+                    if item.get("kind") == "text":
+                        item = dict(item)
+                        item["stream"] = branch
+                        self._apply_event(item)
+            self._battle_completed.add(req_id)
+        # Arena can start B only after A has already completed. Wait briefly
+        # for that second POST instead of finalizing a one-branch Battle.
+        time.sleep(1.5)
+        with self._lock:
+            nonempty = [stream for stream in self._branch_order
+                        if self._branch_texts.get(stream, "").strip()]
+            # Arena uses both forms in production: two POST bodies (each a0),
+            # or one body containing a0 and a1.
+            if len(nonempty) < 2:
+                self._log("Battle: прочитан только %d из 2 непустых вариантов — продолжаю ждать"
+                          % len(nonempty))
+                return
+            if (not self._battle_request_ids
+                    or not set(self._battle_request_ids).issubset(self._battle_completed)):
+                return
+            self._finish_collected_answer_locked("stop")
+            self._log("Battle: собраны варианты A/B из %d отдельных POST"
+                      % len(self._battle_request_ids))
+
     def _reset_answer_state_locked(self):
         self._answer_text = ""
         self._finished = False
@@ -107,21 +313,24 @@ class ArenaChatMonitor(BaseNetMonitor):
             return
         if kind == "done":
             reason = str((obj.get("meta") or {}).get("finishReason") or "")
-            self._finish_reason = reason
-            best = select_best_answer_variant([
-                (stream, self._branch_texts.get(stream, ""))
-                for stream in self._branch_order
-            ])
-            if best is not None:
-                self._selected_stream = best[0]
-                self._answer_text = best[1]
-                if len(self._branch_order) > 1:
-                    self._log("выбран вариант %s (score=%s)"
-                              % ("A" if best[0] == 0 else "B", best[2]))
-            self._finished = True
-            self._generating = False
-            self._message_status = "FINISHED" if reason == "stop" else (
-                "FINISHED_%s" % (reason.upper() or "UNKNOWN"))
+            self._finish_collected_answer_locked(reason)
+
+    def _finish_collected_answer_locked(self, reason):
+        self._finish_reason = reason
+        best = select_best_answer_variant([
+            (stream, self._branch_texts.get(stream, ""))
+            for stream in self._branch_order
+        ])
+        if best is not None:
+            self._selected_stream = best[0]
+            self._answer_text = best[1]
+            if len(self._branch_order) > 1:
+                self._log("выбран вариант %s (score=%s)"
+                          % ("A" if best[0] == 0 else "B", best[2]))
+        self._finished = True
+        self._generating = False
+        self._message_status = "FINISHED" if reason == "stop" else (
+            "FINISHED_%s" % (reason.upper() or "UNKNOWN"))
 
     def current_text(self):
         with self._lock:
@@ -210,6 +419,14 @@ class ArenaParser(BaseSiteParser):
         if old is not None:
             monitor._assistant_message_count = old.assistant_message_count()
             monitor._chat_request_count = old.chat_request_count()
+            monitor._battle_capture = old._battle_capture
+            monitor._battle_before_count = old._battle_before_count
+            monitor._battle_request_ids = list(old._battle_request_ids)
+            monitor._battle_request_branches = dict(old._battle_request_branches)
+            monitor._battle_completed = set(old._battle_completed)
+            monitor._battle_stream_bufs = dict(old._battle_stream_bufs)
+            monitor._battle_stream_ready = dict(old._battle_stream_ready)
+            monitor._battle_streamed = set(old._battle_streamed)
         cdp.send_command("Network.enable")
         ArenaParser._monitor = monitor
         return monitor
@@ -325,7 +542,8 @@ class ArenaParser(BaseSiteParser):
         # One branch may print DONE while the competing branch is still being
         # streamed. Do not let BaseSiteParser stop before the final `ad` frame
         # selects the best complete variant.
-        if mon is not None and not mon.is_finished():
+        if (mon is not None and (not mon.is_finished()
+                                 or mon.battle_waiting_for_second_branch())):
             return text.replace(DONE_MARKER, "")
         return text
 
@@ -340,6 +558,7 @@ class ArenaParser(BaseSiteParser):
         try:
             before = ArenaParser._req_count_before_send
             return bool(mon._cdp.is_alive()
+                        and not mon.battle_waiting_for_second_branch()
                         and (before is None or mon.answer_request_count() > before)
                         and not (ArenaParser._skip_pending
                                  and mon.answer_request_count()
@@ -357,6 +576,9 @@ class ArenaParser(BaseSiteParser):
         if text is None:
             return {"text": "", "actionRaw": None,
                     "error": "Свежий сетевой ответ Arena ещё не получен."}
+        if mon.battle_waiting_for_second_branch():
+            return {"text": "", "actionRaw": None,
+                    "error": "Arena Battle: ожидаю второй вариант."}
         selection = self._judge_and_apply_choice(driver, mon)
         if selection == "skip":
             return {"text": "", "actionRaw": None,
@@ -479,6 +701,9 @@ class ArenaParser(BaseSiteParser):
         """The site id is the source of truth after /text becomes /c/<id>."""
         try:
             import server_state
+            site_id = server_state.STATE.get("current_site_id")
+            if site_id in ("arena", "arena_battle"):
+                return site_id == "arena_battle"
             rec = server_state.get_current_chat()
             if rec and rec.get("site_id") in ("arena", "arena_battle"):
                 return rec.get("site_id") == "arena_battle"
@@ -811,8 +1036,18 @@ class ArenaParser(BaseSiteParser):
             first_chat = first_path in ("/text/direct", "/text")
             if first_chat:
                 self._battle_mode_for_session = first_path == "/text"
+                try:
+                    import server_state
+                    server_state.STATE["current_site_id"] = (
+                        "arena_battle" if self._battle_mode_for_session else "arena")
+                except Exception:
+                    pass
         except Exception:
             first_chat = False
+        if self._is_battle_mode():
+            mon.begin_battle_capture(ArenaParser._req_count_before_send)
+        else:
+            mon.end_battle_capture()
         el.send_keys(Keys.ENTER)
         if first_chat:
             self._follow_first_chat_transition(

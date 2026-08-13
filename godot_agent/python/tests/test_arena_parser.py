@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import inspect
+import base64
 import json
 import os
 import sys
@@ -52,6 +53,96 @@ def test_monitor_matches_first_and_followup_endpoints():
     assert mon._match_request(
         "https://arena.ai/nextjs-api/stream/post-to-evaluation/chat-id", "POST")
     assert not mon._match_request("https://arena.ai/rpc/i/v0/e/", "POST")
+
+
+def test_battle_collects_two_separate_post_bodies_as_a_and_b():
+    body_a = 'a0:"answer A\\n===DONE==="\nad:{"finishReason":"stop"}\n'
+    body_b = ('a0:"answer B\\n```agent_action\\n{\\"action\\":'
+              '\\"ask_librarian\\",\\"query\\":\\"player\\"}\\n```\\n===DONE==="\n'
+              'ad:{"finishReason":"stop"}\n')
+
+    class CDP:
+        def on_event(self, method, callback):
+            pass
+
+        def send_command(self, method, params=None):
+            raw = body_a if params["requestId"] == "A" else body_b
+            return {"bufferedData": base64.b64encode(raw.encode()).decode()}
+
+    mon = ArenaChatMonitor(CDP())
+    mon.begin_battle_capture(0)
+    for request_id in ("A", "B"):
+        mon._on_request_will_be_sent({
+            "requestId": request_id,
+            "request": {"url": "https://arena.ai/nextjs-api/stream/create-evaluation",
+                        "method": "POST"},
+        })
+        mon._on_response_received({
+            "requestId": request_id,
+            "response": {"url": "https://arena.ai/nextjs-api/stream/create-evaluation",
+                         "mimeType": "text/event-stream"},
+        })
+    old_sleep = arena_module.time.sleep
+    arena_module.time.sleep = lambda seconds: None
+    try:
+        mon._enable_battle_stream("A")
+        mon._enable_battle_stream("B")
+        mon._finish_battle_request("A")
+        mon._finish_battle_request("B")
+    finally:
+        arena_module.time.sleep = old_sleep
+    assert mon.branch_count() == 2
+    variants = dict(mon.branch_variants())
+    assert "answer A" in variants[0]
+    assert "answer B" in variants[1]
+    assert "ask_librarian" in variants[1]
+    assert mon.is_finished()
+
+
+def test_battle_hides_done_until_second_post_arrives():
+    mon = ArenaChatMonitor(_CDP())
+    mon.begin_battle_capture(0)
+    mon._battle_request_ids = ["A"]
+    mon._answer_text = "first answer\n===DONE==="
+    parser = ArenaParser()
+    old_monitor = ArenaParser._monitor
+    ArenaParser._monitor = mon
+    try:
+        parser._ensure_monitor = lambda driver=None: mon
+        assert "===DONE===" not in parser.answer_stream(None)
+        assert parser.extract_answer(None)["error"] == "Arena Battle: ожидаю второй вариант."
+    finally:
+        ArenaParser._monitor = old_monitor
+
+
+def test_battle_falls_back_to_finished_single_post_with_a0_and_a1():
+    raw = ('a0:"answer A"\na1:"answer B"\nad:{"finishReason":"stop"}\n')
+
+    class CDP:
+        def on_event(self, method, callback):
+            pass
+
+        def send_command(self, method, params=None):
+            if method == "Network.streamResourceContent":
+                raise RuntimeError("already finished")
+            return {"body": raw, "base64Encoded": False}
+
+    mon = ArenaChatMonitor(CDP())
+    mon.begin_battle_capture(0)
+    mon._on_request_will_be_sent({
+        "requestId": "A", "request": {"method": "POST",
+        "url": "https://arena.ai/nextjs-api/stream/create-evaluation"}})
+    mon._on_response_received({
+        "requestId": "A", "response": {"mimeType": "text/event-stream",
+        "url": "https://arena.ai/nextjs-api/stream/create-evaluation"}})
+    old_sleep = arena_module.time.sleep
+    arena_module.time.sleep = lambda seconds: None
+    try:
+        mon._finish_battle_request("A")
+    finally:
+        arena_module.time.sleep = old_sleep
+    assert mon.branch_variants() == [(0, "answer A"), (1, "answer B")]
+    assert mon.is_finished()
 
 
 def test_direct_and_battle_sites_share_parser_but_have_distinct_urls():
@@ -247,6 +338,39 @@ def test_confirm_sent_accepts_delayed_post_after_composer_clears():
         ArenaParser._req_count_before_send = old_before
         arena_module.time.time = old_time
         arena_module.time.sleep = old_sleep
+
+
+def test_first_battle_submit_enables_battle_capture_before_enter():
+    import server_state
+    events = []
+
+    class Monitor:
+        def chat_request_count(self):
+            return 3
+
+        def begin_battle_capture(self, before):
+            events.append(("battle", before))
+
+        def end_battle_capture(self):
+            events.append(("direct", None))
+
+    class Element:
+        def send_keys(self, *keys):
+            events.append(("enter", None))
+
+    class Driver:
+        current_url = "https://arena.ai/text"
+
+    parser = ArenaParser()
+    parser._ensure_monitor = lambda driver=None: Monitor()
+    parser._arena_targets = lambda: {}
+    parser._follow_first_chat_transition = lambda *args: None
+    old_site_id = server_state.STATE.get("current_site_id")
+    try:
+        parser.submit(Driver(), Element())
+        assert events == [("battle", 3), ("enter", None)]
+    finally:
+        server_state.STATE["current_site_id"] = old_site_id
 
 
 def test_first_direct_chat_moves_monitor_to_new_target():
