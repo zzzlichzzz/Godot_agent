@@ -139,7 +139,7 @@ def detect_site(url):
     for s in _all_sites():
         for m in s.get("match", []):
             m = m.lower()
-            if host == m or host.endswith("." + m) or m in host:
+            if host == m or host.endswith("." + m):
                 return s
     return None
 

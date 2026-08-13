@@ -339,6 +339,47 @@ def answer_transfer_incomplete(action_raw, text):
     return []
 
 
+def score_answer_variant(full_text):
+    """Structural fitness of an alternative answer for the Godot agent.
+
+    This deliberately does not attempt semantic judging. It rewards complete,
+    parseable agent protocol output and penalizes malformed/truncated actions.
+    Site parsers can use the stable tuple to choose between parallel variants;
+    equal variants keep their original order.
+    """
+    text = (full_text or "").strip()
+    prose, action_raw = split_net_text_and_action(text)
+    has_action = bool(action_raw)
+    valid_action = False
+    complete = True
+    if action_raw:
+        parsed, error = parse_action_json(action_raw)
+        valid_action = not error and isinstance(parsed, dict) and bool(parsed.get("action"))
+        complete = not answer_transfer_incomplete(action_raw, text)
+    malformed_protocol = ("```agent_action" in text and not has_action)
+    done = DONE_MARKER in text
+    # Tuple ordering: protocol safety first, then task usefulness and detail.
+    return (
+        0 if malformed_protocol else 1,
+        1 if complete else 0,
+        1 if valid_action else 0,
+        1 if has_action else 0,
+        1 if done else 0,
+        min(len(prose or ""), 100000),
+        min(len(text), 200000),
+    )
+
+
+def select_best_answer_variant(variants):
+    """Return (key, text, score) for the best ordered (key, text) variant."""
+    best = None
+    for key, text in variants:
+        score = score_answer_variant(text)
+        if best is None or score > best[2]:
+            best = (key, text, score)
+    return best
+
+
 # v86.27 (база для ВСЕХ парсеров): проверка полноты по высоте DOM-блока.
 # answer_transfer_incomplete ловит обрезание только через метки *_ref и
 # ===DONE===. Обычный текстовый ответ без action таких меток не имеет, и

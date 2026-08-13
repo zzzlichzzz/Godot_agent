@@ -174,12 +174,21 @@ class CDPSession:
         self._lock = threading.Lock()
         self._pending = {}
         self._event_handlers = {}
+        self._session_event_handlers = {}
         self._stop = False
         self._reader = threading.Thread(target=self._read_loop, daemon=True)
         self._reader.start()
 
     def on_event(self, method, callback):
         self._event_handlers.setdefault(method, []).append(callback)
+
+    def on_session_event(self, method, callback):
+        """Subscribe to a flattened Target session event.
+
+        callback receives (params, session_id). Existing on_event callbacks
+        remain unchanged and continue receiving params only.
+        """
+        self._session_event_handlers.setdefault(method, []).append(callback)
 
     def is_alive(self):
         """v87.7: жива ли сессия (читающий поток работает и не было stop)."""
@@ -215,6 +224,16 @@ class CDPSession:
                             cb(params)
                         except Exception as e:
                             print("[cdp_ws] event handler for %s failed: %s" % (msg["method"], e))
+                session_handlers = self._session_event_handlers.get(msg["method"])
+                if session_handlers:
+                    params = msg.get("params") or {}
+                    session_id = msg.get("sessionId")
+                    for cb in session_handlers:
+                        try:
+                            cb(params, session_id)
+                        except Exception as e:
+                            print("[cdp_ws] session event handler for %s failed: %s"
+                                  % (msg["method"], e))
         # v87.7: read_loop завершился (закрытие/ошибка сокета). Раньше это
         # происходило МОЛЧА: все уже ожидающие send_command висели до своего
         # 15с-таймаута, а новые - тоже, хотя ответа быть не может. Теперь:
@@ -229,7 +248,8 @@ class CDPSession:
         if not self._stop:
             print("[cdp_ws] read loop exited unexpectedly: %r - CDP-сессия мертва, нужно переподключение" % (err,))
 
-    def send_command(self, method, params=None, timeout=15.0):
+    def send_command(self, method, params=None, timeout=15.0,
+                     session_id=None):
         # v87.7: если сессия уже мертва, не ждать таймаут впустую.
         if not self.is_alive():
             raise WSError("CDP session is closed (reader thread not running).")
@@ -239,6 +259,8 @@ class CDPSession:
             slot = {"event": threading.Event(), "result": None, "error": None}
             self._pending[cmd_id] = slot
         payload = {"id": cmd_id, "method": method, "params": params or {}}
+        if session_id:
+            payload["sessionId"] = session_id
         self._ws.send_text(json.dumps(payload))
         if not slot["event"].wait(timeout):
             with self._lock:
@@ -259,12 +281,49 @@ def list_targets(host="127.0.0.1", port=9222, timeout=5.0):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def browser_ws_url(host="127.0.0.1", port=9222, timeout=5.0):
+    """Browser-level CDP WebSocket URL from /json/version."""
+    url = "http://%s:%s/json/version" % (host, port)
+    with urllib.request.urlopen(url, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    return data.get("webSocketDebuggerUrl")
+
+
 def find_page_ws_url(url_substr, host="127.0.0.1", port=9222, timeout=5.0):
     """CDP WebSocket address of the page target (type == 'page') whose url
     contains url_substr, or None if not found."""
     for t in list_targets(host, port, timeout=timeout):
         if t.get("type") == "page" and url_substr in (t.get("url") or ""):
             return t.get("webSocketDebuggerUrl")
+    return None
+
+
+def find_page_ws_url_for_host(page_host, host="127.0.0.1", port=9222,
+                              timeout=5.0):
+    """CDP page target whose URL belongs to exactly page_host or a subdomain."""
+    wanted = (page_host or "").lower().strip(".")
+    for target in list_targets(host, port, timeout=timeout):
+        if target.get("type") != "page":
+            continue
+        try:
+            actual = (urlsplit(target.get("url") or "").hostname or "").lower()
+        except Exception:
+            actual = ""
+        if actual == wanted or actual.endswith("." + wanted):
+            return target.get("webSocketDebuggerUrl")
+    return None
+
+
+def find_page_ws_url_for_target(target_id, host="127.0.0.1", port=9222,
+                                timeout=5.0):
+    """CDP WebSocket for the exact Selenium window handle / target id."""
+    wanted = str(target_id or "").lower()
+    if not wanted:
+        return None
+    for target in list_targets(host, port, timeout=timeout):
+        if (target.get("type") == "page"
+                and str(target.get("id") or "").lower() == wanted):
+            return target.get("webSocketDebuggerUrl")
     return None
 
 
