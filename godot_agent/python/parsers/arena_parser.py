@@ -72,6 +72,7 @@ class ArenaChatMonitor(BaseNetMonitor):
         self._battle_stream_bufs = {}
         self._battle_stream_ready = {}
         self._battle_streamed = set()
+        self._battle_request_texts = {}
         super().__init__(cdp)
 
     def begin_battle_capture(self, before_count):
@@ -84,6 +85,7 @@ class ArenaChatMonitor(BaseNetMonitor):
             self._battle_stream_bufs = {}
             self._battle_stream_ready = {}
             self._battle_streamed = set()
+            self._battle_request_texts = {}
             self._reset_answer_state_locked()
 
     def end_battle_capture(self):
@@ -125,6 +127,7 @@ class ArenaChatMonitor(BaseNetMonitor):
             self._answer_request_count = self._chat_request_count
             self._battle_stream_bufs[req_id] = bytearray()
             self._battle_stream_ready[req_id] = threading.Event()
+            self._battle_request_texts.setdefault(req_id, {})
         self._log("Battle: принят параллельный ответ %s как вариант %s"
                   % (req_id, "A" if self._battle_request_branches[req_id] == 0 else "B"))
         threading.Thread(target=self._enable_battle_stream,
@@ -186,12 +189,45 @@ class ArenaChatMonitor(BaseNetMonitor):
         events, consumed = self._decode_frames_partial(bytes(buf))
         if consumed:
             del buf[:consumed]
-        branch = self._battle_request_branches.get(req_id)
+        self._record_battle_events_locked(req_id, events)
+
+    def _record_battle_events_locked(self, req_id, events):
+        streams = self._battle_request_texts.setdefault(req_id, {})
         for event in events:
-            if event.get("kind") == "text":
-                event = dict(event)
-                event["stream"] = branch
-                self._apply_event(event)
+            if event.get("kind") != "text" or not event.get("text"):
+                continue
+            stream = event.get("stream", 0)
+            streams[stream] = streams.get(stream, "") + event["text"]
+        self._rebuild_battle_variants_locked()
+
+    def _rebuild_battle_variants_locked(self):
+        variants = []
+        # Some Arena responses contain both a0/a1 in one POST.
+        for req_id in self._battle_request_ids:
+            streams = self._battle_request_texts.get(req_id, {})
+            local = [streams[key] for key in sorted(streams)
+                     if streams.get(key, "").strip()]
+            if len(local) >= 2:
+                variants = local[:2]
+                break
+        # Other responses use two POST bodies, each with its own a0.
+        if not variants:
+            for req_id in self._battle_request_ids:
+                streams = self._battle_request_texts.get(req_id, {})
+                local = [streams[key] for key in sorted(streams)
+                         if streams.get(key, "").strip()]
+                if local:
+                    variants.append(local[0])
+                if len(variants) == 2:
+                    break
+        self._branch_texts = {index: text for index, text in enumerate(variants)}
+        self._branch_order = list(self._branch_texts)
+        if variants:
+            selected = self._selected_stream if self._selected_stream in self._branch_texts else 0
+            self._answer_text = self._branch_texts[selected]
+            if not self._counted_message:
+                self._counted_message = True
+                self._assistant_message_count += 1
 
     def _finish_battle_request(self, req_id):
         event = self._battle_stream_ready.get(req_id)
@@ -227,27 +263,14 @@ class ArenaChatMonitor(BaseNetMonitor):
             if branch is None:
                 return
             if fallback_events:
-                # A single Battle POST can contain a0/a1 itself; preserve its
-                # stream ids. Separate POST bodies each use a0, so map those
-                # to their assigned A/B branch instead.
-                preserve_streams = len(self._battle_request_ids) == 1
-                for item in fallback_events:
-                    if item.get("kind") != "text":
-                        continue
-                    item = dict(item)
-                    if not preserve_streams:
-                        item["stream"] = branch
-                    self._apply_event(item)
+                self._record_battle_events_locked(req_id, fallback_events)
             elif req_id not in self._battle_streamed:
                 self._log("Battle: вариант %s не получил тело ответа" % req_id)
             else:
                 self._parse_battle_stream_locked(req_id)
                 tail = bytes(self._battle_stream_bufs.get(req_id) or b"")
-                for item in self._decode_final_tail(tail):
-                    if item.get("kind") == "text":
-                        item = dict(item)
-                        item["stream"] = branch
-                        self._apply_event(item)
+                self._record_battle_events_locked(
+                    req_id, self._decode_final_tail(tail))
             self._battle_completed.add(req_id)
         # Arena can start B only after A has already completed. Wait briefly
         # for that second POST instead of finalizing a one-branch Battle.
@@ -427,6 +450,10 @@ class ArenaParser(BaseSiteParser):
             monitor._battle_stream_bufs = dict(old._battle_stream_bufs)
             monitor._battle_stream_ready = dict(old._battle_stream_ready)
             monitor._battle_streamed = set(old._battle_streamed)
+            monitor._battle_request_texts = {
+                req_id: dict(streams)
+                for req_id, streams in old._battle_request_texts.items()
+            }
         cdp.send_command("Network.enable")
         ArenaParser._monitor = monitor
         return monitor
@@ -464,7 +491,8 @@ class ArenaParser(BaseSiteParser):
         reenabled = False
         while time.time() < deadline:
             mon = ArenaParser._monitor
-            if mon is not None and mon.chat_request_count() > before_count:
+            if (mon is not None and mon.chat_request_count() > before_count
+                    and not mon._battle_capture):
                 return
             targets = self._arena_targets()
             new_ids = [target_id for target_id in targets
@@ -489,10 +517,14 @@ class ArenaParser(BaseSiteParser):
                                 old._cdp.close()
                             except Exception:
                                 pass
+                        previous_target_ids.add(target_id)
                         self._log("первый чат сменил CDP target — монитор перенесён на /c/<id>")
                     except Exception as e:
                         self._log("не удалось перенести монитор на target первого чата: %s" % e)
-                return
+                # Battle may emit A before the route transition and B after it.
+                # Keep the new monitor alive for the rest of this transition.
+                if not getattr(new_monitor, "_battle_capture", False):
+                    return
             # Some Chrome builds keep the target id but reset Network state on
             # the first client-side route transition. Re-enable once after /c/.
             if not reenabled and mon is not None:
