@@ -73,12 +73,24 @@ SITES = [
     },
     {
         "id": "arena",
-        "name": "Arena AI",
+        "name": "Arena AI Direct",
         "new_chat_url": "https://arena.ai/text/direct",
         "match": ["arena.ai"],
         "parser": "arena_parser",
         "builtin": True,
         # Ответ читается из сети (Vercel streaming) — рендер не важен, спуф не нужен.
+        "needs_visibility_spoof": False,
+    },
+    {
+        "id": "arena_battle",
+        "name": "Arena AI Battle",
+        "new_chat_url": "https://arena.ai/text",
+        "match": [],
+        "parser": "arena_parser",
+        "builtin": True,
+        # Тот же сетевой парсер/Judge, но случайная пара моделей battle mode.
+        # match пуст: один домен нельзя однозначно определить только по host;
+        # выбранный site_id сохраняется в записи чата.
         "needs_visibility_spoof": False,
     },
 ]

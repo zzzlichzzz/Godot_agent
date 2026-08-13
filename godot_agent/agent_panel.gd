@@ -465,6 +465,15 @@ func _has_pending_action() -> bool:
 	return _pending_action_active
 
 
+func _clear_pending_action_state() -> void:
+	# Подтверждение относится только к чату, в котором оно было создано.
+	_set_pending_action(false)
+	_last_pending_action_type = ""
+	_last_pending_action_path = ""
+	_last_pending_action_dest = ""
+	_pending_log_send = false
+
+
 func _escape_bbcode(text: String) -> String:
 	var result = ""
 	for i in range(text.length()):
@@ -1683,6 +1692,7 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 			_pending_view = ""
 			_start_screen.show_chats()
 	if kind == "open" and _view:
+		_clear_pending_action_state()
 		_view.clear()
 		_render_transcript(json.get("transcript", []))
 		_view.add_system(_t("chat_opened") % str(json.get("title", "")))
@@ -1696,6 +1706,7 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 			_resend_after_open = false
 			_send_chat_raw(_pending_chat_prompt, true)
 	elif kind == "new" and _view:
+		_clear_pending_action_state()
 		_view.clear()
 		_view.add_system(_t("chat_created"))
 		_view.add_hint(_t("pick_model_hint"))  # v48/v49: напоминание выбрать модель — заметным окошком
@@ -1706,6 +1717,7 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 		# просто возвращаем на главный экран: пользователь сам выберет,
 		# загрузить сохранённый чат или создать новый.
 		_current_chat_id = ""
+		_clear_pending_action_state()
 		_on_link_hide_loading()
 		_show_start_ui()
 
