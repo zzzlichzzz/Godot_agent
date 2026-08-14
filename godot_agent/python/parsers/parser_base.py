@@ -583,6 +583,14 @@ def split_net_text_and_action(full_text):
             m = matches[-1]
             action_raw = m.group(1)
             text = text[:m.start()] + text[m.end():]
+        # Some renderers close the agent_action fence immediately after JSON
+        # and leave ===LABEL=== ref bodies in the surrounding markdown. Keep
+        # the full answer as a resolver tail when all declared bodies are
+        # present there; parse_action_json will extract only the JSON object.
+        missing_local = missing_ref_bodies(action_raw, action_raw)
+        if (missing_local
+                and not missing_ref_bodies(action_raw, full_text)):
+            action_raw = action_raw + "\n" + full_text
     text = _NET_DONE_MARKER_RE.sub("", text).strip()
     return text, action_raw
 

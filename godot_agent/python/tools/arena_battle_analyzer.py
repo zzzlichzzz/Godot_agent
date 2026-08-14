@@ -67,6 +67,9 @@ def stream_summary(raw):
     streams = {}
     done = []
     line_count = 0
+    prefixes = {}
+    payload_types = {}
+    malformed = 0
     for line in (raw or b"").splitlines():
         line_count += 1
         if b":" not in line:
@@ -74,22 +77,28 @@ def stream_summary(raw):
         prefix, payload = line.split(b":", 1)
         prefix = prefix.decode("ascii", "replace").strip()
         payload = payload.strip()
-        if prefix.startswith("a") and prefix[1:].isdigit():
-            try:
-                value = json.loads(payload.decode("utf-8", "replace"))
-            except (TypeError, ValueError):
-                continue
+        prefixes[prefix] = prefixes.get(prefix, 0) + 1
+        try:
+            decoded = json.loads(payload.decode("utf-8", "replace"))
+            type_name = type(decoded).__name__
+            payload_types[type_name] = payload_types.get(type_name, 0) + 1
+        except (TypeError, ValueError):
+            decoded = None
+            malformed += 1
+        if ((prefix.startswith("a") and prefix[1:].isdigit())
+                or prefix == "b0"):
+            value = decoded
             if isinstance(value, str):
-                item = streams.setdefault(prefix, {"frames": 0, "chars": 0})
+                stream_name = "a1" if prefix == "b0" else prefix
+                item = streams.setdefault(stream_name, {"frames": 0, "chars": 0})
                 item["frames"] += 1
                 item["chars"] += len(value)
         elif prefix == "ad":
-            try:
-                value = json.loads(payload.decode("utf-8", "replace"))
-            except (TypeError, ValueError):
-                value = {"parse_error": True}
+            value = decoded if decoded is not None else {"parse_error": True}
             done.append(value)
-    return {"line_count": line_count, "streams": streams, "done": done}
+    return {"line_count": line_count, "prefixes": prefixes,
+            "payload_types": payload_types, "malformed_payloads": malformed,
+            "streams": streams, "done": done}
 
 
 def configure_session(session_id, info):

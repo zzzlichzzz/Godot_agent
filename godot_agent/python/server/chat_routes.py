@@ -186,7 +186,8 @@ def chats_new():
         "Не забудьте выбрать нейросеть (модель) на странице в браузере, прежде чем отправлять первое сообщение.")
     print("--> Новый чат:", rec["id"], "на сайте", site["name"] if site else "?")
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": rec["id"],
-                    "title": rec["title"], "site": site["name"] if site else ""})
+                    "title": rec["title"], "site": site["name"] if site else "",
+                    "site_id": site["id"] if site else ""})
 
 
 @chats_bp.route('/chats/open', methods=['POST'])
@@ -236,9 +237,10 @@ def chats_open():
             pass
     print("--> Открыт чат:", rec.get("title"), cid)
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": cid,
-                    "title": rec.get("title"),
-                    "site": rec.get("site_name", ""),
-                    "warning": page_note,
+                     "title": rec.get("title"),
+                     "site": rec.get("site_name", ""),
+                     "site_id": rec.get("site_id", ""),
+                     "warning": page_note,
                     "transcript": rec.get("transcript", [])})
 
 

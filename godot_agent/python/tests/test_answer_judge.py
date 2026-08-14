@@ -94,6 +94,8 @@ def test_plain_done_answer_is_acceptable_but_below_exact_action():
         plain_result = judge_answer(root, plain)
         exact_result = judge_answer(root, exact)
         assert plain_result["acceptable"]
+        assert not plain_result["vote_eligible"]
+        assert exact_result["vote_eligible"]
         assert exact_result["score"] > plain_result["score"]
     finally:
         shutil.rmtree(root, ignore_errors=True)
@@ -114,8 +116,29 @@ def test_librarian_beats_unfinished_prose_even_without_index_hits():
         results = dict(judged)
         assert key == "B"
         assert result["acceptable"]
+        assert result["vote_eligible"]
         assert not results["A"]["acceptable"]
         assert any(item["category"] == "protocol" for item in results["A"]["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_content_ref_body_outside_action_fence_is_judged():
+    root = _project()
+    try:
+        action = json.dumps({
+            "action": "plan",
+            "description": "Create script",
+            "steps": [{"action": "create_file",
+                       "path": "res://src/scripts/generated.gd",
+                       "content_ref": "SCRIPT", "content_ref_lines": 1}],
+        })
+        answer = ("```agent_action\n%s\n```\n"
+                  "===SCRIPT===\nextends Node\n===END_SCRIPT===\n===DONE===" % action)
+        result = judge_answer(root, answer)
+        assert result["acceptable"]
+        assert result["vote_eligible"]
+        assert result["action"]["steps"][0]["content"] == "extends Node"
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
