@@ -27,7 +27,7 @@ def decode_arena_stream_lines(text):
         if not line or ":" not in line:
             continue
         prefix, payload = line.split(":", 1)
-        if prefix == "ad":
+        if prefix in ("ad", "bd"):
             try:
                 meta = json.loads(payload)
             except (TypeError, ValueError):
@@ -35,13 +35,15 @@ def decode_arena_stream_lines(text):
             if isinstance(meta, dict):
                 events.append({"kind": "done", "meta": meta})
             continue
-        if prefix.startswith("a") and prefix[1:].isdigit():
+        if ((prefix.startswith("a") and prefix[1:].isdigit())
+                or prefix == "b0"):
             try:
                 chunk = json.loads(payload)
             except (TypeError, ValueError):
                 continue
             if isinstance(chunk, str):
-                events.append({"kind": "text", "stream": int(prefix[1:]),
+                stream = 1 if prefix == "b0" else int(prefix[1:])
+                events.append({"kind": "text", "stream": stream,
                                "text": chunk})
     return events
 
@@ -73,6 +75,7 @@ class ArenaChatMonitor(BaseNetMonitor):
         self._battle_stream_ready = {}
         self._battle_streamed = set()
         self._battle_request_texts = {}
+        self._battle_finalized = False
         super().__init__(cdp)
 
     def begin_battle_capture(self, before_count):
@@ -86,6 +89,7 @@ class ArenaChatMonitor(BaseNetMonitor):
             self._battle_stream_ready = {}
             self._battle_streamed = set()
             self._battle_request_texts = {}
+            self._battle_finalized = False
             self._reset_answer_state_locked()
 
     def end_battle_capture(self):
@@ -96,6 +100,24 @@ class ArenaChatMonitor(BaseNetMonitor):
         with self._lock:
             nonempty = sum(1 for text in self._branch_texts.values() if text.strip())
             return self._battle_capture and nonempty < 2
+
+    def battle_ready_for_judge(self):
+        """True only after the whole Battle HTTP response has closed.
+
+        One branch can emit ===DONE=== substantially earlier than the other.
+        `_finished` alone is therefore not a safe signal for voting.
+        """
+        with self._lock:
+            nonempty = sum(1 for text in self._branch_texts.values() if text.strip())
+            return bool(self._battle_capture and self._battle_finalized
+                        and self._finished and nonempty >= 2)
+
+    def is_generating(self):
+        with self._lock:
+            if (self._battle_capture and self._battle_request_ids
+                    and not self._battle_finalized):
+                return True
+            return bool(self._generating or self._active_request_id is not None)
 
     def _on_request_will_be_sent(self, params):
         super()._on_request_will_be_sent(params)
@@ -288,6 +310,7 @@ class ArenaChatMonitor(BaseNetMonitor):
                     or not set(self._battle_request_ids).issubset(self._battle_completed)):
                 return
             self._finish_collected_answer_locked("stop")
+            self._battle_finalized = True
             self._log("Battle: собраны варианты A/B из %d отдельных POST"
                       % len(self._battle_request_ids))
 
@@ -454,6 +477,7 @@ class ArenaParser(BaseSiteParser):
                 req_id: dict(streams)
                 for req_id, streams in old._battle_request_texts.items()
             }
+            monitor._battle_finalized = old._battle_finalized
         cdp.send_command("Network.enable")
         ArenaParser._monitor = monitor
         return monitor
@@ -572,10 +596,12 @@ class ArenaParser(BaseSiteParser):
         text = self._fresh_network_text() or ""
         mon = ArenaParser._monitor
         # One branch may print DONE while the competing branch is still being
-        # streamed. Do not let BaseSiteParser stop before the final `ad` frame
-        # selects the best complete variant.
+        # streamed. Do not let BaseSiteParser stop before the complete HTTP
+        # response has been collected and both variants can be judged.
         if (mon is not None and (not mon.is_finished()
-                                 or mon.battle_waiting_for_second_branch())):
+                                 or mon.battle_waiting_for_second_branch()
+                                 or (self._is_battle_mode()
+                                     and not mon.battle_ready_for_judge()))):
             return text.replace(DONE_MARKER, "")
         return text
 
@@ -591,6 +617,8 @@ class ArenaParser(BaseSiteParser):
             before = ArenaParser._req_count_before_send
             return bool(mon._cdp.is_alive()
                         and not mon.battle_waiting_for_second_branch()
+                        and (not self._is_battle_mode()
+                             or mon.battle_ready_for_judge())
                         and (before is None or mon.answer_request_count() > before)
                         and not (ArenaParser._skip_pending
                                  and mon.answer_request_count()
@@ -608,6 +636,13 @@ class ArenaParser(BaseSiteParser):
         if text is None:
             return {"text": "", "actionRaw": None,
                     "error": "Свежий сетевой ответ Arena ещё не получен."}
+        if self._is_battle_mode():
+            ready = (mon.battle_ready_for_judge()
+                     if hasattr(mon, "battle_ready_for_judge")
+                     else mon.is_finished())
+            if not ready:
+                return {"text": "", "actionRaw": None,
+                        "error": "Arena Battle: оба ответа ещё генерируются."}
         if mon.battle_waiting_for_second_branch():
             return {"text": "", "actionRaw": None,
                     "error": "Arena Battle: ожидаю второй вариант."}
@@ -620,6 +655,10 @@ class ArenaParser(BaseSiteParser):
             return {"text": "[Ошибка]: все три варианта Arena отклонены "
                             "локальным Godot Judge. " + reason,
                     "actionRaw": None, "error": None}
+        if selection == "choice_failed" and self._is_battle_mode():
+            return {"text": "", "actionRaw": None,
+                    "error": "Arena Battle: не удалось зафиксировать выбранную ветку; "
+                             "действие не передано на выполнение."}
         text = mon.current_text() or text
         prose, action_raw = split_net_text_and_action(text)
         return {"text": prose, "actionRaw": action_raw, "error": None}
@@ -679,11 +718,12 @@ class ArenaParser(BaseSiteParser):
         if judged is not None:
             key, text, result, all_results = judged
             for branch, branch_result in all_results:
-                self._log("Godot Judge %s: score=%d acceptable=%s blockers=%d warnings=%d"
+                self._log("Godot Judge %s: score=%d acceptable=%s vote_eligible=%s blockers=%d warnings=%d"
                           % ("A" if branch == 0 else "B", branch_result["score"],
-                             branch_result["acceptable"],
-                             len(branch_result["blocking"]),
-                             len(branch_result["warnings"])))
+                              branch_result["acceptable"],
+                              branch_result.get("vote_eligible", True),
+                              len(branch_result["blocking"]),
+                              len(branch_result["warnings"])))
                 details = ([item.get("message") for item in branch_result["blocking"]]
                            + [item.get("message") for item in branch_result["warnings"]]
                            + list(branch_result.get("evidence") or []))
@@ -694,11 +734,46 @@ class ArenaParser(BaseSiteParser):
             acceptable = [(branch, branch_result) for branch, branch_result in all_results
                           if branch_result.get("acceptable")]
             if self._is_battle_mode():
-                if len(acceptable) == 2:
+                vote_eligible = [(branch, branch_result)
+                                 for branch, branch_result in all_results
+                                 if branch_result.get("vote_eligible", True)]
+                if not vote_eligible:
                     mon.select_stream(key)
-                    if self._click_choice_button(driver, "both_good"):
+                    ArenaParser._choice_applied_for_request = request_no
+                    self._log("ответы приемлемы, но объективно не проверяемы — "
+                              "Arena-голос не отправляю; локально выбран вариант %s"
+                              % ("A" if key == 0 else "B"))
+                    return "no_vote"
+                if len(vote_eligible) == 1:
+                    eligible_branch, eligible_result = vote_eligible[0]
+                    if eligible_result.get("acceptable"):
+                        chosen = eligible_branch
+                    else:
+                        chosen = next((branch for branch, branch_result in all_results
+                                       if branch != eligible_branch
+                                       and branch_result.get("acceptable")), None)
+                    if chosen is not None:
+                        mon.select_stream(chosen)
+                        if self._click_choice_button(driver, "A" if chosen == 0 else "B"):
+                            ArenaParser._choice_applied_for_request = request_no
+                            self._log("проверяемый результат определил выбор варианта %s"
+                                      % ("A" if chosen == 0 else "B"))
+                            return "choice"
+                elif len(acceptable) == 2:
+                    mon.select_stream(key)
+                    scores = [branch_result.get("score")
+                              for _, branch_result in acceptable]
+                    vote = "both_good" if scores[0] == scores[1] else (
+                        "A" if key == 0 else "B")
+                    if self._click_choice_button(driver, vote):
                         ArenaParser._choice_applied_for_request = request_no
-                        self._log("оба ответа пригодны — выбрано «Оба хорошие»")
+                        if vote == "both_good":
+                            self._log("оба проверяемых ответа получили одинаковую оценку — "
+                                      "выбрано «Оба хорошие», локально вариант %s"
+                                      % ("A" if key == 0 else "B"))
+                        else:
+                            self._log("оба ответа пригодны, но вариант %s получил выше оценку"
+                                      % ("A" if key == 0 else "B"))
                         return "choice"
                 elif len(acceptable) == 1:
                     branch = acceptable[0][0]
@@ -807,6 +882,13 @@ class ArenaParser(BaseSiteParser):
         return {"text": prose, "actionRaw": action_raw, "error": None}
 
     def extract_raw_fallback(self, driver):
+        mon = ArenaParser._monitor
+        if self._is_battle_mode() and mon is not None:
+            ready = (mon.battle_ready_for_judge()
+                     if hasattr(mon, "battle_ready_for_judge")
+                     else mon.is_finished())
+            if not ready:
+                return None
         text = self._fresh_network_text()
         if not text:
             return None

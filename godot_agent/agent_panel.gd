@@ -1694,6 +1694,7 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 	if kind == "open" and _view:
 		_clear_pending_action_state()
 		_view.clear()
+		_view.set_battle_scope(str(json.get("site_id", "")) == "arena_battle")
 		_render_transcript(json.get("transcript", []))
 		_view.add_system(_t("chat_opened") % str(json.get("title", "")))
 		var warn: String = str(json.get("warning", ""))
@@ -1708,6 +1709,7 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 	elif kind == "new" and _view:
 		_clear_pending_action_state()
 		_view.clear()
+		_view.set_battle_scope(str(json.get("site_id", "")) == "arena_battle")
 		_view.add_system(_t("chat_created"))
 		_view.add_hint(_t("pick_model_hint"))  # v48/v49: напоминание выбрать модель — заметным окошком
 		_enter_chat_ui()
@@ -1889,6 +1891,8 @@ func _on_editor_script_changed(scr: Script) -> void:
 
 
 func _show_start_ui() -> void:
+	if _view:
+		_view.set_battle_scope(false)
 	if _start_screen:
 		_start_screen.visible = true
 		_start_screen.show_home()

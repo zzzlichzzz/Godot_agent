@@ -115,6 +115,70 @@ def test_battle_hides_done_until_second_post_arrives():
         ArenaParser._monitor = old_monitor
 
 
+def test_battle_does_not_judge_or_fallback_before_stream_finishes():
+    class Monitor:
+        def is_finished(self):
+            return False
+
+        def battle_waiting_for_second_branch(self):
+            return False
+
+    parser = ArenaParser()
+    monitor = Monitor()
+    parser._is_battle_mode = lambda: True
+    parser._ensure_monitor = lambda driver=None: monitor
+    parser._fresh_network_text = lambda: "partial A\n===DONE==="
+    parser._judge_and_apply_choice = lambda driver, mon: (_ for _ in ()).throw(
+        AssertionError("Judge must not run for a partial Battle response"))
+    old_monitor = ArenaParser._monitor
+    ArenaParser._monitor = monitor
+    try:
+        result = parser.extract_answer(None)
+        assert result["error"] == "Arena Battle: оба ответа ещё генерируются."
+        assert parser.extract_raw_fallback(None) is None
+    finally:
+        ArenaParser._monitor = old_monitor
+
+
+def test_battle_does_not_judge_when_only_one_branch_has_finished():
+    mon = ArenaChatMonitor(_CDP())
+    mon.begin_battle_capture(0)
+    mon._battle_request_ids = ["REQ"]
+    mon._battle_request_branches = {"REQ": 0}
+    mon._answer_request_count = 1
+    mon._branch_texts = {
+        0: "A is still streaming",
+        1: "B is complete\n===DONE===",
+    }
+    mon._branch_order = [0, 1]
+    mon._answer_text = mon._branch_texts[1]
+    # Reproduces the live failure: an early branch-level done signal marked
+    # the generic state finished while the multiplexed response was still open.
+    mon._finished = True
+    mon._generating = False
+
+    parser = ArenaParser()
+    parser._is_battle_mode = lambda: True
+    parser._ensure_monitor = lambda driver=None: mon
+    parser._judge_and_apply_choice = lambda driver, monitor: (_ for _ in ()).throw(
+        AssertionError("Judge must wait for the complete Battle response"))
+    old_monitor = ArenaParser._monitor
+    old_before = ArenaParser._req_count_before_send
+    ArenaParser._monitor = mon
+    ArenaParser._req_count_before_send = 0
+    try:
+        assert mon.is_generating()
+        assert not mon.battle_ready_for_judge()
+        assert "===DONE===" not in parser.answer_stream(None)
+        result = parser.extract_answer(None)
+        assert result["error"] == "Arena Battle: оба ответа ещё генерируются."
+        assert parser.net_answer_ready(None) is False
+        assert parser.extract_raw_fallback(None) is None
+    finally:
+        ArenaParser._monitor = old_monitor
+        ArenaParser._req_count_before_send = old_before
+
+
 def test_battle_falls_back_to_finished_single_post_with_a0_and_a1():
     raw = ('a0:"answer A"\na1:"answer B"\nad:{"finishReason":"stop"}\n')
 
@@ -143,6 +207,7 @@ def test_battle_falls_back_to_finished_single_post_with_a0_and_a1():
         arena_module.time.sleep = old_sleep
     assert mon.branch_variants() == [(0, "answer A"), (1, "answer B")]
     assert mon.is_finished()
+    assert mon.battle_ready_for_judge()
 
 
 def test_direct_and_battle_sites_share_parser_but_have_distinct_urls():
@@ -164,6 +229,17 @@ def test_json_string_decoding():
         "kind": "text", "stream": 0,
         "text": 'строка 1\nОн сказал: "Привет" \\ путь',
     }]
+
+
+def test_battle_b0_is_variant_b_and_bd_finishes():
+    events = decode_arena_stream_lines(
+        'a0:"ответ A"\nb0:"ответ B"\n'
+        'bd:{"finishReason":"stop"}\n')
+    assert events == [
+        {"kind": "text", "stream": 0, "text": "ответ A"},
+        {"kind": "text", "stream": 1, "text": "ответ B"},
+        {"kind": "done", "meta": {"finishReason": "stop"}},
+    ]
 
 
 def test_arbitrary_utf8_splits():
@@ -581,6 +657,74 @@ def test_battle_both_bad_votes_without_waiting_for_third_answer():
         assert ArenaParser._skip_pending is False
     finally:
         ArenaParser._skip_pending = old_pending
+
+
+def test_battle_plain_answers_are_returned_without_arena_vote():
+    class Monitor:
+        def __init__(self):
+            self.selected = None
+
+        def answer_request_count(self):
+            return 13
+
+        def branch_count(self):
+            return 2
+
+        def select_stream(self, stream):
+            self.selected = stream
+            return True
+
+    parser = ArenaParser()
+    parser._is_battle_mode = lambda: True
+    parser._project_judgments = lambda mon: (
+        0, "plain A", {"score": 74, "acceptable": True,
+                       "vote_eligible": False},
+        [(0, {"score": 74, "acceptable": True, "vote_eligible": False,
+              "blocking": [], "warnings": [], "evidence": []}),
+         (1, {"score": 74, "acceptable": True, "vote_eligible": False,
+              "blocking": [], "warnings": [], "evidence": []})],
+    )
+    clicks = []
+    parser._click_choice_button = lambda driver, choice: clicks.append(choice) or True
+    monitor = Monitor()
+
+    result = parser._judge_and_apply_choice(object(), monitor)
+
+    assert result == "no_vote"
+    assert monitor.selected == 0
+    assert clicks == []
+
+
+def test_battle_action_tie_votes_both_good_and_selects_a_locally():
+    class Monitor:
+        def __init__(self):
+            self.selected = None
+
+        def answer_request_count(self):
+            return 14
+
+        def branch_count(self):
+            return 2
+
+        def select_stream(self, stream):
+            self.selected = stream
+            return True
+
+    result = {"score": 90, "acceptable": True, "vote_eligible": True,
+              "blocking": [], "warnings": [], "evidence": []}
+    parser = ArenaParser()
+    parser._is_battle_mode = lambda: True
+    parser._project_judgments = lambda mon: (
+        0, "action A", result, [(0, dict(result)), (1, dict(result))])
+    clicks = []
+    parser._click_choice_button = lambda driver, choice: clicks.append(choice) or True
+    monitor = Monitor()
+
+    selection = parser._judge_and_apply_choice(object(), monitor)
+
+    assert selection == "choice"
+    assert monitor.selected == 0
+    assert clicks == ["both_good"]
 
 
 def test_two_unacceptable_variants_click_skip():

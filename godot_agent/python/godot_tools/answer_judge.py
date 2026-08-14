@@ -220,6 +220,7 @@ def judge_answer(project_root, full_text, addon_dir=None):
     findings = []
     evidence = []
     action = None
+    vote_eligible = False
     if not action_raw:
         findings.append(_finding("warning", "protocol", "answer has no agent_action"))
         # A clarifying/explanatory response ending in DONE is a valid agent
@@ -229,7 +230,11 @@ def judge_answer(project_root, full_text, addon_dir=None):
         if "===DONE===" not in (full_text or ""):
             findings.append(_finding("blocking", "protocol",
                                      "plain answer is missing ===DONE==="))
+            vote_eligible = True
     else:
+        # An attempted agent action is objectively checkable: schema,
+        # paths, syntax and project evidence can support an Arena vote.
+        vote_eligible = True
         if answer_transfer_incomplete(action_raw, full_text or ""):
             findings.append(_finding("blocking", "protocol", "action transfer is incomplete"))
         action, error = parse_action_json(action_raw)
@@ -286,6 +291,7 @@ def judge_answer(project_root, full_text, addon_dir=None):
     return {
         "score": score,
         "acceptable": not blocking and score >= 70,
+        "vote_eligible": vote_eligible,
         "blocking": blocking,
         "warnings": warnings,
         "evidence": evidence[:12],
