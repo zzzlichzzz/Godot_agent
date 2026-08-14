@@ -241,6 +241,10 @@ class KimiParser(BaseSiteParser):
 
     LOG_TAG = "kimi_parser"
     WINDOW_URL_MATCH = "kimi.com"
+    # v105: ответ читается ЦЕЛИКОМ из сети (connect+json), DOM нужен только для
+    # печати и отправки — придержанный рендер в свёрнутом окне ничего не ломает,
+    # поэтому подмену document не ставим (лишний след автоматизации).
+    NEEDS_VISIBILITY_SPOOF = False
     START_PHASE = u"\u043c\u043e\u0434\u0435\u043b\u044c \u0434\u0443\u043c\u0430\u0435\u0442\u2026"
     QUIET_PERIOD = 4.0
     POLL_INTERVAL = 0.3
@@ -295,6 +299,35 @@ class KimiParser(BaseSiteParser):
 
     def is_generating(self, driver):
         return self._ensure_monitor(driver).is_generating()
+
+    def net_answer_ready(self, driver):
+        """v105: сеть подтверждает готовый ответ на НАШ запрос.
+
+        Сторожевой таймер принимает такой ответ СРАЗУ (быстрый путь v88.12).
+        Раньше метод был только у qwen, поэтому kimi в свёрнутом окне выезжал
+        на МЕДЛЕННОМ пути «один и тот же ответ должен быть увиден дважды» —
+        отсюда и «информация пришла, хоть и заняло много времени».
+
+        У KimiChatMonitor нет is_finished() (как у qwen/AI Studio): признак
+        завершения тут — статус сообщения. MESSAGE_STATUS_GENERATING монитор
+        уже использует для _generating (см. _apply_event), завершение —
+        MESSAGE_STATUS_COMPLETED.
+        """
+        mon = KimiParser._monitor
+        if mon is None:
+            return False
+        try:
+            if not mon._cdp.is_alive():
+                return False
+            # answer_request_count — номер POST, чей ответ РЕАЛЬНО лежит в
+            # буфере; chat_request_count растёт уже на requestWillBeSent, и
+            # сверка с ним пускала бы ПРОШЛЫЙ ответ (урок v88.10 у qwen).
+            before = getattr(self, "_req_count_before_send", None)
+            if before is not None and mon.answer_request_count() <= before:
+                return False
+            return mon.message_status() == "MESSAGE_STATUS_COMPLETED"
+        except Exception:
+            return False
 
     def extract_answer(self, driver):
         monitor = self._ensure_monitor(driver)

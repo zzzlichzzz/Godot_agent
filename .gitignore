@@ -5,3 +5,6 @@ godot_agent/agent_panel.tscn
 *.pyc
 /godot_agent/python/godot_tools/__pycache__
 /.freebuff
+временно/file.txt
+/временно
+/godot_agent/временно

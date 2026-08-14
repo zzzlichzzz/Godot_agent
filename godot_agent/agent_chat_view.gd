@@ -100,6 +100,8 @@ var _auto_approve_all: bool = false
 # Плашка-напоминание закреплена НАД полем ввода, а не в ленте чата: иначе она
 # уезжает вверх с историей, и человек забывает, что действия применяются молча.
 var _auto_bar: PanelContainer = null
+var _battle_scope_bar: PanelContainer = null
+var _battle_scope_active: bool = false
 var _root_vbox: VBoxContainer = null
 var _loc = null
 
@@ -127,6 +129,7 @@ func setup(vbox: VBoxContainer) -> void:
 	var old_log: RichTextLabel = null
 	var stale_scroll: Node = null
 	var stale_auto_bar: Node = null
+	var stale_battle_scope_bar: Node = null
 	for child in vbox.get_children():
 		# Проверяем по имени, а не по типу: ChatScroll — ScrollContainer, и из-за
 		# лишнего `child is RichTextLabel` старая область никогда не удалялась,
@@ -137,6 +140,8 @@ func setup(vbox: VBoxContainer) -> void:
 			stale_scroll = child
 		elif child.name == "AutoApproveBar" and child != _auto_bar:
 			stale_auto_bar = child
+		elif child.name == "BattleScopeBar" and child != _battle_scope_bar:
+			stale_battle_scope_bar = child
 	if stale_scroll:
 		vbox.remove_child(stale_scroll)
 		stale_scroll.queue_free()
@@ -145,6 +150,9 @@ func setup(vbox: VBoxContainer) -> void:
 	if stale_auto_bar:
 		vbox.remove_child(stale_auto_bar)
 		stale_auto_bar.queue_free()
+	if stale_battle_scope_bar:
+		vbox.remove_child(stale_battle_scope_bar)
+		stale_battle_scope_bar.queue_free()
 
 	var insert_index := 0
 	if old_log:
@@ -192,6 +200,7 @@ func setup(vbox: VBoxContainer) -> void:
 
 	# Панель могли собрать заново, пока режим «Разрешить всё» был включён —
 	# возвращаем плашку на место над вводом.
+	_update_battle_scope_bar()
 	_update_auto_bar()
 
 
@@ -710,6 +719,66 @@ func set_auto_approve(enabled: bool) -> void:
 		add_system(_t("auto_approve_on"))
 	else:
 		add_system(_t("auto_approve_stopped"))
+
+
+func set_battle_scope(enabled: bool) -> void:
+	_battle_scope_active = enabled
+	_update_battle_scope_bar()
+
+
+func _update_battle_scope_bar() -> void:
+	if not _battle_scope_active:
+		if _battle_scope_bar and is_instance_valid(_battle_scope_bar):
+			_battle_scope_bar.queue_free()
+		_battle_scope_bar = null
+		return
+	if _root_vbox == null or not is_instance_valid(_root_vbox):
+		return
+	if _battle_scope_bar and is_instance_valid(_battle_scope_bar):
+		if _battle_scope_bar.get_parent() == _root_vbox:
+			return
+		_battle_scope_bar.queue_free()
+		_battle_scope_bar = null
+
+	var panel := _make_panel("hint")
+	panel.name = "BattleScopeBar"
+	var T = _T()
+	if T:
+		panel.add_theme_stylebox_override(
+			"panel", T.make_panel_style(T.color("bg_1"), T.alpha("warning", 0.45), 6, 8, 3)
+		)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	var icon_rect := TextureRect.new()
+	var head_icon: Texture2D = null
+	if T:
+		head_icon = T.first_icon(["StatusWarning", "Info"])
+	if head_icon != null:
+		icon_rect.texture = head_icon
+		icon_rect.custom_minimum_size = Vector2(16, 16)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon_rect.modulate = _color("warning")
+	else:
+		icon_rect.visible = false
+
+	var label := Label.new()
+	label.text = _t("arena_battle_scope_hint")
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	label.add_theme_color_override("font_color", _color("warning"))
+	if T:
+		label.add_theme_font_size_override("font_size", maxi(T.font_size("Label", 14) - 2, 9))
+
+	row.add_child(icon_rect)
+	row.add_child(label)
+	panel.add_child(row)
+	_root_vbox.add_child(panel)
+	_root_vbox.move_child(panel, _input_row_index())
+	_battle_scope_bar = panel
 
 
 func _update_auto_bar() -> void:

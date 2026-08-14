@@ -82,6 +82,15 @@ class BaseNetMonitor:
     def _decode_frames(self, raw_bytes):
         raise NotImplementedError
 
+    def _decode_final_tail(self, raw_bytes):
+        """Complete events left after the last streaming delimiter.
+
+        Most protocols cannot safely decode an unterminated tail. Line-framed
+        protocols may override this because loadingFinished proves no more
+        bytes can arrive.
+        """
+        return []
+
     def _apply_event(self, obj):
         raise NotImplementedError
 
@@ -253,6 +262,14 @@ class BaseNetMonitor:
             if req_id != self._active_request_id:
                 return
             self._parse_stream_locked(req_id)
+            tail = bytes(self._stream_bufs.get(req_id) or b"")
+            if tail:
+                try:
+                    for obj in self._decode_final_tail(tail):
+                        self._apply_event(obj)
+                    self._stream_bufs[req_id].clear()
+                except Exception as e:
+                    self._log("не удалось разобрать финальный хвост: %s" % e)
             self._active_request_id = None
             leftover = len(self._stream_bufs.get(req_id) or b"")
             self._stream_bufs.pop(req_id, None)

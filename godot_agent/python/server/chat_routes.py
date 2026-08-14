@@ -176,17 +176,18 @@ def chats_new():
         chat_store.update_chat(base, rec["id"], site_id=site["id"], site_name=site["name"])
         rec = chat_store.find_chat(base, rec["id"]) or rec
     S.STATE["current_chat_id"] = rec["id"]
+    S.STATE["current_site_id"] = site["id"] if site else None
     S.STATE["is_primed"] = False
     S._save_primed(S.STATE.get("project_root"), False)
-    S.STATE["pending_action"] = None
-    S.STATE["pending_batch"] = None
+    S.clear_pending_confirmations()
     S.STATE["stale_note"] = ""  # новый чат праймится свежим деревом — сводка не нужна
     # v48: первое сообщение нового чата — системное напоминание выбрать модель.
     chat_store.append_transcript(base, rec["id"], "system",
         "Не забудьте выбрать нейросеть (модель) на странице в браузере, прежде чем отправлять первое сообщение.")
     print("--> Новый чат:", rec["id"], "на сайте", site["name"] if site else "?")
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": rec["id"],
-                    "title": rec["title"], "site": site["name"] if site else ""})
+                    "title": rec["title"], "site": site["name"] if site else "",
+                    "site_id": site["id"] if site else ""})
 
 
 @chats_bp.route('/chats/open', methods=['POST'])
@@ -215,10 +216,10 @@ def chats_open():
         if page_note:
             print("--> ВНИМАНИЕ:", page_note)
     S.STATE["current_chat_id"] = cid
+    S.STATE["current_site_id"] = rec.get("site_id")
     S.STATE["is_primed"] = bool(rec.get("primed"))
     S._save_primed(S.STATE.get("project_root"), S.STATE["is_primed"])
-    S.STATE["pending_action"] = None
-    S.STATE["pending_batch"] = None
+    S.clear_pending_confirmations()
     prev_used = rec.get("last_used", 0)
     chat_store.touch_chat(base, cid)
     # Сводка «что изменилось в проекте, пока чат был неактивен» — уйдёт
@@ -236,9 +237,10 @@ def chats_open():
             pass
     print("--> Открыт чат:", rec.get("title"), cid)
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": cid,
-                    "title": rec.get("title"),
-                    "site": rec.get("site_name", ""),
-                    "warning": page_note,
+                     "title": rec.get("title"),
+                     "site": rec.get("site_name", ""),
+                     "site_id": rec.get("site_id", ""),
+                     "warning": page_note,
                     "transcript": rec.get("transcript", [])})
 
 
@@ -270,6 +272,8 @@ def chats_delete():
     chat_store.delete_chat(base, cid)
     S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
     if S.STATE.get("current_chat_id") == cid:
+        S.clear_pending_confirmations()
         S.STATE["current_chat_id"] = None
+        S.STATE["current_site_id"] = None
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
                     "current_id": S.STATE.get("current_chat_id")})
