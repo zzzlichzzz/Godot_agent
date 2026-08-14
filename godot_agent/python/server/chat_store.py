@@ -12,6 +12,7 @@ import json
 import os
 import time
 import uuid
+from urllib.parse import urlsplit
 
 _FILE_NAME = "agent_chats.json"
 MAX_TRANSCRIPT = 300
@@ -78,6 +79,24 @@ def find_chat(base_dir, chat_id):
     for c in _load(base_dir):
         if c.get("id") == chat_id:
             return c
+    return None
+
+
+def find_chat_by_url(base_dir, url):
+    """Find a saved chat for the exact site conversation after a server restart."""
+    def normalize(value):
+        try:
+            parsed = urlsplit(value or "")
+            return (parsed.netloc.lower(), parsed.path.rstrip("/"))
+        except Exception:
+            return None
+
+    wanted = normalize(url)
+    if not wanted or not wanted[1]:
+        return None
+    for chat in _load(base_dir):
+        if normalize(chat.get("url")) == wanted:
+            return chat
     return None
 
 

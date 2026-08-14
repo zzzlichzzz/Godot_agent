@@ -18,6 +18,7 @@ try:
     import deepseek_parser as _static_deepseek_parser  # noqa: F401
     import qwen_parser as _static_qwen_parser  # noqa: F401
     import kimi_parser as _static_kimi_parser  # noqa: F401
+    import arena_parser as _static_arena_parser  # noqa: F401
 except Exception:
     pass
 
@@ -30,6 +31,9 @@ SITES = [
         "match": ["aistudio.google.com"],
         "parser": "ai_parser",   # модуль, умеющий читать ответы с этой страницы
         "builtin": True,
+        # Angular придерживает рендер в свёрнутом окне, а ai_parser читает
+        # ответ гибридно (DOM + сеть как страховка) — спуф нужен.
+        "needs_visibility_spoof": True,
     },
     {
         "id": "deepseek",
@@ -38,6 +42,9 @@ SITES = [
         "match": ["chat.deepseek.com", "deepseek.com"],
         "parser": "deepseek_parser",   # модуль deepseek_parser.py
         "builtin": True,
+        # Единственный сайт, который читается ЧИСТО из DOM — без спуфа ответ
+        # в свёрнутом окне может не дорисоваться.
+        "needs_visibility_spoof": True,
     },
     # Пример будущего сайта (выключен, оставлен как ориентир):
     # {"id": "chatgpt", "name": "ChatGPT", "new_chat_url": "https://chatgpt.com/",
@@ -49,6 +56,9 @@ SITES = [
         "match": ["chat.qwen.ai", "qwen.ai"],
         "parser": "qwen_parser",
         "builtin": True,
+        # Читается из сети (SSE), но DOM остаётся рабочим путём: extract_answer
+        # начинает с DOM, а сеть подстраховывает (+ Monaco-блоки читаются из DOM).
+        "needs_visibility_spoof": True,
     },
     {
         "id": "kimi",
@@ -57,6 +67,31 @@ SITES = [
         "match": ["kimi.com"],
         "parser": "kimi_parser",
         "builtin": True,
+        # DOM нужен только для печати и отправки, ответ читается ЦЕЛИКОМ из сети
+        # (connect+json) — рендер не важен, спуф не ставим.
+        "needs_visibility_spoof": False,
+    },
+    {
+        "id": "arena",
+        "name": "Arena AI Direct",
+        "new_chat_url": "https://arena.ai/text/direct",
+        "match": ["arena.ai"],
+        "parser": "arena_parser",
+        "builtin": True,
+        # Ответ читается из сети (Vercel streaming) — рендер не важен, спуф не нужен.
+        "needs_visibility_spoof": False,
+    },
+    {
+        "id": "arena_battle",
+        "name": "Arena AI Battle",
+        "new_chat_url": "https://arena.ai/text",
+        "match": [],
+        "parser": "arena_parser",
+        "builtin": True,
+        # Тот же сетевой парсер/Judge, но случайная пара моделей battle mode.
+        # match пуст: один домен нельзя однозначно определить только по host;
+        # выбранный site_id сохраняется в записи чата.
+        "needs_visibility_spoof": False,
     },
 ]
 
@@ -116,7 +151,7 @@ def detect_site(url):
     for s in _all_sites():
         for m in s.get("match", []):
             m = m.lower()
-            if host == m or host.endswith("." + m) or m in host:
+            if host == m or host.endswith("." + m):
                 return s
     return None
 
@@ -137,6 +172,26 @@ def site_name_for_url(url):
     if s:
         return s["name"]
     return _host(url) or "неизвестный сайт"
+
+
+def needs_visibility_spoof(url=None, site_id=None):
+    """Нужна ли этому сайту подмена document.visibilityState/hidden.
+
+    Подмена — самый заметный след автоматизации из всего, что делает агент
+    (страница видит её одной строкой JS), поэтому она ставится ТОЛЬКО там,
+    где без неё ломается чтение ответа: сайт придерживает рендер в свёрнутом
+    окне, а ответ читается из DOM. Сайтам, читающим ответ из СЕТИ, рендер
+    безразличен — троттлинг Chrome душит таймеры и рендер, но не сетевые потоки.
+
+    Неизвестный сайт (в реестре нет) — False: не оставляем следов там, где
+    ещё не доказано, что без спуфа не работает.
+    """
+    s = get_site(site_id) if site_id else None
+    if s is None and url:
+        s = detect_site(url)
+    if s is None:
+        return False
+    return bool(s.get("needs_visibility_spoof"))
 
 
 # ---------------------------------------------------------------------------
