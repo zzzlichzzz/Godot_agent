@@ -39,6 +39,7 @@ STATE = {
     "fs_snapshot_root": None,
     "file_cache": None,       # rel_path -> содержимое, которое уже видела модель (для точечных diff)  # корень проекта, для которого снят fs_snapshot,
     "content_parts": None,     # v86.26: накопитель частей многочастного create_file (path/chunks/parts_total/count)
+    "battle_choice_summary": None,
 }
 
 # Драйвер браузера храним в держателе: он создаётся уже после импорта.

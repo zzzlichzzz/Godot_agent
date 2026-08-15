@@ -16,7 +16,6 @@ extends Control
 @onready var advanced_toggle_btn: Button = $VBoxContainer/AdvancedToggleBtn
 @onready var advanced_box: VBoxContainer = $VBoxContainer/AdvancedBox
 @onready var reinit_button: Button = $VBoxContainer/AdvancedBox/ReinitButton
-@onready var rollback_button: Button = $VBoxContainer/AdvancedBox/RollbackButton
 
 const HOST = "127.0.0.1:5000"
 const CHAT_URL = "http://" + HOST + "/chat"
@@ -196,9 +195,6 @@ func _apply_panel_theme() -> void:
 	if reinit_button:
 		T.style_button(reinit_button, "neutral")
 		reinit_button.icon = T.icon(&"Reload")
-	if rollback_button:
-		T.style_button(rollback_button, "warning")
-		rollback_button.icon = T.first_icon(["UndoRedo", "Undo", "ArrowLeft"])
 	if _log_errors_button:
 		T.style_button(_log_errors_button, "neutral")
 		_log_errors_button.icon = T.first_icon(["StatusError", "Debug"])
@@ -255,8 +251,6 @@ func _ready() -> void:
 		reinit_button.pressed.connect(_on_reinit_pressed)
 	if advanced_toggle_btn and not advanced_toggle_btn.pressed.is_connected(_on_advanced_toggle):
 		advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
-	if rollback_button and not rollback_button.pressed.is_connected(_on_rollback_pressed):
-		rollback_button.pressed.connect(_on_rollback_pressed)
 	if advanced_box and _log_errors_button == null:
 		_log_errors_button = Button.new()
 		_log_errors_button.text = _t("log_errors")
@@ -323,8 +317,8 @@ func _ready() -> void:
 		_view.name = "ChatView"
 		add_child(_view)
 	_view.setup($VBoxContainer)
-	# Откат прямо из карточки ответа агента: карточка шлёт сигнал, а вопрос
-	# и запрос на сервер — уже здесь, тем же путём, что и кнопка «Откатить».
+	# Откат доступен прямо из карточки ответа агента: карточка шлёт сигнал,
+	# а вопрос и запрос на сервер обрабатываются здесь.
 	if not _view.message_rollback_requested.is_connected(_on_message_rollback_requested):
 		_view.message_rollback_requested.connect(_on_message_rollback_requested)
 	if _hl == null:
@@ -491,7 +485,6 @@ func _set_ui_busy(busy: bool) -> void:
 	_is_network_busy = busy
 	send_button.disabled = busy
 	reinit_button.disabled = busy
-	rollback_button.disabled = busy
 	if _log_errors_button: _log_errors_button.disabled = busy
 	if _api_export_button: _api_export_button.disabled = busy
 	input_field.editable = not busy
@@ -904,14 +897,38 @@ func _on_message_rollback_requested() -> void:
 	# Откат по клику на карточке ответа агента.
 	# ВАЖНО: сервер умеет откатывать только ПОСЛЕДНЕЕ зафиксированное действие
 	# (history.last_committed_info) — привязки к конкретному сообщению в API нет.
-	# Поэтому идём тем же путём, что и кнопка «Откатить последнее изменение»:
-	# сначала спрашиваем сервер, что именно будет отменено, и показываем это
+	# Сначала спрашиваем сервер, что именно будет отменено, и показываем это
 	# в карточке подтверждения — вслепую ничего не откатывается.
 	if _is_network_busy:
 		# Молча игнорировать клик нельзя: пользователь решит, что кнопка сломана.
 		_log_error(_t("wait_current"))
 		return
 	_on_rollback_pressed()
+
+
+func _show_battle_choice_summary(data: Dictionary) -> void:
+	if _view == null:
+		return
+	var selected := str(data.get("selected", "A"))
+	var message := _t("battle_choice_scores") % [
+		selected,
+		int(data.get("score_a", 0)),
+		int(data.get("score_b", 0)),
+	]
+	match str(data.get("reason", "")):
+		"other_continues":
+			message += " " + (_t("battle_choice_continues") % str(data.get("other", "")))
+		"equal":
+			message += " " + (_t("battle_choice_equal") % selected)
+		"only_acceptable":
+			message += " " + _t("battle_choice_only")
+		"only_verifiable":
+			message += " " + _t("battle_choice_verifiable")
+		"not_verifiable":
+			message += " " + (_t("battle_choice_unverifiable") % selected)
+		_:
+			message += " " + _t("battle_choice_higher")
+	_view.add_hint(message)
 
 
 func _on_rollback_pressed() -> void:
@@ -1308,6 +1325,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if has_answer:
 			_view.add_agent_message(str(json["answer"]))
 			_request_chats("list", {})  # обновить авто-названия чатов
+		var battle_choice = json.get("battle_choice")
+		if battle_choice is Dictionary:
+			_show_battle_choice_summary(battle_choice)
 
 		# Промежуточное подтверждение файла из пачки на чтени��:
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
@@ -1936,8 +1956,6 @@ func _on_language_changed() -> void:
 		reject_button.text = _t("reject")
 	if reinit_button:
 		reinit_button.text = _t("reinit")
-	if rollback_button:
-		rollback_button.text = _t("rollback")
 	if _log_errors_button:
 		_log_errors_button.text = _t("log_errors")
 	if _api_export_button:

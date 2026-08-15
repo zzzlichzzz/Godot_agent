@@ -201,6 +201,9 @@ def _reply_once(prompt):
         server_state.end_exchange()
     if isinstance(result, dict):
         text, action = result.get("text") or "", result.get("action")
+        choice = result.get("battle_choice")
+        if isinstance(choice, dict):
+            STATE["battle_choice_summary"] = choice
     else:
         text, action = result or "", None
     act_name = action.get("action") if isinstance(action, dict) else "нет"
@@ -769,6 +772,20 @@ def _package_model_reply(text, action, project_root, depth=0):
         # не знают и продолжают показывать pending_action_code как раньше.
         "pending_action_diff": action_diff_preview(project_root, action),
     })
+
+
+def _attach_battle_choice(response):
+    summary = STATE.pop("battle_choice_summary", None)
+    if not isinstance(summary, dict):
+        return response
+    try:
+        payload = response.get_json(silent=True)
+    except Exception:
+        payload = None
+    if not isinstance(payload, dict):
+        return response
+    payload["battle_choice"] = summary
+    return jsonify(payload)
 
 
 def _current_chat_info():
@@ -1474,6 +1491,7 @@ def chat():
 
     _apply_session_context(data)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
+    STATE["battle_choice_summary"] = None
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
     # Каждое НОВОе сообщение пользователя занова решает, ��азрешены ли в этом ходе действия над
     # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
@@ -1549,7 +1567,8 @@ def chat():
             print(f"\n---> Отправка сообщения ({len(prompt)} симв.)")
             text, action = _reply_with_self_heal(prompt, current_root)
 
-        return _package_model_reply(text, action, current_root)
+        return _attach_battle_choice(
+            _package_model_reply(text, action, current_root))
     except Exception as e:
         print(f"❌ ОШИБКА: {e}")
         traceback.print_exc()

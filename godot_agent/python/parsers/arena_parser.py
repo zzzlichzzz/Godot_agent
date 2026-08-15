@@ -431,6 +431,7 @@ class ArenaParser(BaseSiteParser):
     _choice_applied_for_request = None
     _skip_origin_request = None
     _skip_pending = False
+    _last_choice_summary = None
 
     def __init__(self):
         super().__init__()
@@ -683,6 +684,21 @@ class ArenaParser(BaseSiteParser):
             self._log("Godot Judge не смог оценить варианты: %s" % e)
             return None
 
+    def _remember_choice_summary(self, chosen, all_results, reason):
+        results = {branch: result for branch, result in all_results}
+        selected = "A" if chosen == 0 else "B"
+        other = 1 if chosen == 0 else 0
+        other_action = (results.get(other) or {}).get("action") or {}
+        if isinstance(other_action, dict) and other_action.get("continues"):
+            reason = "other_continues"
+        ArenaParser._last_choice_summary = {
+            "selected": selected,
+            "score_a": int((results.get(0) or {}).get("score", 0)),
+            "score_b": int((results.get(1) or {}).get("score", 0)),
+            "reason": reason,
+            "other": "B" if chosen == 0 else "A",
+        }
+
     def _judge_and_apply_choice(self, driver, mon):
         request_no = mon.answer_request_count()
         self._log("режим голосования: %s, вариантов: %d" %
@@ -740,6 +756,7 @@ class ArenaParser(BaseSiteParser):
                 if not vote_eligible:
                     mon.select_stream(key)
                     ArenaParser._choice_applied_for_request = request_no
+                    self._remember_choice_summary(key, all_results, "not_verifiable")
                     self._log("ответы приемлемы, но объективно не проверяемы — "
                               "Arena-голос не отправляю; локально выбран вариант %s"
                               % ("A" if key == 0 else "B"))
@@ -756,6 +773,8 @@ class ArenaParser(BaseSiteParser):
                         mon.select_stream(chosen)
                         if self._click_choice_button(driver, "A" if chosen == 0 else "B"):
                             ArenaParser._choice_applied_for_request = request_no
+                            self._remember_choice_summary(
+                                chosen, all_results, "only_verifiable")
                             self._log("проверяемый результат определил выбор варианта %s"
                                       % ("A" if chosen == 0 else "B"))
                             return "choice"
@@ -767,6 +786,9 @@ class ArenaParser(BaseSiteParser):
                         "A" if key == 0 else "B")
                     if self._click_choice_button(driver, vote):
                         ArenaParser._choice_applied_for_request = request_no
+                        self._remember_choice_summary(
+                            key, all_results,
+                            "equal" if vote == "both_good" else "higher_score")
                         if vote == "both_good":
                             self._log("оба проверяемых ответа получили одинаковую оценку — "
                                       "выбрано «Оба хорошие», локально вариант %s"
@@ -780,6 +802,8 @@ class ArenaParser(BaseSiteParser):
                     mon.select_stream(branch)
                     if self._click_choice_button(driver, "A" if branch == 0 else "B"):
                         ArenaParser._choice_applied_for_request = request_no
+                        self._remember_choice_summary(
+                            branch, all_results, "only_acceptable")
                         self._log("Arena продолжит диалог с вариантом %s" % ("A" if branch == 0 else "B"))
                         return "choice"
                 else:
@@ -1140,6 +1164,7 @@ class ArenaParser(BaseSiteParser):
             raise Exception("сетевой монитор Arena недоступен; отправка отменена")
         ArenaParser._req_count_before_send = (
             mon.chat_request_count())
+        ArenaParser._last_choice_summary = None
         # A new user message starts a fresh judging cycle. Automatic Skip does
         # not pass through submit(), so this cannot clear a live C request.
         ArenaParser._skip_pending = False
@@ -1210,6 +1235,10 @@ PARSER = ArenaParser()
 def send_message_and_get_response(driver, prompt, input_retries=3,
                                   progress_cb=None, cancel_cb=None,
                                   prefer_url=None):
-    return PARSER.send_message_and_get_response(
+    result = PARSER.send_message_and_get_response(
         driver, prompt, input_retries=input_retries, progress_cb=progress_cb,
         cancel_cb=cancel_cb, prefer_url=prefer_url)
+    if isinstance(result, dict) and ArenaParser._last_choice_summary:
+        result = dict(result)
+        result["battle_choice"] = dict(ArenaParser._last_choice_summary)
+    return result
