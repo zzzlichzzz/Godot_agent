@@ -10,7 +10,11 @@ extends Node
 # Пользователь нажал «откатить» на карточке ответа агента.
 # Подтверждение и запрос на сервер делает agent_panel — вид чата не знает
 # ни про сеть, ни про историю изменений.
-signal message_rollback_requested
+#
+# Сигнал несёт АДРЕС записи журнала изменений. Раньше он был пустым, и панель
+# могла попросить только «откатить последнее»: кнопка на любом облачке (в том
+# числе на ответе без действий) отменяла самое свежее изменение проекта.
+signal message_rollback_requested(entry_id: String)
 
 # Цвета, иконки и стили — единый модуль agent_theme.gd (см. _T()).
 var _theme_script = null
@@ -262,7 +266,11 @@ func add_user_message(escaped_text: String) -> void:
 	_scroll_to_bottom()
 
 
-func add_agent_message(bbcode_text: String) -> void:
+func add_agent_message(bbcode_text: String, entry_id: String = "") -> void:
+	# entry_id — адрес записи в журнале изменений, если это сообщение сообщает
+	# о применённой правке. Пусто (по умолчанию) — обычный ответ без действий:
+	# у такой карточки кнопки отката НЕ будет. Раньше её получали все карточки,
+	# и нажатие откатывало последнее изменение проекта — не своё.
 	if _chat_container == null:
 		return
 	flush()
@@ -274,7 +282,7 @@ func add_agent_message(bbcode_text: String) -> void:
 		live.set_status("")
 		live.setup(bbcode_text)
 		# Стрим окончен — изменения зафиксированы, откат снова доступен.
-		_wire_card_rollback(live)
+		_wire_card_rollback(live, entry_id)
 		_scroll_to_bottom()
 		return
 	finalize_live_block()
@@ -285,22 +293,29 @@ func add_agent_message(bbcode_text: String) -> void:
 		return
 	_chat_container.add_child(card)
 	card.setup(bbcode_text)
-	_wire_card_rollback(card)
+	_wire_card_rollback(card, entry_id)
 	_scroll_to_bottom()
 
 
-func _wire_card_rollback(card: AgentMessageCard) -> void:
+func _wire_card_rollback(card: AgentMessageCard, entry_id: String) -> void:
 	# Кнопка отката на карточке ответа. Сама карточка про откат ничего не
-	# знает — она только шлёт сигнал, а вопрос и запрос делает agent_panel.
+	# знает — она только шлёт сигнал со своим адресом, а вопрос и запрос
+	# делает agent_panel.
+	#
+	# Пустой адрес означает «откатывать нечего»: set_rollback_target скроет
+	# кнопку. Это и есть исправление второй жалобы — сообщение без действий
+	# больше не предлагает откат.
 	if card == null or not is_instance_valid(card):
 		return
-	card.set_rollback_available(true)
+	card.set_rollback_target(entry_id)
+	if entry_id == "":
+		return
 	if not card.rollback_requested.is_connected(_on_card_rollback_requested):
 		card.rollback_requested.connect(_on_card_rollback_requested)
 
 
-func _on_card_rollback_requested() -> void:
-	message_rollback_requested.emit()
+func _on_card_rollback_requested(entry_id: String) -> void:
+	message_rollback_requested.emit(entry_id)
 
 
 func add_system(text: String) -> void:

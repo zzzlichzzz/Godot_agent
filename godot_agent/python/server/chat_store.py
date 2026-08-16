@@ -64,11 +64,17 @@ def list_chats(base_dir, current_prompt_hash=None):
     chats.sort(key=lambda c: c.get("last_used", 0), reverse=True)
     out = []
     for c in chats:
-        stale = bool(c.get("primed")) and bool(current_prompt_hash) \
+        # Чат по ключу API «устареть» по промпту не может: системный блок там
+        # собирается заново на КАЖДОМ сообщении, а не один раз за чат. Помечать
+        # его устаревшим — вводить пользователя в заблуждение и провоцировать
+        # создавать новый чат без причины.
+        is_api = (c.get("kind") or "browser") == "api"
+        stale = (not is_api) and bool(c.get("primed")) and bool(current_prompt_hash) \
             and c.get("prompt_hash") != current_prompt_hash
         out.append({"id": c.get("id"), "title": c.get("title", DEFAULT_TITLE),
                     "url": c.get("url", ""), "primed": bool(c.get("primed")),
                     "site_name": c.get("site_name", ""),
+                    "kind": "api" if is_api else "browser",
                     "created": int(c.get("created", 0) or 0),
                     "last_used": int(c.get("last_used", 0) or 0),
                     "prompt_stale": stale})

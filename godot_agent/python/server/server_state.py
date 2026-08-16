@@ -40,6 +40,10 @@ STATE = {
     "file_cache": None,       # rel_path -> содержимое, которое уже видела модель (для точечных diff)  # корень проекта, для которого снят fs_snapshot,
     "content_parts": None,     # v86.26: накопитель частей многочастного create_file (path/chunks/parts_total/count)
     "battle_choice_summary": None,
+    # Системный блок API-режима, собранный на текущий ход пользователя
+    # ({"root": ..., "text": ...}). Внутри хода он обязан быть неизменным —
+    # иначе не работает кэш промпта у провайдера и заново обходится проект.
+    "api_system_cache": None,
 }
 
 # Драйвер браузера храним в держателе: он создаётся уже после импорта.
@@ -79,11 +83,41 @@ def set_driver_error(msg):
     _holder["driver_error"] = str(msg or "")
 
 
+# Ленивый запуск браузера. Раньше Chrome стартовал безусловно при запуске
+# сервера, но в режиме работы по ключу API браузер не нужен вообще — это было
+# бы лишнее окно, лишний профиль и лишний расход памяти. Теперь функцию
+# запуска регистрирует main.py, а вызывается она при первом же обращении
+# к wait_driver(), то есть только когда браузер действительно понадобился.
+_boot = {"started": False, "fn": None, "lock": threading.Lock()}
+
+
+def set_browser_booter(fn):
+    """Регистрирует функцию запуска браузера (main.py)."""
+    _boot["fn"] = fn
+
+
+def browser_boot_started():
+    return bool(_boot["started"])
+
+
+def ensure_browser_booting():
+    """Запускает браузер в фоне, если он ещё не запускался. Повторные вызовы
+    ничего не делают — запуск строго один раз за жизнь процесса."""
+    with _boot["lock"]:
+        if _boot["started"] or _boot["fn"] is None:
+            return
+        _boot["started"] = True
+        fn = _boot["fn"]
+    print("--> Браузер понадобился — запускаю его в фоне.")
+    threading.Thread(target=fn, name="browser-boot", daemon=True).start()
+
+
 def wait_driver(timeout=90.0):
-    """Браузер теперь стартует В ФОНЕ: HTTP-сервер поднимается сразу,
-    а Chrome догоняет параллельно. Кому нужен браузер — ждёт его здесь.
+    """Браузер стартует В ФОНЕ и ТОЛЬКО ПО ТРЕБОВАНИЮ: HTTP-сервер поднимается
+    сразу, а Chrome догоняет параллельно с первого обращения сюда.
     Возвращает driver или бросает RuntimeError с понятным текстом."""
     import time as _time
+    ensure_browser_booting()
     deadline = _time.time() + timeout
     while _time.time() < deadline:
         if _holder["driver"] is not None:
@@ -140,6 +174,24 @@ def get_current_chat():
     if not base or not cid:
         return None
     return chat_store.find_chat(base, cid)
+
+
+def chat_kind(rec):
+    """Вид чата: "browser" (сайт в браузере) или "api" (провайдер по ключу).
+
+    У всех уже существующих записей поля kind нет — они браузерные. Поэтому
+    отсутствие поля означает "browser", и никакой миграции старых чатов не
+    требуется.
+    """
+    return (rec or {}).get("kind") or "browser"
+
+
+def current_chat_kind():
+    return chat_kind(get_current_chat())
+
+
+def current_chat_is_api():
+    return current_chat_kind() == "api"
 
 
 def _ensure_current_chat(first_prompt=""):
@@ -234,6 +286,16 @@ def _sync_chat_after_reply():
     cid = STATE.get("current_chat_id")
     if not base or not cid:
         return
+    rec = chat_store.find_chat(base, cid)
+    if chat_kind(rec) == "api":
+        # У чата по ключу нет страницы в браузере: адрес обновлять нечем, а
+        # трогать драйвер незачем — в API-режиме он может быть вообще не
+        # запущен.
+        try:
+            chat_store.touch_chat(base, cid, primed=bool(STATE.get("is_primed")))
+        except Exception:
+            pass
+        return
     url = ""
     try:
         url = get_driver().current_url or ""
@@ -251,6 +313,10 @@ def site_mismatch_for_current():
     с ожидаемым адресом — панель тогда спросит про переход."""
     rec = get_current_chat()
     if not rec:
+        return None
+    if chat_kind(rec) == "api":
+        # Чат по ключу не привязан к странице: сверять нечего, и обращаться
+        # к драйверу нельзя — браузер в этом режиме может не запускаться.
         return None
     expected = rec.get("url") or ""
     if not expected:
