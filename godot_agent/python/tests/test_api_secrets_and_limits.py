@@ -131,6 +131,54 @@ check(u"суточный лимит (час ожидания) -> останов�
 check(u"бюджет попыток действует и с Retry-After (нет бесконечного цикла)",
       rate_limit.sleep_seconds(4, retry_after=5) is None)
 
+# ---------------------------------------------------------------------------
+# 7) Разбор адреса прокси
+# ---------------------------------------------------------------------------
+# Реальный случай из отчёта: в поле хоста ввели адрес DNS-over-HTTPS
+# «https://xbox-dns.ru/dns-query». Раньше он сохранялся как есть, из него
+# собиралось «http://https://xbox-dns.ru/dns-query», и ВСЕ запросы к
+# провайдеру падали с невнятной ошибкой разрешения имени.
+host, port, err = api_keys.parse_proxy_host(u"https://xbox-dns.ru/dns-query")
+check(u"адрес с путём отклонён", err != "" and host == "", (host, port, err))
+check(u"в отказе объяснено, что это не прокси",
+      u"путь" in err and u"хост и порт" in err, err)
+
+check(u"простой хост принимается",
+      api_keys.parse_proxy_host(u"proxy.local") == (u"proxy.local", 0, u""))
+check(u"хост:порт разбирается",
+      api_keys.parse_proxy_host(u"proxy.local:3128") == (u"proxy.local", 3128, u""))
+check(u"схема http:// отбрасывается",
+      api_keys.parse_proxy_host(u"http://proxy.local:8080") == (u"proxy.local", 8080, u""))
+check(u"схема https:// тоже принимается",
+      api_keys.parse_proxy_host(u"https://proxy.local:8080")[0] == u"proxy.local")
+check(u"завершающий слэш не мешает",
+      api_keys.parse_proxy_host(u"http://proxy.local:8080/") == (u"proxy.local", 8080, u""))
+check(u"IPv6 в скобках", api_keys.parse_proxy_host(u"[::1]:8080") == (u"[::1]", 8080, u""))
+check(u"socks5 отклонён с объяснением",
+      u"SOCKS" in api_keys.parse_proxy_host(u"socks5://127.0.0.1:1080")[2])
+check(u"мусор вместо порта отклонён",
+      api_keys.parse_proxy_host(u"proxy.local:abc")[2] != u"")
+check(u"пробел в адресе отклонён",
+      api_keys.parse_proxy_host(u"proxy local")[2] != u"")
+check(u"пустой адрес — не ошибка (прокси просто не задан)",
+      api_keys.parse_proxy_host(u"") == (u"", 0, u""))
+
+# Сохранение: неверный адрес НЕ попадает в настройки.
+ok_p, err_p = api_keys.set_proxy(host=u"https://xbox-dns.ru/dns-query", enabled=True)
+check(u"неверный адрес не сохраняется", not ok_p and err_p != "", (ok_p, err_p))
+check(u"прокси остался выключенным", api_keys.proxy_url() is None,
+      api_keys.proxy_url())
+
+ok_p, err_p = api_keys.set_proxy(host=u"http://proxy.local:3128", enabled=True)
+check(u"нормальный адрес сохраняется", ok_p and err_p == "", (ok_p, err_p))
+check(u"порт взят из адреса", api_keys.get_proxy()["port"] == 3128)
+check(u"собранный адрес прокси корректен",
+      api_keys.proxy_url() == u"http://proxy.local:3128", api_keys.proxy_url())
+
+ok_p, err_p = api_keys.set_proxy(host=u"", enabled=True)
+check(u"включить прокси без адреса нельзя", not ok_p and u"без адреса" in err_p, err_p)
+api_keys.set_proxy(enabled=False)
+
 api_keys.delete_key("openrouter")
 api_keys.set_proxy(enabled=False, password="")
 shutil.rmtree(CFG, ignore_errors=True)

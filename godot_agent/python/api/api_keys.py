@@ -49,6 +49,10 @@ _DEFAULT_CONFIG = {
     # модель хранятся в его записи и потом не меняются).
     "defaults": {"provider": "", "model": ""},
     "proxy": {"enabled": False, "host": "", "port": 0, "user": "", "password": ""},
+    # DNS over HTTPS: адрес доверенного резолвера. Помогает, когда провайдер
+    # не разрешается системным DNS (подмена/NXDOMAIN у интернет-провайдера).
+    # От блокировки по IP или SNI не спасает — там нужен прокси.
+    "dns": {"enabled": False, "url": ""},
 }
 
 
@@ -124,6 +128,11 @@ def _load():
             "port": port,
             "user": str(pr.get("user") or ""),
             "password": str(pr.get("password") or ""),
+        }
+    if isinstance(data.get("dns"), dict):
+        cfg["dns"] = {
+            "enabled": bool(data["dns"].get("enabled")),
+            "url": str(data["dns"].get("url") or "").strip(),
         }
     return cfg
 
@@ -367,15 +376,82 @@ def get_proxy():
             "has_password": bool(pr.get("password"))}
 
 
+def parse_proxy_host(raw):
+    """Разбирает введённый адрес прокси. Возвращает (host, port, ошибка).
+
+    Зачем разбор, а не «как ввели». Пользователь легко путает прокси с другими
+    сетевыми адресами. Реальный случай: в поле хоста ввели адрес
+    DNS-over-HTTPS «https://xbox-dns.ru/dns-query», из него собиралось
+    «http://https://xbox-dns.ru/dns-query», и ВСЕ запросы к провайдеру падали
+    с непонятной ошибкой разрешения имени. Такой ввод надо отклонять сразу и
+    объяснять, что не так.
+
+    Принимаем: «host», «host:port», «http://host:port». Путь в адресе для
+    прокси невозможен — это признак, что человек вставил адрес сервиса.
+    """
+    s = str(raw or "").strip()
+    if not s:
+        return "", 0, ""
+    if "://" in s:
+        scheme, s = s.split("://", 1)
+        if scheme.lower() not in ("http", "https"):
+            return "", 0, (u"схема «%s://» не поддерживается: нужен обычный "
+                           u"HTTP-прокси (SOCKS пока не поддержан)" % scheme)
+    tail = ""
+    for sep in ("/", "?", "#"):
+        if sep in s:
+            s, rest = s.split(sep, 1)
+            tail = sep + rest
+            break
+    if tail and tail.strip("/"):
+        return "", 0, (u"адрес прокси не может содержать путь («%s»). Похоже, "
+                       u"это адрес сетевого сервиса, а не прокси: нужны только "
+                       u"хост и порт, например 127.0.0.1:8080" % tail)
+    port = 0
+    if s.startswith("["):
+        # IPv6 в скобках: [::1]:8080
+        end = s.find("]")
+        if end > 0:
+            hostpart, rest = s[:end + 1], s[end + 1:]
+            if rest.startswith(":") and rest[1:].isdigit():
+                port = int(rest[1:])
+            s = hostpart
+    elif ":" in s:
+        head, maybe_port = s.rsplit(":", 1)
+        if maybe_port.isdigit():
+            s, port = head, int(maybe_port)
+        else:
+            return "", 0, (u"после двоеточия ожидается номер порта, а не «%s»"
+                           % maybe_port)
+    if not s:
+        return "", 0, u"пустой адрес прокси"
+    if " " in s:
+        return "", 0, u"в адресе прокси не может быть пробелов"
+    if port and not (0 < port < 65536):
+        return "", 0, u"номер порта вне диапазона 1–65535"
+    return s, port, ""
+
+
 def set_proxy(enabled=None, host=None, port=None, user=None, password=None):
     """Обновляет только переданные поля. password=None оставляет прежний
-    пароль (панель не должна пересылать его при каждом изменении хоста)."""
+    пароль (панель не должна пересылать его при каждом изменении хоста).
+
+    Возвращает (ok, ошибка). Ошибка непустая — настройки НЕ сохранены: лучше
+    отказать с объяснением, чем принять заведомо нерабочий адрес и оставить
+    пользователя с падающими запросами и невнятной сетевой ошибкой.
+    """
     cfg = _load()
     pr = cfg.get("proxy") or {}
-    if enabled is not None:
-        pr["enabled"] = bool(enabled)
     if host is not None:
-        pr["host"] = str(host or "").strip()
+        parsed_host, parsed_port, err = parse_proxy_host(host)
+        if err:
+            return False, err
+        pr["host"] = parsed_host
+        # Порт из адреса («host:8080») имеет приоритет над отдельным полем:
+        # человек написал его явно.
+        if parsed_port:
+            pr["port"] = parsed_port
+            port = None
     if port is not None:
         try:
             pr["port"] = int(port or 0)
@@ -385,6 +461,12 @@ def set_proxy(enabled=None, host=None, port=None, user=None, password=None):
         pr["user"] = str(user or "")
     if password is not None:
         pr["password"] = str(password or "")
+    if enabled is not None:
+        want = bool(enabled)
+        if want and not str(pr.get("host") or "").strip():
+            return False, (u"нельзя включить прокси без адреса: укажите хост "
+                           u"и порт, например 127.0.0.1:8080")
+        pr["enabled"] = want
     cfg["proxy"] = pr
     ok = _save(cfg)
     _invalidate_secrets()
@@ -392,7 +474,7 @@ def set_proxy(enabled=None, host=None, port=None, user=None, password=None):
         print("--> Прокси: %s %s:%s"
               % ("включён" if pr.get("enabled") else "выключен",
                  pr.get("host") or "-", pr.get("port") or "-"))
-    return ok
+    return ok, ("" if ok else u"не удалось сохранить настройки прокси")
 
 
 def proxy_url():
@@ -422,6 +504,54 @@ def proxy_url():
         auth = "%s:%s@" % (quote(user, safe=""), quote(pwd, safe=""))
     hostport = "%s:%d" % (host, port) if port else host
     return "http://%s%s" % (auth, hostport)
+
+
+# ---------------------------------------------------------------------------
+# DNS over HTTPS
+# ---------------------------------------------------------------------------
+
+def get_dns():
+    d = _load().get("dns") or {}
+    return {"enabled": bool(d.get("enabled")), "url": str(d.get("url") or "")}
+
+
+def set_dns(enabled=None, url=None):
+    """Адрес доверенного DoH-резолвера. Возвращает (ok, ошибка).
+
+    Проверка адреса — здесь, а не в панели: неверный адрес молча превратил бы
+    все запросы к провайдеру в непонятные сетевые ошибки, как это уже вышло с
+    прокси.
+    """
+    import doh
+    cfg = _load()
+    d = cfg.get("dns") or {}
+    if url is not None:
+        clean, err = doh.validate_url(url)
+        if err:
+            return False, err
+        d["url"] = clean
+    if enabled is not None:
+        want = bool(enabled)
+        if want and not str(d.get("url") or "").strip():
+            return False, (u"нельзя включить DoH без адреса сервера: укажите "
+                           u"его, например https://dns.example.com/dns-query")
+        d["enabled"] = want
+    cfg["dns"] = d
+    ok = _save(cfg)
+    if ok:
+        print("--> DoH: %s %s" % ("включён" if d.get("enabled") else "выключен",
+                                  d.get("url") or "-"))
+        doh.configure(d.get("enabled"), d.get("url"))
+    return ok, ("" if ok else u"не удалось сохранить настройки DNS")
+
+
+def apply_dns_settings():
+    """Применяет сохранённые настройки DoH к текущему процессу. Вызывается при
+    старте сервера: настройки могли быть заданы в прошлой сессии."""
+    import doh
+    d = get_dns()
+    doh.configure(d["enabled"], d["url"])
+    return d
 
 
 # ---------------------------------------------------------------------------
@@ -455,4 +585,5 @@ def status(provider_ids=(), env_map=None):
     return {"providers": out,
             "defaults": get_defaults(),
             "proxy": get_proxy(),
+            "dns": get_dns(),
             "config_path": config_path()}

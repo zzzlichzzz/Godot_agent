@@ -79,7 +79,19 @@ class ApiError(Exception):
 
 
 class AuthError(ApiError):
-    """401/403 — ключ неверный, отозван или не имеет прав. Повтор бессмыслен."""
+    """401 — ключ неверный, отозван или не имеет прав. Повтор бессмыслен."""
+
+
+class ForbiddenError(ApiError):
+    """403 — доступ запрещён, но НЕ обязательно из-за ключа.
+
+    Отдельный тип от AuthError сознательно. 401 почти всегда означает проблему
+    с ключом, а 403 в реальности часто приходит от ПОСРЕДНИКА: фильтра
+    интернет-провайдера, корпоративного прокси, антивируса с проверкой HTTPS
+    или защиты сервиса от региона. Советовать «проверьте ключ» в таком случае —
+    отправлять человека искать причину не там: именно так и вышло с ответом
+    «Access denied by security policy» при полностью рабочем ключе.
+    """
 
 
 class PaymentRequiredError(ApiError):
@@ -339,8 +351,16 @@ def classify_http_error(status, body, headers=None):
         except Exception:
             retry_after = None
     label = msg or ("HTTP %s" % status)
-    if status in (401, 403):
+    if status == 401:
         return AuthError(label, status=status)
+    if status == 403:
+        # Признаки, что 403 всё-таки про ключ. Всё остальное считаем работой
+        # посредника: слишком часто это фильтр провайдера или антивирус.
+        key_words = ("key", "token", "auth", "credential", "unauthorized",
+                     "ключ", "токен", "не авторизов")
+        if any(w in low for w in key_words):
+            return AuthError(label, status=status)
+        return ForbiddenError(label, status=status)
     if status == 402:
         return PaymentRequiredError(label, status=status)
     if status == 404:
@@ -664,6 +684,92 @@ def complete_chat(base_url, api_key, model, messages,
     return {"text": content, "reasoning": reasoning, "finish_reason": finish,
             "usage": usage, "model": m or model,
             "elapsed": time.time() - started}
+
+
+def tls_probe(base_url, proxy=None, timeout=10.0):
+    """Кто на самом деле отвечает по этому адресу — по TLS-сертификату.
+
+    Зачем. Если между вами и сервисом стоит антивирус или корпоративный шлюз с
+    проверкой HTTPS, он подменяет сертификат на свой (его корневой сертификат
+    установлен в системе, поэтому проверка проходит и обмана не видно). Внешне
+    это выглядит как ответ сервиса — например «Access denied by security
+    policy» с кодом 403 при полностью рабочем ключе.
+
+    Издатель сертификата отвечает на этот вопрос однозначно: у настоящего
+    сервиса это публичный удостоверяющий центр, у перехватчика — его
+    собственное имя. Возвращает {"ok", "host", "issuer", "subject", "error"}.
+    """
+    from urllib.parse import urlsplit
+    parts = urlsplit(base_url if "://" in base_url else "https://" + base_url)
+    host = parts.hostname or ""
+    port = parts.port or (443 if parts.scheme != "http" else 80)
+    out = {"ok": False, "host": host, "issuer": "", "subject": "", "error": ""}
+    if not host:
+        out["error"] = u"не удалось разобрать адрес"
+        return out
+    if parts.scheme == "http":
+        out["error"] = u"адрес без TLS (http://) — сертификата нет"
+        return out
+    sock = None
+    try:
+        if proxy:
+            sock = _connect_via_proxy(proxy, host, port, timeout)
+        else:
+            sock = socket.create_connection((host, port), timeout=timeout)
+        ctx = ssl.create_default_context()
+        with ctx.wrap_socket(sock, server_hostname=host) as tls:
+            cert = tls.getpeercert() or {}
+        sock = None
+        out["ok"] = True
+        out["issuer"] = _cert_name(cert.get("issuer"))
+        out["subject"] = _cert_name(cert.get("subject"))
+    except Exception as e:
+        out["error"] = str(e)
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+    return out
+
+
+def _cert_name(rdns):
+    """«O=Let's Encrypt, CN=R11» из структуры сертификата."""
+    if not rdns:
+        return ""
+    parts = []
+    for rdn in rdns:
+        for key, value in rdn:
+            if key in ("organizationName", "commonName"):
+                parts.append("%s=%s" % ("O" if key == "organizationName" else "CN",
+                                        value))
+    return ", ".join(parts)
+
+
+def _connect_via_proxy(proxy, host, port, timeout):
+    """TCP-туннель через HTTP-прокси методом CONNECT."""
+    from urllib.parse import urlsplit
+    p = urlsplit(proxy if "://" in proxy else "http://" + proxy)
+    sock = socket.create_connection((p.hostname, p.port or 8080), timeout=timeout)
+    req = "CONNECT %s:%d HTTP/1.1\r\nHost: %s:%d\r\n" % (host, port, host, port)
+    if p.username:
+        import base64
+        token = base64.b64encode(
+            ("%s:%s" % (p.username, p.password or "")).encode("utf-8")).decode()
+        req += "Proxy-Authorization: Basic %s\r\n" % token
+    sock.sendall((req + "\r\n").encode("ascii"))
+    data = b""
+    while b"\r\n\r\n" not in data:
+        chunk = sock.recv(4096)
+        if not chunk:
+            break
+        data += chunk
+    first = data.split(b"\r\n", 1)[0].decode("latin-1", "replace")
+    if " 200 " not in first:
+        sock.close()
+        raise OSError(u"прокси отказал в туннеле: %s" % first)
+    return sock
 
 
 def fetch_models(models_url, api_key, extra_headers=None, proxy=None,

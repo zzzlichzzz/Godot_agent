@@ -78,6 +78,11 @@ var _api_proxy_host: LineEdit = null
 var _api_proxy_port: SpinBox = null
 var _api_proxy_user: LineEdit = null
 var _api_proxy_pass: LineEdit = null
+var _api_proxy_error: Label = null
+var _api_dns_on: CheckBox = null
+var _api_dns_url: LineEdit = null
+var _api_dns_error: Label = null
+var _api_ready_note: Label = null
 var _api_test_state: Label = null
 var _api_cfg_path: Label = null
 var _api_start_btn: Button = null
@@ -619,7 +624,7 @@ func _build_api_view(root: Node) -> void:
 	var proxy_box := _api_section(form, "api_proxy")
 	_api_proxy_on = CheckBox.new()
 	_api_proxy_on.text = _t("api_proxy_enable")
-	_api_proxy_on.toggled.connect(func(_v): _on_api_save_fields())
+	_api_proxy_on.toggled.connect(func(_v): _on_api_save_proxy())
 	proxy_box.add_child(_api_proxy_on)
 	var pr_row := HBoxContainer.new()
 	pr_row.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -628,16 +633,17 @@ func _build_api_view(root: Node) -> void:
 	host_lbl.text = _t("api_proxy_host")
 	pr_row.add_child(host_lbl)
 	_api_proxy_host = LineEdit.new()
+	_api_proxy_host.placeholder_text = _t("api_proxy_host_placeholder")
 	_api_proxy_host.size_flags_horizontal = SIZE_EXPAND_FILL
-	_api_proxy_host.text_submitted.connect(func(_s): _on_api_save_fields())
-	_api_proxy_host.focus_exited.connect(_on_api_save_fields)
+	_api_proxy_host.text_submitted.connect(func(_s): _on_api_save_proxy())
+	_api_proxy_host.focus_exited.connect(_on_api_save_proxy)
 	pr_row.add_child(_api_proxy_host)
 	_api_proxy_port = SpinBox.new()
 	_api_proxy_port.min_value = 0
 	_api_proxy_port.max_value = 65535
 	_api_proxy_port.step = 1
 	_api_proxy_port.value = 0
-	_api_proxy_port.value_changed.connect(func(_v): _on_api_save_fields())
+	_api_proxy_port.value_changed.connect(func(_v): _on_api_save_proxy())
 	pr_row.add_child(_api_proxy_port)
 	var auth_row := HBoxContainer.new()
 	auth_row.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -645,15 +651,36 @@ func _build_api_view(root: Node) -> void:
 	_api_proxy_user = LineEdit.new()
 	_api_proxy_user.placeholder_text = _t("api_proxy_user")
 	_api_proxy_user.size_flags_horizontal = SIZE_EXPAND_FILL
-	_api_proxy_user.focus_exited.connect(_on_api_save_fields)
+	_api_proxy_user.focus_exited.connect(_on_api_save_proxy)
 	auth_row.add_child(_api_proxy_user)
 	_api_proxy_pass = LineEdit.new()
 	_api_proxy_pass.secret = true
 	_api_proxy_pass.placeholder_text = _t("api_proxy_pass")
 	_api_proxy_pass.size_flags_horizontal = SIZE_EXPAND_FILL
-	_api_proxy_pass.focus_exited.connect(_on_api_save_fields)
+	_api_proxy_pass.focus_exited.connect(_on_api_save_proxy)
 	auth_row.add_child(_api_proxy_pass)
 	_api_hint(proxy_box, _t("api_proxy_hint"))
+	# Ошибка разбора адреса прокси — видимой строкой прямо под полями, а не
+	# только в статусе внизу: именно здесь пользователь ошибается, вставляя
+	# адрес сервиса вместо прокси.
+	_api_proxy_error = _api_hint(proxy_box, "")
+	_api_proxy_error.add_theme_color_override("font_color", _color("error"))
+
+	# ---- DNS over HTTPS ----
+	var dns_box := _api_section(form, "api_dns")
+	_api_dns_on = CheckBox.new()
+	_api_dns_on.text = _t("api_dns_enable")
+	_api_dns_on.toggled.connect(func(_v): _on_api_save_dns())
+	dns_box.add_child(_api_dns_on)
+	_api_dns_url = LineEdit.new()
+	_api_dns_url.placeholder_text = _t("api_dns_placeholder")
+	_api_dns_url.size_flags_horizontal = SIZE_EXPAND_FILL
+	_api_dns_url.text_submitted.connect(func(_s): _on_api_save_dns())
+	_api_dns_url.focus_exited.connect(_on_api_save_dns)
+	dns_box.add_child(_api_dns_url)
+	_api_hint(dns_box, _t("api_dns_hint"))
+	_api_dns_error = _api_hint(dns_box, "")
+	_api_dns_error.add_theme_color_override("font_color", _color("error"))
 
 	# ---- Проверка подключения ----
 	var test_btn := Button.new()
@@ -675,6 +702,11 @@ func _build_api_view(root: Node) -> void:
 	privacy.add_theme_color_override("font_color", _color("warning"))
 
 	# ---- Начать чат ----
+	# Причина, по которой чат ещё нельзя начать, показывается СТРОКОЙ, а не
+	# подсказкой на выключенной кнопке: подсказку не видно, и «ключ сохранён,
+	# а начать нельзя» выглядит как поломка.
+	_api_ready_note = _api_hint(_api_view, "")
+	_api_ready_note.add_theme_color_override("font_color", _color("warning"))
 	_api_start_btn = Button.new()
 	_api_start_btn.text = _t("api_start_chat")
 	_api_start_btn.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
@@ -890,6 +922,16 @@ func set_api_settings(json: Dictionary) -> void:
 			if bool(proxy.get("has_password", false)) else _t("api_proxy_pass")
 	if _api_cfg_path:
 		_api_cfg_path.text = _t("api_cfg_path") % str(_api_data.get("config_path", "?"))
+	var dns: Dictionary = _api_data.get("dns", {})
+	if _api_dns_on:
+		_api_dns_on.button_pressed = bool(dns.get("enabled", false))
+	if _api_dns_url:
+		_api_dns_url.text = str(dns.get("url", ""))
+	if _api_proxy_error:
+		# Сервер отклонил адрес прокси — показываем ЕГО объяснение, а не общий текст.
+		_api_proxy_error.text = str(json.get("proxy_error", ""))
+	if _api_dns_error:
+		_api_dns_error.text = str(json.get("dns_error", ""))
 	_api_filling = false
 
 
@@ -923,9 +965,12 @@ func _api_fill_provider_fields() -> void:
 		else:
 			_api_key_state.text = _t("api_key_optional")
 	if _api_start_btn:
-		_api_start_btn.disabled = not bool(rec.get("ready", false))
-		_api_start_btn.tooltip_text = "" if bool(rec.get("ready", false)) \
-			else str(rec.get("not_ready_reason", ""))
+		var ready := bool(rec.get("ready", false))
+		_api_start_btn.disabled = not ready
+		_api_start_btn.tooltip_text = "" if ready else str(rec.get("not_ready_reason", ""))
+		if _api_ready_note:
+			_api_ready_note.text = "" if ready \
+				else (_t("api_not_ready_note") % str(rec.get("not_ready_reason", "")))
 	if _api_test_state:
 		_api_test_state.text = ""
 
@@ -961,7 +1006,6 @@ func _on_api_save_fields() -> void:
 	var data := {
 		"provider": pid,
 		"model": _api_model_edit.text.strip_edges() if _api_model_edit else "",
-		"proxy": _api_proxy_payload(true),
 	}
 	# base_url отправляем ТОЛЬКО там, где адрес задаёт пользователь. Иначе мы
 	# записали бы текущий адрес провайдера как «переопределение», и обновление
@@ -970,6 +1014,35 @@ func _on_api_save_fields() -> void:
 	if _api_base_row and _api_base_row.visible and _api_base_edit:
 		data["base_url"] = _api_base_edit.text.strip_edges()
 	api_settings_save_requested.emit(data)
+
+
+func _on_api_save_proxy() -> void:
+	if _api_filling:
+		return
+	var proxy := _api_proxy_payload(true)
+	if bool(proxy.get("enabled", false)) and str(proxy.get("host", "")) == "":
+		if _api_proxy_error:
+			_api_proxy_error.text = _t("api_proxy_address_required")
+		return
+	if _api_proxy_error:
+		_api_proxy_error.text = ""
+	api_settings_save_requested.emit({"proxy": proxy})
+
+
+func _on_api_save_dns() -> void:
+	if _api_filling:
+		return
+	var enabled := _api_dns_on.button_pressed if _api_dns_on else false
+	var url := _api_dns_url.text.strip_edges() if _api_dns_url else ""
+	if enabled and url == "":
+		if _api_dns_error:
+			_api_dns_error.text = _t("api_dns_address_required")
+		return
+	if _api_dns_error:
+		_api_dns_error.text = ""
+	api_settings_save_requested.emit({
+		"dns": {"enabled": enabled, "url": url},
+	})
 
 
 func _on_api_key_save() -> void:

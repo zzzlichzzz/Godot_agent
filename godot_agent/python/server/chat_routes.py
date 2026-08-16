@@ -136,6 +136,7 @@ def _api_settings_payload(extra=None):
     out = {"providers": providers.list_providers(),
            "defaults": api_keys.get_defaults(),
            "proxy": api_keys.get_proxy(),
+           "dns": api_keys.get_dns(),
            "config_path": api_keys.config_path()}
     if extra:
         out.update(extra)
@@ -168,14 +169,27 @@ def api_settings_set():
         if data.get("make_default"):
             api_keys.set_defaults(pid, api_keys.get_model(pid))
     proxy = data.get("proxy")
+    problems = {}
     if isinstance(proxy, dict):
-        api_keys.set_proxy(
+        ok, err = api_keys.set_proxy(
             enabled=proxy.get("enabled") if "enabled" in proxy else None,
             host=proxy.get("host") if "host" in proxy else None,
             port=proxy.get("port") if "port" in proxy else None,
             user=proxy.get("user") if "user" in proxy else None,
             password=proxy.get("password") if "password" in proxy else None)
-    return jsonify(_api_settings_payload())
+        if not ok:
+            # Неверный адрес прокси возвращаем ОТДЕЛЬНЫМ полем, а не общей
+            # ошибкой: остальные настройки (ключ, модель) уже сохранены, и
+            # панель должна перерисоваться, а не показать пустую форму.
+            problems["proxy_error"] = err
+    dns = data.get("dns")
+    if isinstance(dns, dict):
+        ok, err = api_keys.set_dns(
+            enabled=dns.get("enabled") if "enabled" in dns else None,
+            url=dns.get("url") if "url" in dns else None)
+        if not ok:
+            problems["dns_error"] = err
+    return jsonify(_api_settings_payload(problems or None))
 
 
 @chats_bp.route('/api/models/refresh', methods=['POST'])
@@ -203,7 +217,13 @@ def api_models_refresh():
             proxy=api_keys.proxy_url())
     except openai_compat.ApiError as e:
         msg, _status, _retry = api_backend.describe_api_error(e, provider["name"])
-        return jsonify({"error": msg}), 502
+        print("<-- Список моделей %s не получен: %s" % (pid, msg))
+        # Отвечаем 200 с текстом причины, а НЕ 502. Панель для любого не-200
+        # показывает общее «сервер вернул ошибку (HTTP 502)» и выбрасывает тело
+        # ответа — то есть пользователь не видел настоящей причины (недоступен
+        # провайдер, неверный прокси, отклонён ключ). Здесь сервер отработал
+        # штатно; неисправен внешний сервис, и об этом надо сказать словами.
+        return jsonify(_api_settings_payload({"error": msg, "provider": pid}))
     free_only = bool(data.get("free_only"))
     models = providers.parse_models_response(raw, free_only=free_only)
     print("--> Список моделей %s обновлён: %d шт.%s"
@@ -211,6 +231,38 @@ def api_models_refresh():
     return jsonify(_api_settings_payload({"models": models,
                                           "provider": pid,
                                           "free_only": free_only}))
+
+
+def _tls_note(pid):
+    """Кто отвечает по адресу провайдера — по издателю TLS-сертификата.
+
+    Главная диагностика при непонятных отказах: если сертификат выдан не
+    публичным удостоверяющим центром, а, например, антивирусом, значит трафик
+    перехватывается, и «отказ сервиса» на самом деле пришёл от посредника.
+    """
+    try:
+        probe = openai_compat.tls_probe(providers.base_url_for(pid),
+                                       proxy=api_keys.proxy_url())
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, ""
+    if not probe.get("ok"):
+        return probe, ""
+    issuer = probe.get("issuer") or "?"
+    low = issuer.lower()
+    # Признаки перехвата: издателем выступает не удостоверяющий центр, а
+    # программа на машине или в сети.
+    suspicious = any(w in low for w in (
+        "kaspersky", "eset", "avast", "avg", "bitdefender", "dr.web", "drweb",
+        "norton", "mcafee", "sophos", "fortinet", "zscaler", "netskope",
+        "proxy", "firewall", "gateway", "local", "self-signed"))
+    note = u"Сертификат выдан: %s." % issuer
+    if suspicious:
+        note += (u" Это НЕ публичный удостоверяющий центр — значит HTTPS "
+                 u"перехватывается программой на вашей машине или в сети "
+                 u"(антивирус, шлюз). Ответы «доступ запрещён» приходят от неё, "
+                 u"а не от провайдера: добавьте адрес провайдера в исключения "
+                 u"этой программы.")
+    return probe, note
 
 
 @chats_bp.route('/api/test', methods=['POST'])
@@ -221,6 +273,9 @@ def api_test():
     (generativelanguage.googleapis.com) — другой хост, чем у сайта
     (gemini.google.com), и доступность через прокси у них может отличаться.
     Пользователь должен узнать это здесь, а не посреди задачи.
+
+    При неудаче дополнительно сообщается издатель TLS-сертификата: по нему
+    видно, отвечает ли настоящий сервис или трафик перехватывает посредник.
     """
     data = request.json or {}
     pid = (data.get("provider") or "").strip()
@@ -241,8 +296,13 @@ def api_test():
     except openai_compat.ApiError as e:
         msg, _status, _retry = api_backend.describe_api_error(
             e, provider["name"], model)
+        probe, note = _tls_note(pid)
+        if note:
+            msg += u" " + note
         print("<-- Проверка подключения к %s: %s" % (pid, msg))
-        return jsonify({"ok": False, "error": msg})
+        return jsonify({"ok": False, "error": msg,
+                        "tls_issuer": probe.get("issuer", ""),
+                        "tls_error": probe.get("error", "")})
     ms = int((res.get("elapsed") or 0) * 1000)
     proxy_note = u" через прокси" if api_keys.proxy_url() else u""
     print("--> Проверка подключения к %s (%s): успех, %d мс%s"

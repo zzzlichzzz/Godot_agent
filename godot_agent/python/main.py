@@ -2483,6 +2483,14 @@ if __name__ == '__main__':
         # а поднимет его первое же обращение к wait_driver() — то есть первый
         # браузерный чат. Чату по ключу API браузер не нужен.
         server_state.set_browser_booter(_boot_browser_background)
+        # Настройки DoH могли быть заданы в прошлой сессии — применяем их до
+        # первого запроса, иначе первый обмен ушёл бы через системный DNS.
+        try:
+            _dns = api_keys.apply_dns_settings()
+            if _dns.get("enabled"):
+                print("--> DNS over HTTPS: %s" % _dns.get("url"))
+        except Exception as e:
+            print("--> Не удалось применить настройки DNS: %s" % e)
         # ВАЖНО: только 127.0.0.1! На 0.0.0.0 любой в локальной сети
         # мог бы писать файлы в ваш проект простым POST-запросом.
         print("Dashbord servera: http://127.0.0.1:5000/dashboard")
