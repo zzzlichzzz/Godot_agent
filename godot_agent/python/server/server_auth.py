@@ -26,6 +26,7 @@
 обращается к нему сразу, так что окно между запуском и привязкой — миллисекунды.
 """
 import os
+import threading
 
 HEADER = "X-Agent-Token"
 TOKEN_FILE = "godot_agent_token.txt"
@@ -36,6 +37,11 @@ TOKEN_FILE = "godot_agent_token.txt"
 OPEN_PATHS = ("/dashboard", "/dashboard/data")
 
 _bound = {"user_data_dir": None, "token": None, "warned": False}
+# Привязка идёт под замком: сервер отвечает в несколько потоков (Flask
+# threaded=True), панель при старте посылает сразу несколько запросов, и без
+# замка оба успевали пройти проверку «ещё не привязан» — привязка выполнялась
+# дважды (в журнале это было видно двумя одинаковыми строками).
+_lock = threading.Lock()
 
 
 def reset():
@@ -92,32 +98,38 @@ def check(path, header_token, user_data_dir):
     token = (header_token or "").strip()
     udd = str(user_data_dir or "").strip()
 
-    if _bound["token"] is None:
-        # Ещё не привязан: ждём первый запрос с папкой проекта и токеном из неё.
-        if not udd:
-            # Запрос без user_data_dir до привязки пропускаем: панель шлёт его
-            # в каждом запросе, а вот сторонний вызов без папки всё равно
-            # ничего полезного не сделает — проект не синхронизирован.
+    with _lock:
+        if _bound["token"] is None:
+            # Ещё не привязан: ждём первый запрос с папкой проекта и токеном
+            # из неё. Проверка и сама привязка идут под одним замком, иначе
+            # два одновременных запроса привязывались бы дважды.
+            if not udd:
+                # Запрос без user_data_dir до привязки пропускаем: панель шлёт
+                # его в каждом запросе, а сторонний вызов без папки всё равно
+                # ничего полезного не сделает — проект не синхронизирован.
+                return True, 0, ""
+            expected = read_token(udd)
+            if not expected:
+                if not _bound["warned"]:
+                    _bound["warned"] = True
+                    print("--> ВНИМАНИЕ: панель не создала файл токена (%s). Сервер "
+                          "работает без проверки источника запросов — обновите "
+                          "аддон." % token_path(udd))
+                return True, 0, ""
+            if token != expected:
+                return False, 403, (u"Сервер агента не принял запрос: токен не "
+                                    u"совпал с файлом %s. Перезапустите Godot — "
+                                    u"панель создаст токен заново." % TOKEN_FILE)
+            _bound["token"] = expected
+            _bound["user_data_dir"] = udd
+            print("--> Сервер привязан к проекту: %s" % udd)
             return True, 0, ""
-        expected = read_token(udd)
-        if not expected:
-            if not _bound["warned"]:
-                _bound["warned"] = True
-                print("--> ВНИМАНИЕ: панель не создала файл токена (%s). Сервер "
-                      "работает без проверки источника запросов — обновите "
-                      "аддон." % token_path(udd))
-            return True, 0, ""
-        if token != expected:
-            return False, 403, (u"Сервер агента не принял запрос: токен не "
-                                u"совпал с файлом %s. Перезапустите Godot — "
-                                u"панель создаст токен заново." % TOKEN_FILE)
-        _bound["token"] = expected
-        _bound["user_data_dir"] = udd
-        print("--> Сервер привязан к проекту: %s" % udd)
-        return True, 0, ""
 
-    if token != _bound["token"]:
-        if udd and _same_dir(udd, _bound["user_data_dir"]):
+        bound_token = _bound["token"]
+        bound_dir_value = _bound["user_data_dir"]
+
+    if token != bound_token:
+        if udd and _same_dir(udd, bound_dir_value):
             # Папка та же, а токен другой: файл токена пересоздан (папка
             # user:// была очищена, проект перенесён). Про «другой проект»
             # говорить нельзя — это тот же проект, и совет тут другой.
@@ -127,13 +139,13 @@ def check(path, header_token, user_data_dir):
                                 u"заново.")
         return False, 403, (u"Сервер агента занят другим проектом Godot "
                             u"(%s). Запустите отдельный сервер для этого "
-                            u"проекта или закройте тот." % _bound["user_data_dir"])
-    if udd and not _same_dir(udd, _bound["user_data_dir"]):
+                            u"проекта или закройте тот." % bound_dir_value)
+    if udd and not _same_dir(udd, bound_dir_value):
         # Токен совпал, а папка другая: так бывает, если пользователь скопировал
         # проект вместе с файлом токена. Правки в чужой проект не пускаем.
         return False, 409, (u"Этот сервер уже обслуживает проект %s. Для "
                             u"другого проекта нужен свой сервер."
-                            % _bound["user_data_dir"])
+                            % bound_dir_value)
     return True, 0, ""
 
 

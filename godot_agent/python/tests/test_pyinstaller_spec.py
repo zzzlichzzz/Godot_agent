@@ -47,6 +47,30 @@ def read_any(path):
         return f.read().decode("utf-8", "replace")
 
 
+# ---------------------------------------------------------------------------
+# 0) Переводы строк в .bat: cmd.exe требует CRLF
+# ---------------------------------------------------------------------------
+# Реальная поломка: файл сборки был переписан с переводами строк LF, и cmd.exe
+# начал разбирать его построчно неправильно — «'/d' is not recognized as an
+# internal or external command» и десяток похожих строк. Внешне файл выглядит
+# нормально в любом редакторе, поэтому проверяем байты.
+for bat_path in sorted(glob.glob(_os0.path.join(PY, "*.bat"))):
+    name = _os0.path.basename(bat_path)
+    with open(bat_path, "rb") as f:
+        raw = f.read()
+    lone_lf = raw.count(b"\n") - raw.count(b"\r\n")
+    check(u"%s: переводы строк CRLF (cmd.exe не понимает LF)" % name,
+          lone_lf == 0, u"одиночных LF: %d" % lone_lf)
+    # BOM в начале .bat приводит к «'п»їecho' is not recognized»: cmd читает
+    # байты метки как часть первой команды.
+    check(u"%s: нет BOM в начале" % name, raw[:3] != b"\xef\xbb\xbf")
+    try:
+        raw.decode("utf-8")
+        ok_enc = True
+    except Exception:
+        ok_enc = False
+    check(u"%s: текст не побит (валидный UTF-8)" % name, ok_enc)
+
 spec = read_any(SPEC)
 bat = read_any(BAT)
 
@@ -125,7 +149,7 @@ check(u"все парсеры из реестра перечислены в .spe
 # PyInstaller-ом .spec остаётся согласованным после каждой сборки, а не теряет
 # список до следующей ручной правки.
 must = ["api_keys", "providers", "openai_compat", "api_backend",
-        "browser_backend", "api_history", "md_to_bbcode", "server_auth"]
+        "browser_backend", "api_history", "md_to_bbcode", "server_auth", "doh"]
 absent_bat_api = [m for m in must if m not in bat_hidden]
 check(u"модули работы по ключу перечислены в СКРИПТЕ СБОРКИ",
       not absent_bat_api, absent_bat_api)

@@ -186,6 +186,36 @@ act_bare, _ = AB.parse_action(
 check(u"действие голым текстом вне блока всё равно найдено (страховка «план В»)",
       (act_bare or {}).get("action") == "list_files")
 
+xml_call = u'''Проверяю управление персонажем.
+<dots_function_call>
+<action>
+<server_name>godot</server_name>
+<tool_name>ask_librarian</tool_name>
+<arguments>{"query": "player movement input control scheme", "reason": "Find movement"}</arguments>
+</action>
+</dots_function_call>
+'''
+xml_action, xml_prose = AB.parse_action(xml_call)
+check(u"XML tool call преобразуется в ask_librarian",
+      (xml_action or {}).get("action") == "ask_librarian")
+check(u"аргументы XML tool call сохраняются",
+      (xml_action or {}).get("query") == "player movement input control scheme")
+check(u"XML tool call удаляется из текста ответа",
+      "dots_function_call" not in xml_prose)
+
+xml_bad, _ = AB.parse_action(
+    u"<dots_function_call><action><tool_name>ask_librarian</tool_name>"
+    u"<arguments>{bad json}</arguments></action></dots_function_call>")
+check(u"битый XML tool call передаётся в самоисцеление",
+      (xml_bad or {}).get("action") == "parse_error")
+
+xml_cut, xml_cut_prose = AB.parse_action(
+    u"Начинаю поиск.\n<dots_function_call><action><tool_name>ask_librarian")
+check(u"оборванный XML tool call передаётся в самоисцеление",
+      (xml_cut or {}).get("action") == "parse_error")
+check(u"оборванный XML не показывается пользователю",
+      "dots_function_call" not in xml_cut_prose)
+
 act_none, _ = AB.parse_action(u"просто объяснение без действий")
 check(u"нет действия -> None", act_none is None)
 

@@ -6,12 +6,11 @@
 браузерного: ни вставки текста, ни ожидания тишины DOM, ни маркера ===DONE===
 как способа понять конец ответа — по API конец известен точно (finish_reason).
 
-ТЕКСТОВЫЙ ПРОТОКОЛ ДЕЙСТВИЙ СОХРАНЁН. Действия по-прежнему приходят блоком
-```agent_action, а не через нативный function calling. Это осознанно: так
-продолжают работать без единой правки parse_action_json, ref-блоки,
-самоисцеление, корпус реальных сбоев и весь набор тестов, а оба режима ведут
-себя одинаково — иначе пришлось бы поддерживать две разные логики поведения
-модели. Нативные tool calls — отдельная задача, не смешанная с этой.
+ТЕКСТОВЫЙ ПРОТОКОЛ ДЕЙСТВИЙ СОХРАНЁН. Основной формат — блок
+```agent_action, а не нативный function calling. Ответы небольших моделей в
+известных XML-обёртках tool call приводятся к той же внутренней схеме, после
+чего без отдельной ветки работают parse_action_json, ref-блоки,
+самоисцеление, корпус реальных сбоев и весь набор проверок действий.
 
 ПОЧЕМУ ЗДЕСЬ ЛОВЯТСЯ ОШИБКИ, А НЕ ПРОБРАСЫВАЮТСЯ. main.py уже умеет две
 вещи: показывать текст ответа пользователю и засыпать при лимите запросов
@@ -25,6 +24,7 @@
 """
 import re
 import time
+import xml.etree.ElementTree as ET
 
 import api_history
 import api_keys
@@ -45,6 +45,11 @@ _PROGRESS_EVERY = 0.2
 _ACTION_FENCE_RE = re.compile(
     r"```[ \t]*agent_action[ \t]*\r?\n(.*?)```", re.DOTALL | re.IGNORECASE)
 _ACTION_OPEN_RE = re.compile(r"```[ \t]*agent_action[ \t]*\r?\n", re.IGNORECASE)
+_LEGACY_TOOL_RE = re.compile(
+    r"<(dots_function_call|function_call|tool_call)\b[^>]*>.*?</\1>",
+    re.DOTALL | re.IGNORECASE)
+_LEGACY_TOOL_OPEN_RE = re.compile(
+    r"<(dots_function_call|function_call|tool_call)\b[^>]*>", re.IGNORECASE)
 
 # Статус лимита запросов держим на уровне МОДУЛЯ, а не экземпляра: main.py
 # спрашивает про лимит уже после того, как обмен закончился, и бэкенд к тому
@@ -98,6 +103,19 @@ def split_action_block(text):
     m = _ACTION_OPEN_RE.search(src)
     if m:
         return src[m.end():], src[:m.start()]
+    # Некоторые небольшие модели используют XML-инструкции вместо нашего
+    # текстового протокола. Извлекаем только известные обёртки, чтобы обычный
+    # XML из ответа модели не превращался случайно в действие.
+    legacy = list(_LEGACY_TOOL_RE.finditer(src))
+    if legacy:
+        m = legacy[-1]
+        return m.group(0), (src[:m.start()] + src[m.end():])
+    # Оборванный XML-вызов, как и незакрытый agent_action, должен попасть в
+    # самоисцеление, а не отображаться пользователю как якобы готовый ответ.
+    opened = list(_LEGACY_TOOL_OPEN_RE.finditer(src))
+    if opened:
+        m = opened[-1]
+        return src[m.start():], src[:m.start()]
     return None, src
 
 
@@ -129,6 +147,14 @@ def parse_action(raw_text):
     """
     action_raw, prose = split_action_block(raw_text)
     if action_raw is not None:
+        if _LEGACY_TOOL_OPEN_RE.match(action_raw.strip()):
+            action, err = _parse_legacy_tool_call(action_raw)
+            if action is not None:
+                print("[api_backend] XML tool call приведён к agent_action")
+                return action, prose
+            print("[api_backend] XML tool call не разобран: %s" % err)
+            return {"action": "parse_error", "raw": action_raw,
+                    "error": err}, prose
         action, err = parser_base.parse_action_json(action_raw)
         # Словарь БЕЗ ключа "action" — тоже провал разбора. json_repair
         # чинит мусор очень настойчиво и может вернуть, например,
@@ -155,6 +181,34 @@ def parse_action(raw_text):
                       "вне блока ```agent_action — забираю его.")
                 return salvaged, prose
     return None, prose
+
+
+def _parse_legacy_tool_call(raw):
+    """Переводит распространённый XML function-call в нашу схему действий.
+
+    Поддерживаем только явные обёртки, уже отобранные _LEGACY_TOOL_RE, и
+    arguments-объект. Поля server_name и лишние XML-узлы игнорируются: право
+    выполнять действие всё равно остаётся у обычной валидации main.py.
+    """
+    try:
+        root = ET.fromstring(raw.strip())
+    except (ET.ParseError, TypeError, ValueError) as exc:
+        return None, "XML tool call повреждён: %s" % exc
+    action_node = root.find(".//action")
+    node = action_node if action_node is not None else root
+    tool_name = (node.findtext("tool_name") or node.findtext("name") or "").strip()
+    args_text = node.findtext("arguments") or "{}"
+    args, err = parser_base.parse_action_json(args_text.strip())
+    if not isinstance(args, dict):
+        return None, ("в XML arguments ожидался JSON-объект: %s"
+                      % (err or "неизвестная ошибка"))
+    if not tool_name:
+        return None, "в XML tool call отсутствует tool_name"
+    args["action"] = tool_name
+    args, fixes = parser_base.coerce_action_schema(args)
+    if fixes:
+        print("[api_backend] XML tool call нормализован: %s" % "; ".join(fixes))
+    return args, None
 
 
 def _guess_user_kind(prompt):
@@ -202,6 +256,16 @@ def describe_api_error(e, provider_name, model=u""):
         return (u"[Ключ API]: «%s» отклонил ключ (%s). Проверьте ключ в "
                 u"настройках — возможно, он отозван или скопирован не "
                 u"полностью." % (name, msg)), None, None
+    if isinstance(e, oc.ForbiddenError):
+        # 403 без упоминания ключа — почти всегда посредник, а не сервис.
+        # Виноватить ключ тут нельзя: человек пойдёт искать проблему не там.
+        return (u"[Доступ запрещён]: «%s» ответил «%s» (HTTP 403). Про ключ "
+                u"речи нет, поэтому дело, скорее всего, не в нём. Так отвечают "
+                u"посредники: фильтр интернет-провайдера, антивирус с проверкой "
+                u"HTTPS, корпоративный шлюз — или сам сервис блокирует регион. "
+                u"Нажмите «Проверить подключение»: там показывается, кто выдал "
+                u"TLS-сертификат, и по нему видно, отвечает ли настоящий сервис "
+                u"или его кто-то подменяет." % (name, msg)), None, None
     if isinstance(e, oc.PaymentRequiredError):
         return (u"[Кредиты закончились]: «%s» больше не принимает запросы по "
                 u"этому ключу (%s). Выберите бесплатную модель или пополните "
@@ -215,6 +279,16 @@ def describe_api_error(e, provider_name, model=u""):
                 u"Начните новый чат — так дешевле и надёжнее, чем продолжать "
                 u"этот." % msg), None, None
     if isinstance(e, oc.TransportError):
+        # Если прокси включён, он сам — первый подозреваемый. Советовать
+        # «укажите прокси» в этом случае значит сбивать с толку: именно так и
+        # вышло, когда в поле хоста оказался адрес DNS-сервиса вместо прокси.
+        pr = api_keys.get_proxy()
+        if pr.get("enabled") and pr.get("host"):
+            return (u"[Сеть]: не удалось связаться с «%s» через прокси %s:%s "
+                    u"(%s). Проверьте адрес прокси: нужен обычный HTTP-прокси "
+                    u"(хост и порт), а не адрес DNS-сервиса или страницы. "
+                    u"Или выключите прокси и попробуйте напрямую."
+                    % (name, pr.get("host"), pr.get("port") or "?", msg)), None, None
         return (u"[Сеть]: не удалось связаться с «%s» (%s). Если провайдер "
                 u"недоступен в вашем регионе — укажите прокси в настройках "
                 u"API-ключа." % (name, msg)), None, None

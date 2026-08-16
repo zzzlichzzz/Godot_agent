@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = ['numpy', 'minilich.ml_train', 'minilich.ml_model', 'minilich.ml_tokenizer', 'parser_base', 'ai_parser', 'deepseek_parser', 'qwen_parser', 'kimi_parser', 'arena_parser', 'answer_judge', 'api_keys', 'providers', 'openai_compat', 'api_backend', 'browser_backend', 'api_history', 'md_to_bbcode', 'server_auth']
+hiddenimports = ['numpy', 'minilich.ml_train', 'minilich.ml_model', 'minilich.ml_tokenizer', 'parser_base', 'ai_parser', 'deepseek_parser', 'qwen_parser', 'kimi_parser', 'arena_parser', 'answer_judge', 'api_keys', 'providers', 'openai_compat', 'api_backend', 'browser_backend', 'api_history', 'md_to_bbcode', 'server_auth', 'doh']
 hiddenimports += collect_submodules('selenium')
 hiddenimports += collect_submodules('numpy')
 
