@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 
 import api_history
 import api_keys
+import anthropic_compat
 import md_to_bbcode
 import openai_compat as oc
 import parser_base
@@ -445,7 +446,8 @@ class ApiBackend(object):
             progress_cb({"phase": u"запрос к %s" % (provider.get("name") or pid),
                          "chars": 0, "elapsed": 0, "stream": ""})
         try:
-            res = oc.stream_chat(
+            transport = anthropic_compat if providers.transport_for(pid, model) == "anthropic" else oc
+            res = transport.stream_chat(
                 base_url, key, model, messages,
                 max_tokens=self._max_tokens, temperature=self._temperature,
                 extra_headers=providers.headers_for(pid),

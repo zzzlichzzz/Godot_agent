@@ -25,6 +25,7 @@ imports:
  &#8226;   <a href="#agent_prompts">agent_prompts</a>
  &#8226;   <a href="#ai_parser">ai_parser</a>
  &#8226;   <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#anthropic_compat">anthropic_compat</a>
  &#8226;   <a href="#api_backend">api_backend</a>
  &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#api_keys">api_keys</a>
@@ -4371,11 +4372,35 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="anthropic_compat"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/api/anthropic_compat.py" type="text/plain"><tt>anthropic_compat</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#json">json</a>
+ &#8226;   <a href="#openai_compat">openai_compat</a>
+ &#8226;   <a href="#queue">queue</a>
+ &#8226;   <a href="#ssl">ssl</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#time">time</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#api_backend">api_backend</a>
+ &#8226;   <a href="#chat_routes">chat_routes</a>
+ &#8226;   <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="api_backend"></a>
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/backends/api_backend.py" type="text/plain"><tt>api_backend</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#api_history">api_history</a>
+    <a href="#anthropic_compat">anthropic_compat</a>
+ &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#api_keys">api_keys</a>
  &#8226;   <a href="#md_to_bbcode">md_to_bbcode</a>
  &#8226;   <a href="#openai_compat">openai_compat</a>
@@ -7153,6 +7178,7 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent_prompts">agent_prompts</a>
+ &#8226;   <a href="#anthropic_compat">anthropic_compat</a>
  &#8226;   <a href="#api_backend">api_backend</a>
  &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#api_keys">api_keys</a>
@@ -16880,6 +16906,7 @@ imported by:
     <a href="#PyInstaller.utils.hooks.conda">PyInstaller.utils.hooks.conda</a>
  &#8226;   <a href="#ai_parser">ai_parser</a>
  &#8226;   <a href="#ai_studio_net">ai_studio_net</a>
+ &#8226;   <a href="#anthropic_compat">anthropic_compat</a>
  &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#api_keys">api_keys</a>
  &#8226;   <a href="#arena_parser">arena_parser</a>
@@ -29191,7 +29218,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#api_backend">api_backend</a>
+    <a href="#anthropic_compat">anthropic_compat</a>
+ &#8226;   <a href="#api_backend">api_backend</a>
  &#8226;   <a href="#chat_routes">chat_routes</a>
  &#8226;   <a href="#main.py">main.py</a>
 
@@ -31042,7 +31070,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#concurrent.futures.process">concurrent.futures.process</a>
+    <a href="#anthropic_compat">anthropic_compat</a>
+ &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
  &#8226;   <a href="#concurrent.futures.thread">concurrent.futures.thread</a>
  &#8226;   <a href="#concurrent.interpreters._queues">concurrent.interpreters._queues</a>
  &#8226;   <a href="#multiprocessing.dummy">multiprocessing.dummy</a>
@@ -39115,7 +39144,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#asyncio.base_events">asyncio.base_events</a>
+    <a href="#anthropic_compat">anthropic_compat</a>
+ &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.selector_events">asyncio.selector_events</a>
  &#8226;   <a href="#asyncio.sslproto">asyncio.sslproto</a>
  &#8226;   <a href="#cdp_ws">cdp_ws</a>
@@ -40044,6 +40074,7 @@ imported by:
  &#8226;   <a href="#_pyrepl.unix_console">_pyrepl.unix_console</a>
  &#8226;   <a href="#_threading_local">_threading_local</a>
  &#8226;   <a href="#ai_parser">ai_parser</a>
+ &#8226;   <a href="#anthropic_compat">anthropic_compat</a>
  &#8226;   <a href="#arena_parser">arena_parser</a>
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.events">asyncio.events</a>
@@ -40152,6 +40183,7 @@ imported by:
  &#8226;   <a href="#_pyrepl.unix_console">_pyrepl.unix_console</a>
  &#8226;   <a href="#_strptime">_strptime</a>
  &#8226;   <a href="#ai_parser">ai_parser</a>
+ &#8226;   <a href="#anthropic_compat">anthropic_compat</a>
  &#8226;   <a href="#api_backend">api_backend</a>
  &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#arena_parser">arena_parser</a>

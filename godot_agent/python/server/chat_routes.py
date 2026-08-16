@@ -12,6 +12,7 @@ import sites
 import server_state as S
 import history_manager as history
 import api_history
+import anthropic_compat
 import api_keys
 import providers
 import openai_compat
@@ -287,7 +288,8 @@ def api_test():
     if not ok and not model:
         return jsonify({"ok": False, "error": u"Не готово: %s." % why})
     try:
-        res = openai_compat.complete_chat(
+        transport = anthropic_compat if providers.transport_for(pid, model) == "anthropic" else openai_compat
+        res = transport.complete_chat(
             providers.base_url_for(pid),
             api_keys.resolve_key(pid, providers.env_names_for(pid)),
             model, [{"role": "user", "content": "ping"}],
@@ -523,10 +525,15 @@ def chats_delete():
     cid = (data.get("id") or "").strip()
     if not base or not cid:
         return jsonify({"error": "Нужен id."}), 400
-    chat_store.delete_chat(base, cid)
     # История API-чата лежит отдельным файлом — убираем вместе с чатом, иначе
     # папка копит переписки уже несуществующих чатов.
-    api_history.delete(base, cid)
+    if not api_history.delete(base, cid):
+        return jsonify({"error": "Не удалось удалить историю API-чата с диска."}), 500
+    if not chat_store.delete_chat(base, cid):
+        return jsonify({"error": "Чат не найден или его не удалось удалить с диска."}), 404
+    # Журнал отката хранит изменения файлов отдельно от переписки. Сам откат
+    # сохраняем, но убираем id и название удалённого чата.
+    history.forget_chat(S.STATE.get("project_root"), cid)
     S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
     if S.STATE.get("current_chat_id") == cid:
         S.clear_pending_confirmations()

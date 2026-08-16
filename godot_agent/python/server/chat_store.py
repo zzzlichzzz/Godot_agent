@@ -42,8 +42,9 @@ def _save(base_dir, chats):
         os.makedirs(base_dir, exist_ok=True)
         with open(_path(base_dir), "w", encoding="utf-8") as f:
             json.dump(chats, f, ensure_ascii=False, indent=1)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def title_from_prompt(prompt):
@@ -187,5 +188,8 @@ def append_transcript(base_dir, chat_id, role, text):
 
 
 def delete_chat(base_dir, chat_id):
-    chats = [c for c in _load(base_dir) if c.get("id") != chat_id]
-    _save(base_dir, chats)
+    chats = _load(base_dir)
+    kept = [c for c in chats if c.get("id") != chat_id]
+    if len(kept) == len(chats):
+        return False
+    return _save(base_dir, kept)

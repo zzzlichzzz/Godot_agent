@@ -40,6 +40,7 @@ _APP_DIR_NAME = "Godot_agent"
 # Переменная окружения, задающая папку настроек в обход системной. Нужна
 # тестам (чтобы не трогать настоящие ключи разработчика) и переносимым сборкам.
 ENV_CONFIG_DIR = "GODOT_AGENT_CONFIG_DIR"
+DEFAULT_DOH_URL = "https://xbox-dns.ru/dns-query"
 
 _DEFAULT_CONFIG = {
     "version": 1,
@@ -52,7 +53,7 @@ _DEFAULT_CONFIG = {
     # DNS over HTTPS: адрес доверенного резолвера. Помогает, когда провайдер
     # не разрешается системным DNS (подмена/NXDOMAIN у интернет-провайдера).
     # От блокировки по IP или SNI не спасает — там нужен прокси.
-    "dns": {"enabled": False, "url": ""},
+    "dns": {"enabled": True, "url": DEFAULT_DOH_URL},
 }
 
 

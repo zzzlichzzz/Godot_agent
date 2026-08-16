@@ -86,6 +86,10 @@ st, j = post("/api/providers")
 ids = [p["id"] for p in j["providers"]]
 check(u"/api/providers отвечает 200", st == 200)
 check(u"OpenRouter первым в списке", ids and ids[0] == "openrouter")
+check(u"AgentRouter добавлен в список", "agentrouter" in ids)
+agentrouter_rec = [p for p in j["providers"] if p["id"] == "agentrouter"][0]
+check(u"AgentRouter предлагает GPT 5.6 Sol по умолчанию",
+      agentrouter_rec["model"] == "gpt-5.6-sol")
 check(u"есть «свой адрес» для локального сервера в будущем", "custom" in ids)
 check(u"путь к файлу настроек показан пользователю",
       j["config_path"].startswith(CFG))
@@ -194,13 +198,29 @@ check(u"статус браузера — «idle», а не «booting»", j["sta
 # ---------------------------------------------------------------------------
 # 7) Удаление чата убирает и его историю
 # ---------------------------------------------------------------------------
+secret_phrase = u"DELETE-ME-TRANSCRIPT-9f3a"
+chat_store.append_transcript(UDD, cid, "user", secret_phrase)
 api_history.append_exchange(UDD, cid, u"вопрос", u"ответ")
 check(u"история чата создана",
       _os0.path.isfile(api_history.history_path(UDD, cid)))
+main.history.record_change(
+    UDD, {"action": "create_file", "path": "res://delete-test.gd"},
+    chat_id=cid, chat_title=u"Секретное название удаляемого чата")
 st, j = post("/chats/delete", {"id": cid})
 check(u"чат удалён", st == 200 and chat_store.find_chat(UDD, cid) is None)
 check(u"файл истории удалён вместе с чатом",
       not _os0.path.isfile(api_history.history_path(UDD, cid)))
+with open(_os0.path.join(UDD, "agent_chats.json"), "r", encoding="utf-8") as f:
+    raw_chats = f.read()
+check(u"текст удалённой переписки физически отсутствует в хранилище",
+      secret_phrase not in raw_chats and cid not in raw_chats)
+journal = main.history._load_journal(UDD)
+check(u"журнал отката сохранён, но обезличен от удалённого чата",
+      bool(journal)
+      and all(e.get("chat_id") != cid for e in journal)
+      and u"Секретное название удаляемого чата" not in json.dumps(journal, ensure_ascii=False))
+st_missing, _ = post("/chats/delete", {"id": cid})
+check(u"повторное удаление не изображает успех", st_missing == 404)
 
 srv.shutdown()
 shutil.rmtree(CFG, ignore_errors=True)

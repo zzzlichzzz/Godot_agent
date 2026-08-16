@@ -456,6 +456,7 @@ func _ready() -> void:
 		_start_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_start_screen.new_chat_requested.connect(_on_start_new_chat)
 		_start_screen.load_chat_requested.connect(_on_start_load_chat)
+		_start_screen.delete_chat_requested.connect(_on_start_delete_chat)
 		_start_screen.sites_tab_requested.connect(_on_sites_tab_requested)
 		_start_screen.chats_tab_requested.connect(_on_chats_tab_requested)
 		if _start_screen.has_signal("language_changed"):
@@ -1773,7 +1774,7 @@ func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = tru
 	_link.request(kind, extra, allow_autostart)
 
 
-func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> void:
+func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> void:
 	if kind == "minilich_github":
 		if _minilich_github_label:
 			if json.has("error"):
@@ -1841,13 +1842,14 @@ func _on_chats_payload(kind: String, json: Dictionary, _extra: Dictionary) -> vo
 			_enter_chat_ui()
 			_begin_page_wait()
 	elif kind == "delete":
-		# После удаления чата не открываем автоматически другой чат —
-		# просто возвращаем на главный экран: пользователь сам выберет,
-		# загрузить сохранённый чат или создать новый.
-		_current_chat_id = ""
-		_clear_pending_action_state()
+		var deleted_current := str(extra.get("id", "")) == _current_chat_id
+		if deleted_current:
+			_current_chat_id = ""
+			_clear_pending_action_state()
 		_on_link_hide_loading()
 		_show_start_ui()
+		if bool(extra.get("return_to_list", false)) and _start_screen:
+			_start_screen.show_chats()
 
 
 func _fill_chat_list(chats) -> void:
@@ -1989,6 +1991,12 @@ func _on_delete_confirmed() -> void:
 	if _current_chat_id == "":
 		return
 	_request_chats("delete", {"id": _current_chat_id})
+
+
+func _on_start_delete_chat(chat_id: String) -> void:
+	if chat_id == "":
+		return
+	_request_chats("delete", {"id": chat_id, "return_to_list": true})
 
 
 func _render_transcript(entries) -> void:

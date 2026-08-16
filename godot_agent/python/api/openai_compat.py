@@ -171,12 +171,21 @@ def _headers(api_key, extra_headers, accept):
         "Content-Type": "application/json",
         "Accept": accept,
         # Часть сервисов отклоняет запросы с User-Agent по умолчанию
-        # ("Python-urllib/3.x"), принимая их за неаккуратный скрипт.
+        # ("Python-urllib/3.x"), принимая их за неаккуратный скрипт. А
+        # AgentRouter пускает только клиентов из своего белого списка, поэтому
+        # провайдер вправе подменить этот заголовок через extra_headers.
         "User-Agent": USER_AGENT,
     }
+    # Сопоставление идёт БЕЗ УЧЁТА РЕГИСТРА и перезаписывает уже имеющийся
+    # ключ. Иначе {"user-agent": ...} от провайдера не заменил бы "User-Agent",
+    # а добавился бы рядом: urllib привёл бы оба к "User-agent", и какой из
+    # двух уйдёт в запрос, зависело бы от порядка словаря.
+    lower = {k.lower(): k for k in h}
     for k, v in (extra_headers or {}).items():
-        if v:
-            h[str(k)] = str(v)
+        if not v:
+            continue
+        name = str(k)
+        h[lower.get(name.lower(), name)] = str(v)
     if api_key:
         h["Authorization"] = "Bearer %s" % api_key
     return h
