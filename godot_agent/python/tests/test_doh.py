@@ -209,9 +209,15 @@ check(u"резолвер возвращён системе", not doh.is_installe
 # ---------------------------------------------------------------------------
 # 7) Настройки через api_keys
 # ---------------------------------------------------------------------------
+check(u"для новой конфигурации DoH включён по умолчанию",
+      api_keys.get_dns() == {"enabled": True,
+                             "url": u"https://xbox-dns.ru/dns-query"},
+      api_keys.get_dns())
 ok, err = api_keys.set_dns(url=u"http://dns.example.com/dns-query", enabled=True)
 check(u"http-адрес DoH не сохраняется", not ok and err != u"", (ok, err))
-check(u"DoH остался выключенным", api_keys.get_dns()["enabled"] is False)
+check(u"неверный адрес не изменил стандартный DoH",
+      api_keys.get_dns()["enabled"] is True
+      and api_keys.get_dns()["url"] == u"https://xbox-dns.ru/dns-query")
 
 ok, err = api_keys.set_dns(url=u"xbox-dns.ru/dns-query", enabled=True)
 check(u"адрес без схемы принят и достроен", ok and err == u"", (ok, err))
@@ -224,6 +230,8 @@ ok, err = api_keys.set_dns(url=u"", enabled=True)
 check(u"включить DoH без адреса нельзя", not ok and u"без адреса" in err, err)
 
 api_keys.set_dns(enabled=False)
+check(u"явное выключение стандартного DoH сохраняется",
+      api_keys.get_dns()["enabled"] is False)
 doh.configure(False, "")
 doh.uninstall()
 srv.shutdown()

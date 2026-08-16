@@ -138,6 +138,29 @@ def _prune(project_root, journal):
                 pass
 
 
+def forget_chat(project_root, chat_id):
+    """Убирает связь журнала отката с удалённым чатом, сохраняя сам откат.
+
+    Снапшоты и описание файлового действия нужны пользователю независимо от
+    жизни чата. Название и id чата после удаления больше не нужны и не должны
+    оставаться в служебном журнале.
+    """
+    cid = str(chat_id or "").strip()
+    if not project_root or not cid:
+        return 0
+    journal = _load_journal(project_root)
+    changed = 0
+    for entry in journal:
+        if str(entry.get("chat_id") or "") != cid:
+            continue
+        entry.pop("chat_id", None)
+        entry.pop("chat_title", None)
+        changed += 1
+    if changed:
+        _save_journal(project_root, journal)
+    return changed
+
+
 def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=None):
     """Вызывать ДО применения write-действия. Возвращает id записи журнала.
     chat_id/chat_title — какой чат сделал изменение: нужно для предпросмотра

@@ -8,8 +8,8 @@ match-домены и needs_visibility_spoof — для работы по клю
 различаются полем kind: отсутствует или "browser" — сайт в браузере,
 "api" — провайдер отсюда.
 
-ЕДИНЫЙ ФОРМАТ ЗАПРОСА. Все провайдеры ниже говорят на одном протоколе —
-POST <base_url>/chat/completions с телом {model, messages, stream}. Это
+ОСНОВНОЙ ФОРМАТ ЗАПРОСА. Большинство провайдеров ниже говорят на одном
+протоколе — POST <base_url>/chat/completions с телом {model, messages, stream}. Это
 формат OpenAI, и его поддерживают (иногда через слой совместимости) почти
 все: OpenRouter, Groq, Gemini, DeepSeek, Qwen, а также локальные llama-server
 и Ollama. Поэтому транспорт в openai_compat.py ОДИН на всех, а провайдер —
@@ -27,12 +27,33 @@ POST <base_url>/chat/completions с телом {model, messages, stream}. Это
 их можно единственной функцией api_keys.resolve_key(). Такое разделение
 не даёт секрету случайно просочиться в ответ /api/providers.
 """
+import os
+
 import api_keys
 
 # Заголовок с названием приложения. OpenRouter показывает его в статистике
 # использования ключа — пользователю полезно видеть, что запросы идут именно
 # от плагина, а не от чего-то ещё, зашедшего на его ключ.
 APP_TITLE = "Godot Agent"
+
+# ПОЧЕМУ ЗДЕСЬ ЧУЖОЙ USER-AGENT. AgentRouter (панель на new-api) пускает
+# только клиентов из своего белого списка и опознаёт их ИСКЛЮЧИТЕЛЬНО по
+# User-Agent. С любым другим значением он отвечает 401 и телом
+# {"type":"unauthorized_client_error","error":{"message":"unauthorized client
+# detected..."}} — на полностью рабочем ключе. Проверено запросами:
+#   claude-cli/1.0.119 (external, cli) -> 200    claude-cli/1.0.0 -> 401
+#   opencode/1.0.0                     -> 200    opencode        -> 401
+#   cline/3.0.0                        -> 200    GodotAgent/0.6  -> 401
+# То есть нужно и имя из списка, и версия. Обойти это «правильным» способом
+# нельзя: сервис не предлагает регистрации клиента, а сообщение об ошибке
+# отправляет в Discord. Значение вынесено в переменную окружения — если
+# AgentRouter поменяет список, ключ менять не придётся.
+ENV_AGENTROUTER_UA = "GODOT_AGENT_AGENTROUTER_UA"
+AGENTROUTER_USER_AGENT = "opencode/1.0.0"
+
+
+def agentrouter_user_agent():
+    return (os.environ.get(ENV_AGENTROUTER_UA) or "").strip() or AGENTROUTER_USER_AGENT
 
 PROVIDERS = [
     {
@@ -80,6 +101,26 @@ PROVIDERS = [
         "extra_headers": {},
         "note_ru": "Те же модели, что в AI Studio. Слой совместимости может не отдавать часть возможностей нативного API.",
         "note_en": "Same models as AI Studio. The compatibility layer may not expose every native API feature.",
+    },
+    {
+        "id": "agentrouter",
+        "name": "AgentRouter",
+        # AgentRouter использует OpenAI-совместимый маршрут для GPT и
+        # Anthropic /messages для Claude — transport_for() выбирает его по
+        # идентификатору модели. Ключ один для обеих групп моделей.
+        "base_url": "https://agentrouter.org/v1",
+        "needs_key": True,
+        "env_names": ("AGENTROUTER_API_KEY",),
+        "models_path": "/models",
+        "models": ["gpt-5.6-sol", "claude-opus-4-8", "claude-opus-5"],
+        "default_model": "gpt-5.6-sol",
+        "transport": "agentrouter",
+        "extra_headers": {},
+        # Без этого User-Agent сервис отвечает 401 на любой запрос, включая
+        # GET /models. Подробности — в комментарии к AGENTROUTER_USER_AGENT.
+        "user_agent": agentrouter_user_agent,
+        "note_ru": "GPT-модели работают через OpenAI API; Claude-модели — через Anthropic API. Один ключ AgentRouter подходит для обеих.",
+        "note_en": "GPT models use the OpenAI API; Claude models use the Anthropic API. One AgentRouter key works for both.",
     },
     {
         "id": "custom",
@@ -155,8 +196,32 @@ def models_url(provider_id):
 def headers_for(provider_id):
     """Дополнительные заголовки провайдера. Заголовок Authorization ЗДЕСЬ НЕ
     СОБИРАЕТСЯ: секретами занимается транспорт, чтобы ключ не разошёлся по
-    модулям и не попал в отладочную печать этого реестра."""
-    return dict((get_provider(provider_id) or {}).get("extra_headers") or {})
+    модулям и не попал в отладочную печать этого реестра.
+
+    Поле user_agent (строка или функция) перекрывает User-Agent транспорта.
+    Нужно тем сервисам, которые пускают только клиентов из своего белого
+    списка — см. AGENTROUTER_USER_AGENT.
+    """
+    p = get_provider(provider_id) or {}
+    h = dict(p.get("extra_headers") or {})
+    ua = p.get("user_agent")
+    if callable(ua):
+        ua = ua()
+    if ua:
+        h["User-Agent"] = str(ua)
+    return h
+
+
+def transport_for(provider_id, model=""):
+    """Протокол запросов для модели провайдера.
+
+    AgentRouter обслуживает GPT через OpenAI-совместимый endpoint, а Claude
+    через Anthropic Messages API; остальные записи используют OpenAI как раньше.
+    """
+    p = get_provider(provider_id) or {}
+    if p.get("transport") == "agentrouter" and str(model or "").lower().startswith("claude-"):
+        return "anthropic"
+    return "openai"
 
 
 def model_for(provider_id):

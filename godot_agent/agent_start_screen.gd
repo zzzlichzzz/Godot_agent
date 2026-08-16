@@ -3,8 +3,8 @@ extends Control
 
 # ---------------------------------------------------------------------------
 # Стартовый экран агента.
-# Главная: две кнопки делят экран по вертикали — сверху «Загрузиться»
-# (список сохранённых чатов), снизу «Новый чат» (список сайтов-нейросетей).
+# Главная: три равноправных входа — новый чат, сохранённый чат и работа
+# напрямую через API-ключ.
 # Наружу отдаёт сигналы, а данные получает через set_chats()/set_sites().
 # Локализация RU/EN — agent_locale.gd; переключатель языка — справа сверху.
 # Блок «Поддержать автора»: для русского языка — CloudTips + Boosty,
@@ -13,6 +13,7 @@ extends Control
 
 signal new_chat_requested(site_id)
 signal load_chat_requested(chat_id)
+signal delete_chat_requested(chat_id)
 signal sites_tab_requested()
 signal chats_tab_requested()
 signal language_changed()
@@ -33,7 +34,6 @@ const SPIN_FRAMES := ["|", "/", "-", "\\"]
 # Высота кнопок главного экрана. Раньше кнопки тянулись на всю высоту панели
 # и выглядели как две плашки во весь экран — теперь фиксированная высота.
 const MAIN_BUTTON_HEIGHT := 42
-const SECONDARY_BUTTON_HEIGHT := 30
 
 var _home: VBoxContainer = null
 var _chats_view: VBoxContainer = null
@@ -91,6 +91,8 @@ var _api_data: Dictionary = {}
 # иначе программная установка значений выглядела бы как правка пользователем и
 # уходила бы обратно на сервер.
 var _api_filling: bool = false
+var _delete_dialog: ConfirmationDialog = null
+var _delete_chat_id: String = ""
 
 
 func _T():
@@ -164,6 +166,8 @@ func _rebuild_ui() -> void:
 	_sites_list = null
 	_status = null
 	_status_panel = null
+	_delete_dialog = null
+	_delete_chat_id = ""
 	_api_key_btn = null
 	_loading_view = null
 	_loading_spinner = null
@@ -334,18 +338,17 @@ func _build() -> void:
 		b_load.icon = T.first_icon(["Load", "Folder"])
 	actions.add_child(b_load)
 
-	actions.add_child(HSeparator.new())
-
-	# Работа напрямую через API нейросети вместо браузера.
+	# Работа напрямую через API нейросети — такое же основное действие, как
+	# новый или сохранённый браузерный чат.
 	_api_key_btn = Button.new()
 	_api_key_btn.name = "ApiKeyBtn"
 	_api_key_btn.text = _t("btn_api_key")
 	_api_key_btn.tooltip_text = _t("btn_api_key_tip")
-	_api_key_btn.custom_minimum_size = Vector2(0, SECONDARY_BUTTON_HEIGHT)
+	_api_key_btn.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
 	_api_key_btn.size_flags_horizontal = SIZE_EXPAND_FILL
 	_api_key_btn.pressed.connect(func(): api_tab_requested.emit())
 	if T:
-		T.style_button(_api_key_btn, "neutral")
+		T.style_button(_api_key_btn, "neutral", false)
 		_api_key_btn.icon = T.first_icon(["Key", "Lock", "Tools"])
 	actions.add_child(_api_key_btn)
 
@@ -620,8 +623,37 @@ func _build_api_view(root: Node) -> void:
 	# обновления плагина.
 	_api_hint(model_box, _t("api_model_hint"))
 
-	# ---- Прокси ----
-	var proxy_box := _api_section(form, "api_proxy")
+	# ---- DNS over HTTPS ----
+	var dns_box := _api_section(form, "api_dns")
+	_api_dns_on = CheckBox.new()
+	_api_dns_on.text = _t("api_dns_enable")
+	_api_dns_on.toggled.connect(func(_v): _on_api_save_dns())
+	dns_box.add_child(_api_dns_on)
+	_api_dns_url = LineEdit.new()
+	_api_dns_url.placeholder_text = _t("api_dns_placeholder")
+	_api_dns_url.size_flags_horizontal = SIZE_EXPAND_FILL
+	_api_dns_url.text_submitted.connect(func(_s): _on_api_save_dns())
+	_api_dns_url.focus_exited.connect(_on_api_save_dns)
+	dns_box.add_child(_api_dns_url)
+	_api_hint(dns_box, _t("api_dns_hint"))
+	_api_dns_error = _api_hint(dns_box, "")
+	_api_dns_error.add_theme_color_override("font_color", _color("error"))
+
+	# ---- Дополнительно: прокси ----
+	var advanced_btn := Button.new()
+	advanced_btn.text = _t("api_advanced")
+	advanced_btn.toggle_mode = true
+	advanced_btn.size_flags_horizontal = SIZE_EXPAND_FILL
+	if T:
+		T.style_button(advanced_btn, "neutral")
+		advanced_btn.icon = T.first_icon(["Tools", "GuiTreeArrowDown", "Settings"])
+	form.add_child(advanced_btn)
+	var proxy_wrap := VBoxContainer.new()
+	proxy_wrap.size_flags_horizontal = SIZE_EXPAND_FILL
+	proxy_wrap.visible = false
+	form.add_child(proxy_wrap)
+	advanced_btn.toggled.connect(func(on): proxy_wrap.visible = on)
+	var proxy_box := _api_section(proxy_wrap, "api_proxy")
 	_api_proxy_on = CheckBox.new()
 	_api_proxy_on.text = _t("api_proxy_enable")
 	_api_proxy_on.toggled.connect(func(_v): _on_api_save_proxy())
@@ -665,22 +697,6 @@ func _build_api_view(root: Node) -> void:
 	# адрес сервиса вместо прокси.
 	_api_proxy_error = _api_hint(proxy_box, "")
 	_api_proxy_error.add_theme_color_override("font_color", _color("error"))
-
-	# ---- DNS over HTTPS ----
-	var dns_box := _api_section(form, "api_dns")
-	_api_dns_on = CheckBox.new()
-	_api_dns_on.text = _t("api_dns_enable")
-	_api_dns_on.toggled.connect(func(_v): _on_api_save_dns())
-	dns_box.add_child(_api_dns_on)
-	_api_dns_url = LineEdit.new()
-	_api_dns_url.placeholder_text = _t("api_dns_placeholder")
-	_api_dns_url.size_flags_horizontal = SIZE_EXPAND_FILL
-	_api_dns_url.text_submitted.connect(func(_s): _on_api_save_dns())
-	_api_dns_url.focus_exited.connect(_on_api_save_dns)
-	dns_box.add_child(_api_dns_url)
-	_api_hint(dns_box, _t("api_dns_hint"))
-	_api_dns_error = _api_hint(dns_box, "")
-	_api_dns_error.add_theme_color_override("font_color", _color("error"))
 
 	# ---- Проверка подключения ----
 	var test_btn := Button.new()
@@ -771,8 +787,12 @@ func _rebuild_chats() -> void:
 	for c in _chats_data:
 		if typeof(c) != TYPE_DICTIONARY:
 			continue
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = SIZE_EXPAND_FILL
+		row.add_theme_constant_override("separation", 4)
 		var btn := Button.new()
 		var t := str(c.get("title", _t("untitled")))
+		var chat_id := str(c.get("id", ""))
 		var sname := str(c.get("site_name", ""))
 		# v48: сайт нейросети, время последнего использования и признак «промпт устарел».
 		var info := PackedStringArray()
@@ -795,8 +815,18 @@ func _rebuild_chats() -> void:
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.clip_text = true
 		btn.size_flags_horizontal = SIZE_EXPAND_FILL
-		btn.pressed.connect(_pick_chat.bind(str(c.get("id", ""))))
-		_chats_list.add_child(btn)
+		btn.pressed.connect(_pick_chat.bind(chat_id))
+		row.add_child(btn)
+		var del_btn := Button.new()
+		del_btn.tooltip_text = _t("del_text") % t
+		del_btn.custom_minimum_size = Vector2(36, 36)
+		del_btn.pressed.connect(_request_chat_delete.bind(chat_id, t))
+		if T:
+			T.style_icon_button(del_btn, ["Remove", "Close"], "X", "error")
+		else:
+			del_btn.text = "X"
+		row.add_child(del_btn)
+		_chats_list.add_child(row)
 
 
 func _fmt_ts(ts: int) -> String:
@@ -852,6 +882,28 @@ func _rebuild_sites() -> void:
 func _pick_chat(chat_id: String) -> void:
 	if chat_id != "":
 		load_chat_requested.emit(chat_id)
+
+
+func _request_chat_delete(chat_id: String, chat_title: String) -> void:
+	if chat_id == "":
+		return
+	_delete_chat_id = chat_id
+	if _delete_dialog == null or not is_instance_valid(_delete_dialog):
+		_delete_dialog = ConfirmationDialog.new()
+		_delete_dialog.confirmed.connect(_confirm_chat_delete)
+		add_child(_delete_dialog)
+	_delete_dialog.title = _t("del_title")
+	_delete_dialog.dialog_text = _t("del_text") % chat_title
+	_delete_dialog.get_ok_button().text = _t("del_yes")
+	_delete_dialog.get_cancel_button().text = _t("del_no")
+	_delete_dialog.popup_centered(Vector2i(420, 150))
+
+
+func _confirm_chat_delete() -> void:
+	var chat_id := _delete_chat_id
+	_delete_chat_id = ""
+	if chat_id != "":
+		delete_chat_requested.emit(chat_id)
 
 
 func _pick_site(site_id: String) -> void:
@@ -943,6 +995,13 @@ func _api_fill_provider_fields() -> void:
 		_api_note.text = str(rec.get(lang_note, ""))
 	if _api_model_edit:
 		_api_model_edit.text = str(rec.get("model", ""))
+	if _api_model_opt:
+		_api_model_opt.clear()
+		var known_models = rec.get("models", [])
+		if typeof(known_models) == TYPE_ARRAY:
+			for model in known_models:
+				_api_model_opt.add_item(str(model))
+		_api_model_opt.disabled = _api_model_opt.item_count == 0
 	if _api_base_edit:
 		_api_base_edit.text = str(rec.get("base_url", ""))
 	if _api_base_row:
@@ -979,8 +1038,6 @@ func _on_api_provider_selected(_idx: int) -> void:
 	if _api_filling:
 		return
 	_api_fill_provider_fields()
-	if _api_model_opt:
-		_api_model_opt.clear()
 
 
 func _api_proxy_payload(include_password: bool) -> Dictionary:
