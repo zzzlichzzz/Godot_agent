@@ -215,7 +215,8 @@ def api_models_refresh():
         raw = openai_compat.fetch_models(
             url, api_keys.resolve_key(pid, providers.env_names_for(pid)),
             extra_headers=providers.headers_for(pid),
-            proxy=api_keys.proxy_url())
+            proxy=api_keys.proxy_url(),
+            connect_timeout=providers.connect_timeout_for(pid))
     except openai_compat.ApiError as e:
         msg, _status, _retry = api_backend.describe_api_error(e, provider["name"])
         print("<-- Список моделей %s не получен: %s" % (pid, msg))
@@ -289,12 +290,20 @@ def api_test():
         return jsonify({"ok": False, "error": u"Не готово: %s." % why})
     try:
         transport = anthropic_compat if providers.transport_for(pid, model) == "anthropic" else openai_compat
-        res = transport.complete_chat(
-            providers.base_url_for(pid),
-            api_keys.resolve_key(pid, providers.env_names_for(pid)),
-            model, [{"role": "user", "content": "ping"}],
-            max_tokens=8, extra_headers=providers.headers_for(pid),
-            proxy=api_keys.proxy_url())
+        args = (providers.base_url_for(pid),
+                api_keys.resolve_key(pid, providers.env_names_for(pid)),
+                model, [{"role": "user", "content": "ping"}])
+        kwargs = {"max_tokens": 64,
+                  "extra_headers": providers.headers_for(pid),
+                  "proxy": api_keys.proxy_url(),
+                  "connect_timeout": providers.connect_timeout_for(pid)}
+        # У части шлюзов обычный (non-stream) запрос не успевает пройти сквозь
+        # их собственный таймаут и возвращается 504 — на рабочем ключе. Поток
+        # к тому же ближе к боевому режиму: чат работает именно им.
+        if providers.test_with_stream(pid):
+            res = transport.stream_chat(*args, **kwargs)
+        else:
+            res = transport.complete_chat(*args, **kwargs)
     except openai_compat.ApiError as e:
         msg, _status, _retry = api_backend.describe_api_error(
             e, provider["name"], model)

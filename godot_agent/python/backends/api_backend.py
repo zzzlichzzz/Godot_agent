@@ -226,6 +226,14 @@ def _guess_user_kind(prompt):
     return api_history.KIND_PROMPT
 
 
+def _is_client_rejected(msg):
+    """Похоже ли на «пустили бы, но не тебя»: сервис отверг программу-клиента,
+    а не ключ. Смотрим по тексту, потому что HTTP-статус тут тот же 401."""
+    low = str(msg or "").lower()
+    return ("unauthorized client" in low or "unauthorized_client" in low
+            or "client not allowed" in low or "client not supported" in low)
+
+
 def describe_api_error(e, provider_name, model=u""):
     """Человеческий текст ошибки провайдера + статус для повтора.
 
@@ -254,6 +262,18 @@ def describe_api_error(e, provider_name, model=u""):
         return (u"[Сервис недоступен]: «%s» ответил ошибкой (%s)."
                 % (name, msg)), (e.status or 503), e.retry_after
     if isinstance(e, oc.AuthError):
+        # Отдельный случай: сервис отверг не ключ, а САМОГО КЛИЕНТА. Так делает
+        # AgentRouter — он опознаёт разрешённые программы по User-Agent и на
+        # чужой отвечает 401 «unauthorized client detected» даже с рабочим
+        # ключом. Совет «проверьте ключ» здесь отправляет искать причину не
+        # там: ключ можно перевыпускать сколько угодно, ничего не изменится.
+        if _is_client_rejected(msg):
+            return (u"[Клиент отклонён]: «%s» не признал программу-клиента, а "
+                    u"не ключ (%s). Сервис пускает только приложения из своего "
+                    u"списка и узнаёт их по заголовку User-Agent. Ключ, скорее "
+                    u"всего, в порядке. Задайте другое значение в переменной "
+                    u"окружения %s и перезапустите сервер агента."
+                    % (name, msg, providers.ENV_AGENTROUTER_UA)), None, None
         return (u"[Ключ API]: «%s» отклонил ключ (%s). Проверьте ключ в "
                 u"настройках — возможно, он отозван или скопирован не "
                 u"полностью." % (name, msg)), None, None
@@ -452,6 +472,7 @@ class ApiBackend(object):
                 max_tokens=self._max_tokens, temperature=self._temperature,
                 extra_headers=providers.headers_for(pid),
                 proxy=api_keys.proxy_url(),
+                connect_timeout=providers.connect_timeout_for(pid),
                 silence_timeout=self._silence_timeout,
                 cancel_cb=cancel_cb, on_delta=on_delta)
         except oc.Cancelled:

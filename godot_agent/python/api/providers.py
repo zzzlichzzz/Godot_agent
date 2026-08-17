@@ -119,6 +119,16 @@ PROVIDERS = [
         # Без этого User-Agent сервис отвечает 401 на любой запрос, включая
         # GET /models. Подробности — в комментарии к AGENTROUTER_USER_AGENT.
         "user_agent": agentrouter_user_agent,
+        # ПОЧЕМУ БОЛЬШЕ ОБЫЧНОГО. AgentRouter — посредник, и до первого байта
+        # ответа Claude он молчит непредсказуемо долго: замеры одного и того же
+        # запроса дали 2.8 / 4.4 / 15.6 / 68.7 секунды. Со стандартными 30 с
+        # часть запросов срывалась по таймауту, и пользователю показывалось
+        # «не удалось связаться» на полностью рабочем провайдере.
+        "connect_timeout": 150.0,
+        # ПОЧЕМУ ПРОВЕРКА ПОДКЛЮЧЕНИЯ ПОТОКОМ. На non-stream запрос к Claude
+        # шлюз отвечает 504 от своего nginx ровно через 120 с — ответ модели
+        # не успевает пройти целиком. Поток же отдаёт первые события сразу.
+        "test_with_stream": True,
         "note_ru": "GPT-модели работают через OpenAI API; Claude-модели — через Anthropic API. Один ключ AgentRouter подходит для обеих.",
         "note_en": "GPT models use the OpenAI API; Claude models use the Anthropic API. One AgentRouter key works for both.",
     },
@@ -222,6 +232,30 @@ def transport_for(provider_id, model=""):
     if p.get("transport") == "agentrouter" and str(model or "").lower().startswith("claude-"):
         return "anthropic"
     return "openai"
+
+
+def connect_timeout_for(provider_id):
+    """Сколько секунд ждать соединения и ЗАГОЛОВКОВ ответа.
+
+    Значение транспорта рассчитано на сервис, который отвечает сам. Посредник
+    ждёт ещё и свой апстрим, поэтому ему нужен запас: иначе рабочий провайдер
+    выглядит как недоступный. Задаётся полем connect_timeout в записи.
+    """
+    import openai_compat
+    try:
+        v = float((get_provider(provider_id) or {}).get("connect_timeout") or 0)
+    except Exception:
+        v = 0.0
+    return v if v > 0 else openai_compat.DEFAULT_CONNECT_TIMEOUT
+
+
+def test_with_stream(provider_id):
+    """Проверять подключение потоковым запросом, а не обычным.
+
+    Нужно шлюзам, которые не успевают отдать non-stream ответ в свой же
+    таймаут и отвечают 504 вместо результата.
+    """
+    return bool((get_provider(provider_id) or {}).get("test_with_stream"))
 
 
 def model_for(provider_id):
