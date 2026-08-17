@@ -138,6 +138,29 @@ def _prune(project_root, journal):
                 pass
 
 
+def forget_chat(project_root, chat_id):
+    """Убирает связь журнала отката с удалённым чатом, сохраняя сам откат.
+
+    Снапшоты и описание файлового действия нужны пользователю независимо от
+    жизни чата. Название и id чата после удаления больше не нужны и не должны
+    оставаться в служебном журнале.
+    """
+    cid = str(chat_id or "").strip()
+    if not project_root or not cid:
+        return 0
+    journal = _load_journal(project_root)
+    changed = 0
+    for entry in journal:
+        if str(entry.get("chat_id") or "") != cid:
+            continue
+        entry.pop("chat_id", None)
+        entry.pop("chat_title", None)
+        changed += 1
+    if changed:
+        _save_journal(project_root, journal)
+    return changed
+
+
 def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=None):
     """Вызывать ДО применения write-действия. Возвращает id записи журнала.
     chat_id/chat_title — какой чат сделал изменение: нужно для предпросмотра
@@ -212,6 +235,26 @@ def abort_change(project_root, entry_id):
         _save_journal(project_root, new_journal)
 
 
+def _entry_public_info(entry, committed):
+    """Описание записи журнала для предпросмотра отката в панели."""
+    info = {
+        "id": entry.get("id", ""),
+        "type": entry.get("type", ""),
+        "path": entry.get("dest") or entry.get("path", ""),
+        "overwrote": bool(entry.get("overwrote")),
+        "chat_title": entry.get("chat_title") or "",
+        "ts": entry.get("ts", 0),
+        "chain_id": "",
+        "chain_total": 0,
+    }
+    chain_id = entry.get("chain_id")
+    if chain_id:
+        info["chain_id"] = chain_id
+        info["chain_total"] = sum(
+            1 for j in committed if j.get("chain_id") == chain_id)
+    return info
+
+
 def last_committed_info(project_root):
     """Описание последнего применённого действия — для предпросмотра отката
     в панели (что именно будет отменено и из какого чата). Если последнее
@@ -222,22 +265,121 @@ def last_committed_info(project_root):
     committed = [e for e in journal if e.get("committed")]
     if not committed:
         return None
-    e = committed[-1]
-    info = {
-        "type": e.get("type", ""),
-        "path": e.get("dest") or e.get("path", ""),
-        "overwrote": bool(e.get("overwrote")),
-        "chat_title": e.get("chat_title") or "",
-        "ts": e.get("ts", 0),
-        "chain_id": "",
-        "chain_total": 0,
-    }
-    chain_id = e.get("chain_id")
-    if chain_id:
-        info["chain_id"] = chain_id
-        info["chain_total"] = sum(
-            1 for j in committed if j.get("chain_id") == chain_id)
+    return _entry_public_info(committed[-1], committed)
+
+
+def entry_info(project_root, entry_id):
+    """Описание КОНКРЕТНОЙ записи журнала по её id.
+
+    Нужно адресному откату «по этому сообщению»: раньше панель умела просить
+    только «откатить последнее», из-за чего кнопка на старом облачке чата
+    отменяла чужое, самое свежее изменение.
+
+    Дополнительно сообщает, что мешает откату именно этой записи:
+      newer_same_file — сколько ПОЗДНЕЙШИХ действий агента трогали тот же файл
+                        (откатывать через них нельзя: потеряется их работа);
+      is_last         — эта запись самая свежая в журнале.
+    """
+    journal = _load_journal(project_root)
+    committed = [e for e in journal if e.get("committed")]
+    entry, idx = _find_committed(committed, entry_id)
+    if entry is None:
+        return None
+    info = _entry_public_info(entry, committed)
+    info["is_last"] = (idx == len(committed) - 1)
+    target = entry.get("dest") or entry.get("path")
+    blockers = []
+    for later in committed[idx + 1:]:
+        later_paths = {later.get("path"), later.get("dest")}
+        if target in later_paths:
+            blockers.append({"type": later.get("type", ""),
+                             "path": later.get("dest") or later.get("path", ""),
+                             "ts": later.get("ts", 0)})
+    info["newer_same_file"] = blockers
     return info
+
+
+def _find_committed(committed, entry_id):
+    """(запись, индекс в списке committed) по id или (None, -1)."""
+    for i, e in enumerate(committed):
+        if e.get("id") == entry_id:
+            return e, i
+    return None, -1
+
+
+def _drop_entry(project_root, journal, entry):
+    """Убирает запись и её снапшот. Вызывается только после успешного отката."""
+    snap_rel = entry.get("snapshot")
+    journal.remove(entry)
+    _save_journal(project_root, journal)
+    if snap_rel:
+        try:
+            os.remove(os.path.join(_history_dir(project_root), snap_rel))
+        except OSError:
+            pass
+
+
+def rollback_entry(project_root, entry_id, force=False):
+    """Откат КОНКРЕТНОГО действия по id записи журнала.
+
+    Отличие от rollback_last: откатывается ровно то, что попросили, а не
+    «самое свежее». Именно этого не хватало кнопке отката на карточке
+    сообщения — без адреса она отменяла последнее изменение проекта, каким бы
+    оно ни было и из какого чата ни пришло.
+
+    ОТКАЗ ВМЕСТО ПРИНУЖДЕНИЯ. Если тот же файл позже правил САМ АГЕНТ, откат
+    через эти правки молча потерял бы их работу. Такой откат не разрешается
+    даже с force: сначала надо откатить более свежие действия. force остаётся
+    только для случая, когда файл менялся ВРУЧНУЮ (это решает пользователь).
+
+    Возвращает (ok, message, needs_force, paths, diff) — та же семантика, что
+    у rollback_last.
+    """
+    journal = _load_journal(project_root)
+    committed = [e for e in journal if e.get("committed")]
+    entry, idx = _find_committed(committed, entry_id)
+    if entry is None:
+        return False, ("Это изменение уже не найдено в журнале — возможно, оно "
+                       "уже откачено или вытеснено по лимиту истории."), False, [], None
+
+    target = entry.get("dest") or entry.get("path")
+    blockers = [e for e in committed[idx + 1:]
+                if target in {e.get("path"), e.get("dest")}]
+    if blockers:
+        return False, (
+            "Этот файл (%s) агент правил ещё %d раз(а) ПОСЛЕ этого действия. "
+            "Откатить его сейчас — значит потерять более свежие правки. "
+            "Сначала откатите их: откат идёт от новых к старым."
+            % (target, len(blockers))
+        ), False, [], None
+
+    ok, message, needs_force, affected, diff = _revert_entry_on_disk(
+        project_root, entry, force=force)
+    if not ok:
+        return False, message, needs_force, affected, diff
+    _drop_entry(project_root, journal, entry)
+    return True, message, False, affected, diff
+
+
+def rollback_last(project_root, force=False):
+    """Откат последнего применённого действия.
+    Возвращает (ok, message, needs_force, paths, diff):
+      paths — затронутые res:// пути (для синхронизации вкладок в Godot);
+      diff  — для patch_file: {"path", "was", "now"} — точный обратный дифф
+              (блок "was" снова стал блоком "now"), иначе None."""
+    journal = _load_journal(project_root)
+    committed = [e for e in journal if e.get("committed")]
+    if not committed:
+        return False, "История изменений пуста — откатывать нечего.", False, [], None
+    entry = committed[-1]
+
+    ok, message, needs_force, affected, diff = _revert_entry_on_disk(project_root, entry, force=force)
+    if not ok:
+        return False, message, needs_force, affected, diff
+
+    # Убираем запись и её снапшот только после успешного отката.
+    _drop_entry(project_root, journal, entry)
+    return True, message, False, affected, diff
 
 
 def last_write_ts_by_others(project_root, path, chat_id):
@@ -374,34 +516,6 @@ def _revert_entry_on_disk(project_root, entry, force=False):
         # Обратный дифф: блок "replace" снова стал блоком "search".
         diff = {"path": target, "was": entry["replace"], "now": entry["search"]}
     return True, "Откачено: %s (%s)" % (act, target), False, affected, diff
-
-
-def rollback_last(project_root, force=False):
-    """Откат последнего применённого действия.
-    Возвращает (ok, message, needs_force, paths, diff):
-      paths — затронутые res:// пути (для синхронизации вкладок в Godot);
-      diff  — для patch_file: {"path", "was", "now"} — точный обратный дифф
-              (блок "was" снова стал блоком "now"), иначе None."""
-    journal = _load_journal(project_root)
-    committed = [e for e in journal if e.get("committed")]
-    if not committed:
-        return False, "История изменений пуста — откатывать нечего.", False, [], None
-    entry = committed[-1]
-
-    ok, message, needs_force, affected, diff = _revert_entry_on_disk(project_root, entry, force=force)
-    if not ok:
-        return False, message, needs_force, affected, diff
-
-    # Убираем запись и её снапшот только после успешного отката.
-    snap_rel = entry.get("snapshot")
-    journal.remove(entry)
-    _save_journal(project_root, journal)
-    if snap_rel:
-        try:
-            os.remove(os.path.join(_history_dir(project_root), snap_rel))
-        except OSError:
-            pass
-    return True, message, False, affected, diff
 
 
 def rollback_chain(project_root, chain_id, force=False):

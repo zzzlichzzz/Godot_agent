@@ -42,8 +42,9 @@ def _save(base_dir, chats):
         os.makedirs(base_dir, exist_ok=True)
         with open(_path(base_dir), "w", encoding="utf-8") as f:
             json.dump(chats, f, ensure_ascii=False, indent=1)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def title_from_prompt(prompt):
@@ -64,11 +65,17 @@ def list_chats(base_dir, current_prompt_hash=None):
     chats.sort(key=lambda c: c.get("last_used", 0), reverse=True)
     out = []
     for c in chats:
-        stale = bool(c.get("primed")) and bool(current_prompt_hash) \
+        # Чат по ключу API «устареть» по промпту не может: системный блок там
+        # собирается заново на КАЖДОМ сообщении, а не один раз за чат. Помечать
+        # его устаревшим — вводить пользователя в заблуждение и провоцировать
+        # создавать новый чат без причины.
+        is_api = (c.get("kind") or "browser") == "api"
+        stale = (not is_api) and bool(c.get("primed")) and bool(current_prompt_hash) \
             and c.get("prompt_hash") != current_prompt_hash
         out.append({"id": c.get("id"), "title": c.get("title", DEFAULT_TITLE),
                     "url": c.get("url", ""), "primed": bool(c.get("primed")),
                     "site_name": c.get("site_name", ""),
+                    "kind": "api" if is_api else "browser",
                     "created": int(c.get("created", 0) or 0),
                     "last_used": int(c.get("last_used", 0) or 0),
                     "prompt_stale": stale})
@@ -181,5 +188,8 @@ def append_transcript(base_dir, chat_id, role, text):
 
 
 def delete_chat(base_dir, chat_id):
-    chats = [c for c in _load(base_dir) if c.get("id") != chat_id]
-    _save(base_dir, chats)
+    chats = _load(base_dir)
+    kept = [c for c in chats if c.get("id") != chat_id]
+    if len(kept) == len(chats):
+        return False
+    return _save(base_dir, kept)

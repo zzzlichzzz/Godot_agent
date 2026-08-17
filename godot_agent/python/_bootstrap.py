@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Настройка путей для плоских импортов (import ai_parser, import sites и т.д.).
 
-Модули разложены по подпапкам (parsers/, browser/, godot_tools/, server/),
-но продолжают импортироваться по старым коротким именам — это нужно:
+Модули разложены по подпапкам (parsers/, browser/, godot_tools/, server/, api/,
+backends/), но продолжают импортироваться по старым коротким именам — это нужно:
   * всем существующим import-строкам в коде,
   * динамической загрузке парсеров через importlib в sites.py,
   * hidden-imports в PyInstaller-сборке.
@@ -13,7 +13,7 @@ import os
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_PACKAGE_DIRS = ("parsers", "browser", "godot_tools", "server")
+_PACKAGE_DIRS = ("parsers", "browser", "godot_tools", "server", "api", "backends")
 
 for _d in (_HERE,) + tuple(os.path.join(_HERE, d) for d in _PACKAGE_DIRS):
     if os.path.isdir(_d) and _d not in sys.path:
