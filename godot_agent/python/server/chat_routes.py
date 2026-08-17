@@ -11,6 +11,12 @@ import chat_store
 import sites
 import server_state as S
 import history_manager as history
+import api_history
+import anthropic_compat
+import api_keys
+import providers
+import openai_compat
+import api_backend
 from agent_prompts import PROMPT_HASH
 
 chats_bp = Blueprint("chats", __name__)
@@ -117,13 +123,279 @@ def sites_list():
     return jsonify({"sites": sites.list_sites()})
 
 
+@chats_bp.route('/api/providers', methods=['POST'])
+def api_providers():
+    """Провайдеры для работы по ключу + состояние их настройки.
+    Сырых ключей в ответе не бывает — только маски (см. api_keys.status)."""
+    return jsonify(_api_settings_payload())
+
+
+def _api_settings_payload(extra=None):
+    """Единый вид настроек для панели. Всегда возвращается целиком, чтобы
+    панель после любого изменения перерисовалась из одного источника и не
+    хранила своё представление о состоянии."""
+    out = {"providers": providers.list_providers(),
+           "defaults": api_keys.get_defaults(),
+           "proxy": api_keys.get_proxy(),
+           "dns": api_keys.get_dns(),
+           "config_path": api_keys.config_path()}
+    if extra:
+        out.update(extra)
+    return out
+
+
+@chats_bp.route('/api/settings/set', methods=['POST'])
+def api_settings_set():
+    """Сохранение настроек API: ключ, модель, свой адрес, прокси.
+
+    Один эндпоинт на всё, потому что панель сохраняет форму целиком, а
+    дробить это на пять маршрутов значит пять раз описывать одно и то же.
+    Применяются ТОЛЬКО присланные поля: отсутствие поля — это «не менять»,
+    а не «очистить». Особенно важно для пароля прокси, который панель не
+    пересылает при каждой правке хоста.
+    """
+    data = request.json or {}
+    pid = (data.get("provider") or "").strip()
+    if pid and providers.get_provider(pid) is None:
+        return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
+    if pid:
+        if "key" in data:
+            # Ключ приходит сюда сырым один раз — при вводе. Дальше панель
+            # видит только маску, а сам ключ живёт в файле настроек вне проекта.
+            api_keys.set_key(pid, data.get("key") or "")
+        if "model" in data:
+            api_keys.set_model(pid, data.get("model") or "")
+        if "base_url" in data:
+            api_keys.set_base_url(pid, data.get("base_url") or "")
+        if data.get("make_default"):
+            api_keys.set_defaults(pid, api_keys.get_model(pid))
+    proxy = data.get("proxy")
+    problems = {}
+    if isinstance(proxy, dict):
+        ok, err = api_keys.set_proxy(
+            enabled=proxy.get("enabled") if "enabled" in proxy else None,
+            host=proxy.get("host") if "host" in proxy else None,
+            port=proxy.get("port") if "port" in proxy else None,
+            user=proxy.get("user") if "user" in proxy else None,
+            password=proxy.get("password") if "password" in proxy else None)
+        if not ok:
+            # Неверный адрес прокси возвращаем ОТДЕЛЬНЫМ полем, а не общей
+            # ошибкой: остальные настройки (ключ, модель) уже сохранены, и
+            # панель должна перерисоваться, а не показать пустую форму.
+            problems["proxy_error"] = err
+    dns = data.get("dns")
+    if isinstance(dns, dict):
+        ok, err = api_keys.set_dns(
+            enabled=dns.get("enabled") if "enabled" in dns else None,
+            url=dns.get("url") if "url" in dns else None)
+        if not ok:
+            problems["dns_error"] = err
+    return jsonify(_api_settings_payload(problems or None))
+
+
+@chats_bp.route('/api/models/refresh', methods=['POST'])
+def api_models_refresh():
+    """Список моделей с самого сервиса.
+
+    В реестре списки пустые намеренно: идентификаторы моделей меняются
+    постоянно, и зашитый в код перечень начал бы врать пользователю. Поэтому
+    он тянется отсюда, а поле модели в панели остаётся редактируемым — можно
+    вписать любой идентификатор руками.
+    """
+    data = request.json or {}
+    pid = (data.get("provider") or "").strip()
+    provider = providers.get_provider(pid)
+    if provider is None:
+        return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
+    url = providers.models_url(pid)
+    if not url:
+        return jsonify({"error": u"У «%s» не задан адрес списка моделей."
+                                 % provider["name"]}), 400
+    blocked = providers.unavailable_reason(pid)
+    if blocked:
+        # К такому провайдеру не ходим вовсе — даже за списком моделей: он и его
+        # отдаёт только клиентам из своего списка, а лишний отказ в его логах
+        # нам ни к чему.
+        return jsonify(_api_settings_payload({
+            "error": u"«%s» пока недоступен: %s" % (provider["name"], blocked),
+            "provider": pid}))
+    try:
+        raw = openai_compat.fetch_models(
+            url, api_keys.resolve_key(pid, providers.env_names_for(pid)),
+            extra_headers=providers.headers_for(pid),
+            proxy=api_keys.proxy_url(),
+            connect_timeout=providers.connect_timeout_for(pid))
+    except openai_compat.ApiError as e:
+        msg, _status, _retry = api_backend.describe_api_error(e, provider["name"])
+        print("<-- Список моделей %s не получен: %s" % (pid, msg))
+        # Отвечаем 200 с текстом причины, а НЕ 502. Панель для любого не-200
+        # показывает общее «сервер вернул ошибку (HTTP 502)» и выбрасывает тело
+        # ответа — то есть пользователь не видел настоящей причины (недоступен
+        # провайдер, неверный прокси, отклонён ключ). Здесь сервер отработал
+        # штатно; неисправен внешний сервис, и об этом надо сказать словами.
+        return jsonify(_api_settings_payload({"error": msg, "provider": pid}))
+    free_only = bool(data.get("free_only"))
+    models = providers.parse_models_response(raw, free_only=free_only)
+    print("--> Список моделей %s обновлён: %d шт.%s"
+          % (pid, len(models), " (только бесплатные)" if free_only else ""))
+    return jsonify(_api_settings_payload({"models": models,
+                                          "provider": pid,
+                                          "free_only": free_only}))
+
+
+def _tls_note(pid):
+    """Кто отвечает по адресу провайдера — по издателю TLS-сертификата.
+
+    Главная диагностика при непонятных отказах: если сертификат выдан не
+    публичным удостоверяющим центром, а, например, антивирусом, значит трафик
+    перехватывается, и «отказ сервиса» на самом деле пришёл от посредника.
+    """
+    try:
+        probe = openai_compat.tls_probe(providers.base_url_for(pid),
+                                       proxy=api_keys.proxy_url())
+    except Exception as e:
+        return {"ok": False, "error": str(e)}, ""
+    if not probe.get("ok"):
+        return probe, ""
+    issuer = probe.get("issuer") or "?"
+    low = issuer.lower()
+    # Признаки перехвата: издателем выступает не удостоверяющий центр, а
+    # программа на машине или в сети.
+    suspicious = any(w in low for w in (
+        "kaspersky", "eset", "avast", "avg", "bitdefender", "dr.web", "drweb",
+        "norton", "mcafee", "sophos", "fortinet", "zscaler", "netskope",
+        "proxy", "firewall", "gateway", "local", "self-signed"))
+    note = u"Сертификат выдан: %s." % issuer
+    if suspicious:
+        note += (u" Это НЕ публичный удостоверяющий центр — значит HTTPS "
+                 u"перехватывается программой на вашей машине или в сети "
+                 u"(антивирус, шлюз). Ответы «доступ запрещён» приходят от неё, "
+                 u"а не от провайдера: добавьте адрес провайдера в исключения "
+                 u"этой программы.")
+    return probe, note
+
+
+@chats_bp.route('/api/test', methods=['POST'])
+def api_test():
+    """Проверка подключения: НАСТОЯЩИЙ минимальный запрос к модели.
+
+    Именно запрос, а не пинг: у Gemini адрес API
+    (generativelanguage.googleapis.com) — другой хост, чем у сайта
+    (gemini.google.com), и доступность через прокси у них может отличаться.
+    Пользователь должен узнать это здесь, а не посреди задачи.
+
+    При неудаче дополнительно сообщается издатель TLS-сертификата: по нему
+    видно, отвечает ли настоящий сервис или трафик перехватывает посредник.
+    """
+    data = request.json or {}
+    pid = (data.get("provider") or "").strip()
+    provider = providers.get_provider(pid)
+    if provider is None:
+        return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
+    model = (data.get("model") or "").strip() or providers.model_for(pid)
+    blocked = providers.unavailable_reason(pid)
+    if blocked:
+        # Проверять нечего: запрос всё равно отклонит сам сервис, а «проверка»,
+        # которая заведомо стучится в закрытую дверь, только путает.
+        return jsonify({"ok": False,
+                        "error": u"«%s» пока недоступен: %s"
+                                 % (provider["name"], blocked)})
+    ok, why = providers.readiness(pid)
+    if not ok and not model:
+        return jsonify({"ok": False, "error": u"Не готово: %s." % why})
+    try:
+        transport = anthropic_compat if providers.transport_for(pid, model) == "anthropic" else openai_compat
+        args = (providers.base_url_for(pid),
+                api_keys.resolve_key(pid, providers.env_names_for(pid)),
+                model, [{"role": "user", "content": "ping"}])
+        kwargs = {"max_tokens": 64,
+                  "extra_headers": providers.headers_for(pid),
+                  "proxy": api_keys.proxy_url(),
+                  "connect_timeout": providers.connect_timeout_for(pid)}
+        # У части шлюзов обычный (non-stream) запрос не успевает пройти сквозь
+        # их собственный таймаут и возвращается 504 — на рабочем ключе. Поток
+        # к тому же ближе к боевому режиму: чат работает именно им.
+        if providers.test_with_stream(pid):
+            res = transport.stream_chat(*args, **kwargs)
+        else:
+            res = transport.complete_chat(*args, **kwargs)
+    except openai_compat.ApiError as e:
+        msg, _status, _retry = api_backend.describe_api_error(
+            e, provider["name"], model)
+        probe, note = _tls_note(pid)
+        if note:
+            msg += u" " + note
+        print("<-- Проверка подключения к %s: %s" % (pid, msg))
+        return jsonify({"ok": False, "error": msg,
+                        "tls_issuer": probe.get("issuer", ""),
+                        "tls_error": probe.get("error", "")})
+    ms = int((res.get("elapsed") or 0) * 1000)
+    proxy_note = u" через прокси" if api_keys.proxy_url() else u""
+    print("--> Проверка подключения к %s (%s): успех, %d мс%s"
+          % (pid, model, ms, proxy_note))
+    return jsonify({"ok": True, "model": res.get("model") or model,
+                    "elapsed_ms": ms, "via_proxy": bool(api_keys.proxy_url()),
+                    "message": u"Ответ получен за %d мс%s." % (ms, proxy_note)})
+
+
+def _new_api_chat(data, base):
+    """Новый чат по ключу API: без браузера, без адреса страницы.
+
+    Провайдер и модель ЗАКРЕПЛЯЮТСЯ за чатом. Смена модели в настройках на
+    уже созданный чат не влияет: другая модель — другой стиль и другая
+    точность соблюдения формата действий, а разбираться потом в истории,
+    склеенной из ответов разных моделей, невозможно.
+    """
+    pid = (data.get("provider") or "").strip() or api_keys.get_defaults().get("provider")
+    pid = pid or providers.DEFAULT_PROVIDER_ID
+    provider = providers.get_provider(pid)
+    if provider is None:
+        return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
+    model = (data.get("model") or "").strip() or providers.model_for(pid)
+    if model:
+        api_keys.set_model(pid, model)
+    ok, why = providers.readiness(pid)
+    if not ok:
+        return jsonify({"error": u"Провайдер «%s» не готов: %s. Откройте "
+                                 u"настройки API-ключа." % (provider["name"], why)}), 400
+    api_keys.set_defaults(pid, model)
+
+    rec = chat_store.create_chat(base, url="", primed=False)
+    chat_store.update_chat(base, rec["id"], kind="api", provider=pid, model=model,
+                           # site_name переиспользуем как подпись чата в списке:
+                           # панель уже умеет её показывать, отдельное поле не нужно.
+                           site_name=u"%s · %s" % (provider["name"], model))
+    rec = chat_store.find_chat(base, rec["id"]) or rec
+    S.STATE["current_chat_id"] = rec["id"]
+    S.STATE["current_site_id"] = None
+    S.STATE["is_primed"] = False
+    S._save_primed(S.STATE.get("project_root"), False)
+    S.clear_pending_confirmations()
+    S.STATE["stale_note"] = ""
+    api_history.clear(base, rec["id"])
+    chat_store.append_transcript(
+        base, rec["id"], "system",
+        u"Чат работает по ключу API: %s, модель %s. Модель закреплена за этим "
+        u"чатом — чтобы работать на другой, создайте новый чат."
+        % (provider["name"], model))
+    print("--> Новый API-чат:", rec["id"], pid, model)
+    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
+                    "current_id": rec["id"], "title": rec["title"],
+                    "site": rec.get("site_name", ""), "site_id": "",
+                    "kind": "api", "provider": pid, "model": model})
+
+
 @chats_bp.route('/browser/status', methods=['POST'])
 def browser_status():
     """Готова ли текущая страница браузера (панель показывает уведомление,
     когда сайт догрузился, чтобы не казалось, что агент завис)."""
     driver = S.get_driver()
     if driver is None:
-        return jsonify({"ready": False, "state": "booting", "url": ""})
+        # Различаем два разных «браузера нет»: он ещё грузится (booting) или
+        # его вообще не запускали, потому что работа идёт по ключу API (idle).
+        # Панель смотрит только на ready, но в диагностике разница важна.
+        state = "booting" if S.browser_boot_started() else "idle"
+        return jsonify({"ready": False, "state": state, "url": ""})
     state = ""
     url = ""
     try:
@@ -155,6 +427,8 @@ def chats_new():
     base = S._chats_dir()
     if not base:
         return jsonify({"error": "Нет user_data_dir (отправьте сообщение или Синхронизацию)."}), 400
+    if (data.get("kind") or "").strip() == "api":
+        return _new_api_chat(data, base)
     site = sites.get_site(data.get("site_id") or "aistudio") or sites.get_site("aistudio")
     target_url = site["new_chat_url"] if site else "https://aistudio.google.com/prompts/new_chat"
     try:
@@ -240,6 +514,12 @@ def chats_open():
                      "title": rec.get("title"),
                      "site": rec.get("site_name", ""),
                      "site_id": rec.get("site_id", ""),
+                     # Панели нужно знать вид чата: у чата по ключу нет страницы
+                     # в браузере, поэтому ей нельзя ждать её загрузки и незачем
+                     # напоминать про выбор модели на сайте.
+                     "kind": S.chat_kind(rec),
+                     "provider": rec.get("provider", ""),
+                     "model": rec.get("model", ""),
                      "warning": page_note,
                     "transcript": rec.get("transcript", [])})
 
@@ -269,7 +549,15 @@ def chats_delete():
     cid = (data.get("id") or "").strip()
     if not base or not cid:
         return jsonify({"error": "Нужен id."}), 400
-    chat_store.delete_chat(base, cid)
+    # История API-чата лежит отдельным файлом — убираем вместе с чатом, иначе
+    # папка копит переписки уже несуществующих чатов.
+    if not api_history.delete(base, cid):
+        return jsonify({"error": "Не удалось удалить историю API-чата с диска."}), 500
+    if not chat_store.delete_chat(base, cid):
+        return jsonify({"error": "Чат не найден или его не удалось удалить с диска."}), 404
+    # Журнал отката хранит изменения файлов отдельно от переписки. Сам откат
+    # сохраняем, но убираем id и название удалённого чата.
+    history.forget_chat(S.STATE.get("project_root"), cid)
     S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
     if S.STATE.get("current_chat_id") == cid:
         S.clear_pending_confirmations()

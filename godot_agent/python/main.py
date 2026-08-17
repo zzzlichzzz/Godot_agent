@@ -54,6 +54,7 @@ from agent_prompts import (
     MAX_PLAN_TOTAL_STEPS,
     MAX_PLAN_PARTS,
     MAX_CONTENT_PARTS,
+    API_MAX_TOKENS,
 )
 
 # шаги plan-режима ограничены теми же write-действиями, что и одиночные действия,
@@ -91,8 +92,8 @@ import live_input
 import rate_limit  # v104.12: детект 429/лимитов + спящий режим
 import server_state
 from server_state import (
-    STATE, get_driver, set_driver, wait_driver, set_driver_error,
-    _prime_flag_path, _load_primed, _save_primed,
+    STATE, get_driver, set_driver, set_driver_error,
+    _load_primed, _save_primed,
     _apply_session_context, _ensure_current_chat, _remember,
     _sync_chat_after_reply, _set_progress, _clear_progress,
 )
@@ -109,10 +110,25 @@ import kimi_parser      # noqa: F401
 import arena_parser     # noqa: F401
 import answer_judge     # noqa: F401
 
+# Бэкенды отправки: браузер (обёртка над парсерами) и работа по ключу API.
+# Выбор между ними — в _current_backend(); ниже этой функции main.py не знает,
+# с чем разговаривает.
+import browser_backend
+import api_backend
+import api_history      # noqa: F401  (нужен /chats/delete: убрать историю чата)
+import api_keys         # noqa: F401  (статические импорты для PyInstaller)
+import providers        # noqa: F401
+
 from chat_routes import chats_bp
+import server_auth
 
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
+# Проверка источника запросов. Что она даёт и чего НЕ даёт — в докстринге
+# server_auth: от программы под той же учётной записью она не защищает, но
+# закрывает чужую учётную запись, случайные обращения и — главное — панель
+# другого проекта Godot, чьи правки иначе уехали бы в этот проект.
+server_auth.install(app, jsonify)
 
 
 def _current_parser():
@@ -139,6 +155,63 @@ def _current_parser():
     return sites.get_parser_module(site_id, url)
 
 
+def _api_system_text():
+    """Системный блок для чата по ключу.
+
+    По API модель не помнит ничего, поэтому мега-промпт уходит СИСТЕМНЫМ
+    сообщением в КАЖДОМ запросе — в отличие от браузерного режима, где он
+    отправляется один раз за чат и дальше живёт в переписке на сайте.
+    Собирает его main.py, потому что только здесь есть дерево проекта,
+    архитектура и версия движка; бэкенд лишь вызывает эту функцию.
+
+    РЕЗУЛЬТАТ КЭШИРУЕТСЯ НА ОДИН ХОД ПОЛЬЗОВАТЕЛЯ, и это принципиально, а не
+    ради скорости:
+
+    1. _build_priming_context обходит весь проект (build_project_overview) и
+       вызывает _refresh_fs_snapshot. Один ход пользователя — это несколько
+       запросов к модели (самоисцеление, дочитывание файлов, шаги плана), и
+       без кэша каждый из них заново обходил бы файловую систему и СБРАСЫВАЛ
+       отпечаток, по которому определяются правки пользователя руками.
+    2. Кэш промпта у провайдеров работает только на НЕИЗМЕННОМ префиксе. Если
+       системный блок пересобирается на каждый запрос, любое отличие (а дерево
+       меняется после create_file) обнуляет кэш и делает мега-промпт полностью
+       платным каждый раз.
+
+    Сбрасывается в начале каждого сообщения пользователя (см. chat()), чтобы
+    свежее дерево проекта попадало в следующий ход.
+    """
+    root = STATE.get("project_root")
+    cached = STATE.get("api_system_cache")
+    if isinstance(cached, dict) and cached.get("root") == root and cached.get("text"):
+        return cached["text"]
+    text = _build_priming_context(root)
+    STATE["api_system_cache"] = {"root": root, "text": text}
+    return text
+
+
+def _drop_api_system_cache():
+    """Забыть системный блок: следующий запрос соберёт его заново со свежим
+    деревом проекта."""
+    STATE["api_system_cache"] = None
+
+
+def _current_backend():
+    """Чем отправляем запрос: браузером или напрямую по ключу API.
+
+    Единственная точка выбора. Ниже неё main.py не знает, с чем работает:
+    оба бэкенда отдают одинаковый словарь ответа и умеют сообщить про лимит
+    запросов. Записи чатов без поля kind (все существующие) — браузерные,
+    поэтому миграция не нужна.
+    """
+    rec = server_state.get_current_chat() or {}
+    if (rec.get("kind") or "browser") == "api":
+        return api_backend.ApiBackend(
+            rec, server_state._chats_dir(),
+            system_text_provider=_api_system_text,
+            max_tokens=API_MAX_TOKENS)
+    return browser_backend.BrowserBackend(_current_parser())
+
+
 def _reply(prompt):
     """v104.12: обёртка над _reply_once — спящий режим при лимитах запросов.
 
@@ -150,22 +223,45 @@ def _reply(prompt):
     attempt = 0
     while True:
         text, action = _reply_once(prompt)
+        backend = _current_backend()
         try:
-            net_status = _current_parser().pop_rate_limit_network_status()
+            net_status = backend.pop_rate_limit_status()
         except Exception:
             net_status = None
-        reason = (rate_limit.reason_from_status(net_status)
-                  or rate_limit.reason_from_text(text, action))
+        try:
+            # Сколько просил подождать сам сервис (Retry-After). У браузерных
+            # сайтов всегда None — там ориентир только наше расписание.
+            retry_after = backend.pop_retry_after()
+        except Exception:
+            retry_after = None
+        reason = rate_limit.reason_from_status(net_status)
+        if reason is None and backend.kind != "api":
+            # Поиск маркеров лимита ПО ТЕКСТУ ответа нужен только браузерному
+            # режиму: там о лимите часто сообщает баннер на странице, а не
+            # статус запроса. По API статус известен точно, и угадывание по
+            # тексту может только навредить — например, собственное сообщение
+            # «[Суточный лимит]: … (Rate limit exceeded)» содержит маркер
+            # «rate limit», и агент уходил бы спать там, где мы намеренно
+            # решили не спать (до сброса суточной квоты — часы).
+            reason = rate_limit.reason_from_text(text, action)
         if not reason:
             return text, action
-        wait_s = rate_limit.sleep_seconds(attempt)
+        wait_s = rate_limit.sleep_seconds(attempt, retry_after)
         if wait_s is None:
             print("<-- [лимит] не отпустило после %d пауз — останавливаюсь честно." % attempt)
+            if retry_after:
+                # Провайдер назвал срок, который мы ждать не готовы: держать
+                # редактор заблокированным полчаса-час нельзя.
+                return (u"[Лимит запросов]: сервис просит подождать %d с (%s). "
+                        u"Это слишком долго для ожидания в редакторе — "
+                        u"попробуйте позже или выберите другую модель."
+                        % (int(retry_after), reason)), None
             return (u"[Лимит запросов]: сайт ограничивает запросы (%s). "
                     u"Подождите несколько минут и повторите запрос." % reason), None
         attempt += 1
-        print("--> [лимит] %s — спящий режим %d с (пауза %d/%d)"
-              % (reason, wait_s, attempt, len(rate_limit.SLEEPS)))
+        print("--> [лимит] %s — спящий режим %d с (пауза %d/%d%s)"
+              % (reason, wait_s, attempt, len(rate_limit.SLEEPS),
+                 ", по Retry-After" if retry_after else ""))
         _set_progress({"phase": u"лимит запросов — сплю %d с" % wait_s})
         t_end = time.time() + wait_s
         try:
@@ -184,13 +280,13 @@ def _reply_once(prompt):
     # v88.11: на время обмена «промпт->ответ» живой ввод (/chat/live_input)
     # не трогает браузер — конвейер сам вставит и сверит финальный промпт.
     server_state.begin_exchange()
-    _set_progress({"phase": "отправляю запрос в браузер"})
+    _set_progress({"phase": "отправляю запрос"})
     try:
         # v54: адрес текущего чата — чтобы печатать в ЕГО вкладку, а не в первую
-        # попавшуюся вкладку сайта (у пользователя могла быть открыта вкладка ста��ого чата).
+        # попавшуюся вкладку сайта (у пользователя могла быть открыта вкладка старого чата).
         _chat_rec = server_state.get_current_chat() or {}
-        result = _current_parser().send_message_and_get_response(
-            wait_driver(), prompt, progress_cb=_set_progress,
+        result = _current_backend().send(
+            prompt, progress_cb=_set_progress,
             cancel_cb=server_state.cancel_requested,
             prefer_url=_chat_rec.get("url") or None)
     except parser_base.ParserCancelled:
@@ -201,6 +297,9 @@ def _reply_once(prompt):
         server_state.end_exchange()
     if isinstance(result, dict):
         text, action = result.get("text") or "", result.get("action")
+        choice = result.get("battle_choice")
+        if isinstance(choice, dict):
+            STATE["battle_choice_summary"] = choice
     else:
         text, action = result or "", None
     act_name = action.get("action") if isinstance(action, dict) else "нет"
@@ -408,7 +507,14 @@ def _apply_write_step(action, project_root, chain_id=None):
     """Применяет ОДНО write-действие (create_file/patch_file/move_file) на диске,
     с записью в журнал изменений. Общий путь для одиночных действий
     и для шагов плана (chain_id задаётся только во втором случае).
-    Возвращает dict: {"ok", "message", "changed_path", "changed_block"}."""
+    Возвращает dict: {"ok", "message", "changed_path", "changed_block", "entry_id"}.
+
+    entry_id — идентификатор записи журнала. Он обязан доходить до панели:
+    именно по нему кнопка отката на карточке сообщения отменяет ИМЕННО ЭТО
+    изменение. Раньше id оставался локальной переменной, панель просила
+    «откатить последнее», и кнопка на старом облачке чата отменяла чужое,
+    самое свежее изменение проекта.
+    """
     act_type = action.get("action")
     path = action.get("path", "")
     dest = action.get("dest", "")
@@ -450,10 +556,14 @@ def _apply_write_step(action, project_root, chain_id=None):
         _touch_file_read(path)
     if act_type == "create_file":
         message = ("Файл полностью перезаписан: %s" % path) if overwrote else ("Файл успешно создан: %s" % path)
-        return {"ok": True, "message": message, "changed_path": path, "changed_block": action.get("content", "")}
+        return {"ok": True, "message": message, "changed_path": path,
+                "changed_block": action.get("content", ""), "entry_id": entry_id}
     if act_type == "patch_file":
-        return {"ok": True, "message": "Изменения успешно внесены в файл: %s" % path, "changed_path": path, "changed_block": action.get("replace", "")}
-    return {"ok": True, "message": "Файл успешно перемещён в: %s" % action.get("dest", ""), "changed_path": None, "changed_block": None}
+        return {"ok": True, "message": "Изменения успешно внесены в файл: %s" % path,
+                "changed_path": path, "changed_block": action.get("replace", ""),
+                "entry_id": entry_id}
+    return {"ok": True, "message": "Файл успешно перемещён в: %s" % action.get("dest", ""),
+            "changed_path": None, "changed_block": None, "entry_id": entry_id}
 
 
 # ---------------------------------------------------------------------------
@@ -771,6 +881,20 @@ def _package_model_reply(text, action, project_root, depth=0):
     })
 
 
+def _attach_battle_choice(response):
+    summary = STATE.pop("battle_choice_summary", None)
+    if not isinstance(summary, dict):
+        return response
+    try:
+        payload = response.get_json(silent=True)
+    except Exception:
+        payload = None
+    if not isinstance(payload, dict):
+        return response
+    payload["battle_choice"] = summary
+    return jsonify(payload)
+
+
 def _current_chat_info():
     """(chat_id, chat_title) текущего чата — для меток в журнале изменений."""
     chat = server_state.get_current_chat()
@@ -899,7 +1023,16 @@ def _lint_action_code(action, project_root, planned_paths=None):
     if not problems:
         _deps_note_script_action(candidate, path, project_root)
         return None
-    listing = "\n".join("- %s" % p for p in problems[:8])
+    # Все замечания уходят модели ОДНИМ сообщением, а не по одному: иначе
+    # каждая мелочь стоила бы отдельного обращения к модели (по API — ещё и
+    # отдельного оплаченного запроса). Список ограничен, но об остатке модель
+    # предупреждается явно — иначе она считала бы, что исправила всё.
+    shown = problems[:8]
+    listing = "\n".join("- %s" % p for p in shown)
+    if len(problems) > len(shown):
+        listing += ("\n- …и ещё %d замечани(й) — исправь все перечисленные, "
+                    "остальные придут следующей проверкой."
+                    % (len(problems) - len(shown)))
     msg_head = "[Sistema]"
     return (
         "[" + "\u0421\u0438\u0441\u0442\u0435\u043c\u0430" + "]: \u0422\u0432\u043e\u0439 \u043a\u043e\u0434 \u0434\u043b\u044f \u0444\u0430\u0439\u043b\u0430 " + path + " \u043d\u0435 \u043f\u0440\u043e\u0448\u0451\u043b \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443. "
@@ -1474,7 +1607,13 @@ def chat():
 
     _apply_session_context(data)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
+    STATE["battle_choice_summary"] = None
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
+    # Системный блок для API-режима пересобирается один раз на сообщение
+    # пользователя: внутри хода он обязан быть НЕИЗМЕННЫМ (иначе не работает
+    # кэш промпта у провайдера), а между ходами — свежим (дерево проекта могло
+    # измениться после create_file/move_file).
+    _drop_api_system_cache()
     # Каждое НОВОе сообщение пользователя занова решает, ��азрешены ли в этом ходе действия над
     # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
     # задаётся заново на каждое такое сообщение, а не один раз, чтобы досту�� к аддонам не застревал нав��егда.
@@ -1534,7 +1673,17 @@ def chat():
             _save_primed(current_root, True)
             print("--> Чат уже обучен мега-промптом этой версии — повторная отправка не нужна (v104.2).")
 
-        if not STATE.get("is_primed", False):
+        if server_state.current_chat_is_api():
+            # По API мега-промпт уходит ОТДЕЛЬНЫМ системным сообщением в
+            # КАЖДОМ запросе — это делает ApiBackend через _api_system_text().
+            # Значит в текст запроса его подмешивать нельзя, иначе он уедет
+            # дважды и удвоит расход токенов. Флаг is_primed («дерево уже
+            # отправлено») здесь смысла не имеет: по API нет переписки на
+            # сайте, где что-то могло бы «остаться» с прошлого раза.
+            print(f"\n---> Отправка по API ({len(prompt)} симв.)")
+            text, action = _reply_with_self_heal(prompt, current_root)
+            server_state.mark_chat_prompt_version()
+        elif not STATE.get("is_primed", False):
             print("\n---> Авто-инициализация сессии и отправка мега-промпта...")
             system_context = _build_priming_context(current_root)
             # v104.6: маркер без синтаксиса «[метка]: адрес» — старый вид Markdown считал
@@ -1549,7 +1698,8 @@ def chat():
             print(f"\n---> Отправка сообщения ({len(prompt)} симв.)")
             text, action = _reply_with_self_heal(prompt, current_root)
 
-        return _package_model_reply(text, action, current_root)
+        return _attach_battle_choice(
+            _package_model_reply(text, action, current_root))
     except Exception as e:
         print(f"❌ ОШИБКА: {e}")
         traceback.print_exc()
@@ -1631,6 +1781,11 @@ def confirm_action():
             if result.get("changed_path"):
                 resp["changed_path"] = result["changed_path"]
                 resp["changed_block"] = result.get("changed_block", "")
+            # Адрес записи журнала для кнопки отката на ЭТОЙ карточке
+            # сообщения. Без него панель могла просить только «откатить
+            # последнее» и отменяла не то изменение, на которое нажали.
+            if result.get("entry_id"):
+                resp["history_entry_id"] = result["entry_id"]
             return jsonify(resp)
 
         elif act_type == "search_project":
@@ -1694,13 +1849,26 @@ def confirm_action():
 @app.route('/chat/rollback/preview', methods=['POST'])
 def rollback_preview():
     """Что именно отменит откат — панель показывает это в диалоге
-    подтверждения, чтобы не откатить вслепую действие другого чата."""
+    подтверждения, чтобы не откатить вслепую действие другого чата.
+
+    entry_id (необязателен) — адрес КОНКРЕТНОЙ записи журнала. Панель
+    присылает его, когда пользователь нажал откат на карточке сообщения:
+    иначе откатилось бы просто самое свежее изменение проекта, каким бы оно
+    ни было и из какого чата ни пришло. Без entry_id остаётся прежнее
+    поведение («последнее действие») — это путь для старой панели и для
+    кнопки отката в дополнительных настройках."""
+    data = request.json or {}
+    entry_id = str(data.get("entry_id") or "").strip()
     if not STATE.get("project_root"):
         return jsonify({"error": "Проект не синхронизирован."}), 400
-    info = history.last_committed_info(STATE["project_root"])
+    if entry_id:
+        info = history.entry_info(STATE["project_root"], entry_id)
+    else:
+        info = history.last_committed_info(STATE["project_root"])
     if not info:
-        return jsonify({"found": False})
-    kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание фай��а",
+        return jsonify({"found": False,
+                        "gone": bool(entry_id)})
+    kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
                "patch_file": "правка файла", "move_file": "перемещение файла"}
     desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), info["path"])
     when = time.strftime("%H:%M", time.localtime(info.get("ts", 0)))
@@ -1710,9 +1878,27 @@ def rollback_preview():
     else:
         src = "%s, чат неизвестен (изменение сделано до обновления)" % when
     resp = {"found": True, "description": "%s (%s)" % (desc, src)}
-    # если последнее действие — шаг неоткатанной цепочки плана из >1 шага — панель должна
-    # предложить откатить всю цепочку, а не по одному действию.
-    if info.get("chain_id") and info.get("chain_total", 0) > 1:
+    if entry_id:
+        resp["entry_id"] = entry_id
+        # Более свежие правки агента по тому же файлу делают адресный откат
+        # невозможным: он потерял бы их работу. Сообщаем это ДО подтверждения,
+        # а не после неудачной попытки.
+        blockers = info.get("newer_same_file") or []
+        if blockers:
+            resp["blocked"] = True
+            resp["description"] += (
+                ". ВНИМАНИЕ: этот файл агент правил ещё %d раз(а) позже. "
+                "Сначала откатите более свежие изменения — откат идёт от новых "
+                "к старым." % len(blockers))
+        # Шаг плана: честно предупреждаем, что остальные шаги останутся.
+        if info.get("chain_id") and info.get("chain_total", 0) > 1:
+            resp["description"] += (
+                ". Это один шаг плана из %d — остальные шаги останутся "
+                "применёнными." % info["chain_total"])
+    elif info.get("chain_id") and info.get("chain_total", 0) > 1:
+        # Прежнее поведение БЕЗ адреса: предложить откат всей цепочки. Для
+        # адресного отката такое расширение запрещено — пользователь нажал
+        # откат на конкретном сообщении и ждёт отката именно его.
         resp["chain_id"] = info["chain_id"]
         resp["chain_total"] = info["chain_total"]
     return jsonify(resp)
@@ -1722,10 +1908,20 @@ def rollback_preview():
 def rollback():
     data = request.json or {}
     force = bool(data.get('force', False))
+    entry_id = str(data.get('entry_id') or "").strip()
     if not STATE.get("project_root"):
         return jsonify({"error": "Проект не синхронизирован."}), 400
     try:
-        ok, msg, needs_force, paths, diff = history.rollback_last(STATE["project_root"], force=force)
+        if entry_id:
+            # Адресный откат: отменяем ИМЕННО то изменение, на карточке
+            # которого нажали. Без адреса откатывалось самое свежее изменение
+            # проекта — из-за этого кнопка на старом облачке отменяла чужую
+            # работу, а на сообщении без действий вообще откатывала последнее.
+            ok, msg, needs_force, paths, diff = history.rollback_entry(
+                STATE["project_root"], entry_id, force=force)
+        else:
+            ok, msg, needs_force, paths, diff = history.rollback_last(
+                STATE["project_root"], force=force)
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -1875,6 +2071,12 @@ def plan_step():
             "chain_id": plan["chain_id"],
             "message": "Шаг %d/%d: %s" % (plan["index"], plan["total"], step_msg),
         }
+        # Адрес записи журнала этого шага. Панель сейчас показывает шаги плана
+        # простыми строками (без карточек с кнопкой отката) и откатывает план
+        # целиком через chain_id — поле задел на будущее, если появится откат
+        # отдельного шага.
+        if result.get("entry_id"):
+            resp["history_entry_id"] = result["entry_id"]
         if result.get("changed_path"):
             resp["changed_path"] = result["changed_path"]
             resp["changed_block"] = result.get("changed_block", "")
@@ -2235,9 +2437,10 @@ def chat_progress():
 
 
 def _boot_browser_background():
-    """Запуск Chrome В ФОНЕ: HTTP-сервер поднимается сразу (панель видит его
-    через 1-2 секунды), а браузер догоняет параллельно. Кому нужен
-    браузер — дождётся его через wait_driver()."""
+    """Запуск Chrome В ФОНЕ и ТОЛЬКО ПО ТРЕБОВАНИЮ: HTTP-сервер поднимается
+    сразу, а браузер запускается при первом обращении к wait_driver() (то
+    есть при первом браузерном чате). В режиме работы по ключу API браузер
+    не нужен вообще — не открываем лишнее окно и не тратим память."""
     try:
         set_driver(setup_browser())
         print("\u2705 Браузер готов.")
@@ -2274,10 +2477,20 @@ if __name__ == '__main__':
     try:
         _disable_quickedit()
         import logging
-        import threading
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
-        threading.Thread(target=_boot_browser_background, daemon=True).start()
+        # Браузер больше не стартует безусловно: регистрируем функцию запуска,
+        # а поднимет его первое же обращение к wait_driver() — то есть первый
+        # браузерный чат. Чату по ключу API браузер не нужен.
+        server_state.set_browser_booter(_boot_browser_background)
+        # Настройки DoH могли быть заданы в прошлой сессии — применяем их до
+        # первого запроса, иначе первый обмен ушёл бы через системный DNS.
+        try:
+            _dns = api_keys.apply_dns_settings()
+            if _dns.get("enabled"):
+                print("--> DNS over HTTPS: %s" % _dns.get("url"))
+        except Exception as e:
+            print("--> Не удалось применить настройки DNS: %s" % e)
         # ВАЖНО: только 127.0.0.1! На 0.0.0.0 любой в локальной сети
         # мог бы писать файлы в ваш проект простым POST-запросом.
         print("Dashbord servera: http://127.0.0.1:5000/dashboard")

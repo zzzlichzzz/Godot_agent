@@ -82,7 +82,18 @@ if errorlevel 1 (
 )
 echo.
 echo [2/3] Сборка exe (несколько минут, окно не закрывайте)...
-%PYCMD% -m PyInstaller --onedir --noconfirm --paths parsers --paths browser --paths godot_tools --paths server --collect-submodules selenium --hidden-import numpy --collect-submodules numpy --hidden-import minilich.ml_train --hidden-import minilich.ml_model --hidden-import minilich.ml_tokenizer --hidden-import parser_base --hidden-import ai_parser --hidden-import deepseek_parser --hidden-import qwen_parser --name godot_agent_server main.py
+rem ВАЖНО: список --paths должен совпадать с _PACKAGE_DIRS в _bootstrap.py.
+rem Модули лежат по подпапкам, а импортируются плоско; PyInstaller видит такие
+rem импорты только через --paths. Без --paths api --paths backends в сборку не
+rem попадали api_keys/providers/openai_compat/api_backend/browser_backend, и
+rem готовый exe падал на работе по ключу API, хотя локально всё работало.
+rem
+rem Модули работы по ключу перечислены и через --hidden-import, хотя --paths их
+rem уже находит по цепочке импортов из main.py. Это не дубль: цепочку легко
+rem порвать (сделать импорт ленивым или условным), и тогда модуль тихо выпадет
+rem из сборки. Явное перечисление также попадает в перегенерированный .spec,
+rem поэтому файл остаётся согласованным после каждой сборки.
+%PYCMD% -m PyInstaller --onedir --noconfirm --paths parsers --paths browser --paths godot_tools --paths server --paths api --paths backends --collect-submodules selenium --hidden-import numpy --collect-submodules numpy --hidden-import minilich.ml_train --hidden-import minilich.ml_model --hidden-import minilich.ml_tokenizer --hidden-import parser_base --hidden-import ai_parser --hidden-import deepseek_parser --hidden-import qwen_parser --hidden-import kimi_parser --hidden-import arena_parser --hidden-import answer_judge --hidden-import api_keys --hidden-import providers --hidden-import openai_compat --hidden-import anthropic_compat --hidden-import api_backend --hidden-import browser_backend --hidden-import api_history --hidden-import md_to_bbcode --hidden-import server_auth --hidden-import doh --name godot_agent_server main.py
 if errorlevel 1 (
     echo.
     echo [ERROR] Ошибка сборки. Прочитайте вывод выше.

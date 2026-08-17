@@ -55,6 +55,24 @@ def test_monitor_matches_first_and_followup_endpoints():
     assert not mon._match_request("https://arena.ai/rpc/i/v0/e/", "POST")
 
 
+def test_module_response_carries_battle_choice_summary():
+    old_send = arena_module.PARSER.send_message_and_get_response
+    old_summary = ArenaParser._last_choice_summary
+    summary = {
+        "selected": "A", "score_a": 87, "score_b": 85,
+        "reason": "higher_score", "other": "B",
+    }
+    arena_module.PARSER.send_message_and_get_response = (
+        lambda *args, **kwargs: {"text": "ok", "action": None})
+    ArenaParser._last_choice_summary = summary
+    try:
+        result = arena_module.send_message_and_get_response(None, "prompt")
+        assert result["battle_choice"] == summary
+    finally:
+        arena_module.PARSER.send_message_and_get_response = old_send
+        ArenaParser._last_choice_summary = old_summary
+
+
 def test_battle_collects_two_separate_post_bodies_as_a_and_b():
     body_a = 'a0:"answer A\\n===DONE==="\nad:{"finishReason":"stop"}\n'
     body_b = ('a0:"answer B\\n```agent_action\\n{\\"action\\":'
@@ -693,6 +711,10 @@ def test_battle_plain_answers_are_returned_without_arena_vote():
     assert result == "no_vote"
     assert monitor.selected == 0
     assert clicks == []
+    assert ArenaParser._last_choice_summary == {
+        "selected": "A", "score_a": 74, "score_b": 74,
+        "reason": "not_verifiable", "other": "B",
+    }
 
 
 def test_battle_action_tie_votes_both_good_and_selects_a_locally():
@@ -725,6 +747,23 @@ def test_battle_action_tie_votes_both_good_and_selects_a_locally():
     assert selection == "choice"
     assert monitor.selected == 0
     assert clicks == ["both_good"]
+    assert ArenaParser._last_choice_summary == {
+        "selected": "A", "score_a": 90, "score_b": 90,
+        "reason": "equal", "other": "B",
+    }
+
+
+def test_battle_choice_summary_explains_required_continuation():
+    parser = ArenaParser()
+    parser._remember_choice_summary(0, [
+        (0, {"score": 87, "action": {"action": "plan"}}),
+        (1, {"score": 85, "action": {"action": "plan", "continues": True}}),
+    ], "higher_score")
+
+    assert ArenaParser._last_choice_summary == {
+        "selected": "A", "score_a": 87, "score_b": 85,
+        "reason": "other_continues", "other": "B",
+    }
 
 
 def test_two_unacceptable_variants_click_skip():

@@ -183,10 +183,6 @@ func _build_panel(panel_script_path: String) -> Control:
 	reinit_btn.name = "ReinitButton"
 	reinit_btn.text = _lt("reinit", "Переинициализировать (переслать структуру проекта)")
 	adv_box.add_child(reinit_btn)
-	var rollback_btn := Button.new()
-	rollback_btn.name = "RollbackButton"
-	rollback_btn.text = _lt("rollback", "Откатить последнее изменение")
-	adv_box.add_child(rollback_btn)
 
 	# Скрипт панели подключаем ПОСЛЕ создания детей: когда панель попадёт
 	# в док, сработает _ready() и все @onready-ссылки найдут свои узлы.

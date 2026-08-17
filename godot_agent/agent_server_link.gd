@@ -32,7 +32,63 @@ const BROWSER_STATUS_URL = "http://" + HOST + "/browser/status"
 const MINILICH_STATUS_URL = "http://" + HOST + "/minilich/status"
 const MINILICH_SET_URL = "http://" + HOST + "/minilich/set"
 const MINILICH_GITHUB_URL = "http://" + HOST + "/minilich/github_fetch"
+# Работа по ключу API: список провайдеров, сохранение настроек, список моделей
+# и проверка подключения.
+const API_PROVIDERS_URL = "http://" + HOST + "/api/providers"
+const API_SET_URL = "http://" + HOST + "/api/settings/set"
+const API_MODELS_URL = "http://" + HOST + "/api/models/refresh"
+const API_TEST_URL = "http://" + HOST + "/api/test"
 const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
+# Токен, которым панель подтверждает серверу, что запрос от неё и от ЭТОГО
+# проекта. Лежит в user:// — то есть в папке конкретного проекта, поэтому
+# сервер, привязавшись к первому обратившемуся проекту, отклоняет панель
+# другого (см. server_auth.py). От программы под той же учётной записью это
+# не защищает: файл читается тем же пользователем.
+const TOKEN_FILE := "user://godot_agent_token.txt"
+const TOKEN_HEADER := "X-Agent-Token"
+
+# Токен читается один раз за сессию редактора: он не меняется, а запросов к
+# серверу десятки, и чтение файла на каждый из них — лишняя работа.
+static var _token_cache: String = ""
+
+
+static func project_token() -> String:
+	# Токен создаётся один раз и переживает перезапуск редактора: сервер мог
+	# уже привязаться к прежнему значению, и смена токена на каждом запуске
+	# заставляла бы перезапускать и сервер.
+	if _token_cache.length() >= 16:
+		return _token_cache
+	if FileAccess.file_exists(TOKEN_FILE):
+		var f := FileAccess.open(TOKEN_FILE, FileAccess.READ)
+		if f:
+			var saved := f.get_as_text().strip_edges()
+			f.close()
+			if saved.length() >= 16:
+				_token_cache = saved
+				return _token_cache
+	var token := ""
+	for i in 8:
+		# crypto-стойкость здесь не нужна и недостижима (файл всё равно читает
+		# тот же пользователь) — достаточно, чтобы значение нельзя было угадать.
+		token += "%08x" % (randi() ^ (Time.get_ticks_usec() + i * 7919))
+	var w := FileAccess.open(TOKEN_FILE, FileAccess.WRITE)
+	if w:
+		w.store_string(token)
+		w.close()
+	_token_cache = token
+	return token
+
+
+static func json_headers() -> PackedStringArray:
+	# Единая точка сборки заголовков. Панель (agent_panel.gd) вызывает
+	# project_token() у ЭКЗЕМПЛЯРА этого узла, а не у загруженного скрипта:
+	# has_method() у объекта GDScript не даёт надёжного ответа про
+	# пользовательские static func, и молчаливое «нет» означало бы запросы без
+	# токена — сервер отклонял бы их все.
+	return PackedStringArray([
+		"Content-Type: application/json",
+		TOKEN_HEADER + ": " + project_token(),
+	])
 
 var _http: HTTPRequest = null
 var _inflight: bool = false
@@ -108,12 +164,16 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 		"minilich_status": url = MINILICH_STATUS_URL
 		"minilich_set": url = MINILICH_SET_URL
 		"minilich_github": url = MINILICH_GITHUB_URL
+		"api_providers": url = API_PROVIDERS_URL
+		"api_set": url = API_SET_URL
+		"api_models": url = API_MODELS_URL
+		"api_test": url = API_TEST_URL
 	_kind = kind
 	_extra = extra
 	_autostart_ok = allow_autostart
 	_inflight = true
 	_http.set_http_proxy("", 0)
-	var err = _http.request(url, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = _http.request(url, json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		_kind = ""
 		_inflight = false
@@ -143,11 +203,12 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 		server_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)
 		if kind == "status":
 			return
-		if kind == "minilich_status" or kind == "minilich_set" or kind == "minilich_github":
-			# Отдельная ветка: клик по галочке не должен незаметно пытаться
-			# автозапускать вторую копию сервера — важнее сразу показать панели
-			# ошибку (раньше это молча уходило в автозапуск, и галочка просто
-			# зависала в непонятном состоянии).
+		if kind == "minilich_status" or kind == "minilich_set" or kind == "minilich_github" or kind.begins_with("api_"):
+			# Отдельная ветка: клик по галочке или кнопке настроек не должен
+			# незаметно пытаться автозапускать вторую копию сервера — важнее
+			# сразу показать панели ошибку (раньше это молча уходило в
+			# автозапуск, и галочка просто зависала в непонятном состоянии).
+			# Настройки API здесь по той же причине: ошибку надо видеть в форме.
 			chats_response.emit(kind, {"error": _t("srv_no_response") + " (HTTP " + str(response_code) + ")"}, extra)
 			return
 		if result == HTTPRequest.RESULT_TIMEOUT:
