@@ -9,6 +9,7 @@ _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(
     _os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
 import _bootstrap  # noqa: E402,F401
 import anthropic_compat as A
+import openai_compat as OC0
 import providers
 
 
@@ -91,13 +92,16 @@ check("Anthropic endpoint used", req["path"] == "/v1/messages", req["path"])
 check("x-api-key sent", headers_lower.get("x-api-key") == key)
 check("Bearer sent", headers_lower.get("authorization") == "Bearer " + key)
 check("Anthropic version sent", headers_lower.get("anthropic-version") == A.ANTHROPIC_VERSION)
-# Главная причина, по которой AgentRouter отвечал 401 на рабочий ключ: он
-# пускает только клиентов из своего белого списка и узнаёт их по User-Agent.
-check("AgentRouter User-Agent replaces the default one",
-      headers_lower.get("user-agent") == providers.agentrouter_user_agent(),
+# ПЛАГИН НЕ ПРИТВОРЯЕТСЯ ЧУЖОЙ ПРОГРАММОЙ. AgentRouter пускает только клиентов
+# из своего списка и узнаёт их по User-Agent, но выдавать себя за opencode или
+# claude-cli значит подставлять под блокировку аккаунт пользователя. Поэтому в
+# запрос уходит настоящее имя плагина, а сам провайдер выключен (см. ниже).
+check("plugin sends its own User-Agent",
+      headers_lower.get("user-agent") == OC0.USER_AGENT,
       headers_lower.get("user-agent"))
-check("default User-Agent not left behind",
-      "godotagent" not in str(headers_lower.get("user-agent") or "").lower(),
+check("no third-party client name in User-Agent",
+      not any(w in str(headers_lower.get("user-agent") or "").lower()
+              for w in ("opencode", "claude-cli", "cline", "codex")),
       headers_lower.get("user-agent"))
 check("only one User-Agent header",
       sum(1 for k in req["headers"] if k.lower() == "user-agent") == 1,
@@ -126,50 +130,68 @@ check("AgentRouter Claude selects Anthropic transport",
 check("other providers remain OpenAI",
       providers.transport_for("openrouter", "anything") == "openai")
 
-# User-Agent нужен обеим группам моделей: без него 401 приходит и на
-# OpenAI-совместимый /chat/completions, и на GET /models.
-check("AgentRouter UA has a version (сервис требует «имя/версия»)",
-      "/" in providers.agentrouter_user_agent()
-      and providers.agentrouter_user_agent().split("/", 1)[1].strip() != "",
-      providers.agentrouter_user_agent())
-_os0.environ[providers.ENV_AGENTROUTER_UA] = "someclient/9.9.9"
-try:
-    check("AgentRouter UA overridable by env",
-          providers.headers_for("agentrouter").get("User-Agent") == "someclient/9.9.9",
-          providers.headers_for("agentrouter"))
-finally:
-    del _os0.environ[providers.ENV_AGENTROUTER_UA]
-check("other providers keep their own headers",
-      "User-Agent" not in providers.headers_for("openrouter"),
-      providers.headers_for("openrouter"))
+check("providers add no User-Agent of their own",
+      not any("user-agent" in k.lower()
+              for pid in providers.provider_ids()
+              for k in providers.headers_for(pid)),
+      {pid: providers.headers_for(pid) for pid in providers.provider_ids()})
 
 # Посредник ждёт свой апстрим: до первого байта у Claude замеряли до 68 с.
-import openai_compat as OC  # noqa: E402
-
+# Транспорт готов заранее — чтобы включение свелось к снятию одного флага.
 check("AgentRouter gets a longer connect timeout",
-      providers.connect_timeout_for("agentrouter") > OC.DEFAULT_CONNECT_TIMEOUT,
+      providers.connect_timeout_for("agentrouter") > OC0.DEFAULT_CONNECT_TIMEOUT,
       providers.connect_timeout_for("agentrouter"))
 check("other providers keep the default timeout",
-      providers.connect_timeout_for("openrouter") == OC.DEFAULT_CONNECT_TIMEOUT,
+      providers.connect_timeout_for("openrouter") == OC0.DEFAULT_CONNECT_TIMEOUT,
       providers.connect_timeout_for("openrouter"))
 check("unknown provider keeps the default timeout",
-      providers.connect_timeout_for("nope") == OC.DEFAULT_CONNECT_TIMEOUT)
+      providers.connect_timeout_for("nope") == OC0.DEFAULT_CONNECT_TIMEOUT)
 # non-stream к Claude шлюз обрывает своим 504 через 120 с.
 check("AgentRouter connection test uses streaming",
       providers.test_with_stream("agentrouter") is True)
 check("other providers test without streaming",
       providers.test_with_stream("openrouter") is False)
 
-# Ошибку «клиент не опознан» нельзя выдавать за неверный ключ.
+# --- Провайдер объявлен, но обращаться к нему нельзя ---
+check("AgentRouter is marked unavailable",
+      providers.unavailable_reason("agentrouter") != "")
+check("other providers stay available",
+      providers.unavailable_reason("openrouter") == ""
+      and providers.unavailable_reason("custom") == "")
+check("unknown provider is not reported as unavailable",
+      providers.unavailable_reason("nope") == "")
+# Причина недоступности должна вытеснять «не задан ключ»: ключ здесь не поможет.
+_ok, _why = providers.readiness("agentrouter")
+check("unavailable provider is never ready", _ok is False, (_ok, _why))
+check("readiness explains the real cause, not a missing key",
+      _why == providers.unavailable_reason("agentrouter"), _why)
+# Запись остаётся видимой в настройках — с объяснением, а не молча исчезает.
+_listed = {p["id"]: p for p in providers.list_providers()}
+check("AgentRouter stays visible in settings", "agentrouter" in _listed)
+check("panel is told the provider is unavailable",
+      _listed["agentrouter"]["unavailable"] != "", _listed["agentrouter"])
+check("panel is told the reason",
+      _listed["agentrouter"]["not_ready_reason"] != ""
+      and _listed["agentrouter"]["ready"] is False, _listed["agentrouter"])
+check("note mentions the whitelist request",
+      u"разрешение" in _listed["agentrouter"]["note_ru"],
+      _listed["agentrouter"]["note_ru"])
+check("available providers report no reason",
+      _listed["openrouter"]["unavailable"] == "", _listed["openrouter"])
+
+# Ошибку «программа не в списке» нельзя выдавать за неверный ключ.
 import api_backend as AB  # noqa: E402
 
 _txt, _st, _ra = AB.describe_api_error(
-    OC.AuthError(u"unauthorized client detected, contact support", status=401),
+    OC0.AuthError(u"unauthorized client detected, contact support", status=401),
     u"AgentRouter", u"claude-opus-5")
 check("client rejection is not blamed on the key",
-      u"Клиент отклонён" in _txt and u"отклонил ключ" not in _txt, _txt)
+      u"Клиент не в списке" in _txt and u"отклонил ключ" not in _txt, _txt)
+check("client rejection does not suggest faking the client name",
+      not any(w in _txt.lower() for w in ("opencode", "claude-cli", "user-agent")),
+      _txt)
 _txt2, _st2, _ra2 = AB.describe_api_error(
-    OC.AuthError(u"invalid api key", status=401), u"AgentRouter")
+    OC0.AuthError(u"invalid api key", status=401), u"AgentRouter")
 check("real key error still reported as key error",
       u"отклонил ключ" in _txt2, _txt2)
 

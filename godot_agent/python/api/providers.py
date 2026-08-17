@@ -27,8 +27,6 @@ match-домены и needs_visibility_spoof — для работы по клю
 их можно единственной функцией api_keys.resolve_key(). Такое разделение
 не даёт секрету случайно просочиться в ответ /api/providers.
 """
-import os
-
 import api_keys
 
 # Заголовок с названием приложения. OpenRouter показывает его в статистике
@@ -36,24 +34,33 @@ import api_keys
 # от плагина, а не от чего-то ещё, зашедшего на его ключ.
 APP_TITLE = "Godot Agent"
 
-# ПОЧЕМУ ЗДЕСЬ ЧУЖОЙ USER-AGENT. AgentRouter (панель на new-api) пускает
-# только клиентов из своего белого списка и опознаёт их ИСКЛЮЧИТЕЛЬНО по
-# User-Agent. С любым другим значением он отвечает 401 и телом
-# {"type":"unauthorized_client_error","error":{"message":"unauthorized client
-# detected..."}} — на полностью рабочем ключе. Проверено запросами:
+# ПОЧЕМУ AGENTROUTER ВЫКЛЮЧЕН, А НЕ УДАЛЁН. Сервис принимает запросы только от
+# программ из своего белого списка и опознаёт их по User-Agent; Godot Agent в
+# том списке пока не значится, поэтому на ЛЮБОЙ запрос приходит 401
+# {"type":"unauthorized_client_error", ...} — с полностью рабочим ключом.
+# Проверено:
 #   claude-cli/1.0.119 (external, cli) -> 200    claude-cli/1.0.0 -> 401
 #   opencode/1.0.0                     -> 200    opencode        -> 401
 #   cline/3.0.0                        -> 200    GodotAgent/0.6  -> 401
-# То есть нужно и имя из списка, и версия. Обойти это «правильным» способом
-# нельзя: сервис не предлагает регистрации клиента, а сообщение об ошибке
-# отправляет в Discord. Значение вынесено в переменную окружения — если
-# AgentRouter поменяет список, ключ менять не придётся.
-ENV_AGENTROUTER_UA = "GODOT_AGENT_AGENTROUTER_UA"
-AGENTROUTER_USER_AGENT = "opencode/1.0.0"
-
-
-def agentrouter_user_agent():
-    return (os.environ.get(ENV_AGENTROUTER_UA) or "").strip() or AGENTROUTER_USER_AGENT
+# Заработало бы, если представиться чужим клиентом, но это ровно тот обход
+# ограничений, за который AgentRouter публично обещает блокировать аккаунты
+# (объявление от 18.10.2025), а FAQ на 401 отвечает «используйте официально
+# поддерживаемый клиент». Рисковал бы при этом владелец ключа, то есть
+# пользователь плагина, — так что плагин представляется своим настоящим именем
+# (USER_AGENT в openai_compat) и к сервису не ходит вовсе.
+#
+# Запись оставлена в реестре намеренно: она видна в настройках вместе с
+# объяснением, а не выглядит как «провайдера просто нет». Список клиентов у
+# сервиса открытый и растущий (Claude Code, Codex, Cline, Roo Code, Kilo Code,
+# Qwen Code, OpenCode, Cursor, Trae...), так что нормальный путь — попросить
+# внести туда Godot Agent: Discord из текста ошибки или agent_router_org@163.com.
+# КАК ВКЛЮЧИТЬ, КОГДА РАЗРЕШАТ: убрать поле "unavailable" из записи ниже.
+# Больше ничего не требуется — транспорт, модели и таймауты уже готовы.
+AGENTROUTER_UNAVAILABLE = (
+    u"сервис принимает запросы только от программ из своего списка, и Godot "
+    u"Agent в него пока не входит — мы просим разрешение на добавление. "
+    u"Ключ тут не поможет: обходить это ограничение чужим именем клиента "
+    u"значит подставлять под блокировку ваш аккаунт.")
 
 PROVIDERS = [
     {
@@ -116,9 +123,9 @@ PROVIDERS = [
         "default_model": "gpt-5.6-sol",
         "transport": "agentrouter",
         "extra_headers": {},
-        # Без этого User-Agent сервис отвечает 401 на любой запрос, включая
-        # GET /models. Подробности — в комментарии к AGENTROUTER_USER_AGENT.
-        "user_agent": agentrouter_user_agent,
+        # Пока сервис не внесёт Godot Agent в свой список клиентов, запросы к
+        # нему не отправляются вообще: см. AGENTROUTER_UNAVAILABLE.
+        "unavailable": AGENTROUTER_UNAVAILABLE,
         # ПОЧЕМУ БОЛЬШЕ ОБЫЧНОГО. AgentRouter — посредник, и до первого байта
         # ответа Claude он молчит непредсказуемо долго: замеры одного и того же
         # запроса дали 2.8 / 4.4 / 15.6 / 68.7 секунды. Со стандартными 30 с
@@ -129,8 +136,8 @@ PROVIDERS = [
         # шлюз отвечает 504 от своего nginx ровно через 120 с — ответ модели
         # не успевает пройти целиком. Поток же отдаёт первые события сразу.
         "test_with_stream": True,
-        "note_ru": "GPT-модели работают через OpenAI API; Claude-модели — через Anthropic API. Один ключ AgentRouter подходит для обеих.",
-        "note_en": "GPT models use the OpenAI API; Claude models use the Anthropic API. One AgentRouter key works for both.",
+        "note_ru": "Пока недоступен: сервис пускает только программы из своего списка, и Godot Agent в нём ещё нет — мы просим разрешение на добавление. Когда разрешат, GPT-модели пойдут через OpenAI API, Claude-модели — через Anthropic API, одним ключом.",
+        "note_en": "Unavailable for now: the service only accepts clients from its own list, and Godot Agent is not on it yet — we have asked to be added. Once allowed, GPT models will use the OpenAI API and Claude models the Anthropic API, with a single key.",
     },
     {
         "id": "custom",
@@ -208,18 +215,22 @@ def headers_for(provider_id):
     СОБИРАЕТСЯ: секретами занимается транспорт, чтобы ключ не разошёлся по
     модулям и не попал в отладочную печать этого реестра.
 
-    Поле user_agent (строка или функция) перекрывает User-Agent транспорта.
-    Нужно тем сервисам, которые пускают только клиентов из своего белого
-    списка — см. AGENTROUTER_USER_AGENT.
+    Имя клиента (User-Agent) не переопределяется: транспорт представляется
+    настоящим именем плагина, и подменять его на имя чужой программы, чтобы
+    пройти чей-то белый список, — не наша задача.
     """
-    p = get_provider(provider_id) or {}
-    h = dict(p.get("extra_headers") or {})
-    ua = p.get("user_agent")
-    if callable(ua):
-        ua = ua()
-    if ua:
-        h["User-Agent"] = str(ua)
-    return h
+    return dict((get_provider(provider_id) or {}).get("extra_headers") or {})
+
+
+def unavailable_reason(provider_id):
+    """Почему провайдер объявлен, но обращаться к нему нельзя. "" — можно.
+
+    Отдельно от readiness() и от отсутствия ключа: там пользователю чего-то не
+    хватает и он может это исправить, а здесь исправить нечего — ограничение
+    на стороне сервиса. Поэтому такие провайдеры остаются видимыми вместе с
+    объяснением, но НИ ОДИН запрос к ним не отправляется.
+    """
+    return str((get_provider(provider_id) or {}).get("unavailable") or "")
 
 
 def transport_for(provider_id, model=""):
@@ -279,6 +290,11 @@ def readiness(provider_id):
     p = get_provider(provider_id)
     if p is None:
         return False, u"неизвестный провайдер «%s»" % provider_id
+    # Недоступность сервиса — первой: она не лечится ни ключом, ни моделью, и
+    # просить их ввести было бы обманом.
+    why = unavailable_reason(provider_id)
+    if why:
+        return False, why
     if not base_url_for(provider_id):
         return False, u"не задан адрес endpoint'а"
     if p.get("needs_key") and not api_keys.has_key(provider_id,
@@ -310,6 +326,9 @@ def list_providers():
             "models": list(p.get("models") or []),
             "ready": ok,
             "not_ready_reason": why,
+            # Отдельно от ready: панель может показать «нельзя настроить» иначе,
+            # чем «не хватает ключа». Пустая строка — обычный провайдер.
+            "unavailable": unavailable_reason(pid),
             "note_ru": p.get("note_ru", ""),
             "note_en": p.get("note_en", ""),
         })

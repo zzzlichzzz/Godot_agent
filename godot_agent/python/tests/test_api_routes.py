@@ -97,6 +97,49 @@ check(u"незаданный ключ помечен как не настрое�
       not [p for p in j["providers"] if p["id"] == "openrouter"][0]["configured"])
 check(u"причина неготовности объяснена",
       bool([p for p in j["providers"] if p["id"] == "openrouter"][0]["not_ready_reason"]))
+check(u"AgentRouter помечен недоступным вместе с причиной",
+      bool(agentrouter_rec["unavailable"]) and agentrouter_rec["ready"] is False)
+check(u"причина неготовности — недоступность сервиса, а не нехватка ключа",
+      agentrouter_rec["not_ready_reason"] == agentrouter_rec["unavailable"])
+
+# ---------------------------------------------------------------------------
+# 1а) НИ ОДНОГО ЗАПРОСА К НЕДОСТУПНОМУ ПРОВАЙДЕРУ
+#
+# Сервис принимает только клиентов из своего белого списка, и Godot Agent в него
+# пока не входит. Отказ должен приходить ИЗ ПЛАГИНА, до сети: иначе в логах
+# сервиса копятся отказы, а пользователь ждёт таймаут ради предсказуемого 401.
+# Ловушка на socket.getaddrinfo надёжнее проверки текста: она поймает попытку
+# соединения из любого места кода, включая DoH и прокси.
+# ---------------------------------------------------------------------------
+import socket as _socket
+
+_reached = []
+_real_getaddrinfo = _socket.getaddrinfo
+
+
+def _guard_getaddrinfo(host, *a, **kw):
+    if "agentrouter" in str(host).lower():
+        _reached.append(str(host))
+    return _real_getaddrinfo(host, *a, **kw)
+
+
+_socket.getaddrinfo = _guard_getaddrinfo
+try:
+    st_t, j_t = post("/api/test", {"provider": "agentrouter",
+                                   "model": "claude-opus-5"})
+    st_m, j_m = post("/api/models/refresh", {"provider": "agentrouter"})
+    st_c, j_c = post("/chats/new", {"kind": "api", "provider": "agentrouter",
+                                    "model": "claude-opus-5"})
+finally:
+    _socket.getaddrinfo = _real_getaddrinfo
+
+check(u"проверка подключения отказывает сама, без похода в сеть",
+      st_t == 200 and j_t.get("ok") is False and u"недоступен" in j_t.get("error", ""))
+check(u"обновление моделей отказывает сама, без похода в сеть",
+      st_m == 200 and u"недоступен" in str(j_m.get("error", "")))
+check(u"чат с недоступным провайдером не создаётся",
+      st_c == 400 and u"error" in j_c)
+check(u"к agentrouter.org не было ни одной попытки соединения", _reached == [])
 
 # ---------------------------------------------------------------------------
 # 2) Сохранение настроек

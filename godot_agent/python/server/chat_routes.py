@@ -211,6 +211,14 @@ def api_models_refresh():
     if not url:
         return jsonify({"error": u"У «%s» не задан адрес списка моделей."
                                  % provider["name"]}), 400
+    blocked = providers.unavailable_reason(pid)
+    if blocked:
+        # К такому провайдеру не ходим вовсе — даже за списком моделей: он и его
+        # отдаёт только клиентам из своего списка, а лишний отказ в его логах
+        # нам ни к чему.
+        return jsonify(_api_settings_payload({
+            "error": u"«%s» пока недоступен: %s" % (provider["name"], blocked),
+            "provider": pid}))
     try:
         raw = openai_compat.fetch_models(
             url, api_keys.resolve_key(pid, providers.env_names_for(pid)),
@@ -285,6 +293,13 @@ def api_test():
     if provider is None:
         return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
     model = (data.get("model") or "").strip() or providers.model_for(pid)
+    blocked = providers.unavailable_reason(pid)
+    if blocked:
+        # Проверять нечего: запрос всё равно отклонит сам сервис, а «проверка»,
+        # которая заведомо стучится в закрытую дверь, только путает.
+        return jsonify({"ok": False,
+                        "error": u"«%s» пока недоступен: %s"
+                                 % (provider["name"], blocked)})
     ok, why = providers.readiness(pid)
     if not ok and not model:
         return jsonify({"ok": False, "error": u"Не готово: %s." % why})
