@@ -27,9 +27,11 @@ def _request_headers(api_key, extra_headers=None):
     headers = dict(extra_headers or {})
     headers["anthropic-version"] = ANTHROPIC_VERSION
     if api_key:
-        # Официальный Anthropic SDK использует x-api-key. AgentRouter в
-        # конфигурации пользователя дополнительно требует Bearer; _open
-        # добавит Authorization автоматически.
+        # Официальный Anthropic SDK передаёт ключ в x-api-key, а шлюзы вроде
+        # AgentRouter — в Authorization: Bearer. Проверено, что AgentRouter
+        # принимает любой из двух, поэтому отправляем оба: так один и тот же
+        # транспорт годится и для настоящего api.anthropic.com, и для шлюза.
+        # Authorization добавит _open, здесь только x-api-key.
         headers["x-api-key"] = api_key
     return headers
 
