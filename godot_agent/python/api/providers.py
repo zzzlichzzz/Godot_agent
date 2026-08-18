@@ -155,7 +155,49 @@ PROVIDERS = [
         "note_ru": "Любой сервис или локальный сервер с совместимым /chat/completions. Ключ нужен не всегда.",
         "note_en": "Any service or local server with a compatible /chat/completions. A key is not always required.",
     },
+    {
+        "id": "opencode_zen",
+        "name": "Opencode Zen",
+        # ВНИМАНИЕ НА АДРЕС. Правильный хост — opencode.ai с путём /zen/v1, а
+        # НЕ api.opencode.ai. Ошибиться здесь особенно дорого: api.opencode.ai
+        # отвечает не 404, а 200 с текстом "Not Found", то есть транспорт видит
+        # успешный ответ без событий и сообщает «модель не вернула текста».
+        # Пользователь при этом меняет ключи и модели, а виноват адрес.
+        #
+        # У сервиса есть и родные маршруты под каждое семейство моделей
+        # (/responses для GPT, /messages для Claude, /models/<id> для Gemini),
+        # но /chat/completions принимает ВСЕ идентификаторы из /models —
+        # проверено запросом с заведомо неверным ключом: на claude-*, gpt-* и
+        # gemini-* приходит AuthError (ключ), а не «модель не поддерживается».
+        # Поэтому отдельный транспорт не нужен, работает общий OpenAI-путь.
+        "base_url": "https://opencode.ai/zen/v1",
+        "needs_key": True,
+        "env_names": ("OPENCODE_ZEN_API_KEY",),
+        "models_path": "/models",
+        "models": [],
+        "default_model": "",
+        "extra_headers": {},
+        "note_ru": "Отобранные командой Opencode модели (GPT, Claude, Gemini, Qwen, Kimi, GLM, DeepSeek) по одному ключу, оплата по факту. Список моделей загружается без ключа — нажмите «Обновить».",
+        "note_en": "A curated set of models (GPT, Claude, Gemini, Qwen, Kimi, GLM, DeepSeek) behind one key, pay as you go. The model list loads without a key — press \"Refresh\".",
+    },
+    {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+        "needs_key": True,
+        "env_names": ("DEEPSEEK_API_KEY",),
+        "models_path": "/models",
+        "models": [],
+        "default_model": "deepseek-chat",
+        "extra_headers": {},
+        # Бесплатного уровня у DeepSeek нет — обещать его нельзя. Что есть:
+        # скидка в непиковые часы. Пользователь, пришедший сюда за «бесплатно»,
+        # упрётся в 402 и будет думать, что плагин соврал.
+        "note_ru": "DeepSeek Chat и Coder напрямую у разработчика. Платный: бесплатного уровня нет, но в непиковые часы дешевле.",
+        "note_en": "DeepSeek Chat and Coder straight from the vendor. Paid: no free tier, but off-peak hours are cheaper.",
+    },
 ]
+
 
 # Провайдер, предлагаемый по умолчанию при первом входе.
 DEFAULT_PROVIDER_ID = "openrouter"
@@ -342,16 +384,20 @@ def list_providers():
 def is_free_model(rec):
     """Бесплатна ли модель по ответу /models.
 
-    Два признака, потому что сервисы описывают это по-разному: суффикс
-    ":free" в идентификаторе (OpenRouter) и нулевая цена в pricing. Цены
-    приходят строками ("0", "0.0", "0E-8"), поэтому сравниваем численно
+    Три признака, потому что сервисы описывают это по-разному:
+      * суффикс ":free" в идентификаторе (OpenRouter);
+      * суффикс "-free" (Opencode Zen: deepseek-v4-flash-free, hy3-free и
+        прочие — в их ответе /models полей цены нет вовсе, только id, поэтому
+        других зацепок не остаётся);
+      * нулевая цена в pricing.
+    Цены приходят строками ("0", "0.0", "0E-8"), поэтому сравниваем численно
     и терпимо: неизвестный формат — считаем платной, чтобы случайно не
     пообещать пользователю бесплатность.
     """
     if not isinstance(rec, dict):
         return False
     mid = str(rec.get("id") or "")
-    if mid.endswith(":free"):
+    if mid.endswith(":free") or mid.endswith("-free"):
         return True
     pricing = rec.get("pricing")
     if not isinstance(pricing, dict):
@@ -386,7 +432,10 @@ def parse_models_response(data, free_only=False):
     seen = {}
     for rec in items:
         if isinstance(rec, str):
-            mid, free = rec, rec.endswith(":free")
+            # Голая строка вместо объекта: цены нет, судим только по имени —
+            # тем же правилом, что и is_free_model, чтобы список и фильтр
+            # «только бесплатные» не расходились между двумя ветками.
+            mid, free = rec, is_free_model({"id": rec})
         elif isinstance(rec, dict):
             mid, free = str(rec.get("id") or ""), is_free_model(rec)
         else:
