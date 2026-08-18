@@ -87,6 +87,14 @@ var _api_test_state: Label = null
 var _api_cfg_path: Label = null
 var _api_start_btn: Button = null
 var _api_data: Dictionary = {}
+# Список моделей, полученный кнопкой «Обновить список», в разрезе провайдера:
+# provider_id -> [идентификаторы]. Держим его отдельно от _api_data, потому что
+# ответ сервера с настройками содержит ТОЛЬКО зашитый в реестр список (у
+# большинства провайдеров он пуст намеренно — идентификаторы моделей меняются
+# слишком часто). Без этого кэша выбор модели затирал бы сам себя: сохранение
+# возвращает настройки, форма перерисовывается из реестра, и 62 только что
+# загруженные модели исчезали из выпадающего списка.
+var _api_fetched_models: Dictionary = {}
 # Пока форма заполняется ответом сервера, обработчики изменения полей молчат:
 # иначе программная установка значений выглядела бы как правка пользователем и
 # уходила бы обратно на сервер.
@@ -997,11 +1005,22 @@ func _api_fill_provider_fields() -> void:
 		_api_model_edit.text = str(rec.get("model", ""))
 	if _api_model_opt:
 		_api_model_opt.clear()
-		var known_models = rec.get("models", [])
+		# Загруженный с сервиса список важнее зашитого в реестр: он свежий и
+		# полный. Реестр — запасной вариант для провайдеров с коротким
+		# фиксированным перечнем моделей.
+		var known_models = _api_fetched_models.get(pid, [])
+		if typeof(known_models) != TYPE_ARRAY or (known_models as Array).is_empty():
+			known_models = rec.get("models", [])
 		if typeof(known_models) == TYPE_ARRAY:
 			for model in known_models:
 				_api_model_opt.add_item(str(model))
 		_api_model_opt.disabled = _api_model_opt.item_count == 0
+		# Тот же сброс выбора, что и в set_api_models: без него клик по первой
+		# модели списка не давал item_selected (add_item уже выбрал её сам),
+		# и выбрать её было нельзя.
+		if _api_model_opt.item_count > 0:
+			_api_model_opt.selected = -1
+			_api_model_opt.text = _t("api_models_pick") % _api_model_opt.item_count
 	if _api_base_edit:
 		_api_base_edit.text = str(rec.get("base_url", ""))
 	if _api_base_row:
@@ -1137,6 +1156,12 @@ func set_api_models(provider: String, models: Array) -> void:
 		return
 	if provider != "" and provider != _api_current_provider():
 		return  # ответ про другого провайдера — пользователь уже переключился
+	# Запоминаем список за провайдером: сохранение настроек перерисовывает форму
+	# из ответа сервера, где загруженных моделей нет, и без кэша список пропадал
+	# сразу после выбора модели.
+	var pid := provider if provider != "" else _api_current_provider()
+	if pid != "":
+		_api_fetched_models[pid] = models.duplicate()
 	_api_model_opt.clear()
 	if models.is_empty():
 		_api_model_opt.add_item(_t("api_models_none"))
@@ -1145,6 +1170,17 @@ func set_api_models(provider: String, models: Array) -> void:
 	_api_model_opt.disabled = false
 	for m in models:
 		_api_model_opt.add_item(str(m))
+	# ПОЧЕМУ ЗДЕСЬ СБРОС ВЫБОРА. add_item автоматически выбирает ПЕРВЫЙ
+	# добавленный элемент (selected становится 0), а item_selected приходит
+	# только при СМЕНЕ выбора. Значит клик по первой модели списка не менял
+	# ничего и сигнал не приходил вовсе: пользователь выбирал верхнюю модель
+	# (у Opencode Zen это deepseek-v4-flash-free), а в поле оставалась прежняя —
+	# работали все модели, кроме первой. Снимаем выбор, чтобы ЛЮБОЙ пункт,
+	# включая первый, был именно сменой выбора и доходил до _on_api_model_picked.
+	_api_model_opt.selected = -1
+	# При selected = -1 кнопка показывает пустую строку — подсказываем, что
+	# список получен и из него нужно выбрать.
+	_api_model_opt.text = _t("api_models_pick") % models.size()
 	set_status(_t("api_models_loaded") % models.size(), "success")
 
 
@@ -1155,6 +1191,14 @@ func _on_api_model_picked(idx: int) -> void:
 		return
 	if _api_model_edit:
 		_api_model_edit.text = _api_model_opt.get_item_text(idx)
+	# Выпадающий список — это КНОПКА ВЫБОРА, а не показ текущего состояния
+	# (выбранная модель видна в поле выше). Поэтому сразу возвращаем «нет
+	# выбора»: иначе повторный клик по той же модели не менял бы selected и не
+	# доходил бы до этого обработчика — ровно та же ловушка, что и с первым
+	# пунктом списка.
+	var count := _api_model_opt.item_count
+	_api_model_opt.selected = -1
+	_api_model_opt.text = _t("api_models_pick") % count
 	_on_api_save_fields()
 
 

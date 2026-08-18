@@ -193,9 +193,14 @@ try:
                                   "description": "selfcheck-autoload", "total": len(steps), "applied_paths": []}
     client = srv.app.test_client()
     client.post("/chat/plan/step")
-    prev = client.post("/chat/rollback/preview").get_json()
+    # json={} обязателен, даже когда тело пустое: маршрут читает request.json,
+    # а Flask 3 на запрос без Content-Type: application/json отвечает 415 с
+    # HTML-страницей. get_json() вернёт None, и весь прогон --full обрывался
+    # здесь по AttributeError, не доходя до секций 2 и дальше.
+    prev = client.post("/chat/rollback/preview", json={}).get_json()
     check("превью отката одношаговой цепочки не требует отката всей цепочки",
-          prev.get("found") is True and not prev.get("chain_id"), prev)
+          isinstance(prev, dict) and prev.get("found") is True
+          and not prev.get("chain_id"), prev)
     j = client.post("/chat/plan/rollback_chain", json={"chain_id": chain_id}).get_json()
     check("откат цепочки сообщает об убранной автозагрузке и о смене project.godot",
           j.get("success") is True and j.get("autoload_removed") == ["HUD"]
@@ -297,7 +302,19 @@ fixable_tscn_step_raw = (
     '{"action": "create_file", "path": "res://Player.tscn", "content": '
     '"[node name=\\"Player\\" type=\\"Node2D\\"]\\nid=\\"1_player\\"\\nid="2_icon"\\n[/node]"}'
 )
-truly_broken_step_raw = '{"action": "create_file", "path": "res://Broken.tscn", "content": "bad escape: \\qhere"}'
+# ПОЧЕМУ ЗДЕСЬ ИСПОРЧЕН КЛЮЧ, А НЕ ЭКРАНИРОВАНИЕ. Раньше «заведомо битым»
+# шагом был content с недопустимым escape ("bad escape: \q"), но json_repair
+# 0.61.5 научился чинить и это — шаг стал разбираться, план получался 4/0
+# вместо 3/1, и вся секция валилась (а следом и весь прогон --full).
+# Испортить экранирование сильнее нельзя: json_repair восстанавливает любой
+# сбалансированный по скобкам мусор — проверено на десятке вариантов
+# (одиночные кавычки, /* */, пропущенные двоеточия, лишние запятые).
+# Единственный оставшийся способ получить нераспознанный шаг — лишить его
+# поля "action": parse_plan_lenient считает шаг битым, когда в разобранном
+# словаре нет действия (та же логика, что в api_backend._parse). Поэтому
+# ключ здесь испорчен ("actio n"), а путь оставлен читаемым — по нему
+# _guess_step_path должен угадать адрес битого шага.
+truly_broken_step_raw = '{"actio n": "create_file", "path": "res://Broken.tscn", "content": "extends Node\\n"}'
 plan_raw_v44 = (
     '{"action": "plan", "description": "v44 selfcheck plan", "steps": ['
     + good_step1_raw + ', ' + good_step2_raw + ', ' + fixable_tscn_step_raw + ', ' + truly_broken_step_raw
@@ -320,7 +337,10 @@ check("_repair_unescaped_inner_quotes сама даёт валидный JSON", 
 lenient = parser_base.parse_plan_lenient(plan_raw_v44)
 check("parse_plan_lenient распознаёт план, несмотря на 1 битый шаг из 4",
       lenient is not None and len(lenient["good_steps"]) == 3 and len(lenient["bad_steps"]) == 1, lenient)
-if lenient:
+# Условие именно на bad_steps, а не просто «if lenient»: когда ожидание выше
+# перестанет выполняться (парсер снова станет умнее), проверки ниже должны
+# отчитаться FAIL, а не уронить весь прогон по IndexError на bad_steps[0].
+if lenient and len(lenient["bad_steps"]) == 1:
     check("единственный битый шаг — это res://Broken.tscn с индексом 3",
           lenient["bad_steps"][0]["index"] == 3, lenient["bad_steps"])
     good_paths_v44 = [s["step"].get("path") for s in lenient["good_steps"]]
@@ -786,8 +806,15 @@ _ss._holder["driver_error"] = None
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _main_src = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+# Поток запускает не main.py, а server_state: main.py только отдаёт ему свою
+# функцию старта через set_browser_booter. Проверяем обе половины связки —
+# раньше здесь искался literal "threading.Thread(target=_boot_browser_background"
+# прямо в main.py, и после переноса потока проверка падала на живом коде.
+_ss_src = open(os.path.join(_here, "server", "server_state.py"), encoding="utf-8").read()
 check("браузер стартует в фоне — сервер не ждёт Chrome",
-      "_boot_browser_background" in _main_src and "threading.Thread(target=_boot_browser_background" in _main_src)
+      "def _boot_browser_background" in _main_src
+      and "set_browser_booter(_boot_browser_background)" in _main_src
+      and "threading.Thread(target=fn" in _ss_src and "daemon=True" in _ss_src)
 _bat_src = open(os.path.join(_here, "build_server_exe.bat"), encoding="utf-8", errors="replace").read()
 check("сборка exe в режиме onedir (без распаковки при старте)", "--onedir" in _bat_src and "--onefile" not in _bat_src)
 _gd_src = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
@@ -822,9 +849,15 @@ check("парсер DeepSeek читает ответ и ловит agent_action"
       and "agent_action" in _dsp.JS_EXTRACT)
 check("ввод DeepSeek через нативный сеттер React", "getOwnPropertyDescriptor" in _dsp.JS_SET_INPUT)
 _main_v30 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+# После разделения на бэкенды (v104) main.py больше не звонит парсеру напрямую:
+# он оборачивает выбранный парсер в BrowserBackend, а send_message_and_get_response
+# вызывается уже внутри него. Проверяем цепочку целиком, а не исчезнувшую строку
+# "_current_parser().send_message_and_get_response(" в main.py.
+_bb30 = open(os.path.join(_here, "backends", "browser_backend.py"), encoding="utf-8").read()
 check("main.py выбирает парсер текущего чата",
       "def _current_parser" in _main_v30
-      and "_current_parser().send_message_and_get_response(" in _main_v30)
+      and "browser_backend.BrowserBackend(_current_parser())" in _main_v30
+      and "send_message_and_get_response(" in _bb30)
 _gd_link30 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель: повторный запуск сервера без минутной блокировки",
       "< 10000" in _gd_link30 and "< 60000" not in _gd_link30
@@ -936,8 +969,15 @@ _fx35, _pr35 = _tl35.lint_and_fix_tscn(_bad35)
 check("tscn-линт: узел в [sub_resource] помечается как проблема",
       any("УЗЕЛ" in p for p in _pr35))
 _ap35 = open(os.path.join(_here, "server", "agent_prompts.py"), encoding="utf-8").read()
+# Сверяем НАЛИЧИЕ правил, а не их дословную формулировку: текст промпта
+# правится часто, и раньше эта проверка падала лишь потому, что «ТОЛЬКО для
+# РЕСУРСОВ» переписали строчными буквами. Ключевые слова взяты короткими и в
+# нижнем регистре — так проверка ловит пропажу правила, а не редактуру.
+_ap35_low = _ap35.lower()
 check("промпт: правила про порядок автозагрузок и узлы в sub_resource",
-      "АВТОЗАГРУЗКИ (Autoload)" in _ap35 and "ТОЛЬКО для РЕСУРСОВ" in _ap35)
+      "автозагрузки" in _ap35_low and "[autoload]" in _ap35_low
+      and "[sub_resource] — только для ресурс" in _ap35_low
+      and 'секциями [node name=' in _ap35_low)
 
 # v36: сторожевой таймер, «думающие» модели DeepSeek, Variant в sub_resource, полоска запуска
 _pb36 = open(os.path.join(_here, "parsers", "parser_base.py"), encoding="utf-8").read()
@@ -991,9 +1031,11 @@ check("план В: корректно вырезает JSON �� учётом
       len(_cands38) == 1 and _cands38[0].startswith('{"action"')
       and _cands38[0].endswith('}'))
 _ap38 = open(os.path.join(_here, "server", "agent_prompts.py"), encoding="utf-8").read()
+# Формулировку переписывали (в старом варианте была и опечатка «одиной»),
+# поэтому держимся за смысл: запрет одинарной обратной котировки вокруг JSON.
+_ap38_low = _ap38.lower()
 check("промпт: явный запрет одинарной котировки для agent_action",
-      "НИКОГДА не оборачивай JSON действия одиной обратной котировкой" in _ap38
-      or "НИКОГДА не оборачивай JSON действия одино" in _ap38)
+      "не оборачивай json одинарной обратной" in _ap38_low)
 
 # v39: кнопка ручного запуска в v37 сидела в одной стро��е с языковым
 # переключателем и заголовком, в узкой пристёгнутой панели HBoxContainer
@@ -1387,9 +1429,15 @@ check("chat_store: непраймленный чат не помечается �
 
 # chat_routes и server_state: системное напоминание + передача хэша везде.
 _cr48 = open(os.path.join(_here, "server", "chat_routes.py"), encoding="utf-8").read()
+# Проверяем ИНВАРИАНТ («хэш промпта передаётся во ВСЕ list_chats»), а не
+# конкретное число вызовов: раньше здесь было жёсткое == 5, и появление нового
+# маршрута (создание API-чата) роняло проверку, хотя ни один вызов хэш не терял.
+_lc_all48 = _cr48.count("chat_store.list_chats(base")
+_lc_hash48 = _cr48.count("chat_store.list_chats(base, PROMPT_HASH)")
 check("chat_routes: новый чат начинается с системного напоминания, хэш передаётся во все list_chats",
       "Не забудьте выбрать нейросеть" in _cr48
-      and _cr48.count("chat_store.list_chats(base, PROMPT_HASH)") == 5)
+      and _lc_all48 > 0 and _lc_hash48 == _lc_all48,
+      (_lc_hash48, _lc_all48))
 _ss48 = open(os.path.join(_here, "server", "server_state.py"), encoding="utf-8").read()
 check("server_state: mark_chat_prompt_version записывает prompt_hash текущему чату",
       "def mark_chat_prompt_version" in _ss48 and "prompt_hash=PROMPT_HASH" in _ss48)
@@ -1417,7 +1465,11 @@ _view49 = open(os.path.join(_here, "..", "agent_chat_view.gd"), encoding="utf-8"
 _loc49 = open(os.path.join(_here, "..", "agent_locale.gd"), encoding="utf-8").read()
 
 check("view: появилось окошко-пузырь add_hint с собственной рамкой",
-      "func add_hint(" in _view49 and "HINT_BORDER" in _view49 and "HINT_BG" in _view49)
+      # Рамка и фон больше не константы HINT_BORDER/HINT_BG внутри view: цвета
+      # переехали в тему, а пузырь собирается общим _make_panel("hint"). Ищем
+      # именно это, иначе проверка падает на живом коде после переезда в тему.
+      "func add_hint(" in _view49 and '_make_panel("hint")' in _view49
+      and '_t("hint_title")' in _view49)
 check("locale: заголовок окошка hint_title есть в RU и EN",
       _loc49.count('"hint_title"') == 2)
 check("panel: напоминание о выборе модели показывается окошком, а не серой строкой",
