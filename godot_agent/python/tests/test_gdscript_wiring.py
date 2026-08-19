@@ -141,7 +141,16 @@ check(u"нет emit несуществующего сигнала", not undeclar
 
 api_signals = sorted(s for s in declared if s.startswith("api_")
                      or s.startswith("new_api"))
-check(u"сигналы работы по ключу объявлены", len(api_signals) == 5, api_signals)
+# Список ЯВНЫЙ, а не «столько-то штук»: новый сигнал работы по ключу обязан
+# попасть сюда осознанно, а число рядом с ним ничего не рассказывает тому, кто
+# увидит падение теста. Проверка ловит две противоположные ошибки: сигнал
+# объявили и забыли подключить (следующая проверка) и сигнал переименовали,
+# оставив подключение по старому имени.
+API_SIGNALS = ["api_models_refresh_requested", "api_models_scan_requested",
+               "api_settings_save_requested", "api_tab_requested",
+               "api_test_requested", "new_api_chat_requested"]
+check(u"сигналы работы по ключу объявлены", api_signals == API_SIGNALS,
+      api_signals)
 not_connected = [s for s in api_signals if (s + ".connect") not in panel]
 check(u"все сигналы работы по ключу подключены в панели", not not_connected,
       not_connected)
@@ -166,7 +175,8 @@ routed.add("list")  # значение по умолчанию url := CHATS_LIST
 unrouted = sorted(k for k in kinds if k not in routed)
 check(u"каждый вид запроса имеет адрес в транспорте", not unrouted, unrouted)
 check(u"виды запросов работы по ключу разведены",
-      {"api_providers", "api_set", "api_models", "api_test"} <= routed,
+      {"api_providers", "api_set", "api_models", "api_scan",
+       "api_test"} <= routed,
       sorted(routed))
 
 # --- 7) токен на порт 5000 ---
@@ -256,6 +266,62 @@ check(u"панель не спрашивает has_method у загруженн�
                     panel))
 check(u"панель берёт токен у узла ServerLink",
       "_link.project_token()" in panel)
+
+# --- 8) русский текст из .tscn обязан переписываться из словаря ---
+#
+# РЕАЛЬНАЯ ПОЛОМКА, из-за которой эта проверка написана. Надписи карточек лежат
+# в .tscn по-русски — так их видно в редакторе сцен, и это удобно. Но значение из
+# .tscn остаётся НА ЭКРАНЕ, пока код его не перепишет, а переписать его никто не
+# обязан. Замерено на английском языке: 13 надписей оставались русскими, в том
+# числе кнопки «Применить», «Отклонить», «Пауза», «Продолжить», «Откатить
+# цепочку» и подписи авторов сообщений «Вы» и «ИИ-Агент».
+#
+# Заметить это глазами почти невозможно: надо переключить язык, довести агента до
+# показа диффа или плана и посмотреть именно на эти кнопки. Здесь то же ловится
+# статически: для каждой русской надписи в .tscn требуем в парном .gd
+# присваивание этому же свойству из _t().
+_UI_PROPS = ("text", "tooltip_text", "placeholder_text")
+_CYR = re.compile(u"[\u0400-\u04ff]")
+scenes = sorted(glob.glob(_os0.path.join(ADDON, "*.tscn")))
+check(u"файлы сцен найдены", len(scenes) >= 5, len(scenes))
+
+unlocalized = []
+checked_pairs = 0
+for scene in scenes:
+    stem = _os0.path.splitext(_os0.path.basename(scene))[0]
+    gd_path = _os0.path.join(ADDON, stem + ".gd")
+    src_scene = read(scene)
+    # Сцена без парного скрипта: переписать надпись некому в принципе.
+    gd = read(gd_path) if _os0.path.isfile(gd_path) else ""
+    # Имя узла -> имя переменной, к которой его привязал @onready.
+    node_var = {}
+    for m in re.finditer(r"@onready\s+var\s+([A-Za-z0-9_]+)\s*:[^=]*=\s*\$([^\s#]+)",
+                         gd):
+        node_var[m.group(2).split("/")[-1]] = m.group(1)
+    node = ""
+    for line in src_scene.split("\n"):
+        m = re.match(r'\[node name="([^"]+)"', line)
+        if m:
+            node = m.group(1)
+            continue
+        m = re.match(r'^(%s)\s*=\s*"(.*)"$' % "|".join(_UI_PROPS), line)
+        if not m or not _CYR.search(m.group(2)):
+            continue
+        prop, text = m.group(1), m.group(2)
+        checked_pairs += 1
+        var = node_var.get(node, "")
+        # Присваивание из словаря этому же свойству. Ищем в парном .gd, а также
+        # в agent_panel.gd: он переписывает подписи своего дока сам
+        # (_on_language_changed), а узлы объявлены там же.
+        pat = re.compile(r"\b%s\.%s\s*=\s*[^\n#]*_t\(" % (re.escape(var), prop)) \
+            if var else None
+        if var and pat.search(gd):
+            continue
+        unlocalized.append("%s/%s.%s = %s" % (stem, node, prop, text[:40]))
+check(u"русский текст из .tscn переписывается из словаря", not unlocalized,
+      unlocalized)
+check(u"проверка нашла надписи, которые надо переписывать", checked_pairs >= 8,
+      checked_pairs)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

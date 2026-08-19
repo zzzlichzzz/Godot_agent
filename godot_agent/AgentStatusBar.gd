@@ -42,6 +42,9 @@ func _t(key: String) -> String:
 
 func _ready() -> void:
 	_setup_theme()
+	# Надпись из .tscn («Думает...») остаётся на экране, пока не придёт первая
+	# фаза от сервера, — а по-английски она была русской. Ставим из словаря сразу.
+	status_label.text = _t("status_thinking")
 	if not timer.timeout.is_connected(_on_timer_tick):
 		timer.timeout.connect(_on_timer_tick)
 	visible = false
