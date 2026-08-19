@@ -2232,8 +2232,11 @@ func _on_api_payload(kind: String, json: Dictionary) -> void:
 	if _start_screen.has_method("set_api_settings"):
 		_start_screen.set_api_settings(json)
 	if kind == "api_models" and _start_screen.has_method("set_api_models"):
+		# models_info — записи {id, free}; models — прежний список строк. Отдаём
+		# оба: экран возьмёт записи, если сервер их присылает, и не сломается со
+		# старым сервером, где их нет.
 		_start_screen.set_api_models(str(json.get("provider", "")),
-			json.get("models", []))
+			json.get("models", []), json.get("models_info", []))
 	if _pending_view == "api":
 		_pending_view = ""
 		if _start_screen.has_method("show_api"):

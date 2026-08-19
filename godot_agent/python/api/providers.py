@@ -27,6 +27,8 @@ match-домены и needs_visibility_spoof — для работы по клю
 их можно единственной функцией api_keys.resolve_key(). Такое разделение
 не даёт секрету случайно просочиться в ответ /api/providers.
 """
+import time
+
 import api_keys
 
 # Заголовок с названием приложения. OpenRouter показывает его в статистике
@@ -62,6 +64,23 @@ AGENTROUTER_UNAVAILABLE = (
     u"Ключ тут не поможет: обходить это ограничение чужим именем клиента "
     u"значит подставлять под блокировку ваш аккаунт.")
 
+# НЕОБЯЗАТЕЛЬНЫЕ ПОЛЯ ЗАПИСИ, КОТОРЫЕ ВИДИТ ПАНЕЛЬ
+#
+# "models_public": True — список моделей (/models) отдаётся БЕЗ ключа. Панель
+#   пользуется этим, чтобы посчитать модели у провайдера, который ещё не
+#   настроен: именно между такими провайдерами человек и выбирает, а у
+#   остальных до ввода ключа честный ответ — «неизвестно». Ставить только
+#   после фактической проверки запросом без ключа, а не по документации.
+#
+# "verified": True — с провайдером был ПОЛНЫЙ живой обмен настоящим ключом:
+#   сохранение ключа, список моделей, проверка подключения, ответ в чате.
+#   СЕЙЧАС ЭТОГО ПОЛЯ НЕТ НИ У ОДНОГО ПРОВАЙДЕРА, И ЭТО ПРАВДА: весь код
+#   закрыт офлайновыми тестами с локальным HTTP-сервером вместо провайдера,
+#   живого обмена не было ни с одним сервисом (см. ОТЛОЖЕНО.md, раздел
+#   «Работа по ключу API — что осталось до релиза»). Поле заведено заранее
+#   именно поэтому: пометка «проверен», выставленная по предположению, — это
+#   ровно то обещание, за которое пользователь потом ловит 402 или 401 и
+#   считает, что плагин соврал. Ставится руками, по одному, после прогона.
 PROVIDERS = [
     {
         "id": "openrouter",
@@ -75,6 +94,9 @@ PROVIDERS = [
         "models_path": "/models",
         "models": [],
         "default_model": "",
+        # /models открыт без ключа — панель может показать число бесплатных
+        # моделей ещё до того, как пользователь где-то зарегистрируется.
+        "models_public": True,
         "extra_headers": {"X-Title": APP_TITLE},
         "note_ru": "Много моделей в одном ключе, есть бесплатные (с «:free» в названии).",
         "note_en": "Many models behind one key, including free ones (\":free\" suffix).",
@@ -176,6 +198,9 @@ PROVIDERS = [
         "models_path": "/models",
         "models": [],
         "default_model": "",
+        # Список моделей приходит и без ключа — это проверено тем же запросом,
+        # которым выяснялся правильный адрес (см. комментарий выше).
+        "models_public": True,
         "extra_headers": {},
         "note_ru": "Отобранные командой Opencode модели (GPT, Claude, Gemini, Qwen, Kimi, GLM, DeepSeek) по одному ключу, оплата по факту. Список моделей загружается без ключа — нажмите «Обновить».",
         "note_en": "A curated set of models (GPT, Claude, Gemini, Qwen, Kimi, GLM, DeepSeek) behind one key, pay as you go. The model list loads without a key — press \"Refresh\".",
@@ -323,54 +348,204 @@ def model_for(provider_id):
 # Готовность к работе
 # ---------------------------------------------------------------------------
 
+def _readiness_full(provider_id):
+    """(ok, причина_словами, код_причины). Внутренняя: наружу идут readiness()
+    и readiness_code(), чтобы у каждой не менялась форма ответа.
+
+    ЗАЧЕМ КОД РЯДОМ С ТЕКСТОМ. Текст причины здесь только по-русски: он
+    писался под строку в настройках, где язык панели неважен. Как только та же
+    причина становится пометкой на карточке провайдера, её нужно переводить, а
+    переводить готовую фразу с сервера панель не может. Код — это то, что
+    панель находит в своём словаре (agent_locale.gd); текст остаётся для
+    журнала сервера и как запасной вариант.
+    """
+    p = get_provider(provider_id)
+    if p is None:
+        return False, u"неизвестный провайдер «%s»" % provider_id, "unknown_provider"
+    # Недоступность сервиса — первой: она не лечится ни ключом, ни моделью, и
+    # просить их ввести было бы обманом.
+    why = unavailable_reason(provider_id)
+    if why:
+        return False, why, "unavailable"
+    if not base_url_for(provider_id):
+        return False, u"не задан адрес endpoint'а", "no_base_url"
+    if p.get("needs_key") and not api_keys.has_key(provider_id,
+                                                  env_names_for(provider_id)):
+        return False, u"не задан ключ API", "no_key"
+    if not model_for(provider_id):
+        return False, u"не выбрана модель", "no_model"
+    return True, "", ""
+
+
 def readiness(provider_id):
     """Можно ли уже отправлять запрос. Возвращает (ok, причина_если_нет).
 
     Проверяется до создания чата, чтобы пользователь узнал о нехватке
     настроек на экране настроек, а не посреди задачи.
     """
-    p = get_provider(provider_id)
-    if p is None:
-        return False, u"неизвестный провайдер «%s»" % provider_id
-    # Недоступность сервиса — первой: она не лечится ни ключом, ни моделью, и
-    # просить их ввести было бы обманом.
-    why = unavailable_reason(provider_id)
-    if why:
-        return False, why
-    if not base_url_for(provider_id):
-        return False, u"не задан адрес endpoint'а"
-    if p.get("needs_key") and not api_keys.has_key(provider_id,
-                                                  env_names_for(provider_id)):
-        return False, u"не задан ключ API"
-    if not model_for(provider_id):
-        return False, u"не выбрана модель"
-    return True, ""
+    ok, why, _code = _readiness_full(provider_id)
+    return ok, why
+
+
+def readiness_code(provider_id):
+    """Причина неготовности одним словом для панели: "" (готов),
+    "unknown_provider", "unavailable", "no_base_url", "no_key", "no_model"."""
+    _ok, _why, code = _readiness_full(provider_id)
+    return code
+
+
+def models_public(provider_id):
+    """Отдаёт ли провайдер список моделей БЕЗ ключа.
+
+    Нужно панели, чтобы понимать, можно ли вообще посчитать модели у ещё не
+    настроенного провайдера, или единственный честный ответ — «неизвестно».
+    """
+    return bool((get_provider(provider_id) or {}).get("models_public"))
+
+
+def is_verified(provider_id):
+    """Был ли с провайдером полный живой обмен настоящим ключом.
+
+    Ни у одного провайдера этого пока нет — см. комментарий к полю "verified"
+    у PROVIDERS. Функция существует, чтобы панель группировала провайдеров по
+    факту, а не по догадке, и чтобы флаг было где переключить после прогона.
+    """
+    return bool((get_provider(provider_id) or {}).get("verified"))
+
+
+# ---------------------------------------------------------------------------
+# Автообновление списков моделей
+#
+# ЗАЧЕМ ЭТО ВООБЩЕ. Числа моделей брались ТОЛЬКО из ручного нажатия «Обновить
+# список». Значит они были у провайдеров, которых пользователь и так открывал,
+# и отсутствовали у всех остальных — а фильтр «с бесплатными» отбирает как раз
+# по этим числам. Снаружи это выглядит как утверждение «бесплатные модели есть
+# только у Opencode Zen», хотя на самом деле у OpenRouter их сотни и его просто
+# ни разу не спрашивали. Пользователь при этом не может догадаться, что нужно
+# зайти в каждого провайдера и нажать кнопку: список ведь уже показан.
+#
+# ПОЧЕМУ НЕ ОПРАШИВАТЬ ВСЕХ ПОДРЯД. Запрос к провайдеру, у которого нет ни
+# ключа, ни публичного /models, гарантированно вернёт 401 — это трата времени
+# пользователя и отказ в чужом журнале ни за что. Поэтому спрашиваем только
+# тех, у кого ответ вообще возможен: публичный список моделей или сохранённый
+# ключ. Недоступные (unavailable) не опрашиваются вовсе — к ним не ходят даже
+# за списком моделей.
+# ---------------------------------------------------------------------------
+
+# Сколько наблюдение считается свежим. Сутки: идентификаторы моделей и тарифы
+# меняются не ежечасно, а лишний обход провайдеров при каждом открытии окна —
+# это чужие лимиты запросов, потраченные на подпись под названием.
+MODELS_FRESH_SECONDS = 24 * 60 * 60
+# Пауза после неудачи. Заметно короче суток: неудача чаще всего значит «в этот
+# момент не было сети», и держать провайдера без чисел до завтра из-за
+# минутного обрыва незачем. Но и повторять на каждое открытие окна нельзя —
+# ожидание ответа от недоступного хоста пользователь видит как задумчивость
+# плагина.
+MODELS_RETRY_SECONDS = 10 * 60
+
+
+def can_fetch_models(provider_id):
+    """Можно ли получить список моделей ПРЯМО СЕЙЧАС, не спрашивая ничего у
+    пользователя: есть адрес, сервис доступен, и либо ключ уже есть, либо
+    список отдаётся без ключа."""
+    if not models_url(provider_id) or unavailable_reason(provider_id):
+        return False
+    if models_public(provider_id):
+        return True
+    p = get_provider(provider_id) or {}
+    if not p.get("needs_key"):
+        # Провайдер без обязательного ключа (свой адрес, локальный сервер):
+        # спрашивать можно, отказ ничего не стоит.
+        return True
+    return api_keys.has_key(provider_id, env_names_for(provider_id))
+
+
+def models_stale(provider_id, stats=None, now=None):
+    """Пора ли обновлять список моделей этого провайдера.
+
+    Возвращает True, если чисел нет вовсе, они старше MODELS_FRESH_SECONDS
+    или последняя попытка была неудачной и с неё прошло больше
+    MODELS_RETRY_SECONDS.
+    """
+    if stats is None:
+        stats = api_keys.get_stats(provider_id)
+    stats = stats or {}
+    now = time.time() if now is None else now
+    if stats.get("models_error"):
+        return (now - float(stats.get("models_try_at") or 0.0)) >= MODELS_RETRY_SECONDS
+    at = float(stats.get("models_at") or 0.0)
+    if at <= 0 or int(stats.get("models_total", -1)) < 0:
+        return True
+    return (now - at) >= MODELS_FRESH_SECONDS
+
+
+def autoscan_targets(now=None):
+    """Провайдеры, чей список моделей стоит обновить сам собой.
+
+    Порядок как в реестре, чтобы вывод сервера читался предсказуемо.
+    """
+    all_stats = api_keys.get_stats()
+    out = []
+    for p in PROVIDERS:
+        pid = p["id"]
+        if can_fetch_models(pid) and models_stale(pid, all_stats.get(pid), now):
+            out.append(pid)
+    return out
 
 
 def list_providers():
     """Список для панели: метаданные + состояние ключа. Без секретов."""
     st = api_keys.status(provider_ids(), env_map())
+    all_stats = api_keys.get_stats()
     out = []
     for p in PROVIDERS:
         pid = p["id"]
         key_st = (st.get("providers") or {}).get(pid) or {}
-        ok, why = readiness(pid)
+        ok, why, code = _readiness_full(pid)
+        registry_url = str(p.get("base_url") or "")
+        resolved_url = base_url_for(pid)
         out.append({
             "id": pid,
             "name": p["name"],
-            "base_url": base_url_for(pid),
-            "base_url_editable": not p.get("base_url"),
+            "base_url": resolved_url,
+            # Адрес открыт для правки у ВСЕХ провайдеров, а не только у «своего
+            # адреса»: сервис может переехать, и тогда пользователь исправляет
+            # адрес сам, не дожидаясь новой версии плагина (base_url_for отдаёт
+            # приоритет заданному вручную). Испорченный адрес не пройдёт —
+            # api_keys.validate_base_url отклоняет мусор, а пустое поле
+            # означает возврат к адресу из реестра, то есть кнопка «сбросить»
+            # это просто очистка поля.
+            "base_url_editable": True,
+            # Что стоит в реестре — панели, чтобы показать это подсказкой в
+            # пустом поле и было видно, к чему вернёт очистка.
+            "base_url_default": registry_url,
+            # Адрес подменён вручную. Отдельным флагом, потому что провайдер с
+            # чужим адресом ведёт себя не так, как написано в его описании, и
+            # об этом стоит предупредить прежде, чем человек пойдёт искать
+            # причину отказов в ключе.
+            "base_url_custom": bool(registry_url) and resolved_url != registry_url.rstrip("/"),
             "needs_key": bool(p.get("needs_key")),
             "configured": bool(key_st.get("configured")),
             "key_source": key_st.get("source") or "",
             "masked": key_st.get("masked") or "",
             "model": model_for(pid),
             "models": list(p.get("models") or []),
+            "models_public": bool(p.get("models_public")),
             "ready": ok,
             "not_ready_reason": why,
+            # Та же причина кодом: текст выше существует только по-русски и
+            # непригоден как подпись на карточке в английской локали.
+            "not_ready_code": code,
             # Отдельно от ready: панель может показать «нельзя настроить» иначе,
             # чем «не хватает ключа». Пустая строка — обычный провайдер.
             "unavailable": unavailable_reason(pid),
+            # Пометка разработчика о живом прогоне. Сейчас False у всех — это
+            # правда, а не недоделка (см. комментарий к PROVIDERS).
+            "verified": bool(p.get("verified")),
+            # Наблюдения с ЭТОЙ машины: сколько моделей и бесплатных нашлось
+            # при последнем обновлении списка, чем кончилась проверка
+            # подключения. Пустой словарь — ничего не измеряли.
+            "stats": all_stats.get(pid) or {},
             "note_ru": p.get("note_ru", ""),
             "note_en": p.get("note_en", ""),
         })
@@ -416,12 +591,19 @@ def is_free_model(rec):
     return seen
 
 
-def parse_models_response(data, free_only=False):
-    """Идентификаторы моделей из ответа /models.
+def parse_models_detailed(data, free_only=False):
+    """Модели из ответа /models как записи [{"id": ..., "free": ...}, ...].
 
     Формат OpenAI: {"data": [{"id": ...}, ...]}. Некоторые совместимые
     сервисы отдают сразу список — поддерживаем оба варианта, потому что
     падать из-за формы обёртки здесь незачем.
+
+    ПОЧЕМУ ЗАПИСИ, А НЕ СТРОКИ. Признак бесплатности вычисляется здесь и
+    раньше выбрасывался: наружу уходили одни идентификаторы. Панель из-за
+    этого не могла отличить бесплатную модель от платной иначе как по
+    суффиксу в имени, а модель с нулевой ценой БЕЗ суффикса выглядела
+    платной. Теперь признак доходит до панели, и он же даёт счётчик
+    бесплатных моделей у провайдера (api_keys.record_models_stats).
     """
     if isinstance(data, dict):
         items = data.get("data")
@@ -450,4 +632,27 @@ def parse_models_response(data, free_only=False):
     # (основной случай на старте) не приходится их выискивать. Сортируем по
     # ФАКТИЧЕСКОЙ бесплатности из pricing, а не по суффиксу ":free" — иначе
     # модель с нулевой ценой без суффикса оказалась бы среди платных.
-    return sorted(seen, key=lambda m: (not seen[m], m))
+    order = sorted(seen, key=lambda m: (not seen[m], m))
+    return [{"id": m, "free": bool(seen[m])} for m in order]
+
+
+def parse_models_response(data, free_only=False):
+    """Только идентификаторы моделей — прежний формат ответа для панели.
+
+    Обёртка, а не второй разбор: два независимых прохода по одному ответу
+    неизбежно разошлись бы в трактовке бесплатности, и список моделей начал
+    бы противоречить счётчику «столько-то бесплатных» на том же экране.
+    """
+    return [rec["id"] for rec in parse_models_detailed(data, free_only=free_only)]
+
+
+def count_models(records):
+    """(всего, бесплатных) по записям parse_models_detailed.
+
+    Считать ОБЯЗАТЕЛЬНО по неотфильтрованному разбору: при free_only=True в
+    списке остаются только бесплатные, и «всего» совпало бы с «бесплатных» —
+    счётчик у провайдера показывал бы 100% бесплатных моделей у любого
+    платного сервиса.
+    """
+    recs = list(records or [])
+    return len(recs), sum(1 for r in recs if r.get("free"))

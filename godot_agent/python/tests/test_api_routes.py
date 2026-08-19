@@ -175,6 +175,20 @@ st, j = post("/api/settings/set", {"provider": "нет-такого"})
 check(u"неизвестный провайдер -> 400 с понятным текстом",
       st == 400 and u"Неизвестный провайдер" in j["error"])
 
+# Испорченный адрес endpoint'а: отказ ОТДЕЛЬНЫМ полем, как и у прокси. Поле
+# адреса открыто у всех провайдеров (сервис может переехать), поэтому опечатка
+# в нём не должна молча превращать рабочего провайдера в неотвечающий.
+st, j = post("/api/settings/set", {"provider": "openrouter",
+                                   "base_url": "openrouter.ai/api/v1"})
+check(u"адрес без схемы -> base_url_error, а не общий отказ формы",
+      st == 200 and u"http://" in j.get("base_url_error", ""))
+orec = [p for p in j["providers"] if p["id"] == "openrouter"][0]
+check(u"отклонённый адрес не подменил рабочий",
+      orec["base_url"] == "https://openrouter.ai/api/v1")
+check(u"панель знает, что адрес можно править, и к чему вернёт очистка",
+      orec["base_url_editable"] is True
+      and orec["base_url_default"] == "https://openrouter.ai/api/v1")
+
 # ---------------------------------------------------------------------------
 # 3) Обновление списка моделей
 # ---------------------------------------------------------------------------
@@ -184,8 +198,26 @@ st, j = post("/api/models/refresh", {"provider": "custom"})
 check(u"список моделей получен", st == 200 and "vendor/paid" in j["models"])
 check(u"бесплатные модели идут первыми",
       j["models"][0] == "vendor/gift:free")
+# Признак бесплатности доходит до панели отдельным полем. Без него бесплатную
+# модель можно было отличить только по суффиксу в имени, а модель с нулевой
+# ценой без суффикса выглядела платной.
+info = {r["id"]: r["free"] for r in j["models_info"]}
+check(u"признак бесплатности пришёл вместе со списком",
+      info.get("vendor/gift:free") is True and info.get("vendor/paid") is False)
+check(u"прежний список строк остался на месте (панель ещё читает его)",
+      j["models"] == [r["id"] for r in j["models_info"]])
+crec = [p for p in j["providers"] if p["id"] == "custom"][0]
+check(u"числа моделей записаны в наблюдения о провайдере",
+      crec["stats"]["models_total"] == 2 and crec["stats"]["models_free"] == 1)
+
 st, j = post("/api/models/refresh", {"provider": "custom", "free_only": True})
 check(u"фильтр «только бесплатные» работает", j["models"] == ["vendor/gift:free"])
+# Ловушка счётчика: посчитать «всего» по уже отфильтрованному списку. Тогда у
+# любого платного сервиса в списке провайдеров было бы «все модели бесплатные».
+crec = [p for p in j["providers"] if p["id"] == "custom"][0]
+check(u"счётчик «всего» считается по ПОЛНОМУ списку, а не по отфильтрованному",
+      crec["stats"]["models_total"] == 2 and crec["stats"]["models_free"] == 1)
+
 st, j = post("/api/models/refresh", {"provider": "нет"})
 check(u"обновление моделей неизвестного провайдера -> 400", st == 400)
 
@@ -196,12 +228,22 @@ st, j = post("/api/test", {"provider": "custom", "model": "vendor/gift:free"})
 check(u"проверка подключения успешна", st == 200 and j["ok"] is True)
 check(u"показано время ответа", j["elapsed_ms"] >= 0 and u"мс" in j["message"])
 check(u"видно, шёл ли запрос через прокси", j["via_proxy"] is False)
+# Исход проверки запоминается: это единственное место, где точно известно, что
+# провайдер отвечает ИМЕННО У ЭТОГО пользователя — с его ключом и его сетью.
+_st, _j = post("/api/providers")
+crec = [p for p in _j["providers"] if p["id"] == "custom"][0]
+check(u"удачная проверка запомнена в наблюдениях",
+      crec["stats"]["test_ok"] is True and crec["stats"]["test_at"] > 0)
 
 post("/api/settings/set", {"provider": "custom",
                            "base_url": "http://127.0.0.1:1/v1"})
 st, j = post("/api/test", {"provider": "custom", "model": "vendor/gift:free"})
 check(u"недоступный адрес -> ok=False, а не 500", st == 200 and j["ok"] is False)
 check(u"в ошибке есть подсказка про прокси", u"прокси" in j["error"])
+_st, _j = post("/api/providers")
+crec = [p for p in _j["providers"] if p["id"] == "custom"][0]
+check(u"неудачная проверка тоже запомнена, а не выдана за нейтральную",
+      crec["stats"]["test_ok"] is False)
 post("/api/settings/set", {"provider": "custom", "base_url": LOCAL})
 
 # ---------------------------------------------------------------------------
