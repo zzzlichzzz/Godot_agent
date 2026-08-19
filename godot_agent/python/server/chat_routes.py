@@ -4,6 +4,7 @@
 (с переходом браузера на его страницу), переименование и удаление.
 Вынесено из main.py в отдельный Blueprint.
 """
+import threading
 import time
 from flask import Blueprint, request, jsonify
 
@@ -158,6 +159,7 @@ def api_settings_set():
     pid = (data.get("provider") or "").strip()
     if pid and providers.get_provider(pid) is None:
         return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
+    problems = {}
     if pid:
         if "key" in data:
             # Ключ приходит сюда сырым один раз — при вводе. Дальше панель
@@ -166,11 +168,15 @@ def api_settings_set():
         if "model" in data:
             api_keys.set_model(pid, data.get("model") or "")
         if "base_url" in data:
-            api_keys.set_base_url(pid, data.get("base_url") or "")
+            ok, err = api_keys.set_base_url(pid, data.get("base_url") or "")
+            if not ok:
+                # Отдельным полем, как и ошибка прокси: остальные настройки уже
+                # сохранены, и панель должна перерисоваться с пояснением, а не
+                # показать общий отказ на всю форму.
+                problems["base_url_error"] = err
         if data.get("make_default"):
             api_keys.set_defaults(pid, api_keys.get_model(pid))
     proxy = data.get("proxy")
-    problems = {}
     if isinstance(proxy, dict):
         ok, err = api_keys.set_proxy(
             enabled=proxy.get("enabled") if "enabled" in proxy else None,
@@ -193,6 +199,41 @@ def api_settings_set():
     return jsonify(_api_settings_payload(problems or None))
 
 
+def _fetch_models(pid, connect_timeout=None):
+    """Список моделей провайдера как записи [{"id", "free"}, ...].
+
+    Возвращает (записи, текст_ошибки). Одна из двух половин всегда пуста.
+    Общая для кнопки «Обновить» и для автообновления: два места, собирающие
+    один и тот же запрос по-своему, однажды разойдутся в заголовках или в
+    таймауте, и «обновилось само» перестанет значить то же, что «обновил
+    кнопкой».
+    """
+    provider = providers.get_provider(pid)
+    if provider is None:
+        return [], u"неизвестный провайдер «%s»" % pid
+    url = providers.models_url(pid)
+    if not url:
+        return [], u"не задан адрес списка моделей"
+    blocked = providers.unavailable_reason(pid)
+    if blocked:
+        # К такому провайдеру не ходим вовсе — даже за списком моделей: он и его
+        # отдаёт только клиентам из своего списка, а лишний отказ в его логах
+        # нам ни к чему.
+        return [], u"«%s» пока недоступен: %s" % (provider["name"], blocked)
+    if connect_timeout is None:
+        connect_timeout = providers.connect_timeout_for(pid)
+    try:
+        raw = openai_compat.fetch_models(
+            url, api_keys.resolve_key(pid, providers.env_names_for(pid)),
+            extra_headers=providers.headers_for(pid),
+            proxy=api_keys.proxy_url(),
+            connect_timeout=connect_timeout)
+    except openai_compat.ApiError as e:
+        msg, _status, _retry = api_backend.describe_api_error(e, provider["name"])
+        return [], msg
+    return providers.parse_models_detailed(raw), ""
+
+
 @chats_bp.route('/api/models/refresh', methods=['POST'])
 def api_models_refresh():
     """Список моделей с самого сервиса.
@@ -207,40 +248,155 @@ def api_models_refresh():
     provider = providers.get_provider(pid)
     if provider is None:
         return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
-    url = providers.models_url(pid)
-    if not url:
+    if not providers.models_url(pid):
         return jsonify({"error": u"У «%s» не задан адрес списка моделей."
                                  % provider["name"]}), 400
     blocked = providers.unavailable_reason(pid)
     if blocked:
         # К такому провайдеру не ходим вовсе — даже за списком моделей: он и его
         # отдаёт только клиентам из своего списка, а лишний отказ в его логах
-        # нам ни к чему.
+        # нам ни к чему. Неудачей это НЕ запоминаем: попытки не было, а «список
+        # получить не удалось» на карточке значило бы, что мы сходили и получили
+        # отказ.
         return jsonify(_api_settings_payload({
             "error": u"«%s» пока недоступен: %s" % (provider["name"], blocked),
             "provider": pid}))
-    try:
-        raw = openai_compat.fetch_models(
-            url, api_keys.resolve_key(pid, providers.env_names_for(pid)),
-            extra_headers=providers.headers_for(pid),
-            proxy=api_keys.proxy_url(),
-            connect_timeout=providers.connect_timeout_for(pid))
-    except openai_compat.ApiError as e:
-        msg, _status, _retry = api_backend.describe_api_error(e, provider["name"])
-        print("<-- Список моделей %s не получен: %s" % (pid, msg))
+    # Разбираем ВЕСЬ ответ, без фильтра, и только потом отбираем бесплатные.
+    # Порядок важен: счётчики у провайдера должны считаться по полному списку,
+    # иначе при включённом флажке «только бесплатные» всего == бесплатных, и в
+    # списке провайдеров у любого платного сервиса оказалось бы 100%
+    # бесплатных моделей.
+    everything, err = _fetch_models(pid)
+    if err:
+        print("<-- Список моделей %s не получен: %s" % (pid, err))
+        # Неудачу запоминаем: панель показывает её в карточке провайдера. Без
+        # этого там осталось бы «список ещё не загружался» — то есть плагин
+        # выглядел бы просто ничего не делающим, хотя он сходил и получил отказ.
+        api_keys.record_models_error(pid, err)
         # Отвечаем 200 с текстом причины, а НЕ 502. Панель для любого не-200
         # показывает общее «сервер вернул ошибку (HTTP 502)» и выбрасывает тело
         # ответа — то есть пользователь не видел настоящей причины (недоступен
         # провайдер, неверный прокси, отклонён ключ). Здесь сервер отработал
         # штатно; неисправен внешний сервис, и об этом надо сказать словами.
-        return jsonify(_api_settings_payload({"error": msg, "provider": pid}))
+        return jsonify(_api_settings_payload({"error": err, "provider": pid}))
     free_only = bool(data.get("free_only"))
-    models = providers.parse_models_response(raw, free_only=free_only)
-    print("--> Список моделей %s обновлён: %d шт.%s"
-          % (pid, len(models), " (только бесплатные)" if free_only else ""))
-    return jsonify(_api_settings_payload({"models": models,
-                                          "provider": pid,
-                                          "free_only": free_only}))
+    total, free = providers.count_models(everything)
+    api_keys.record_models_stats(pid, total, free)
+    detailed = [r for r in everything if r["free"]] if free_only else everything
+    models = [r["id"] for r in detailed]
+    print("--> Список моделей %s обновлён: %d шт. (бесплатных %d из %d)%s"
+          % (pid, len(models), free, total,
+             " (показаны только бесплатные)" if free_only else ""))
+    return jsonify(_api_settings_payload({
+        "models": models,
+        # Записи с признаком бесплатности — рядом с прежним списком строк, а не
+        # вместо него: панель читает "models" и продолжит работать, пока не
+        # переедет на "models_info". Убрать "models" можно будет только после
+        # того, как это сделает GDScript.
+        "models_info": detailed,
+        "provider": pid,
+        "free_only": free_only}))
+
+
+# Сколько ждать ответа со списком моделей при автообновлении. Меньше обычного
+# таймаута запроса: пользователь в это время смотрит на открытый список
+# провайдеров, и минута ожидания там выглядит как зависший плагин. Провайдер,
+# не ответивший за 12 секунд, получит вторую попытку через MODELS_RETRY_SECONDS.
+SCAN_TIMEOUT = 12.0
+# Одновременных обходов быть не должно: панель может прислать запрос дважды
+# (открытие экрана и открытие списка), а два обхода — это двойной трафик к
+# провайдерам ради одних и тех же чисел. Второй запрос не ждёт, а отвечает
+# текущими данными: список провайдеров у него и так на экране.
+_scan_lock = threading.Lock()
+
+
+@chats_bp.route('/api/models/scan', methods=['POST'])
+def api_models_scan():
+    """Обновляет списки моделей у провайдеров, которых можно спросить молча.
+
+    ЗАЧЕМ ОТДЕЛЬНЫЙ МАРШРУТ. Числа «моделей столько, из них бесплатных
+    столько» появлялись ТОЛЬКО после того, как пользователь сам открывал
+    провайдера и нажимал «Обновить список». Поэтому фильтр «с бесплатными»,
+    который отбирает как раз по этим числам, показывал не провайдеров с
+    бесплатными моделями, а провайдеров, которых пользователь успел открыть.
+    Догадаться об этом снаружи нельзя: список ведь уже показан, и выглядит он
+    как полный ответ.
+
+    Спрашиваем только тех, у кого ответ возможен без участия человека
+    (providers.can_fetch_models) и чьи числа устарели или отсутствуют
+    (providers.models_stale). Обход идёт параллельно, потому что это ожидание
+    сети, а не работа: последовательно пять провайдеров складывались бы в
+    минуту, которую пользователь видит как зависшее окно.
+
+    force=True — обновить всё, что вообще можно спросить, не глядя на свежесть.
+    Это ручное «обновить все списки», а не поведение по умолчанию: обходить
+    провайдеров на каждое открытие окна значит тратить чужие лимиты запросов на
+    подпись под названием.
+    """
+    data = request.json or {}
+    force = bool(data.get("force"))
+    if force:
+        targets = [pid for pid in providers.provider_ids()
+                   if providers.can_fetch_models(pid)]
+    else:
+        targets = providers.autoscan_targets()
+    if not targets:
+        return jsonify(_api_settings_payload({"scanned": [], "failed": [],
+                                              "scan_skipped": True}))
+    if not _scan_lock.acquire(False):
+        # Обход уже идёт в другом запросе. Ждать его нечего: панель получит
+        # свежие числа следующим ответом сервера, а сейчас — то, что есть.
+        print("--> Автообновление списков моделей уже идёт — пропускаю")
+        return jsonify(_api_settings_payload({"scanned": [], "failed": [],
+                                              "scan_skipped": True}))
+    try:
+        print("--> Автообновление списков моделей: %s" % ", ".join(targets))
+        results = {}
+
+        def work(pid):
+            recs, err = _fetch_models(pid, connect_timeout=SCAN_TIMEOUT)
+            results[pid] = (recs, err)
+
+        threads = [threading.Thread(target=work, args=(pid,),
+                                    name="models-scan-%s" % pid, daemon=True)
+                   for pid in targets]
+        for t in threads:
+            t.start()
+        for t in threads:
+            # Запас над таймаутом запроса: поток должен успеть вернуться сам.
+            t.join(SCAN_TIMEOUT + 10.0)
+        changes, scanned, failed = {}, [], []
+        for pid in targets:
+            if pid not in results:
+                # Поток не уложился в join — считаем это неудачей попытки, а не
+                # молчанием: иначе провайдер остался бы без объяснения, почему у
+                # него нет чисел.
+                changes[pid] = api_keys.models_error_fields(
+                    u"ответ не пришёл за %.0f с" % SCAN_TIMEOUT)
+                failed.append(pid)
+                continue
+            recs, err = results[pid]
+            if err:
+                changes[pid] = api_keys.models_error_fields(err)
+                failed.append(pid)
+                print("<-- %s: список моделей не получен (%s)" % (pid, err))
+                continue
+            total, free = providers.count_models(recs)
+            changes[pid] = api_keys.models_stats_fields(total, free)
+            scanned.append(pid)
+            print("--> %s: моделей %d, из них бесплатных %d" % (pid, total, free))
+        # Одной записью на весь обход: иначе каждый провайдер отдельно читал бы
+        # и перезаписывал файл настроек, и параллельное сохранение ключа из
+        # другого запроса могло бы пропасть.
+        api_keys.record_stats_bulk(changes)
+    finally:
+        _scan_lock.release()
+    # Ошибки отдельных провайдеров НЕ уходят полем "error": панель показала бы
+    # их красной строкой на весь экран, а это обычное дело — у половины
+    # провайдеров ключа нет и не должно быть. Причина видна в карточке того
+    # провайдера, к которому относится.
+    return jsonify(_api_settings_payload({"scanned": scanned, "failed": failed,
+                                          "scan_skipped": False}))
 
 
 def _tls_note(pid):
@@ -326,10 +482,16 @@ def api_test():
         if note:
             msg += u" " + note
         print("<-- Проверка подключения к %s: %s" % (pid, msg))
+        # Неудачу запоминаем так же, как удачу: в списке провайдеров «проверка
+        # не прошла» — это полезное знание о СВОЕЙ машине, которого нет ни в
+        # каком реестре. Молчать о ней и показывать провайдера нейтральным
+        # значит предлагать человеку снова наступить на то же место.
+        api_keys.record_test_result(pid, False, 0)
         return jsonify({"ok": False, "error": msg,
                         "tls_issuer": probe.get("issuer", ""),
                         "tls_error": probe.get("error", "")})
     ms = int((res.get("elapsed") or 0) * 1000)
+    api_keys.record_test_result(pid, True, ms)
     proxy_note = u" через прокси" if api_keys.proxy_url() else u""
     print("--> Проверка подключения к %s (%s): успех, %d мс%s"
           % (pid, model, ms, proxy_note))
