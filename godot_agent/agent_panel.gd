@@ -274,6 +274,11 @@ func _ready() -> void:
 	# состояние «есть неотвеченное действие» держит _pending_action_active.
 	if action_label:
 		action_label.visible = false
+		# Надпись из .tscn русская. Панель эту строку никогда не показывает
+		# (подтверждения идут карточкой в чате), но держать в дереве русский
+		# текст при английском языке нельзя: узел живой, и любая будущая правка,
+		# которая снова его покажет, покажет и русское. Ставим из словаря сразу.
+		action_label.text = _t("pending_default")
 	if confirm_button:
 		confirm_button.visible = false
 	if reject_button:
@@ -2075,6 +2080,10 @@ func _on_language_changed() -> void:
 		reject_button.text = _t("reject")
 	if reinit_button:
 		reinit_button.text = _t("reinit")
+	if action_label and not action_label.visible:
+		# Скрытая строка подтверждения тоже переводится: см. пояснение там, где
+		# её прячут. Видимую не трогаем — в ней описание конкретного действия.
+		action_label.text = _t("pending_default")
 	if _log_errors_button:
 		_log_errors_button.text = _t("log_errors")
 	if _api_export_button:
