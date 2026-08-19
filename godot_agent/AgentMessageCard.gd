@@ -91,7 +91,8 @@ func _apply_locale() -> void:
 	# никто, а «Свернуть» переписывалось только при обновлении содержимого —
 	# то есть на английском языке в шапке карточки оставался русский текст.
 	name_label.text = _t("agent_name")
-	expand_btn.text = _t("collapse") if _expanded else _t("expand")
+	copy_btn.tooltip_text = _t("copy")
+	expand_btn.text = _t("collapse") if _is_expanded else _t("expand")
 
 
 func _ensure_rollback_button() -> void:

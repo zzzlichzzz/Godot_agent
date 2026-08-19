@@ -124,7 +124,7 @@ func _apply_locale() -> void:
 	# свернуть), и переключаются они при каждом нажатии.
 	_view_full_label = _t("diff_show_full")
 	_view_hide_label = _t("diff_hide_full")
-	view_full_btn.text = _view_full_label
+	view_full_btn.text = _t("diff_show_full")
 
 
 func _ensure_header_controls() -> void:
