@@ -133,6 +133,19 @@ def api_providers():
     return jsonify(_api_settings_payload())
 
 
+def _catalog_payload():
+    u"""Состояние каталога для панели + включён ли полный список провайдеров.
+
+    Переключатель живёт в настройках (api_keys), а не в состоянии каталога:
+    каталог — это данные, а показывать их или нет решает пользователь. Панель
+    при этом читает оба поля из одного места, иначе флажок и список собирались бы
+    из разных ответов и расходились бы при перерисовке.
+    """
+    out = catalog.state()
+    out["show_all"] = api_keys.catalog_enabled()
+    return out
+
+
 def _api_settings_payload(extra=None):
     """Единый вид настроек для панели. Всегда возвращается целиком, чтобы
     панель после любого изменения перерисовалась из одного источника и не
@@ -146,7 +159,7 @@ def _api_settings_payload(extra=None):
            # подписывает им цены и лимиты контекста — значит обязана показать и
            # то, насколько это знание свежее. Число без возраста измерения в
            # этом проекте не показывается.
-           "catalog": catalog.state(),
+           "catalog": _catalog_payload(),
            "config_path": api_keys.config_path()}
     if extra:
         out.update(extra)
@@ -213,6 +226,13 @@ def api_settings_set():
             url=dns.get("url") if "url" in dns else None)
         if not ok:
             problems["dns_error"] = err
+    cat = data.get("catalog")
+    if isinstance(cat, dict) and "enabled" in cat:
+        # Полный список провайдеров из каталога models.dev. Включается ОСОЗНАННО:
+        # про 161 запись сверх наших семи не проверено ничего, и показывать их
+        # вперемешку с разобранными значит стереть разницу между «проверено» и
+        # «взято из справочника».
+        api_keys.set_catalog_enabled(cat.get("enabled"))
     return jsonify(_api_settings_payload(problems or None))
 
 
@@ -253,7 +273,7 @@ def _fetch_models(pid, connect_timeout=None):
         # 500 на весь маршрут: у обхода это уронило бы обновление ВСЕХ
         # провайдеров из-за одного, ответившего чем-то неожидаемым.
         return [], u"неожиданный ответ от «%s»: %s" % (provider["name"], e)
-    return providers.parse_models_detailed(raw), ""
+    return providers.parse_models_detailed(raw, provider_id=pid), ""
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +294,34 @@ def _fetch_models(pid, connect_timeout=None):
 _catalog_lock = threading.Lock()
 
 
+def _catalog_extra_ids():
+    u"""Провайдеры ИЗ КАТАЛОГА, которых пользователь выбрал сам.
+
+    Для них тоже нужны модели каталога (цены и лимиты контекста). Для всех 161
+    держать модели нельзя: замерено 680 КБ против 100 КБ, а кэш читается целиком
+    на каждый запрос настроек.
+    """
+    try:
+        chosen = set(api_keys.configured_provider_ids())
+        return sorted(pid for pid in chosen if providers.is_from_catalog(pid))
+    except Exception as e:
+        print(u"[catalog] Не удалось узнать выбранных из каталога: %s" % e)
+        return []
+
+
+def _catalog_needs_models():
+    """Есть ли выбранный из каталога провайдер, чьих моделей в кэше ещё нет.
+
+    Без этого выбор провайдера из полного списка ждал бы недельного срока
+    свежести каталога, и до тех пор у него не было бы ни цен, ни лимитов —
+    снаружи это выглядит как «каталог про него не знает».
+    """
+    extra = _catalog_extra_ids()
+    if not extra:
+        return False
+    return any(not catalog.get(pid) for pid in extra)
+
+
 def _refresh_catalog(force):
     u"""Обновляет каталог, если пора. Возвращает текст ошибки или "".
 
@@ -288,7 +336,7 @@ def _refresh_catalog(force):
     обычно: без каталога у моделей просто не будет цен и лимитов, а работать
     по ключу это не мешает.
     """
-    if not force and not catalog.is_stale():
+    if not force and not catalog.is_stale() and not _catalog_needs_models():
         return ""
     if not _catalog_lock.acquire(False):
         # Загрузка уже идёт в другом запросе. Ждать её нечего: панель получит
@@ -296,7 +344,8 @@ def _refresh_catalog(force):
         print(u"--> Каталог models.dev уже загружается — пропускаю")
         return ""
     try:
-        _updated, err = catalog.refresh(force=force)
+        _updated, err = catalog.refresh(force=force,
+                                        extra_ids=_catalog_extra_ids())
         return err
     except Exception as e:
         # Никакая неожиданность в чужом справочнике не должна превращаться в
@@ -384,19 +433,18 @@ def api_models_refresh():
         # штатно; неисправен внешний сервис, и об этом надо сказать словами.
         return jsonify(_api_settings_payload({"error": err, "provider": pid}))
     free_only = bool(data.get("free_only"))
-    # Дополнения каталога прикладываются ДО подсчёта и до записи в кэш: иначе
-    # число «бесплатных по каталогу» пришлось бы считать вторым проходом по
-    # другому списку, и два счётчика на одной карточке отвечали бы на разные
-    # вопросы, выглядя как сравнение.
+    # В КЭШ УХОДИТ ЖИВОЙ ОТВЕТ, БЕЗ ДОПОЛНЕНИЙ. Каталог прикладывается только на
+    # выходе (_enrich): попав на диск, его поля стали бы неотличимы от
+    # присланных провайдером, и подпись «по каталогу models.dev» под живой ценой
+    # начала бы врать об источнике. Побочная выгода — обновление каталога
+    # действует сразу, не дожидаясь нового опроса провайдеров.
+    model_cache.put(pid, everything)
+    # А считаем и отдаём — по обогащённым: число «бесплатных по каталогу» иначе
+    # пришлось бы получать вторым проходом по другому списку.
     everything = _enrich(pid, everything)
     total, free = providers.count_models(everything)
     free_catalog = catalog.count_free(pid, everything)
     api_keys.record_models_stats(pid, total, free, free_catalog)
-    # Полный список — в кэш, ДО фильтра «только бесплатные». Из этого кэша
-    # панель ищет модель по названию сразу у всех провайдеров, и отфильтрованный
-    # список сделал бы поиск слепым к платным моделям того провайдера, у
-    # которого пользователь один раз нажал «Обновить» с этим флажком.
-    model_cache.put(pid, everything)
     detailed = [r for r in everything if r["free"]] if free_only else everything
     models = [r["id"] for r in detailed]
     print("--> Список моделей %s обновлён: %d шт. (бесплатных %d из %d, "
@@ -510,11 +558,15 @@ def api_models_scan():
                 failed.append(pid)
                 print("<-- %s: список моделей не получен (%s)" % (pid, err))
                 continue
+            # В кэш — ЖИВОЙ ответ, в счётчики — обогащённый. Разделение
+            # обязательно: на диске поля каталога стали бы неотличимы от
+            # присланных провайдером, и подпись об источнике начала бы врать.
+            raw_recs = recs
             recs = _enrich(pid, recs)
             total, free = providers.count_models(recs)
             free_catalog = catalog.count_free(pid, recs)
             changes[pid] = api_keys.models_stats_fields(total, free, free_catalog)
-            lists[pid] = recs
+            lists[pid] = raw_recs
             scanned.append(pid)
             print("--> %s: моделей %d, из них бесплатных %d "
                   "(по каталогу models.dev бесплатных %d)"

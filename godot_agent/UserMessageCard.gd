@@ -18,6 +18,9 @@ var _hovered: bool = false
 
 # Цвета, иконки и стили — единый модуль agent_theme.gd.
 static var _theme_script = null
+# Словарь надписей — agent_locale.gd. Отдельной ссылкой от темы: оформление в
+# открытой во вкладке сцене намеренно не применяется, а надписи нужны всегда.
+static var _locale_script = null
 
 
 func _T():
@@ -30,8 +33,21 @@ func _T():
 	return _theme_script
 
 
+func _t(key: String) -> String:
+	if _locale_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(p):
+				_locale_script = load(p)
+	if _locale_script:
+		return _locale_script.t(key)
+	return key
+
+
 func _ready() -> void:
 	_setup_theme()
+	_apply_locale()
 	if not copy_btn.pressed.is_connected(_on_copy_pressed):
 		copy_btn.pressed.connect(_on_copy_pressed)
 	if not mouse_entered.is_connected(_show_actions):
@@ -42,6 +58,14 @@ func _ready() -> void:
 		resized.connect(_recalc_bubble_width)
 	_set_actions_shown(false)
 	_recalc_bubble_width()
+
+
+func _apply_locale() -> void:
+	# «Вы» и подсказка «Копировать» лежат в .tscn по-русски и остаются на экране,
+	# пока код их не перепишет. Раньше не переписывал никто — на английском
+	# языке подпись автора сообщения так и оставалась русской.
+	name_label.text = _t("you")
+	copy_btn.tooltip_text = _t("copy")
 
 
 func _setup_theme() -> void:

@@ -22,6 +22,9 @@ signal plan_rollback_requested
 
 # Цвета и стили — единый модуль agent_theme.gd.
 static var _theme_script = null
+# Словарь надписей — agent_locale.gd. Держим отдельной ссылкой от темы: тема
+# может не загрузиться (сцена открыта в редакторе), а надписи нужны всегда.
+static var _locale_script = null
 
 
 func _T():
@@ -34,6 +37,18 @@ func _T():
 	return _theme_script
 
 
+func _t(key: String) -> String:
+	if _locale_script == null:
+		var sc := get_script() as Script
+		if sc:
+			var p := sc.resource_path.get_base_dir() + "/agent_locale.gd"
+			if FileAccess.file_exists(p):
+				_locale_script = load(p)
+	if _locale_script:
+		return _locale_script.t(key)
+	return key
+
+
 func _ready() -> void:
 	_setup_theme()
 	if not pause_btn.pressed.is_connected(_on_pause_pressed):
@@ -42,6 +57,18 @@ func _ready() -> void:
 		continue_btn.pressed.connect(_on_continue_pressed)
 	if not rollback_btn.pressed.is_connected(_on_rollback_pressed):
 		rollback_btn.pressed.connect(_on_rollback_pressed)
+	_apply_locale()
+
+
+func _apply_locale() -> void:
+	# Надписи кнопок лежат в .tscn по-русски (так их видно в редакторе сцен), и
+	# на экране остаются ровно до того, как код их перепишет. Раньше их не
+	# переписывал никто — «Пауза», «Продолжить» и «Откатить цепочку» оставались
+	# русскими при английском языке. Ставим все три здесь, списком: тогда забыть
+	# одну нельзя.
+	pause_btn.text = _t("plan_pause")
+	continue_btn.text = _t("plan_continue")
+	rollback_btn.text = _t("plan_rollback_chain")
 
 
 func _setup_theme() -> void:

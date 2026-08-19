@@ -30,6 +30,7 @@ AppData в облако, передача папки другому челове
 Для страховки есть redact() — им прогоняются любые тексты ошибок от провайдера
 перед печатью.
 """
+import copy
 import json
 import os
 import sys
@@ -89,6 +90,21 @@ _DEFAULT_CONFIG = {
     #                 "models_try_at": float, "test_ok": bool,
     #                 "test_at": float, "test_ms": int}
     "provider_stats": {},
+    # ПОЛНЫЙ СПИСОК ПРОВАЙДЕРОВ ИЗ КАТАЛОГА models.dev — по явному включению.
+    #
+    # enabled=False по умолчанию НАМЕРЕННО. Наши семь записей разобраны руками:
+    # у AgentRouter известен белый список клиентов, у Opencode Zen известна
+    # ловушка api.opencode.ai (отвечает 200 с текстом «Not Found»), у посредника
+    # выставлен connect_timeout=150. Про остальные 163 записи каталога не
+    # проверено НИЧЕГО. Показывать их вперемешку с разобранными значит стереть
+    # разницу между «проверено» и «взято из справочника»; поэтому они
+    # включаются осознанно и живут в отдельной группе с пометкой.
+    #
+    # Выбранные из каталога отдельным списком НЕ хранятся: провайдер становится
+    # «своим», как только у него появляется запись в разделе providers выше
+    # (ключ, модель или адрес). Второй список дублировал бы это состояние и
+    # однажды разошёлся бы с ним.
+    "catalog": {"enabled": False},
 }
 
 
@@ -98,8 +114,19 @@ _DEFAULT_CONFIG = {
 # ---------------------------------------------------------------------------
 
 def config_dir():
-    """Личная папка настроек агента (создаётся при первом обращении)."""
+    u"""Личная папка настроек агента (создаётся при первом обращении).
+
+    ПОЧЕМУ ТУТ ЗАПОМИНАНИЕ, А НЕ makedirs КАЖДЫЙ РАЗ. Эта функция стоит в самом
+    низу горячего пути: через неё идут config_path(), catalog.catalog_path() и
+    model_cache.cache_path(), а их дёргают на каждую проверку готовности
+    провайдера. С полным списком каталога это сто шестьдесят пять провайдеров за
+    один запрос настроек, то есть под тысячу вызовов makedirs — замерено 0.3 мс
+    на вызов и почти секунда на сборку списка провайдеров.
+    """
     override = (os.environ.get(ENV_CONFIG_DIR) or "").strip()
+    cached = _dirs_ready.get(override)
+    if cached is not None:
+        return cached
     if override:
         base = override
     elif os.name == "nt":
@@ -112,9 +139,18 @@ def config_dir():
         base = os.path.join(xdg or os.path.expanduser("~/.config"), "godot_agent")
     try:
         os.makedirs(base, exist_ok=True)
+        # Запоминаем ТОЛЬКО после удачного создания: иначе неудача закрепилась бы
+        # на всю сессию и папка не появилась бы уже никогда.
+        _dirs_ready[override] = base
     except Exception as e:
         print("[api_keys] Не удалось создать папку настроек %s (%s)" % (base, e))
     return base
+
+
+# Папка настроек по значению переменной окружения (см. config_dir). Ключ —
+# значение ENV_CONFIG_DIR, поэтому тесты, подменяющие его на ходу, получают свою
+# папку, а не запомненную чужую.
+_dirs_ready = {}
 
 
 def config_path():
@@ -201,11 +237,26 @@ def _load():
     добавленный только в _DEFAULT_CONFIG и в запись, будет исправно
     сохраняться и молча пропадать при каждом чтении. Новый раздел надо
     разобрать ЗДЕСЬ.
+
+    ПОЧЕМУ ТУТ КЭШ. Функция вызывается по несколько раз на КАЖДОГО провайдера
+    (ключ, модель, адрес, наблюдения), и с полным списком каталога это шестьсот
+    с лишним чтений файла за один запрос настроек — замерено 0.176 мс на вызов,
+    то есть больше сотни миллисекунд на пустом месте. Ключ кэша — время
+    изменения и размер файла, поэтому правка настроек любым другим процессом
+    видна сразу; _save() вдобавок сбрасывает кэш явно, чтобы запись и чтение в
+    пределах одного тика часов не разошлись.
     """
-    cfg = json.loads(json.dumps(_DEFAULT_CONFIG))  # глубокая копия
     p = config_path()
+    key = _stat_key(p)
+    if _cfg_cache["key"] == key:
+        # Копия ОБЯЗАТЕЛЬНА: вызывающие меняют результат и передают в _save
+        # (set_key, set_model, _update_stats). Без копии они правили бы кэш.
+        return copy.deepcopy(_cfg_cache["value"])
+    cfg = copy.deepcopy(_DEFAULT_CONFIG)
     if not os.path.isfile(p):
-        return cfg
+        _cfg_cache["key"] = key
+        _cfg_cache["value"] = cfg
+        return copy.deepcopy(cfg)
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -247,7 +298,57 @@ def _load():
             "enabled": bool(data["dns"].get("enabled")),
             "url": str(data["dns"].get("url") or "").strip(),
         }
-    return cfg
+    if isinstance(data.get("catalog"), dict):
+        # Раздел разбирается ЗДЕСЬ, а не только в _DEFAULT_CONFIG: см.
+        # предупреждение в начале функции. Добавленный мимо этого места он
+        # исправно сохранялся бы и молча пропадал при каждом чтении, то есть
+        # переключатель сбрасывался бы сам собой после перезапуска редактора.
+        cfg["catalog"] = {"enabled": bool(data["catalog"].get("enabled"))}
+    _cfg_cache["key"] = key
+    _cfg_cache["value"] = cfg
+    return copy.deepcopy(cfg)
+
+
+def _stat_key(path):
+    """(время изменения, размер) файла или None — этим кэш узнаёт, что файл
+    переписали, не читая его целиком."""
+    try:
+        st = os.stat(path)
+        return (st.st_mtime_ns, st.st_size)
+    except Exception:
+        return None
+
+
+# Разобранные настройки из прошлого чтения. key=False означает «ещё ни разу»:
+# None — законное значение для отсутствующего файла.
+_cfg_cache = {"key": False, "value": None}
+
+
+def _invalidate_cfg():
+    _cfg_cache["key"] = False
+    _cfg_cache["value"] = None
+
+
+def _cfg():
+    u"""Настройки ТОЛЬКО ДЛЯ ЧТЕНИЯ, без копии.
+
+    ЗАЧЕМ ОТДЕЛЬНАЯ ФУНКЦИЯ. _load() отдаёт глубокую копию, потому что
+    вызывающие её меняют и передают в _save(). Копия стоит 0.1 мс (замерено), а
+    геттеры ниже дёргают настройки по несколько раз на КАЖДОГО провайдера: с
+    полным списком каталога это шестьсот вызовов за один запрос настроек, то
+    есть больше семидесяти миллисекунд на копирование того, что никто не менял.
+
+    КТО ЭТИМ ПОЛЬЗУЕТСЯ, НЕ ИМЕЕТ ПРАВА МЕНЯТЬ РЕЗУЛЬТАТ. Изменение уедет в
+    кэш и будет жить до следующей записи файла — то есть настройки разойдутся с
+    диском, и понять это по симптомам почти невозможно. Меняете — берите
+    _load().
+    """
+    p = config_path()
+    key = _stat_key(p)
+    if _cfg_cache["key"] == key and _cfg_cache["value"] is not None:
+        return _cfg_cache["value"]
+    _load()  # он заполнит кэш
+    return _cfg_cache["value"] or copy.deepcopy(_DEFAULT_CONFIG)
 
 
 def _save(cfg):
@@ -255,6 +356,11 @@ def _save(cfg):
     оставляет полуфабрикат вместо настроек. На posix права 0600."""
     p = config_path()
     tmp = p + ".tmp"
+    # Кэш чтения сбрасываем ДО записи: если сохранение упадёт на середине,
+    # следующее чтение обязано пойти на диск, а не отдать то, что мы собирались
+    # записать. Время изменения файла тоже сторож, но в пределах одного тика
+    # часов оно может не измениться — это как раз случай двух сохранений подряд.
+    _invalidate_cfg()
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=1)
@@ -339,7 +445,7 @@ def _secrets():
         return cached
     found = []
     try:
-        cfg = _load()
+        cfg = _cfg()
         for rec in (cfg.get("providers") or {}).values():
             if rec.get("key"):
                 found.append(rec["key"])
@@ -384,7 +490,7 @@ def resolve_key(provider_id, env_names=()):
         val = (os.environ.get(name) or "").strip()
         if val:
             return val
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return str(rec.get("key") or "").strip()
 
 
@@ -394,7 +500,7 @@ def key_source(provider_id, env_names=()):
     for name in (_env_name(provider_id),) + tuple(env_names or ()):
         if (os.environ.get(name) or "").strip():
             return "env"
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return "file" if str(rec.get("key") or "").strip() else ""
 
 
@@ -429,7 +535,7 @@ def delete_key(provider_id):
 # ---------------------------------------------------------------------------
 
 def get_model(provider_id):
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return str(rec.get("model") or "")
 
 
@@ -447,7 +553,7 @@ def set_model(provider_id, model):
 def get_base_url(provider_id):
     """Свой адрес endpoint'а — для провайдера "custom", для зеркала известного
     провайдера и для локального llama-server. Пусто = адрес из реестра."""
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return str(rec.get("base_url") or "").strip()
 
 
@@ -507,7 +613,7 @@ def set_base_url(provider_id, base_url):
 
 
 def get_defaults():
-    d = _load().get("defaults") or {}
+    d = _cfg().get("defaults") or {}
     return {"provider": str(d.get("provider") or ""),
             "model": str(d.get("model") or "")}
 
@@ -529,7 +635,7 @@ def get_stats(provider_id=None):
     Провайдер, о котором ничего не известно, отсутствует в словаре — панель
     покажет «не проверялось». Это не то же самое, что запись с нулями.
     """
-    all_stats = _load().get("provider_stats") or {}
+    all_stats = _cfg().get("provider_stats") or {}
     if provider_id is None:
         return {str(k): _clean_stats(v) for k, v in all_stats.items()}
     rec = all_stats.get(str(provider_id))
@@ -663,7 +769,7 @@ def reset_models_stats(provider_id):
 
 def get_proxy():
     """Настройки прокси БЕЗ пароля — этот вид уходит в панель."""
-    pr = _load().get("proxy") or {}
+    pr = _cfg().get("proxy") or {}
     return {"enabled": bool(pr.get("enabled")),
             "host": str(pr.get("host") or ""),
             "port": int(pr.get("port") or 0),
@@ -784,7 +890,7 @@ def proxy_url():
     127.0.0.1 (свой сервер, будущий llama-server, порт отладки браузера)
     через прокси гнать нельзя — за это отвечает транспорт.
     """
-    pr = _load().get("proxy") or {}
+    pr = _cfg().get("proxy") or {}
     if not pr.get("enabled"):
         return None
     host = str(pr.get("host") or "").strip()
@@ -806,7 +912,7 @@ def proxy_url():
 # ---------------------------------------------------------------------------
 
 def get_dns():
-    d = _load().get("dns") or {}
+    d = _cfg().get("dns") or {}
     return {"enabled": bool(d.get("enabled")), "url": str(d.get("url") or "")}
 
 
@@ -850,6 +956,47 @@ def apply_dns_settings():
 
 
 # ---------------------------------------------------------------------------
+# Полный список провайдеров из каталога models.dev
+# ---------------------------------------------------------------------------
+
+def catalog_enabled():
+    """Показывать ли в выборе провайдеров ВСЕХ пригодных из каталога.
+
+    По умолчанию False: см. пояснение к разделу "catalog" в _DEFAULT_CONFIG.
+    """
+    return bool((_cfg().get("catalog") or {}).get("enabled"))
+
+
+def set_catalog_enabled(enabled):
+    cfg = _load()
+    cfg["catalog"] = {"enabled": bool(enabled)}
+    ok = _save(cfg)
+    if ok:
+        print("--> Провайдеры из каталога models.dev: %s"
+              % (u"показываются" if cfg["catalog"]["enabled"] else u"скрыты"))
+    return ok
+
+
+def configured_provider_ids():
+    u"""Провайдеры, о которых в настройках вообще есть запись.
+
+    Нужно ровно для одного: провайдер, выбранный из полного списка каталога,
+    обязан остаться видимым, даже если полный список потом выключили. Иначе
+    человек не смог бы ни найти его, ни убрать свой же ключ.
+
+    Пустая запись (все поля пустые) не считается: такие остаются после сброса
+    адреса и ключа, и держать из-за них провайдера в списке незачем.
+    """
+    out = []
+    for pid, rec in (_cfg().get("providers") or {}).items():
+        if not isinstance(rec, dict):
+            continue
+        if rec.get("key") or rec.get("model") or rec.get("base_url"):
+            out.append(str(pid))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Безопасный отчёт для панели
 # ---------------------------------------------------------------------------
 
@@ -862,7 +1009,7 @@ def status(provider_ids=(), env_map=None):
     (общепринятые вроде OPENROUTER_API_KEY).
     """
     env_map = env_map or {}
-    cfg = _load()
+    cfg = _cfg()
     out = {}
     ids = list(provider_ids) or list((cfg.get("providers") or {}).keys())
     for pid in ids:

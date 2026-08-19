@@ -76,6 +76,23 @@ FAKE_CATALOG = {
                                    "limit": {"context": 64000},
                                    "tool_call": True}},
     },
+    # Чужой пригодный провайдер: из таких и собирается полный список выбора.
+    # Живьём их 163 сверх наших семи; про них не проверено ничего, поэтому они
+    # показываются только по явному включению и своей группой.
+    "stranger-ai": {
+        "id": "stranger-ai", "name": "Stranger AI",
+        "api": "https://stranger.example/v1", "env": ["STRANGER_API_KEY"],
+        "npm": "@ai-sdk/openai-compatible", "doc": "https://docs.stranger.example",
+        "models": {"stranger/model": {"cost": {"input": 1, "output": 2},
+                                      "limit": {"context": 32000}}},
+    },
+    # Записи без адреса в список попадать не должны: им нужен родной SDK
+    # провайдера, а у нас единственный транспорт это HTTP. Таких в каталоге 26.
+    "sdk-only": {
+        "id": "sdk-only", "name": "SDK Only", "api": None,
+        "env": ["SDK_ONLY_API_KEY"], "npm": "@ai-sdk/azure",
+        "models": {"sdk/model": {"limit": {"context": 1000}}},
+    },
 }
 
 
@@ -100,8 +117,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, FAKE_CATALOG)
             return
         if self.path.endswith("/models"):
+            # Ответ в стиле OpenRouter: цена строкой в долларах ЗА ТОКЕН,
+            # окно контекста и supported_parameters. Это ПЕРВИЧНЫЕ числа —
+            # каталог не имеет права их перебивать. У «vendor/paid» они есть, у
+            # «vendor/gift:free» специально нет: на одной паре видно оба
+            # направления — где живой ответ выигрывает и где каталог дополняет.
             self._json(200, {"data": [
-                {"id": "vendor/paid", "pricing": {"prompt": "0.01", "completion": "0.02"}},
+                {"id": "vendor/paid",
+                 "pricing": {"prompt": "0.0000015", "completion": "0.000006"},
+                 "context_length": 999000,
+                 "supported_parameters": ["tools", "temperature"]},
                 {"id": "vendor/gift:free", "pricing": {"prompt": "0", "completion": "0"}},
             ]})
             return
@@ -372,11 +397,25 @@ check(u"в запросе каталога нет заголовка Authorizati
 check(u"СЫРОГО ключа в запросе каталога нет", "SECRETVALUE" not in _cat_sent)
 
 _oidx = {r["id"]: r for r in (j.get("models_index") or {}).get("openrouter", [])}
-check(u"цена, контекст и поддержка инструментов из каталога доехали до записей",
-      _oidx.get("vendor/paid", {}).get("cost_in") == 0.0
-      and _oidx.get("vendor/paid", {}).get("context") == 128000
-      and _oidx.get("vendor/paid", {}).get("max_output") == 32000
-      and _oidx.get("vendor/paid", {}).get("tool_call") is True)
+_paid = _oidx.get("vendor/paid") or {}
+_gift = _oidx.get("vendor/gift:free") or {}
+# ЖИВОЙ ОТВЕТ ПЕРВИЧЕН. Цена за токен переведена в цену за миллион по единице из
+# реестра, окно взято его, каталог со своими 128000 в это НЕ вмешался.
+check(u"цена и окно из живого ответа не перебиты каталогом",
+      _paid.get("cost_in") == 1.5 and _paid.get("cost_out") == 6.0
+      and _paid.get("context") == 999000 and _paid.get("tool_call") is True)
+# А чего провайдер не присылает — дополняет каталог.
+check(u"каталог дописал то, чего в живом ответе не было",
+      _paid.get("max_output") == 32000
+      and _gift.get("context") == 8000 and _gift.get("max_output") == 4000
+      and _gift.get("tool_call") is False)
+# И КАЖДОЕ дописанное поле названо. Без этого списка подпись «по каталогу
+# models.dev» встала бы и под живой ценой провайдера, а она точнее: замерено, что
+# у moonshotai/kimi-k2.6 каталог отстал и завышал цену на 47%.
+check(u"каталог перечислил, ЧТО именно он дописал, и не приписал себе живое",
+      set(_paid.get("from_catalog") or []) == {"max_output"}
+      and set(_gift.get("from_catalog") or [])
+      == {"context", "max_output", "tool_call"})
 # ГЛАВНОЕ: каталог не даёт список для выбора. У него есть модель, которой живой
 # /models не отдаёт, и попасть в панель она не должна — иначе пользователь
 # выберет её и получит 404 от провайдера.
@@ -398,12 +437,20 @@ check(u"у другого провайдера каталог даёт своё 
 crec = [p for p in j["providers"] if p["id"] == "custom"][0]
 check(u"про провайдера, которого каталог не знает, счётчик МОЛЧИТ (-1), а не пишет ноль",
       crec["stats"]["models_free_catalog"] == -1)
-# Дополнения обязаны переживать запись на диск: кэш списков читается панелью на
-# каждый поиск, и цена, потерянная при сохранении, выглядела бы как «то есть,
-# то нет».
-check(u"дополнения каталога сохранились в кэше списков моделей",
-      {r["id"]: r.get("context") for r in model_cache.get("openrouter")}
-      == {"vendor/gift:free": 8000, "vendor/paid": 128000})
+# В КЭШ УХОДИТ ЖИВОЙ ОТВЕТ, БЕЗ УТВЕРЖДЕНИЙ КАТАЛОГА. Попав на диск, поля
+# каталога стали бы неотличимы от присланных провайдером, и подпись «по каталогу
+# models.dev» встала бы под живой ценой. Дополнения прикладываются на выходе и
+# сами сообщают, что дописали. Побочная выгода: обновление каталога действует
+# сразу, не дожидаясь нового опроса провайдеров.
+_cached = {r["id"]: r for r in model_cache.get("openrouter")}
+check(u"в кэш попали ЖИВЫЕ числа провайдера",
+      set(_cached) == {"vendor/gift:free", "vendor/paid"}
+      and _cached["vendor/paid"]["context"] == 999000
+      and _cached["vendor/paid"]["cost_in"] == 1.5)
+check(u"а утверждения каталога в кэш НЕ попали — иначе подпись об источнике соврёт",
+      not any(k in _cached["vendor/paid"]
+              for k in ("catalog_free", "from_catalog", "status", "deprecated"))
+      and "context" not in _cached["vendor/gift:free"])
 with open(_ak.config_path(), "r", encoding="utf-8") as f:
     check(u"каталог не поселился в файле с ключами",
           "vendor/only-in-catalog" not in f.read())
@@ -601,6 +648,73 @@ check(u"журнал отката сохранён, но обезличен от
       and u"Секретное название удаляемого чата" not in json.dumps(journal, ensure_ascii=False))
 st_missing, _ = post("/chats/delete", {"id": cid})
 check(u"повторное удаление не изображает успех", st_missing == 404)
+
+# ---------------------------------------------------------------------------
+# 8) ПОЛНЫЙ СПИСОК ПРОВАЙДЕРОВ ИЗ КАТАЛОГА через маршруты
+#
+# Замерено: из 192 записей каталога 166 имеют адрес endpoint'а. Включение
+# полного списка НЕ должно означать поход к незнакомым сервисам — проверяем это
+# ловушкой на разрешение имён, как и в остальных местах этого файла.
+# ---------------------------------------------------------------------------
+st, j = post("/api/providers")
+check(u"по умолчанию полный список выключен",
+      (j.get("catalog") or {}).get("show_all") is False)
+_base_ids = [p["id"] for p in j["providers"]]
+check(u"и провайдеров ровно семь разобранных", len(_base_ids) == 7)
+check(u"панель знает, сколько записей добавит включение",
+      int((j.get("catalog") or {}).get("known_providers", 0)) >= 1)
+
+_socket.getaddrinfo = _guard_outside
+_outside = []
+try:
+    st, j = post("/api/settings/set", {"catalog": {"enabled": True}})
+    ids_all = [p["id"] for p in j["providers"]]
+finally:
+    _socket.getaddrinfo = _real_getaddrinfo
+check(u"включение добавило провайдеров из каталога",
+      len(ids_all) > len(_base_ids) and "stranger-ai" in ids_all)
+check(u"переключатель вернулся включённым", (j.get("catalog") or {}).get("show_all") is True)
+check(u"запись без адреса endpoint'а в список НЕ попала",
+      "sdk-only" not in ids_all)
+check(u"САМО включение не делает ни одного запроса в сеть", _outside == [])
+# Обход провайдеров сюда не идёт НЕ потому, что мы его не позвали, а потому что
+# каталожным записям не выставляется models_public: без ключа спрашивать их
+# нельзя. Иначе включение полного списка означало бы сто шестьдесят запросов к
+# незнакомым сервисам при открытии окна выбора.
+check(u"без ключа список моделей каталожной записи не спрашивают",
+      _P.can_fetch_models("stranger-ai") is False)
+check(u"и в автообход она не попадает",
+      "stranger-ai" not in _P.autoscan_targets())
+_srec = [p for p in j["providers"] if p["id"] == "stranger-ai"][0]
+check(u"каталожная запись помечена и без обещания публичного списка моделей",
+      _srec["from_catalog"] is True and _srec["models_public"] is False
+      and _srec["verified"] is False)
+check(u"её адрес взят из каталога",
+      _srec["base_url"] == "https://stranger.example/v1")
+check(u"причина неготовности — нет ключа, а не «неизвестный провайдер»",
+      _srec["not_ready_code"] == "no_key")
+
+# Выбор каталожного провайдера — обычное сохранение настроек. Проверяем, что
+# маршрут его принимает (раньше любой незнакомый идентификатор давал 400).
+st, j = post("/api/settings/set", {"provider": "stranger-ai",
+                                   "key": "sk-CATALOGSECRET0123456789",
+                                   "model": "stranger/model"})
+_srec = [p for p in j["providers"] if p["id"] == "stranger-ai"][0]
+check(u"каталожного провайдера можно настроить как любого другого",
+      st == 200 and _srec["configured"] is True and _srec["ready"] is True)
+check(u"СЫРОГО ключа каталожного провайдера в ответе нет",
+      "CATALOGSECRET" not in json.dumps(j))
+st, j = post("/api/settings/set", {"catalog": {"enabled": False}})
+ids_off = [p["id"] for p in j["providers"]]
+check(u"после выключения списка настроенный каталожный остаётся видимым",
+      "stranger-ai" in ids_off and len(ids_off) == 8)
+st, j = post("/api/settings/set", {"provider": "stranger-ai", "key": "",
+                                   "model": ""})
+check(u"а без ключа и модели исчезает",
+      "stranger-ai" not in [p["id"] for p in j["providers"]])
+st, j = post("/api/settings/set", {"provider": "нет-такого-нигде"})
+check(u"выдуманный идентификатор по-прежнему отклоняется",
+      st == 400 and u"Неизвестный провайдер" in j["error"])
 
 srv.shutdown()
 _catalog.CATALOG_URL = _REAL_CATALOG_URL

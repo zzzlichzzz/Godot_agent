@@ -121,6 +121,10 @@ var _api_pick_note: Label = null
 # строке — пользователь перестаёт понимать, кто что утверждает.
 var _api_catalog_note: Label = null
 var _api_pick_scan_btn: Button = null
+# Флажок «показать все провайдеры из каталога models.dev». Выключен по
+# умолчанию: наши семь записей разобраны руками, остальные сто шестьдесят взяты
+# из справочника и живьём не проверялись ни одной строчкой.
+var _api_catalog_all: CheckBox = null
 # Идёт ли обход провайдеров за списками моделей. Панель обхода не ведёт: она
 # только просит сервер, а он сам решает, кого и когда спрашивать.
 var _api_scan_running: bool = false
@@ -143,6 +147,10 @@ var _api_pick_filter: String = "all"
 # Свёрнутые группы запоминаются между открытиями диалога: иначе «Пока
 # недоступны» разворачивалась бы заново при каждом поиске.
 var _api_pick_collapsed: Dictionary = {}
+# Записи свёрнутых групп, ещё не превращённые в карточки: {ключ: {recs, query,
+# box}}. Свёрнутая группа не собирается вовсе — на ста шестидесяти трёх записях
+# каталога это 320 мс на каждую букву в поиске (замерено 1.9 мс на карточку).
+var _api_pick_pending: Dictionary = {}
 # Список моделей, полученный кнопкой «Обновить список», в разрезе провайдера:
 # provider_id -> [идентификаторы]. Держим его отдельно от _api_data, потому что
 # ответ сервера с настройками содержит ТОЛЬКО зашитый в реестр список (у
@@ -281,6 +289,7 @@ func _rebuild_ui() -> void:
 	_api_pick_empty = null
 	_api_pick_note = null
 	_api_catalog_note = null
+	_api_catalog_all = null
 	_api_pick_scan_btn = null
 	_build()
 	show_home()
@@ -1181,6 +1190,7 @@ func set_api_settings(json: Dictionary) -> void:
 	# вовсе, и панель должна просто не показывать строку о каталоге, а не падать.
 	if typeof(json.get("catalog")) == TYPE_DICTIONARY:
 		_api_catalog = json["catalog"]
+	_api_sync_catalog_toggle()
 	_api_filling = true
 	_api_provider_ids.clear()
 	for p in _api_data.get("providers", []):
@@ -1587,6 +1597,36 @@ func _on_api_pick_rescan() -> void:
 	_api_request_scan(true)
 
 
+func _on_api_catalog_all_toggled(pressed: bool) -> void:
+	# Состояние хранит СЕРВЕР, а не панель: список провайдеров он же и собирает,
+	# и два источника правды разошлись бы при первой же перерисовке. Ответ
+	# придёт обычным набором настроек, и список перестроится из него.
+	if _api_filling:
+		return
+	api_settings_save_requested.emit({"catalog": {"enabled": pressed}})
+
+
+func _api_sync_catalog_toggle() -> void:
+	# Флажок «все из каталога» ставим ИЗ ОТВЕТА СЕРВЕРА и под _api_filling:
+	# иначе программная установка выглядела бы как нажатие пользователем и
+	# уехала бы обратно на сервер бесконечным кругом.
+	#
+	# Вызывается из двух мест намеренно: диалог создаётся по требованию, уже
+	# после первого set_api_settings, и без вызова из сборки диалога флажок
+	# открывался бы снятым при включённом на сервере списке.
+	if _api_catalog_all == null or not is_instance_valid(_api_catalog_all):
+		return
+	var was := _api_filling
+	_api_filling = true
+	_api_catalog_all.button_pressed = bool(_api_catalog.get("show_all", false))
+	var extra := int(_api_catalog.get("known_providers", 0))
+	# Число в подписи: «включить ещё 161» честнее безымянной галочки — сразу
+	# видно, во что превратится список.
+	if extra > 0:
+		_api_catalog_all.text = _t("api_catalog_show_all_n") % extra
+	_api_filling = was
+
+
 func set_api_scan_result(json: Dictionary) -> void:
 	# Обход закончился — независимо от того, что он нашёл. Флаг снимается ВСЕГДА:
 	# если оставить его выставленным после неудачи, следующее открытие окна
@@ -1682,6 +1722,40 @@ func _api_build_pick_dialog() -> void:
 		_api_pick_scan_btn.icon = T.first_icon(["Reload", "Loop"])
 	chips.add_child(_api_pick_scan_btn)
 
+	# Переключатель полного списка провайдеров из каталога models.dev. ВЫКЛЮЧЕН
+	# по умолчанию и подписан числом: «включить ещё 161» честнее безымянной
+	# галочки, потому что сразу видно, во что превратится список. Про эти записи
+	# не проверено ничего, поэтому решение остаётся за человеком.
+	_api_catalog_all = CheckBox.new()
+	_api_catalog_all.text = _t("api_catalog_show_all")
+	_api_catalog_all.tooltip_text = _t("api_catalog_show_all_tip")
+	# Состояние ставим ДО подключения сигнала и из ответа сервера: диалог
+	# создаётся по требованию, уже после set_api_settings, и без этой строки
+	# флажок открывался бы снятым при включённом на сервере списке — то есть
+	# показывал бы не то, что есть.
+	_api_sync_catalog_toggle()
+	_api_catalog_all.toggled.connect(_on_api_catalog_all_toggled)
+	chips.add_child(_api_catalog_all)
+
+	# ПОЧЕМУ ВСЁ ОСТАЛЬНОЕ ВНУТРИ ПРОКРУТКИ. AcceptDialog растягивается под
+	# наименьшую высоту своего содержимого, а подпись с переносом (autowrap) при
+	# узком окне занимает не одну строку, а пять: замерено 205 px у одной только
+	# строки про каталог. Вместе с рядом фильтров это добавляло к обязательной
+	# высоте несколько сотен пикселей, и окно вылезало вверх-вниз вместо
+	# обычного. Внутри ScrollContainer наименьшая высота равна нулю — окно
+	# получает ровно тот размер, который просили, а содержимое прокручивается.
+	# Строки состояния при этом остаются НАД списком: они объясняют, почему в
+	# нём именно то, что в нём есть, и после списка их бы не прочли.
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.add_child(scroll)
+	var inner := VBoxContainer.new()
+	inner.size_flags_horizontal = SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("separation", 8)
+	scroll.add_child(inner)
+
 	# Строка о состоянии данных списка. Стоит ВЫШЕ самого списка: она объясняет,
 	# почему в списке именно то, что в нём есть, и после списка её бы не прочли.
 	_api_pick_note = Label.new()
@@ -1689,14 +1763,12 @@ func _api_build_pick_dialog() -> void:
 	_api_pick_note.size_flags_horizontal = SIZE_EXPAND_FILL
 	_api_pick_note.add_theme_color_override("font_color", _color("warning"))
 	_api_pick_note.visible = false
-	root.add_child(_api_pick_note)
+	inner.add_child(_api_pick_note)
 
 	# Строка о ВТОРИЧНОМ источнике. Стоит рядом с _api_pick_note, но отдельной
 	# подписью: числа из каталога и числа из живого ответа провайдера отвечают
 	# на разные вопросы («что бывает у сервиса» против «что отдадут вашему
 	# ключу»), и слитые в одну строку они читаются как одно утверждение.
-	# autowrap обязателен: окно берётся clamped по размеру редактора, и на
-	# маленьком экране длинная строка уехала бы за его край.
 	_api_catalog_note = Label.new()
 	_api_catalog_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_api_catalog_note.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -1709,17 +1781,12 @@ func _api_build_pick_dialog() -> void:
 	_api_catalog_note.mouse_filter = Control.MOUSE_FILTER_STOP
 	_api_catalog_note.tooltip_text = _t("api_catalog_tip")
 	_api_catalog_note.visible = false
-	root.add_child(_api_catalog_note)
+	inner.add_child(_api_catalog_note)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	root.add_child(scroll)
 	_api_pick_list = VBoxContainer.new()
 	_api_pick_list.size_flags_horizontal = SIZE_EXPAND_FILL
 	_api_pick_list.add_theme_constant_override("separation", 10)
-	scroll.add_child(_api_pick_list)
+	inner.add_child(_api_pick_list)
 
 	# Пустой результат объясняется словами, а не пустым экраном: у фильтра
 	# «с бесплатными» пусто — это нормальное состояние до первого обновления
@@ -1729,7 +1796,7 @@ func _api_build_pick_dialog() -> void:
 	_api_pick_empty.size_flags_horizontal = SIZE_EXPAND_FILL
 	_api_pick_empty.add_theme_color_override("font_color", _color("dim"))
 	_api_pick_empty.visible = false
-	root.add_child(_api_pick_empty)
+	inner.add_child(_api_pick_empty)
 
 
 func _api_add_chip(parent: Node, group: ButtonGroup, mode: String, key: String) -> void:
@@ -1854,12 +1921,20 @@ func _api_rebuild_pick_list() -> void:
 	if _api_pick_list == null or not is_instance_valid(_api_pick_list):
 		return
 	_clear_container(_api_pick_list)
+	_api_pick_pending.clear()
 	var query := ""
 	if _api_pick_search:
 		query = _api_pick_search.text.strip_edges().to_lower()
 	var ready_recs: Array = []
 	var setup_recs: Array = []
 	var blocked_recs: Array = []
+	# Записи из каталога — ОТДЕЛЬНОЙ группой, а не вперемешку с разобранными.
+	# Про наши семь известны их особенности (белый список клиентов AgentRouter,
+	# ловушка api.opencode.ai, увеличенный таймаут посредника), а про эти сто
+	# шестьдесят не проверено ничего. Смешать их в одном списке значит стереть
+	# разницу между «проверено» и «взято из справочника» — и человек выберет
+	# незнакомый сервис, думая, что он разобран так же.
+	var catalog_recs: Array = []
 	_api_pick_hidden_unknown = 0
 	for p in _api_data.get("providers", []):
 		if typeof(p) != TYPE_DICTIONARY:
@@ -1879,13 +1954,33 @@ func _api_rebuild_pick_list() -> void:
 			continue
 		if str(rec.get("unavailable", "")) != "":
 			blocked_recs.append(rec)
+		elif bool(rec.get("from_catalog", false)) \
+				and not bool(rec.get("configured", false)):
+			# Настроенная каталожная запись переезжает в обычные группы: у неё
+			# уже есть ключ, то есть человек с ней работает, и держать её среди
+			# ста шестидесяти незнакомых значит спрятать своё же.
+			catalog_recs.append(rec)
 		elif bool(rec.get("ready", false)):
 			ready_recs.append(rec)
 		else:
 			setup_recs.append(rec)
-	var shown := ready_recs.size() + setup_recs.size() + blocked_recs.size()
+	var shown := ready_recs.size() + setup_recs.size() + blocked_recs.size() \
+		+ catalog_recs.size()
 	_api_add_pick_group("ready", "api_pick_group_ready", ready_recs, false, query)
-	_api_add_pick_group("setup", "api_pick_group_setup", setup_recs, false, query)
+	# КАТАЛОГ — СРАЗУ ПОСЛЕ ГОТОВЫХ, а не в конце списка. Человек должен видеть,
+	# что выбор не ограничен семью разобранными записями: их 165, и узнать об
+	# этом, прокрутив мимо «можно настроить» и «недоступны», он не обязан.
+	# «Можно настроить» при этом свёрнуто по умолчанию: там провайдеры, до
+	# которых ещё надо дойти (получить ключ), и раскрытыми они вытесняют с экрана
+	# главное — что доступно прямо сейчас и что вообще есть.
+	if catalog_recs.is_empty():
+		_api_add_catalog_invite()
+	else:
+		# Свёрнута: их сто пятьдесят восемь, раскрытыми они вытеснили бы с экрана
+		# всё проверенное.
+		_api_add_pick_group("catalog", "api_pick_group_catalog", catalog_recs,
+			true, query)
+	_api_add_pick_group("setup", "api_pick_group_setup", setup_recs, true, query)
 	# Недоступные свёрнуты по умолчанию: их нельзя выбрать, и держать их
 	# раскрытыми значит каждый раз прокручивать список мимо них.
 	_api_add_pick_group("blocked", "api_pick_group_blocked", blocked_recs, true, query)
@@ -1895,6 +1990,45 @@ func _api_rebuild_pick_list() -> void:
 			_api_pick_empty.text = _t("api_pick_no_free_data") \
 				if _api_pick_filter == "free" and query == "" else _t("api_pick_nothing")
 	_api_pick_refresh_note()
+
+
+func _api_add_catalog_invite() -> void:
+	# Полный список выключен — но человек обязан ЗНАТЬ, что он есть. Пустое место
+	# на этом месте читается как «провайдеров всего семь», и никакой флажок в
+	# ряду фильтров этого не исправляет: его не замечают. Поэтому здесь стоит
+	# кнопка с числом, и нажатие включает список.
+	#
+	# Кнопки нет, только если каталог ещё не загружался: обещать «ещё 161
+	# провайдер», не зная ни одного, значит обещать за справочник, которого у нас
+	# пока нет.
+	if _api_pick_list == null or not is_instance_valid(_api_pick_list):
+		return
+	var extra := int(_api_catalog.get("known_providers", 0))
+	if extra <= 0 or bool(_api_catalog.get("show_all", false)):
+		return
+	var T = _T()
+	var btn := Button.new()
+	btn.text = _t("api_catalog_invite") % extra
+	btn.tooltip_text = _t("api_catalog_show_all_tip")
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.size_flags_horizontal = SIZE_EXPAND_FILL
+	# autowrap, а не clip_text: обрезанное «Ещё 161 провайдер из ката…» не
+	# объясняет ничего, а ширину кнопка получает от родителя (EXPAND_FILL),
+	# поэтому перенос здесь безопасен.
+	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	btn.pressed.connect(_on_api_catalog_reveal)
+	if T:
+		T.style_button(btn, "accent", false)
+		btn.icon = T.first_icon(["GuiTreeArrowRight", "Add"])
+	_api_pick_list.add_child(btn)
+	var hint := _api_hint(_api_pick_list, _t("api_catalog_invite_hint"))
+	hint.add_theme_color_override("font_color", _color("dim"))
+
+
+func _on_api_catalog_reveal() -> void:
+	# То же, что галочка «Все из каталога», но нажатием по видимому приглашению.
+	# Состояние хранит сервер — см. _on_api_catalog_all_toggled.
+	api_settings_save_requested.emit({"catalog": {"enabled": true}})
 
 
 func _api_pick_refresh_note() -> void:
@@ -1947,6 +2081,12 @@ func _api_refresh_catalog_note() -> void:
 		if when == "":
 			when = _t("api_ago_now")
 		text = _t("api_catalog_line") % [models, when]
+		# Снятые записи — отдельной фразой, а не внутри числа выше: «сведения о
+		# 502 моделях», где 30 записей сам каталог считает снятыми, завышало бы
+		# полезность справочника. Замерено: у Opencode Zen таких 29 из 91.
+		var retired := int(_api_catalog.get("deprecated", 0))
+		if retired > 0:
+			text += " " + _t("api_catalog_retired") % retired
 	_api_catalog_note.text = text
 	_api_catalog_note.visible = text != ""
 	_api_catalog_note.add_theme_color_override("font_color", _color(tone))
@@ -1983,14 +2123,41 @@ func _api_add_pick_group(key: String, title_key: String, recs: Array,
 	# перестраиваем список целиком — перестройка освободила бы кнопку, чей
 	# сигнал прямо сейчас обрабатывается.
 	head.toggled.connect(_on_api_pick_group_toggled.bind(key, head, box))
-	for rec in recs:
-		_api_add_pick_card(box, rec, query)
+	# СВЁРНУТУЮ ГРУППУ НЕ СОБИРАЕМ ВОВСЕ. Карточка провайдера — это панель,
+	# кнопка, строка пометок и два-три ярлыка; замерено 1.9 мс на карточку, то
+	# есть 320 мс на сто шестьдесят три записи каталога. Список перестраивается
+	# на КАЖДУЮ букву в поиске, и эти 320 мс превращали набор текста в слайд-шоу.
+	# Записи запоминаем и собираем при первом раскрытии.
+	if open:
+		_api_fill_pick_group(box, recs, query)
+	else:
+		_api_pick_pending[key] = {"recs": recs, "query": query, "box": box}
+
+
+func _api_fill_pick_group(box: VBoxContainer, recs: Array, query: String) -> void:
+	# Карточек за раз — не больше API_PICK_CARDS_SHOWN. Сто шестьдесят три
+	# карточки в одном столбце это не список, а стена: пролистать её глазами
+	# нельзя, а собирается она треть секунды. Сколько скрыто — написано словами,
+	# чтобы короткий список не читался как полный ответ.
+	var limit: int = min(recs.size(), API_PICK_CARDS_SHOWN)
+	for i in limit:
+		_api_add_pick_card(box, recs[i], query)
+	if recs.size() > limit:
+		var more := _api_hint(box, _t("api_pick_more_providers") % [recs.size() - limit])
+		more.add_theme_color_override("font_color", _color("warning"))
 
 
 func _on_api_pick_group_toggled(pressed: bool, key: String, head: Button,
 		box: VBoxContainer) -> void:
 	_api_pick_collapsed[key] = not pressed
 	if is_instance_valid(box):
+		# Раскрыли впервые — только теперь собираем карточки (см. пояснение в
+		# _api_add_pick_group).
+		if pressed and box.get_child_count() == 0 and _api_pick_pending.has(key):
+			var hold: Dictionary = _api_pick_pending[key]
+			if hold.get("box") == box:
+				_api_fill_pick_group(box, hold.get("recs", []),
+					str(hold.get("query", "")))
 		box.visible = pressed
 	# У Button нет icon_rotation, поэтому стрелка — две разные иконки темы.
 	var T = _T()
@@ -2072,6 +2239,13 @@ func _api_add_pick_card(parent: Node, rec: Dictionary, query: String = "") -> vo
 # экрана остальных провайдеров, то есть ответ на вопрос «у кого ещё это есть».
 const API_PICK_MODELS_SHOWN := 8
 
+# Сколько карточек провайдеров показывать в одной группе. Замерено: карточка
+# собирается 1.9 мс, а полный список каталога это 163 записи, то есть 320 мс на
+# КАЖДУЮ букву в поиске. Пятьдесят карточек — примерно 95 мс, что уже не мешает
+# набирать текст, и столько же ровно столько, сколько человек может пролистать
+# глазами. Сколько скрыто — написано словами над списком.
+const API_PICK_CARDS_SHOWN := 50
+
 
 func _api_add_pick_models(parent: Node, rec: Dictionary, query: String,
 		blocked: bool) -> void:
@@ -2113,7 +2287,14 @@ func _api_add_pick_models(parent: Node, rec: Dictionary, query: String,
 			# говорит о мире, а не об этом ключе, и красить его утверждение так
 			# же значило бы обещать бесплатность за чужой справочник: пометка
 			# словами у такой модели есть, а цвета «точно бесплатно» — нет.
-			T.style_button(chip, "dim" if blocked else ("success" if bool(m.get("free", false)) else "neutral"), false)
+			# Снятая с обслуживания приглушается независимо от бесплатности: её
+			# могут убрать в любой момент, а модель закрепляется за чатом.
+			var tone := "neutral"
+			if blocked or bool(m.get("deprecated", false)):
+				tone = "dim"
+			elif bool(m.get("free", false)):
+				tone = "success"
+			T.style_button(chip, tone, false)
 		flow.add_child(chip)
 	if found.size() > API_PICK_MODELS_SHOWN:
 		# Сколько ещё совпало — словами, а не молчанием: иначе восемь показанных
@@ -2123,14 +2304,21 @@ func _api_add_pick_models(parent: Node, rec: Dictionary, query: String,
 
 
 func _api_model_caption(m: Dictionary) -> String:
-	# Подпись на кнопке модели: идентификатор + пометка бесплатности С ИМЕНЕМ
-	# ИСТОЧНИКА. «бесплатная» — это ответ самого провайдера (суффикс :free/-free
-	# или нулевая цена в его pricing), «бесплатная по каталогу» — запись в
-	# справочнике models.dev. Разница не в формулировке: числа расходятся
-	# (замерено — у Opencode Zen модель big-pickle бесплатна по каталогу и
-	# платная по суффиксу), и обещать бесплатность за чужой справочник, не
-	# сказав, что это он, значит переложить на пользователя чужую ошибку.
+	# Подпись на кнопке модели: идентификатор + пометка С ИМЕНЕМ ИСТОЧНИКА.
+	# «бесплатная» — это ответ самого провайдера (суффикс :free/-free или нулевая
+	# цена в его pricing), «бесплатная по каталогу» — запись в справочнике
+	# models.dev. Разница не в формулировке: числа расходятся (замерено — у
+	# Opencode Zen модель big-pickle бесплатна по каталогу и платная по суффиксу),
+	# и обещать бесплатность за чужой справочник, не сказав, что это он, значит
+	# переложить на пользователя чужую ошибку.
 	var mid := str(m.get("id", ""))
+	if bool(m.get("deprecated", false)):
+		# СНЯТИЕ ВАЖНЕЕ БЕСПЛАТНОСТИ. Модель закрепляется за чатом и потом не
+		# меняется, поэтому «её вот-вот уберут» человек обязан увидеть до
+		# нажатия, а не в подсказке при наведении. Замерено, что это не
+		# гипотетический случай: у Opencode Zen 29 записей из 91 помечены
+		# снятыми (правда, живой /models их уже и не отдаёт).
+		return _t("api_model_retired") % mid
 	if bool(m.get("free", false)):
 		return _t("api_model_free") % mid
 	if bool(m.get("catalog_free", false)):
@@ -2138,34 +2326,51 @@ func _api_model_caption(m: Dictionary) -> String:
 	return mid
 
 
-func _api_model_tip(mid: String, m: Dictionary) -> String:
-	# Подсказка на кнопке модели: что о ней известно и ОТКУДА.
+func _api_src(m: Dictionary, field: String) -> String:
+	# Кто сообщил это число: сам провайдер или справочник. Сервер присылает
+	# список полей, которые ДОПИСАЛ каталог (from_catalog); всё остальное пришло
+	# из живого ответа провайдера.
 	#
-	# Окно контекста, предел ответа, цену и поддержку вызова инструментов живой
-	# /models не присылает — у Opencode Zen там вообще только id. Всё это
-	# приходит из каталога models.dev, поэтому каждая строка подписана им: иначе
-	# пользователь примет справочник за ответ своего провайдера, а это разные
-	# утверждения (каталог знает у Zen 91 модель, живой список отдаёт 62).
+	# ЗАЧЕМ ТАК ТОЧНО. Без этого разделения подпись «по каталогу models.dev»
+	# встала бы и под живой ценой OpenRouter — а она точнее: замерено, что у
+	# moonshotai/kimi-k2.6 каталог отстал и показывал 0.95/4.0 против живых
+	# 0.646/2.72, то есть завышал на 47%.
+	var from_cat = m.get("from_catalog", [])
+	if typeof(from_cat) == TYPE_ARRAY and (from_cat as Array).has(field):
+		return _t("api_src_catalog")
+	return _t("api_src_live")
+
+
+func _api_model_tip(mid: String, m: Dictionary) -> String:
+	# Подсказка на кнопке модели: что о ней известно и ОТКУДА — у каждой строки
+	# свой источник, потому что цену провайдер может присылать сам, а окно
+	# контекста нет (или наоборот).
 	var lines: Array = []
 	lines.append(_t("api_pick_model_tip") % mid)
+	if bool(m.get("deprecated", false)):
+		lines.append(_t("api_model_deprecated"))
+	else:
+		var status := str(m.get("status", ""))
+		if status != "":
+			lines.append(_t("api_model_beta") % status)
 	var ctx := int(m.get("context", 0))
 	if ctx > 0:
-		lines.append(_t("api_model_catalog_context") % _api_thousands(ctx))
+		lines.append(_t("api_model_context") % [_api_thousands(ctx), _api_src(m, "context")])
 	var mout := int(m.get("max_output", 0))
 	if mout > 0:
-		lines.append(_t("api_model_catalog_output") % _api_thousands(mout))
+		lines.append(_t("api_model_output") % [_api_thousands(mout), _api_src(m, "max_output")])
 	if m.has("cost_in") and m.has("cost_out"):
-		lines.append(_t("api_model_catalog_cost") % [_api_price(float(m["cost_in"])), _api_price(float(m["cost_out"]))])
+		lines.append(_t("api_model_cost") % [_api_price(float(m["cost_in"])), _api_price(float(m["cost_out"])), _api_src(m, "cost_in")])
 	if m.has("tool_call"):
-		# ЭТО НЕ ПРО ВОЗМОЖНОСТИ АГЕНТА. tool_call в каталоге означает родной
-		# function calling провайдера, а плагин его КАТЕГОРИЧЕСКИ не использует:
-		# действия приходят JSON-блоком ```agent_action в обычном тексте ответа
-		# (так написано и в самом мега-промпте). Поэтому «нет function calling»
-		# не мешает модели ни читать файлы, ни менять сцену — и подпись обязана
-		# это говорить прямо. Иначе строка отпугивает от рабочих моделей, а
-		# следующий читатель кода добавит по ней предупреждение, которого быть
-		# не должно.
-		lines.append(_t("api_model_catalog_tools") if bool(m["tool_call"]) else _t("api_model_catalog_no_tools"))
+		# ЭТО НЕ ПРО ВОЗМОЖНОСТИ АГЕНТА. tool_call означает родной function
+		# calling провайдера, а плагин его КАТЕГОРИЧЕСКИ не использует: действия
+		# приходят JSON-блоком ```agent_action в обычном тексте ответа (так
+		# написано и в самом мега-промпте). Поэтому «нет function calling» не
+		# мешает модели ни читать файлы, ни менять сцену — и подпись обязана это
+		# говорить прямо. Иначе строка отпугивает от рабочих моделей, а следующий
+		# читатель кода добавит по ней предупреждение, которого быть не должно.
+		var src := _api_src(m, "tool_call")
+		lines.append((_t("api_model_tools") % src) if bool(m["tool_call"]) else (_t("api_model_no_tools") % src))
 	return "\n".join(lines)
 
 
@@ -2184,10 +2389,10 @@ func _api_thousands(n: int) -> String:
 
 
 func _api_price(value: float) -> String:
-	# Цена за миллион токенов без лишних нулей. У дешёвых моделей значащая
-	# четвёртая цифра после запятой (0.0002), у дорогих дробной части нет
-	# вовсе — и «30.0000» рядом с ней читается как опечатка в подписи.
-	var s := "%.4f" % value
+	# Цена за миллион токенов без лишних нулей. У дешёвых моделей значащие
+	# знаки далеко после запятой (0.02 и меньше), у дорогих дробной части нет
+	# вовсе — и «30.000000» рядом с ней читается как опечатка.
+	var s := "%.6f" % value
 	while s.ends_with("0"):
 		s = s.substr(0, s.length() - 1)
 	if s.ends_with("."):
@@ -2213,6 +2418,15 @@ func _api_pick_badges(rec: Dictionary) -> Array:
 		out.append({"text": _t("api_badge_models_public"), "tone": "accent"})
 	if bool(rec.get("base_url_custom", false)):
 		out.append({"text": _t("api_badge_custom_url"), "tone": "warning"})
+	# Запись взята из каталога, а не разобрана человеком. Пометка ПЕРВЕЕ по
+	# смыслу, чем «живьём не проверялся»: там речь про наш прогон с ключом, а
+	# здесь про то, что и сам адрес, и поддержка протокола известны только со
+	# слов справочника.
+	if bool(rec.get("from_catalog", false)):
+		out.append({"text": _t("api_badge_from_catalog"), "tone": "warning"})
+		var n := int(rec.get("catalog_models", 0))
+		if n > 0:
+			out.append({"text": _t("api_badge_catalog_models") % n, "tone": "dim"})
 	# «Живьём не проверялся» показываем ЧЕСТНО у всех, у кого этого не было.
 	# Обратной пометки «проверен» нет: её нельзя поставить по предположению,
 	# а живого обмена настоящим ключом пока не было ни с одним провайдером.
