@@ -397,6 +397,110 @@ res_key = AB.ApiBackend({"id": "y", "kind": "api", "provider": "openrouter",
     u"вопрос", cancel_cb=lambda: False)
 check(u"нет ключа -> понятная подсказка", u"[Настройки API]" in res_key["text"])
 
+# ---------------------------------------------------------------------------
+# 10) БЮДЖЕТЫ ТОКЕНОВ ПО КАТАЛОГУ models.dev (Этап 2)
+#
+# Зашитые в agent_prompts числа (окно 32000, история 16000, вывод 8000) — это
+# ДОГАДКА, и замер по 502 моделям наших провайдеров показал, что она неверна в
+# обе стороны: у 27 моделей окно МЕНЬШЕ, чем история+вывод (phi-4 — 16384,
+# gemma-2-27b-it — 8192, gpt-3.5-turbo-16k — 16385), а у 472 — БОЛЬШЕ (медиана
+# 262144). Первое означало гарантированный отказ провайдера посреди задачи,
+# второе — историю, схлопнутую в разы раньше, чем нужно.
+#
+# ГЛАВНОЕ ЗДЕСЬ — первая проверка: без данных каталога числа обязаны остаться
+# РОВНО прежними. Этап 2 трогает путь чата, и «улучшение», которое меняет
+# поведение там, где о модели ничего не известно, — это не улучшение.
+# ---------------------------------------------------------------------------
+import catalog as CAT
+from agent_prompts import (API_CONTEXT_WINDOW as W0, API_MAX_TOKENS as OUT0,
+                           API_HISTORY_BUDGET as HIST0)
+
+check(u"без каталога бюджеты РОВНО прежние",
+      AB.budgets_for("openrouter", u"нет-такой-модели", OUT0, HIST0)
+      == (OUT0, HIST0, W0, ""))
+check(u"и у провайдера, которого каталог не знает вовсе",
+      AB.budgets_for("custom", "m/test", OUT0, HIST0) == (OUT0, HIST0, W0, ""))
+
+# Кэш каталога пишем прямо файлом: это его задокументированный формат (см.
+# test_catalog.py), а поднимать здесь ещё и поддельный models.dev значит
+# проверять загрузку второй раз вместо бюджетов.
+with open(CAT.catalog_path(), "w", encoding="utf-8") as f:
+    json.dump({"version": 1, "at": time.time(), "etag": "", "error": "",
+               "try_at": 0.0, "providers": {"openrouter": {
+                   "catalog_id": "openrouter", "name": "OpenRouter", "models": {
+                       # Окно как у настоящего microsoft/phi-4: зашитые
+                       # 16000+8000 в него НЕ влезали.
+                       "vendor/phi-like": {"context": 16384, "max_output": 16384,
+                                           "cost_in": 0.0, "cost_out": 0.0},
+                       # Предел вывода МЕНЬШЕ доли окна: у настоящих таких 28
+                       # (claude-3-haiku, command-r-plus и прочие).
+                       "vendor/short-answer": {"context": 200000, "max_output": 4096},
+                       # Огромное окно: история должна вырасти, но не до
+                       # половины окна — иначе каждый шаг агента стоил бы как
+                       # сто тысяч входных токенов.
+                       "vendor/huge": {"context": 1000000, "max_output": 500000},
+                       # Окно, в которое не влезает даже инструкция агента:
+                       # veo-3.1-* (480), llama-prompt-guard-2-* (512).
+                       "vendor/tiny": {"context": 480, "max_output": 480},
+                   }}}}, f)
+
+out_s, hist_s, win_s, src_s = AB.budgets_for("openrouter", "vendor/phi-like",
+                                             OUT0, HIST0)
+check(u"маленькое окно: числа взяты из каталога, а не из догадки",
+      src_s == "catalog" and win_s == 16384)
+check(u"история и вывод УМЕНЬШЕНЫ под настоящее окно",
+      hist_s == 8192 and out_s == 4096)
+check(u"история+вывод теперь влезают в окно", hist_s + out_s <= win_s)
+
+out_h, hist_h, win_h, _src = AB.budgets_for("openrouter", "vendor/huge",
+                                            OUT0, HIST0)
+check(u"огромное окно: история выросла, но упёрлась в потолок",
+      hist_h == AB.HISTORY_CAP and hist_h > HIST0)
+check(u"вывод НЕ раздувается: 8000 хватает на план и крупный файл",
+      out_h == OUT0)
+check(u"потолок истории не выдуман: системный блок + один полный результат "
+      u"инструмента (~30 500 токенов) в него влезают",
+      AB.HISTORY_CAP >= H.estimate_tokens("x" * 80000) + 3800)
+
+out_p, _hist_p, _win_p, _s = AB.budgets_for("openrouter", "vendor/short-answer",
+                                            OUT0, HIST0)
+check(u"предел вывода САМОЙ модели сильнее нашей доли окна", out_p == 4096)
+check(u"переданный max_tokens остаётся потолком, а не заменяется каталогом",
+      AB.budgets_for("openrouter", "vendor/huge", 1000, HIST0)[0] == 1000)
+
+# Модель, в окно которой не влезает даже инструкция агента. Отказ обязан прийти
+# ДО запроса: платить провайдеру за гарантированный отказ и показывать
+# пользователю невнятную ошибку про длину контекста незачем.
+api_keys.set_base_url("openrouter", "http://127.0.0.1:%d/v1" % PORT)
+api_keys.set_key("openrouter", "sk-or-v1-TESTVALUE0123456789")
+LAST_REQUEST["body"] = None
+res_tiny = AB.ApiBackend({"id": "tiny01", "kind": "api", "provider": "openrouter",
+                          "model": "vendor/tiny"}, BASE,
+                         system_text_provider=lambda: SYS * 200,
+                         max_tokens=OUT0).send(u"вопрос", cancel_cb=lambda: False)
+check(u"окно меньше инструкции -> отказ словами, а не 500",
+      u"[Модель не подходит]" in res_tiny["text"] and res_tiny["action"] is None)
+check(u"в отказе названы оба числа и источник",
+      "480" in res_tiny["text"] and u"models.dev" in res_tiny["text"])
+check(u"ни одного запроса к провайдеру при этом не ушло",
+      LAST_REQUEST["body"] is None)
+
+# А пригодная модель с маленьким окном обязана РАБОТАТЬ, и в запрос должен уйти
+# уменьшенный max_tokens. Режим сервера возвращаем в «ok»: выше его оставили в
+# «slow» для проверки отмены, и без сброса сюда пришёл бы поток без действия.
+MODE["name"] = "ok"
+LAST_REQUEST["body"] = None
+res_small = AB.ApiBackend({"id": "small01", "kind": "api", "provider": "openrouter",
+                           "model": "vendor/phi-like"}, BASE,
+                          system_text_provider=lambda: SYS,
+                          max_tokens=OUT0).send(u"вопрос", cancel_cb=lambda: False)
+check(u"модель с окном 16384 работает", res_small["action"] is not None)
+check(u"в запрос ушёл УМЕНЬШЕННЫЙ max_tokens, а не зашитые 8000",
+      (LAST_REQUEST["body"] or {}).get("max_tokens") == 4096)
+api_keys.set_key("openrouter", "")
+api_keys.set_base_url("openrouter", "")
+CAT.forget()
+
 srv.shutdown()
 shutil.rmtree(BASE, ignore_errors=True)
 n_ok = sum(1 for r in results if r)

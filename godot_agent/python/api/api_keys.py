@@ -75,7 +75,16 @@ _DEFAULT_CONFIG = {
     # бесплатными» показывал ровно их — то есть выглядел как утверждение, что
     # у остальных бесплатных моделей нет.
     #
+    # ДВА СЧЁТЧИКА БЕСПЛАТНЫХ, А НЕ ОДИН. models_free — измерено по ОТВЕТУ
+    # ПРОВАЙДЕРА (суффикс :free/-free, нулевая цена в pricing).
+    # models_free_catalog — то же число по справочнику models.dev
+    # (catalog.py). Они расходятся, и это не шум: у Opencode Zen модель
+    # big-pickle имеет в каталоге нулевую цену, а по суффиксу выглядит
+    # платной. Свести их в одно число значит потерять ответ на вопрос «кто
+    # это утверждает», а именно он и решает, верить ли подписи.
+    #
     # provider_id -> {"models_total": int, "models_free": int,
+    #                 "models_free_catalog": int,
     #                 "models_at": float, "models_error": str,
     #                 "models_try_at": float, "test_ok": bool,
     #                 "test_at": float, "test_ms": int}
@@ -147,6 +156,19 @@ def _clean_stats(rec):
     out = {
         "models_total": _int_or(rec.get("models_total"), -1),
         "models_free": _int_or(rec.get("models_free"), -1),
+        # Бесплатные ПО КАТАЛОГУ models.dev — отдельным счётчиком от
+        # measured-по-ответу-провайдера models_free. Не «уточнение» и не
+        # «замена»: это утверждение другого источника о том же списке моделей,
+        # и панель подписывает его отдельно («по каталогу»). Тот же -1
+        # означает «не считали»: пока каталог не загружен, у провайдера просто
+        # нет второго мнения, и врать нулём нельзя.
+        #
+        # ВНИМАНИЕ: новое поле обязано появиться ЗДЕСЬ, а не только в
+        # _DEFAULT_CONFIG. _load() собирает конфигурацию заново по известным
+        # полям и раздел provider_stats пропускает через эту функцию — поле,
+        # добавленное мимо неё, исправно сохранялось бы и молча пропадало при
+        # каждом чтении.
+        "models_free_catalog": _int_or(rec.get("models_free_catalog"), -1),
         "models_at": _float_or(rec.get("models_at"), 0.0),
     }
     # НЕУДАЧНАЯ попытка получить список моделей. Отдельно от отсутствия
@@ -549,7 +571,7 @@ def _update_stats(changes):
     return _save(cfg)
 
 
-def models_stats_fields(total, free):
+def models_stats_fields(total, free, free_catalog=-1):
     """Поля наблюдения об удачно полученном списке моделей.
 
     Отдельной функцией, потому что их пишут два места: обновление одного
@@ -562,9 +584,14 @@ def models_stats_fields(total, free):
     платного сервиса в списке провайдеров будет написано, что все его модели
     бесплатные, — ровно то враньё, ради предотвращения которого эти числа и
     заводились.
+
+    free_catalog — сколько из ТЕХ ЖЕ моделей считает бесплатными справочник
+    models.dev. -1 по умолчанию: пока каталог не загружен, второго мнения нет,
+    и подставлять вместо него free значило бы выдать одно измерение за два.
     """
     return {"models_total": _int_or(total, -1),
             "models_free": _int_or(free, -1),
+            "models_free_catalog": _int_or(free_catalog, -1),
             "models_at": time.time(),
             # Прошлая неудача снимается: держать её рядом со свежими числами
             # значит показывать пользователю ошибку, которой больше нет.
@@ -582,9 +609,10 @@ def models_error_fields(message):
             "models_try_at": time.time()}
 
 
-def record_models_stats(provider_id, total, free):
+def record_models_stats(provider_id, total, free, free_catalog=-1):
     """Запоминает, сколько у провайдера моделей и сколько из них бесплатных."""
-    return _update_stats({provider_id: models_stats_fields(total, free)})
+    return _update_stats({provider_id: models_stats_fields(total, free,
+                                                           free_catalog)})
 
 
 def record_models_error(provider_id, message):
@@ -611,6 +639,22 @@ def record_stats_bulk(changes):
     models_error_fields() для неудачи.
     """
     return _update_stats(changes)
+
+
+def reset_models_stats(provider_id):
+    """Забывает всё, что известно о списке моделей провайдера.
+
+    Нужно при СМЕНЕ АДРЕСА endpoint'а: числа «моделей 415, из них бесплатных
+    20» относятся к тому адресу, у которого их спросили. Оставить их рядом с
+    новым адресом значит выдать за факты о зеркале то, что известно про
+    исходный сервис. Обнулённая запись отличается от отсутствующей только тем,
+    что providers.models_stale() сразу считает её устаревшей — то есть при
+    следующем открытии настроек список спросят заново.
+    """
+    return _update_stats({provider_id: {"models_total": -1, "models_free": -1,
+                                        "models_free_catalog": -1,
+                                        "models_at": 0.0, "models_error": "",
+                                        "models_try_at": 0.0}})
 
 
 # ---------------------------------------------------------------------------

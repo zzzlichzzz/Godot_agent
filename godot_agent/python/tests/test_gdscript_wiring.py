@@ -141,7 +141,16 @@ check(u"нет emit несуществующего сигнала", not undeclar
 
 api_signals = sorted(s for s in declared if s.startswith("api_")
                      or s.startswith("new_api"))
-check(u"сигналы работы по ключу объявлены", len(api_signals) == 5, api_signals)
+# Список ЯВНЫЙ, а не «столько-то штук»: новый сигнал работы по ключу обязан
+# попасть сюда осознанно, а число рядом с ним ничего не рассказывает тому, кто
+# увидит падение теста. Проверка ловит две противоположные ошибки: сигнал
+# объявили и забыли подключить (следующая проверка) и сигнал переименовали,
+# оставив подключение по старому имени.
+API_SIGNALS = ["api_models_refresh_requested", "api_models_scan_requested",
+               "api_settings_save_requested", "api_tab_requested",
+               "api_test_requested", "new_api_chat_requested"]
+check(u"сигналы работы по ключу объявлены", api_signals == API_SIGNALS,
+      api_signals)
 not_connected = [s for s in api_signals if (s + ".connect") not in panel]
 check(u"все сигналы работы по ключу подключены в панели", not not_connected,
       not_connected)
@@ -166,7 +175,8 @@ routed.add("list")  # значение по умолчанию url := CHATS_LIST
 unrouted = sorted(k for k in kinds if k not in routed)
 check(u"каждый вид запроса имеет адрес в транспорте", not unrouted, unrouted)
 check(u"виды запросов работы по ключу разведены",
-      {"api_providers", "api_set", "api_models", "api_test"} <= routed,
+      {"api_providers", "api_set", "api_models", "api_scan",
+       "api_test"} <= routed,
       sorted(routed))
 
 # --- 7) токен на порт 5000 ---

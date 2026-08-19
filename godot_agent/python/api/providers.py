@@ -194,7 +194,13 @@ PROVIDERS = [
         # Поэтому отдельный транспорт не нужен, работает общий OpenAI-путь.
         "base_url": "https://opencode.ai/zen/v1",
         "needs_key": True,
-        "env_names": ("OPENCODE_ZEN_API_KEY",),
+        # ДВА ИМЕНИ ПЕРЕМЕННОЙ НАМЕРЕННО. Первое — наше, по имени провайдера в
+        # этом реестре. Второе берёт сам Opencode: в его каталоге моделей
+        # (models.dev, запись провайдера "opencode") у ключа указано имя
+        # OPENCODE_API_KEY. Кто уже настраивал Opencode CLI по его документации,
+        # имеет в окружении именно эту переменную — и без второго имени плагин
+        # сообщал бы «ключ не задан», глядя на заданный ключ.
+        "env_names": ("OPENCODE_ZEN_API_KEY", "OPENCODE_API_KEY"),
         "models_path": "/models",
         "models": [],
         "default_model": "",
