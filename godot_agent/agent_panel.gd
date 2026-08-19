@@ -473,6 +473,11 @@ func _ready() -> void:
 			_start_screen.api_models_refresh_requested.connect(_on_api_models_refresh)
 			_start_screen.api_test_requested.connect(_on_api_test_requested)
 			_start_screen.new_api_chat_requested.connect(_on_start_new_api_chat)
+		# Отдельной проверкой, а не внутри блока выше: сигнал появился позже
+		# остальных, и экран прошлой версии его не объявляет — обращение к нему
+		# оборвало бы подключение и всех предыдущих сигналов вместе с ним.
+		if _start_screen.has_signal("api_models_scan_requested"):
+			_start_screen.api_models_scan_requested.connect(_on_api_models_scan)
 	_show_start_ui()
 	call_deferred("_request_chats", "sites", {}, false)
 	call_deferred("_on_language_changed")
@@ -2203,6 +2208,14 @@ func _on_api_models_refresh(provider: String, free_only: bool) -> void:
 	_request_chats("api_models", {"provider": provider, "free_only": free_only})
 
 
+func _on_api_models_scan(force: bool) -> void:
+	# Обход провайдеров за списками моделей. Ходит только к тем, кого можно
+	# спросить без ключа или с уже сохранённым ключом, и только если их числа
+	# устарели — решает это сервер (providers.autoscan_targets), потому что
+	# только он знает, где лежат ключи и когда список обновлялся.
+	_request_chats("api_scan", {"force": force})
+
+
 func _on_api_test_requested(provider: String, model: String) -> void:
 	_request_chats("api_test", {"provider": provider, "model": model})
 
@@ -2216,27 +2229,45 @@ func _on_start_new_api_chat(provider: String, model: String) -> void:
 func _on_api_payload(kind: String, json: Dictionary) -> void:
 	if _start_screen == null:
 		return
-	if json.has("error"):
-		# Ошибку показываем в статусной строке экрана настроек, а не в чате:
-		# пользователь сейчас смотрит именно на форму.
-		_notify(str(json["error"]), "error")
-		if _pending_view == "api":
-			_pending_view = ""
-			if _start_screen.has_method("show_api"):
-				_start_screen.show_api()
-		return
+	# Проверка подключения разбирается ПЕРВОЙ, до общей обработки ошибок.
+	# Неудачная проверка — это обычный, ожидаемый ответ (ok=false + причина), и
+	# уходить по ветке ошибок нельзя: строка «проверяю подключение…» так и
+	# осталась бы на экране, а результат проверки не дошёл бы до неё никогда.
 	if kind == "api_test":
 		if _start_screen.has_method("set_api_test_result"):
 			_start_screen.set_api_test_result(json)
+		if json.has("error"):
+			_log_error(str(json["error"]))
 		return
-	if _start_screen.has_method("set_api_settings"):
+	var failed := json.has("error")
+	if failed and kind != "api_scan":
+		# Ошибку показываем в статусной строке экрана настроек, а не в чате:
+		# пользователь сейчас смотрит именно на форму.
+		#
+		# ОБХОД ЗА СПИСКАМИ МОДЕЛЕЙ — ИСКЛЮЧЕНИЕ. Его никто не просил: он идёт
+		# сам при открытии раздела. Красная строка на весь экран из-за того, что
+		# автоматическое действие не удалось (например, сервер старее панели и
+		# отвечает 404 на новый маршрут), выглядит как поломка плагина в ответ на
+		# простое открытие настроек. Про эту неудачу расскажет сам экран — и
+		# только если пользователь просил обход кнопкой (set_api_scan_result).
+		_notify(str(json["error"]), "error")
+	# Настройки применяем ДАЖЕ при ошибке, если сервер их прислал. Отказ
+	# провайдера приходит вместе с полным ответом, где уже записано, что список
+	# моделей получить не удалось и почему; без этого причина не доехала бы до
+	# карточки провайдера, и там осталось бы «список ещё не загружался» — то
+	# есть плагин выглядел бы просто ничего не делающим.
+	if json.has("providers") and _start_screen.has_method("set_api_settings"):
 		_start_screen.set_api_settings(json)
-	if kind == "api_models" and _start_screen.has_method("set_api_models"):
+	if not failed and kind == "api_models" and _start_screen.has_method("set_api_models"):
 		# models_info — записи {id, free}; models — прежний список строк. Отдаём
 		# оба: экран возьмёт записи, если сервер их присылает, и не сломается со
 		# старым сервером, где их нет.
 		_start_screen.set_api_models(str(json.get("provider", "")),
 			json.get("models", []), json.get("models_info", []))
+	if kind == "api_scan" and _start_screen.has_method("set_api_scan_result"):
+		# Вызывается и при ошибке: экран обязан узнать, что обход закончился,
+		# иначе строка «обновляю списки моделей» останется висеть навсегда.
+		_start_screen.set_api_scan_result(json)
 	if _pending_view == "api":
 		_pending_view = ""
 		if _start_screen.has_method("show_api"):

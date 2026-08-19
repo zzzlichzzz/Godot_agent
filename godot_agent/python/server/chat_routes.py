@@ -16,6 +16,8 @@ import api_history
 import anthropic_compat
 import api_keys
 import providers
+import model_cache
+import catalog
 import openai_compat
 import api_backend
 from agent_prompts import PROMPT_HASH
@@ -139,6 +141,12 @@ def _api_settings_payload(extra=None):
            "defaults": api_keys.get_defaults(),
            "proxy": api_keys.get_proxy(),
            "dns": api_keys.get_dns(),
+           # Состояние ВТОРИЧНОГО источника сведений о моделях (models.dev):
+           # возраст, ошибка загрузки, сколько моделей известно. Панель
+           # подписывает им цены и лимиты контекста — значит обязана показать и
+           # то, насколько это знание свежее. Число без возраста измерения в
+           # этом проекте не показывается.
+           "catalog": catalog.state(),
            "config_path": api_keys.config_path()}
     if extra:
         out.update(extra)
@@ -168,12 +176,21 @@ def api_settings_set():
         if "model" in data:
             api_keys.set_model(pid, data.get("model") or "")
         if "base_url" in data:
+            was = api_keys.get_base_url(pid)
             ok, err = api_keys.set_base_url(pid, data.get("base_url") or "")
             if not ok:
                 # Отдельным полем, как и ошибка прокси: остальные настройки уже
                 # сохранены, и панель должна перерисоваться с пояснением, а не
                 # показать общий отказ на всю форму.
                 problems["base_url_error"] = err
+            elif api_keys.get_base_url(pid) != was:
+                # Адрес сменился — всё, что известно о моделях, относилось к
+                # ПРЕЖНЕМУ адресу. Оставить список и числа значит выдать факты
+                # об одном сервисе за факты о другом; пользователь при этом
+                # выбирал бы модель, которой на новом адресе может не быть.
+                model_cache.forget(pid)
+                api_keys.reset_models_stats(pid)
+                print("--> %s: адрес endpoint'а изменён, список моделей забыт" % pid)
         if data.get("make_default"):
             api_keys.set_defaults(pid, api_keys.get_model(pid))
     proxy = data.get("proxy")
@@ -231,7 +248,94 @@ def _fetch_models(pid, connect_timeout=None):
     except openai_compat.ApiError as e:
         msg, _status, _retry = api_backend.describe_api_error(e, provider["name"])
         return [], msg
+    except Exception as e:
+        # Никакая неожиданность в разборе чужого ответа не должна превращаться в
+        # 500 на весь маршрут: у обхода это уронило бы обновление ВСЕХ
+        # провайдеров из-за одного, ответившего чем-то неожидаемым.
+        return [], u"неожиданный ответ от «%s»: %s" % (provider["name"], e)
     return providers.parse_models_detailed(raw), ""
+
+
+# ---------------------------------------------------------------------------
+# Каталог models.dev как ВТОРИЧНЫЙ источник
+#
+# ЖИВОЙ ОТВЕТ ПРОВАЙДЕРА — ПЕРВИЧНАЯ ПРАВДА. Он говорит, что доступно ИМЕННО
+# ЭТОМУ ключу. Каталог говорит, что существует в мире и сколько стоит, — и
+# только ДОПОЛНЯЕТ поля, которых в живом ответе нет (цена, окно контекста,
+# поддержка вызова инструментов). Замерено: у Opencode Zen каталог знает 91
+# модель, живой /models отдаёт 62; оба числа верные, но про разное, и брать
+# список из каталога нельзя — пользователь выбрал бы модель, которой ему не
+# отдают, и получил бы 404.
+# ---------------------------------------------------------------------------
+
+# Одновременных загрузок каталога быть не должно: панель может прислать запрос
+# дважды (открытие экрана и открытие окна выбора), а два раза по 400 КБ ради
+# одного и того же справочника — это трата чужого трафика.
+_catalog_lock = threading.Lock()
+
+
+def _refresh_catalog(force):
+    u"""Обновляет каталог, если пора. Возвращает текст ошибки или "".
+
+    ПОЧЕМУ ВНУТРИ ОБХОДА ПРОВАЙДЕРОВ, А НЕ ОТДЕЛЬНЫМ МАРШРУТОМ. Каталог нужен
+    ровно там, где нужны списки моделей, и обновляется он раз в неделю против
+    суток у списков. Отдельный маршрут потребовал бы нового вида запроса в
+    панели и нового сигнала GDScript — три места вместо нуля ради того, чтобы
+    делать это в том же самом момент времени.
+
+    НЕУДАЧА КАТАЛОГА НЕ ЛОМАЕТ ОБХОД. Она запоминается в кэше каталога и уходит
+    в панель отдельным полем (catalog.state), а провайдеры опрашиваются как
+    обычно: без каталога у моделей просто не будет цен и лимитов, а работать
+    по ключу это не мешает.
+    """
+    if not force and not catalog.is_stale():
+        return ""
+    if not _catalog_lock.acquire(False):
+        # Загрузка уже идёт в другом запросе. Ждать её нечего: панель получит
+        # свежее состояние каталога следующим ответом сервера.
+        print(u"--> Каталог models.dev уже загружается — пропускаю")
+        return ""
+    try:
+        _updated, err = catalog.refresh(force=force)
+        return err
+    except Exception as e:
+        # Никакая неожиданность в чужом справочнике не должна превращаться в
+        # 500 на весь маршрут: это уронило бы обновление списков моделей у ВСЕХ
+        # провайдеров из-за недоступного models.dev.
+        print(u"[catalog] Неожиданная ошибка обновления каталога: %s" % e)
+        return u"каталог не обновился: %s" % e
+    finally:
+        _catalog_lock.release()
+
+
+def _enrich(pid, records):
+    u"""Записи моделей + дополнения каталога. Живые поля не перезаписываются.
+
+    Одна точка на все места, где записи уходят наружу или на диск: кнопка
+    «Обновить список», обход провайдеров и индекс для поиска. Обогащать по
+    месту значило бы, что в одном ответе у модели есть цена, а в другом нет, —
+    и пользователь считал бы, что цена «то появляется, то исчезает».
+    """
+    try:
+        return catalog.enrich(pid, records)
+    except Exception as e:
+        # Каталог — удобство. Если он сломан, список моделей всё равно обязан
+        # доехать до панели: без цен, но рабочим.
+        print(u"[catalog] Не удалось дополнить модели %s из каталога: %s" % (pid, e))
+        return list(records or [])
+
+
+def _models_index():
+    u"""Индекс моделей ВСЕХ провайдеров для поиска — с дополнениями каталога.
+
+    Дополняется ещё раз ЗДЕСЬ, а не только при записи в кэш: каталог
+    обновляется раз в неделю, а списки моделей раз в сутки, и после недельного
+    обновления каталога записи в кэше остались бы без свежих цен до следующего
+    опроса провайдера. Повторное дополнение ничего не портит — catalog.enrich
+    только заполняет отсутствующие поля.
+    """
+    idx = model_cache.index()
+    return {pid: _enrich(pid, recs) for pid, recs in idx.items()}
 
 
 @chats_bp.route('/api/models/refresh', methods=['POST'])
@@ -280,12 +384,24 @@ def api_models_refresh():
         # штатно; неисправен внешний сервис, и об этом надо сказать словами.
         return jsonify(_api_settings_payload({"error": err, "provider": pid}))
     free_only = bool(data.get("free_only"))
+    # Дополнения каталога прикладываются ДО подсчёта и до записи в кэш: иначе
+    # число «бесплатных по каталогу» пришлось бы считать вторым проходом по
+    # другому списку, и два счётчика на одной карточке отвечали бы на разные
+    # вопросы, выглядя как сравнение.
+    everything = _enrich(pid, everything)
     total, free = providers.count_models(everything)
-    api_keys.record_models_stats(pid, total, free)
+    free_catalog = catalog.count_free(pid, everything)
+    api_keys.record_models_stats(pid, total, free, free_catalog)
+    # Полный список — в кэш, ДО фильтра «только бесплатные». Из этого кэша
+    # панель ищет модель по названию сразу у всех провайдеров, и отфильтрованный
+    # список сделал бы поиск слепым к платным моделям того провайдера, у
+    # которого пользователь один раз нажал «Обновить» с этим флажком.
+    model_cache.put(pid, everything)
     detailed = [r for r in everything if r["free"]] if free_only else everything
     models = [r["id"] for r in detailed]
-    print("--> Список моделей %s обновлён: %d шт. (бесплатных %d из %d)%s"
-          % (pid, len(models), free, total,
+    print("--> Список моделей %s обновлён: %d шт. (бесплатных %d из %d, "
+          "по каталогу бесплатных %d)%s"
+          % (pid, len(models), free, total, free_catalog,
              " (показаны только бесплатные)" if free_only else ""))
     return jsonify(_api_settings_payload({
         "models": models,
@@ -294,6 +410,11 @@ def api_models_refresh():
         # переедет на "models_info". Убрать "models" можно будет только после
         # того, как это сделает GDScript.
         "models_info": detailed,
+        # Списки моделей ВСЕХ провайдеров, какие известны. Панель ищет по ним
+        # модель по названию, поэтому индекс приходит и здесь, а не только с
+        # обходом: иначе после ручного обновления одного провайдера поиск знал
+        # бы про него старое.
+        "models_index": _models_index(),
         "provider": pid,
         "free_only": free_only}))
 
@@ -331,10 +452,15 @@ def api_models_scan():
     force=True — обновить всё, что вообще можно спросить, не глядя на свежесть.
     Это ручное «обновить все списки», а не поведение по умолчанию: обходить
     провайдеров на каждое открытие окна значит тратить чужие лимиты запросов на
-    подпись под названием.
+    подпись под названием. Тем же force обновляется и каталог models.dev.
     """
     data = request.json or {}
     force = bool(data.get("force"))
+    # Каталог — ПЕРЕД опросом провайдеров: живые записи дополняются его полями
+    # сразу, а не при следующем обходе. Своя свежесть (неделя против суток) и
+    # свой замок внутри; неудача не мешает опросу провайдеров и уходит в панель
+    # отдельным полем catalog в ответе.
+    _refresh_catalog(force)
     if force:
         targets = [pid for pid in providers.provider_ids()
                    if providers.can_fetch_models(pid)]
@@ -342,13 +468,15 @@ def api_models_scan():
         targets = providers.autoscan_targets()
     if not targets:
         return jsonify(_api_settings_payload({"scanned": [], "failed": [],
-                                              "scan_skipped": True}))
+                                              "scan_skipped": True,
+                                              "models_index": _models_index()}))
     if not _scan_lock.acquire(False):
         # Обход уже идёт в другом запросе. Ждать его нечего: панель получит
         # свежие числа следующим ответом сервера, а сейчас — то, что есть.
         print("--> Автообновление списков моделей уже идёт — пропускаю")
         return jsonify(_api_settings_payload({"scanned": [], "failed": [],
-                                              "scan_skipped": True}))
+                                              "scan_skipped": True,
+                                              "models_index": _models_index()}))
     try:
         print("--> Автообновление списков моделей: %s" % ", ".join(targets))
         results = {}
@@ -366,6 +494,7 @@ def api_models_scan():
             # Запас над таймаутом запроса: поток должен успеть вернуться сам.
             t.join(SCAN_TIMEOUT + 10.0)
         changes, scanned, failed = {}, [], []
+        lists = {}
         for pid in targets:
             if pid not in results:
                 # Поток не уложился в join — считаем это неудачей попытки, а не
@@ -381,14 +510,23 @@ def api_models_scan():
                 failed.append(pid)
                 print("<-- %s: список моделей не получен (%s)" % (pid, err))
                 continue
+            recs = _enrich(pid, recs)
             total, free = providers.count_models(recs)
-            changes[pid] = api_keys.models_stats_fields(total, free)
+            free_catalog = catalog.count_free(pid, recs)
+            changes[pid] = api_keys.models_stats_fields(total, free, free_catalog)
+            lists[pid] = recs
             scanned.append(pid)
-            print("--> %s: моделей %d, из них бесплатных %d" % (pid, total, free))
+            print("--> %s: моделей %d, из них бесплатных %d "
+                  "(по каталогу models.dev бесплатных %d)"
+                  % (pid, total, free, free_catalog))
         # Одной записью на весь обход: иначе каждый провайдер отдельно читал бы
         # и перезаписывал файл настроек, и параллельное сохранение ключа из
         # другого запроса могло бы пропасть.
         api_keys.record_stats_bulk(changes)
+        # Сами списки — в свой файл, тоже одной записью. Из них панель ищет
+        # модель по названию сразу у всех провайдеров; неудачные провайдеры в
+        # кэш не попадают, поэтому прошлый удачный список у них сохраняется.
+        model_cache.put_bulk(lists)
     finally:
         _scan_lock.release()
     # Ошибки отдельных провайдеров НЕ уходят полем "error": панель показала бы
@@ -396,7 +534,8 @@ def api_models_scan():
     # провайдеров ключа нет и не должно быть. Причина видна в карточке того
     # провайдера, к которому относится.
     return jsonify(_api_settings_payload({"scanned": scanned, "failed": failed,
-                                          "scan_skipped": False}))
+                                          "scan_skipped": False,
+                                          "models_index": _models_index()}))
 
 
 def _tls_note(pid):
