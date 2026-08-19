@@ -99,6 +99,25 @@ FAKE = {
                          "context_over_200k": {"input": 10, "output": 45}},
                 "limit": {"context": 272000, "output": 128000},
             },
+            # СНЯТАЯ С ОБСЛУЖИВАНИЯ. У настоящего Opencode Zen таких 29 из 91, и
+            # это РОВНО те, которых нет в живом /models. Не читая status, легко
+            # решить, что каталог завышает число моделей.
+            "vendor/retired": {
+                "id": "vendor/retired", "status": "deprecated", "tool_call": True,
+                "cost": {"input": 1, "output": 2},
+                "limit": {"context": 100000, "output": 8000},
+            },
+            "vendor/beta": {
+                "id": "vendor/beta", "status": "beta", "tool_call": True,
+                "cost": {"input": 1, "output": 2},
+                "limit": {"context": 100000},
+            },
+            # Значение, которого в схеме каталога нет: молча пропускать слово,
+            # которого мы не понимаем, и показывать его пользователю нельзя.
+            "vendor/odd-status": {
+                "id": "vendor/odd-status", "status": "выдуманный",
+                "limit": {"context": 100000},
+            },
         },
     },
     # У нас "gemini", у них "google" — соответствие идентификаторов.
@@ -235,8 +254,26 @@ check(u"загрузка — это ровно один запрос", hits() - 
 orec = catalog.get("openrouter")
 check(u"модели провайдера разобраны",
       set(orec) == {"vendor/paid", "vendor/gift:free", "vendor/quiet-gift",
-                    "vendor/nocost", "vendor/tiered"}, sorted(orec))
+                    "vendor/nocost", "vendor/tiered", "vendor/retired",
+                    "vendor/beta", "vendor/odd-status"}, sorted(orec))
 check(u"gzip распакован (иначе разбора бы не было)", bool(orec))
+
+# ---------------------------------------------------------------------------
+# 1а) ПОЛЕ status: alpha / beta / deprecated
+#
+# У настоящего Opencode Zen 29 записей из 91 помечены deprecated, и это РОВНО
+# те, которых нет в живом /models (сверено, 29 из 29). Не читая status, легко
+# решить, что каталог завышает число моделей, — именно так и вышло сначала.
+# ---------------------------------------------------------------------------
+check(u"status снятой модели прочитан",
+      catalog.model_info("openrouter", "vendor/retired").get("status")
+      == catalog.STATUS_DEPRECATED)
+check(u"status беты прочитан",
+      catalog.model_info("openrouter", "vendor/beta").get("status") == "beta")
+check(u"у обычной модели статуса нет, а не пустая строка",
+      "status" not in catalog.model_info("openrouter", "vendor/paid"))
+check(u"неизвестное значение status отброшено, а не показано пользователю",
+      "status" not in catalog.model_info("openrouter", "vendor/odd-status"))
 
 # Соответствие идентификаторов применяется ОДИН РАЗ при записи: наружу и в файл
 # уходят НАШИ идентификаторы, чтобы каждое место чтения не помнило про
@@ -276,12 +313,20 @@ check(u"ключи кэша — НАШИ идентификаторы прова
       set(on_disk["providers"]) == {"openrouter", "groq", "gemini",
                                     "opencode_zen", "deepseek"},
       sorted(on_disk["providers"]))
-check(u"чужие 185 провайдеров в кэш не попали",
-      "stranger-ai" not in on_disk_raw and "stranger/model" not in on_disk_raw)
+check(u"МОДЕЛИ чужих провайдеров в кэш не попали — их там 5555 на 680 КБ",
+      "stranger/model" not in on_disk_raw
+      and "stranger-ai" not in (on_disk.get("providers") or {}))
+# А вот МЕТАДАННЫЕ чужого провайдера попасть должны: из них и собирается полный
+# список выбора. Модели у него появятся только если пользователь его выберет.
+check(u"метаданные чужого провайдера в кэше есть — он пригоден для выбора",
+      "stranger-ai" in (on_disk.get("catalog_providers") or {}))
 paid = on_disk["providers"]["openrouter"]["models"]["vendor/paid"]
 check(u"в записи модели ровно нужные поля",
       set(paid) == {"cost_in", "cost_out", "context", "max_output", "tool_call"},
       sorted(paid))
+check(u"у снятой модели к ним добавляется только status",
+      set(on_disk["providers"]["openrouter"]["models"]["vendor/retired"])
+      == {"cost_in", "cost_out", "context", "max_output", "tool_call", "status"})
 check(u"цена и лимиты разобраны верно",
       paid["cost_in"] == 1.25 and paid["cost_out"] == 2.5
       and paid["context"] == 128000 and paid["max_output"] == 32000
@@ -357,6 +402,34 @@ check(u"модель, которой нет в каталоге, осталас�
 check(u"исходный список не изменён на месте",
       all(set(r) == {"id", "free"} for r in live))
 
+# КАЖДОЕ дописанное поле названо. Без этого списка подпись «по каталогу
+# models.dev» встала бы и под живой ценой провайдера — а она точнее: замерено,
+# что у moonshotai/kimi-k2.6 каталог отстал и завышал цену на 47% против живого
+# ответа OpenRouter.
+check(u"каталог перечислил, что дописал",
+      set(by_id["vendor/paid"]["from_catalog"])
+      == {"cost_in", "cost_out", "context", "max_output", "tool_call"})
+check(u"у модели без дополнений списка нет вовсе",
+      "from_catalog" not in by_id["vendor/brand-new"])
+mixed = catalog.enrich("openrouter", [{"id": "vendor/paid", "free": False,
+                                       "cost_in": 7.0, "context": 999}])[0]
+check(u"живые поля не перебиты И не приписаны каталогу",
+      mixed["cost_in"] == 7.0 and mixed["context"] == 999
+      and set(mixed["from_catalog"]) == {"cost_out", "max_output", "tool_call"})
+
+# Снятая модель обязана дойти до панели помеченной: модель закрепляется за
+# чатом, и «её вот-вот уберут» человек должен увидеть ДО выбора.
+retired = catalog.enrich("openrouter", [{"id": "vendor/retired", "free": False}])[0]
+check(u"снятая модель помечена и словом, и признаком",
+      retired["deprecated"] is True
+      and retired["status"] == catalog.STATUS_DEPRECATED)
+beta = catalog.enrich("openrouter", [{"id": "vendor/beta", "free": False}])[0]
+check(u"бета помечена статусом, но НЕ снятой",
+      beta["status"] == "beta" and "deprecated" not in beta)
+check(u"обычная модель не помечена ни статусом, ни снятием",
+      "status" not in by_id["vendor/paid"]
+      and "deprecated" not in by_id["vendor/paid"])
+
 # Живое поле выигрывает всегда: сейчас /models ни у кого из наших не присылает
 # context, но когда пришлёт — каталог не должен его перебивать.
 conflict = catalog.enrich("openrouter", [{"id": "vendor/paid", "free": False,
@@ -403,8 +476,31 @@ before = hits()
 updated, err = catalog.refresh(force=True)
 check(u"условный запрос ушёл", hits() - before == 1)
 check(u"304 — это не ошибка", err == "", err)
-check(u"после 304 модели в кэше остались", len(catalog.get("openrouter")) == 5)
+check(u"после 304 модели в кэше остались", len(catalog.get("openrouter")) == 8)
 check(u"после 304 каталог снова считается свежим", catalog.is_stale() is False)
+
+# ---------------------------------------------------------------------------
+# 7а) ВЫБРАННЫЙ ИЗ КАТАЛОГА ПРОВАЙДЕР ДОГРУЖАЕТ СВОИ МОДЕЛИ ДАЖЕ ПРИ 304
+#
+# Настоящая поломка, найденная живым прогоном: моделей всех 161 записи в кэше
+# нет (680 КБ против 100), они догружаются для выбранного. Но каталог при этом
+# не менялся, сервер отвечал 304 без тела — и модели брать было негде.
+# Пользователь выбирал провайдера и оставался без цен и лимитов до следующего
+# изменения каталога, то есть, возможно, на неделю.
+# ---------------------------------------------------------------------------
+check(u"моделей чужого провайдера в кэше нет — их там 5555 на 680 КБ",
+      catalog.get("stranger-ai") == {})
+before = hits()
+updated, err = catalog.refresh(extra_ids=["stranger-ai"])
+check(u"за моделями выбранного идём даже при свежем каталоге", hits() - before == 1)
+check(u"и получаем их, а не 304 без тела",
+      updated is True and err == ""
+      and "stranger/model" in catalog.get("stranger-ai"))
+check(u"модели наших пяти при этом на месте",
+      len(catalog.get("openrouter")) == 8)
+before = hits()
+catalog.refresh(extra_ids=["stranger-ai"])
+check(u"когда модели уже есть, второй раз не ходим", hits() == before)
 
 # ---------------------------------------------------------------------------
 # 8) Битый JSON: прежний кэш выживает, причина запоминается словами
@@ -414,7 +510,7 @@ Handler.etag = 'W/"fake-etag-2"'  # чтобы ответ не свёлся к 3
 updated, err = catalog.refresh(force=True)
 check(u"битый JSON — неудача с объяснением", updated is False and err != "", err)
 check(u"в объяснении видно, что пришло не JSON", u"JSON" in err, err)
-check(u"ПРЕЖНИЙ кэш при неудаче не стёрт", len(catalog.get("openrouter")) == 5)
+check(u"ПРЕЖНИЙ кэш при неудаче не стёрт", len(catalog.get("openrouter")) == 8)
 check(u"неудача видна панели вместе со временем попытки",
       catalog.state()["error"] != "" and catalog.state()["try_at"] > 0)
 check(u"после неудачи не долбимся заново сразу", catalog.is_stale() is False)
@@ -430,12 +526,12 @@ check(u"пауза после неудачи означает НИ ОДНОГО 
 Handler.mode = "html"
 updated, err = catalog.refresh(force=True)
 check(u"HTML с кодом 200 не принят за каталог", updated is False and err != "")
-check(u"прежний кэш выжил и после HTML", len(catalog.get("openrouter")) == 5)
+check(u"прежний кэш выжил и после HTML", len(catalog.get("openrouter")) == 8)
 
 Handler.mode = "500"
 updated, err = catalog.refresh(force=True)
 check(u"ошибка сервера объяснена кодом", u"500" in err, err)
-check(u"прежний кэш выжил и после 500", len(catalog.get("openrouter")) == 5)
+check(u"прежний кэш выжил и после 500", len(catalog.get("openrouter")) == 8)
 
 # ---------------------------------------------------------------------------
 # 9) НИ ОДНОГО КЛЮЧА В ЗАПРОСЕ КАТАЛОГА
@@ -451,7 +547,7 @@ Handler.headers_seen = []
 catalog.refresh(force=True)
 sent = json.dumps(Handler.headers_seen, ensure_ascii=False)
 check(u"каталог загрузился при сохранённых ключах",
-      len(catalog.get("openrouter")) == 5)
+      len(catalog.get("openrouter")) == 8)
 check(u"в запросе каталога нет заголовка Authorization",
       all("authorization" not in h for h in Handler.headers_seen), sent)
 check(u"СЫРОГО ключа в запросе каталога нет", "SECRETVALUE" not in sent
@@ -488,13 +584,29 @@ with open(catalog.catalog_path(), "w", encoding="utf-8") as f:
     json.dump({"version": 1, "at": time.time(), "etag": "", "providers": {
         "openrouter": {"models": {"a": {"cost_in": 1.0, "cost_out": 2.0,
                                         "context": 100, "tool_call": True}}},
+        # Идентификатор, которого нет ни среди наших пяти, ни среди пригодных
+        # записей каталога ниже: такой должен отброситься.
         "выдуманный": {"models": {"b": {"cost_in": 0.0, "cost_out": 0.0}}},
+        # А этот пригоден — он есть в catalog_providers, значит пользователь его
+        # выбрал и его модели имеют право лежать в кэше.
+        "stranger-ai": {"models": {"c": {"cost_in": 3.0, "cost_out": 4.0}}},
+    }, "catalog_providers": {
+        "stranger-ai": {"id": "stranger-ai", "name": "Stranger",
+                        "api": "https://stranger.example/v1",
+                        "env": ["STRANGER_API_KEY"], "models_total": 1,
+                        "models_free": 0, "transport": "openai"},
     }}, f)
 check(u"знакомый провайдер из кэша прочитан",
       catalog.model_info("openrouter", "a")["context"] == 100)
+check(u"выбранный из каталога тоже прочитан",
+      catalog.model_info("stranger-ai", "c")["cost_in"] == 3.0)
 check(u"незнакомый провайдер из кэша отброшен",
       catalog.get("выдуманный") == {}
-      and catalog.state()["providers"] == ["openrouter"])
+      and catalog.state()["providers"] == ["openrouter", "stranger-ai"])
+check(u"пригодные для выбора записи прочитаны",
+      catalog.provider_meta("stranger-ai").get("api")
+      == "https://stranger.example/v1"
+      and catalog.state()["known_providers"] == 1)
 
 # ---------------------------------------------------------------------------
 # 11) Состояние каталога для панели
@@ -507,7 +619,14 @@ check(u"панель видит, ОТКУДА берутся цены", st["url"
 Handler.etag = 'W/"fake-etag-4"'
 catalog.refresh(force=True)
 st = catalog.state()
-check(u"панель видит число моделей каталога", st["models"] == 9, st["models"])
+check(u"панель видит число ДОСТУПНЫХ моделей каталога", st["models"] == 11,
+      st["models"])
+# Снятые в это число НЕ входят. Иначе строка «сведения о 502 моделях» включала
+# бы записи, про которые сам каталог говорит «провайдер их больше не отдаёт», —
+# то есть завышала бы полезность справочника. У настоящего Opencode Zen таких
+# 29 из 91.
+check(u"снятые с обслуживания посчитаны ОТДЕЛЬНО", st["deprecated"] == 1,
+      st["deprecated"])
 check(u"панель видит, у кого каталог что-то знает",
       st["providers"] == ["deepseek", "gemini", "groq", "opencode_zen",
                           "openrouter"], st["providers"])

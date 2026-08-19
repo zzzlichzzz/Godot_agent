@@ -75,6 +75,73 @@ check(u"мусор вместо ответа не роняет разбор",
       P.parse_models_detailed(None) == [] and P.parse_models_detailed({"data": 5}) == [])
 
 # ---------------------------------------------------------------------------
+# 1б) ЧИСЛА ИЗ ЖИВОГО ОТВЕТА ПРОВАЙДЕРА — первичные, каталог им не нужен
+#
+# Замерено (OpenRouter, 19.08.2026): pricing есть у всех 416 записей,
+# context_length у 416, top_provider.max_completion_tokens у 367,
+# supported_parameters с "tools" — у большинства. Раньше всё это выбрасывалось,
+# и цену приходилось брать из каталога models.dev, который отстаёт: у
+# moonshotai/kimi-k2.6 он показывал 0.95/4.0 против живых 0.646/2.72, то есть
+# завышал на 47%.
+#
+# ЕДИНИЦА ЦЕНЫ — САМОЕ ОПАСНОЕ МЕСТО. OpenRouter присылает доллары ЗА ТОКЕН,
+# каталог — за МИЛЛИОН. Ошибка здесь показывает цену, завышенную в миллион раз,
+# поэтому единица берётся из реестра (live_pricing) и только после сверки живым
+# запросом, а не угадывается по «OpenAI-совместимости».
+# ---------------------------------------------------------------------------
+LIVE_OR = {"data": [
+    {"id": "a/paid", "pricing": {"prompt": "0.000005", "completion": "0.000025"},
+     "context_length": 1000000,
+     "top_provider": {"max_completion_tokens": 128000},
+     "supported_parameters": ["tools", "temperature"]},
+    {"id": "a/gift:free", "pricing": {"prompt": "0", "completion": "0"},
+     "context_length": 65536, "supported_parameters": ["temperature"]},
+    # «-1» у OpenRouter означает «цена зависит от маршрута». Превращать это в
+    # число значит соврать, поэтому цены у такой записи не будет вовсе.
+    {"id": "a/router", "pricing": {"prompt": "-1", "completion": "-1"},
+     "context_length": 0},
+]}
+by = {r["id"]: r for r in P.parse_models_detailed(LIVE_OR, provider_id="openrouter")}
+check(u"цена за токен переведена в цену за миллион",
+      by["a/paid"]["cost_in"] == 5.0 and by["a/paid"]["cost_out"] == 25.0)
+check(u"окно контекста и предел ответа взяты из живого ответа",
+      by["a/paid"]["context"] == 1000000 and by["a/paid"]["max_output"] == 128000)
+check(u"родной function calling виден по supported_parameters",
+      by["a/paid"]["tool_call"] is True and by["a/gift:free"]["tool_call"] is False)
+check(u"«цена зависит от маршрута» (-1) не превращается в число",
+      "cost_in" not in by["a/router"] and "cost_out" not in by["a/router"])
+check(u"нулевое context_length — это не окно нулевого размера, а его отсутствие",
+      "context" not in by["a/router"])
+check(u"у записи без top_provider предела ответа нет, а не ноль",
+      "max_output" not in by["a/gift:free"])
+
+# Тот же ответ у провайдера, у которого единица цены НЕ проверена: цены нет
+# вовсе. Показать её не в тех единицах хуже, чем не показать.
+by_c = {r["id"]: r for r in P.parse_models_detailed(LIVE_OR, provider_id="custom")}
+check(u"без отметки live_pricing цена из ответа игнорируется",
+      "cost_in" not in by_c["a/paid"] and "cost_out" not in by_c["a/paid"])
+check(u"а окно контекста берётся всё равно — его единица однозначна",
+      by_c["a/paid"]["context"] == 1000000
+      and by_c["a/paid"]["max_output"] == 128000)
+check(u"единица цены OpenRouter проверена и записана в реестр",
+      P.live_pricing_unit("openrouter") == "per_token"
+      and P.live_pricing_unit("custom") == ""
+      and P.live_pricing_unit("opencode_zen") == "")
+check(u"признак бесплатности от новых полей не изменился",
+      by["a/gift:free"]["free"] is True and by["a/paid"]["free"] is False)
+
+# Opencode Zen присылает ТОЛЬКО id, object, created, owned_by (замерено) —
+# оттуда брать нечего, и это нормально: для него и нужен каталог.
+zen = P.parse_models_detailed(
+    {"data": [{"id": "big-pickle", "object": "model", "created": 1,
+               "owned_by": "opencode"}]}, provider_id="opencode_zen")
+check(u"из ответа без цен и лимитов ничего не выдумывается",
+      zen == [{"id": "big-pickle", "free": False}])
+check(u"старый вызов без provider_id по-прежнему работает",
+      [r["id"] for r in P.parse_models_detailed(LIVE_OR)]
+      == ["a/gift:free", "a/paid", "a/router"])
+
+# ---------------------------------------------------------------------------
 # 2) Счётчики считаются по ПОЛНОМУ списку, а не по отфильтрованному
 #
 # Главная ловушка счётчика: посчитать total по списку, из которого уже убрали
@@ -268,34 +335,37 @@ check(u"слишком длинный идентификатор отброше�
 check(u"кэш переживает чтение с диска",
       len(model_cache.index().get("openrouter") or []) == 3)
 
-# Дополнения из каталога models.dev (цена, окно контекста, поддержка вызова
-# инструментов) обязаны ПЕРЕЖИВАТЬ запись на диск: живой /models их не
-# присылает (у Opencode Zen там вообще только id), а панель показывает их в
-# подсказке на кнопке модели. Потерянная при сохранении цена выглядит как «то
-# есть, то нет».
+# Кэш хранит ПЕРВИЧНУЮ правду — то, что присылает сам провайдер (у OpenRouter
+# это цена, окно контекста, предел ответа и поддержка function calling у всех
+# 416 записей). Дополнения каталога models.dev здесь НЕ хранятся намеренно:
+# попав на диск, они стали бы неотличимы от присланных провайдером, и подпись
+# «по каталогу models.dev» встала бы под живой ценой. Каталог прикладывается на
+# выходе (chat_routes._enrich) и сам сообщает, что дописал.
 model_cache.put("deepseek", [
     {"id": "deepseek-chat", "free": False, "cost_in": 0.28, "cost_out": 0.42,
      "context": 128000, "max_output": 8192, "tool_call": True,
-     "catalog_free": False,
+     # Поля каталога, которые обязаны быть отброшены при записи.
+     "catalog_free": False, "status": "deprecated", "deprecated": True,
+     "from_catalog": ["context"],
      # Чужое поле: набор в кэше ЗАКРЫТЫЙ, иначе туда однажды уедет описание
      # модели на три абзаца, а файл читается целиком на каждый поиск.
      "description": u"описание, которому в кэше не место"},
-    # Каталог про эту модель молчит: полей быть НЕ должно, а не нулей. Ноль
-    # вместо неизвестной цены означал бы «бесплатная».
+    # Провайдер про эту модель прислал только id: полей быть НЕ должно, а не
+    # нулей. Ноль вместо неизвестной цены означал бы «бесплатная».
     {"id": "deepseek-brand-new", "free": False},
 ])
 drec = {r["id"]: r for r in model_cache.get("deepseek")}
-check(u"дополнения каталога переживают запись и чтение кэша",
+check(u"числа ИЗ ЖИВОГО ОТВЕТА переживают запись и чтение кэша",
       drec["deepseek-chat"]["cost_in"] == 0.28
       and drec["deepseek-chat"]["context"] == 128000
       and drec["deepseek-chat"]["max_output"] == 8192
       and drec["deepseek-chat"]["tool_call"] is True)
-check(u"признак бесплатности каталога хранится ОТДЕЛЬНО от измеренного",
-      drec["deepseek-chat"]["catalog_free"] is False
-      and drec["deepseek-chat"]["free"] is False)
+check(u"утверждения КАТАЛОГА в кэш не попадают — иначе подпись об источнике соврёт",
+      not any(k in drec["deepseek-chat"]
+              for k in ("catalog_free", "status", "deprecated", "from_catalog")))
 check(u"чужие поля в кэш не пропускаются",
       "description" not in drec["deepseek-chat"])
-check(u"о модели без данных каталога кэш не выдумывает ни цены, ни лимитов",
+check(u"о модели без данных провайдера кэш не выдумывает ни цены, ни лимитов",
       set(drec["deepseek-brand-new"]) == {"id", "free"})
 model_cache.forget("deepseek")
 
@@ -418,6 +488,161 @@ dump = json.dumps(P.list_providers(), ensure_ascii=False)
 check(u"СЫРОГО ключа в списке провайдеров нет", "TESTVALUE" not in dump)
 check(u"маска ключа при этом на месте",
       [p for p in P.list_providers() if p["id"] == "groq"][0]["masked"].startswith("gsk_"))
+
+# ---------------------------------------------------------------------------
+# 7) ПОЛНЫЙ СПИСОК ПРОВАЙДЕРОВ ИЗ КАТАЛОГА models.dev
+#
+# Замерено: из 192 записей каталога 166 имеют адрес endpoint'а, у остальных 26
+# его нет вовсе — им нужен родной SDK провайдера, а у нас единственный транспорт
+# это HTTP. Показать такого значило бы предложить выбор, который заведомо не
+# заработает.
+#
+# ЧТО ЗДЕСЬ ПРОВЕРЯЕТСЯ ПО СУЩЕСТВУ — что добавление ста шестидесяти
+# непроверенных записей НЕ размывает знание о семи разобранных: реестр
+# выигрывает при совпадении идентификаторов, каталожным не выставляется
+# models_public (значит их не спрашивают без ключа и не трогают автообходом), и
+# они видны только по явному включению.
+# ---------------------------------------------------------------------------
+import catalog as CAT
+
+CAT.forget()
+check(u"без кэша каталога список провайдеров прежний — семь разобранных",
+      len(P.provider_ids()) == 7 and P.catalog_records() == {})
+
+FAKE_API = {
+    # Наши: реестр обязан выиграть, каталожная копия в список не попадает.
+    "openrouter": {"id": "openrouter", "name": "OpenRouter — из каталога",
+                   "api": "https://openrouter.example/v1",
+                   "env": ["OPENROUTER_API_KEY"], "npm": "@ai-sdk/openai-compatible",
+                   "doc": "https://doc.example",
+                   "models": {"a/b": {"cost": {"input": 1, "output": 2},
+                                      "limit": {"context": 1000}}}},
+    # Наш gemini живёт в каталоге под именем google, и адреса там нет вовсе —
+    # ровно поэтому подменять записи реестра каталогом нельзя.
+    "google": {"id": "google", "name": "Google", "api": None,
+               "env": ["GEMINI_API_KEY"], "npm": "@ai-sdk/google",
+               "models": {"g/1": {"limit": {"context": 1000}}}},
+    # Чужой, пригодный: попадёт в список.
+    "nano-like": {"id": "nano-like", "name": "NanoLike",
+                  "api": "https://nano.example/api/v1",
+                  "env": ["NANO_LIKE_API_KEY"], "npm": "@ai-sdk/openai-compatible",
+                  "doc": "https://docs.nano.example",
+                  "models": {"m/paid": {"cost": {"input": 1, "output": 2},
+                                        "limit": {"context": 128000}},
+                             "m/free": {"cost": {"input": 0, "output": 0},
+                                        "limit": {"context": 8000}},
+                             # Снятая не должна попасть в число моделей.
+                             "m/old": {"status": "deprecated",
+                                       "limit": {"context": 8000}}}},
+    # Anthropic-протокол: у нас транспорт для него есть, но живьём не проверен.
+    "claude-like": {"id": "claude-like", "name": "ClaudeLike",
+                    "api": "https://claude.example/v1",
+                    "env": ["CLAUDE_LIKE_API_KEY"], "npm": "@ai-sdk/anthropic",
+                    "models": {"c/1": {"limit": {"context": 200000}}}},
+    # Адрес — неподставленный шаблон. Живьём такой один (neon), и запрос по нему
+    # упал бы невнятной сетевой ошибкой.
+    "template-url": {"id": "template-url", "name": "Template", "npm": "x",
+                     "api": "${SOME_BASE_URL}/v1", "env": ["T_API_KEY"],
+                     "models": {"t/1": {}}},
+    # Локальный сервер: НЕ отбраковываем, транспорт с такими умеет работать.
+    "local-like": {"id": "local-like", "name": "LocalLike", "npm": "x",
+                   "api": "http://127.0.0.1:1234/v1", "env": ["LOCAL_KEY"],
+                   "models": {"l/1": {"limit": {"context": 8000}}}},
+    # Адреса нет вовсе — записи в списке быть не должно.
+    "sdk-only": {"id": "sdk-only", "name": "SdkOnly", "npm": "@ai-sdk/azure",
+                 "env": ["AZURE_API_KEY"], "models": {"z/1": {}}},
+    # Сервису нужно несколько значений, а форма умеет один ключ.
+    "two-secrets": {"id": "two-secrets", "name": "TwoSecrets", "npm": "x",
+                    "api": "https://two.example/v1",
+                    "env": ["TWO_ACCOUNT_ID", "TWO_API_KEY"],
+                    "models": {"w/1": {"limit": {"context": 8000}}}},
+}
+meta = CAT._compact_providers(FAKE_API)
+check(u"пригодными считаются только записи с рабочим адресом",
+      set(meta) == {"openrouter", "nano-like", "claude-like", "local-like",
+                    "two-secrets"})
+check(u"запись без адреса отброшена (ей нужен родной SDK)", "sdk-only" not in meta)
+check(u"неподставленный шаблон вместо адреса отброшен", "template-url" not in meta)
+check(u"локальный http-адрес НЕ отброшен", "local-like" in meta)
+check(u"снятые модели не попали в число моделей провайдера",
+      meta["nano-like"]["models_total"] == 2
+      and meta["nano-like"]["models_free"] == 1)
+check(u"протокол взят по npm-пакету",
+      meta["claude-like"]["transport"] == "anthropic"
+      and meta["nano-like"]["transport"] == "openai")
+check(u"несколько переменных окружения помечены отдельно",
+      meta["two-secrets"]["multi_secret"] is True
+      and meta["nano-like"]["multi_secret"] is False)
+
+# Пишем кэш целиком, как это сделал бы refresh(), и смотрим на слияние.
+CAT._save({"version": 1, "at": time.time(), "etag": "", "error": "",
+           "try_at": 0.0, "providers": CAT._compact(FAKE_API),
+           "catalog_providers": meta})
+check(u"пока полный список выключен, провайдеров по-прежнему семь",
+      api_keys.catalog_enabled() is False and len(P.provider_ids()) == 7)
+api_keys.set_catalog_enabled(True)
+ids = P.provider_ids()
+check(u"с включённым списком добавились только ЧУЖИЕ пригодные записи",
+      set(ids) - set(p["id"] for p in P.PROVIDERS)
+      == {"nano-like", "claude-like", "local-like", "two-secrets"})
+check(u"РЕЕСТР ВЫИГРЫВАЕТ: у openrouter остался разобранный адрес, а не каталожный",
+      P.get_provider("openrouter")["base_url"] == "https://openrouter.ai/api/v1"
+      and not P.is_from_catalog("openrouter"))
+check(u"наш gemini не подменён каталожным google",
+      P.get_provider("gemini")["base_url"].startswith("https://generativelanguage"))
+nano = P.get_provider("nano-like")
+check(u"у каталожной записи адрес и переменная окружения из каталога",
+      nano["base_url"] == "https://nano.example/api/v1"
+      and nano["env_names"] == ("NANO_LIKE_API_KEY",))
+check(u"каталожная запись помечена как непроверенная",
+      P.is_from_catalog("nano-like") and not nano.get("verified"))
+check(u"протокол каталожной записи доехал до transport_for",
+      P.transport_for("claude-like") == "anthropic"
+      and P.transport_for("nano-like") == "openai")
+
+# САМОЕ ВАЖНОЕ: включение полного списка НЕ ДОЛЖНО означать сто шестьдесят
+# запросов к незнакомым сервисам при открытии окна выбора. models_public им не
+# выставляется никогда — обещать публичный /models по справочнику нельзя, это
+# проверяется запросом.
+check(u"у каталожной записи нет обещания публичного списка моделей",
+      nano.get("models_public") is None)
+check(u"без ключа её список моделей не спрашивают",
+      P.can_fetch_models("nano-like") is False)
+check(u"и в автообход она не попадает",
+      "nano-like" not in P.autoscan_targets())
+api_keys.set_key("nano-like", "sk-TESTVALUE0123456789")
+check(u"с сохранённым ключом спросить можно — это уже выбор пользователя",
+      P.can_fetch_models("nano-like") is True)
+
+# Выключение полного списка не должно прятать провайдера, у которого уже есть
+# ключ: иначе свой же ключ негде было бы убрать.
+api_keys.set_catalog_enabled(False)
+check(u"настроенный из каталога остаётся видимым после выключения списка",
+      "nano-like" in P.provider_ids() and "claude-like" not in P.provider_ids())
+listed_extra = {p["id"]: p for p in P.list_providers()}
+check(u"и приходит в панель с пометкой и ссылкой на документацию",
+      listed_extra["nano-like"]["from_catalog"] is True
+      and listed_extra["nano-like"]["doc"] == "https://docs.nano.example"
+      and listed_extra["nano-like"]["catalog_models"] == 2)
+check(u"у разобранной записи пометки «из каталога» нет",
+      listed_extra["openrouter"]["from_catalog"] is False)
+check(u"в описании каталожной записи прямо сказано, что она не проверялась",
+      u"не проверял" in listed_extra["nano-like"]["note_ru"]
+      and "never tested" in listed_extra["nano-like"]["note_en"])
+check(u"про несколько секретов предупреждено словами",
+      api_keys.set_key("two-secrets", "sk-TESTVALUE0123456789") is not None)
+api_keys.set_catalog_enabled(True)
+two = [p for p in P.list_providers() if p["id"] == "two-secrets"][0]
+check(u"предупреждение о нескольких значениях видно в описании",
+      u"несколько значений" in two["note_ru"] and "several values" in two["note_en"])
+api_keys.set_key("nano-like", "")
+api_keys.set_key("two-secrets", "")
+api_keys.set_catalog_enabled(False)
+check(u"после удаления ключей и выключения список снова из семи",
+      len(P.provider_ids()) == 7)
+check(u"СЫРОГО ключа каталожных записей в списке провайдеров нет",
+      "TESTVALUE" not in json.dumps(P.list_providers(), ensure_ascii=False))
+CAT.forget()
 
 shutil.rmtree(CFG, ignore_errors=True)
 n_ok = sum(1 for r in results if r)

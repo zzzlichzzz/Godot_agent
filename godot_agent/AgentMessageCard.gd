@@ -70,6 +70,7 @@ func _t(key: String) -> String:
 
 func _ready() -> void:
 	_ensure_rollback_button()
+	_apply_locale()
 	_setup_theme()
 	if not copy_btn.pressed.is_connected(_on_copy_pressed):
 		copy_btn.pressed.connect(_on_copy_pressed)
@@ -82,6 +83,15 @@ func _ready() -> void:
 	if not mouse_exited.is_connected(_hide_actions):
 		mouse_exited.connect(_hide_actions)
 	_set_actions_shown(false)
+
+
+func _apply_locale() -> void:
+	# Подпись автора и надпись кнопки сворачивания лежат в .tscn по-русски и
+	# остаются на экране, пока код их не перепишет. У «ИИ-Агент» этого не делал
+	# никто, а «Свернуть» переписывалось только при обновлении содержимого —
+	# то есть на английском языке в шапке карточки оставался русский текст.
+	name_label.text = _t("agent_name")
+	expand_btn.text = _t("collapse") if _expanded else _t("expand")
 
 
 func _ensure_rollback_button() -> void:
