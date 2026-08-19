@@ -55,8 +55,11 @@ const BODY_HEIGHT := 260.0
 # Полный показ по кнопке «Полный дифф» — верхний предел строк на карточку.
 const PREVIEW_MAX_LINES := 400
 var _show_full: bool = false
-var _view_full_label: String = "Полный дифф"
-var _view_hide_label: String = "Свернуть дифф"
+# Подписи кнопки «весь дифф». Заполняются из словаря в _apply_locale(); здесь
+# пусто НАМЕРЕННО — русский литерал по умолчанию однажды уже уехал на экран при
+# английском языке, потому что переписать его никто не обязан был.
+var _view_full_label: String = ""
+var _view_hide_label: String = ""
 
 signal diff_applied(file_path: String)
 signal diff_rejected(file_path: String)
@@ -94,6 +97,7 @@ func _t(key: String) -> String:
 
 func _ready() -> void:
 	_ensure_header_controls()
+	_apply_locale()
 	_setup_theme()
 	if not apply_btn.pressed.is_connected(_on_apply_pressed):
 		apply_btn.pressed.connect(_on_apply_pressed)
@@ -103,6 +107,24 @@ func _ready() -> void:
 		view_full_btn.pressed.connect(_on_view_full_pressed)
 	if not apply_all_btn.pressed.is_connected(_on_apply_all_pressed):
 		apply_all_btn.pressed.connect(_on_apply_all_pressed)
+
+
+func _apply_locale() -> void:
+	# ПОЧЕМУ ЭТО ОБЯЗАТЕЛЬНО. Надписи кнопок лежат в .tscn по-русски — их видно
+	# в редакторе сцен, и это удобно. Но значение из .tscn остаётся на экране,
+	# пока код его не перепишет: у «Применить» и «Отклонить» этого не делал никто,
+	# и на английском языке они так и оставались русскими. Ставим ВСЕ надписи
+	# карточки здесь, а не по месту: тогда забыть одну нельзя — их видно списком.
+	title_label.text = _t("diff_title")
+	apply_btn.text = _t("diff_apply")
+	reject_btn.text = _t("reject")
+	apply_all_btn.text = _t("allow_all")
+	apply_all_btn.tooltip_text = _t("allow_all_tip")
+	# Подписи кнопки «весь дифф» держим в полях: у неё две надписи (показать и
+	# свернуть), и переключаются они при каждом нажатии.
+	_view_full_label = _t("diff_show_full")
+	_view_hide_label = _t("diff_hide_full")
+	view_full_btn.text = _t("diff_show_full")
 
 
 func _ensure_header_controls() -> void:

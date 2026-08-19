@@ -29,10 +29,12 @@ import xml.etree.ElementTree as ET
 import api_history
 import api_keys
 import anthropic_compat
+import catalog
 import md_to_bbcode
 import openai_compat as oc
 import parser_base
 import providers
+from agent_prompts import API_CONTEXT_WINDOW, API_MAX_TOKENS
 
 # Заглушка на месте вырезанного блока действия — ровно та же строка, что
 # ставит JS-экстрактор в браузерном режиме, чтобы чат выглядел одинаково.
@@ -224,6 +226,135 @@ def _guess_user_kind(prompt):
     if head.startswith(u"[Система]") or head.startswith("[System]"):
         return api_history.KIND_TOOL_RESULT
     return api_history.KIND_PROMPT
+
+
+# ---------------------------------------------------------------------------
+# Бюджеты токенов под КОНКРЕТНУЮ модель
+#
+# ОТКУДА ЗАДАЧА. Зашитые в agent_prompts числа (окно 32000, история 16000,
+# вывод 8000) — это ДОГАДКА «у бесплатных моделей окно обычно 32k», и так и
+# написано в комментарии рядом с ними. Каталог models.dev знает настоящие
+# лимиты, и замер (19.08.2026, 502 модели наших пяти провайдеров) показал, что
+# догадка неверна в ОБЕ стороны:
+#
+#   * у 27 моделей окно МЕНЬШЕ, чем история+вывод (24000): microsoft/phi-4 —
+#     16384, deepseek/deepseek-r1-distill-llama-70b — 8192, google/gemma-2-27b-it
+#     — 8192, openai/gpt-3.5-turbo-16k — 16385. Это обычные чат-модели, которые
+#     пользователь вполне может выбрать, и с зашитыми числами запрос к ним
+#     ГАРАНТИРОВАННО не влезал в окно — отказ провайдера посреди задачи;
+#   * у 28 моделей предел ВЫВОДА меньше 8000 (до 2048): строгий провайдер
+#     отвечает на такой max_tokens 400, снисходительный молча обрезает;
+#   * у 472 моделей окно БОЛЬШЕ 32000 (медиана 262144 у OpenRouter, 400000 у
+#     Opencode Zen) — то есть история схлопывалась в разы раньше, чем нужно.
+#
+# ПОЧЕМУ НЕ БЕРЁМ ОКНО ЦЕЛИКОМ. История уходит провайдеру в КАЖДОМ запросе.
+# Отдать под неё половину миллионного окна значит 500k входных токенов на шаг
+# агента; на модели за $15/млн это больше семи долларов за шаг, о которых никто
+# не просил. Поэтому доли остаются те же, что у подобранных вручную чисел
+# (история — половина окна, вывод — четверть), а рост истории ограничен
+# HISTORY_CAP.
+#
+# ГЛАВНОЕ СВОЙСТВО: без данных каталога числа получаются РОВНО прежние
+# (32000 -> 16000 и 8000). Это проверяется тестом — Этап 2 не должен менять
+# поведение там, где о модели ничего не известно.
+# ---------------------------------------------------------------------------
+
+# Доли окна. Взяты из соотношения зашитых чисел: 16000/32000 и 8000/32000.
+HISTORY_SHARE = 0.5
+OUTPUT_SHARE = 0.25
+
+# Потолок бюджета истории. ЗАМЕРЕНО, а не выбрано на глаз: системный блок даёт
+# ~3851 токен на одном шаблоне мега-промпта (11552 символа), а один самый
+# большой возможный результат инструмента — 80000 символов (TOTAL_CHAR_BUDGET),
+# то есть ~26667 токенов. Вместе 30518. С кэпом 32000 одно полное чтение файла
+# перестаёт вытеснять ВСЮ историю — ровно та жалоба, из-за которой числа и
+# пересматриваются. Больше — это уже плата за то, чего задача не требует.
+HISTORY_CAP = 32000
+
+# Потолок длины одного ответа. Не поднимаем выше зашитых 8000 намеренно: там
+# посчитано, что 8000 токенов — это 500–700 строк GDScript, то есть план на
+# десяток шагов и крупный файл влезают за один ответ. Для более длинного уже
+# есть многочастная передача (continues: true), а больший max_tokens на платной
+# модели — просто дороже.
+OUTPUT_CAP = API_MAX_TOKENS
+
+# Минимальный осмысленный ответ: короткая фраза плюс блок ```agent_action с
+# одним действием — это порядка 100–200 токенов. 512 берём с запасом.
+MIN_ANSWER_TOKENS = 512
+
+
+def budgets_for(provider_id, model, max_tokens=None, budget_tokens=None):
+    u"""Бюджеты для конкретной модели: (max_tokens, budget_tokens, окно, откуда).
+
+    «откуда» — "catalog", если окно взято из справочника models.dev, и ""
+    (догадка), если каталог про эту модель молчит. Строка нужна вывод сервера:
+    число без источника в этом проекте не показывается.
+
+    max_tokens/budget_tokens — то, что передаёт main.py из agent_prompts. Они
+    же становятся результатом, когда каталог молчит.
+
+    ВНИМАНИЕ НА АСИММЕТРИЮ. max_tokens от вызывающей стороны — это ПОТОЛОК:
+    просить у модели больше, чем попросили здесь, мы не имеем права. А
+    budget_tokens — это ДОГАДКА, которую каталог и должен заменить: ограничить
+    историю переданным значением значит оставить всё как было и лишить весь
+    Этап 2 смысла.
+    """
+    fallback_out = int(max_tokens or API_MAX_TOKENS)
+    fallback_hist = int(budget_tokens or api_history.DEFAULT_CONTEXT_BUDGET)
+    info = {}
+    try:
+        info = catalog.model_info(provider_id, model)
+    except Exception as e:
+        # Каталог — удобство. Сломался — работаем на прежних догадках, а не
+        # роняем чат.
+        print("[api_backend] Каталог недоступен, беру зашитые бюджеты (%s)" % e)
+    try:
+        window = int(info.get("context") or 0)
+    except Exception:
+        window = 0
+    try:
+        model_out = int(info.get("max_output") or 0)
+    except Exception:
+        model_out = 0
+    if window <= 0:
+        # Про эту модель каталог ничего не знает (у OpenRouter это 62 записи из
+        # 415 — варианты с суффиксами вроде «:batch»). Догадку НЕ уточняем
+        # ничем: подставить сюда лимиты базовой модели значит выдать чужие числа
+        # за факты об этой.
+        return fallback_out, fallback_hist, API_CONTEXT_WINDOW, ""
+    out = min(fallback_out, OUTPUT_CAP, int(window * OUTPUT_SHARE))
+    if model_out > 0:
+        # Предел вывода самой модели — жёсткий: больше него провайдер либо
+        # откажет, либо обрежет ответ на середине блока действия.
+        out = min(out, model_out)
+    hist = min(HISTORY_CAP, int(window * HISTORY_SHARE))
+    # Ни один из бюджетов не имеет смысла нулевым: у моделей с окном 480
+    # (veo-3.1-*) и 512 (llama-prompt-guard) агент не заработает в любом случае,
+    # но отдавать транспорту max_tokens=0 нельзя — это «без ограничения».
+    return max(1, out), max(1, hist), window, "catalog"
+
+
+# Что уже напечатано про бюджеты, по чату. Печатать на КАЖДЫЙ запрос нельзя:
+# main.py создаёт новый ApiBackend на каждое обращение (_current_backend), и в
+# журнале агента эта строка встала бы между каждым шагом. Печатаем только при
+# изменении — то есть при первом запросе чата и после обновления каталога.
+_budget_notes = {}
+
+
+def _note_budgets(chat_id, model, out, hist, window, src):
+    key = str(chat_id or "")
+    value = (model, out, hist, window, src)
+    if _budget_notes.get(key) == value:
+        return
+    if len(_budget_notes) > 64:
+        # Страховка от роста: чатов за сессию может быть много, а память под
+        # служебную памятку расти не должна.
+        _budget_notes.clear()
+    _budget_notes[key] = value
+    print(u"--> Бюджеты токенов для %s: окно %d (%s), история %d, ответ %d"
+          % (model or "?", window,
+             u"по каталогу models.dev" if src == "catalog" else u"оценка по умолчанию",
+             hist, out))
 
 
 def _is_client_rejected(msg):
@@ -442,9 +573,32 @@ class ApiBackend(object):
                 system_text = self._system_text_provider() or ""
             except Exception as e:
                 print("[api_backend] Не удалось собрать системный блок: %s" % e)
+        # Бюджеты считаются ЗДЕСЬ, а не в __init__: каталог мог обновиться уже
+        # после создания чата (он обновляется раз в неделю внутри обхода
+        # провайдеров), и брать лимиты на момент создания значило бы держать
+        # устаревшие числа до конца жизни чата.
+        max_tokens, budget, window, src = budgets_for(
+            pid, model, self._max_tokens, self._budget_tokens)
+        _note_budgets(self.chat_id, model, max_tokens, budget, window, src)
+        # ОКНО ФИЗИЧЕСКИ НЕ ВМЕЩАЕТ РАБОТУ. Проверяем ДО запроса и по точному
+        # размеру системного блока, а не по прикидке: у части моделей каталога
+        # окно 480–8192 токенов (veo-3.1-*, llama-prompt-guard-2-*,
+        # gemini-embedding-*), а один только мега-промпт — около 3900. Отправить
+        # такой запрос значит заплатить за гарантированный отказ провайдера и
+        # показать пользователю невнятную ошибку про длину контекста вместо
+        # понятного «эта модель для агента не годится».
+        sys_tokens = api_history.estimate_tokens(system_text) if system_text else 0
+        if src == "catalog" and window < sys_tokens + MIN_ANSWER_TOKENS:
+            return self._fail(
+                u"[Модель не подходит]: окно контекста «%s» — %d токенов (по "
+                u"каталогу models.dev), а одной инструкции агента нужно около "
+                u"%d. Запрос заведомо не влезет. Создайте новый чат на модели с "
+                u"окном хотя бы %d токенов: модель закреплена за чатом и здесь "
+                u"её не сменить."
+                % (model, window, sys_tokens, sys_tokens + MIN_ANSWER_TOKENS))
         messages = api_history.build_request_messages(
             self._base_dir, self.chat_id, system_text, prompt,
-            budget_tokens=self._budget_tokens)
+            budget_tokens=budget)
 
         started = time.time()
         chunks = []
@@ -480,7 +634,7 @@ class ApiBackend(object):
             transport = anthropic_compat if providers.transport_for(pid, model) == "anthropic" else oc
             res = transport.stream_chat(
                 base_url, key, model, messages,
-                max_tokens=self._max_tokens, temperature=self._temperature,
+                max_tokens=max_tokens, temperature=self._temperature,
                 extra_headers=providers.headers_for(pid),
                 proxy=api_keys.proxy_url(),
                 connect_timeout=providers.connect_timeout_for(pid),

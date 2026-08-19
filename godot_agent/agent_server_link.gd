@@ -37,6 +37,11 @@ const MINILICH_GITHUB_URL = "http://" + HOST + "/minilich/github_fetch"
 const API_PROVIDERS_URL = "http://" + HOST + "/api/providers"
 const API_SET_URL = "http://" + HOST + "/api/settings/set"
 const API_MODELS_URL = "http://" + HOST + "/api/models/refresh"
+# Обход провайдеров за списками моделей: у одного провайдера список тянет
+# API_MODELS_URL по кнопке, а этот адрес обновляет сразу всех, кого можно
+# спросить без участия человека, — иначе числа моделей были бы только у тех
+# провайдеров, которых пользователь успел открыть руками.
+const API_SCAN_URL = "http://" + HOST + "/api/models/scan"
 const API_TEST_URL = "http://" + HOST + "/api/test"
 const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
 # Токен, которым панель подтверждает серверу, что запрос от неё и от ЭТОГО
@@ -167,6 +172,7 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 		"api_providers": url = API_PROVIDERS_URL
 		"api_set": url = API_SET_URL
 		"api_models": url = API_MODELS_URL
+		"api_scan": url = API_SCAN_URL
 		"api_test": url = API_TEST_URL
 	_kind = kind
 	_extra = extra

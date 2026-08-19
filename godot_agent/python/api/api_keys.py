@@ -30,9 +30,11 @@ AppData в облако, передача папки другому челове
 Для страховки есть redact() — им прогоняются любые тексты ошибок от провайдера
 перед печатью.
 """
+import copy
 import json
 import os
 import sys
+import time
 
 _FILE_NAME = "api_keys.json"
 _APP_DIR_NAME = "Godot_agent"
@@ -54,7 +56,57 @@ _DEFAULT_CONFIG = {
     # не разрешается системным DNS (подмена/NXDOMAIN у интернет-провайдера).
     # От блокировки по IP или SNI не спасает — там нужен прокси.
     "dns": {"enabled": True, "url": DEFAULT_DOH_URL},
+    # ЧТО ЗДЕСЬ. Наблюдения о провайдерах, полученные НА ЭТОЙ МАШИНЕ: сколько
+    # у провайдера моделей и сколько из них бесплатных, чем закончилась
+    # последняя проверка подключения. Не секреты — уходит в панель целиком.
+    #
+    # ЗАЧЕМ ХРАНИТЬ. Панель показывает провайдеров списком и должна как-то
+    # сказать «здесь 57 бесплатных моделей». Считать это на месте нельзя:
+    # /models у большинства провайдеров требует ключа, а ключа у ещё не
+    # выбранного провайдера по определению нет. Опрашивать всех подряд при
+    # открытии списка — это десяток запросов ради подписи под названием.
+    # Поэтому число берётся из последнего РЕАЛЬНОГО обновления списка моделей
+    # и показывается вместе с датой: «57 бесплатных, проверено 3 дня назад»
+    # честно, а «57 бесплатных» без даты — уже обещание за сервис.
+    #
+    # ОТКУДА БЕРЁТСЯ. Из обновления списка моделей: и по кнопке «Обновить», и
+    # автоматически (providers.autoscan_targets + маршрут /api/models/scan).
+    # Автообновление появилось потому, что без него числа были ТОЛЬКО у
+    # провайдеров, которых пользователь открывал руками, а фильтр «с
+    # бесплатными» показывал ровно их — то есть выглядел как утверждение, что
+    # у остальных бесплатных моделей нет.
+    #
+    # ДВА СЧЁТЧИКА БЕСПЛАТНЫХ, А НЕ ОДИН. models_free — измерено по ОТВЕТУ
+    # ПРОВАЙДЕРА (суффикс :free/-free, нулевая цена в pricing).
+    # models_free_catalog — то же число по справочнику models.dev
+    # (catalog.py). Они расходятся, и это не шум: у Opencode Zen модель
+    # big-pickle имеет в каталоге нулевую цену, а по суффиксу выглядит
+    # платной. Свести их в одно число значит потерять ответ на вопрос «кто
+    # это утверждает», а именно он и решает, верить ли подписи.
+    #
+    # provider_id -> {"models_total": int, "models_free": int,
+    #                 "models_free_catalog": int,
+    #                 "models_at": float, "models_error": str,
+    #                 "models_try_at": float, "test_ok": bool,
+    #                 "test_at": float, "test_ms": int}
+    "provider_stats": {},
+    # ПОЛНЫЙ СПИСОК ПРОВАЙДЕРОВ ИЗ КАТАЛОГА models.dev — по явному включению.
+    #
+    # enabled=False по умолчанию НАМЕРЕННО. Наши семь записей разобраны руками:
+    # у AgentRouter известен белый список клиентов, у Opencode Zen известна
+    # ловушка api.opencode.ai (отвечает 200 с текстом «Not Found»), у посредника
+    # выставлен connect_timeout=150. Про остальные 163 записи каталога не
+    # проверено НИЧЕГО. Показывать их вперемешку с разобранными значит стереть
+    # разницу между «проверено» и «взято из справочника»; поэтому они
+    # включаются осознанно и живут в отдельной группе с пометкой.
+    #
+    # Выбранные из каталога отдельным списком НЕ хранятся: провайдер становится
+    # «своим», как только у него появляется запись в разделе providers выше
+    # (ключ, модель или адрес). Второй список дублировал бы это состояние и
+    # однажды разошёлся бы с ним.
+    "catalog": {"enabled": False},
 }
+
 
 
 # ---------------------------------------------------------------------------
@@ -62,8 +114,19 @@ _DEFAULT_CONFIG = {
 # ---------------------------------------------------------------------------
 
 def config_dir():
-    """Личная папка настроек агента (создаётся при первом обращении)."""
+    u"""Личная папка настроек агента (создаётся при первом обращении).
+
+    ПОЧЕМУ ТУТ ЗАПОМИНАНИЕ, А НЕ makedirs КАЖДЫЙ РАЗ. Эта функция стоит в самом
+    низу горячего пути: через неё идут config_path(), catalog.catalog_path() и
+    model_cache.cache_path(), а их дёргают на каждую проверку готовности
+    провайдера. С полным списком каталога это сто шестьдесят пять провайдеров за
+    один запрос настроек, то есть под тысячу вызовов makedirs — замерено 0.3 мс
+    на вызов и почти секунда на сборку списка провайдеров.
+    """
     override = (os.environ.get(ENV_CONFIG_DIR) or "").strip()
+    cached = _dirs_ready.get(override)
+    if cached is not None:
+        return cached
     if override:
         base = override
     elif os.name == "nt":
@@ -76,9 +139,18 @@ def config_dir():
         base = os.path.join(xdg or os.path.expanduser("~/.config"), "godot_agent")
     try:
         os.makedirs(base, exist_ok=True)
+        # Запоминаем ТОЛЬКО после удачного создания: иначе неудача закрепилась бы
+        # на всю сессию и папка не появилась бы уже никогда.
+        _dirs_ready[override] = base
     except Exception as e:
         print("[api_keys] Не удалось создать папку настроек %s (%s)" % (base, e))
     return base
+
+
+# Папка настроек по значению переменной окружения (см. config_dir). Ключ —
+# значение ENV_CONFIG_DIR, поэтому тесты, подменяющие его на ходу, получают свою
+# папку, а не запомненную чужую.
+_dirs_ready = {}
 
 
 def config_path():
@@ -91,13 +163,100 @@ def config_path():
 # Чтение и запись
 # ---------------------------------------------------------------------------
 
+def _int_or(value, default=-1):
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _float_or(value, default=0.0):
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def _clean_stats(rec):
+    """Одна запись наблюдений о провайдере в известном виде.
+
+    Через эту функцию проходят и чтение с диска, и запись: иначе набор полей
+    в файле и набор полей, уходящий в панель, со временем разъедутся.
+
+    -1 в счётчиках означает «не измеряли» и отличается от честного 0
+    («моделей нет» или «бесплатных нет»). Пустое значение вместо этого не
+    подошло бы: панель не смогла бы отличить «не проверяли» от «проверили и
+    ничего не нашли», а это разные подписи под провайдером.
+    """
+    rec = rec if isinstance(rec, dict) else {}
+    out = {
+        "models_total": _int_or(rec.get("models_total"), -1),
+        "models_free": _int_or(rec.get("models_free"), -1),
+        # Бесплатные ПО КАТАЛОГУ models.dev — отдельным счётчиком от
+        # measured-по-ответу-провайдера models_free. Не «уточнение» и не
+        # «замена»: это утверждение другого источника о том же списке моделей,
+        # и панель подписывает его отдельно («по каталогу»). Тот же -1
+        # означает «не считали»: пока каталог не загружен, у провайдера просто
+        # нет второго мнения, и врать нулём нельзя.
+        #
+        # ВНИМАНИЕ: новое поле обязано появиться ЗДЕСЬ, а не только в
+        # _DEFAULT_CONFIG. _load() собирает конфигурацию заново по известным
+        # полям и раздел provider_stats пропускает через эту функцию — поле,
+        # добавленное мимо неё, исправно сохранялось бы и молча пропадало при
+        # каждом чтении.
+        "models_free_catalog": _int_or(rec.get("models_free_catalog"), -1),
+        "models_at": _float_or(rec.get("models_at"), 0.0),
+    }
+    # НЕУДАЧНАЯ попытка получить список моделей. Отдельно от отсутствия
+    # наблюдений: «список ещё не загружался» и «список загрузить не удалось,
+    # вот почему» — разные подписи, и вторая избавляет от самого частого
+    # вывода «плагин просто ничего не делает». Поля нет, пока попытки не было
+    # или пока последняя попытка была успешной (record_models_stats их
+    # снимает) — иначе старая ошибка висела бы рядом со свежими числами.
+    if rec.get("models_error"):
+        out["models_error"] = str(rec.get("models_error"))
+        out["models_try_at"] = _float_or(rec.get("models_try_at"), 0.0)
+    # Результата проверки подключения может не быть вовсе — тогда полей нет,
+    # а не стоит False: «проверка не удалась» и «проверки не было» для
+    # пользователя означают совершенно разное.
+    if rec.get("test_at"):
+        out["test_ok"] = bool(rec.get("test_ok"))
+        out["test_at"] = _float_or(rec.get("test_at"), 0.0)
+        out["test_ms"] = _int_or(rec.get("test_ms"), 0)
+    return out
+
+
 def _load():
     """Настройки с диска. Любая проблема чтения — пустая конфигурация:
-    сервер обязан подняться даже с испорченным файлом настроек."""
-    cfg = json.loads(json.dumps(_DEFAULT_CONFIG))  # глубокая копия
+    сервер обязан подняться даже с испорченным файлом настроек.
+
+    ВНИМАНИЕ ПРИ ДОБАВЛЕНИИ НОВЫХ РАЗДЕЛОВ. Конфигурация здесь не
+    объединяется с файлом, а СОБИРАЕТСЯ ЗАНОВО по полям, которые эта функция
+    знает: всё прочее из файла отбрасывается. Так сделано намеренно (испорченное
+    или чужое поле не доедет до кода), но у этого есть следствие: раздел,
+    добавленный только в _DEFAULT_CONFIG и в запись, будет исправно
+    сохраняться и молча пропадать при каждом чтении. Новый раздел надо
+    разобрать ЗДЕСЬ.
+
+    ПОЧЕМУ ТУТ КЭШ. Функция вызывается по несколько раз на КАЖДОГО провайдера
+    (ключ, модель, адрес, наблюдения), и с полным списком каталога это шестьсот
+    с лишним чтений файла за один запрос настроек — замерено 0.176 мс на вызов,
+    то есть больше сотни миллисекунд на пустом месте. Ключ кэша — время
+    изменения и размер файла, поэтому правка настроек любым другим процессом
+    видна сразу; _save() вдобавок сбрасывает кэш явно, чтобы запись и чтение в
+    пределах одного тика часов не разошлись.
+    """
     p = config_path()
+    key = _stat_key(p)
+    if _cfg_cache["key"] == key:
+        # Копия ОБЯЗАТЕЛЬНА: вызывающие меняют результат и передают в _save
+        # (set_key, set_model, _update_stats). Без копии они правили бы кэш.
+        return copy.deepcopy(_cfg_cache["value"])
+    cfg = copy.deepcopy(_DEFAULT_CONFIG)
     if not os.path.isfile(p):
-        return cfg
+        _cfg_cache["key"] = key
+        _cfg_cache["value"] = cfg
+        return copy.deepcopy(cfg)
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -114,6 +273,10 @@ def _load():
                     "model": str(rec.get("model") or ""),
                     "base_url": str(rec.get("base_url") or ""),
                 }
+    if isinstance(data.get("provider_stats"), dict):
+        for pid, rec in data["provider_stats"].items():
+            if isinstance(rec, dict):
+                cfg["provider_stats"][str(pid)] = _clean_stats(rec)
     if isinstance(data.get("defaults"), dict):
         cfg["defaults"]["provider"] = str(data["defaults"].get("provider") or "")
         cfg["defaults"]["model"] = str(data["defaults"].get("model") or "")
@@ -135,7 +298,57 @@ def _load():
             "enabled": bool(data["dns"].get("enabled")),
             "url": str(data["dns"].get("url") or "").strip(),
         }
-    return cfg
+    if isinstance(data.get("catalog"), dict):
+        # Раздел разбирается ЗДЕСЬ, а не только в _DEFAULT_CONFIG: см.
+        # предупреждение в начале функции. Добавленный мимо этого места он
+        # исправно сохранялся бы и молча пропадал при каждом чтении, то есть
+        # переключатель сбрасывался бы сам собой после перезапуска редактора.
+        cfg["catalog"] = {"enabled": bool(data["catalog"].get("enabled"))}
+    _cfg_cache["key"] = key
+    _cfg_cache["value"] = cfg
+    return copy.deepcopy(cfg)
+
+
+def _stat_key(path):
+    """(время изменения, размер) файла или None — этим кэш узнаёт, что файл
+    переписали, не читая его целиком."""
+    try:
+        st = os.stat(path)
+        return (st.st_mtime_ns, st.st_size)
+    except Exception:
+        return None
+
+
+# Разобранные настройки из прошлого чтения. key=False означает «ещё ни разу»:
+# None — законное значение для отсутствующего файла.
+_cfg_cache = {"key": False, "value": None}
+
+
+def _invalidate_cfg():
+    _cfg_cache["key"] = False
+    _cfg_cache["value"] = None
+
+
+def _cfg():
+    u"""Настройки ТОЛЬКО ДЛЯ ЧТЕНИЯ, без копии.
+
+    ЗАЧЕМ ОТДЕЛЬНАЯ ФУНКЦИЯ. _load() отдаёт глубокую копию, потому что
+    вызывающие её меняют и передают в _save(). Копия стоит 0.1 мс (замерено), а
+    геттеры ниже дёргают настройки по несколько раз на КАЖДОГО провайдера: с
+    полным списком каталога это шестьсот вызовов за один запрос настроек, то
+    есть больше семидесяти миллисекунд на копирование того, что никто не менял.
+
+    КТО ЭТИМ ПОЛЬЗУЕТСЯ, НЕ ИМЕЕТ ПРАВА МЕНЯТЬ РЕЗУЛЬТАТ. Изменение уедет в
+    кэш и будет жить до следующей записи файла — то есть настройки разойдутся с
+    диском, и понять это по симптомам почти невозможно. Меняете — берите
+    _load().
+    """
+    p = config_path()
+    key = _stat_key(p)
+    if _cfg_cache["key"] == key and _cfg_cache["value"] is not None:
+        return _cfg_cache["value"]
+    _load()  # он заполнит кэш
+    return _cfg_cache["value"] or copy.deepcopy(_DEFAULT_CONFIG)
 
 
 def _save(cfg):
@@ -143,6 +356,11 @@ def _save(cfg):
     оставляет полуфабрикат вместо настроек. На posix права 0600."""
     p = config_path()
     tmp = p + ".tmp"
+    # Кэш чтения сбрасываем ДО записи: если сохранение упадёт на середине,
+    # следующее чтение обязано пойти на диск, а не отдать то, что мы собирались
+    # записать. Время изменения файла тоже сторож, но в пределах одного тика
+    # часов оно может не измениться — это как раз случай двух сохранений подряд.
+    _invalidate_cfg()
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=1)
@@ -227,7 +445,7 @@ def _secrets():
         return cached
     found = []
     try:
-        cfg = _load()
+        cfg = _cfg()
         for rec in (cfg.get("providers") or {}).values():
             if rec.get("key"):
                 found.append(rec["key"])
@@ -272,7 +490,7 @@ def resolve_key(provider_id, env_names=()):
         val = (os.environ.get(name) or "").strip()
         if val:
             return val
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return str(rec.get("key") or "").strip()
 
 
@@ -282,7 +500,7 @@ def key_source(provider_id, env_names=()):
     for name in (_env_name(provider_id),) + tuple(env_names or ()):
         if (os.environ.get(name) or "").strip():
             return "env"
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return "file" if str(rec.get("key") or "").strip() else ""
 
 
@@ -317,7 +535,7 @@ def delete_key(provider_id):
 # ---------------------------------------------------------------------------
 
 def get_model(provider_id):
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return str(rec.get("model") or "")
 
 
@@ -333,25 +551,69 @@ def set_model(provider_id, model):
 
 
 def get_base_url(provider_id):
-    """Свой адрес endpoint'а — для провайдера "custom" и для локального
-    llama-server, когда до него дойдёт дело. Пусто = адрес из реестра."""
-    rec = (_load().get("providers") or {}).get(str(provider_id)) or {}
+    """Свой адрес endpoint'а — для провайдера "custom", для зеркала известного
+    провайдера и для локального llama-server. Пусто = адрес из реестра."""
+    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
     return str(rec.get("base_url") or "").strip()
 
 
+def validate_base_url(raw):
+    """Разбирает введённый адрес endpoint'а. Возвращает (адрес, ошибка).
+
+    ЗАЧЕМ ПРОВЕРКА. Поле адреса открыто у ВСЕХ провайдеров, а не только у
+    «своего адреса»: сервис может переехать, и тогда пользователь исправляет
+    адрес сам, не дожидаясь новой версии плагина (base_url_for отдаёт
+    приоритет заданному здесь адресу). Обратная сторона — одной опечаткой
+    можно сломать заведомо рабочего провайдера, причём молча: запросы начнут
+    падать сетевой ошибкой, а причина будет спрятана в поле, которого человек
+    не открывал. Ровно так уже вышло с полем прокси, куда вставили адрес
+    DNS-over-HTTPS (см. parse_proxy_host).
+
+    Пустая строка — это НЕ ошибка, а «вернуть адрес из реестра»: так работает
+    сброс к стандартному значению, и отдельная кнопка для него не нужна.
+    """
+    s = str(raw or "").strip()
+    if not s:
+        return "", ""
+    if "://" not in s:
+        return "", (u"адрес должен начинаться с http:// или https:// "
+                    u"(получено «%s»)" % s)
+    scheme, rest = s.split("://", 1)
+    if scheme.lower() not in ("http", "https"):
+        return "", (u"схема «%s://» не поддерживается: нужен http:// или "
+                    u"https://" % scheme)
+    if not rest.strip(" /"):
+        return "", u"в адресе нет хоста, только схема «%s://»" % scheme
+    if " " in s:
+        return "", u"в адресе не может быть пробелов"
+    # Завершающий слэш убираем здесь, а не при сборке запроса: base_url_for
+    # тоже его срезает, и два места, делающих одно и то же, однажды разойдутся.
+    return s.rstrip("/"), ""
+
+
 def set_base_url(provider_id, base_url):
+    """Сохраняет свой адрес endpoint'а. Возвращает (ok, ошибка).
+
+    Ошибка непустая — адрес НЕ сохранён: принять заведомо нерабочий адрес
+    значит оставить пользователя с падающими запросами и невнятной сетевой
+    ошибкой вместо понятного отказа сразу.
+    """
     pid = str(provider_id or "").strip()
     if not pid:
-        return False
+        return False, u"не указан провайдер"
+    clean, err = validate_base_url(base_url)
+    if err:
+        return False, err
     cfg = _load()
     rec = (cfg["providers"].get(pid) or {"key": "", "model": "", "base_url": ""})
-    rec["base_url"] = str(base_url or "").strip()
+    rec["base_url"] = clean
     cfg["providers"][pid] = rec
-    return _save(cfg)
+    ok = _save(cfg)
+    return ok, ("" if ok else u"не удалось сохранить адрес endpoint'а")
 
 
 def get_defaults():
-    d = _load().get("defaults") or {}
+    d = _cfg().get("defaults") or {}
     return {"provider": str(d.get("provider") or ""),
             "model": str(d.get("model") or "")}
 
@@ -364,12 +626,150 @@ def set_defaults(provider_id, model=""):
 
 
 # ---------------------------------------------------------------------------
+# Наблюдения о провайдерах (для списка провайдеров в панели)
+# ---------------------------------------------------------------------------
+
+def get_stats(provider_id=None):
+    """Наблюдения: по одному провайдеру или все сразу (provider_id=None).
+
+    Провайдер, о котором ничего не известно, отсутствует в словаре — панель
+    покажет «не проверялось». Это не то же самое, что запись с нулями.
+    """
+    all_stats = _cfg().get("provider_stats") or {}
+    if provider_id is None:
+        return {str(k): _clean_stats(v) for k, v in all_stats.items()}
+    rec = all_stats.get(str(provider_id))
+    return _clean_stats(rec) if isinstance(rec, dict) else {}
+
+
+def _update_stats(changes):
+    """Меняет наблюдения СРАЗУ У НЕСКОЛЬКИХ провайдеров одной записью файла.
+
+    changes: {provider_id: {поле: значение}}. Ключи внутри записи
+    накладываются на уже сохранённые, а не заменяют их целиком: проверка
+    подключения не должна стирать числа моделей, и наоборот.
+
+    ПОЧЕМУ ОДНОЙ ЗАПИСЬЮ, А НЕ ПО ПРОВАЙДЕРУ. Автообновление списков проходит
+    по нескольким провайдерам за один запрос панели, а _load()/_save() — это
+    «прочитать файл целиком, изменить, записать целиком». Пять таких пар подряд
+    — пять шансов потерять чужое изменение, пришедшее в это же время другим
+    HTTP-запросом (сервер поднят с threaded=True). Один проход оставляет
+    единственное окно вместо пяти.
+    """
+    if not isinstance(changes, dict) or not changes:
+        return False
+    cfg = _load()
+    stats = cfg.get("provider_stats")
+    if not isinstance(stats, dict):
+        stats = {}
+    touched = False
+    for provider_id, fields in changes.items():
+        pid = str(provider_id or "").strip()
+        if not pid or not isinstance(fields, dict):
+            continue
+        rec = dict(stats.get(pid) or {})
+        rec.update(fields)
+        stats[pid] = _clean_stats(rec)
+        touched = True
+    if not touched:
+        return False
+    cfg["provider_stats"] = stats
+    return _save(cfg)
+
+
+def models_stats_fields(total, free, free_catalog=-1):
+    """Поля наблюдения об удачно полученном списке моделей.
+
+    Отдельной функцией, потому что их пишут два места: обновление одного
+    провайдера по кнопке и автообновление сразу нескольких. Собранные по месту
+    наборы полей однажды разошлись бы, и «обновил кнопкой» начало бы значить не
+    то же самое, что «обновилось само».
+
+    ВАЖНО: считать надо по ПОЛНОМУ списку моделей, а не по отфильтрованному
+    флажком «только бесплатные». Иначе total совпадёт с free, и у любого
+    платного сервиса в списке провайдеров будет написано, что все его модели
+    бесплатные, — ровно то враньё, ради предотвращения которого эти числа и
+    заводились.
+
+    free_catalog — сколько из ТЕХ ЖЕ моделей считает бесплатными справочник
+    models.dev. -1 по умолчанию: пока каталог не загружен, второго мнения нет,
+    и подставлять вместо него free значило бы выдать одно измерение за два.
+    """
+    return {"models_total": _int_or(total, -1),
+            "models_free": _int_or(free, -1),
+            "models_free_catalog": _int_or(free_catalog, -1),
+            "models_at": time.time(),
+            # Прошлая неудача снимается: держать её рядом со свежими числами
+            # значит показывать пользователю ошибку, которой больше нет.
+            "models_error": "",
+            "models_try_at": 0.0}
+
+
+def models_error_fields(message):
+    """Поля наблюдения о НЕУДАЧНОЙ попытке получить список моделей.
+
+    Прежние числа моделей при этом не стираются: список, полученный вчера,
+    остаётся полезнее пустоты, а свежая ошибка показывается рядом с ним.
+    """
+    return {"models_error": str(message or u"не удалось получить список моделей"),
+            "models_try_at": time.time()}
+
+
+def record_models_stats(provider_id, total, free, free_catalog=-1):
+    """Запоминает, сколько у провайдера моделей и сколько из них бесплатных."""
+    return _update_stats({provider_id: models_stats_fields(total, free,
+                                                           free_catalog)})
+
+
+def record_models_error(provider_id, message):
+    """Запоминает, что список моделей получить не удалось, и почему."""
+    return _update_stats({provider_id: models_error_fields(message)})
+
+
+def record_test_result(provider_id, ok, elapsed_ms=0):
+    """Запоминает исход проверки подключения.
+
+    Проверка — единственное место, где точно известно, что провайдер реально
+    отвечает ИМЕННО У ЭТОГО пользователя: с его ключом, его прокси и его
+    провайдером интернета. Никакая пометка в реестре этого знать не может.
+    """
+    return _update_stats({provider_id: {"test_ok": bool(ok),
+                                        "test_at": time.time(),
+                                        "test_ms": _int_or(elapsed_ms, 0)}})
+
+
+def record_stats_bulk(changes):
+    """Наблюдения сразу по нескольким провайдерам — одной записью файла.
+
+    Ждёт готовые наборы полей: models_stats_fields() для удачи,
+    models_error_fields() для неудачи.
+    """
+    return _update_stats(changes)
+
+
+def reset_models_stats(provider_id):
+    """Забывает всё, что известно о списке моделей провайдера.
+
+    Нужно при СМЕНЕ АДРЕСА endpoint'а: числа «моделей 415, из них бесплатных
+    20» относятся к тому адресу, у которого их спросили. Оставить их рядом с
+    новым адресом значит выдать за факты о зеркале то, что известно про
+    исходный сервис. Обнулённая запись отличается от отсутствующей только тем,
+    что providers.models_stale() сразу считает её устаревшей — то есть при
+    следующем открытии настроек список спросят заново.
+    """
+    return _update_stats({provider_id: {"models_total": -1, "models_free": -1,
+                                        "models_free_catalog": -1,
+                                        "models_at": 0.0, "models_error": "",
+                                        "models_try_at": 0.0}})
+
+
+# ---------------------------------------------------------------------------
 # Прокси
 # ---------------------------------------------------------------------------
 
 def get_proxy():
     """Настройки прокси БЕЗ пароля — этот вид уходит в панель."""
-    pr = _load().get("proxy") or {}
+    pr = _cfg().get("proxy") or {}
     return {"enabled": bool(pr.get("enabled")),
             "host": str(pr.get("host") or ""),
             "port": int(pr.get("port") or 0),
@@ -490,7 +890,7 @@ def proxy_url():
     127.0.0.1 (свой сервер, будущий llama-server, порт отладки браузера)
     через прокси гнать нельзя — за это отвечает транспорт.
     """
-    pr = _load().get("proxy") or {}
+    pr = _cfg().get("proxy") or {}
     if not pr.get("enabled"):
         return None
     host = str(pr.get("host") or "").strip()
@@ -512,7 +912,7 @@ def proxy_url():
 # ---------------------------------------------------------------------------
 
 def get_dns():
-    d = _load().get("dns") or {}
+    d = _cfg().get("dns") or {}
     return {"enabled": bool(d.get("enabled")), "url": str(d.get("url") or "")}
 
 
@@ -556,6 +956,47 @@ def apply_dns_settings():
 
 
 # ---------------------------------------------------------------------------
+# Полный список провайдеров из каталога models.dev
+# ---------------------------------------------------------------------------
+
+def catalog_enabled():
+    """Показывать ли в выборе провайдеров ВСЕХ пригодных из каталога.
+
+    По умолчанию False: см. пояснение к разделу "catalog" в _DEFAULT_CONFIG.
+    """
+    return bool((_cfg().get("catalog") or {}).get("enabled"))
+
+
+def set_catalog_enabled(enabled):
+    cfg = _load()
+    cfg["catalog"] = {"enabled": bool(enabled)}
+    ok = _save(cfg)
+    if ok:
+        print("--> Провайдеры из каталога models.dev: %s"
+              % (u"показываются" if cfg["catalog"]["enabled"] else u"скрыты"))
+    return ok
+
+
+def configured_provider_ids():
+    u"""Провайдеры, о которых в настройках вообще есть запись.
+
+    Нужно ровно для одного: провайдер, выбранный из полного списка каталога,
+    обязан остаться видимым, даже если полный список потом выключили. Иначе
+    человек не смог бы ни найти его, ни убрать свой же ключ.
+
+    Пустая запись (все поля пустые) не считается: такие остаются после сброса
+    адреса и ключа, и держать из-за них провайдера в списке незачем.
+    """
+    out = []
+    for pid, rec in (_cfg().get("providers") or {}).items():
+        if not isinstance(rec, dict):
+            continue
+        if rec.get("key") or rec.get("model") or rec.get("base_url"):
+            out.append(str(pid))
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Безопасный отчёт для панели
 # ---------------------------------------------------------------------------
 
@@ -568,7 +1009,7 @@ def status(provider_ids=(), env_map=None):
     (общепринятые вроде OPENROUTER_API_KEY).
     """
     env_map = env_map or {}
-    cfg = _load()
+    cfg = _cfg()
     out = {}
     ids = list(provider_ids) or list((cfg.get("providers") or {}).keys())
     for pid in ids:
