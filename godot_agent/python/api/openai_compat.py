@@ -561,12 +561,23 @@ def stream_chat(base_url, api_key, model, messages,
     словарём, что и у браузерных парсеров, поэтому UI менять не нужно.
 
     Возврат: {"text", "reasoning", "finish_reason", "usage", "model",
-              "events", "elapsed"}.
+              "events", "elapsed", "truncated"}.
 
     finish_reason == "length" означает, что модель НЕ ДОГОВОРИЛА из-за лимита
     вывода. В браузерном режиме это приходилось угадывать (для этого и нужен
     механизм "continues": true), здесь это точный факт — вызывающий код может
     сразу попросить продолжение.
+
+    truncated == True означает, что поток кончился, НЕ сказав ни [DONE], ни
+    finish_reason. Это отдельный и коварный вид обрыва: партнёр закрыл
+    соединение аккуратно (FIN, а не сброс), поэтому чтение не падает с ошибкой,
+    и без этого флага обрезанный ответ выглядел бы совершенно нормальным
+    успешным ответом. Молча принять его нельзя: он уйдёт в историю чата как
+    полный ответ модели, и дальше вся переписка будет строиться на огрызке.
+    Оба маркера конца проверяются вместе, потому что они независимы: строгие
+    серверы присылают оба, часть шлюзов — только finish_reason, локальные
+    сборки иногда только [DONE]. Отсутствие сразу двух — надёжный признак
+    обрыва, а не особенность сервера.
     """
     url = base_url.rstrip("/") + "/chat/completions"
     payload = build_body(model, messages, max_tokens=max_tokens,
@@ -659,6 +670,8 @@ def stream_chat(base_url, api_key, model, messages,
         "model": resp_model or model,
         "events": events,
         "elapsed": time.time() - started,
+        # done здесь равно «видели [DONE]»: выход по item is None его не ставит.
+        "truncated": bool(not done and finish_reason is None),
     }
 
 

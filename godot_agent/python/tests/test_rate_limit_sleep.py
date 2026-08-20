@@ -52,6 +52,70 @@ check("паузы нарастают 30/60/120/300",
 check("после исчерпания — остановка (None)",
       rate_limit.sleep_seconds(4) is None and rate_limit.sleep_seconds(-1) is None)
 
+# --- вид сбоя: лимит или падение сервиса (для двух расписаний) ---
+check("429 -> вид «лимит»",
+      rate_limit.kind_from_status(429) == rate_limit.KIND_LIMIT)
+check("500/502/503 -> вид «сбой сервиса»",
+      all(rate_limit.kind_from_status(s) == rate_limit.KIND_OUTAGE
+          for s in (500, 502, 503, 504)))
+check("200 и None -> вида нет (повторять нечего)",
+      rate_limit.kind_from_status(200) is None
+      and rate_limit.kind_from_status(None) is None)
+
+# Метка сетевого сбоя: у обрыва связи HTTP-статуса нет вовсе, и раньше он
+# ВООБЩЕ не повторялся — один сетевой чих стоил пользователю всего запроса.
+check("метка TRANSPORT — причина для повтора",
+      bool(rate_limit.reason_from_status(rate_limit.TRANSPORT)))
+check("метка TRANSPORT -> вид «сбой сервиса»",
+      rate_limit.kind_from_status(rate_limit.TRANSPORT) == rate_limit.KIND_OUTAGE)
+check("в тексте причины обрыва нет выдуманного номера HTTP",
+      "HTTP" not in rate_limit.reason_from_status(rate_limit.TRANSPORT))
+# Строка вместо числа не должна тихо проваливаться в int() и отключать повтор.
+check("мусорный статус по-прежнему не повторяется",
+      rate_limit.reason_from_status("не-статус") is None
+      and rate_limit.kind_from_status("не-статус") is None)
+
+# --- два расписания ---
+check("лимиту достаётся медленное расписание",
+      rate_limit.schedule_for(rate_limit.KIND_LIMIT) == rate_limit.SLEEPS)
+check("сбою сервиса — быстрое",
+      rate_limit.schedule_for(rate_limit.KIND_OUTAGE) == rate_limit.OUTAGE_SLEEPS)
+check("расписание сбоя КОРОЧЕ расписания лимита на каждой попытке",
+      all(a < b for a, b in zip(rate_limit.OUTAGE_SLEEPS, rate_limit.SLEEPS)))
+check("все попытки после сбоя укладываются в минуту с небольшим",
+      sum(rate_limit.OUTAGE_SLEEPS) <= 60)
+
+# Паузы сбоя с разбросом: проверяем границы, а не точные числа.
+_out = [rate_limit.sleep_seconds(i, kind=rate_limit.KIND_OUTAGE)
+        for i in range(len(rate_limit.OUTAGE_SLEEPS))]
+check("паузы сбоя лежат в пределах разброса",
+      all(base * (1 - rate_limit.OUTAGE_JITTER) - 1 <= got
+          <= base * (1 + rate_limit.OUTAGE_JITTER) + 1
+          for got, base in zip(_out, rate_limit.OUTAGE_SLEEPS)))
+check("паузы сбоя всё равно нарастают", _out[0] < _out[-1])
+check("пауза никогда не нулевая (иначе повтор без паузы)",
+      all(v >= 1 for v in _out))
+check("бюджет попыток при сбое тоже конечен",
+      rate_limit.sleep_seconds(len(rate_limit.OUTAGE_SLEEPS),
+                               kind=rate_limit.KIND_OUTAGE) is None)
+
+# Вид сбоя по умолчанию — прежний: браузерный режим и любой код, не знающий
+# про виды, обязаны работать ровно как до появления второго расписания.
+check("расписание по умолчанию — медленное (браузер не затронут)",
+      [rate_limit.sleep_seconds(i) for i in range(4)]
+      == [rate_limit.sleep_seconds(i, kind=rate_limit.KIND_LIMIT)
+          for i in range(4)] == rate_limit.SLEEPS)
+
+# --- Retry-After ---
+check("названный провайдером срок соблюдается точно, без разброса",
+      all(rate_limit.sleep_seconds(0, retry_after=7, kind=k) == 7
+          for k in (rate_limit.KIND_LIMIT, rate_limit.KIND_OUTAGE)))
+check("слишком долгий Retry-After -> не ждём вовсе",
+      rate_limit.sleep_seconds(
+          0, retry_after=rate_limit.MAX_HONORED_RETRY_AFTER + 1) is None)
+check("мусорный Retry-After -> расписание",
+      rate_limit.sleep_seconds(0, retry_after="скоро") == rate_limit.SLEEPS[0])
+
 
 # --- перехват статуса в мониторе ---
 class FakeCdp(object):

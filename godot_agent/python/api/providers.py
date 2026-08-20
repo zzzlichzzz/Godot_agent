@@ -736,6 +736,14 @@ def list_providers():
             "configured": bool(key_st.get("configured")),
             "key_source": key_st.get("source") or "",
             "masked": key_st.get("masked") or "",
+            # Все ключи провайдера с их состоянием (маска, исчерпан ли, до
+            # какого срока). Квота бесплатных тарифов считается НА КЛЮЧ, поэтому
+            # панель обязана показывать список, а не один ключ: иначе
+            # «исчерпано» выглядит как приговор модели, хотя рядом лежит рабочий
+            # второй ключ. Сырых ключей здесь нет — только маски (keys_state).
+            "keys": key_st.get("keys") or [],
+            "keys_total": int(key_st.get("keys_total") or 0),
+            "keys_spent": int(key_st.get("keys_spent") or 0),
             "model": model_for(pid, p),
             "models": list(p.get("models") or []),
             "models_public": bool(p.get("models_public")),
