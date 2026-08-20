@@ -34,6 +34,7 @@ import md_to_bbcode
 import openai_compat as oc
 import parser_base
 import providers
+import rate_limit
 from agent_prompts import API_CONTEXT_WINDOW, API_MAX_TOKENS
 
 # Заглушка на месте вырезанного блока действия — ровно та же строка, что
@@ -282,6 +283,104 @@ OUTPUT_CAP = API_MAX_TOKENS
 # одним действием — это порядка 100–200 токенов. 512 берём с запасом.
 MIN_ANSWER_TOKENS = 512
 
+# Сколько раз просить модель ДОПИСАТЬ ответ, упёршийся в лимит вывода.
+#
+# ЗАЧЕМ ЭТО ЕСТЬ. finish_reason == "length" — точный факт, известный только по
+# API: модель не договорила, потому что кончился её лимит вывода. Раньше он
+# только помечался плашкой в чате, а разбирался с последствиями самоисцелитель:
+# видел рваный JSON действия и просил модель прислать ответ ЗАНОВО. Это дороже
+# ровно на один полный ответ — дописать хвост всегда дешевле, чем сгенерировать
+# всё повторно.
+#
+# ПОЧЕМУ ЗДЕСЬ, А НЕ В main.py. Дописывание — свойство работы по ключу: в
+# браузерном режиме конца ответа с такой точностью не знают и продолжение там
+# просят иначе (механизм "continues": true в самом протоколе действий). Вынести
+# это наружу значило бы протащить в общий слой знание, которое к браузеру не
+# относится. main.py по-прежнему делает один вызов send() и получает один
+# готовый ответ.
+#
+# Три: каждое дописывание заново отправляет весь вход (API не помнит ничего),
+# поэтому четвёртая попытка стоит уже дороже, чем польза от неё.
+MAX_CONTINUATIONS = 3
+
+# Сколько раз пробовать сжать историю, когда провайдер сказал «контекст не влез».
+# Два: если не помогло сжатие до 16% исходного бюджета, дело не в истории, а в
+# размере самого запроса, и сжимать дальше нечего.
+MAX_HISTORY_SHRINKS = 2
+
+# Во сколько раз урезается бюджет истории на каждой попытке сжатия.
+HISTORY_SHRINK_FACTOR = 0.4
+
+# Насколько глубоко искать перехлёст между уже полученным текстом и дописанным.
+# Модель просят продолжать ровно с места обрыва, но часть моделей всё равно
+# повторяет последнюю фразу — этот перехлёст надо убрать, иначе он попадёт и в
+# ответ, и в историю. 400 символов: больше одного абзаца никто не повторяет.
+MAX_CONTINUATION_OVERLAP = 400
+
+_CONTINUE_PROMPT = (
+    u"[Система]: твой предыдущий ответ оборвался на середине — у него кончился "
+    u"лимит вывода. Продолжи РОВНО с того символа, на котором остановился. Не "
+    u"начинай заново, не повторяй уже присланное, не пересказывай и не "
+    u"извиняйся — просто продолжай текст с места обрыва. Если обрыв случился "
+    u"внутри блока ```agent_action, допиши его и закрой ``` — блок должен "
+    u"остаться ОДНИМ целым блоком, а не двумя."
+)
+
+
+def usable_action(raw):
+    """Действие из текста, если блок ЗАКРЫТ и разобрался. Иначе None.
+
+    «Закрыт» проверяется _ACTION_FENCE_RE, который требует завершающих ```.
+    Это единственный признак, по которому можно судить, что действие пришло
+    целиком, а не оборвалось посреди JSON. Используется в двух местах, и они
+    обязаны отвечать одинаково: спасение обрывка и решение «дописывать ли
+    ответ». Если бы они расходились, агент мог бы просить продолжение у ответа,
+    который уже готов к выполнению.
+    """
+    if not _ACTION_FENCE_RE.search(raw or ""):
+        return None
+    action, _ = parse_action(raw)
+    if not isinstance(action, dict) or action.get("action") in (None, "parse_error"):
+        return None
+    return action
+
+
+def _trim_overlap(head, tail):
+    """Убирает из начала tail то, что повторяет конец head.
+
+    Нужно дописыванию ответа: модель просят продолжить с места обрыва, но
+    некоторые повторяют последнюю фразу или строку. Ищем самый ДЛИННЫЙ
+    перехлёст, а не первый найденный: короткое совпадение вроде одной кавычки
+    встречается почти всегда и обрезало бы не то.
+    """
+    if not head or not tail:
+        return tail or u""
+    limit = min(len(head), len(tail), MAX_CONTINUATION_OVERLAP)
+    for n in range(limit, 0, -1):
+        if head.endswith(tail[:n]):
+            return tail[n:]
+    return tail
+
+
+def _merge_usage(base, extra):
+    """Складывает отчёты о расходе токенов нескольких запросов.
+
+    Складывать обязательно: дописывание — это отдельный оплаченный запрос, в
+    котором вход уходит ЗАНОВО целиком. Показать пользователю расход только
+    последнего запроса значило бы занизить счёт в разы.
+    """
+    if not isinstance(extra, dict):
+        return base
+    if not isinstance(base, dict):
+        return dict(extra)
+    out = dict(base)
+    for field in ("prompt_tokens", "completion_tokens"):
+        try:
+            out[field] = int(base.get(field) or 0) + int(extra.get(field) or 0)
+        except (TypeError, ValueError):
+            pass
+    return out
+
 
 def budgets_for(provider_id, model, max_tokens=None, budget_tokens=None):
     u"""Бюджеты для конкретной модели: (max_tokens, budget_tokens, окно, откуда).
@@ -432,19 +531,33 @@ def describe_api_error(e, provider_name, model=u""):
                 u"Начните новый чат — так дешевле и надёжнее, чем продолжать "
                 u"этот." % msg), None, None
     if isinstance(e, oc.TransportError):
-        # Если прокси включён, он сам — первый подозреваемый. Советовать
-        # «укажите прокси» в этом случае значит сбивать с толку: именно так и
-        # вышло, когда в поле хоста оказался адрес DNS-сервиса вместо прокси.
+        # ПОЧЕМУ СЕТЕВОЙ СБОЙ ПОВТОРЯЕТСЯ. До модели запрос не дошёл или ответ
+        # не досчитался — это ровно тот случай, для которого повтор и нужен, и
+        # самый частый вид отказа по ключу: обрыв потока, тишина в потоке,
+        # разорванное соединение. Раньше здесь стоял None, и один сетевой чих
+        # стоил пользователю всего запроса.
+        #
+        # Повторяем ВСЕ TransportError, не пытаясь отделить «непроходящие»
+        # (неверный адрес прокси, опечатка в base_url) от временных. Отличить
+        # их можно было бы только по тексту ошибки от ОС, а угадывание по
+        # тексту — та самая ненадёжность, от которой в этом проекте отказались
+        # в пользу точных статусов. Цена ошибки невелика: расписание сбоя
+        # короткое (rate_limit.OUTAGE_SLEEPS, около минуты на все попытки),
+        # «Стоп» работает и во время паузы, и во время запроса.
         pr = api_keys.get_proxy()
         if pr.get("enabled") and pr.get("host"):
+            # Если прокси включён, он сам — первый подозреваемый. Советовать
+            # «укажите прокси» в этом случае значит сбивать с толку: именно так
+            # и вышло, когда в поле хоста оказался адрес DNS-сервиса вместо
+            # прокси.
             return (u"[Сеть]: не удалось связаться с «%s» через прокси %s:%s "
                     u"(%s). Проверьте адрес прокси: нужен обычный HTTP-прокси "
                     u"(хост и порт), а не адрес DNS-сервиса или страницы. "
                     u"Или выключите прокси и попробуйте напрямую."
-                    % (name, pr.get("host"), pr.get("port") or "?", msg)), None, None
+                    % (name, pr.get("host"), pr.get("port") or "?", msg)), rate_limit.TRANSPORT, None
         return (u"[Сеть]: не удалось связаться с «%s» (%s). Если провайдер "
                 u"недоступен в вашем регионе — укажите прокси в настройках "
-                u"API-ключа." % (name, msg)), None, None
+                u"API-ключа." % (name, msg)), rate_limit.TRANSPORT, None
     return (u"[Ошибка API]: «%s» — %s" % (name, msg)), None, None
 
 
@@ -488,6 +601,88 @@ def usage_line(usage, totals):
                          _fmt_num(total_tokens), _fmt_num(tot.get("requests") or 0))
 
 
+# Пометка спасённого ответа: связь оборвалась, но блок действия успел прийти
+# целиком. Пользователь обязан видеть, что ответ неполный — иначе он будет
+# искать в чате объяснение, которого модель не успела дописать.
+RESCUE_NOTE = (u"\n[color=#c08040]— связь с провайдером оборвалась, но блок "
+               u"действия успел прийти целиком: работаю по нему. Текста "
+               u"объяснения может не хватать —[/color]\n")
+
+# Пометка обрезки лимитом ВЫВОДА модели (finish_reason == "length"). Отдельно
+# от RESCUE_NOTE: это разные диагнозы — там оборвалась связь, здесь модель
+# упёрлась в свой max_tokens, и лечится это разными вещами.
+LENGTH_NOTE = (u"\n[color=#c08040]— ответ обрезан лимитом вывода модели —[/color]\n")
+
+# Сколько символов недополученного ответа показать, когда повторы не помогли.
+# Показываем именно НАЧАЛО: обрыв съедает конец, и первые полторы тысячи
+# символов — это как раз объяснение модели, ради которого стоит смотреть на
+# обрывок. Больше в чат вываливать незачем: ответ мог быть на десятки
+# килобайт, а восстановить его побайтово всё равно нельзя.
+PARTIAL_SHOW_LIMIT = 1500
+
+_PARTIAL_NOTE = (u"\n\n[color=#888888]Что успело прийти до обрыва (%d симв.%s):"
+                 u"[/color]\n%s")
+
+
+def partial_note(partial):
+    """Вставка с недополученным текстом ответа или "" — если его нет.
+
+    Нужна на случай «повторы кончились, а ответа так и нет»: обрывок уже
+    показывался в панели живой трансляцией, и заменить его сообщением об ошибке
+    молча — значит на глазах пользователя стереть то, что он только что читал.
+
+    Показывается ТОЛЬКО человеческая часть: служебный блок действия (он в
+    обрывке заведомо незакрыт и не будет выполнен) и маркер ===DONE===
+    вырезаются теми же функциями, что и на обычном пути. Иначе в чат уезжала бы
+    стена рваного JSON, которую пользователю всё равно нечем применить.
+    """
+    _action_raw, prose = split_action_block(partial or "")
+    raw = strip_done_marker(prose).strip()
+    if not raw:
+        return u""
+    shown = raw[:PARTIAL_SHOW_LIMIT]
+    cut = u", показано начало" if len(raw) > PARTIAL_SHOW_LIMIT else u""
+    return _PARTIAL_NOTE % (len(raw), cut, md_to_bbcode.to_bbcode(shown))
+
+
+# Пометка смены ключа. В чат уходит ТОЛЬКО при самой смене, а не под каждым
+# ответом: это факт про деньги и квоты, который пользователь обязан знать (счёт
+# теперь идёт на другой ключ), но повторять его под каждым сообщением — шум.
+KEY_SWITCH_NOTE = (u"\n[color=#c08040]— ключ %s исчерпан (%s), перешёл на "
+                   u"ключ %s —[/color]\n")
+
+
+def should_rotate_key(e):
+    """Стоит ли пробовать ДРУГОЙ ключ после этой ошибки.
+
+    Ротация имеет смысл ровно там, где отказ относится к КЛЮЧУ, а не к сервису
+    и не к запросу:
+      * 429 (в том числе суточный) — квота у бесплатных тарифов считается на
+        ключ, и второй ключ работает как ни в чём не бывало. Смена ключа вдобавок
+        мгновенна, а пауза спящего режима — десятки секунд, поэтому пробовать
+        ключи надо ДО того, как уходить спать;
+      * 402 — кредиты кончились у этого ключа, у другого могут быть;
+      * 401 — ключ отозван или испорчен, и это ровно тот случай, когда рабочий
+        второй ключ спасает задачу.
+
+    НЕ ротируем:
+      * 5xx, обрыв связи, таймаут — сервис лежит или сеть не работает, ключ тут
+        ни при чём. Перебрать ключи значило бы четыре раза постучаться в
+        закрытую дверь и объявить все ключи исчерпанными;
+      * 403 — почти всегда посредник (фильтр, антивирус, регион), см.
+        ForbiddenError;
+      * контекст не влез, модель не найдена — свойство запроса и модели;
+      * «клиент не в списке» — сервис отверг саму программу по User-Agent, и
+        никакой ключ этого не изменит. Статус тот же 401, поэтому проверяем
+        текст: это единственное место, где без разбора текста не обойтись.
+    """
+    if isinstance(e, (oc.RateLimitError, oc.PaymentRequiredError)):
+        return True
+    if isinstance(e, oc.AuthError):
+        return not _is_client_rejected(api_keys.redact(str(e)))
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Бэкенд
 # ---------------------------------------------------------------------------
@@ -511,6 +706,12 @@ class ApiBackend(object):
         self._temperature = temperature
         self._budget_tokens = budget_tokens
         self._silence_timeout = silence_timeout
+        # Пометки о сменах ключа за ЭТОТ запрос. Хранятся на экземпляре, а не
+        # передаются параметром, потому что путей выхода из send() семь (успех,
+        # спасение обрывка, повтор, пустой ответ, обрыв на дописывании...), и
+        # каждый обязан сообщить о смене. Экземпляр живёт ровно один запрос:
+        # main._current_backend создаёт его заново на каждое обращение.
+        self._switch_note = u""
 
     # -- параметры чата (закреплены за ним при создании) --
 
@@ -560,12 +761,25 @@ class ApiBackend(object):
                 u"[Настройки API]: у этого чата не задан %s. Откройте настройки "
                 u"API-ключа и выберите провайдера и модель."
                 % (u"адрес провайдера" if not base_url else u"модель"))
-        key = api_keys.resolve_key(pid, providers.env_names_for(pid))
+        env_names = providers.env_names_for(pid)
         provider = providers.get_provider(pid) or {}
-        if provider.get("needs_key") and not key:
-            return self._fail(
-                u"[Настройки API]: для «%s» не задан ключ. Введите его в "
-                u"настройках API-ключа." % (provider.get("name") or pid))
+        candidates = api_keys.usable_keys(pid, env_names)
+        if provider.get("needs_key") and not candidates:
+            # Два РАЗНЫХ состояния, и путать их нельзя. «Ключа нет» — просьба
+            # его ввести. «Все ключи исчерпаны» — ключи есть, вводить нечего, и
+            # предложить надо совсем другое.
+            spent = api_keys.spent_keys(pid, env_names)
+            if not spent:
+                return self._fail(
+                    u"[Настройки API]: для «%s» не задан ключ. Введите его в "
+                    u"настройках API-ключа." % (provider.get("name") or pid))
+            return self._fail(self._all_keys_spent_text(provider, spent))
+        if not candidates:
+            # Провайдеру ключ не нужен: локальный llama-server, Ollama, свой
+            # адрес. Ходим с пустым ключом ровно один раз — перебирать тут
+            # нечего, и индекс берём «не из файла», чтобы исчерпание случайно
+            # не записалось в несуществующую запись.
+            candidates = [(api_keys.ENV_KEY_INDEX, "")]
 
         system_text = ""
         if self._system_text_provider is not None:
@@ -596,9 +810,6 @@ class ApiBackend(object):
                 u"окном хотя бы %d токенов: модель закреплена за чатом и здесь "
                 u"её не сменить."
                 % (model, window, sys_tokens, sys_tokens + MIN_ANSWER_TOKENS))
-        messages = api_history.build_request_messages(
-            self._base_dir, self.chat_id, system_text, prompt,
-            budget_tokens=budget)
 
         started = time.time()
         chunks = []
@@ -627,46 +838,300 @@ class ApiBackend(object):
             chars[0] += len(piece)
             push()
 
+        def flush_stream():
+            """Догнать реальность немедленно, в обход троттлинга.
+
+            Отдельное замыкание, а не сам push: у push значение force по
+            умолчанию False, и передать его как обработчик напрямую значит
+            получить сброс, который глотается троттлингом — панель осталась бы с
+            текстом, отставшим на такт.
+            """
+            push(force=True)
+
+        def reset_stream():
+            """Забыть показанное перед НОВОЙ попыткой того же запроса.
+
+            Нужно смене ключа и усадке истории: обе повторяют запрос с нуля, и
+            накопленный текст прошлой попытки к новому ответу отношения не имеет.
+            Без сброса живая трансляция склеила бы два разных ответа, а обрывок
+            прошлой попытки попал бы в сообщение об ошибке как часть этой.
+            """
+            del chunks[:]
+            chars[0] = 0
+            push(force=True)
+
         if progress_cb is not None:
             progress_cb({"phase": u"запрос к %s" % (provider.get("name") or pid),
                          "chars": 0, "elapsed": 0, "stream": ""})
-        try:
-            transport = anthropic_compat if providers.transport_for(pid, model) == "anthropic" else oc
-            res = transport.stream_chat(
-                base_url, key, model, messages,
-                max_tokens=max_tokens, temperature=self._temperature,
-                extra_headers=providers.headers_for(pid),
-                proxy=api_keys.proxy_url(),
-                connect_timeout=providers.connect_timeout_for(pid),
-                silence_timeout=self._silence_timeout,
-                cancel_cb=cancel_cb, on_delta=on_delta)
-        except oc.Cancelled:
-            # Переводим в исключение, которое main.py уже умеет обрабатывать.
-            raise parser_base.ParserCancelled(u"Остановлено пользователем.")
-        except oc.ApiError as e:
-            return self._handle_api_error(e, provider)
-        finally:
-            push(force=True)
+
+        # ЗАПРОС С ПЕРЕБОРОМ КЛЮЧЕЙ И УСАДКОЙ ИСТОРИИ.
+        #
+        # Порядок вложенности не случаен: ключи снаружи, усадка внутри. Отказ
+        # «контекст не влез» относится к ЗАПРОСУ и повторится с любым ключом —
+        # значит сжимать надо до того, как объявлять ключ негодным. А отказ по
+        # квоте относится к КЛЮЧУ, и сжимать историю в ответ на него бессмысленно.
+        #
+        # Смена ключа происходит БЕЗ ПАУЗЫ: она мгновенна, а пауза спящего
+        # режима — десятки секунд. Спящий режим включится только когда кончатся
+        # все ключи (тогда наружу уйдёт статус повтора), и это правильный
+        # порядок: сначала бесплатное, потом ожидание.
+        res = None
+        messages = None
+        used_key = None
+        for pos, (key_index, candidate) in enumerate(candidates):
+            try:
+                res, messages = self._stream_with_shrink(
+                    base_url, candidate, system_text, prompt, budget, max_tokens,
+                    on_delta, cancel_cb, reset_stream, flush_stream)
+                used_key = candidate
+                break
+            except oc.Cancelled:
+                # Переводим в исключение, которое main.py уже умеет обрабатывать.
+                raise parser_base.ParserCancelled(u"Остановлено пользователем.")
+            except oc.ApiError as e:
+                if not should_rotate_key(e):
+                    # Ключ не виноват (сервис, сеть, посредник, сам запрос) —
+                    # перебирать остальные незачем.
+                    return self._handle_api_error(e, provider, prompt=prompt,
+                                                  partial=u"".join(chunks))
+                spent_mask = api_keys.mask(candidate)
+                api_keys.note_key_exhausted(
+                    pid, key_index, reason=api_keys.redact(str(e)),
+                    retry_after=getattr(e, "retry_after", None))
+                if pos + 1 >= len(candidates):
+                    # Это был последний ключ. Отдаём ошибку как есть: если это
+                    # 429, спящий режим ещё подождёт и попробует снова, а к тому
+                    # времени сроки у ключей могут истечь.
+                    return self._handle_api_error(e, provider, prompt=prompt,
+                                                  partial=u"".join(chunks))
+                next_mask = api_keys.mask(candidates[pos + 1][1])
+                self._switch_note += KEY_SWITCH_NOTE % (
+                    spent_mask, self._switch_reason(e), next_mask)
+                print("--> API %s: ключ %s исчерпан — перехожу на %s "
+                      "(ключ %d из %d)"
+                      % (self.describe(), spent_mask, next_mask,
+                         pos + 2, len(candidates)))
+                reset_stream()
+                continue
 
         raw = res.get("text") or ""
         usage = res.get("usage")
         finish = res.get("finish_reason")
-        print("<-- API %s: %d симв., finish=%s, событий=%d, %.1f с"
+        self._log_result(res, raw, finish)
+
+        if res.get("truncated"):
+            # Проверяется РАНЬШЕ пустого ответа: пустота из-за обрыва — это
+            # сбой связи, который надо повторить, а не «модель ничего не
+            # сказала», о котором незачем сообщать пользователю как о факте.
+            return self._incomplete_reply(
+                prompt, raw,
+                u"[Обрыв ответа]: «%s» закрыл соединение, не досказав ответ "
+                u"(получено %d симв., маркера конца нет)."
+                % (provider.get("name") or pid, len(raw)),
+                retry_status=rate_limit.TRANSPORT)
+
+        # ДОПИСЫВАНИЕ ОТВЕТА, УПЁРШЕГОСЯ В ЛИМИТ ВЫВОДА.
+        #
+        # Условия выхода из цикла важны все три:
+        #   * raw пустой — продолжать нечего. Так бывает у «думающих» моделей,
+        #     потративших весь лимит на размышления; им нужен не повтор, а
+        #     другой лимит, и об этом скажет _empty_answer. Заодно пустое
+        #     сообщение assistant отвергают некоторые провайдеры.
+        #   * действие уже пришло ЦЕЛИКОМ — дописывать вредно, а не бесполезно:
+        #     модель может прислать ВТОРОЙ блок действия, а по правилу «побеждает
+        #     последний» он вытеснит уже готовый и, возможно, правильный.
+        #   * лимит попыток — каждое дописывание отправляет весь вход заново.
+        conts = 0
+        while (finish == "length" and raw.strip()
+               and conts < MAX_CONTINUATIONS
+               and usable_action(raw) is None):
+            conts += 1
+            print("--> API %s: ответ упёрся в лимит вывода — прошу дописать "
+                  "(%d/%d, уже %d симв.)"
+                  % (self.describe(), conts, MAX_CONTINUATIONS, len(raw)))
+            if progress_cb is not None:
+                progress_cb({"phase": u"%s дописывает ответ (%d/%d)"
+                                      % (model.split("/")[-1] or model,
+                                         conts, MAX_CONTINUATIONS),
+                             "chars": chars[0],
+                             "elapsed": int(time.time() - started),
+                             "stream": u"".join(chunks)})
+            try:
+                more = self._stream(
+                    base_url, used_key,
+                    messages + [{"role": api_history.ROLE_ASSISTANT, "content": raw},
+                                {"role": api_history.ROLE_USER, "content": _CONTINUE_PROMPT}],
+                    max_tokens, on_delta, cancel_cb)
+            except oc.Cancelled:
+                raise parser_base.ParserCancelled(u"Остановлено пользователем.")
+            except oc.ApiError as e:
+                # Дописать не вышло. Отдаём то, что уже есть, с честной
+                # пометкой — это ровно прежнее поведение при finish=="length".
+                # Статус повтора здесь НЕ выставляется намеренно: мы возвращаем
+                # успешный (пусть и неполный) ответ, и повтор в main._reply его
+                # бы просто выбросил.
+                print("<-- API %s: дописать не удалось (%s) — отдаю то, что есть."
+                      % (self.describe(), api_keys.redact(str(e))))
+                break
+            finally:
+                push(force=True)
+            piece = _trim_overlap(raw, more.get("text") or "")
+            usage = _merge_usage(usage, more.get("usage"))
+            if not piece.strip():
+                # Модель ничего не добавила (обычно это «я уже всё сказал»).
+                # Просить снова бессмысленно — только платить за вход.
+                print("<-- API %s: дописывание ничего не добавило — прекращаю."
+                      % self.describe())
+                break
+            raw += piece
+            finish = more.get("finish_reason")
+            if more.get("truncated"):
+                # Обрыв связи на дописывании — тот же путь, что и обычный обрыв,
+                # но спасать теперь есть из чего: накопленный текст целиком.
+                return self._incomplete_reply(
+                    prompt, raw,
+                    u"[Обрыв ответа]: «%s» закрыл соединение, пока дописывал "
+                    u"ответ (накоплено %d симв.)."
+                    % (provider.get("name") or pid, len(raw)),
+                    retry_status=rate_limit.TRANSPORT)
+            self._log_result(more, raw, finish)
+
+        if not raw.strip():
+            return self._empty_answer(prompt, res, provider, usage)
+
+        return self._reply_from_raw(prompt, raw, usage, finish,
+                                    res.get("model") or model)
+
+    def _stream_with_shrink(self, base_url, key, system_text, prompt, budget,
+                            max_tokens, on_delta, cancel_cb, reset_stream, flush):
+        """Запрос с усадкой истории. Возвращает (результат, отправленные messages).
+
+        ЗАЧЕМ УСАДКА. Провайдер может ответить «контекст не влез» даже после
+        нашей проверки окна: оценка токенов приблизительная (estimate_tokens), а
+        один результат инструмента бывает очень большим. Раньше это был тупик с
+        советом «начните новый чат» — то есть потеря всей переписки из-за одного
+        длинного сообщения. Сжать историю и повторить не теряет ничего, кроме
+        самых старых реплик, которые всё равно были бы вытеснены следующим ходом.
+
+        Отдаёт messages наружу, потому что дописывание ответа обязано
+        продолжать ТОТ ЖЕ разговор: собрать их заново значило бы, возможно,
+        собрать с другим бюджетом и другой историей.
+
+        flush вызывается в finally на КАЖДОЙ попытке: живая трансляция должна
+        догнать реальность и когда ответ получен, и когда попытка сорвалась —
+        иначе панель осталась бы с текстом, отставшим на такт троттлинга, а
+        обрывок в сообщении об ошибке не совпал бы с показанным.
+
+        Все ошибки, кроме исчерпания попыток сжатия, пробрасываются вызывающему:
+        решение «сменить ключ или сдаться» принимается уровнем выше.
+        """
+        budget_now = budget
+        shrinks = 0
+        while True:
+            messages = api_history.build_request_messages(
+                self._base_dir, self.chat_id, system_text, prompt,
+                budget_tokens=budget_now)
+            try:
+                return self._stream(base_url, key, messages, max_tokens,
+                                    on_delta, cancel_cb), messages
+            except oc.ContextTooLongError:
+                smaller = int(budget_now * HISTORY_SHRINK_FACTOR)
+                if shrinks >= MAX_HISTORY_SHRINKS or smaller < MIN_ANSWER_TOKENS:
+                    # Сжимать больше нечего: дело не в истории, а в размере
+                    # самого запроса. Пусть вызывающий объяснит это словами.
+                    raise
+                shrinks += 1
+                budget_now = smaller
+                reset_stream()
+                print("--> API %s: контекст не влез — сжимаю историю до %d "
+                      "токенов (попытка %d/%d)"
+                      % (self.describe(), budget_now, shrinks, MAX_HISTORY_SHRINKS))
+            finally:
+                flush()
+
+    def _switch_reason(self, e):
+        """Короткая причина смены ключа для пометки в чате.
+
+        Короткая намеренно: полный текст провайдера уже уходит в журнал, а в
+        чате нужна причина, по которой видно, что делать дальше — пополнять
+        баланс, ждать сброса квоты или менять ключ.
+        """
+        if isinstance(e, oc.PaymentRequiredError):
+            return u"кредиты кончились"
+        if isinstance(e, oc.AuthError):
+            return u"ключ отклонён"
+        if isinstance(e, oc.RateLimitError):
+            return u"суточная квота" if getattr(e, "daily", False) else u"лимит запросов"
+        return u"исчерпан"
+
+    def _all_keys_spent_text(self, provider, spent):
+        """Объяснение «ключи кончились» с перечислением, а не на слово.
+
+        Каждый ключ назван маской и причиной: пользователь должен видеть, что
+        именно случилось с каждым, — иначе непонятно, ждать ли сброса квоты,
+        пополнять баланс или менять отозванный ключ. Про смену модели сказано
+        отдельно: модель закреплена за чатом, и кнопка смены — единственный
+        способ продолжить ЭТУ переписку.
+        """
+        name = provider.get("name") or self.provider_id
+        lines = []
+        now = time.time()
+        for _idx, masked, reason, until in spent:
+            when = u""
+            if until > now:
+                left = int(until - now)
+                when = (u", можно пробовать через %d мин" % max(1, left // 60)
+                        if left >= 60 else u", можно пробовать через %d с" % left)
+            lines.append(u"  • %s — %s%s" % (masked, reason or u"исчерпан", when))
+        return (u"[Ключи кончились]: у «%s» исчерпаны все ключи (%d):\n%s\n"
+                u"Добавьте ещё один ключ в настройках, дождитесь сброса квоты "
+                u"или продолжите этот чат на другой модели."
+                % (name, len(spent), u"\n".join(lines)))
+
+    def _stream(self, base_url, key, messages, max_tokens, on_delta, cancel_cb):
+        """Один запрос к провайдеру. Выбор протокола — здесь, чтобы он не
+        повторялся в каждом месте, откуда уходит запрос (первый вызов и
+        дописывание обязаны идти одним и тем же путём)."""
+        pid, model = self.provider_id, self.model
+        transport = (anthropic_compat
+                     if providers.transport_for(pid, model) == "anthropic" else oc)
+        return transport.stream_chat(
+            base_url, key, model, messages,
+            max_tokens=max_tokens, temperature=self._temperature,
+            extra_headers=providers.headers_for(pid),
+            proxy=api_keys.proxy_url(),
+            connect_timeout=providers.connect_timeout_for(pid),
+            silence_timeout=self._silence_timeout,
+            cancel_cb=cancel_cb, on_delta=on_delta)
+
+    def _log_result(self, res, raw, finish):
+        """Строка результата в журнал сервера. Длина берётся от НАКОПЛЕННОГО
+        текста, а не от последнего ответа: при дописывании интересен общий
+        размер, а не размер хвоста."""
+        print("<-- API %s: %d симв., finish=%s, событий=%d, %.1f с%s"
               % (self.describe(), len(raw), finish, res.get("events") or 0,
-                 res.get("elapsed") or 0.0))
+                 res.get("elapsed") or 0.0,
+                 u" (ОБРЫВ: поток кончился без маркера конца)"
+                 if res.get("truncated") else u""))
+        usage = res.get("usage")
         if usage:
             print("    токены: запрос %s, ответ %s"
                   % (usage.get("prompt_tokens"), usage.get("completion_tokens")))
 
-        if not raw.strip():
-            return self._fail(
-                u"[Пустой ответ]: модель «%s» не вернула текста. Попробуйте "
-                u"повторить запрос или выбрать другую модель." % model,
-                usage=usage)
+    def _reply_from_raw(self, prompt, raw, usage, finish, model_name, note=u""):
+        """Готовый ответ для main.py из сырого текста модели.
 
-        # История пишется ТОЛЬКО после успешного ответа и целой парой: если бы
-        # мы сохранили запрос при ошибке, память диалога разошлась бы с тем,
-        # что модель на самом деле видела.
+        Общий хвост двух путей: обычного успеха и спасения недополученного
+        ответа. Общий он не ради экономии строк, а потому что спасённый ответ
+        обязан выглядеть в чате КАК ОБЫЧНЫЙ — с той же заглушкой блока
+        действия и той же строкой расхода токенов. Своя копия этого кода
+        разошлась бы с оригиналом на первой же правке, и спасённый ответ стал
+        бы отличаться мелочами, которые пользователь принял бы за поломку.
+
+        История пишется ТОЛЬКО здесь и целой парой: если бы мы сохранили
+        запрос при ошибке, память диалога разошлась бы с тем, что модель на
+        самом деле видела.
+        """
         api_history.append_exchange(
             self._base_dir, self.chat_id, prompt, raw,
             user_kind=_guess_user_kind(prompt), usage=usage)
@@ -679,17 +1144,21 @@ class ApiBackend(object):
         display = md_to_bbcode.to_bbcode(strip_done_marker(prose))
         if action_raw is not None:
             display = display.rstrip() + ACTION_PLACEHOLDER
+        if note:
+            display += note
+        # Смена ключа — на КАЖДОМ пути выхода, поэтому дописывается здесь и в
+        # _fail, а не в семи местах по отдельности.
+        display += self._switch_note
         if finish == "length":
             # По API это точный факт, а не догадка: модель упёрлась в лимит
             # вывода. В браузерном режиме это приходилось угадывать по
             # поломанному JSON.
-            display += (u"\n[color=#c08040]— ответ обрезан лимитом вывода "
-                        u"модели —[/color]\n")
+            display += LENGTH_NOTE
         display += usage_line(usage, api_history.stats(
             self._base_dir, self.chat_id).get("usage_total"))
         return {"text": display, "action": action, "raw": raw,
                 "usage": usage, "finish_reason": finish,
-                "model": res.get("model") or model}
+                "model": model_name}
 
     # -- ошибки --
 
@@ -697,12 +1166,111 @@ class ApiBackend(object):
         """Честный текст в чат вместо исключения: пользователю нужно понятное
         объяснение, а не 500-я ошибка сервера."""
         print("<-- API %s: %s" % (self.describe(), message))
-        return {"text": message, "action": None, "raw": "", "usage": usage,
-                "finish_reason": "error", "model": self.model}
+        return {"text": message + self._switch_note, "action": None, "raw": "",
+                "usage": usage, "finish_reason": "error", "model": self.model}
 
-    def _handle_api_error(self, e, provider):
-        msg, retry_status, retry_after = describe_api_error(
-            e, provider.get("name") or self.provider_id, self.model)
+    def _incomplete_reply(self, prompt, partial, message,
+                          retry_status=None, retry_after=None):
+        """Ответ пришёл не целиком: сначала пробуем спасти, иначе — повтор.
+
+        ДВА ВХОДА, ОДНА ЛОГИКА. Сюда ведут исключение транспорта (соединение
+        сбросили или оно замолчало) и поток, кончившийся без маркера конца
+        (соединение закрыли аккуратно, но на середине). Для пользователя это
+        одно и то же событие — ответ неполный, — и разное поведение в этих двух
+        случаях было бы просто багом. Заодно сюда попадают ошибки, при которых
+        повтор бессмыслен (неверный ключ, кончившиеся кредиты): спасение и им
+        не мешает, а retry_status у них пустой, поэтому повтора не будет.
+        """
+        rescued = self._salvage_partial(prompt, partial)
+        if rescued is not None:
+            return rescued
         if retry_status:
             _note_rate_limit(retry_status, retry_after)
-        return self._fail(msg)
+            # Обрывок дописываем в сообщение, а не показываем сразу: пока
+            # повторы идут, main._reply этот текст выбрасывает, и мелькать в
+            # чате он не будет. А если повторы кончатся — окажется, что ничего
+            # из пришедшего не потеряно.
+            message += partial_note(partial)
+        return self._fail(message)
+
+    def _empty_answer(self, prompt, res, provider, usage):
+        """Модель не вернула текста. Три РАЗНЫХ диагноза, а не один.
+
+        Раньше на все три случая было одно сообщение «попробуйте повторить или
+        выберите другую модель», и в двух из трёх это был неверный совет:
+        повторять вручную то, что обязан повторить сервер, и менять модель там,
+        где надо менять запрос.
+        """
+        events = int(res.get("events") or 0)
+        reasoning = res.get("reasoning") or ""
+        finish = res.get("finish_reason")
+        name = provider.get("name") or self.provider_id
+        if events == 0:
+            # Соединение открылось, статус 200, и ни одного события SSE. Это
+            # сбой шлюза, а не ответ модели: повторять СТОИТ, и повторит это тот
+            # же механизм, что и любой сетевой сбой, — сам, без участия
+            # пользователя.
+            return self._incomplete_reply(
+                prompt, u"",
+                u"[Пустой поток]: «%s» открыл соединение и не прислал ни одного "
+                u"события. Похоже на сбой шлюза, а не на ответ модели." % name,
+                retry_status=rate_limit.TRANSPORT)
+        if reasoning.strip():
+            # Ответ состоит ТОЛЬКО из размышлений: до самого ответа модель не
+            # дошла. Повтор с тем же лимитом вывода даст ровно то же самое —
+            # советовать его было бы обманом. Именно этот случай описан в
+            # anthropic_compat._content_parts: Claude с включённым extended
+            # thinking при коротком max_tokens отвечает одними «мыслями».
+            return self._fail(
+                u"[Ответ не дописан]: модель «%s» прислала только размышления "
+                u"(%d симв.) и не начала сам ответ%s. Это «думающая» модель — "
+                u"ей нужен лимит вывода больше текущего (%s). Создайте новый чат "
+                u"на модели попроще или с большим окном: модель закреплена за "
+                u"чатом и здесь её не сменить."
+                % (self.model, len(reasoning),
+                   u", упёршись в лимит вывода" if finish == "length" else u"",
+                   finish or u"?"), usage=usage)
+        # События были, размышлений нет, текста нет: модель действительно
+        # ответила пустотой. Так ведут себя фильтры содержимого — им поможет не
+        # повтор того же запроса, а другая формулировка.
+        return self._fail(
+            u"[Пустой ответ]: модель «%s» вернула ответ без текста (finish=%s). "
+            u"Так отвечает фильтр содержимого — переформулируйте запрос или "
+            u"выберите другую модель." % (self.model, finish or u"?"),
+            usage=usage)
+
+    def _salvage_partial(self, prompt, partial):
+        """Ответ из обрывка, в котором действие УЖЕ пришло целиком, или None.
+
+        ЗАЧЕМ. Блок ```agent_action модель присылает в конце ответа, поэтому
+        обрыв связи чаще всего застаёт запрос уже с готовым действием на руках.
+        Повторять такой запрос — платить за те же токены второй раз, чтобы
+        получить то же самое; а выбрасывать обрывок (как было раньше) — терять
+        готовую работу, которую пользователь только что видел в панели.
+
+        Что считается целым — решает usable_action: только ЗАКРЫТЫЙ и
+        разобравшийся блок. Обрыв посреди JSON доверия не заслуживает, и
+        правильный путь для него это честный повтор, а не самоисцеление по
+        заведомо рваному тексту.
+
+        Расход токенов здесь не показывается: событие usage приходит в самом
+        конце потока и до обрыва не дошло. Показать вместо него оценку значило
+        бы выдать догадку за отчёт провайдера.
+        """
+        action = usable_action(partial)
+        if action is None:
+            return None
+        print("<-- API %s: связь оборвалась, но блок действия (%s) пришёл "
+              "целиком — спасаю ответ (%d симв.), повтор не нужен."
+              % (self.describe(), action.get("action"), len(partial or "")))
+        return self._reply_from_raw(prompt, partial, None, "interrupted",
+                                    self.model, note=RESCUE_NOTE)
+
+    def _handle_api_error(self, e, provider, prompt=u"", partial=u""):
+        msg, retry_status, retry_after = describe_api_error(
+            e, provider.get("name") or self.provider_id, self.model)
+        # Спасение ПЕРЕД разбором вида ошибки и намеренно без оглядки на него:
+        # раз действие пришло целиком, уже неважно, чем именно кончилось
+        # соединение — повторять нечего.
+        return self._incomplete_reply(prompt, partial, msg,
+                                      retry_status, retry_after)
