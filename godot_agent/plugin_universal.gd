@@ -133,7 +133,7 @@ func _build_panel(panel_script_path: String) -> Control:
 	chat_log.scroll_following = true
 	chat_log.context_menu_enabled = true
 	chat_log.selection_enabled = true
-	chat_log.text = "[color=green]" + _lt("system_ready", "Система готова. Работаем через локальный Браузерный ИИ-Агент!") + "[/color]\n"
+	chat_log.text = "[color=green]" + _lt("system_ready", "Система готова. Работаем через локальный Godot Agent!") + "[/color]\n"
 	vbox.add_child(chat_log)
 
 	var pbox := HBoxContainer.new()

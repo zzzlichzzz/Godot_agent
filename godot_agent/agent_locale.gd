@@ -2,27 +2,48 @@
 extends Object
 
 # ---------------------------------------------------------------------------
-# Локализация плагина (RU/EN).
-# Выбранный язык хранится в user://godot_agent_lang.txt и переживает
-# перезапуск редактора. По умолчанию — русский.
+# Локализация плагина.
+#
+# ЯЗЫК БЕРЁТСЯ ИЗ РЕДАКТОРА. Пользователь, поставивший себе английский Godot,
+# должен получить английский плагин с первого запуска, а не русский с кнопкой
+# «переключите язык»: язык интерфейса он уже выбрал один раз и повторять этот
+# выбор в каждом аддоне не обязан. Явный выбор в самом плагине важнее — он
+# сохраняется в файл и переживает перезапуск.
+#
+# ДОБАВЛЕНИЕ ЯЗЫКА НЕ ТРЕБУЕТ ПРАВОК ЛОГИКИ. Достаточно объявить словарь
+# (const DE := {...}) и внести его в LANGS одной строкой: и переключатель, и
+# определение языка редактора, и запасной путь берут языки оттуда. Пока
+# немецкого нет, немецкий редактор получит английский — но ровно в тот момент,
+# когда словарь появится, тот же редактор получит немецкий сам.
 #
 # Использование из любого скрипта аддона:
 #   var L = load("...папка аддона.../agent_locale.gd")
 #   L.t("send")      -> "Отправить" / "Send"
-#   L.get_lang()     -> "ru" / "en"
+#   L.get_lang()     -> "ru" / "en" / ...
 #   L.set_lang("en")
+#   L.languages()    -> ["en", "ru"]  (для переключателя)
 # ---------------------------------------------------------------------------
 
 const LANG_FILE := "user://godot_agent_lang.txt"
+# Настройка редактора с его языком. Значения там вида "en", "ru", "de",
+# "zh_CN" — то есть ровно то, что нужно сопоставить с ключами LANGS.
+const EDITOR_LANG_SETTING := "interface/editor/editor_language"
+# Язык, на который сваливаемся, когда язык редактора нам неизвестен. ИМЕННО
+# АНГЛИЙСКИЙ: он единственный, который с большой вероятностью прочтёт человек с
+# немецким или китайским редактором, а русский в этом случае — просто вторая
+# незнакомая азбука.
+const LANG_FALLBACK := "en"
 
 static var _cur: String = ""
 
 const RU := {
+	"lang_name": "Русский",
 	"dock_title": "ИИ Агент",
-	"title": "Браузерный ИИ-Агент",
+	"title": "Godot Agent",
 	"hint": "С чего начнём?",
 	"btn_load": "Загрузиться",
-	"btn_new": "Новый чат",
+	"btn_new": "Работа через браузер",
+	"btn_new_tip": "Общаться с нейросетью на её сайте: плагин сам открывает браузер, вставляет запрос и читает ответ. Ключ не нужен, но нужно окно браузера и вход на сайт.",
 	"hdr_chats": "Сохранённые чаты",
 	"hdr_sites": "Выберите сайт (нейросеть)",
 	"back": "Назад",
@@ -49,6 +70,8 @@ const RU := {
 	"api_key_empty": "Поле ключа пустое — вставьте ключ перед сохранением.",
 	"api_base_url": "Адрес",
 	"api_model": "Модель",
+	"api_model_current": "Модель: %s",
+	"api_model_unset": "Модель не выбрана — выберите её в списке провайдеров.",
 	"api_model_placeholder": "например vendor/model:free",
 	"api_model_hint": "Названия моделей у сервисов меняются, поэтому поле можно заполнить вручную — не дожидаясь обновления плагина.",
 	"api_models_refresh": "Обновить список",
@@ -98,7 +121,9 @@ const RU := {
 	"api_pick_group_ready": "Готовы к работе (%d)",
 	"api_pick_group_setup": "Можно настроить (%d)",
 	"api_pick_group_blocked": "Пока недоступны (%d)",
-	"api_pick_group_catalog": "Из каталога models.dev, не проверены (%d)",
+	"api_pick_group_catalog": "Каталог models.dev (%d)",
+	"api_pick_group_maybe_free": "Возможно бесплатные (%d)",
+	"api_pick_group_maybe_free_tip": "По каталогу models.dev у этих сервисов есть бесплатные модели, но подтвердить это нечем: спросить их список можно только с ключом, а у нас там нет регистрации. Захотите проверить — зарегистрируйтесь сами, сохраните ключ, и числа станут измеренными.",
 	"api_catalog_show_all": "Все из каталога",
 	"api_catalog_show_all_n": "Все из каталога (+%d)",
 	"api_catalog_invite": "Показать всех провайдеров из каталога models.dev (%d)",
@@ -128,7 +153,7 @@ const RU := {
 	"api_pick_models_filter": "фильтр по названию модели",
 	"api_pick_models_free_only": "Только бесплатные",
 	"api_pick_models_free_tip": "Оставить только те модели, которые считает бесплатными сам провайдер или каталог models.dev. Какой это источник — написано на самой модели.",
-	"api_pick_models_empty": "Список моделей ещё не загружался. Нажмите «Обновить все списки» внизу окна: у провайдеров с публичным списком или сохранённым ключом он появится.",
+	"api_pick_models_empty": "Список моделей ещё не загружался: спросить его можно только у сервиса с публичным списком или с сохранённым ключом. Сохраните ключ и нажмите кнопку обновления справа от фильтра.",
 	"api_pick_models_no_match": "Под фильтр не подошла ни одна модель этого провайдера.",
 	"api_catalog_invite_short": "Ещё %d из каталога",
 	"api_catalog_bar": "Каталог models.dev: моделей %d, обновлён %s",
@@ -189,7 +214,7 @@ const RU := {
 	"srv_open_folder_btn": "Открыть папку с exe сервера",
 	"srv_open_folder_tip": "Откроет проводник прямо на godot_agent_server.exe — запустите его двойным кликом.",
 	"srv_manual_hint": "← запуск сервера автоматически может быть долгим, вручную — быстрее",
-	"system_ready": "Система готова. Работаем через локальный Браузерный ИИ-Агент!",
+	"system_ready": "Система готова. Работаем через локальный Godot Agent!",
 	"send": "Отправить",
 	"sending": "Ждём...",
 	"advanced_show": "⚙️ Дополнительно",
@@ -357,11 +382,13 @@ const RU := {
 }
 
 const EN := {
+	"lang_name": "English",
 	"dock_title": "AI Agent",
-	"title": "Browser AI Agent",
+	"title": "Godot Agent",
 	"hint": "Where shall we start?",
 	"btn_load": "Load a chat",
-	"btn_new": "New chat",
+	"btn_new": "Work via browser",
+	"btn_new_tip": "Talk to the model on its own website: the plugin opens the browser itself, types the prompt and reads the answer. No key needed, but a browser window and a site login are.",
 	"hdr_chats": "Saved chats",
 	"hdr_sites": "Choose a site (AI)",
 	"back": "Back",
@@ -388,6 +415,8 @@ const EN := {
 	"api_key_empty": "The key field is empty — paste a key before saving.",
 	"api_base_url": "Endpoint",
 	"api_model": "Model",
+	"api_model_current": "Model: %s",
+	"api_model_unset": "No model selected — pick one in the provider list.",
 	"api_model_placeholder": "e.g. vendor/model:free",
 	"api_model_hint": "Model names change over time, so you can type one in by hand instead of waiting for a plugin update.",
 	"api_models_refresh": "Refresh list",
@@ -437,7 +466,9 @@ const EN := {
 	"api_pick_group_ready": "Ready to use (%d)",
 	"api_pick_group_setup": "Can be set up (%d)",
 	"api_pick_group_blocked": "Unavailable for now (%d)",
-	"api_pick_group_catalog": "From the models.dev catalog, untested (%d)",
+	"api_pick_group_catalog": "models.dev catalog (%d)",
+	"api_pick_group_maybe_free": "Possibly free (%d)",
+	"api_pick_group_maybe_free_tip": "The models.dev catalog says these services have free models, but there is nothing to confirm it with: their list can only be fetched with a key, and we have no account there. If you want to check, sign up yourself, save a key, and the numbers become measured.",
 	"api_catalog_show_all": "All from catalog",
 	"api_catalog_show_all_n": "All from catalog (+%d)",
 	"api_catalog_invite": "Show all providers from the models.dev catalog (%d)",
@@ -467,7 +498,7 @@ const EN := {
 	"api_pick_models_filter": "filter by model name",
 	"api_pick_models_free_only": "Free only",
 	"api_pick_models_free_tip": "Keep only the models that the provider itself or the models.dev catalog considers free. Which source said so is written on the model itself.",
-	"api_pick_models_empty": "The model list has never been fetched. Press \"Refresh all lists\" at the bottom of this window: providers with a public list or a saved key will get one.",
+	"api_pick_models_empty": "The model list has never been fetched: it can only be requested from a service with a public list or with a saved key. Save a key and press the refresh button next to the filter.",
 	"api_pick_models_no_match": "No model of this provider matches the filter.",
 	"api_catalog_invite_short": "%d more from catalog",
 	"api_catalog_bar": "models.dev catalog: %d models, refreshed %s",
@@ -528,7 +559,7 @@ const EN := {
 	"srv_open_folder_btn": "Open server exe folder",
 	"srv_open_folder_tip": "Opens File Explorer right at godot_agent_server.exe — double-click it to start.",
 	"srv_manual_hint": "← auto-start can be slow, starting it manually is faster",
-	"system_ready": "System ready. Running through the local Browser AI Agent!",
+	"system_ready": "System ready. Running through the local Godot Agent!",
 	"send": "Send",
 	"sending": "Waiting...",
 	"advanced_show": "⚙️ Advanced",
@@ -696,14 +727,82 @@ const EN := {
 }
 
 
+# Реестр языков: код языка -> его словарь. ЕДИНСТВЕННОЕ место, куда надо внести
+# новый язык, — эта строка. Код должен совпадать со значением настройки
+# редактора interface/editor/editor_language ("de", "fr", "zh_CN"…), тогда
+# редактор на этом языке подхватит его сам.
+const LANGS := {"ru": RU, "en": EN}
+
+
+static func languages() -> Array:
+	# Коды языков в устойчивом порядке: переключатель обязан показывать их
+	# всегда одинаково, а порядок ключей словаря — не обещание.
+	var out: Array = LANGS.keys()
+	out.sort()
+	return out
+
+
+static func lang_name(code: String) -> String:
+	# Название языка НА НЁМ САМОМ и из его же словаря: искать «Deutsch» в
+	# отдельной таблице значит завести второе место, куда надо не забыть
+	# дописать новый язык.
+	var d = LANGS.get(code, {})
+	if typeof(d) == TYPE_DICTIONARY and (d as Dictionary).has("lang_name"):
+		return str((d as Dictionary)["lang_name"])
+	return code
+
+
+static func editor_lang() -> String:
+	# Язык РЕДАКТОРА, а не системы: человек мог поставить английский Godot на
+	# русскую Windows именно потому, что хочет видеть английские подписи.
+	# Системный язык остаётся запасным путём — на случай запуска вне редактора.
+	if Engine.is_editor_hint():
+		var es := EditorInterface.get_editor_settings()
+		if es and es.has_setting(EDITOR_LANG_SETTING):
+			var v := str(es.get_setting(EDITOR_LANG_SETTING)).strip_edges()
+			if v != "":
+				return v
+	var tool_locale := TranslationServer.get_tool_locale()
+	if tool_locale != "":
+		return tool_locale
+	return OS.get_locale_language()
+
+
+static func resolve(locale: String) -> String:
+	# Код локали -> язык плагина. Сначала точное совпадение ("zh_CN" у языка,
+	# который различает варианты), потом только язык без страны ("pt_BR" -> "pt":
+	# бразильский португальский лучше показать португальским, чем английским),
+	# и лишь потом запасной английский.
+	var v := locale.strip_edges().replace("-", "_")
+	if v == "":
+		return LANG_FALLBACK
+	if LANGS.has(v):
+		return v
+	var low := v.to_lower()
+	if LANGS.has(low):
+		return low
+	var base := low.split("_")[0]
+	if LANGS.has(base):
+		return base
+	return LANG_FALLBACK
+
+
 static func get_lang() -> String:
-	if _cur == "":
-		_cur = _read_saved()
+	if _cur != "":
+		return _cur
+	# Явный выбор человека важнее языка редактора: если он один раз переключил
+	# язык в самом плагине, значит редактор его не устроил, и возвращать назад
+	# язык редактора при каждом запуске означало бы отменять чужое решение.
+	var saved := _read_saved()
+	if saved != "":
+		_cur = saved
+		return _cur
+	_cur = resolve(editor_lang())
 	return _cur
 
 
 static func set_lang(lang: String) -> void:
-	_cur = "en" if lang == "en" else "ru"
+	_cur = lang if LANGS.has(lang) else LANG_FALLBACK
 	var f := FileAccess.open(LANG_FILE, FileAccess.WRITE)
 	if f:
 		f.store_string(_cur)
@@ -711,20 +810,30 @@ static func set_lang(lang: String) -> void:
 
 
 static func _read_saved() -> String:
-	if FileAccess.file_exists(LANG_FILE):
-		var f := FileAccess.open(LANG_FILE, FileAccess.READ)
-		if f:
-			var v := f.get_as_text().strip_edges()
-			f.close()
-			if v == "en":
-				return "en"
-	return "ru"
+	# Пустая строка означает «человек язык не выбирал»: это НЕ то же самое, что
+	# «выбрал русский», и различие тут главное — только в первом случае можно
+	# смотреть на язык редактора.
+	if not FileAccess.file_exists(LANG_FILE):
+		return ""
+	var f := FileAccess.open(LANG_FILE, FileAccess.READ)
+	if f == null:
+		return ""
+	var v := f.get_as_text().strip_edges()
+	f.close()
+	# Неизвестный код в файле (язык убрали из плагина) — это тоже «не выбирал»:
+	# иначе плагин остался бы с пустыми подписями из-за старой записи.
+	return v if LANGS.has(v) else ""
 
 
 static func t(key: String) -> String:
-	var d: Dictionary = EN if get_lang() == "en" else RU
+	var d: Dictionary = LANGS.get(get_lang(), EN)
 	if d.has(key):
 		return str(d[key])
+	# Запасной путь — АНГЛИЙСКИЙ, а не русский. Ключ, забытый в новом языке,
+	# должен показаться английской фразой: она понятна большинству, а русская
+	# строка в немецком интерфейсе выглядит как поломка плагина.
+	if EN.has(key):
+		return str(EN[key])
 	if RU.has(key):
 		return str(RU[key])
 	return key
