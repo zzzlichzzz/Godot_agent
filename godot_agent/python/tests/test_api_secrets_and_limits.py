@@ -179,6 +179,102 @@ ok_p, err_p = api_keys.set_proxy(host=u"", enabled=True)
 check(u"включить прокси без адреса нельзя", not ok_p and u"без адреса" in err_p, err_p)
 api_keys.set_proxy(enabled=False)
 
+# ---------------------------------------------------------------------------
+# 4) Несколько ключей на провайдера: порядок, исчерпание, миграция
+#
+# Квота бесплатных тарифов считается НА КЛЮЧ, поэтому второй ключ того же
+# провайдера работает, когда первый упёрся в суточный лимит.
+# ---------------------------------------------------------------------------
+K1 = "sk-or-v1-1111111111111111111111111111111111"
+K2 = "sk-or-v1-2222222222222222222222222222222222"
+K3 = "sk-or-v1-3333333333333333333333333333333333"
+
+api_keys.set_key("groq", K1)
+api_keys.add_key("groq", K2)
+api_keys.add_key("groq", K3)
+check(u"ключи легли по порядку добавления",
+      [k for _i, k in api_keys.usable_keys("groq")] == [K1, K2, K3])
+check(u"дубликат не добавляется",
+      api_keys.add_key("groq", K2) and api_keys.key_count("groq") == 3)
+check(u"resolve_key отдаёт ПЕРВЫЙ пригодный", api_keys.resolve_key("groq") == K1)
+
+# Исчерпание без названного срока — только на сессию.
+api_keys.note_key_exhausted("groq", 0, reason=u"free-models-per-day")
+check(u"исчерпанный ключ выпал из кандидатов",
+      [k for _i, k in api_keys.usable_keys("groq")] == [K2, K3])
+check(u"resolve_key перешёл на следующий", api_keys.resolve_key("groq") == K2)
+check(u"исчерпание без срока НЕ попало в файл (это была бы догадка)",
+      all(not item.get("cooldown_until")
+          for item in api_keys.keys_state("groq")))
+check(u"панель видит, какой именно ключ исчерпан",
+      [k["spent"] for k in api_keys.keys_state("groq")] == [True, False, False])
+check(u"в состоянии для панели нет сырых ключей",
+      all(K1 not in str(k.values()) and K2 not in str(k.values())
+          for k in api_keys.keys_state("groq")))
+check(u"причина исчерпания названа пользователю",
+      any(u"free-models-per-day" in r for _i, _m, r, _u in api_keys.spent_keys("groq"))
+      or api_keys.spent_keys("groq")[0][2] != u"")
+
+# Исчерпание со сроком от провайдера — на диск, потому что это факт.
+api_keys.note_key_exhausted("groq", 1, reason=u"rate limit", retry_after=120)
+_st = api_keys.keys_state("groq")
+check(u"названный провайдером срок сохранён", _st[1]["until"] > 0)
+check(u"ключ со сроком тоже выпал из кандидатов",
+      [k for _i, k in api_keys.usable_keys("groq")] == [K3])
+check(u"срок виден панели в секундах, а не как «когда-нибудь»",
+      110 < (_st[1]["until"] - __import__("time").time()) <= 120)
+
+# Когда исчерпаны все — кандидатов нет, но ключи не потеряны.
+api_keys.note_key_exhausted("groq", 2, reason=u"insufficient credits")
+check(u"пригодных ключей не осталось", api_keys.usable_keys("groq") == [])
+check(u"все три перечислены как исчерпанные",
+      len(api_keys.spent_keys("groq")) == 3)
+check(u"has_key по-прежнему True: ключи есть, просто выдохлись",
+      api_keys.has_key("groq") and api_keys.key_count("groq") == 3)
+check(u"resolve_key отдаёт первый, а не пустоту (иначе панель скажет «введите ключ»)",
+      api_keys.resolve_key("groq") == K1)
+
+api_keys.clear_key_cooldowns("groq")
+check(u"сброс по кнопке возвращает все ключи в игру",
+      [k for _i, k in api_keys.usable_keys("groq")] == [K1, K2, K3])
+
+# redact обязан затирать ВСЕ ключи, включая исчерпанные.
+api_keys.note_key_exhausted("groq", 0, reason=u"quota")
+_red = api_keys.redact(u"провайдер вернул ключ %s и ключ %s" % (K1, K3))
+check(u"redact затирает и исчерпанный ключ, и действующий",
+      K1 not in _red and K3 not in _red)
+
+# Удаление одного ключа из списка.
+api_keys.delete_key_at("groq", 1)
+check(u"удалён именно указанный ключ",
+      [k for _i, k in api_keys.usable_keys("groq")] == [K1, K3])
+check(u"память об исчерпании сброшена: индексы сдвинулись",
+      api_keys.keys_state("groq")[0]["spent"] is False)
+
+# Переменная окружения отменяет ротацию: её ставят тесты и CI.
+_os0.environ["GODOT_AGENT_GROQ_KEY"] = "env-key-long-enough-value"
+check(u"ключ из окружения — единственный кандидат",
+      [k for _i, k in api_keys.usable_keys("groq")] == ["env-key-long-enough-value"])
+check(u"источник назван честно", api_keys.key_source("groq") == "env")
+check(u"исчерпание чужой переменной окружения не записывается",
+      api_keys.note_key_exhausted("groq", api_keys.ENV_KEY_INDEX) is False)
+del _os0.environ["GODOT_AGENT_GROQ_KEY"]
+
+# Миграция файла версии 1: один ключ строкой.
+_old = {"providers": {"deepseek": {"key": K1, "model": "m", "base_url": ""}}}
+with open(api_keys.config_path(), "w", encoding="utf-8") as f:
+    __import__("json").dump(_old, f)
+api_keys._invalidate_cfg()
+api_keys._invalidate_secrets()
+check(u"старый файл читается: ключ стал списком из одного",
+      [k for _i, k in api_keys.usable_keys("deepseek")] == [K1])
+check(u"модель из старого файла не потеряна",
+      api_keys.get_model("deepseek") == "m")
+api_keys.add_key("deepseek", K2)
+check(u"после миграции можно добавить второй ключ",
+      [k for _i, k in api_keys.usable_keys("deepseek")] == [K1, K2])
+api_keys.set_key("openrouter", KEY)
+
 api_keys.delete_key("openrouter")
 api_keys.set_proxy(enabled=False, password="")
 shutil.rmtree(CFG, ignore_errors=True)

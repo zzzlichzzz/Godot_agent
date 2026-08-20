@@ -45,8 +45,22 @@ ENV_CONFIG_DIR = "GODOT_AGENT_CONFIG_DIR"
 DEFAULT_DOH_URL = "https://xbox-dns.ru/dns-query"
 
 _DEFAULT_CONFIG = {
-    "version": 1,
-    # provider_id -> {"key": str, "model": str, "base_url": str}
+    # 2: ключ на провайдера стал СПИСКОМ ключей (см. _normalize_keys).
+    # Поле рядом с данными, а не в коде: файл общий для всех проектов Godot и
+    # переживает обновления аддона, поэтому по нему видно, чем он записан.
+    "version": 2,
+    # provider_id -> {"keys": [{"key", "cooldown_until", "cooldown_reason"}],
+    #                 "model": str, "base_url": str}
+    #
+    # ПОЧЕМУ СПИСОК, А НЕ ОДИН КЛЮЧ. У бесплатных тарифов квота считается НА
+    # КЛЮЧ, а не на модель: когда OpenRouter или Groq говорит «суточный лимит
+    # исчерпан», второй ключ того же провайдера работает как ни в чём не бывало.
+    # С одним ключом единственным выходом было ждать до сброса квоты — часы
+    # простоя при полностью рабочем втором ключе в кармане.
+    #
+    # cooldown_until хранится РЯДОМ С КЛЮЧОМ намеренно: так удаление ключа
+    # автоматически убирает и память о его исчерпании. Отдельная таблица,
+    # ссылающаяся на ключи по индексу или хэшу, однажды разошлась бы со списком.
     "providers": {},
     # Что предложить при создании НОВОГО чата (у самого чата провайдер и
     # модель хранятся в его записи и потом не меняются).
@@ -226,6 +240,52 @@ def _clean_stats(rec):
     return out
 
 
+def _normalize_keys(rec):
+    """Список ключей провайдера из записи файла, в любом из двух форматов.
+
+    МИГРАЦИЯ БЕЗ ОТДЕЛЬНОГО ШАГА. Файл версии 1 хранил один ключ строкой
+    ("key": "sk-..."). Здесь он превращается в список из одного элемента прямо
+    при чтении, поэтому обновление аддона ничего не спрашивает у пользователя и
+    ничего не теряет. Обратной миграции нет и не будет: старая версия увидела бы
+    в новом файле пустой "key" и решила, что ключа нет вовсе — поэтому поле
+    "key" на запись больше не выводится, чтобы не выглядело, будто им ещё
+    можно пользоваться.
+
+    Порядок ключей сохраняется: это порядок, в котором их пробуют, и
+    пользователь вправе им управлять (первым ставит основной).
+
+    Дубликаты убираются: два одинаковых ключа в списке означали бы два
+    гарантированно провальных запроса вместо одного при исчерпании квоты.
+    """
+    out = []
+    seen = set()
+
+    def _add(raw, until=0.0, reason=""):
+        k = str(raw or "").strip()
+        if not k or k in seen:
+            return
+        seen.add(k)
+        out.append({"key": k,
+                    "cooldown_until": _float_or(until, 0.0),
+                    "cooldown_reason": str(reason or "")})
+
+    raw_list = rec.get("keys")
+    if isinstance(raw_list, list):
+        for item in raw_list:
+            if isinstance(item, dict):
+                _add(item.get("key"), item.get("cooldown_until"),
+                     item.get("cooldown_reason"))
+            else:
+                # Список простых строк тоже принимаем: файл мог быть поправлен
+                # руками, и отказываться от такого ключа было бы неуважением к
+                # человеку, который его туда вписал.
+                _add(item)
+    # Поле старого формата читается ПОСЛЕ списка и только как ещё один ключ:
+    # если файл писали и новой, и старой версией, потерять ни один нельзя.
+    _add(rec.get("key"))
+    return out
+
+
 def _load():
     """Настройки с диска. Любая проблема чтения — пустая конфигурация:
     сервер обязан подняться даже с испорченным файлом настроек.
@@ -269,7 +329,7 @@ def _load():
         for pid, rec in data["providers"].items():
             if isinstance(rec, dict):
                 cfg["providers"][str(pid)] = {
-                    "key": str(rec.get("key") or ""),
+                    "keys": _normalize_keys(rec),
                     "model": str(rec.get("model") or ""),
                     "base_url": str(rec.get("base_url") or ""),
                 }
@@ -447,8 +507,13 @@ def _secrets():
     try:
         cfg = _cfg()
         for rec in (cfg.get("providers") or {}).values():
-            if rec.get("key"):
-                found.append(rec["key"])
+            # ВСЕ ключи провайдера, а не только рабочий: redact() обязан
+            # затирать и исчерпанный ключ — он попадает в тексты ошибок от
+            # провайдера ровно так же, как действующий, а весь stdout сервера
+            # виден на HTTP-странице /dashboard.
+            for item in (rec.get("keys") or []):
+                if isinstance(item, dict) and item.get("key"):
+                    found.append(item["key"])
         pwd = (cfg.get("proxy") or {}).get("password")
         if pwd:
             found.append(pwd)
@@ -477,49 +542,308 @@ def _env_name(provider_id):
     return "GODOT_AGENT_%s_KEY" % safe.upper()
 
 
-def resolve_key(provider_id, env_names=()):
-    """СЫРОЙ ключ провайдера. Единственная функция, отдающая секрет.
-
-    Порядок: переменные окружения, затем файл настроек. Окружение выигрывает
-    намеренно — так тесты и CI подставляют свой ключ, не трогая файл
-    разработчика, и так можно запустить агента вообще без записи ключа на диск.
-
-    Результат нельзя печатать, логировать и возвращать в HTTP-ответе.
-    """
+def _env_key(provider_id, env_names=()):
+    """Ключ из переменных окружения или "" — если его там нет."""
     for name in (_env_name(provider_id),) + tuple(env_names or ()):
         val = (os.environ.get(name) or "").strip()
         if val:
             return val
+    return ""
+
+
+# ИНДЕКС КЛЮЧА ИЗ ОКРУЖЕНИЯ. Отрицательный намеренно: индексы файла — это
+# позиции в списке, и смешивать их нельзя. Ключ из окружения в файле не лежит,
+# исчерпание для него не запоминается (перезаписать чужую переменную окружения
+# мы не вправе) и ротации для него нет — см. usable_keys.
+ENV_KEY_INDEX = -1
+
+# Исчерпание, о сроке которого провайдер НЕ сказал: provider_id -> {индекс:
+# причина}. Причина хранится вместе с индексом, а не отдельно: объяснение
+# «ключи кончились» обязано называть, ЧТО случилось с каждым ключом — иначе
+# непонятно, ждать ли сброса квоты, пополнять баланс или менять отозванный ключ.
+#
+# Живёт только в памяти процесса и умирает с ним — это осознанный выбор, а не
+# упрощение. Суточные квоты сбрасываются по расписанию провайдера, которого мы
+# не знаем: у одних это полночь UTC, у других скользящее окно. Записать в файл
+# выдуманный срок значило бы выдать догадку за факт и заблокировать рабочий
+# ключ до утра на пустом месте. Срок из Retry-After — другое дело, он назван
+# провайдером и потому попадает на диск (см. note_key_exhausted).
+_session_spent = {}
+
+
+def _forget_session_spent(provider_id):
+    """Забыть память об исчерпании ключей провайдера.
+
+    Вызывается при ЛЮБОМ изменении списка ключей: память привязана к позициям в
+    списке, и после вставки или удаления она указывала бы на другие ключи.
+    """
+    _session_spent.pop(str(provider_id or ""), None)
+
+
+def _key_records(provider_id):
     rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
-    return str(rec.get("key") or "").strip()
+    return list(rec.get("keys") or [])
+
+
+def _is_on_cooldown(item, now=None):
+    """Назван ли провайдером срок, который ещё не истёк."""
+    try:
+        until = float(item.get("cooldown_until") or 0.0)
+    except (TypeError, ValueError):
+        return False
+    return until > (now if now is not None else time.time())
+
+
+def usable_keys(provider_id, env_names=()):
+    """Ключи, которые СТОИТ пробовать: [(индекс, сырой ключ)], по порядку.
+
+    Единственный источник кандидатов для ротации. Отдаёт СЫРЫЕ ключи, поэтому
+    результат имеет право видеть только транспорт — как и у resolve_key.
+
+    ОКРУЖЕНИЕ ОТМЕНЯЕТ РОТАЦИЮ. Если ключ задан переменной окружения, он
+    единственный кандидат. Так было и раньше (окружение выигрывало у файла), и
+    менять это нельзя: переменную ставят тесты, CI и переносимые сборки, и
+    «иногда берём ключ из файла вместо заданного» сделало бы их поведение
+    невоспроизводимым.
+
+    Исчерпанные пропускаются: и те, чей срок назвал провайдер (cooldown_until в
+    файле), и те, что исчерпались в этой сессии без названного срока.
+    """
+    env = _env_key(provider_id, env_names)
+    if env:
+        return [(ENV_KEY_INDEX, env)]
+    spent = _session_spent.get(str(provider_id or "")) or {}
+    now = time.time()
+    out = []
+    for idx, item in enumerate(_key_records(provider_id)):
+        if idx in spent or _is_on_cooldown(item, now):
+            continue
+        if item.get("key"):
+            out.append((idx, item["key"]))
+    return out
+
+
+def spent_keys(provider_id, env_names=()):
+    """Исчерпанные ключи: [(индекс, маска, причина, до_когда_или_0)].
+
+    Нужно объяснению «ключи кончились»: сказать «все %d ключа исчерпаны» без
+    перечисления — это просьба к пользователю поверить на слово.
+    """
+    if _env_key(provider_id, env_names):
+        return []
+    spent = _session_spent.get(str(provider_id or "")) or {}
+    now = time.time()
+    out = []
+    for idx, item in enumerate(_key_records(provider_id)):
+        if not item.get("key"):
+            continue
+        on_cd = _is_on_cooldown(item, now)
+        if idx in spent or on_cd:
+            # Причина из файла (срок назвал провайдер) или из памяти сессии.
+            reason = str(item.get("cooldown_reason") or "") or spent.get(idx, "")
+            out.append((idx, mask(item["key"]), reason,
+                        float(item.get("cooldown_until") or 0.0) if on_cd else 0.0))
+    return out
+
+
+def note_key_exhausted(provider_id, index, reason="", retry_after=None):
+    """Запомнить, что ключ исчерпан, и больше его не пробовать.
+
+    retry_after — срок в секундах, НАЗВАННЫЙ провайдером (заголовок
+    Retry-After). Только он попадает на диск: это факт, а не наша оценка, и он
+    переживает перезапуск редактора с сохранением смысла. Без него ключ
+    считается исчерпанным до конца работы сервера (см. _session_spent).
+
+    Ключ из окружения не помечается никак: он не наш, менять его состояние мы
+    не вправе, а ротации для него всё равно нет.
+    """
+    pid = str(provider_id or "")
+    if not pid or index == ENV_KEY_INDEX:
+        return False
+    if retry_after is not None:
+        try:
+            secs = int(float(retry_after))
+        except (TypeError, ValueError):
+            secs = None
+        if secs is not None and secs > 0:
+            cfg = _load()
+            keys = (cfg["providers"].get(pid) or {}).get("keys") or []
+            if 0 <= index < len(keys):
+                keys[index]["cooldown_until"] = time.time() + secs
+                keys[index]["cooldown_reason"] = str(reason or "")
+                _save(cfg)
+                print("--> Ключ %s (%s) исчерпан на %d с по слову провайдера: %s"
+                      % (index + 1, mask(keys[index].get("key")), secs, reason))
+                return True
+    _session_spent.setdefault(pid, {})[int(index)] = str(reason or "")
+    recs = _key_records(pid)
+    shown = mask(recs[index].get("key")) if 0 <= index < len(recs) else "?"
+    print("--> Ключ %d (%s) исчерпан до перезапуска сервера: %s"
+          % (index + 1, shown, reason))
+    return True
+
+
+def clear_key_cooldowns(provider_id):
+    """Забыть, что ключи исчерпаны — и в файле, и в памяти.
+
+    Нужно панели: пользователь знает про свои квоты то, чего не знает агент
+    (пополнил баланс, наступило утро), и обязан иметь возможность сказать
+    «пробуй заново», не удаляя ключи.
+    """
+    pid = str(provider_id or "")
+    _forget_session_spent(pid)
+    cfg = _load()
+    keys = (cfg["providers"].get(pid) or {}).get("keys") or []
+    changed = False
+    for item in keys:
+        if item.get("cooldown_until") or item.get("cooldown_reason"):
+            item["cooldown_until"] = 0.0
+            item["cooldown_reason"] = ""
+            changed = True
+    return _save(cfg) if changed else True
+
+
+def resolve_key(provider_id, env_names=()):
+    """СЫРОЙ ключ провайдера — тот, которым СТОИТ пробовать сейчас.
+
+    Порядок: переменные окружения, затем первый неисчерпанный ключ из файла.
+    Окружение выигрывает намеренно — так тесты и CI подставляют свой ключ, не
+    трогая файл разработчика, и так можно запустить агента вообще без записи
+    ключа на диск.
+
+    Функция осталась для кода, которому нужен ОДИН ключ и не нужна ротация:
+    проверка подключения, обновление списка моделей. Сам чат ходит через
+    usable_keys, потому что ему нужны все кандидаты сразу.
+
+    Если исчерпаны все — отдаём первый ключ, а не пустую строку: пустая строка
+    означает «ключ не задан», и вызывающий сказал бы пользователю неправду,
+    предложив вписать ключ, который у него есть.
+
+    Результат нельзя печатать, логировать и возвращать в HTTP-ответе.
+    """
+    env = _env_key(provider_id, env_names)
+    if env:
+        return env
+    ready = usable_keys(provider_id, env_names)
+    if ready:
+        return ready[0][1]
+    recs = _key_records(provider_id)
+    return str(recs[0].get("key") or "").strip() if recs else ""
 
 
 def key_source(provider_id, env_names=()):
     """Откуда взялся ключ: "env", "file" или "" (не задан). Нужно панели,
     чтобы не предлагать удалить ключ, заданный переменной окружения."""
-    for name in (_env_name(provider_id),) + tuple(env_names or ()):
-        if (os.environ.get(name) or "").strip():
-            return "env"
-    rec = (_cfg().get("providers") or {}).get(str(provider_id)) or {}
-    return "file" if str(rec.get("key") or "").strip() else ""
+    if _env_key(provider_id, env_names):
+        return "env"
+    return "file" if _key_records(provider_id) else ""
 
 
 def has_key(provider_id, env_names=()):
-    return bool(resolve_key(provider_id, env_names))
+    return bool(key_source(provider_id, env_names))
+
+
+def key_count(provider_id, env_names=()):
+    """Сколько ключей задано. Ключ из окружения считается одним."""
+    if _env_key(provider_id, env_names):
+        return 1
+    return len(_key_records(provider_id))
+
+
+def keys_state(provider_id, env_names=()):
+    """Состояние каждого ключа для панели. СЫРЫХ КЛЮЧЕЙ ЗДЕСЬ НЕ БЫВАЕТ.
+
+    [{"index", "masked", "source", "spent", "until", "reason"}] — по порядку
+    попыток. until > 0 только когда срок назвал сам провайдер.
+    """
+    env = _env_key(provider_id, env_names)
+    if env:
+        return [{"index": ENV_KEY_INDEX, "masked": mask(env), "source": "env",
+                 "spent": False, "until": 0.0, "reason": ""}]
+    spent = _session_spent.get(str(provider_id or "")) or {}
+    now = time.time()
+    out = []
+    for idx, item in enumerate(_key_records(provider_id)):
+        on_cd = _is_on_cooldown(item, now)
+        out.append({
+            "index": idx,
+            "masked": mask(item.get("key")),
+            "source": "file",
+            "spent": bool(idx in spent or on_cd),
+            "until": float(item.get("cooldown_until") or 0.0) if on_cd else 0.0,
+            "reason": (str(item.get("cooldown_reason") or "")
+                       or spent.get(idx, "")),
+        })
+    return out
+
+
+def add_key(provider_id, key):
+    """Добавляет ещё один ключ в конец списка. Дубликат не добавляется."""
+    pid = str(provider_id or "").strip()
+    k = str(key or "").strip()
+    if not pid or not k:
+        return False
+    cfg = _load()
+    rec = cfg["providers"].get(pid) or {"keys": [], "model": "", "base_url": ""}
+    rec.setdefault("keys", [])
+    if any(item.get("key") == k for item in rec["keys"]):
+        return True
+    rec["keys"].append({"key": k, "cooldown_until": 0.0, "cooldown_reason": ""})
+    cfg["providers"][pid] = rec
+    ok = _save(cfg)
+    _invalidate_secrets()
+    _forget_session_spent(pid)
+    if ok:
+        print("--> Провайдеру %s добавлен ключ №%d (%s)"
+              % (pid, len(rec["keys"]), mask(k)))
+    return ok
+
+
+def delete_key_at(provider_id, index):
+    """Удаляет ключ по позиции в списке."""
+    pid = str(provider_id or "").strip()
+    cfg = _load()
+    rec = cfg["providers"].get(pid) or {}
+    keys = rec.get("keys") or []
+    try:
+        index = int(index)
+    except (TypeError, ValueError):
+        return False
+    if not (0 <= index < len(keys)):
+        return False
+    gone = keys.pop(index)
+    cfg["providers"][pid] = rec
+    ok = _save(cfg)
+    _invalidate_secrets()
+    _forget_session_spent(pid)
+    if ok:
+        print("--> У провайдера %s удалён ключ №%d (%s), осталось %d"
+              % (pid, index + 1, mask(gone.get("key")), len(keys)))
+    return ok
 
 
 def set_key(provider_id, key):
-    """Сохраняет ключ. Пустое значение равносильно удалению."""
+    """Задаёт ЕДИНСТВЕННЫЙ ключ, заменяя все прежние. Пустое значение
+    равносильно удалению всех.
+
+    Осталась ровно с этим смыслом, потому что так её и вызывали: панель
+    сохраняет форму с одним полем ключа, и «сохранить» там всегда означало
+    «пусть будет вот этот». Добавление второго ключа — отдельное действие
+    (add_key), и путать их нельзя: иначе правка первого ключа молча стирала бы
+    остальные.
+    """
     pid = str(provider_id or "").strip()
     if not pid:
         return False
     k = str(key or "").strip()
     cfg = _load()
-    rec = (cfg["providers"].get(pid) or {"key": "", "model": "", "base_url": ""})
-    rec["key"] = k
+    rec = cfg["providers"].get(pid) or {"keys": [], "model": "", "base_url": ""}
+    rec["keys"] = ([{"key": k, "cooldown_until": 0.0, "cooldown_reason": ""}]
+                   if k else [])
     cfg["providers"][pid] = rec
     ok = _save(cfg)
     _invalidate_secrets()
+    _forget_session_spent(pid)
     if ok:
         print("--> Ключ провайдера %s %s (%s)"
               % (pid, "сохранён" if k else "удалён", mask(k) if k else "пусто"))
@@ -544,7 +868,7 @@ def set_model(provider_id, model):
     if not pid:
         return False
     cfg = _load()
-    rec = (cfg["providers"].get(pid) or {"key": "", "model": "", "base_url": ""})
+    rec = (cfg["providers"].get(pid) or {"keys": [], "model": "", "base_url": ""})
     rec["model"] = str(model or "").strip()
     cfg["providers"][pid] = rec
     return _save(cfg)
@@ -605,7 +929,7 @@ def set_base_url(provider_id, base_url):
     if err:
         return False, err
     cfg = _load()
-    rec = (cfg["providers"].get(pid) or {"key": "", "model": "", "base_url": ""})
+    rec = (cfg["providers"].get(pid) or {"keys": [], "model": "", "base_url": ""})
     rec["base_url"] = clean
     cfg["providers"][pid] = rec
     ok = _save(cfg)
@@ -991,7 +1315,7 @@ def configured_provider_ids():
     for pid, rec in (_cfg().get("providers") or {}).items():
         if not isinstance(rec, dict):
             continue
-        if rec.get("key") or rec.get("model") or rec.get("base_url"):
+        if rec.get("keys") or rec.get("model") or rec.get("base_url"):
             out.append(str(pid))
     return out
 
@@ -1017,10 +1341,20 @@ def status(provider_ids=(), env_map=None):
         src = key_source(pid, extra)
         raw = resolve_key(pid, extra) if src else ""
         rec = (cfg.get("providers") or {}).get(pid) or {}
+        keys = keys_state(pid, extra)
         out[pid] = {
             "configured": bool(src),
             "source": src,
+            # Маска ДЕЙСТВУЮЩЕГО ключа — того, которым уйдёт следующий запрос.
+            # Поле оставлено с прежним именем и смыслом: панель показывает им
+            # «ключ задан вот такой», и ломать это ради списка незачем.
             "masked": mask(raw),
+            # Список появился вместе с ротацией. Панель, которая про него ещё
+            # не знает, продолжит работать на полях выше — поэтому он добавлен
+            # рядом, а не вместо них.
+            "keys": keys,
+            "keys_total": len(keys),
+            "keys_spent": sum(1 for k in keys if k.get("spent")),
             "model": str(rec.get("model") or ""),
             "base_url": str(rec.get("base_url") or ""),
         }

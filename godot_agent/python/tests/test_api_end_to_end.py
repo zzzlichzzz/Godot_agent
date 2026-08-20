@@ -76,7 +76,7 @@ ANSWER = (
     u"===DONE==="
 )
 
-SEEN = {"requests": [], "answer": ANSWER}
+SEEN = {"requests": [], "answer": ANSWER, "cut_times": 0}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -94,6 +94,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
+        # Имитация сбоя сервиса: первые cut_times запросов обрываем на середине
+        # ответа, не присылая ни finish_reason, ни [DONE]. Ровно так ведёт себя
+        # упавший шлюз, и раньше такой ответ молча принимался за полный.
+        if SEEN["cut_times"] > 0:
+            SEEN["cut_times"] -= 1
+            self.wfile.write(b"data: " + json.dumps({
+                "model": "m/e2e",
+                "choices": [{"delta": {"content": text[:40]},
+                             "finish_reason": None}]}).encode("utf-8") + b"\n\n")
+            self.wfile.flush()
+            self.close_connection = True
+            return
         step = 64
         for i in range(0, len(text), step):
             self.wfile.write(b"data: " + json.dumps({
@@ -336,6 +348,76 @@ check(u"other.gd по-прежнему на месте (ничего лишне�
 st, j = post("/chat/rollback", {"entry_id": "0123456789ab"})
 check(u"выдуманный адрес ничего не откатывает",
       not j.get("success") and _os0.path.isfile(OTHER_PATH), (st, j))
+
+# ---------------------------------------------------------------------------
+# 10) Сбой провайдера посреди ответа: агент повторяет запрос САМ
+#
+# Главное, чего не хватало работе по ключу: сетевой сбой не повторялся вовсе, и
+# один упавший запрос стоил пользователю всей задачи. Проверяем сквозным
+# путём — через настоящий /chat, а не заглушку бэкенда.
+#
+# Расписание пауз на время теста укорачиваем до секунды: проверяем НАЛИЧИЕ
+# повтора и его результат, а не длину продакшн-паузы (её проверяет
+# test_rate_limit_sleep).
+# ---------------------------------------------------------------------------
+import rate_limit as RL
+
+_OUTAGE_REAL = RL.OUTAGE_SLEEPS
+_JITTER_REAL = RL.OUTAGE_JITTER
+RL.OUTAGE_SLEEPS = [1, 1, 1, 1]
+RL.OUTAGE_JITTER = 0.0
+
+SEEN["answer"] = u"Готово, всё проверил.\n===DONE==="
+SEEN["requests"] = []
+_HIST_BEFORE_RETRY = len(api_history.load_messages(UDD, CID))
+SEEN["cut_times"] = 2  # два обрыва, третий запрос удаётся
+st, j = post("/chat", {"prompt": u"проверь проект"})
+answer = str(j.get("answer", ""))
+check(u"после двух обрывов ответ всё-таки получен", st == 200 and u"Готово" in answer,
+      (st, answer[:200]))
+check(u"агент сам сделал три попытки (две сорвались)",
+      len(SEEN["requests"]) == 3, len(SEEN["requests"]))
+check(u"в чат не попало сообщение об обрыве — сбой пережит незаметно",
+      u"[Обрыв ответа]" not in answer, answer[:200])
+check(u"повторялся ТОТ ЖЕ запрос, а не урезанный",
+      all(u"проверь проект" in (r.get("messages") or [{}])[-1].get("content", "")
+          for r in SEEN["requests"] if r))
+check(u"оборванные попытки не оставили следа в истории (пара только одна)",
+      len(api_history.load_messages(UDD, CID)) - _HIST_BEFORE_RETRY == 2,
+      len(api_history.load_messages(UDD, CID)) - _HIST_BEFORE_RETRY)
+
+# Сбой, который не проходит: агент обязан честно остановиться, а не висеть.
+SEEN["requests"] = []
+SEEN["cut_times"] = 99
+st, j = post("/chat", {"prompt": u"ещё раз проверь"})
+answer = str(j.get("answer", ""))
+check(u"непроходящий сбой -> честное сообщение, а не вечный цикл",
+      st == 200 and u"[Обрыв ответа]" in answer, (st, answer[:200]))
+check(u"число попыток ограничено расписанием",
+      len(SEEN["requests"]) == len(RL.OUTAGE_SLEEPS) + 1, len(SEEN["requests"]))
+check(u"пользователю сказано, сколько раз повторяли",
+      u"повторил запрос" in answer, answer[-300:])
+check(u"пришедшая часть ответа не потеряна",
+      u"Готово" in answer, answer[-300:])
+
+# Бюджет ожидания на ход: даже при коротком расписании агент не должен
+# копить паузы бесконечно, если внутри одного хода запросов много.
+_BUDGET_REAL = main.MAX_RETRY_WAIT_PER_TURN
+main.MAX_RETRY_WAIT_PER_TURN = 1.5
+SEEN["requests"] = []
+SEEN["cut_times"] = 99
+st, j = post("/chat", {"prompt": u"и ещё раз"})
+answer = str(j.get("answer", ""))
+check(u"бюджет ожидания хода обрывает повторы раньше расписания",
+      st == 200 and len(SEEN["requests"]) < len(RL.OUTAGE_SLEEPS) + 1,
+      len(SEEN["requests"]))
+check(u"про исчерпанный бюджет сказано прямо",
+      u"ожидания" in answer, answer[-300:])
+main.MAX_RETRY_WAIT_PER_TURN = _BUDGET_REAL
+
+RL.OUTAGE_SLEEPS = _OUTAGE_REAL
+RL.OUTAGE_JITTER = _JITTER_REAL
+SEEN["cut_times"] = 0
 
 srv.shutdown()
 server_auth.reset()
