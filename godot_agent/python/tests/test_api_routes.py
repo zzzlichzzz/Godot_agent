@@ -271,6 +271,65 @@ check(u"панель знает, что адрес можно править, и
       and orec["base_url_default"] == "https://openrouter.ai/api/v1")
 
 # ---------------------------------------------------------------------------
+# 2a) Несколько ключей на провайдера
+#
+# Квота бесплатных тарифов считается НА КЛЮЧ, поэтому панель обязана уметь
+# добавить второй ключ и показать состояние каждого. Сырых ключей в ответе не
+# бывает ни на одном шаге — это тот же барьер, что и для одиночного ключа.
+# ---------------------------------------------------------------------------
+_K_A = "sk-or-v1-KEYAAAAAAAAAAAAAAAAAAAAAAAA1111"
+_K_B = "sk-or-v1-KEYBBBBBBBBBBBBBBBBBBBBBBBB2222"
+import api_keys as _ak_keys  # исчерпание ключа отмечает бэкенд, не маршрут
+st, j = post("/api/settings/set", {"provider": "openrouter", "key": _K_A})
+st, j = post("/api/settings/set", {"provider": "openrouter", "add_key": _K_B})
+rec2 = [p for p in j["providers"] if p["id"] == "openrouter"][0]
+check(u"второй ключ добавлен", rec2["keys_total"] == 2)
+check(u"СЫРЫХ ключей в ответе нет", "KEYAAAA" not in json.dumps(j)
+      and "KEYBBBB" not in json.dumps(j))
+check(u"каждый ключ пришёл маской и позицией",
+      [k["index"] for k in rec2["keys"]] == [0, 1]
+      and all(k["masked"].startswith("sk-or-") for k in rec2["keys"]))
+check(u"исчерпанных пока нет", rec2["keys_spent"] == 0
+      and all(k["spent"] is False for k in rec2["keys"]))
+check(u"добавление ключа не тронуло модель", rec2["model"] == "vendor/gift:free")
+
+# Исчерпание отмечает бэкенд; панель должна увидеть это в том же ответе.
+_ak_keys.note_key_exhausted("openrouter", 0, reason=u"free-models-per-day")
+st, j = post("/api/settings/set", {"provider": "openrouter"})
+rec3 = [p for p in j["providers"] if p["id"] == "openrouter"][0]
+check(u"панель видит, какой ключ исчерпан и почему",
+      rec3["keys"][0]["spent"] is True
+      and u"free-models-per-day" in rec3["keys"][0]["reason"]
+      and rec3["keys"][1]["spent"] is False)
+check(u"счётчик исчерпанных отдан отдельно", rec3["keys_spent"] == 1)
+check(u"действующая маска — от РАБОЧЕГО ключа, а не от исчерпанного",
+      rec3["masked"].endswith("2222"))
+
+st, j = post("/api/settings/set", {"provider": "openrouter",
+                                   "clear_cooldowns": True})
+rec4 = [p for p in j["providers"] if p["id"] == "openrouter"][0]
+check(u"«пробуй заново» возвращает ключи в игру", rec4["keys_spent"] == 0)
+
+st, j = post("/api/settings/set", {"provider": "openrouter",
+                                   "delete_key_index": 0})
+rec5 = [p for p in j["providers"] if p["id"] == "openrouter"][0]
+check(u"удалён именно указанный ключ",
+      rec5["keys_total"] == 1 and rec5["keys"][0]["masked"].endswith("2222"))
+st, j = post("/api/settings/set", {"provider": "openrouter",
+                                   "delete_key_index": 7})
+check(u"удаление несуществующей позиции — понятный отказ полем",
+      st == 200 and j.get("key_error"))
+check(u"единственный ключ при этом не пострадал",
+      [p for p in j["providers"] if p["id"] == "openrouter"][0]["keys_total"] == 1)
+
+# Правка одиночного поля «ключ» по-прежнему ЗАМЕНЯЕТ список: панель сохраняет
+# форму целиком, и «сохранить» там всегда означало «пусть будет вот этот».
+st, j = post("/api/settings/set", {"provider": "openrouter",
+                                   "key": "sk-or-v1-SECRETVALUE0123456789"})
+check(u"сохранение одного ключа заменяет список, а не добавляет",
+      [p for p in j["providers"] if p["id"] == "openrouter"][0]["keys_total"] == 1)
+
+# ---------------------------------------------------------------------------
 # 3) Обновление списка моделей
 # ---------------------------------------------------------------------------
 post("/api/settings/set", {"provider": "custom", "base_url": LOCAL,

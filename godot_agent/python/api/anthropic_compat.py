@@ -235,4 +235,9 @@ def stream_chat(base_url, api_key, model, messages,
     return {"text": "".join(text_parts), "reasoning": "".join(reasoning_parts),
             "finish_reason": finish_reason, "usage": usage,
             "model": response_model or model, "events": events,
-            "elapsed": time.time() - started}
+            "elapsed": time.time() - started,
+            # Тот же признак обрыва, что и у openai_compat: ни message_stop
+            # (он же выставляет done), ни [DONE], ни stop_reason. Флаг обязан
+            # быть и здесь — ApiBackend один на оба транспорта и различать их
+            # не должен.
+            "truncated": bool(not done and finish_reason is None)}

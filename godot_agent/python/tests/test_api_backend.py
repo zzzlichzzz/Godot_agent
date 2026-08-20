@@ -24,7 +24,9 @@ _os0.environ["GODOT_AGENT_CONFIG_DIR"] = tempfile.mkdtemp(prefix="agent_cfg_")
 import api_backend as AB
 import api_history as H
 import api_keys
+import openai_compat as oc
 import parser_base
+import rate_limit
 
 results = []
 
@@ -51,28 +53,66 @@ MODEL_ANSWER = (
 
 LAST_REQUEST = {"body": None}
 MODE = {"name": "ok"}
+# Все тела запросов подряд и счётчик вызовов: дописывание ответа и усадка
+# контекста — это НЕСКОЛЬКО запросов на один send(), и проверять надо каждый.
+ALL_REQUESTS = []
+CALLS = {"n": 0}
+# Заголовок Authorization каждого запроса: по нему видно, КАКИМ ключом ушёл
+# запрос. Сравнивать будем с ожидаемым ключом — это единственный честный способ
+# проверить, что ротация подставила именно тот ключ, а не сделала вид.
+AUTH_SEEN = []
+
+# Точка обрыва внутри JSON действия: до неё блок заведомо незакрыт и разобрать
+# его нельзя — ровно тот случай, для которого дописывание и нужно.
+CUT_AT = MODEL_ANSWER.index(u'"search"')
+PART1 = MODEL_ANSWER[:CUT_AT]
+PART2 = MODEL_ANSWER[CUT_AT:]
+# Та же вторая часть, но модель повторила последние 30 символов первой —
+# так ведёт себя часть моделей, и перехлёст обязан быть срезан.
+PART2_OVERLAP = MODEL_ANSWER[CUT_AT - 30:]
+
+_CTX_BODY = {"error": {"message": "This model's maximum context length is "
+                                  "8192 tokens, however you requested more"}}
 
 
 def sse(obj):
     return b"data: " + json.dumps(obj).encode("utf-8") + b"\n\n"
 
 
-def _chunks_for(text, finish="stop"):
+def _sse_text(text, finish="stop", usage=True, reasoning=False):
+    """События SSE для произвольного текста, признака конца и вида содержимого."""
     out = []
     step = 40
     for i in range(0, len(text), step):
+        piece = text[i:i + step]
         out.append(sse({"model": "m/test", "choices": [
-            {"delta": {"content": text[i:i + step]}, "finish_reason": None}]}))
-    out.append(sse({"model": "m/test",
-                    "choices": [{"delta": {}, "finish_reason": finish}],
-                    "usage": {"prompt_tokens": 700, "completion_tokens": 60}}))
+            {"delta": ({"reasoning": piece} if reasoning else {"content": piece}),
+             "finish_reason": None}]}))
+    tail = {"model": "m/test", "choices": [{"delta": {}, "finish_reason": finish}]}
+    if usage:
+        tail["usage"] = {"prompt_tokens": 700, "completion_tokens": 60}
+    out.append(sse(tail))
     out.append(b"data: [DONE]\n\n")
     return out
+
+
+def _chunks_for(text, finish="stop"):
+    return _sse_text(text, finish=finish)
 
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
+
+    def _send_error(self, status, body, extra=None):
+        payload = json.dumps(body).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -81,7 +121,24 @@ class Handler(BaseHTTPRequestHandler):
             LAST_REQUEST["body"] = json.loads(raw.decode("utf-8"))
         except Exception:
             LAST_REQUEST["body"] = None
+        ALL_REQUESTS.append(LAST_REQUEST["body"])
+        AUTH_SEEN.append(self.headers.get("Authorization") or "")
+        CALLS["n"] += 1
         mode = MODE["name"]
+        # Отказ «контекст не влез»: всегда либо только на первом запросе.
+        if mode == "ctx_always" or (mode == "ctx_then_ok" and CALLS["n"] == 1):
+            self._send_error(400, _CTX_BODY)
+            return
+        # Отказ, из-за которого СТОИТ сменить ключ (суточная квота). У rot_ok
+        # только на первом запросе — второй ключ обязан сработать.
+        if mode == "rot_all" or (mode == "rot_ok" and CALLS["n"] == 1):
+            self._send_error(429, {"error": {"message":
+                                             "Rate limit: free-models-per-day"}})
+            return
+        # Отказ, из-за которого ключ менять НЕЛЬЗЯ: сервис лежит.
+        if mode == "rot_server":
+            self._send_error(503, {"error": {"message": "overloaded"}})
+            return
         if mode in ("auth", "ratelimit", "daily", "server"):
             status, body, extra = {
                 "auth": (401, {"error": {"message": "Invalid API key"}}, {}),
@@ -90,25 +147,68 @@ class Handler(BaseHTTPRequestHandler):
                 "daily": (429, {"error": {"message": "Rate limit: free-models-per-day"}}, {}),
                 "server": (503, {"error": {"message": "overloaded"}}, {}),
             }[mode]
-            payload = json.dumps(body).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            for k, v in extra.items():
-                self.send_header(k, v)
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
+            self._send_error(status, body, extra)
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
+        # Обрыв посреди потока: пишем часть событий и закрываем соединение, НЕ
+        # присылая ни [DONE], ни finish_reason. Закрытие именно аккуратное (FIN,
+        # а не сброс) — это самый коварный вид обрыва: чтение не падает с
+        # ошибкой, и без явной проверки маркеров конца обрезанный ответ
+        # выглядит совершенно нормальным успешным ответом.
+        if mode in ("cut_after_action", "cut_in_prose", "cut_in_action"):
+            text = {
+                # Действие успело прийти ЦЕЛИКОМ (блок закрыт) — такой ответ
+                # незачем повторять, его надо забрать.
+                "cut_after_action": MODEL_ANSWER,
+                # Оборвалось на объяснении, действия нет вовсе.
+                "cut_in_prose": u"Сейчас посмотрю player.gd и поправлю прыжок, "
+                                u"мне нужно свериться со счётчиком",
+                # Оборвалось ПОСРЕДИ JSON действия: блок не закрыт, доверия
+                # такому обрывку нет — нужен честный повтор.
+                "cut_in_action": MODEL_ANSWER[:MODEL_ANSWER.index(u"}\n```")],
+            }[mode]
+            for i in range(0, len(text), 40):
+                try:
+                    self.wfile.write(sse({"model": "m/test", "choices": [
+                        {"delta": {"content": text[i:i + 40]},
+                         "finish_reason": None}]}))
+                    self.wfile.flush()
+                except Exception:
+                    return
+            self.close_connection = True
+            return
         if mode == "empty":
             chunks = _chunks_for(u"")
+        elif mode == "empty_no_events":
+            # 200, поток открылся и кончился, не прислав ни одного события —
+            # так выглядит сбой шлюза, а не ответ модели.
+            chunks = [b"data: [DONE]\n\n"]
+        elif mode == "empty_reasoning":
+            # «Думающая» модель израсходовала лимит вывода на размышления и до
+            # самого ответа не дошла.
+            chunks = _sse_text(u"Надо посмотреть player.gd... " * 4,
+                               finish="length", reasoning=True)
         elif mode == "cut":
             chunks = _chunks_for(MODEL_ANSWER[:80], finish="length")
         elif mode == "openfence":
             chunks = _chunks_for(u"Начинаю.\n```agent_action\n{\"action\": \"list_files\"",
                                  finish="length")
+        elif mode == "length_with_action":
+            # Лимит вывода кончился, но блок действия уже ЗАКРЫТ и разобран:
+            # дописывать нечего и опасно (второй блок вытеснил бы первый).
+            chunks = _chunks_for(MODEL_ANSWER, finish="length")
+        elif mode in ("cont", "cont_overlap"):
+            if CALLS["n"] == 1:
+                chunks = _sse_text(PART1, finish="length")
+            else:
+                chunks = _sse_text(
+                    PART2 if mode == "cont" else PART2_OVERLAP, finish="stop")
+        elif mode == "cont_forever":
+            # Модель упирается в лимит на каждом дописывании и каждый раз
+            # добавляет НОВЫЙ текст: проверяет потолок числа дописываний.
+            chunks = _sse_text(u"часть %d, " % CALLS["n"], finish="length")
         elif mode == "slow":
             chunks = _chunks_for(u"a" * 4000)
         else:
@@ -323,6 +423,116 @@ check(u"незакрытый блок всё равно отдан парсер�
       res_open.get("action") is not None)
 
 # ---------------------------------------------------------------------------
+# 5a) Дописывание ответа, упёршегося в лимит вывода
+#
+# finish_reason == "length" — точный факт, известный только по API. Раньше он
+# лишь помечался плашкой, а рваный JSON действия разбирал самоисцелитель, прося
+# модель прислать ответ ЗАНОВО. Дописать хвост дешевле ровно на один полный
+# ответ.
+# ---------------------------------------------------------------------------
+check(u"обрыв для теста сделан ВНУТРИ JSON (блок незакрыт)",
+      AB.usable_action(PART1) is None and AB.usable_action(PART1 + PART2) is not None)
+
+MODE["name"] = "cont"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+res_cont = backend({"id": "cont00000001", "kind": "api",
+                    "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"дописанный ответ содержит целое действие",
+      isinstance(res_cont["action"], dict)
+      and res_cont["action"].get("action") == "patch_file"
+      and res_cont["action"].get("search") == "var jumps = 1")
+check(u"на дописывание ушёл ровно один дополнительный запрос",
+      len(ALL_REQUESTS) == 2)
+check(u"плашка «обрезан лимитом» снята: ответ дописан целиком",
+      u"обрезан лимитом вывода" not in res_cont["text"])
+check(u"вызывающему виден финальный finish, а не промежуточный",
+      res_cont.get("finish_reason") == "stop")
+_cont_msgs = (ALL_REQUESTS[1] or {}).get("messages") or []
+check(u"во втором запросе уже полученный текст ушёл репликой assistant",
+      any(m.get("role") == "assistant" and m.get("content") == PART1
+          for m in _cont_msgs))
+check(u"во втором запросе есть просьба продолжить с места обрыва",
+      _cont_msgs and _cont_msgs[-1].get("role") == "user"
+      and u"РОВНО с того символа" in _cont_msgs[-1].get("content", ""))
+check(u"расход токенов СЛОЖЕН по двум запросам, а не взят от последнего",
+      (res_cont.get("usage") or {}).get("prompt_tokens") == 1400)
+check(u"в историю ушла ОДНА пара с полным текстом, а не два огрызка",
+      len(H.load_messages(BASE, "cont00000001")) == 2
+      and H.load_messages(BASE, "cont00000001")[1]["content"] == PART1 + PART2)
+
+# Перехлёст: модель повторила конец предыдущей части.
+MODE["name"] = "cont_overlap"
+CALLS["n"] = 0
+res_ovl = backend({"id": "ovl000000001", "kind": "api",
+                   "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"повторённый моделью перехлёст срезан — текст склеен ровно",
+      H.load_messages(BASE, "ovl000000001")[1]["content"] == PART1 + PART2)
+check(u"действие из склеенного текста разобралось",
+      isinstance(res_ovl["action"], dict)
+      and res_ovl["action"].get("action") == "patch_file")
+
+# Готовое действие + лимит вывода: дописывать НЕ надо. Это не экономия, а
+# защита: второй блок действия вытеснил бы первый по правилу «побеждает
+# последний», и выполнилось бы не то, что модель решила.
+MODE["name"] = "length_with_action"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+res_lwa = backend({"id": "lwa000000001", "kind": "api",
+                   "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"при готовом действии дописывание НЕ запрашивается",
+      len(ALL_REQUESTS) == 1)
+check(u"действие взято как есть",
+      isinstance(res_lwa["action"], dict)
+      and res_lwa["action"].get("action") == "patch_file")
+check(u"пользователю всё равно сказано про лимит вывода",
+      u"обрезан лимитом вывода" in res_lwa["text"])
+
+# Модель упирается в лимит бесконечно — число дописываний ограничено.
+MODE["name"] = "cont_forever"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+res_inf = backend({"id": "inf000000001", "kind": "api",
+                   "provider": "custom", "model": "m/test"}).send(
+    u"пиши много", cancel_cb=lambda: False)
+check(u"число дописываний ограничено потолком",
+      len(ALL_REQUESTS) == AB.MAX_CONTINUATIONS + 1)
+check(u"накопленный текст отдан, а не выброшен",
+      u"часть 1" in res_inf["text"] and u"часть 4" in res_inf["text"])
+check(u"честная плашка про лимит вывода осталась",
+      u"обрезан лимитом вывода" in res_inf["text"])
+
+# ---------------------------------------------------------------------------
+# 5b) Усадка контекста вместо тупика «начните новый чат»
+# ---------------------------------------------------------------------------
+MODE["name"] = "ctx_then_ok"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+res_ctx = backend({"id": "ctx000000001", "kind": "api",
+                   "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"после отказа «контекст не влез» запрос прошёл со сжатой историей",
+      isinstance(res_ctx["action"], dict) and len(ALL_REQUESTS) == 2)
+check(u"пользователю не предложено терять переписку",
+      u"Контекст переполнен" not in res_ctx["text"])
+
+MODE["name"] = "ctx_always"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+res_ctx2 = backend({"id": "ctx000000002", "kind": "api",
+                    "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"если сжатие не помогло — честный текст, а не бесконечный цикл",
+      u"[Контекст переполнен]" in res_ctx2["text"])
+check(u"попыток сжатия ровно столько, сколько разрешено",
+      len(ALL_REQUESTS) == AB.MAX_HISTORY_SHRINKS + 1)
+check(u"неудачная усадка ничего не записала в историю",
+      H.load_messages(BASE, "ctx000000002") == [])
+
+# ---------------------------------------------------------------------------
 # 6) Пустой ответ
 # ---------------------------------------------------------------------------
 MODE["name"] = "empty"
@@ -363,8 +573,160 @@ check(u"5xx отдаётся спящему режиму (повтор имее�
       AB.pop_rate_limit_status() == 503)
 
 # ---------------------------------------------------------------------------
+# 7a) Обрыв ответа: повтор и спасение уже пришедшего действия
+#
+# Самый частый вид отказа по ключу и самый дорогой из бывших: сетевой сбой
+# раньше НЕ повторялся вовсе (describe_api_error отдавал None), а обрывок
+# ответа выбрасывался, хотя пользователь только что видел его в панели.
+# ---------------------------------------------------------------------------
+check(u"сетевой сбой теперь уходит в повтор, а не теряет запрос",
+      AB.describe_api_error(oc.TransportError(u"обрыв TLS при чтении потока"),
+                            u"OpenRouter", u"m/test")[1] == rate_limit.TRANSPORT)
+check(u"неверный ключ по-прежнему НЕ повторяется (повтор бессмыслен)",
+      AB.describe_api_error(oc.AuthError(u"Invalid API key"),
+                            u"OpenRouter", u"m/test")[1] is None)
+
+# Обрыв на объяснении: действия нет — нужен честный повтор.
+AB.pop_rate_limit_status()
+MODE["name"] = "cut_in_prose"
+res_cut = backend({"id": "cutprose0001", "kind": "api",
+                   "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"молчаливый обрыв больше не выдаётся за готовый ответ",
+      u"[Обрыв ответа]" in res_cut["text"] and res_cut["action"] is None)
+check(u"обрыв отдаётся спящему режиму как сетевой сбой",
+      AB.pop_rate_limit_status() == rate_limit.TRANSPORT)
+check(u"оборванный ответ НЕ попал в историю как полный",
+      H.load_messages(BASE, "cutprose0001") == [])
+check(u"пришедшая часть ответа не потеряна — она в сообщении",
+      u"свериться со счётчиком" in res_cut["text"])
+
+# Обрыв ПОСРЕДИ JSON действия: блок не закрыт, спасать нечего.
+AB.pop_rate_limit_status()
+MODE["name"] = "cut_in_action"
+res_cut_act = backend({"id": "cutaction001", "kind": "api",
+                       "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"обрыв посреди JSON действия НЕ выдаётся за действие",
+      res_cut_act["action"] is None and u"[Обрыв ответа]" in res_cut_act["text"])
+check(u"незакрытый блок тоже уходит в повтор",
+      AB.pop_rate_limit_status() == rate_limit.TRANSPORT)
+check(u"рваное действие не попало в историю",
+      H.load_messages(BASE, "cutaction001") == [])
+
+# Обрыв ПОСЛЕ целого блока действия: повторять нечего, работу надо забрать.
+AB.pop_rate_limit_status()
+MODE["name"] = "cut_after_action"
+res_rescue = backend({"id": "rescue000001", "kind": "api",
+                      "provider": "custom", "model": "m/test"}).send(
+    u"почини прыжок", cancel_cb=lambda: False)
+check(u"целое действие из обрывка спасено, а не выброшено",
+      isinstance(res_rescue["action"], dict)
+      and res_rescue["action"].get("action") == "patch_file"
+      and res_rescue["action"].get("path") == "res://player.gd")
+check(u"спасённый ответ НЕ уходит в повтор (он уже пригоден)",
+      AB.pop_rate_limit_status() is None)
+check(u"пользователь предупреждён, что ответ неполный",
+      u"оборвалась" in res_rescue["text"])
+check(u"спасённый ответ выглядит как обычный: заглушка блока на месте",
+      AB.ACTION_PLACEHOLDER.strip() in res_rescue["text"])
+check(u"спасённый ответ записан в историю целой парой",
+      len(H.load_messages(BASE, "rescue000001")) == 2)
+check(u"расход токенов у спасённого ответа не выдумывается",
+      res_rescue["usage"] is None and u"tok" not in res_rescue["text"])
+
+# ---------------------------------------------------------------------------
 # 8) Отмена
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 7b) Ротация ключей: квота считается НА КЛЮЧ
+#
+# Главная польза для бесплатных тарифов: когда первый ключ упёрся в суточную
+# квоту, второй ключ того же провайдера работает как ни в чём не бывало. Смена
+# ключа мгновенна, поэтому пробовать её надо ДО того, как уходить в паузу.
+# ---------------------------------------------------------------------------
+RK1 = "sk-or-v1-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+RK2 = "sk-or-v1-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+api_keys.set_base_url("openrouter", "http://127.0.0.1:%d/v1" % PORT)
+api_keys.set_key("openrouter", RK1)
+api_keys.add_key("openrouter", RK2)
+ROT_REC = {"id": "rot000000001", "kind": "api",
+           "provider": "openrouter", "model": "m/test"}
+
+MODE["name"] = "rot_ok"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+del AUTH_SEEN[:]
+AB.pop_rate_limit_status()
+res_rot = AB.ApiBackend(ROT_REC, BASE, system_text_provider=lambda: SYS,
+                        max_tokens=1000).send(u"вопрос", cancel_cb=lambda: False)
+check(u"после исчерпания первого ключа ответ получен вторым",
+      isinstance(res_rot["action"], dict))
+check(u"запросов было два: по одному на ключ", len(ALL_REQUESTS) == 2)
+check(u"первый запрос ушёл ПЕРВЫМ ключом",
+      AUTH_SEEN[0] == "Bearer " + RK1)
+check(u"второй запрос ушёл ВТОРЫМ ключом — ротация настоящая",
+      AUTH_SEEN[1] == "Bearer " + RK2)
+check(u"смена ключа НЕ уводит сервер в паузу (она мгновенна)",
+      AB.pop_rate_limit_status() is None)
+check(u"пользователю сказано про смену ключа — это факт про деньги",
+      u"перешёл на" in res_rot["text"])
+check(u"в пометке названа причина, а не просто «исчерпан»",
+      u"суточная квота" in res_rot["text"])
+check(u"сырых ключей в тексте для панели нет",
+      RK1 not in res_rot["text"] and RK2 not in res_rot["text"])
+check(u"исчерпанный ключ выпал из кандидатов и в следующий раз не пробуется",
+      [k for _i, k in api_keys.usable_keys("openrouter")] == [RK2])
+
+# Сервис лежит — ключ менять НЕЛЬЗЯ, иначе все ключи объявятся исчерпанными
+# из-за чужой поломки.
+api_keys.clear_key_cooldowns("openrouter")
+MODE["name"] = "rot_server"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+AB.pop_rate_limit_status()
+res_rs = AB.ApiBackend(ROT_REC, BASE, system_text_provider=lambda: SYS,
+                       max_tokens=1000).send(u"вопрос", cancel_cb=lambda: False)
+check(u"на 5xx ключи НЕ перебираются", len(ALL_REQUESTS) == 1)
+check(u"5xx по-прежнему уходит в спящий режим",
+      AB.pop_rate_limit_status() == 503)
+check(u"ни один ключ не объявлен исчерпанным из-за поломки сервиса",
+      len(api_keys.usable_keys("openrouter")) == 2)
+check(u"про смену ключа ничего не сказано", u"перешёл на" not in res_rs["text"])
+
+# Все ключи исчерпаны — честное перечисление, а не «поверьте на слово».
+MODE["name"] = "rot_all"
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+AB.pop_rate_limit_status()
+res_ra = AB.ApiBackend(ROT_REC, BASE, system_text_provider=lambda: SYS,
+                       max_tokens=1000).send(u"вопрос", cancel_cb=lambda: False)
+check(u"перебраны оба ключа и не больше", len(ALL_REQUESTS) == 2)
+check(u"суточная квота не уводит в бесполезный сон",
+      AB.pop_rate_limit_status() is None)
+check(u"оба ключа помечены исчерпанными",
+      api_keys.usable_keys("openrouter") == [])
+
+# Следующий запрос при пустом списке кандидатов: ни одного обращения к сети.
+CALLS["n"] = 0
+del ALL_REQUESTS[:]
+res_spent = AB.ApiBackend(ROT_REC, BASE, system_text_provider=lambda: SYS,
+                          max_tokens=1000).send(u"вопрос", cancel_cb=lambda: False)
+check(u"при исчерпанных ключах запрос к провайдеру не уходит вовсе",
+      len(ALL_REQUESTS) == 0)
+check(u"текст отличает «ключи кончились» от «ключ не задан»",
+      u"[Ключи кончились]" in res_spent["text"]
+      and u"не задан ключ" not in res_spent["text"])
+check(u"перечислены оба ключа масками", res_spent["text"].count(u"•") == 2)
+check(u"предложена смена модели — модель закреплена за чатом",
+      u"другой модели" in res_spent["text"])
+check(u"сырых ключей в объяснении нет",
+      RK1 not in res_spent["text"] and RK2 not in res_spent["text"])
+
+api_keys.clear_key_cooldowns("openrouter")
+api_keys.set_key("openrouter", "")
+api_keys.set_base_url("openrouter", "")
+
 MODE["name"] = "slow"
 state = {"n": 0}
 
