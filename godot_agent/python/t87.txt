@@ -1,0 +1,48 @@
+﻿python : Traceback (most recent call last):
+строка:1 знак:1
++ python tests/test_v87_1_kimi_cdp.py 2>&1 | Out-File -Encoding UTF8 t8 ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\vajno\Godot\ЄхёЄ-яырушэр-шш\addons\Godot_agent\godot_agent\python\browser\net_monitor.py", line 358, in _fet
+ch_and_apply_body
+    raw_bytes = base64.b64decode(raw)
+  File "C:\Users\Lich\AppData\Local\Python\pythoncore-3.14-64\Lib\base64.py", line 85, in b64decode
+    return binascii.a2b_base64(s, strict_mode=validate)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+binascii.Error: Incorrect padding
+OK   test_connect_frame_roundtrip
+OK   test_connect_frame_multi_and_truncated
+FAIL test_block_assembly_matches_real_capture -> [Errno 2] No such file or directory: '/data/qwen_repro/chat_code_objs.pkl'
+FAIL test_split_text_and_action -> [Errno 2] No such file or directory: '/data/qwen_repro/chat_code_objs.pkl'
+OK   test_split_text_and_action_no_fence
+OK   test_confirm_sent_forwards_element_not_swallowed_by_retries
+[kimi_parser] Єхыю юЄтхЄр ЁрчюсЁрэю: ърфЁют=1, фышэр_ЄхъёЄр=37, message_status=None, generating=True
+[kimi_parser] чряЁюё req-1 чртхЁ°╕э (юЄтхЄ чръЁ√Є схч  тэюую ёЄрЄєёр чртхЁ°хэш ), generating ёсЁю°хэ
+OK   test_on_loading_finished_does_not_deadlock_the_read_loop
+[kimi_parser] Network.getResponseBody failed: Timed out waiting for CDP response to Network.getResponseBody
+[kimi_parser] чряЁюё req-1 чртхЁ°╕э (getResponseBody єяры), generating ёсЁю°хэ
+OK   test_on_loading_finished_failure_does_not_hang_generating_forever
+[kimi_parser] ю°шсър ЁрчсюЁр Єхыр юЄтхЄр (25 срщЄ): Error('Incorrect padding')
+[kimi_parser] чряЁюё req-1 чртхЁ°╕э (ю°шсър ЁрчсюЁр Єхыр), generating ёсЁю°хэ
+OK   test_on_loading_finished_recovers_from_bad_frame_decode
+[kimi_parser] Єхыю юЄтхЄр ЁрчюсЁрэю: ърфЁют=1, фышэр_ЄхъёЄр=37, message_status=None, generating=True
+[kimi_parser] чряЁюё req-1 чртхЁ°╕э (юЄтхЄ чръЁ√Є схч  тэюую ёЄрЄєёр чртхЁ°хэш ), generating ёсЁю°хэ
+OK   test_on_loading_finished_resets_generating_when_no_completion_seen
+[kimi_parser] Єхыю чряЁюёр req-OLD єёЄрЁхыю (ръЄштхэ req-NEW) - яЁюяєёър■
+[kimi_parser] чряЁюё req-OLD чртхЁ°╕э (ЄхёЄ), эю ръЄштхэ єцх req-NEW - ёюёЄю эшх эх ЄЁюур■
+OK   test_stale_request_body_does_not_clobber_new_request
+[kimi_parser] цштющ ёЄЁшь Єхыр тъы■ў╕э фы  req-1 (сєЇхЁ 0 срщЄ)
+[kimi_parser] эют√щ чряЁюё ъ ChatService/Chat: req-1 (с√ы ръЄштэ√ь: None)
+[kimi_parser] ёЄЁшь Єхыр чртхЁ°╕э: фышэр_ЄхъёЄр=23, message_status=MESSAGE_STATUS_GENERATING, generating=True, эхЁрчюсЁрээ√щ їтюёЄ=0 срщЄ
+[kimi_parser] чряЁюё req-1 чртхЁ°╕э (юЄтхЄ чръЁ√Є схч  тэюую ёЄрЄєёр чртхЁ°хэш ), generating ёсЁю°хэ
+OK   test_generating_resets_when_stream_truncated_at_generating
+OK   test_read_loop_survives_socket_silence
+OK   test_confirm_sent_treats_new_chat_post_as_sent
+OK   test_decode_connect_frames_partial_keeps_tail
+[kimi_parser] цштющ ёЄЁшь Єхыр тъы■ў╕э фы  req-1 (сєЇхЁ 0 срщЄ)
+[kimi_parser] эют√щ чряЁюё ъ ChatService/Chat: req-1 (с√ы ръЄштэ√ь: None)
+[kimi_parser] ёЄЁшь Єхыр чртхЁ°╕э: фышэр_ЄхъёЄр=23, message_status=MESSAGE_STATUS_COMPLETED, generating=False, эхЁрчюсЁрээ√щ їтюёЄ=0 срщЄ
+OK   test_streaming_body_captured_live
+2 test(s) FAILED

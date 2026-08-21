@@ -1,0 +1,178 @@
+﻿┴√ёЄЁ√щ Ёхцшь: ёхъЎшш 1-13 (ЇєэфрьхэЄ) яЁюяє∙хэ√. ╧юыэ√щ яЁюуюэ: python selfcheck.py --full
+
+--- 14) v51: ярЁёхЁ: рэЄш-фєсы№ ёЄрЁюую юЄтхЄр ---
+OK   - 14.1 wait_for_new_answer ёюфхЁцшЄ рэЄш-фєсы№
+OK   - 14.2 л╧ырэ ┴╗ ёюфхЁцшЄ рэЄш-фєсы№
+[t14] рэЄш-фєсы№: яЁюўшЄрэ ╥╬╥ ╞┼ юЄтхЄ, ўЄю с√ы фю юЄяЁртъш, эют√ї Ёхяышъ ьюфхыш эхЄ Ч цфє эрёЄю ∙шщ эют√щ юЄтхЄ.
+OK   - 14.3 фєсы№ ёЄрЁюую юЄтхЄр ═┼ тючтЁр∙рхЄё  Ч фюцфрыё  эютюую
+OK   - 14.4 эют√щ юЄтхЄ юЄфрэ эх Ёрэ№°х хую яю тыхэш 
+OK   - 14.5 юцшфрэшх эх є°ыю т ЄрщьрєЄ
+OK   - 14.6 юфшэръют√щ яютЄюЁэ√щ юЄтхЄ (эютр  Ёхяышър) яЁшэшьрхЄё 
+OK   - 14.7 яютЄюЁэ√щ юЄтхЄ яЁшэ Є с√ёЄЁю, схч ЄрщьрєЄр
+[t14] рэЄш-фєсы№: яЁюўшЄрэ ╥╬╥ ╞┼ юЄтхЄ, ўЄю с√ы фю юЄяЁртъш, эют√ї Ёхяышъ ьюфхыш эхЄ Ч цфє эрёЄю ∙шщ эют√щ юЄтхЄ.
+OK   - 14.8 схч эютюую юЄтхЄр Ч TimeoutError, р эх фєсы№
+
+--- 15) v52: _resolve_safe_path: symlink-юсїюф ўхЁхч realpath ---
+OK   - 15.1 _resolve_safe_path шёяюы№чєхЄ realpath, р эх abspath
+OK   - 15.2 ёшьтышэъ тэєЄЁш яЁюхъЄр, тхфє∙шщ эрЁєцє, сыюъшЁєхЄё 
+OK   - 15.3 юс√ўэ√щ тэєЄЁшяЁюхъЄэ√щ яєЄ№ тё╕ х∙╕ ЁрсюЄрхЄ
+OK   - 15.4 ъырёёшўхёъшщ ../ тё╕ х∙╕ сыюъшЁєхЄё 
+
+--- 16) v53: ярЁёхЁ: рэЄш-фєсы№ яЁш яхЁхёЄЁющъх DOM ---
+OK   - 16.1 ьрЁъхЁ√ v53 т шёїюфэшъх
+[t16] рэЄш-фєсы№: яЁюўшЄрэ ╥╬╥ ╞┼ юЄтхЄ, ўЄю с√ы фю юЄяЁртъш, эют√ї Ёхяышъ ьюфхыш эхЄ Ч цфє эрёЄю ∙шщ эют√щ юЄтхЄ.
+OK   - 16.2 яЁш єцрЄшш DOM ёЄрЁ√щ юЄтхЄ эх тючтЁр∙рхЄё  Ч фюцфрыё  эютюую
+OK   - 16.3 эют√щ юЄтхЄ юЄфрэ эх Ёрэ№°х хую яю тыхэш 
+[t16] рэЄш-фєсы№: яЁюўшЄрэ ╥╬╥ ╞┼ юЄтхЄ, ўЄю с√ы фю юЄяЁртъш, эют√ї Ёхяышъ ьюфхыш эхЄ Ч цфє эрёЄю ∙шщ эют√щ юЄтхЄ.
+OK   - 16.4 сюыхх ёЄрЁ√щ юЄтхЄ (шч ярь Єш тючтЁр∙╕ээ√ї) эх тючтЁр∙рхЄё 
+[t16] рэЄш-фєсы№: яЁюўшЄрэ ╥╬╥ ╞┼ юЄтхЄ, ўЄю с√ы фю юЄяЁртъш, эют√ї Ёхяышъ ьюфхыш эхЄ Ч цфє эрёЄю ∙шщ эют√щ юЄтхЄ.
+OK   - 16.5 схч эютюую юЄтхЄр Ч TimeoutError, р эх фєсы№
+OK   - 16.6 юфшэръют√щ яютЄюЁэ√щ юЄтхЄ (эютр  Ёхяышър) яЁшэшьрхЄё 
+OK   - 16.7 яютЄюЁ яЁшэ Є с√ёЄЁю, схч ЄрщьрєЄр
+
+--- 17) v54: т√сюЁ тъырфъш ёрщЄр (эх ўєцющ ўрЄ) ---
+OK   - 17.1 Єхъє∙р  тъырфър ётюхую ёрщЄр эх яюфьхэ хЄё  яхЁтющ яюярт°хщё 
+OK   - 17.2 prefer_url яхЁхъы■ўрхЄ эр тъырфъє ё Єюўэ√ь рфЁхёюь ўрЄр
+OK   - 17.3 ё ўєцющ ёЄЁрэшЎ√ яхЁхъы■ўрхЄё  эр тъырфъє ёрщЄр
+OK   - 17.4 эхёє∙хёЄтє■∙шщ рфЁхё ўрЄр Ч юёЄр╕ьё  эр Єхъє∙хщ тъырфъх ёрщЄр
+OK   - 17.5 ъюэтхщхЁ юЄяЁртъш яхЁхфр╕Є рфЁхё ўрЄр (prefer_url) яю тёхщ Ўхяюўъх
+OK   - 17.6 эртшурЎш  ўрЄют яхЁхшёяюы№чєхЄ єцх юЄъЁ√Єє■ тъырфъє
+
+--- 18) v55: tscn_lint: эхшёяюы№чєхь√щ ЁхёєЁё / ётющёЄтю ўхЁхч Єюўъє ---
+OK   - 18.1 эхшёяюы№чєхь√щ PackedScene яющьрэ (яюфёърчър яЁю instance=)
+OK   - 18.2 ёЎхэр ё єчыюь-¤ъчхьяы Ёюь яЁюїюфшЄ схч чрьхўрэшщ
+OK   - 18.3 эхшёяюы№чєхь√щ sub_resource яющьрэ
+OK   - 18.4 ётющёЄтю лўхЁхч Єюўъє╗ (mesh.size) яющьрэю
+OK   - 18.5 ьрЁъхЁ√ v55 т tscn_lint.py
+
+--- 19) v56: цштр  ыхэЄр ш лфєьрэ№х╗ ьюфхыш (ёЄрЁ√щ ЄхъёЄ т яЁхт№■) ---
+OK   - 19.1 ьрЁъхЁ√ v56 т wait_for_new_answer
+OK   - 19.2 шЄюуют√щ Ёхчєы№ЄрЄ Ч эют√щ (яЁртшы№э√щ) юЄтхЄ
+OK   - 19.3 ёЄрЁ√щ юЄтхЄ ═┼ яюяры т цштє■ ыхэЄє (preview/stream) тю тЁхь  лфєьрхЄ╗
+OK   - 19.4 эют√щ юЄтхЄ яюърчрэ т цштющ ыхэЄх, ъюуфр юэ Ёхры№эю яю тшыё 
+OK   - 19.5 тю тЁхь  лфєьрхЄ╗ юЄяЁрты хЄё  Їрчр льюфхы№ фєьрхЄЕ╗, р эх ляш°хЄ юЄтхЄ╗
+
+--- 20. v57: mini-lich (ыюъры№эр  эхщЁюёхЄ№-яюью∙эшъ) ---
+OK   - 20.1 ЄюъхэшчрЄюЁ: encode/decode схч яюЄхЁ№ (тъы. ъшЁшыышЎє)
+OK   - 20.2 юсєўхэшх: loss ярфрхЄ
+OK   - 20.3 ўхъяюшэЄют їЁрэшЄё  эх сюы№°х 3, ёрь√щ ётхцшщ эр ьхёЄх
+OK   - 20.4 тючюсэютыхэшх: чруЁєцхэ яюёыхфэшщ °ру ш Єю цх ўшёыю ярЁрьхЄЁют
+OK   - 20.5 фхфєяышърЎш : юфшэръютр  ярЁр тЄюЁющ Ёрч эх чряшё√трхЄё 
+OK   - 20.6 ЁхЇыхъё: эхшёяюы№чєхь√щ PackedScene яюыєўрхЄ єчхы-¤ъчхьяы Ё ш яЁюїюфшЄ ышэЄхЁ
+OK   - 20.7 ЁхЇыхъё: mesh.size яхЁхэхёхэю тэєЄЁ№ [sub_resource] ш ышэЄхЁ фютюыхэ
+OK   - 20.8 ьєёюЁ эх ўшэшЄё  Ч тючтЁр∙рхЄё  None
+[minilich] +1 юсєўр■∙шщ яЁшьхЁ (ёыюьрэю->шёяЁртыхэю, тёхую: 4) Ч Їрщы: C:\Users\Lich\AppData\Local\Temp\agent_selfcheck_j1mxko4n\.agent_history\minilich\dataset.jsonl
+OK   - 20.9 цштр  ярЁр ёыюьрэю/шёяЁртыхэю яюярфрхЄ т фрЄрёхЄ (фшёЄшыы Ўш )
+OK   - 20.10 ёшэЄхЄшър шч ёЎхэ яЁюхъЄр ухэхЁшЁєхЄё  ш яЁюїюфшЄ тхЁшЇшърЎш■ ышэЄхЁюь
+OK   - 20.11 шэфхъё яЁюхъЄр яюёЄЁюхэ, яюшёъ эрїюфшЄ player.tscn
+OK   - 20.12 describe_for_prompt фр╕Є ъюьяръЄэє■ ётюфъє фы  яЁюьяЄр
+[minilich-train] [15:48:44] ╫хъяюшэЄют эхЄ (C:\Users\Lich\AppData\Local\Temp\agent_selfcheck_j1mxko4n\.agent_history\minilich\checkpoints_smart) Ч юсєўхэшх эрўшэрхЄё  ё эєы .
+OK   - 20.13 train_steps юсєўрхЄ ш ёюїЁрэ хЄ ўхъяюшэЄ
+OK   - 20.14 ёЄрЄєё: яю єьюыўрэш■ т√ъы■ўхэю, яюы  эр ьхёЄх
+OK   - 20.15 урыюўър тъы■ўрхЄё  ш ёюёЄю эшх ёюїЁрэ хЄё  эр фшёъх
+OK   - 20.16 ьрЁъхЁ√ v57 т main.py (їєъ ышэЄхЁр + ЁюєЄ√)
+OK   - 
+
+--- 21) v58: юЄтхЄ эр Ёхт№■ Gemini Ч repetition penalty / ёЄЁєъЄєЁшЁютрээ√щ think / юсЁхчър ъюэЄхъёЄр ---
+OK   - 21.1 repetition penalty т√ъы■ўхэ (1.0): црфэ√щ яюшёъ яютЄюЁ хЄ юфшэ Єюъхэ
+OK   - 21.2 repetition penalty тъы■ўхэ: Ўшъы ЁрчюЁтрэ, Єюъхэ√ Ёрчэ√х
+OK   - 21.3 think-яырэ Ёрёяючэр╕Є missing_resource
+OK   - 21.4 think-яырэ Ёрёяючэр╕Є dotted_property
+OK   - 21.5 юсєўр■∙р  яюёыхфютрЄхы№эюёЄ№: яырэ т <think> тїюфшЄ т чюэє юЄтхЄр
+OK   - 21.6 юсЁхчър ъюэЄхъёЄр: юёЄрышё№ ёыюьрээ√щ єчхы + ЁюфшЄхы№, ыш°эшх єчы√ єсЁрэ√
+OK   - 21.7 ё°штър ЇЁруьхэЄр: эхшчьхэ╕ээ√щ ЇЁруьхэЄ тюёёЄрэртыштрхЄ шёїюфэє■ ёЎхэє Єюўэю
+OK   - 21.8 ьрЁъхЁ√ v58 т шёїюфэшърї mini-lich (think-яырэ, юсЁхчър ъюэЄхъёЄр, repetition penalty)
+OK   - 21.9 v59: ъэюяър эрёЄЁюхъ фюсртыхэр Ё фюь ё  ч√ъют√ь яхЁхъы■ўрЄхыхь эр ёЄрЁЄютюь ¤ъЁрэх
+OK   - 21.10 v59 сруЇшъё: урыюўър mini-lich чр∙ш∙хэр юЄ уюэъш ёЄрЄєёр т юўхЁхфш
+OK   - 21.11 v60: эрёЄЁющъш схч фєсышЁє■∙хуюё  чруюыютър TabContainer
+OK   - 21.12 v60: ю°шсър minilich тшфэр яюы№чютрЄхы■ тьхёЄю Єшїюую ртЄючряєёър
+OK   - 21.13 v60: /minilich/status ш /minilich/set яхўрЄр■Є т ъюэёюы№
+OK   - 21.14 v61: ъэюяър люсєўхэшх╗ схч юЄфхы№эюую юъэр ш схч ЄрщьхЁр-юяЁюёўшър
+OK   - 21.15 v61: ml_train._log яхўрЄрхЄ т ъюэёюы№ ёхЁтхЁр
+OK   - 21.16 v62: ъэюяър люсєўхэшх╗ ръЄштэю чряєёърхЄ юсєўхэшх, р эх Єюы№ъю ёяЁр°штрхЄ ёЄрЄєё
+OK   - 21.17 v63: т√сюЁ ўрЄр юсЁхчрхЄё  ¤ыышяёшёюь ш эх ё·хфрхЄ ъэюяъш
+OK   - 21.18 v63: /minilich/status ш /minilich/set яхўрЄр■Є training_active т ъюэёюы№
+[minilich-train] [15:48:44] ╬сєўхэшх mini-lich чряє∙хэю.
+[minilich-train] [15:48:44] ╠ючу: яЁюЇшы№ лsmart╗ (юъэю 1024, °шЁшэр 128).
+[minilich-train] [15:48:44] ▌Єрыюээ√х ёЎхэ√: +9 юсєўр■∙шї ярЁ, +9 чрьюЁюцхээ√ї ¤ъчрьхэют (тёхую ¤ъчрьхэют: 9).
+[minilich-train] [15:48:44] ╫хъяюшэЄют эхЄ (C:\Users\Lich\AppData\Local\Temp\ml64_vdibfclk\.agent_history\minilich\checkpoints_smart) Ч юсєўхэшх эрўшэрхЄё  ё эєы .
+OK   - 21.19 v64: enabled=True схч ЄєьсыхЁр ёрь тюёъЁх°рхЄ ЄЁхэшЁютъє
+[minilich-train] [15:48:45] ╬сєўхэшх юёЄрэютыхэю.
+OK   - 21.20 v64: main.py яхЁхфр╕Є addon_dir т minilich.status()
+OK   - 21.21 v65: nastoyashchaya oshibka zapuska obucheniya teper ne pryachetsya
+OK   - 21.22 v65: main.py pechataet start_error ot minilich v konsol
+OK   - 21.23 v66: build_server_exe.bat bundles numpy into the exe
+OK   - 21.24 v66: console explicitly shows new examples and train steps
+OK   - 21.25 v67: ekzamen Ч model sama perechinivaet primery iz dataseta
+[minilich] ьючу яхЁхэхё╕э т яряъє яырушэр: C:\Users\Lich\AppData\Local\Temp\ml26addonk2qq0pkz\minilich_brain
+OK   - 21.26 v68: mozg zhivyot v papke plagina i pereezzhaet avtomaticheski
+OK   - 21.27 v69: galochka rezhima obucheniya + temperatura + marafon
+OK   - 21.28 v70: marafon s progressom i limitom vremeni + ekzamen na polnoy scene + /set bez enabled
+OK   - 21.29 v71: marafon ~1 popytka/sek (limit 100 sek) + zagotovka qwen_parser v sites.py
+OK   - 21.30 v72: tscn_lint lovit pravki ischeznuvshih uzlov vnutri instansa (has vanished)
+OK   - 21.31 v73: qwen_parser boevye selektory + similarity v ekzamene
+OK   - 21.32 v74: tscn_lint lovit CollisionShape2D bez fizicheskogo tela-roditelya
+OK   - 21.33 v75: qwen_parser vshit v exe (staticheskiy import + hidden-import) i gruzitsya po id
+OK   - 21.34 v76: qwen ne prinimaet prostoy tekst za JSON-deystvie, no nakhodit nastoyashchiy blok
+OK   - 21.35 v78: tscn_lint lovit nezakrytuyu skobku v znachenii svoystva, mnogostrochnye slovari ne trogaet
+OK   - 21.36 v78: lint trebuet sozdat otsutstvuyushchiy fayl iz ext_resource; planned_paths plana eto razreshaet
+OK   - 21.37 v78: stuhshaya para pomechaetsya stale i poluchaet novyy otvet source=self (teacher_fixed sohranyon)
+OK   - 21.38 v78: similarity po simvolam >90% pri zamene odnogo slova + kandidat-amputatsiya otvergaetsya
+OK   - 21.39 v79: trim_pair_for_context rezhet paru sinhronno po fokusu problemy + trener uchit fragmenty + ekzamen 3 kategorii + sat-log
+OK   - 21.40 v80: linter lovit propushchennyy "=", stroku bez kavychek i neizvestnuyu sekciyu razom
+OK   - 21.41 v80: parent="WrongParent" i connection to="NotHere" -> problems; instance-sceny ne trogaem
+OK   - 21.42 v80: dashboard-stranitsa + zhurnal servera + v80-wait-before-send v parsere
+OK   - 21.43 v81: ЁрчсюЁ ёё√ыюъ эр ЁхяючшЄюЁшш + Їшы№ЄЁ format=3 ш ъырёёют Godot 3
+OK   - 21.44 v81: эют√х тшф√ яюЁўш (схч '=', схч ърт√ўхъ) тшфэ√ ышэЄхЁє, срчр ўшёЄр 
+OK   - 21.45 v84: юсєўхэшх эр ёЎхэрї ё GitHub + ьрЁ°ЁєЄ + ъэюяър т ярэхыш (схч яхЁхъы■ўрЄхы  яЁюЇшы  ьючур)
+OK   - 21.46 v82: ёЎхэр ё 5 яЁюяє∙хээ√ьш ю°шсърьш ЄхяхЁ№ ыютшЄё  Ўхышъюь
+OK   - 21.47 v82: трышфэр  ёЎхэр (PackedScene-instance, ЁхёєЁё√, ўшёыр ё ¤ъёяюэхэЄющ) эх ЇырурхЄё 
+OK   - 21.48 v83: тЄюЁр  ыютє°ър юЄ Gemini (10 ю°шсюъ) Ч тёх эют√х тшф√ яющьрэ√
+OK   - 21.49 v83: трышфэр  ёЎхэр (эюЁьры№эюх шь , sub_resource ё type, юс√ўэ√щ ьхЄюф) эх ЇырурхЄё 
+OK   - 21.50 v84: с√ёЄЁ√щ яЁюЇшы№ ьючур єсЁрэ Ч лєьэ√щ╗ хфшэёЄтхээ√щ, схч яхЁхъы■ўрЄхы  т ярэхыш
+
+--- 22) v85: hard-example mining / AdamW+clip+lr-schedule / ыєў°шщ ўхъяюшэЄ ---
+OK   - 22.1 ъюЁчшэ√: fail=[0,3] (яЁютры/эхшчтхёЄэю), easy=[1,2] (<=ьхфшрэ√)
+OK   - 22.1b ъюЁчшэ√: rare єўшЄ√трхЄ ўрёЄюЄє ърЄхуюЁшш (ЄєЄ тёх ърЄхуюЁшш яюЁютэє Ч тёх т rare)
+OK   - 22.2 _pick_weighted_index: r=0.1->fail(7), r=0.6->rare(8), r=0.9->easy(9)
+OK   - 22.3 тёх ъюЁчшэ√ яєёЄ√х -> fallback эр фшрярчюэ(n), эх ярфрхЄ
+OK   - 22.4 lr warmup: °ру 1 ьхэ№°х °рур LR_WARMUP_STEPS (яшъ)
+OK   - 22.4b lr эр яшъх warmup ~= base_lr
+OK   - 22.4c lr т ёхЁхфшэх ёярфр ьхцфє яюыюь ш яшъюь
+OK   - 22.4d lr яюёых LR_DECAY_STEPS фхЁцшЄё  эр яюыє LR_MIN_RATIO*base_lr
+OK   - 22.5 adam_step: ёЄрЁ√х т√чют√ (схч weight_decay/clip_norm) шфхэЄшўэ√ эют√ь фхЇюыЄрь
+OK   - 22.6 adam_step: ё эєыхт√ьш уЁрфшхэЄрьш weight_decay>0 єьхэ№°рхЄ эюЁьє тхёр ёшы№эхх, ўхь decay=0
+OK   - 22.7 adam_step: clip_norm=1.0 яЁш юуЁюьэ√ї уЁрфшхэЄрї фр╕Є фЁєує■ (шэє■) ЄЁрхъЄюЁш■, ўхь схч ъышяяшэур
+OK   - 22.8 ьрыхэ№ъшщ фрЄрёхЄ (<VALID_MIN_POOL): validation яєёЄ, тё╕ єїюфшЄ т train
+OK   - 22.9 сюы№°ющ фрЄрёхЄ: valid эх яєёЄ, valid+train == тхё№ яєы, valid <= VALID_MAX_SIZE
+OK   - 22.9b яютЄюЁэ√щ т√чют фр╕Є шфхэЄшўэ√щ split (фхЄхЁьшэшчь яю ї¤°є ярЁ√)
+[minilich-train] [15:48:45] ╧ЁютхЁър эр юЄыюцхээюь эрсюЁх (1 яЁшьхЁют): valid_fix_rate=40%.
+[minilich-train] [15:48:45] ═ют√щ ыєў°шщ ўхъяюшэЄ яю valid_fix_rate: 40% (°ру 0).
+[minilich-train] [15:48:45] ╧ЁютхЁър эр юЄыюцхээюь эрсюЁх (1 яЁшьхЁют): valid_fix_rate=30%.
+[minilich-train] [15:48:45] ╧ЁютхЁър эр юЄыюцхээюь эрсюЁх (1 яЁшьхЁют): valid_fix_rate=70%.
+[minilich-train] [15:48:45] ═ют√щ ыєў°шщ ўхъяюшэЄ яю valid_fix_rate: 70% (°ру 0).
+OK   - 22.10 ыєў°шщ ўхъяюшэЄ ёючфрэ яюёых яхЁтюую чрьхЁр (0.4) ш Їрщы ckpt_best.npz ёє∙хёЄтєхЄ
+OK   - 22.10b їєф°шщ Ёхчєы№ЄрЄ (0.3) ═┼ яхЁхчряшё√трхЄ ыєў°шщ (0.4)
+OK   - 22.10c ыєў°шщ Ёхчєы№ЄрЄ (0.7) юсэюты хЄ ыєў°шщ ўхъяюшэЄ
+
+--- 23) v86: ¤Єрыюээ√х ёЎхэ√ (яюёЄю ээр  ярь Є№) / MAX_SCENE_CHARS=30000 / MAX_DATASET_BYTES=20MB ---
+OK   - 23.1 MAX_SCENE_CHARS яюфэ Є фю 30000
+OK   - 23.1b MAX_DATASET_BYTES яюфэ Є фю 20 ╠ш┴
+OK   - 23.2 сєЄёЄЁря ¤Єрыюэют: 9 юсєўр■∙шї ярЁ ш 9 ¤ъчрьхэют эр ўшёЄюь яЁюхъЄх
+OK   - 23.2b тёх 3 ърэюэшўхёъшх ёЎхэ√ ёюїЁрэхэ√ эртёхуфр т їЁрэшыш∙х ьючур
+OK   - 23.2c яютЄюЁэ√щ сєЄёЄЁря эшўхую эх фюсрты хЄ (шфхьяюЄхэЄэюёЄ№)
+OK   - 23.2d тёх 9 ¤Єрыюээ√ї ярЁ шчэрўры№эю mastered=False
+OK   - 23.3 тёх 9 ¤Єрыюээ√ї ярЁ яюёых юсЁхчъш яюьх∙р■Єё  т юъэю n_ctx=1024
+OK   - 23.4 яЁш яхЁхяюыэхэшш ышьшЄр тёх 9 эхчр∙ш∙╕ээ√ї ¤Єрыюээ√ї ярЁ т√цштр■Є, р ёЄрЁ√х live-ярЁ√ т√Єхёэ ■Єё 
+OK   - 23.5 mark_pair_mastered: ёЄЁюър ёюїЁрэхэр (mastered=True), эю эх єфрыхэр
+OK   - 23.5b т√єўхээр  эршчєёЄ№ ярЁр яЁюярыр шч load_reference_pairs(only_unmastered=True)
+OK   - 23.6 _select_validation_pairs шёъы■ўрхЄ mastered-ярЁ√ шч юс∙хую яєыр
+OK   - 23.6b яєы ьрЁрЇюэр шёъы■ўрхЄ mastered-ярЁ√
+OK   - 23.7 яютЄюЁэр  чряшё№ ¤ъчрьхэр ё Єхь цх ref_key эшўхую эх фюсрты хЄ
+OK   - 23.7b чрьюЁюцхээ√х ¤ъчрьхэ√ эх єўрёЄтє■Є т load_pairs (юсєўхэшш)
+OK   - 23.8 цєЁэры ¤ъчрьхэют ЁхцхЄ шёЄюЁш■ фю REFERENCE_LOG_MAX_PER_KEY чряшёхщ
+OK   - 23.9 юсЁхчър ёЎхэ√ эх юёЄрты хЄ ёё√ыъє SubResource схч юс· тыхэш  ёрьюую ЁхёєЁёр
+OK   - 23.10 PhysicalBone2D яЁшчэрэ трышфэ√ь тырфхы№Ўхь CollisionShape2D
+OK   - 23.10b PhysicalBone3D яЁшчэрэ трышфэ√ь тырфхы№Ўхь CollisionShape3D
+[minilich-train] [15:48:46] ╫хъяюшэЄют эхЄ (C:\Users\Lich\AppData\Local\Temp\agent_selfcheck_ha7i8p1i\.agent_history\minilich\checkpoints_smart) Ч юсєўхэшх эрўшэрхЄё  ё эєы .
+[minilich-train] [15:56:34] ▌ъчрьхэ ярь Єш ¤Єрыюэют: 0/9 (Ёхчєы№ЄрЄ Єюы№ъю т ыюух, эр юсєўхэшх эх тыш хЄ).

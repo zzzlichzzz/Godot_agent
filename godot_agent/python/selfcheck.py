@@ -482,7 +482,7 @@ try:
 
     create_project_file(root, "res://demo.tscn", good_scene)
     desc = describe_scene(root, "res://demo.tscn")
-    check("describe_scene показыва��т корень и детей сцены",
+    check("describe_scene показывает корень и детей сцены",
           "Root" in desc and "Icon" in desc and "Sprite2D" in desc, desc[:200])
 
     # --- v42: реальный кейс из быстрой/слабой модели (DeepSeek) --- sub_resource
@@ -530,7 +530,7 @@ try:
     fixed_po, problems_po = tscn_lint.lint_and_fix_tscn(node_parent_later_scene)
     check("v45: узел с parent, объявленным позже в файле, автоматически переставляется",
           fixed_po.find(chr(34)+"Level"+chr(34)) < fixed_po.find(chr(34)+"Enemy"+chr(34)), fixed_po)
-    check("v45: после перестан����������вки ложная жалоба на ненайденный parent исчезает",
+    check("v45: после перестановки ложная жалоба на ненайденный parent исчезает",
           not any("не найден" in p for p in problems_po), problems_po)
 
     node_parent_missing_scene = ('[gd_scene load_steps=1 format=3]\n\n'
@@ -710,7 +710,7 @@ try:
     open(os.path.join(root, "x.gd"), "w").write("extends Node\n")
     srv.STATE["fs_snapshot"] = None
     srv.STATE["fs_snapshot_root"] = None
-    check("первый вызов — ��напшот снят, заметки нет",
+    check("первый вызов — снапшот снят, заметки нет",
           srv._external_changes_note(root) == "" and srv.STATE["fs_snapshot"] is not None)
     os.remove(os.path.join(root, "x.gd"))
     note = srv._external_changes_note(root)
@@ -831,13 +831,13 @@ _bat_v29 = open(os.path.join(_here, "build_server_exe.bat"), encoding="utf-8", e
 check("бат удаляет старый медленный exe после сборки", 'del "dist' in _bat_v29)
 check("бат остался в формате CRLF", open(os.path.join(_here, "build_server_exe.bat"), "rb").read().count(b"\r\n") == open(os.path.join(_here, "build_server_exe.bat"), "rb").read().count(b"\n"))
 
-# v30: сайт DeepSeek + выбор парсера по сайту + быстрый п��вторный запуск сервера
+# v30: сайт DeepSeek + выбор парсера по сайту + быстрый повторный запуск сервера
 import sites as _sites
 check("сайт DeepSeek зарегистрирован",
       (_sites.get_site("deepseek") or {}).get("parser") == "deepseek_parser"
       and (_sites.detect_site("https://chat.deepseek.com/a/chat/s/abc") or {}).get("id") == "deepseek"
       and (_sites.detect_site("https://aistudio.google.com/prompts/new_chat") or {}).get("id") == "aistudio")
-check("выбо�� парсера по сайту ��а——отает",
+check("выбор парсера по сайту работает",
       _sites.get_parser_module("deepseek").__name__ == "deepseek_parser"
       and _sites.get_parser_module("aistudio").__name__ == "ai_parser"
       and _sites.get_parser_module(None, "https://chat.deepseek.com/").__name__ == "deepseek_parser"
@@ -864,7 +864,7 @@ check("панель: повторный запуск сервера без ми�
       and "Поиск и запуск сервера занял" in _gd_link30
       and _gd_link30.count("_server_start_attempted = false") >= 2)
 
-# v31: менеджер пар��инга (базовый класс) + наследники
+# v31: менеджер парсинга (базовый класс) + наследники
 import parser_base as _pb
 import ai_parser as _aip
 check("менеджер парсинга: общий конвейер в BaseSiteParser",
@@ -1027,7 +1027,7 @@ check("страховка (план В): поиск JSON-действия в с�
       and "_find_action_json_candidates" in _pb38.BaseSiteParser.send_message_and_get_response.__code__.co_names)
 _cands38 = _pb38._find_action_json_candidates(
     'Текст перед действием.agent_action\n{"action": "read_file", "paths": ["res://a.gd"], "note": "скобка } внутри строки"}\nТекст после.')
-check("план В: корректно вырезает JSON �� учётом фигурных скобок внутри строк",
+check("план В: корректно вырезает JSON с учётом фигурных скобок внутри строк",
       len(_cands38) == 1 and _cands38[0].startswith('{"action"')
       and _cands38[0].endswith('}'))
 _ap38 = open(os.path.join(_here, "server", "agent_prompts.py"), encoding="utf-8").read()
@@ -1037,7 +1037,7 @@ _ap38_low = _ap38.lower()
 check("промпт: явный запрет одинарной котировки для agent_action",
       "не оборачивай json одинарной обратной" in _ap38_low)
 
-# v39: кнопка ручного запуска в v37 сидела в одной стро��е с языковым
+# v39: кнопка ручного запуска в v37 сидела в одной строке с языковым
 # переключателем и заголовком, в узкой пристёгнутой панели HBoxContainer
 # сжимал/обрезал содержимое, и кнопка становилась невидима/недоступной даже когда
 # сервер был остановлен и кнопка была visible = true. Кнопка/подсказка вынесены
@@ -1103,7 +1103,7 @@ check("стартовый экран: ребилд UI (смена языка) о
       "_loading_server_btn = null" in _ss41 and "_loading_server_hint = null" in _ss41)
 
 # v45(2): системная заметка (откат/отказ/завершение шага плана) теперь привязана
-# к chat_id того чата, где произошло действие, а не к общему серве��ному состоянию —
+# к chat_id того чата, где произошло действие, а не к общему серверному состоянию —
 # иначе новый/чужой чат мог получить чужой откат первым же своим сообщением.
 print("\n--- 8) v45: заметка об откате/действии привязана к своему чату ---")
 
@@ -1188,7 +1188,7 @@ check("tscn: обрыв посередине строки (нечётные ка
 # main.py: после исчерпания самоисцеления битое write-действие ОТБРАСЫВАЕТСЯ
 # с явным «файл НЕ был изменён» и заметкой для модели (а не уходит в pending_action).
 _m46 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
-check("main.py: битое действие после ��счерпания попыток отбрасывается с «файл НЕ был изменён»",
+check("main.py: битое действие после исчерпания попыток отбрасывается с «файл НЕ был изменён»",
       "ОТБРОШЕНО: файл НЕ был изменён" in _m46)
 check("main.py: модель получает заметку «не считай правки применёнными»",
       "Не считай эти правки" in _m46)
@@ -1217,7 +1217,7 @@ check("to_snake: Wall_North -> wall_north, AnimationPlayer -> animation_player",
       and _sd47.to_snake("AnimationPlayer") == "animation_player")
 
 # сцена: корень со скриптом, внутри Area3D «DangerZone». В скрипте есть
-# обработчик по ша��лону редактора — должно ОДНОЗНАЧНО добавиться [connection].
+# обработчик по шаблону редактора — должно ОДНОЗНАЧНО добавиться [connection].
 create_project_file(root, "res://deps_main.gd",
     "extends Node3D\n\nfunc _on_danger_zone_body_entered(body):\n\tpass\n")
 _deps_scene = (
@@ -1394,7 +1394,7 @@ check("gd_functions: последняя функция файла извлека
 
 # main.py: read_function встроен в пакетное чтение и цепочку подтверждений.
 _m48 = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
-check("main.py: read_function принимается как действие чтения и обрабатывается ����тдельной веткой",
+check("main.py: read_function принимается как действие чтения и обрабатывается отдельной веткой",
       '("read_file", "read_files", "read_function")' in _m48
       and "def _read_functions_part(" in _m48
       and "_read_functions_part(project_root, f)" in _m48)
@@ -1529,7 +1529,7 @@ mesh = CapsuleMesh.new()
 """
 
 _fixed50, _probs50 = _tl50.lint_and_fix_tscn(_scene50)
-check("tscn v50: сцена и�� бага пользователя чинится без вопросов к модели",
+check("tscn v50: сцена из бага пользователя чинится без вопросов к модели",
       _probs50 == [], repr(_probs50)[:200])
 check("tscn v50: .new() полностью убран из починенной сцены",
       ".new(" not in _fixed50)
@@ -1904,7 +1904,7 @@ check("18.1 неиспользуемый PackedScene пойман (подска�
 # б) с узлом-экземпляром — проблем нет
 _SC18_OK = _SC18_BASE + '\n[node name="Player" parent="." instance=ExtResource("2_player")]\n'
 _f18b, _p18b = _tl18.lint_and_fix_tscn(_SC18_OK)
-check("18.2 сцена �� узлом-экземпляром проходит без замечаний", _p18b == [])
+check("18.2 сцена с узлом-экземпляром проходит без замечаний", _p18b == [])
 
 # в) неиспользуемый sub_resource
 _SC18_SUB = _SC18_OK.replace('[sub_resource type="PlaneMesh" id="auto_planemesh_1"]',
@@ -1940,7 +1940,7 @@ class _FP19(_pb19.BaseSiteParser):
         self._t0 = _t19m.time()
         self._reveal_after = reveal_after
         self._finish_after = finish_after
-        self._old_text = "ста��ый ответ модели"
+        self._old_text = "старый ответ модели"
         self._new_text_mid = "новый ответ: пишу"
         self._new_text_final = "новый ответ: пишу готово"
         self.seen_previews = []
@@ -2089,7 +2089,7 @@ check("20.7 рефлекс: mesh.size перенесено внутрь [sub_res
       "size = Vector2(60, 60)" in (_healed20d or ""), repr(_healed20d)[:140])
 
 # 20.8 мусор не чинится — честный None (задача штатно уходит большой модели)
-check("20.8 мусор н���� чинится — возвращается None",
+check("20.8 мусор не чинится — возвращается None",
       _mlf20.try_fix_scene("абракадабра", ["непонятная проблема"], _root20b, None) is None)
 
 # 20.9 живая пара: сломано → большая модель прислала рабочую версию → пара в датасете
@@ -2180,7 +2180,7 @@ check("21.3 think-план распознаёт missing_resource", "missing_reso
 _plan_d21 = _mlf20.think_plan_text(_p20d)
 check("21.4 think-план распознаёт dotted_property", "dotted_property" in _plan_d21, _plan_d21)
 
-# 21.5 план внутри <think> — часть ОбучАемой зоны ответа (а не входного к��нтекста)
+# 21.5 план внутри <think> — часть ОбучАемой зоны ответа (а не входного контекста)
 _ids21, _ans21 = _mlf20.build_training_ids("BROKEN", _p20a, "FIXED")
 _decoded21 = _tok20.decode(_ids21[_ans21:], skip_specials=False)
 check("21.5 обучающая последовательность: план в <think> входит в зону ответа",
@@ -2297,7 +2297,7 @@ if os.path.isdir(_gdir23):
 else:
     check("21.16 v62: кнопка «обучение» активно запускает обучение", True, "папка godot рядом не найдена — проверка проигнорирована")
 
-# 21.17 v63: выбор чата обрезает длинные на��вани�� эллипсисом и не вытесняет
+# 21.17 v63: выбор чата обрезает длинные названия эллипсисом и не вытесняет
 # кнопки за край панели, когда панель уже центра экрана.
 if os.path.isdir(_gdir23):
     check("21.17 v63: выбор чата обрезается эллипсисом и не съедает кнопки",
@@ -2832,7 +2832,7 @@ _sc49 = '\n'.join([
     '',
 ])
 _p49 = tscn_lint.lint_and_fix_tscn(_sc49)[1]
-check("21.49 v83: валид��ая сцена (нормальное имя, sub_resource с type, обычный метод) не флагается",
+check("21.49 v83: валидная сцена (нормальное имя, sub_resource с type, обычный метод) не флагается",
       _p49 == [], repr(_p49))
 
 from minilich import ml_train as _mt50
@@ -2861,7 +2861,7 @@ check("21.50 v84: быстрый профиль мозга убран — «ум
 # РАЗДЕЛ 22 (v85): hard-example mining (50/30/20), AdamW+clip+warmup/cosine lr,
 # отложенный набор и чекпоинт «лучший по valid_fix_rate»
 # ===========================================================================
-print("\n--- 22) v85: hard-example mining / AdamW+clip+lr-schedule / лучший чекпо��нт ---")
+print("\n--- 22) v85: hard-example mining / AdamW+clip+lr-schedule / лучший чекпоинт ---")
 
 import minilich.ml_train as _mt51
 from minilich import ml_data as _md51
@@ -3073,7 +3073,7 @@ _unmastered60 = _md51.load_reference_pairs(_root60, only_unmastered=True)
 check("23.5 mark_pair_mastered: строка сохранена (mastered=True), но не удалена",
       _changed60 == 1 and len(_still_present60) == 1 and _still_present60[0].get("mastered") is True,
       _still_present60)
-check("23.5b выученная наизусть ��ара пропала из load_reference_pairs(only_unmastered=True)",
+check("23.5b выученная наизусть пара пропала из load_reference_pairs(only_unmastered=True)",
       len(_unmastered60) == 8 and _some_key60 not in [e["ref_key"] for e in _unmastered60], len(_unmastered60))
 
 # 23.6 выученные наизусть эталонные пары не участвуют в отборе на обучение/валидацию/экзамен/марафон

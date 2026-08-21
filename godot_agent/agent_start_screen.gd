@@ -34,6 +34,11 @@ signal api_models_refresh_requested(provider: String, free_only: bool)
 signal api_models_scan_requested(force: bool)
 signal api_test_requested(provider: String, model: String)
 signal new_api_chat_requested(provider: String, model: String)
+# Продолжить УЖЕ ОТКРЫТЫЙ чат по ключу на другой модели. Отдельный сигнал от
+# new_api_chat_requested намеренно: там создаётся новый чат с пустой историей,
+# здесь переписка сохраняется. Одно неверное подключение — и пользователь
+# теряет работу вместо смены модели.
+signal api_chat_model_requested(provider: String, model: String)
 
 const URL_BOOSTY := "https://boosty.to/zzzlichzzz"
 const URL_TIPS := "https://pay.cloudtips.ru/p/50d418af"
@@ -104,7 +109,16 @@ var _api_ready_note: Label = null
 var _api_test_state: Label = null
 var _api_cfg_path: Label = null
 var _api_start_btn: Button = null
+var _api_switch_btn: Button = null
+# Модель ОТКРЫТОГО чата по ключу или "" — если открыт браузерный чат либо не
+# открыт никакой. Заполняется панелью (set_api_switch_target): стартовый экран
+# сам про открытый чат не знает и знать не должен.
+var _api_switch_from := ""
 var _api_data: Dictionary = {}
+# Недавно выбранные пары {provider, model}, свежие первыми — приходят с сервера
+# (api_keys.get_recent). Панель их только показывает: пишет их тот, кто знает,
+# что модель действительно закрепили за чатом, — сервер.
+var _api_recent: Array = []
 # ---- Диалог выбора провайдера ----
 # Отдельным окном по центру редактора, а не списком внутри дока: док шириной
 # 250–400 px не вмещает карточку с названием, пометками и описанием сразу.
@@ -118,6 +132,13 @@ var _api_data: Dictionary = {}
 # кнопки даёт четырнадцать провайдеров на экран, а высота списка перестаёт
 # зависеть от того, сколько про провайдера известно.
 var _api_pick_dialog: AcceptDialog = null
+# Откуда открыто окно. false — из настроек работы по ключу: выбор запоминается
+# как провайдер по умолчанию для СЛЕДУЮЩЕГО нового чата. true — кнопкой выбора
+# нейросети в самом чате: тогда выбранная модель применяется к ОТКРЫТОМУ чату, и
+# человек продолжает писать в нём же (переписка сохраняется, см. /chats/model).
+# Два разных смысла одного окна: список моделей и пометки о ключах одни и те же,
+# а второе такое окно было бы вторым источником правды о том, что доступно.
+var _api_pick_for_chat: bool = false
 var _api_pick_list: VBoxContainer = null
 var _api_pick_search: LineEdit = null
 var _api_pick_empty: Label = null
@@ -315,6 +336,7 @@ func _rebuild_ui() -> void:
 	# показ диалога упал бы, как когда-то падал статус-бар, получавший имя
 	# AgentStatusBar2 вместо прежнего.
 	_api_pick_dialog = null
+	_api_pick_for_chat = false
 	_api_pick_list = null
 	_api_pick_search = null
 	_api_pick_empty = null
@@ -916,6 +938,26 @@ func _build_api_view(root: Node) -> void:
 		_api_start_btn.icon = T.first_icon(["Add", "Script"])
 	_api_view.add_child(_api_start_btn)
 
+	# ---- Продолжить ОТКРЫТЫЙ чат на этой модели ----
+	# Отдельная кнопка, а не режим первой: это разные действия с разными
+	# последствиями. «Начать чат» создаёт новый с пустой историей, «Продолжить»
+	# сохраняет переписку и меняет только модель. Спутать их — потерять работу.
+	#
+	# Видна ТОЛЬКО когда открыт чат по ключу (см. set_api_switch_target). Иначе
+	# продолжать нечего, а кнопка, которая всегда на месте и обычно не работает,
+	# приучает не читать надписи.
+	_api_switch_btn = Button.new()
+	_api_switch_btn.text = _t("api_switch_model")
+	_api_switch_btn.tooltip_text = _t("api_switch_model_tip")
+	_api_switch_btn.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
+	_api_switch_btn.size_flags_horizontal = SIZE_EXPAND_FILL
+	_api_switch_btn.visible = false
+	_api_switch_btn.pressed.connect(_on_api_switch_model)
+	if T:
+		T.style_button(_api_switch_btn, "neutral", false)
+		_api_switch_btn.icon = T.first_icon(["Reload", "ArrowRight", "Play"])
+	_api_view.add_child(_api_switch_btn)
+
 
 func _make_header(text: String) -> HFlowContainer:
 	var T = _T()
@@ -1179,6 +1221,11 @@ func set_api_settings(json: Dictionary) -> void:
 	# вовсе, и панель должна просто не показывать строку о каталоге, а не падать.
 	if typeof(json.get("catalog")) == TYPE_DICTIONARY:
 		_api_catalog = json["catalog"]
+	# Недавние модели приходят с настройками. Проверка типа обязательна: со
+	# старым сервером поля нет вовсе, и тогда список просто не сортируется по
+	# недавности, а не падает.
+	if typeof(json.get("recent")) == TYPE_ARRAY:
+		_api_recent = json["recent"]
 	_api_ensure_catalog_on()
 	_api_filling = true
 	_api_provider_ids.clear()
@@ -1370,14 +1417,32 @@ func _on_api_detail_key_save() -> void:
 	if key == "":
 		set_status(_t("api_key_empty"), "error")
 		return
-	api_settings_save_requested.emit({"provider": pid, "key": key})
+	# add_key, а НЕ key. Разница принципиальная: key на сервере заменяет весь
+	# список одним ключом, и попытка завести второй аккаунт стирала бы первый.
+	# Замена как отдельное действие не нужна вовсе — это крестик плюс добавление.
+	api_settings_save_requested.emit({"provider": pid, "add_key": key})
+	# Поле чистим сами: ответ сервера перестроит карточку, и оставленный в поле
+	# ключ выглядел бы как «не сохранилось», хотя он уже в списке.
+	_api_detail_key.text = ""
 
 
-func _on_api_detail_key_delete() -> void:
+func _on_api_key_row_delete(index: int) -> void:
+	# Удаление ОДНОГО ключа по его позиции в списке. Панель сырых ключей не
+	# видит, поэтому отправить сам ключ она не может — только номер.
+	var pid := _api_detail_built_for
+	if pid == "" or index < 0:
+		return
+	api_settings_save_requested.emit({"provider": pid, "delete_key_index": index})
+
+
+func _on_api_keys_reset() -> void:
+	# «Пробовать заново»: снять пометки «исчерпан». Пользователь знает про свои
+	# квоты то, чего не знает агент (пополнил баланс, наступило утро), и обязан
+	# иметь возможность это сказать, не удаляя ключи.
 	var pid := _api_detail_built_for
 	if pid == "":
 		return
-	api_settings_save_requested.emit({"provider": pid, "key": ""})
+	api_settings_save_requested.emit({"provider": pid, "clear_cooldowns": true})
 
 
 func _on_api_detail_models_refresh() -> void:
@@ -1447,6 +1512,22 @@ func set_api_models(provider: String, models: Array, models_info: Array = []) ->
 # ---------------------------------------------------------------------------
 
 func _on_api_pick_open() -> void:
+	# Открыто из настроек работы по ключу: выбор станет провайдером по умолчанию.
+	_api_pick_for_chat = false
+	_api_pick_show()
+
+
+func open_chat_provider_pick() -> void:
+	"""Панель просит выбрать нейросеть для ОТКРЫТОГО чата (кнопка под вводом).
+
+	То же окно и тот же список, что в настройках, но выбор применяется к чату:
+	человек продолжает писать в нём же, а не начинает новый.
+	"""
+	_api_pick_for_chat = true
+	_api_pick_show()
+
+
+func _api_pick_show() -> void:
 	if _api_pick_dialog == null or not is_instance_valid(_api_pick_dialog):
 		_api_build_pick_dialog()
 	_api_pick_dialog.title = _t("api_pick_title")
@@ -2371,10 +2452,20 @@ func _api_show_detail() -> void:
 	# Недоступного провайдера нельзя выбрать: он всё равно отклонит запрос, а
 	# «выбрал и не работает» выглядит поломкой плагина, а не ограничением сервиса.
 	pick.disabled = blocked
-	if not blocked:
+	# ТОЛЬКО ЧТО ЗАВЕДЁННЫЙ ПРОВАЙДЕР: модели у него ещё нет ни одной выбранной.
+	# Для ОТКРЫТОГО ЧАТА эта кнопка тогда ничего сделать не может — переход
+	# требует модели, — и раньше она отвечала «модель не выбрана» строкой в
+	# нижней полосе, которую легко не заметить: получался тупик, из которого
+	# человек выходил пересозданием чата. Теперь ответ написан на самой кнопке, и
+	# он же говорит, что делать: нажать модель в списке справа ниже.
+	if _api_pick_for_chat and not blocked and str(rec.get("model", "")) == "":
+		pick.disabled = true
+		pick.text = _t("api_pick_need_model")
+		pick.tooltip_text = _t("api_pick_need_model_tip")
+	if not pick.disabled:
 		pick.pressed.connect(_on_api_pick_choose.bind(pid))
 	if T:
-		T.style_button(pick, "dim" if blocked else "accent", false)
+		T.style_button(pick, "dim" if pick.disabled else "accent", false)
 		pick.icon = T.first_icon(["StatusSuccess", "Play"])
 	_api_detail.add_child(pick)
 
@@ -2416,14 +2507,35 @@ func _api_build_detail_key(rec: Dictionary, keep_key: String = "") -> void:
 	# В карточке провайдера поле стоит рядом с его названием и описанием — и
 	# заводить ключи можно хоть трём сервисам подряд, не меняя того, через кого
 	# работаешь сейчас.
+	#
+	# КЛЮЧЕЙ МОЖЕТ БЫТЬ НЕСКОЛЬКО. Квота бесплатных тарифов считается НА КЛЮЧ, а
+	# не на модель: когда у первого ключа кончается суточный лимит, второй
+	# аккаунт того же сервиса работает как ни в чём не бывало, и агент переходит
+	# на него сам. Поэтому здесь СПИСОК, а поле ввода ДОПИСЫВАЕТ ключ, а не
+	# заменяет: замена стирала бы первый ключ при попытке завести второй — ровно
+	# та ловушка, из-за которой список и появился.
 	var T = _T()
 	var env := str(rec.get("key_source", "")) == "env"
+	var keys: Array = rec.get("keys", [])
+	var spent_total := int(rec.get("keys_spent", 0))
 	var cap := Label.new()
-	cap.text = _t("api_key")
+	# Скобки обязательны: без них «%» связывается сильнее тернарника, и читающему
+	# приходится вспоминать приоритеты вместо того, чтобы видеть смысл.
+	cap.text = (_t("api_key") if keys.size() <= 1
+		else (_t("api_keys_title") % keys.size()))
 	cap.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	cap.size_flags_horizontal = SIZE_EXPAND_FILL
 	cap.add_theme_color_override("font_color", _color("accent"))
 	_api_detail.add_child(cap)
+
+	# Список уже заведённых ключей: маска и состояние. Строится только для
+	# ключей из файла — ключ из переменной окружения показывается подписью ниже,
+	# и удалять его мы не вправе (он задан снаружи плагина).
+	if not env:
+		for item in keys:
+			if typeof(item) != TYPE_DICTIONARY:
+				continue
+			_api_build_key_row(item)
 
 	# Ключ из переменной окружения: поля нет вовсе. Показать пустое поле рядом с
 	# «ключ задан переменной окружения» значило бы предложить перезаписать то,
@@ -2450,20 +2562,28 @@ func _api_build_detail_key(rec: Dictionary, keep_key: String = "") -> void:
 			T.style_input(_api_detail_key)
 		row.add_child(_api_detail_key)
 		var save := Button.new()
-		save.text = _t("api_key_save")
+		# Подпись зависит от того, есть ли уже ключи: пока их нет, «Добавить»
+		# звучало бы странно, а когда есть — «Сохранить» врало бы про замену.
+		save.text = (_t("api_key_save") if keys.is_empty()
+			else _t("api_key_add"))
+		save.tooltip_text = _t("api_key_add_tip")
 		save.pressed.connect(_on_api_detail_key_save)
 		if T:
 			T.style_button(save, "accent")
-			save.icon = T.first_icon(["Save", "FileList"])
+			save.icon = T.first_icon(["Add", "Save", "FileList"])
 		row.add_child(save)
-		var del := Button.new()
-		del.text = _t("api_key_delete")
-		del.tooltip_text = _t("api_key_delete_tip")
-		del.pressed.connect(_on_api_detail_key_delete)
-		if T:
-			T.style_button(del, "warning")
-			del.icon = T.first_icon(["Remove", "Close"])
-		row.add_child(del)
+		# «Пробовать заново» показывается только когда есть что сбрасывать.
+		# Кнопка, которая ничего не делает, — это вопрос «а что она делает?»
+		# на пустом месте.
+		if spent_total > 0:
+			var reset := Button.new()
+			reset.text = _t("api_keys_reset")
+			reset.tooltip_text = _t("api_keys_reset_tip")
+			reset.pressed.connect(_on_api_keys_reset)
+			if T:
+				T.style_button(reset, "warning")
+				reset.icon = T.first_icon(["Reload", "RotateLeft"])
+			row.add_child(reset)
 
 	# Состояние ключа словами и с маской: «ключ есть» пометкой выше отвечает на
 	# «есть или нет», а здесь видно, КАКОЙ именно — по последним символам можно
@@ -2471,6 +2591,12 @@ func _api_build_detail_key(rec: Dictionary, keep_key: String = "") -> void:
 	var state := ""
 	if env:
 		state = _t("api_key_from_env") % str(rec.get("masked", ""))
+	elif keys.size() > 1 and spent_total >= keys.size():
+		# Все выдохлись. Это НЕ «ключа нет»: вписывать нечего, и совет нужен
+		# совсем другой — добавить ещё один или сбросить пометки.
+		state = _t("api_keys_all_spent") % keys.size()
+	elif keys.size() > 1 and spent_total > 0:
+		state = _t("api_keys_some_spent") % [spent_total, keys.size()]
 	elif bool(rec.get("configured", false)):
 		state = _t("api_key_set") % str(rec.get("masked", ""))
 	elif bool(rec.get("needs_key", true)):
@@ -2478,6 +2604,67 @@ func _api_build_detail_key(rec: Dictionary, keep_key: String = "") -> void:
 	else:
 		state = _t("api_key_optional")
 	_api_hint(_api_detail, state)
+
+
+func _api_build_key_row(item: Dictionary) -> void:
+	# Одна строка списка: маска, состояние, крестик.
+	#
+	# УДАЛЕНИЕ ПО ПОЗИЦИИ, а не по значению ключа. Панель сырых ключей не видит
+	# никогда (это главный инвариант api_keys на сервере), поэтому отправить ключ
+	# обратно она физически не может — только его номер в списке.
+	var T = _T()
+	var idx := int(item.get("index", -1))
+	var row := HFlowContainer.new()
+	row.size_flags_horizontal = SIZE_EXPAND_FILL
+	_api_detail.add_child(row)
+
+	var name_lbl := Label.new()
+	name_lbl.text = str(item.get("masked", ""))
+	name_lbl.size_flags_horizontal = SIZE_EXPAND_FILL
+	row.add_child(name_lbl)
+
+	var spent := bool(item.get("spent", false))
+	var st := Label.new()
+	st.text = _api_key_state_text(item)
+	# Исчерпанный ключ выделен цветом, а не только словом: в списке из трёх
+	# строк глазу нужен признак, который читается без чтения. Второй цвет —
+	# именно "dim": имён цветов в теме ровно восемь (agent_theme._COLOR_MAP), и
+	# выдуманное имя даёт белый текст и предупреждение в консоли редактора.
+	st.add_theme_color_override("font_color",
+		_color("warning") if spent else _color("dim"))
+	row.add_child(st)
+
+	var del := Button.new()
+	del.text = ""
+	del.tooltip_text = _t("api_key_row_delete_tip")
+	del.pressed.connect(func(): _on_api_key_row_delete(idx))
+	if T:
+		T.style_button(del, "warning")
+		del.icon = T.first_icon(["Remove", "Close"])
+	row.add_child(del)
+
+
+func _api_key_state_text(item: Dictionary) -> String:
+	# Состояние одного ключа словами. Причина исчерпания приходит от провайдера
+	# («free-models-per-day», «insufficient credits») и показывается как есть:
+	# пересказывать её своими словами значило бы терять то, что сказал сервис.
+	if not bool(item.get("spent", false)):
+		return _t("api_key_state_ok")
+	var why := str(item.get("reason", "")).strip_edges()
+	var text := ((_t("api_key_state_spent_why") % why) if why != ""
+		else _t("api_key_state_spent"))
+	# Срок показывается ТОЛЬКО если его назвал провайдер (until > 0). Своих
+	# догадок про сброс суточной квоты сервер не делает и панель не должна.
+	var until := float(item.get("until", 0.0))
+	if until > 0.0:
+		var left := int(until - Time.get_unix_time_from_system())
+		if left > 0:
+			# Единицы времени тоже из локали: зашитые «мин»/«с» дали бы смесь
+			# языков в английском интерфейсе.
+			var human := ((_t("api_key_mins") % maxi(1, left / 60)) if left >= 60
+				else (_t("api_key_secs") % left))
+			text += ", " + (_t("api_key_retry_in") % human)
+	return text
 
 
 func _api_add_badge(parent: Node, text: String, tone: String) -> void:
@@ -2705,6 +2892,74 @@ func _api_detail_filtered(source: Array) -> Array:
 				and not bool(rec.get("catalog_free", false)):
 			continue
 		out.append(rec)
+	_api_sort_models(out)
+	return out
+
+
+# ---------------------------------------------------------------------------
+# ПОРЯДОК МОДЕЛЕЙ В СПИСКЕ ПРОВАЙДЕРА.
+#
+# У одного провайдера их бывает четыреста, и алфавит для выбора нейросети
+# бесполезен: он ставит рядом gpt-3.5 и gpt-5, а сверху — то, что начинается на
+# цифру. Порядок отвечает на вопросы в том порядке, в каком их задают:
+#
+#   1. «где то, чем я вчера работал» — недавно выбранные, свежие первыми;
+#   2. «что можно без денег»         — бесплатные выше платных (это решение уже
+#                                      было на сервере, здесь оно сохранено);
+#   3. «что новое»                   — по дате появления модели, новые выше;
+#   4. остальное                     — по имени, чтобы порядок был устойчивым.
+#
+# Дата берётся из ответа самого провайдера (created, см. providers.live_extras)
+# и есть не у всех. Модели без даты становятся ПОСЛЕ тех, про кого она известна:
+# выдумывать им дату значит перемешать их с настоящими новинками.
+# ---------------------------------------------------------------------------
+
+func _api_sort_models(models: Array) -> void:
+	# Список недавних считаем ОДИН раз: внутри сравнения он вызывался бы тысячи
+	# раз на каждую перерисовку (а она идёт на каждую букву в фильтре).
+	var recent := _api_recent_ids(_api_detail_built_for)
+	models.sort_custom(func(a, b): return _api_model_before(a, b, recent))
+
+
+func _api_model_before(a: Dictionary, b: Dictionary, recent: Array) -> bool:
+	var ra := _api_model_rank(a, recent)
+	var rb := _api_model_rank(b, recent)
+	for i in ra.size():
+		if ra[i] != rb[i]:
+			return ra[i] < rb[i]
+	return false
+
+
+func _api_model_rank(m: Dictionary, recent: Array) -> Array:
+	var mid := str(m.get("id", ""))
+	var idx := recent.find(mid)
+	var free := bool(m.get("free", false)) or bool(m.get("catalog_free", false))
+	return [
+		0 if idx >= 0 else 1,          # недавние — наверх
+		idx if idx >= 0 else 0,        # среди недавних — свежие раньше
+		0 if free else 1,              # бесплатные выше платных
+		-int(m.get("created", 0)),     # новые модели выше старых
+		mid,                           # устойчивый порядок при равных
+	]
+
+
+func _api_recent_ids(pid: String) -> Array:
+	# Имена моделей ЭТОГО провайдера из общего списка недавних, в том же
+	# порядке. Пары «провайдер + модель», а не просто модели: одинаковые имена
+	# встречаются у разных сервисов (deepseek-chat есть и у deepseek, и у
+	# openrouter), и без проверки провайдера список поднимал бы наверх модель у
+	# того, у кого её нет.
+	var out: Array = []
+	if pid == "":
+		return out
+	for item in _api_recent:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		if str(item.get("provider", "")) != pid:
+			continue
+		var mid := str(item.get("model", ""))
+		if mid != "" and not out.has(mid):
+			out.append(mid)
 	return out
 
 
@@ -2752,6 +3007,11 @@ func _api_model_tip(mid: String, m: Dictionary) -> String:
 	# контекста нет (или наоборот).
 	var lines: Array = []
 	lines.append(_t("api_pick_model_tip") % mid)
+	# Почему эта модель стоит наверху списка. Без объяснения порядок выглядит
+	# случайным, а «случайный» порядок в списке из четырёхсот строк заставляет
+	# перечитывать его целиком.
+	if _api_recent_ids(_api_detail_built_for).has(mid):
+		lines.append(_t("api_model_recent"))
 	if bool(m.get("deprecated", false)):
 		lines.append(_t("api_model_deprecated"))
 	else:
@@ -2904,6 +3164,32 @@ func _on_api_pick_choose(pid: String, model: String = "") -> void:
 		if _api_model_state:
 			_api_model_state.text = _t("api_model_current") % model
 			_api_model_state.add_theme_color_override("font_color", _color("dim"))
+	# Кнопка «продолжить открытый чат» зависит от ВЫБРАННОЙ модели, поэтому
+	# обновляется здесь же: выбрали ту же, что уже в чате — кнопке нечего делать.
+	_refresh_api_switch_btn()
+	if _api_pick_for_chat:
+		# Окно открыто из чата: выбор применяется к ОТКРЫТОМУ чату, и человек
+		# продолжает писать в нём же. Отдельного сохранения настроек тут не надо —
+		# сервер запомнит эту пару как предложение по умолчанию сам (/chats/model).
+		#
+		# Модель обязательна: без неё сервер отказывает запросу целиком. Нажали
+		# «Выбрать этого провайдера», не выбрав модель, — берём ту, что у
+		# провайдера уже записана; если и её нет, окно НЕ закрываем, потому что
+		# выбирать всё ещё нечего, и говорим об этом в нижней строке (статусная
+		# строка экрана не видна: под окном открыт чат, а не настройки).
+		var mid := model if model != "" else _api_model
+		if mid == "":
+			if _api_pick_note and is_instance_valid(_api_pick_note):
+				_api_pick_note.text = _t("api_model_unset")
+				_api_pick_note.tooltip_text = _api_pick_note.text
+				_api_pick_note.visible = true
+				_api_pick_note.add_theme_color_override("font_color", _color("warning"))
+			return
+		_api_pick_for_chat = false
+		if _api_pick_dialog and is_instance_valid(_api_pick_dialog):
+			_api_pick_dialog.hide()
+		api_chat_model_requested.emit(pid, mid)
+		return
 	if _api_pick_dialog and is_instance_valid(_api_pick_dialog):
 		_api_pick_dialog.hide()
 	# Выбор запоминается на сервере как провайдер по умолчанию. Иначе он жил бы
@@ -2945,6 +3231,39 @@ func _on_api_start_chat() -> void:
 		return
 	new_api_chat_requested.emit(
 		pid, _api_model)
+
+
+func _on_api_switch_model() -> void:
+	# Продолжить открытый чат на выбранной модели. Переписка сохраняется —
+	# решение принято пользователем осознанно, поэтому подтверждения нет: терять
+	# тут нечего, а обратное действие — та же кнопка с прежней моделью.
+	var pid := _api_current_provider()
+	if pid == "" or _api_model == "":
+		return
+	api_chat_model_requested.emit(pid, _api_model)
+
+
+func set_api_switch_target(model: String) -> void:
+	"""Панель сообщает, какая модель у ОТКРЫТОГО чата по ключу.
+
+	Пустая строка — открыт браузерный чат или не открыт никакой; тогда кнопки
+	«продолжить» нет вовсе. Стартовый экран про открытый чат не знает и не
+	должен: иначе он полез бы читать состояние панели и они разошлись бы.
+	"""
+	_api_switch_from = str(model)
+	_refresh_api_switch_btn()
+
+
+func _refresh_api_switch_btn() -> void:
+	if _api_switch_btn == null or not is_instance_valid(_api_switch_btn):
+		return
+	# Показываем только когда есть что продолжать И выбрана модель, отличная от
+	# текущей: кнопка «сменить модель на ту же самую» ничего не делает, и сервер
+	# на неё честно отвечает отказом — лучше её просто не показывать.
+	var can := _api_switch_from != "" and _api_model != "" and _api_model != _api_switch_from
+	_api_switch_btn.visible = can
+	if can:
+		_api_switch_btn.text = _t("api_switch_model_to") % _api_model
 
 
 func show_home() -> void:

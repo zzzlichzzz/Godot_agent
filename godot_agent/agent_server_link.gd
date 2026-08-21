@@ -25,6 +25,10 @@ const HOST = "127.0.0.1:5000"
 const CHATS_LIST_URL = "http://" + HOST + "/chats/list"
 const CHATS_NEW_URL = "http://" + HOST + "/chats/new"
 const CHATS_OPEN_URL = "http://" + HOST + "/chats/open"
+# Смена модели у УЖЕ открытого чата по ключу. Отдельный адрес от /chats/new
+# намеренно: там создаётся новый чат с пустой историей, а здесь переписка как
+# раз сохраняется — в этом весь смысл действия.
+const CHATS_MODEL_URL = "http://" + HOST + "/chats/model"
 const CHATS_RENAME_URL = "http://" + HOST + "/chats/rename"
 const CHATS_DELETE_URL = "http://" + HOST + "/chats/delete"
 const SITES_LIST_URL = "http://" + HOST + "/sites/list"
@@ -162,6 +166,7 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 	match kind:
 		"new": url = CHATS_NEW_URL
 		"open": url = CHATS_OPEN_URL
+		"chat_model": url = CHATS_MODEL_URL
 		"rename": url = CHATS_RENAME_URL
 		"delete": url = CHATS_DELETE_URL
 		"sites": url = SITES_LIST_URL
@@ -209,12 +214,15 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 		server_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)
 		if kind == "status":
 			return
-		if kind == "minilich_status" or kind == "minilich_set" or kind == "minilich_github" or kind.begins_with("api_"):
+		if kind == "minilich_status" or kind == "minilich_set" or kind == "minilich_github" or kind.begins_with("api_") or kind == "chat_model":
 			# Отдельная ветка: клик по галочке или кнопке настроек не должен
 			# незаметно пытаться автозапускать вторую копию сервера — важнее
 			# сразу показать панели ошибку (раньше это молча уходило в
 			# автозапуск, и галочка просто зависала в непонятном состоянии).
 			# Настройки API здесь по той же причине: ошибку надо видеть в форме.
+			# Смена модели — тоже: у неё есть отказы с кодом 400 (запрос, который
+			# панель сформировать не должна), и уводить их в автозапуск значит
+			# скрывать от себя же собственную ошибку.
 			chats_response.emit(kind, {"error": _t("srv_no_response") + " (HTTP " + str(response_code) + ")"}, extra)
 			return
 		if result == HTTPRequest.RESULT_TIMEOUT:
