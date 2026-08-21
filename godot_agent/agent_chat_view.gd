@@ -440,7 +440,22 @@ func add_code_preview(escaped_code: String) -> void:
 func show_status(phase: String, elapsed: int, chars: int) -> void:
 	if _status_bar and is_instance_valid(_status_bar):
 		if _status_bar.visible:
-			_status_bar.update_status(phase, elapsed, chars)
+			# СЕКУНДЫ СЧИТАЕТ САМА СТРОКА СТАТУСА, поэтому здесь -1 («не менять»).
+			#
+			# Раньше сюда уходило elapsed с сервера, и счётчик скакал 1, 0, 2, 0,
+			# 3, 0…: на один и тот же ярлык писали два независимых источника —
+			# собственный таймер строки (каждые 0.5 с, растёт) и ответ
+			# /chat/progress (раз в секунду). А сервер присылает elapsed НЕ
+			# всегда: на фазах «отправляю запрос» и «повтор через N с» поля в
+			# снимке нет вовсе, и панель превращала его отсутствие в честный ноль
+			# (json.get("elapsed", 0)). Плюс на сервере elapsed отсчитывается от
+			# начала ФАЗЫ, а не запроса, поэтому он ещё и прыгал назад при
+			# повторах и смене ключа.
+			#
+			# Часы синхронизируются один раз — при показе строки (show_status
+			# ниже ставит _start_time по серверному elapsed). Дальше время идёт
+			# ровно, как ему и положено: 1, 2, 3, 4, 5.
+			_status_bar.update_status(phase, -1, chars)
 		else:
 			_status_bar.show_status(phase, elapsed, chars)
 		return

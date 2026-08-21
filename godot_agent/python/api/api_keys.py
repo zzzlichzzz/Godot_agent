@@ -119,6 +119,15 @@ _DEFAULT_CONFIG = {
     # (ключ, модель или адрес). Второй список дублировал бы это состояние и
     # однажды разошёлся бы с ним.
     "catalog": {"enabled": False},
+    # НЕДАВНО ВЫБРАННЫЕ МОДЕЛИ — [{"provider": str, "model": str}], свежие
+    # первыми. Нужны, чтобы в списке из четырёхсот моделей то, чем человек
+    # работает, стояло сверху и не искалось заново каждый раз.
+    #
+    # Отдельный список, а не флажок на записи модели: моделей у провайдера
+    # сотни, они приходят из кэша живого ответа и переписываются при каждом
+    # обновлении списка — пометка «недавняя» на них не выжила бы. И это ПАРЫ:
+    # одно и то же имя модели бывает у нескольких провайдеров.
+    "recent": [],
 }
 
 
@@ -364,6 +373,19 @@ def _load():
         # исправно сохранялся бы и молча пропадал при каждом чтении, то есть
         # переключатель сбрасывался бы сам собой после перезапуска редактора.
         cfg["catalog"] = {"enabled": bool(data["catalog"].get("enabled"))}
+    if isinstance(data.get("recent"), list):
+        # Тоже разбирается ЗДЕСЬ (см. предупреждение в начале функции). Пары без
+        # обоих полей отбрасываются молча: список подсказок не то место, где
+        # стоит спорить с испорченным файлом.
+        recent = []
+        for item in data["recent"][:RECENT_LIMIT]:
+            if not isinstance(item, dict):
+                continue
+            pid = str(item.get("provider") or "").strip()
+            mid = str(item.get("model") or "").strip()
+            if pid and mid:
+                recent.append({"provider": pid, "model": mid})
+        cfg["recent"] = recent
     _cfg_cache["key"] = key
     _cfg_cache["value"] = cfg
     return copy.deepcopy(cfg)
@@ -946,6 +968,40 @@ def set_defaults(provider_id, model=""):
     cfg = _load()
     cfg["defaults"] = {"provider": str(provider_id or "").strip(),
                        "model": str(model or "").strip()}
+    return _save(cfg)
+
+
+# Сколько пар «провайдер + модель» помнить. Список нужен, чтобы поднять наверх
+# то, чем человек реально пользуется, а не чтобы вести журнал: десяти хватает на
+# любое разумное число моделей в работе, а длинный список сам стал бы свалкой,
+# в которой опять надо искать.
+RECENT_LIMIT = 10
+
+
+def get_recent():
+    u"""Недавно выбранные пары {provider, model} — свежие первыми."""
+    return [dict(item) for item in (_cfg().get("recent") or [])]
+
+
+def note_model_used(provider_id, model):
+    u"""Запомнить, что этой моделью начали работать.
+
+    Вызывается там, где модель ЗАКРЕПЛЯЕТСЯ за чатом (создание чата по ключу и
+    смена модели у открытого чата), а не там, где её просто посмотрели в списке:
+    иначе «недавние» заполнились бы всем, на что человек нажал из любопытства.
+
+    Хранится ПАРА, а не отдельная модель: одинаковые имена моделей встречаются у
+    разных провайдеров (deepseek-chat есть и у deepseek, и у openrouter), и без
+    провайдера список поднимал бы наверх модель у того, у кого её нет.
+    """
+    pid = str(provider_id or "").strip()
+    mid = str(model or "").strip()
+    if not pid or not mid:
+        return False
+    cfg = _load()
+    rest = [item for item in (cfg.get("recent") or [])
+            if not (item.get("provider") == pid and item.get("model") == mid)]
+    cfg["recent"] = ([{"provider": pid, "model": mid}] + rest)[:RECENT_LIMIT]
     return _save(cfg)
 
 

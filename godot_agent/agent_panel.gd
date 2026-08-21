@@ -12,8 +12,10 @@ extends Control
 @onready var confirm_button: Button = $VBoxContainer/PendingActionBox/ConfirmButton
 @onready var reject_button: Button = $VBoxContainer/PendingActionBox/RejectButton
 
-# Панель инструментов
-@onready var advanced_toggle_btn: Button = $VBoxContainer/AdvancedToggleBtn
+# Кнопка выбора нейросети для открытого чата (под полем ввода) и ящик редких
+# инструментов, который панель переносит в окно настроек — см.
+# _on_settings_pressed и пояснение в plugin_universal.gd.
+@onready var chat_model_btn: Button = $VBoxContainer/ChatModelBtn
 @onready var advanced_box: VBoxContainer = $VBoxContainer/AdvancedBox
 @onready var reinit_button: Button = $VBoxContainer/AdvancedBox/ReinitButton
 
@@ -137,12 +139,27 @@ var _bar_btn_home: Button = null
 var _chat_select: OptionButton = null
 var _rename_edit: LineEdit = null  # inline-правка названия в строке чатов
 var _current_chat_id: String = ""
+# Модель ОТКРЫТОГО чата по ключу или "" — если открыт браузерный чат либо не
+# открыт никакой. Нужна ровно для одного: показать на экране настроек кнопку
+# «продолжить открытый чат на этой модели» и не показывать её там, где менять
+# нечего. Отдельное поле, а не чтение записи чата: панель и так получает model в
+# ответах /chats/open, /chats/new и /chats/model.
+var _api_chat_model: String = ""
+# Подпись открытого чата «провайдер · модель» — её присылает сервер готовой
+# (site в ответах /chats/open, /chats/new, /chats/model; это же site_name записи
+# чата). Панель её НЕ склеивает сама: имя провайдера знает только сервер, и
+# вторая сборка той же строки разошлась бы с подписью чата в списке.
+var _api_chat_site: String = ""
+# Ждём ответ со списком провайдеров, чтобы открыть окно выбора нейросети.
+var _chat_model_pick_wanted: bool = false
 var _suppress_chat_select: bool = false
 
 # v57: экспериментальные настройки (mini-lich) — кнопка ⛙ в панели чатов.
 var _bar_btn_settings: Button = null
 var _settings_dialog: AcceptDialog = null
 var _settings_exp_header: Label = null
+# Заголовок раздела редких инструментов в том же окне («Дополнительно»).
+var _settings_adv_header: Label = null
 var _minilich_check: CheckBox = null
 var _minilich_status_label: Label = null
 var _minilich_set_pending: bool = false  # true пока ответ на minilich_set не пришёл — не даём устаревшему minilich_status затирать галочку
@@ -227,10 +244,12 @@ func _apply_panel_theme() -> void:
 		T.style_button(send_button, "accent", false)
 		send_button.icon = T.icon(&"ArrowRight")
 
-	# «Дополнительно» и его кнопки.
-	if advanced_toggle_btn:
-		T.style_button(advanced_toggle_btn, "dim")
-		advanced_toggle_btn.icon = T.icon(&"Tools")
+	# Кнопка выбора нейросети и инструменты из «Дополнительно».
+	if chat_model_btn:
+		# Тот же вид, что у кнопки провайдера на экране настроек по ключу: это
+		# одно и то же действие, открывающее одно и то же окно.
+		T.style_button(chat_model_btn, "neutral", false)
+		chat_model_btn.icon = T.first_icon(["GuiDropdown", "GuiOptionArrow", "Tools"])
 	if reinit_button:
 		T.style_button(reinit_button, "neutral")
 		reinit_button.icon = T.icon(&"Reload")
@@ -293,8 +312,18 @@ func _ready() -> void:
 		reject_button.pressed.connect(_on_reject_pressed)
 	if reinit_button and not reinit_button.pressed.is_connected(_on_reinit_pressed):
 		reinit_button.pressed.connect(_on_reinit_pressed)
-	if advanced_toggle_btn and not advanced_toggle_btn.pressed.is_connected(_on_advanced_toggle):
-		advanced_toggle_btn.pressed.connect(_on_advanced_toggle)
+	if chat_model_btn and not chat_model_btn.pressed.is_connected(_on_chat_model_pressed):
+		chat_model_btn.pressed.connect(_on_chat_model_pressed)
+	if advanced_box and advanced_box.get_parent() == $VBoxContainer:
+		# Ящик редких инструментов не показывается в чате никогда: панель
+		# переносит его в окно настроек при первом открытии настроек. До того он
+		# просто лежит скрытым — кнопки в нём создаются и подключаются здесь.
+		#
+		# Проверка родителя обязательна: _ready() выполняется заново после
+		# перезагрузки скрипта аддона, а ящик к этому моменту может уже стоять в
+		# окне настроек — и тогда «спрятать» означало бы стереть весь раздел из
+		# настроек до перезапуска редактора.
+		advanced_box.visible = false
 	if advanced_box and _log_errors_button == null:
 		_log_errors_button = Button.new()
 		_log_errors_button.text = _t("log_errors")
@@ -448,7 +477,7 @@ func _ready() -> void:
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
-	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуск���
+	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуска
 	# сервера: если сервер ещё не поднят, просто ждём, пока пользователь сам
 	# нажмёт «новый чат»/«загрузить чат» (иначе при каждом открытии Godot
 	# запускалась бы своя копия сервера, независимо от действий пользователя).
@@ -478,6 +507,12 @@ func _ready() -> void:
 			_start_screen.api_models_refresh_requested.connect(_on_api_models_refresh)
 			_start_screen.api_test_requested.connect(_on_api_test_requested)
 			_start_screen.new_api_chat_requested.connect(_on_start_new_api_chat)
+		# Отдельной проверкой, а не рядом выше: сигнал смены модели у открытого
+		# чата добавлен позже, и панель могла оказаться от более новой версии
+		# аддона, чем сохранённая сцена — обращение к несуществующему сигналу
+		# оборвало бы всё подключение и экран остался бы мёртвым.
+		if _start_screen.has_signal("api_chat_model_requested"):
+			_start_screen.api_chat_model_requested.connect(_on_api_chat_model)
 		# Отдельной проверкой, а не внутри блока выше: сигнал появился позже
 		# остальных, и экран прошлой версии его не объявляет — обращение к нему
 		# оборвало бы подключение и всех предыдущих сигналов вместе с ним.
@@ -499,8 +534,9 @@ func _ready() -> void:
 	if has_node("VBoxContainer/SettingsBox"):
 		$VBoxContainer/SettingsBox.hide()
 	# Оформление — последним: к этому моменту созданы и кнопки строки чатов,
-	# и кнопки «Дополнительно», иначе часть из них осталась бы без стиля.
+	# и кнопки редких инструментов, иначе часть из них осталась бы без стиля.
 	_apply_panel_theme()
+	_refresh_chat_model_btn()
 
 
 func _set_pending_action(active: bool, description: String = "") -> void:
@@ -549,7 +585,7 @@ func _set_ui_busy(busy: bool) -> void:
 	if confirm_button: confirm_button.disabled = busy
 	if reject_button: reject_button.disabled = busy
 	send_button.text = _t("sending") if busy else _t("send")
-	# Живая трансляция: опрашива����������м статус только пока идёт запрос.
+	# Живая трансляция: опрашиваем статус только пока идёт запрос.
 	if busy:
 		if _view:
 			_view.reset_live()
@@ -628,9 +664,34 @@ func _on_stop_pressed() -> void:
 			_stop_button.text = _t("stop_btn")
 
 
-func _on_advanced_toggle() -> void:
-	advanced_box.visible = not advanced_box.visible
-	advanced_toggle_btn.text = _t("advanced_hide") if advanced_box.visible else _t("advanced_show")
+func _refresh_chat_model_btn() -> void:
+	# Подпись кнопки = нейросеть и провайдер ОТКРЫТОГО чата.
+	if chat_model_btn == null:
+		return
+	# У браузерного чата модель выбирают на самой странице сервиса, и сменить её
+	# отсюда нечем: сервер такой запрос честно отклоняет (/chats/model). Кнопки
+	# там нет вовсе — предлагать действие, которое заведомо не сработает, хуже,
+	# чем не предлагать его.
+	chat_model_btn.visible = _api_chat_model != ""
+	chat_model_btn.text = _api_chat_site if _api_chat_site != "" else _t("chat_model_pick")
+	chat_model_btn.tooltip_text = _t("chat_model_pick_tip")
+
+
+func _on_chat_model_pressed() -> void:
+	# Выбор нейросети для ЭТОГО чата: то же окно, что и в настройках работы по
+	# ключу. Своего списка моделей у чата нет намеренно — второй список стал бы
+	# вторым источником правды о том, что доступно и у кого есть ключ.
+	if _start_screen == null or not _start_screen.has_method("open_chat_provider_pick"):
+		return
+	# Список провайдеров, ключей и моделей живёт на СЕРВЕРЕ, и панель своего
+	# представления о нём не держит (см. раздел «Работа по ключу API» ниже).
+	# Поэтому спрашиваем его заново: за время переписки ключ мог исчерпаться, и
+	# окно с прошлыми пометками предложило бы модель, которая уже не отвечает.
+	# Само окно открываем в ответе (_on_api_payload) — открытое до ответа, оно
+	# нарисовалось бы пустым.
+	_chat_model_pick_wanted = true
+	chat_model_btn.text = _t("chat_model_loading")
+	_request_chats("api_providers", {})
 
 
 func _on_input_field_gui_input(event: InputEvent) -> void:
@@ -858,7 +919,7 @@ func _on_plan_stop_pressed() -> void:
 
 func _note_autoload_removed(json) -> void:
 	# Откат мог оставить в project.godot висячую запись автозагрузки на файл,
-	# которого больше нет (см. clean_dangling_autoloads на серве��е) — сообщаем,
+	# которого больше нет (см. clean_dangling_autoloads на сервере) — сообщаем,
 	# что она уже убрана, чтобы пользователь не искал причину ошибок автозагрузки сам.
 	var removed = json.get("autoload_removed")
 	if removed is Array and removed.size() > 0:
@@ -1141,7 +1202,7 @@ func _on_export_api_pressed() -> void:
 	_export_api_to_server(false)
 
 
-# silent = true — тихий а��томатический запуск при старте плагина (не блокирует сеть для пользователя,
+# silent = true — тихий автоматический запуск при старте плагина (не блокирует сеть для пользователя,
 # просто показывает одно сообщение, если реально пришлось пересобирать).
 func _export_api_to_server(silent: bool) -> void:
 	if not silent:
@@ -1351,7 +1412,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 						_auto_reload_changed_scene(str(p))
 					else:
 						# Откат удалил созданный файл — закрываем его вкладку,
-						# ина��е Godot держит «призрака» и может пересохранить файл обратно.
+						# иначе Godot держит «призрака» и может пересохранить файл обратно.
 						_close_ghost_script_tab(str(p))
 			# Подсвечиваем восстановленный после отката блок (или гасим старое).
 			var rb_path = json.get("changed_path")
@@ -1423,7 +1484,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if battle_choice is Dictionary:
 			_show_battle_choice_summary(battle_choice)
 
-		# Промежуточное подтверждение файла из пачки на чтени��:
+		# Промежуточное подтверждение файла из пачки на чтение:
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
 		var nxt = json.get("next_confirmation")
 		if nxt != null and action_label and pending_action_box:
@@ -1496,7 +1557,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# v40: раньше здесь всегда выставлялся _rollback_force_next (флаг одиночного
 		# отката), даже для отката всей цепочки плана (kind == "plan_rollback_chain") — а его
 		# никто не читал, потому кнопка «Откатить» (одиночный откат) тут не задействована, а
-		# диалог отката цеп��ци всё равно снова посылал force=false и молча падал снова и снова
+		# диалог отката цепоци всё равно снова посылал force=false и молча падал снова и снова
 		# (внешне выглядело как «нажал и ничего не произошло»). Теперь для plan_rollback_chain
 		# ставится свой собственный флаг _plan_rollback_force_next, и диалог подтверждения показывается
 		# ещё раз, чтобы следующее подтверждение ушло с force=true.
@@ -1536,7 +1597,7 @@ func _scroll_chat_to_end() -> void:
 
 
 func _guard_confirm_buttons() -> void:
-	# Защита от случайных быстрых/двой������ кликов: когда появляется НОВОЕ
+	# Защита от случайных быстрых/двойных кликов: когда появляется НОВОЕ
 	# подтверждение, кнопки ненадолго блокируются, чтобы второй клик по
 	# инерции не одобрил следующее действие мгновенно.
 	# ВАЖНО: без await/корутин. При перезагрузке плагина Godot отменял
@@ -1729,7 +1790,7 @@ func _auto_check_log() -> void:
 
 # ---------------------------------------------------------------------------
 # Подсветка строк, изменённых агентом.
-# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ ��лока: при любой правке
+# Красим не по номерам строк, а ПО СОДЕРЖИМОМУ блока: при любой правке
 # блок ищется заново, и подсветка «переезжает» вместе с кодом. Если
 # пользователь отредактировал сам блок — подсветка гаснет (это уже
 # не код агента).
@@ -1765,14 +1826,14 @@ func _on_progress_response(_result: int, response_code: int, _headers: PackedStr
 		return
 	if not bool(json.get("active", false)):
 		return
-	# Статус ��� только состояние бота; сам текст стримится прямо в чат (в _view).
+	# Статус — только состояние бота; сам текст стримится прямо в чат (в _view).
 	_view.show_status(str(json.get("phase", _t("working"))), int(json.get("elapsed", 0)), int(json.get("chars", 0)))
 	_view.feed_live_stream(str(json.get("stream", "")))
 
 
 # ---------------------------------------------------------------------------
-# Чаты: список, созда��ие, выбор (открывает страницу в браузере),
-# переименование, удаление. Сохранённ��й диалог восстанавливается в панели.
+# Чаты: список, создание, выбор (открывает страницу в браузере),
+# переименование, удаление. Сохранённый диалог восстанавливается в панели.
 # ---------------------------------------------------------------------------
 
 func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = true) -> void:
@@ -1798,6 +1859,24 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 	if kind == "status":
 		_on_browser_status(json)
 		return
+	if kind == "chat_model":
+		# Смена модели у ОТКРЫТОГО чата. Обрабатывается до общего хвоста: чат
+		# перерисовывать нельзя — переписка сохранена, и это главное свойство
+		# действия. Меняется только подпись модели и появляется системная строка.
+		if json.has("error"):
+			_notify(str(json.get("error", "")), "error")
+			_log_error(str(json.get("error", "")))
+			return
+		_api_chat_model = str(json.get("model", ""))
+		_api_chat_site = str(json.get("site", ""))
+		_push_api_switch_target()
+		if _view:
+			_view.add_system(_t("chat_model_changed") % str(json.get("site", "")))
+		_notify(_t("chat_model_changed_short"), "success")
+		_fill_chat_list(json.get("chats", []))
+		if _start_screen:
+			_start_screen.set_chats(json.get("chats", []))
+		return
 	if kind.begins_with("api_"):
 		_on_api_payload(kind, json)
 		return
@@ -1820,6 +1899,14 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 	if kind == "open" and _view:
 		_clear_pending_action_state()
 		_view.clear()
+		# Модель запоминаем ТОЛЬКО для чата по ключу: у браузерного её нет, и
+		# оставленная от прошлого чата строка предложила бы сменить то, чего не
+		# существует.
+		_api_chat_model = (str(json.get("model", ""))
+			if str(json.get("kind", "browser")) == "api" else "")
+		_api_chat_site = (str(json.get("site", ""))
+			if str(json.get("kind", "browser")) == "api" else "")
+		_push_api_switch_target()
 		_view.set_battle_scope(str(json.get("site_id", "")) == "arena_battle")
 		_render_transcript(json.get("transcript", []))
 		_view.add_system(_t("chat_opened") % str(json.get("title", "")))
@@ -1839,6 +1926,11 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 	elif kind == "new" and _view:
 		_clear_pending_action_state()
 		_view.clear()
+		_api_chat_model = (str(json.get("model", ""))
+			if str(json.get("kind", "browser")) == "api" else "")
+		_api_chat_site = (str(json.get("site", ""))
+			if str(json.get("kind", "browser")) == "api" else "")
+		_push_api_switch_target()
 		_view.set_battle_scope(str(json.get("site_id", "")) == "arena_battle")
 		_view.add_system(_t("chat_created"))
 		if str(json.get("kind", "browser")) == "api":
@@ -1855,6 +1947,9 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 		var deleted_current := str(extra.get("id", "")) == _current_chat_id
 		if deleted_current:
 			_current_chat_id = ""
+			_api_chat_model = ""
+			_api_chat_site = ""
+			_push_api_switch_target()
 			_clear_pending_action_state()
 		_on_link_hide_loading()
 		_show_start_ui()
@@ -1900,7 +1995,7 @@ func _on_chat_selected(index: int) -> void:
 
 
 func _on_chat_new_pressed() -> void:
-	# «＋» в чате открывает выбор сайта (нейросети). Важ��о сначала
+	# «＋» в чате открывает выбор сайта (нейросети). Важно сначала
 	# показать стартовый экран — иначе экран загрузки останется невидимым.
 	_show_start_ui()
 	_on_sites_tab_requested()
@@ -2072,8 +2167,7 @@ func _on_language_changed() -> void:
 		send_button.text = _t("send")
 	if input_field:
 		input_field.placeholder_text = _t("input_placeholder")
-	if advanced_toggle_btn and advanced_box:
-		advanced_toggle_btn.text = _t("advanced_hide") if advanced_box.visible else _t("advanced_show")
+	_refresh_chat_model_btn()
 	if confirm_button:
 		confirm_button.text = _t("allow")
 	if reject_button:
@@ -2281,6 +2375,41 @@ func _on_api_payload(kind: String, json: Dictionary) -> void:
 		_pending_view = ""
 		if _start_screen.has_method("show_api"):
 			_start_screen.show_api()
+	if _chat_model_pick_wanted and kind == "api_providers":
+		# Ответ на нажатие кнопки выбора нейросети в чате. Окно открываем только
+		# когда настройки действительно пришли: пустое окно с одной кнопкой
+		# «закрыть» — не ответ на нажатие, а причина неудачи уже показана строкой
+		# выше. Подпись кнопки («спрашиваю список…») возвращает на место
+		# _push_api_switch_target ниже — она вызывается в любом случае.
+		_chat_model_pick_wanted = false
+		if not failed and _start_screen.has_method("open_chat_provider_pick"):
+			_start_screen.open_chat_provider_pick()
+	# Экран сам про открытый чат не знает — сообщаем ему модель, чтобы он решил,
+	# показывать ли кнопку «продолжить открытый чат на этой модели». Делается
+	# здесь, потому что настройки API открываются именно этим ответом.
+	_push_api_switch_target()
+
+
+func _push_api_switch_target() -> void:
+	# Модель ОТКРЫТОГО чата по ключу или "" — тогда продолжать нечего и кнопки
+	# смены модели не будет. Пустую строку отправляем так же обязательно, как
+	# непустую: иначе кнопка осталась бы от прошлого чата и предложила бы
+	# сменить модель у браузерного чата, где её вообще нет.
+	#
+	# Здесь же обновляется подпись кнопки выбора нейросети в самом чате: обе
+	# зависят от одного и того же — от модели открытого чата, и разводить их по
+	# разным местам значит однажды обновить только одну.
+	_refresh_chat_model_btn()
+	if _start_screen == null or not _start_screen.has_method("set_api_switch_target"):
+		return
+	_start_screen.set_api_switch_target(_api_chat_model)
+
+
+func _on_api_chat_model(provider: String, model: String) -> void:
+	# Продолжить ОТКРЫТЫЙ чат на другой модели. Отдельный обработчик от
+	# _on_start_new_api_chat: тот создаёт новый чат с пустой историей, этот
+	# сохраняет переписку.
+	_request_chats("chat_model", {"provider": provider, "model": model})
 
 
 func _notify(text: String, kind: String = "info") -> void:
@@ -2423,6 +2552,22 @@ func _on_settings_pressed() -> void:
 		if T:
 			_minilich_github_label.add_theme_color_override("font_color", T.color("dim"))
 		box.add_child(_minilich_github_label)
+		# Раздел редких инструментов. Раньше он открывался кнопкой
+		# «⚙️ Дополнительно» прямо под полем ввода — то место занял выбор
+		# нейросети для чата (он нужен в каждом сообщении, а эти инструменты —
+		# раз в месяц). Узел ПЕРЕНОСИМ целиком, а не пересобираем: его кнопки уже
+		# созданы и подключены в _ready (переинициализация, ошибки запуска,
+		# справочник API, живой ввод, остановка плана), и вторая копия развела бы
+		# два набора обработчиков на одни и те же действия.
+		if advanced_box and advanced_box.get_parent():
+			box.add_child(HSeparator.new())
+			_settings_adv_header = Label.new()
+			if T:
+				_settings_adv_header.add_theme_color_override("font_color", T.color("accent"))
+			box.add_child(_settings_adv_header)
+			advanced_box.get_parent().remove_child(advanced_box)
+			box.add_child(advanced_box)
+			advanced_box.visible = true
 		_settings_dialog.add_child(wrap)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
@@ -2436,6 +2581,8 @@ func _on_settings_pressed() -> void:
 		_minilich_github_btn.text = _t("github_fetch_btn")
 	if _minilich_github_label:
 		_minilich_github_label.text = ""
+	if _settings_adv_header:
+		_settings_adv_header.text = _t("advanced_show") + ":"
 	_minilich_status_label.text = _t("minilich_loading")
 	_settings_dialog.popup_centered()
 	# Статус запрашиваем БЕЗ автозапуска сервера — просто открытие настроек
