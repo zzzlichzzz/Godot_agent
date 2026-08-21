@@ -166,7 +166,7 @@ def test_live_stream_prefers_net():
 
 
 def test_live_stream_stale_falls_back_to_dom():
-    # новый POST после submit ещё не ушёл — сетево�� текст устаревший,
+    # новый POST после submit ещё не ушёл — сетевой текст устаревший,
     # живая трансляция обязана читать DOM (защита от прошлого ответа)
     p = _fresh_parser(_FakeMonitor(req_count=1), before=1)
     drv = _StaticDomDriver()

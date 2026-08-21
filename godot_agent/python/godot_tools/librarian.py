@@ -67,7 +67,7 @@ _MIN_BUDGET = 400
 
 # v105.10 (раунд 3, п.1): маркеры КОСВЕННОГО вызова по имени-строке.
 # Строка "take_damage" сама по себе ничего не значит — это может быть
-# комментарий, подпись кнопки или проверка has_method(). Вызово�� её
+# комментарий, подпись кнопки или проверка has_method(). Вызовом её
 # делает только соседство с одной из этих конструкций (сравнение в lower()).
 _INDIRECT_CALL_CTX = ("call(", "callv(", "call_deferred(", "rpc", "callable(",
                       ".connect(", ".bind(", "emit_signal(")
@@ -145,11 +145,11 @@ _STOPWORDS = {
 }
 
 # --- Патч 1: словарь геймдев-синонимов -------------------------------------
-# Чистые данные, ноль зависимостей. Ра��отает в двух местах:
+# Чистые данные, ноль зависимостей. Работает в двух местах:
 #   1) подтокены запроса расширяются синонимами перед поиском по индексу (MAP);
 #   2) если токен не нашёлся дословно (FRAGMENTS) — пробуем его синонимы.
 # Худший случай при плохом синониме — чуть более широкая карта, ничего не
-# ломается. Все слова английские, в нижнем регистре, дли��а >= 3.
+# ломается. Все слова английские, в нижнем регистре, длина >= 3.
 _SYNONYM_GROUPS = [
     # --- бой / здоровье ---
     {"damage", "hurt", "hit", "harm", "dps"},
@@ -187,7 +187,7 @@ _SYNONYM_GROUPS = [
     {"player", "character", "hero", "avatar"},
     {"npc", "villager", "townsfolk"},
     {"pet", "companion", "ally", "summon"},
-    # --- пре��ме��ы / экономика / прогрессия ---
+    # --- предметы / экономика / прогрессия ---
     {"coin", "gold", "money", "currency", "cash", "credits"},
     {"inventory", "item", "loot", "pickup", "collect", "drop"},
     {"chest", "crate", "container", "barrel"},
@@ -234,7 +234,7 @@ _SYNONYM_GROUPS = [
     {"spawn", "instantiate", "instance", "preload", "respawn", "spawner"},
     {"terrain", "ground", "floor", "platform"},
     {"wall", "obstacle", "barrier"},
-    # --- вво�� ---
+    # --- ввод ---
     {"input", "controls", "keyboard", "gamepad", "action", "joystick", "controller"},
     {"touch", "swipe", "tap"},
     {"click", "press", "pressed", "released"},
@@ -316,7 +316,7 @@ def _frag_rank(path):
     """Ранг файла для FRAGMENTS по расширению: 0 — код, 1 — сцены/ресурсы, 2 — прочее."""
     ext = str(path or "").rsplit(".", 1)[-1].lower() if "." in str(path or "") else ""
     return _FRAG_KIND_RANK.get(ext, 2)
-_RERANK_POOL = 3                          # б��рём из индекса MAP_LIMIT*3 кандидатов
+_RERANK_POOL = 3                          # берём из индекса MAP_LIMIT*3 кандидатов
 
 
 def _rerank_hits(hits, query, syn_used):
@@ -333,7 +333,7 @@ def _rerank_hits(hits, query, syn_used):
         sym_tok = _query_subtokens(" ".join(str(s) for s in h.get("symbols", [])))
         name_tok = _query_subtokens(fname)
         dir_tok = _query_subtokens(dirs.replace("/", " "))
-        score = float(h.get("score", 0))   # база: пересечение токен��в из индекса
+        score = float(h.get("score", 0))   # база: пересечение токенов из индекса
         for t in q_orig:
             if t in sym_tok:
                 score += 5.0               # имя функции/класса/сигнала/узла — самое ценное
@@ -356,7 +356,7 @@ def _near_tokens(project_root, query, limit=6):
     """Подсказки при опечатке: похожие идентификаторы, которые РЕАЛЬНО есть
     в индексе проекта (имена функций/классов/сигналов/узлов и части путей).
     Стандартный difflib, без зависимостей. Модель сама чинит запрос следующим
-    ask_librarian — без лишнего ��руга через пользователя."""
+    ask_librarian — без лишнего круга через пользователя."""
     try:
         data = ml_project_index._load_index(project_root, auto_build=False)
     except Exception:
@@ -385,14 +385,14 @@ FOOTER = ("Next: use read_function for exact bodies (verbatim, usable as patch_f
 # Раньше аддоны отсеивались только ПОСЛЕ поиска (_is_addon_rel), и при
 # любом установленном аддоне (Dialogic, Phantom Camera…) файлы addons/
 # выбирали всю квоту max_results — слои FRAGMENTS/CALLERS/SIGNALS молча
-# пустели. _is_addon_rel остаётся как второ�� рубеж (и для hits из индекса).
+# пустели. _is_addon_rel остаётся как второй рубеж (и для hits из индекса).
 _SEARCH_EXCLUDE = ("addons/",)
 
 
 def _is_addon_rel(path):
     """True для путей внутри res://addons/... — библиотекарь их не выдаёт
     (та же политика, что _is_addon_path в main.py: аддоны — только по явной
-    просьбе ��ользователя, а до библиотекаря она не доходит)."""
+    просьбе пользователя, а до библиотекаря она не доходит)."""
     p = str(path or "").replace("\\", "/")
     if p.startswith("res://"):
         p = p[len("res://"):]
@@ -451,7 +451,7 @@ def _gd_signatures(project_root, godot_path, limit=SIG_PER_FILE):
             continue
         # Было line.strip() — отступ терялся, и метод вложенного класса
         # был неотличим от метода самого скрипта. rstrip() сохраняет
-        # иерархию и не меняет вывод для ��оп-уровня.
+        # иерархию и не меняет вывод для топ-уровня.
         out.append("  L%d: %s" % (i, line.rstrip()))
         if is_func:
             func_indent = indent
@@ -710,7 +710,7 @@ def _callers(project_root, query, hits):
 
 def _log_query(project_root, record):
     """Патч 5: телеметрия обкатки — append-only jsonl в хранилище minilich
-    (.agent_history). П�� журналу видно, какие запросы модель шлёт на самом
+    (.agent_history). По журналу видно, какие запросы модель шлёт на самом
     деле, где ответ пуст и каких синонимов не хватает — сырьё для точечной
     настройки словаря и весов. Ошибки глотаются целиком: телеметрия
     никогда не должна ломать или замедлять ответ."""
@@ -754,7 +754,7 @@ def _autoloads(project_root):
 
 
 def _autoload_lines(project_root, query):
-    """Ст��оки слоя AUTOLOADS. Показываем только если запрос задевает
+    """Строки слоя AUTOLOADS. Показываем только если запрос задевает
     имя/путь автозагрузки или содержит ключевые слова (autoload/singleton/
     global) — чтобы не съедать бюджет каждого ответа без нужды."""
     autos = _autoloads(project_root)
@@ -868,7 +868,7 @@ def _pick_members(names, query_subtokens, limit):
 
 
 def _godot_api(project_root, query, addon_dir=None):
-    """Слой 4: члены классов Godot, упомянутых в з��просе (из кэша API)."""
+    """Слой 4: члены классов Godot, упомянутых в запросе (из кэша API)."""
     try:
         if not gd_api_cache.has_cache(project_root, addon_dir=addon_dir):
             return []
@@ -898,7 +898,7 @@ def _godot_api(project_root, query, addon_dir=None):
 
 def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
     """Главная функция Библиотекаря: компактная английская справка о проекте.
-    Никогда не бросает наружу ничего, кроме понятного ��екста (ошибки слоёв
+    Никогда не бросает наружу ничего, кроме понятного текста (ошибки слоёв
     глотаются послойно) — но вызывающий код всё равно оборачивает в try."""
     # v105.10 (шаг 9): нестроковый query молча превращался в своё repr:
     # ["died"] -> "['died']", и Библиотекарь честно искал эту строку со скобками
@@ -943,7 +943,7 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
     lines = ["[Librarian] Project reference for query «%s»:" % q]
     if syn_used:
         lines.append("(gamedev synonyms also searched: %s)" % ", ".join(syn_used))
-    base_len = len(lines)  # сколько строк было ДО ��лоёв — для детекта пустого ответа
+    base_len = len(lines)  # сколько строк было ДО слоёв — для детекта пустого ответа
     # v105.13 (п.1): если проект не влез в потолок индекса, модель обязана это знать:
     # раньше ответ по половине проекта выглядел ровно так же, как полный, а
     # «nothing found» читалось как «такого в проекте нет». Строка идёт ПОСЛЕ base_len
@@ -1039,7 +1039,7 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
                 "literal text, or list_files for a directory tree.%s" % (q, hint))
     # v105.10 (шаг 5): докстринг обещает «никогда не бросает наружу», но
     # int(None) давал TypeError, а int("много") — ValueError уже ПОСЛЕ всей
-    # работы: ответ был готов, но терялся. Пло��ое значение — не повод
+    # работы: ответ был готов, но терялся. Плохое значение — не повод
     # выбрасывать справку; тихо откатываемся к дефолту.
     try:
         _budget_req = int(budget_chars)
@@ -1060,7 +1060,7 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
         # v105.10 (шаг 8): если обрезало сразу после заголовка секции,
         # в ответе оставался «FRAGMENTS (...):» без единой строки — модель
         # видела пустую секцию вместо «здесь было больше».
-        # v105.10 (шаг 8): два условия р��шаются ОДНИМ циклом до стабилизации:
+        # v105.10 (шаг 8): два условия решаются ОДНИМ циклом до стабилизации:
         # сначала освободить место под саму пометку (раньше её добавляли
         # ПОСЛЕ проверки, и ответ вылезал за бюджет), потом убрать висячий
         # заголовок секции. Раздельные циклы не работают: подгонка под

@@ -157,7 +157,7 @@ def test_update_entries_without_index():
 
 def test_synonyms_expand_search():
     # Патч 1: в проекте нет слов monster/death, но есть kill_enemy/queue_free —
-    # синонимы должны привести ���� карту, �� фрагменты к orc.gd.
+    # синонимы должны привести и карту, и фрагменты к orc.gd.
     root = _make_project()
     ans = librarian.answer(root, "monster death")
     assert "orc.gd" in ans, ans
@@ -195,7 +195,7 @@ def test_typo_hint():
 
 def test_callers_layer():
     # Патч 3: запрос с точным именем функции даёт слой CALLERS с местами
-    # вызова (game_manager.gd), но БЕЗ ����троки-определения из player.gd.
+    # вызова (game_manager.gd), но БЕЗ строки-определения из player.gd.
     root = _make_project()
     ans = librarian.answer(root, "take_damage")
     assert "CALLERS" in ans, ans
@@ -257,7 +257,7 @@ def test_vars_and_consts_indexed():
     # STRUCTURE показывает строку объявления с номером
     ans3 = librarian.answer(root, "health")
     assert "var health" in ans3, ans3
-    print("OK: var/const в индексе (символ��, поиск, typo-��одсказка, STRUCTURE)")
+    print("OK: var/const в индексе (символы, поиск, typo-подсказка, STRUCTURE)")
 
 
 def test_shared_brain_project_isolation():
@@ -547,7 +547,7 @@ def test_addons_do_not_eat_search_quota():
     assert "FRAGMENTS" in ans, ans          # слой не исчез из-за аддонов
     assert "take_damage" in ans, ans
     assert "addons/" not in ans, ans        # и сами аддоны не показываются
-    # сам поиск: с фильтром квоту за��имают только файлы проекта
+    # сам поиск: с фильтром квоту занимают только файлы проекта
     res, _tr = search_project_text(root, "take_damage", max_results=3,
                                    context_lines=0, exclude_rel_prefixes=("addons/",))
     assert res and all("addons/" not in r["path"] for r in res), res
@@ -714,7 +714,7 @@ def test_budget_truncation_is_honest():
                         or nxt.startswith("Next:"))
             assert not dangling, \
                 "висячий заголовок %r при budget=%d" % (ln, b)
-    print("OK: обрезка по бюджету честная (без висячих заголовков, в пределах раз��ера)")
+    print("OK: обрезка по бюджету честная (без висячих заголовков, в пределах размера)")
 
 
 def test_huge_file_and_non_string_query():
@@ -818,7 +818,7 @@ def test_synonym_dictionary_sanity():
             assert word_re.match(w), "bad synonym: %r" % w
             assert w not in librarian._STOPWORDS, "stopword in synonyms: %r" % w
     assert len(librarian._SYN_LOOKUP) >= 300, len(librarian._SYN_LOOKUP)
-    # р��сширение запроса ограничено потолком
+    # расширение запроса ограничено потолком
     _q, extra = librarian._expanded_query("enemy attack damage save menu sound")
     assert len(extra) <= librarian._SYN_EXPAND_LIMIT, extra
     print("OK: словарь синонимов валиден (%d слов, %d групп)" % (

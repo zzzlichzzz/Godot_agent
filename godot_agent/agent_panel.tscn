@@ -66,9 +66,10 @@ wrap_mode = 1
 layout_mode = 2
 text = "Отправить"
 
-[node name="AdvancedToggleBtn" type="Button" parent="VBoxContainer" unique_id=1865794255]
+[node name="ChatModelBtn" type="Button" parent="VBoxContainer" unique_id=1865794255]
 layout_mode = 2
-text = "⚙️ Дополнительно"
+clip_text = true
+text = "🤖 Выбрать нейросеть"
 
 [node name="AdvancedBox" type="VBoxContainer" parent="VBoxContainer" unique_id=1419326811]
 visible = false

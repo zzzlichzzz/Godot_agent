@@ -130,13 +130,22 @@ check(u"единица цены OpenRouter проверена и записан�
 check(u"признак бесплатности от новых полей не изменился",
       by["a/gift:free"]["free"] is True and by["a/paid"]["free"] is False)
 
-# Opencode Zen присылает ТОЛЬКО id, object, created, owned_by (замерено) —
-# оттуда брать нечего, и это нормально: для него и нужен каталог.
+# Opencode Zen присылает ТОЛЬКО id, object, created, owned_by (замерено) — цен и
+# лимитов оттуда взять нечего, и это нормально: для них и нужен каталог. А вот
+# created берётся: это дата появления модели, по ней список сортируется так,
+# чтобы новые были выше старых. У такого провайдера она единственное, что вообще
+# известно про модель, — то есть именно тот случай, где она и нужна.
 zen = P.parse_models_detailed(
     {"data": [{"id": "big-pickle", "object": "model", "created": 1,
                "owned_by": "opencode"}]}, provider_id="opencode_zen")
-check(u"из ответа без цен и лимитов ничего не выдумывается",
-      zen == [{"id": "big-pickle", "free": False}])
+check(u"из ответа без цен и лимитов ничего лишнего не выдумывается",
+      zen == [{"id": "big-pickle", "free": False, "created": 1}])
+check(u"дата появления модели взята из ответа провайдера",
+      zen[0]["created"] == 1)
+check(u"нулевая дата — это её отсутствие, а не 1970 год",
+      "created" not in P.parse_models_detailed(
+          {"data": [{"id": "m/no-date", "created": 0}]},
+          provider_id="opencode_zen")[0])
 check(u"старый вызов без provider_id по-прежнему работает",
       [r["id"] for r in P.parse_models_detailed(LIVE_OR)]
       == ["a/gift:free", "a/paid", "a/router"])

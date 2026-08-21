@@ -159,7 +159,7 @@ def is_scene_path(path):
 # v45: узлы, чей parent объявлен НИЖЕ по файлу (или порядок вперемешку) —
 # частая ошибка слабых моделей. Годоту важен порядок объявления: parent
 # должен идти в файле РАНЬШЕ ребёнка (тот же принцип, что и для
-# ext_resource/sub_resource в _reorder_resource_sections). ��сли ��то ЧИСТО
+# ext_resource/sub_resource в _reorder_resource_sections). Если это ЧИСТО
 # вопрос порядка (сам parent реально существует где-то в файле) — переставляем
 # механически, без участия модели. Если parent не существует вовсе — это
 # настоящая ошибка и переставлять нечего: её найдёт и вернёт модели основной
@@ -953,7 +953,7 @@ def _scan_node_path_refs(text):
 def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=None):
     """Главная функция. Возвращает (fixed_text, problems):
     - fixed_text — текст с автоматически исправленным load_steps (если он был
-      неверным); в остальном идентичен входном��.
+      неверным); в остальном идентичен входному.
     - problems — список строк с неоднозначными проблемами, которые должна
       исправить сама модель (пустой список — ничего не ломается).
     Функция ничего не бросает и ничего не печатает — только анализирует текст."""
@@ -997,7 +997,7 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
             out_lines.append(stripped + "]" + cr)
             continue
         problems.append(
-            "строка %d: заголовок се��ц��и «%s» не закрыт «]» на своей строке — "
+            "строка %d: заголовок секции «%s» не закрыт «]» на своей строке — "
             "Godot откажется открыть такой файл с ошибкой «Unexpected end of file». "
             "Заверши заголовок символом «]» на той же строке." % (i + 1, stripped)
         )
@@ -1026,7 +1026,7 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
     # --- 0.66) v45: узлы, чей parent объявлен позже по файлу — переставляем.
     fixed = _reorder_nodes_for_parent_order(fixed)
     # --- 0.67) v50: prop = Type.new() — конструкторы GDScript в .tscn:
-    # однозначные превращаем в [sub_resource] + SubResource(...), ��порные — модели.
+    # однозначные превращаем в [sub_resource] + SubResource(...), спорные — модели.
     fixed = _convert_ctor_values(fixed, problems)
     # --- 0.68) v50: sub_resource со ссылкой на другой sub_resource должен
     # идти ПОЗЖЕ него — переставляем топологически.
@@ -1273,7 +1273,7 @@ def lint_and_fix_tscn(text, project_root=None, addon_dir=None, planned_paths=Non
             problems.append(
                 '[ext_resource id="%s"] (PackedScene, %s) объявлен, но НЕ используется ни одним узлом — '
                 'эта сцена НЕ появится на экране, а Godot удалит неиспользуемое объявление при '
-                'пересохранении. Добавь узел-экзем��ляр: [node name="..." parent="." '
+                'пересохранении. Добавь узел-экземпляр: [node name="..." parent="." '
                 'instance=ExtResource("%s")] (без type= — тип берётся из самой сцены).'
                 % (rid, rpath, rid))
         else:

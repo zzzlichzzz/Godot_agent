@@ -160,6 +160,10 @@ def _api_settings_payload(extra=None):
            # то, насколько это знание свежее. Число без возраста измерения в
            # этом проекте не показывается.
            "catalog": _catalog_payload(),
+           # Недавно выбранные пары «провайдер + модель»: панель поднимает их в
+           # начало списка моделей. Порядок задаёт СЕРВЕР, потому что он же его и
+           # пишет (api_keys.note_model_used) — панель тут только показывает.
+           "recent": api_keys.get_recent(),
            "config_path": api_keys.config_path()}
     if extra:
         out.update(extra)
@@ -733,7 +737,7 @@ def _new_api_chat(data, base):
         return jsonify({"error": u"Провайдер «%s» не готов: %s. Откройте "
                                  u"настройки API-ключа." % (provider["name"], why)}), 400
     api_keys.set_defaults(pid, model)
-
+    api_keys.note_model_used(pid, model)
     rec = chat_store.create_chat(base, url="", primed=False)
     chat_store.update_chat(base, rec["id"], kind="api", provider=pid, model=model,
                            # site_name переиспользуем как подпись чата в списке:
@@ -757,6 +761,125 @@ def _new_api_chat(data, base):
                     "current_id": rec["id"], "title": rec["title"],
                     "site": rec.get("site_name", ""), "site_id": "",
                     "kind": "api", "provider": pid, "model": model})
+
+
+@chats_bp.route('/chats/model', methods=['POST'])
+def chats_model():
+    u"""Продолжить ТЕКУЩИЙ чат по ключу на другой модели или у другого провайдера.
+
+    ЗАЧЕМ ЭТО ОТДЕЛЬНОЕ ДЕЙСТВИЕ, А НЕ АВТОПОДМЕНА. Модель закреплена за чатом
+    намеренно: другая модель — другой стиль и другая точность соблюдения формата
+    действий, а разбираться потом в истории, склеенной из ответов разных моделей,
+    невозможно. Поэтому агент НИКОГДА не меняет модель сам. Но тупика тоже быть
+    не должно: когда у провайдера кончились все ключи или модель перестала
+    подходить, единственным выходом было создать новый чат и потерять переписку.
+    Здесь пользователь решает это сам, одним осознанным действием.
+
+    ПОЧЕМУ МЕНЯЕТСЯ И ПРОВАЙДЕР. Квота считается на КЛЮЧ, а ключи принадлежат
+    провайдеру: если у него исчерпаны все, другая модель ТОГО ЖЕ провайдера не
+    поможет — нужен другой сервис. Ограничить смену одним провайдером значило бы
+    не решить как раз главный случай.
+
+    ИСТОРИЯ НЕ ОЧИЩАЕТСЯ — в этом весь смысл. Но в неё уходит явная пометка о
+    смене: новая модель обязана понимать, что предыдущие ответы писала не она, а
+    иначе она будет считать чужой стиль и чужие обещания своими.
+
+    КОДЫ ОТВЕТА. Отказы, которые пользователь должен ПРОЧИТАТЬ (провайдер не
+    готов, сервис недоступен, это та же модель), отдаются с кодом 200 и полем
+    ok=false — как это делает /api/test. Причина не в стиле, а в проводке
+    панели: на любой не-200 agent_server_link уходит в автозапуск второй копии
+    сервера, и осмысленный текст отказа пользователь бы просто не увидел. Код
+    400 остаётся для запросов, которые панель сформировать не может вовсе.
+    """
+    data = request.json or {}
+    base = S._chats_dir()
+    cid = S.STATE.get("current_chat_id")
+    rec = chat_store.find_chat(base, cid) if (base and cid) else None
+    if rec is None:
+        return jsonify({"error": u"Нет открытого чата."}), 400
+    if S.chat_kind(rec) != "api":
+        # У браузерного чата модель выбирает сам сайт, и подменить её здесь
+        # нечем: разговор живёт на странице сервиса.
+        return jsonify({"ok": False,
+                        "error": u"Сменить модель можно только в чате по "
+                                 u"ключу API."})
+
+    pid = (data.get("provider") or "").strip() or str(rec.get("provider") or "")
+    provider = providers.get_provider(pid)
+    if provider is None:
+        return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
+    model = (data.get("model") or "").strip()
+    if not model:
+        # ТА ЖЕ ПОДСТАНОВКА, ЧТО И ПРИ СОЗДАНИИ ЧАТА (см. _new_api_chat выше):
+        # модель, уже выбранная у этого провайдера, иначе его модель из реестра.
+        #
+        # Раньше здесь был отказ, и получалось, что одно и то же действие
+        # человека — «переключиться на этого провайдера» — при создании чата
+        # работало, а при смене модели у открытого отвечало «не выбрана модель».
+        # Разницы между этими случаями нет никакой: и там и там человек назвал
+        # провайдера и не назвал модель.
+        model = providers.model_for(pid)
+    if not model:
+        # У провайдера не выбрано вообще ничего (только что заведён). Отказ с
+        # кодом 200: его должен ПРОЧИТАТЬ пользователь, а на любой не-200
+        # панель уходит в автозапуск второй копии сервера (см. коды ответа
+        # в описании маршрута) и текст до человека не доедет.
+        return jsonify({"ok": False,
+                        "error": u"У «%s» ещё не выбрана модель. Откройте его в "
+                                 u"списке провайдеров и нажмите нужную модель — "
+                                 u"чат перейдёт на неё сразу."
+                                 % provider["name"]})
+    was_pid = str(rec.get("provider") or "")
+    was_model = str(rec.get("model") or "")
+    if pid == was_pid and model == was_model:
+        return jsonify({"ok": False,
+                        "error": u"Это та же модель, что и сейчас."})
+    blocked = providers.unavailable_reason(pid)
+    if blocked:
+        return jsonify({"ok": False,
+                        "error": u"«%s» пока недоступен: %s"
+                                 % (provider["name"], blocked)})
+    ok, why = providers.readiness(pid)
+    if not ok:
+        return jsonify({"ok": False,
+                        "error": u"Провайдер «%s» не готов: %s. Откройте "
+                                 u"настройки API-ключа."
+                                 % (provider["name"], why)})
+
+    chat_store.update_chat(base, cid, provider=pid, model=model,
+                           site_name=u"%s · %s" % (provider["name"], model))
+    was_name = (providers.get_provider(was_pid) or {}).get("name") or was_pid
+    note = (u"[Система]: дальше в этом чате отвечает другая модель — %s (%s) "
+            u"вместо %s (%s). Предыдущие ответы в переписке писала ПРЕЖНЯЯ "
+            u"модель: не считай её обещания и её стиль своими, но пользуйся её "
+            u"выводами как контекстом задачи."
+            % (model, provider["name"], was_model or u"?", was_name or u"?"))
+    # В историю запроса — чтобы понимала новая модель. Роль user и вид «заметка»:
+    # обрезка контекста не имеет права схлопнуть эту строку, иначе новая модель
+    # решит, что весь диалог её собственный.
+    api_history.append(base, cid, api_history.ROLE_USER, note,
+                       kind=api_history.KIND_NOTE)
+    # В транскрипт — чтобы видел пользователь. Тот же факт, но своими словами:
+    # ему не нужны инструкции, адресованные модели.
+    chat_store.append_transcript(
+        base, cid, "system",
+        u"Модель чата изменена: %s (%s) вместо %s (%s). Переписка сохранена."
+        % (model, provider["name"], was_model or u"?", was_name or u"?"))
+    # Предложение по умолчанию для СЛЕДУЮЩЕГО нового чата тоже обновляем: раз
+    # человек ушёл на эту модель посреди задачи, вероятнее всего он и дальше
+    # захочет её, а не ту, что исчерпалась.
+    api_keys.set_defaults(pid, model)
+    api_keys.note_model_used(pid, model)
+    # Модель у ПРОВАЙДЕРА тоже запоминаем: следующий переход на этого провайдера
+    # без явного выбора модели (см. подстановку выше) должен привести к той, на
+    # которой человек только что остановился, а не к записи из реестра.
+    api_keys.set_model(pid, model)
+    print("--> Чат %s: модель сменена %s/%s -> %s/%s"
+          % (cid, was_pid, was_model, pid, model))
+    return jsonify({"ok": True, "kind": "api", "provider": pid, "model": model,
+                    "site": u"%s · %s" % (provider["name"], model),
+                    "chats": chat_store.list_chats(base, PROMPT_HASH),
+                    "current_id": cid})
 
 
 @chats_bp.route('/browser/status', methods=['POST'])
