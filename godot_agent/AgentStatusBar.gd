@@ -83,11 +83,17 @@ func _chars_text(chars: int) -> String:
 
 
 func show_status(phase: String, elapsed: int = 0, chars: int = 0) -> void:
-	_start_time = Time.get_ticks_msec() - (elapsed * 1000)
+	# elapsed — только НАЧАЛЬНАЯ отметка: сколько запрос уже шёл к моменту показа
+	# строки. Дальше время считает свой таймер (_on_timer_tick), и переписывать
+	# ярлык снаружи нельзя — иначе два источника начинают спорить (см. пояснение
+	# в agent_chat_view.show_status). Отрицательное значение означает «не знаю»:
+	# сервер мог не прислать поле вовсе, и тогда отсчёт идёт с нуля.
+	var from_sec: int = maxi(elapsed, 0)
+	_start_time = Time.get_ticks_msec() - (from_sec * 1000)
 	_active = true
 	visible = true
 	status_label.text = phase
-	elapsed_label.text = _format_time(elapsed)
+	elapsed_label.text = _format_time(from_sec)
 	chars_label.text = _chars_text(chars)
 	if timer.is_stopped():
 		timer.start()

@@ -146,9 +146,10 @@ api_signals = sorted(s for s in declared if s.startswith("api_")
 # увидит падение теста. Проверка ловит две противоположные ошибки: сигнал
 # объявили и забыли подключить (следующая проверка) и сигнал переименовали,
 # оставив подключение по старому имени.
-API_SIGNALS = ["api_models_refresh_requested", "api_models_scan_requested",
-               "api_settings_save_requested", "api_tab_requested",
-               "api_test_requested", "new_api_chat_requested"]
+API_SIGNALS = ["api_chat_model_requested", "api_models_refresh_requested",
+               "api_models_scan_requested", "api_settings_save_requested",
+               "api_tab_requested", "api_test_requested",
+               "new_api_chat_requested"]
 check(u"сигналы работы по ключу объявлены", api_signals == API_SIGNALS,
       api_signals)
 not_connected = [s for s in api_signals if (s + ".connect") not in panel]
@@ -322,6 +323,34 @@ check(u"русский текст из .tscn переписывается из �
       unlocalized)
 check(u"проверка нашла надписи, которые надо переписывать", checked_pairs >= 8,
       checked_pairs)
+
+# --- 9) Несколько ключей на провайдера ---
+#
+# Квота бесплатных тарифов считается НА КЛЮЧ, поэтому второй аккаунт того же
+# сервиса — рабочий способ продолжить работу. Панель обязана уметь ДОПИСАТЬ
+# ключ, удалить один из списка и снять пометки «исчерпан».
+_key_save = re.search(r"func _on_api_detail_key_save\(\).*?(?=\nfunc )",
+                      start, re.DOTALL)
+check(u"обработчик сохранения ключа найден", _key_save is not None)
+_save_body = _key_save.group(0) if _key_save else ""
+check(u"поле ключа ДОПИСЫВАЕТ ключ (add_key)", '"add_key"' in _save_body)
+# ГЛАВНАЯ проверка этого раздела. Маршрут "key" на сервере ЗАМЕНЯЕТ весь список
+# одним ключом; пока панель его слала, попытка завести второй аккаунт молча
+# стирала первый. Проверка не даёт вернуть эту ловушку по невнимательности.
+check(u"панель НЕ отправляет замену всех ключей одним",
+      '"key":' not in start and '"key" :' not in start,
+      [ln.strip() for ln in start.split("\n") if '"key"' in ln][:3])
+check(u"удаление идёт по ПОЗИЦИИ (сырых ключей панель не видит)",
+      '"delete_key_index"' in start)
+check(u"есть сброс пометок «исчерпан»", '"clear_cooldowns"' in start)
+for _fn in ("_api_build_key_row", "_api_key_state_text",
+            "_on_api_key_row_delete", "_on_api_keys_reset"):
+    check(u"объявлен %s" % _fn,
+          re.search(r"^func\s+%s\s*\(" % _fn, start, re.MULTILINE) is not None)
+# Срок «можно пробовать через…» показывается только когда его НАЗВАЛ провайдер:
+# своих догадок про сброс суточной квоты ни сервер, ни панель не делают.
+check(u"срок повтора показывается только при until > 0",
+      re.search(r"until\s*>\s*0", start) is not None)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

@@ -170,11 +170,27 @@ func _build_panel(panel_script_path: String) -> Control:
 	send_btn.text = _lt("send", "Отправить")
 	hbox.add_child(send_btn)
 
-	var adv_toggle := Button.new()
-	adv_toggle.name = "AdvancedToggleBtn"
-	adv_toggle.text = _lt("advanced_show", "⚙️ Дополнительно")
-	vbox.add_child(adv_toggle)
+	# Кнопка ВЫБОРА НЕЙРОСЕТИ для открытого чата. На этом месте раньше стояло
+	# «⚙️ Дополнительно» — ящик с инструментами, которые нужны раз в месяц
+	# (переинициализация, справочник API, ошибки запуска, живой ввод). Ящик
+	# переехал в окно настроек (кнопка ⚙ в строке чатов), а строка прямо под
+	# полем ввода отдана тому, что важно знать при КАЖДОМ сообщении: какая
+	# модель и у какого провайдера сейчас отвечает. Нажатие открывает то же
+	# окно выбора провайдера, что и настройки работы по ключу, и выбранная
+	# модель применяется к ЭТОМУ чату — переписка сохраняется.
+	var model_btn := Button.new()
+	model_btn.name = "ChatModelBtn"
+	model_btn.text = _lt("chat_model_pick", "🤖 Выбрать нейросеть")
+	# Название модели бывает длинным (deepseek/deepseek-chat-v3-0324:free), а
+	# панель живёт в доке 250–400 px: без обрезки кнопка растянула бы
+	# наименьшую ширину всей панели по длине подписи.
+	model_btn.clip_text = true
+	vbox.add_child(model_btn)
 
+	# Ящик редких инструментов. Остаётся в дереве и скрытым: панель наполняет его
+	# в _ready (ошибки запуска, справочник API, живой ввод), а при первом
+	# открытии настроек ПЕРЕНОСИТ узел целиком в окно настроек — см.
+	# _on_settings_pressed в agent_panel.gd.
 	var adv_box := VBoxContainer.new()
 	adv_box.name = "AdvancedBox"
 	adv_box.visible = false

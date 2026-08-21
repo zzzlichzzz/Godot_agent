@@ -178,7 +178,7 @@ class _FakeCDPReadLoopDeadlockCheck:
     def send_command(self, method, params=None, timeout=2.0):
         if threading.current_thread() is threading.main_thread():
             # вызов из "read_loop" (тест играет read_loop в main thread) -
-            # ��икто не вызовет _deliver извне, так что это неизбежно истечёт таймаут.
+            # Никто не вызовет _deliver извне, так что это неизбежно истечёт таймаут.
             if not self._delivered.wait(timeout):
                 raise Exception("Timed out waiting for CDP response to %s" % method)
         else:
@@ -235,7 +235,7 @@ class _FakeCDPBodyOnly:
 
 def test_on_loading_finished_recovers_from_bad_frame_decode():
     # v87.5 regression: до v87.5 всё, что после успешного send_command
-    # (разбор base64/Connect-ка��ров/применение событий) было вне
+    # (разбор base64/Connect-кадров/применение событий) было вне
     # try/except - при любой ошибке разбора (например невалидный base64)
     # исключение тихо гасило фоновый поток, а generating оставался True
     # навечно. Живой признак: лог без единой строки Ошибки
