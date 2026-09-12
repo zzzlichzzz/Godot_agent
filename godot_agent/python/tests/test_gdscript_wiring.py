@@ -405,6 +405,12 @@ check("project settings executor uses Godot APIs",
       and "ProjectSettings.save" in settings_executor
       and "add_autoload_singleton" in settings_executor
       and "InputEventKey.new" in settings_executor)
+check("project settings executor plans idempotent operations",
+      "effective_operations" in settings_executor
+      and "autoload_conflict" in settings_executor
+      and "текущие deadzone и события сохранены" in settings_executor
+      and '"apply": false' in settings_executor
+      and "_apply(effective_operations)" in settings_executor)
 check("project settings executor avoids textual writes and UndoRedo",
       "FileAccess.WRITE" not in settings_executor and "UndoRedo" not in settings_executor)
 check("new executors avoid invalid static hashing and void return checks",
