@@ -4,6 +4,7 @@ import time
 import uuid
 import shutil
 import hashlib
+import tempfile
 
 from project_tools import _resolve_safe_path
 
@@ -130,8 +131,10 @@ def _prune(project_root, journal):
     """Держим не больше MAX_ENTRIES записей; снапшоты старых — удаляем."""
     while len(journal) > MAX_ENTRIES:
         old = journal.pop(0)
-        snap = old.get("snapshot")
-        if snap:
+        snapshots = [old.get("snapshot")] + [f.get("snapshot") for f in old.get("files", [])]
+        for snap in snapshots:
+            if not snap:
+                continue
             try:
                 os.remove(os.path.join(_history_dir(project_root), snap))
             except OSError:
@@ -214,13 +217,52 @@ def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=
     return entry["id"]
 
 
+def record_batch_change(project_root, action_type, paths, chat_id=None, chat_title=None):
+    """Create one journal entry and one before-snapshot per affected file."""
+    unique_paths = list(dict.fromkeys(str(path) for path in paths if path))
+    if not unique_paths:
+        raise ValueError("Пакетное изменение не содержит файлов")
+    entry = {"id": uuid.uuid4().hex[:12], "ts": time.time(),
+             "type": action_type, "path": unique_paths[0],
+             "paths": unique_paths, "files": [], "committed": False}
+    if chat_id:
+        entry["chat_id"] = chat_id
+        entry["chat_title"] = chat_title or ""
+    hist = _history_dir(project_root)
+    try:
+        for index, path in enumerate(unique_paths):
+            absolute = _resolve_safe_path(project_root, path)
+            if not os.path.isfile(absolute):
+                raise FileNotFoundError(path)
+            snap_rel = os.path.join("snapshots", "%s_%d_before" % (entry["id"], index))
+            shutil.copy2(absolute, os.path.join(hist, snap_rel))
+            entry["files"].append({"path": path, "snapshot": snap_rel})
+    except Exception:
+        for item in entry["files"]:
+            try:
+                os.remove(os.path.join(hist, item["snapshot"]))
+            except OSError:
+                pass
+        raise
+    journal = _load_journal(project_root)
+    journal.append(entry)
+    _prune(project_root, journal)
+    _save_journal(project_root, journal)
+    return entry["id"]
+
+
 def commit_change(project_root, entry_id):
     """Вызывать ПОСЛЕ успешного применения — фиксирует хэш результата."""
     journal = _load_journal(project_root)
     for e in journal:
         if e["id"] == entry_id:
-            target = e.get("dest") or e["path"]
-            e["after_hash"] = _file_hash(_resolve_safe_path(project_root, target))
+            if e.get("files"):
+                for item in e["files"]:
+                    item["after_hash"] = _file_hash(
+                        _resolve_safe_path(project_root, item["path"]))
+            else:
+                target = e.get("dest") or e["path"]
+                e["after_hash"] = _file_hash(_resolve_safe_path(project_root, target))
             e["committed"] = True
             break
     _save_journal(project_root, journal)
@@ -230,9 +272,16 @@ def abort_change(project_root, entry_id):
     """Если применение упало с ошибкой — убираем запись из журнала,
     чтобы не пытаться откатывать то, чего не было."""
     journal = _load_journal(project_root)
+    removed = [e for e in journal if e["id"] == entry_id]
     new_journal = [e for e in journal if e["id"] != entry_id]
     if len(new_journal) != len(journal):
         _save_journal(project_root, new_journal)
+    for entry in removed:
+        for item in entry.get("files", []):
+            try:
+                os.remove(os.path.join(_history_dir(project_root), item.get("snapshot", "")))
+            except OSError:
+                pass
 
 
 def _entry_public_info(entry, committed):
@@ -246,6 +295,7 @@ def _entry_public_info(entry, committed):
         "ts": entry.get("ts", 0),
         "chain_id": "",
         "chain_total": 0,
+        "paths": entry.get("paths") or [entry.get("dest") or entry.get("path", "")],
     }
     chain_id = entry.get("chain_id")
     if chain_id:
@@ -287,11 +337,12 @@ def entry_info(project_root, entry_id):
         return None
     info = _entry_public_info(entry, committed)
     info["is_last"] = (idx == len(committed) - 1)
-    target = entry.get("dest") or entry.get("path")
+    targets = set(entry.get("paths") or [entry.get("dest") or entry.get("path")])
     blockers = []
     for later in committed[idx + 1:]:
         later_paths = {later.get("path"), later.get("dest")}
-        if target in later_paths:
+        later_paths.update(later.get("paths") or [])
+        if targets.intersection(later_paths):
             blockers.append({"type": later.get("type", ""),
                              "path": later.get("dest") or later.get("path", ""),
                              "ts": later.get("ts", 0)})
@@ -315,6 +366,11 @@ def _drop_entry(project_root, journal, entry):
     if snap_rel:
         try:
             os.remove(os.path.join(_history_dir(project_root), snap_rel))
+        except OSError:
+            pass
+    for item in entry.get("files", []):
+        try:
+            os.remove(os.path.join(_history_dir(project_root), item.get("snapshot", "")))
         except OSError:
             pass
 
@@ -342,15 +398,16 @@ def rollback_entry(project_root, entry_id, force=False):
         return False, ("Это изменение уже не найдено в журнале — возможно, оно "
                        "уже откачено или вытеснено по лимиту истории."), False, [], None
 
-    target = entry.get("dest") or entry.get("path")
+    targets = set(entry.get("paths") or [entry.get("dest") or entry.get("path")])
     blockers = [e for e in committed[idx + 1:]
-                if target in {e.get("path"), e.get("dest")}]
+                if targets.intersection(set(e.get("paths") or [])
+                                        | {e.get("path"), e.get("dest")})]
     if blockers:
         return False, (
             "Этот файл (%s) агент правил ещё %d раз(а) ПОСЛЕ этого действия. "
             "Откатить его сейчас — значит потерять более свежие правки. "
             "Сначала откатите их: откат идёт от новых к старым."
-            % (target, len(blockers))
+            % (", ".join(sorted(targets)), len(blockers))
         ), False, [], None
 
     ok, message, needs_force, affected, diff = _revert_entry_on_disk(
@@ -390,8 +447,8 @@ def last_write_ts_by_others(project_root, path, chat_id):
     for e in _load_journal(project_root):
         if not e.get("committed"):
             continue
-        target = e.get("dest") or e.get("path")
-        if target != path:
+        targets = set(e.get("paths") or [e.get("dest") or e.get("path")])
+        if path not in targets:
             continue
         eid = e.get("chat_id")
         if not eid or eid == chat_id:
@@ -414,19 +471,20 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
             continue
         if exclude_chat_id and e.get("chat_id") == exclude_chat_id:
             continue
-        target = e.get("dest") or e.get("path") or ""
-        if not target:
-            continue
-        rec = per_file.get(target)
-        if rec is None:
-            rec = {"n": 0, "last": "", "chats": set()}
-            per_file[target] = rec
-            order.append(target)
-        rec["n"] += 1
-        rec["last"] = e.get("type", "")
-        title = (e.get("chat_title") or "").strip()
-        if title:
-            rec["chats"].add(title)
+        targets = e.get("paths") or [e.get("dest") or e.get("path") or ""]
+        for target in targets:
+            if not target:
+                continue
+            rec = per_file.get(target)
+            if rec is None:
+                rec = {"n": 0, "last": "", "chats": set()}
+                per_file[target] = rec
+                order.append(target)
+            rec["n"] += 1
+            rec["last"] = e.get("type", "")
+            title = (e.get("chat_title") or "").strip()
+            if title:
+                rec["chats"].add(title)
     if not per_file:
         return None
     total_files = len(per_file)
@@ -438,7 +496,8 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
                 "Твоя память о содержимом файлов и структуре проекта УСТАРЕЛА. "
                 "Перед любыми правками сначала запроси list_files, а каждый нужный файл перечитай через read_file."
                 % (total_changes, total_files))
-    kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён", "move_file": "перемещён"}
+    kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён",
+               "move_file": "перемещён", "rename_symbol": "переименован символ"}
     lines = []
     for p in order[:max_lines]:
         r = per_file[p]
@@ -460,6 +519,61 @@ def _revert_entry_on_disk(project_root, entry, force=False):
     Возвращает (ok, message, needs_force, paths, diff) — та же семантика,
     что раньше возвращал rollback_last целиком."""
     act = entry["type"]
+    if entry.get("files"):
+        files = entry["files"]
+        for item in files:
+            absolute = _resolve_safe_path(project_root, item["path"])
+            if not force and _file_hash(absolute) != item.get("after_hash"):
+                return False, (
+                    "Файл %s изменялся ПОСЛЕ этого действия агента. Откат перезапишет "
+                    "эти изменения. Нажмите откат ещё раз для подтверждения." % item["path"]
+                ), True, [], None
+            snapshot = os.path.join(_history_dir(project_root), item.get("snapshot", ""))
+            if not os.path.isfile(snapshot):
+                return False, "Снапшот для отката не найден: %s" % item["path"], False, [], None
+        current = {}
+        temps = {}
+        restored = []
+        try:
+            for item in files:
+                absolute = _resolve_safe_path(project_root, item["path"])
+                with open(absolute, "rb") as handle:
+                    current[item["path"]] = handle.read()
+                snapshot = os.path.join(_history_dir(project_root), item["snapshot"])
+                descriptor, temp_path = tempfile.mkstemp(
+                    prefix=".agent_rollback_", dir=os.path.dirname(absolute))
+                with os.fdopen(descriptor, "wb") as handle:
+                    with open(snapshot, "rb") as source:
+                        shutil.copyfileobj(source, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                temps[item["path"]] = temp_path
+            for item in files:
+                absolute = _resolve_safe_path(project_root, item["path"])
+                os.replace(temps.pop(item["path"]), absolute)
+                restored.append(item["path"])
+        except Exception as exc:
+            for path in restored:
+                try:
+                    absolute = _resolve_safe_path(project_root, path)
+                    descriptor, temp_path = tempfile.mkstemp(
+                        prefix=".agent_rollback_restore_", dir=os.path.dirname(absolute))
+                    with os.fdopen(descriptor, "wb") as handle:
+                        handle.write(current[path])
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                    os.replace(temp_path, absolute)
+                except Exception:
+                    pass
+            return False, "Пакетный откат не выполнен: %s" % exc, False, [], None
+        finally:
+            for temp_path in temps.values():
+                try:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                except OSError:
+                    pass
+        return True, "Откачено: %s (%d файлов)" % (act, len(files)), False, [f["path"] for f in files], None
     target = entry.get("dest") or entry["path"]
     try:
         abs_target = _resolve_safe_path(project_root, target)

@@ -405,13 +405,16 @@ def _save_semantic_index(project_root, data):
 def _build_semantic_entry(root, rel):
     full = os.path.join(root, rel.replace("/", os.sep))
     try:
-        with open(full, "r", encoding="utf-8-sig", errors="replace") as handle:
-            text = handle.read(200000)
+        with open(full, "rb") as handle:
+            raw = handle.read()
     except OSError:
         return None
+    text = raw.decode("utf-8-sig", errors="replace")
+    if len(text) > 200000:
+        text = text[:200000]
     stamp = _file_stamp(full) or (0, len(text.encode("utf-8")))
     return {"path": rel, "mtime": stamp[0], "size": stamp[1],
-            "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
             "semantic": gd_semantic_parser.parse(text, rel)}
 
 

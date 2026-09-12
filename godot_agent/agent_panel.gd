@@ -67,6 +67,7 @@ var _active_plan_card: PlanChecklistCard = null
 var _last_pending_action_type: String = ""
 var _last_pending_action_path: String = ""
 var _last_pending_action_dest: String = ""
+var _last_pending_action_paths: PackedStringArray = PackedStringArray()
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -561,6 +562,7 @@ func _clear_pending_action_state() -> void:
 	_last_pending_action_type = ""
 	_last_pending_action_path = ""
 	_last_pending_action_dest = ""
+	_last_pending_action_paths = PackedStringArray()
 	_pending_log_send = false
 
 
@@ -832,6 +834,11 @@ func _on_reject_pressed() -> void:
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
+	if approved and _last_pending_action_type == "rename_symbol":
+		var dirty_paths := _dirty_open_scripts(_last_pending_action_paths)
+		if not dirty_paths.is_empty():
+			_view.add_warning("Сначала сохраните изменённые вкладки: " + ", ".join(dirty_paths))
+			return
 	_set_pending_action(false)
 	# Подтверждение отправки отчёта об ошибках запуска — отдельная ветка:
 	# при отказе сервер вообще не трогаем (и браузер тоже).
@@ -1473,7 +1480,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# После подтверждённого WRITE-действия — синхронизируем открытую вкладку.
 		# При пакетном чтении файлов _last_pending_action_type пуст — ничего не трогаем.
 		if kind == "confirm" and _last_pending_action_type != "":
-			_force_reload_open_script()
+			var changed_paths = json.get("changed_paths")
+			if changed_paths is Array:
+				for changed_path in changed_paths:
+					_sync_open_script_with_disk(str(changed_path))
+					_auto_reload_changed_scene(str(changed_path))
+			else:
+				_force_reload_open_script()
 			if _last_pending_action_path != "":
 				_auto_reload_changed_scene(_last_pending_action_path)
 			if _last_pending_action_dest != "":
@@ -1482,6 +1495,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_last_pending_action_type = ""
 			_last_pending_action_path = ""
 			_last_pending_action_dest = ""
+			_last_pending_action_paths = PackedStringArray()
 			# Открываем изменённый файл и подсвечиваем строки, написанные агентом.
 			var ch_path = json.get("changed_path")
 			var ch_block = json.get("changed_block")
@@ -1526,17 +1540,33 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			# и, если смог посчитать, разобранный дифф — что добавится и что удалится.
 			var pcode = json.get("pending_action_code")
 			var pdiff = json.get("pending_action_diff")
+			var pdiffs = json.get("pending_action_diffs")
 			var diff_data: Dictionary = pdiff if pdiff is Dictionary else {}
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
+			_last_pending_action_paths = PackedStringArray()
+			var raw_paths = pending.get("paths", [])
+			if raw_paths is Array:
+				for raw_path in raw_paths:
+					_last_pending_action_paths.append(str(raw_path))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
 
 			# Дифф сам по себе достаточен для карточки: patch_file, который
 			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
 			# правке доставалась безликая карточка подтверждения.
-			if (pcode != null and str(pcode) != "") or not diff_data.is_empty():
+			if pdiffs is Array and not (pdiffs as Array).is_empty():
+				for raw_diff in pdiffs:
+					if raw_diff is Dictionary:
+						var readonly_diff := raw_diff as Dictionary
+						_view.add_readonly_diff(str(readonly_diff.get("path", "")), readonly_diff)
+				_view.add_confirmation_card(
+					str(description),
+					func(): _on_confirm_pressed(),
+					func(): _on_reject_pressed()
+				)
+			elif (pcode != null and str(pcode) != "") or not diff_data.is_empty():
 				var file_path = _last_pending_action_path if _last_pending_action_path != "" else _last_pending_action_dest
 				var card = _view.add_diff_preview(file_path, str(pcode) if pcode != null else "", diff_data)
 				if card:
@@ -1712,6 +1742,38 @@ func _force_reload_open_script() -> void:
 	if _last_pending_action_type == "move_file" and not _last_pending_action_dest.is_empty():
 		target_path = _last_pending_action_dest
 	_sync_open_script_with_disk(target_path)
+
+
+func _dirty_open_scripts(target_paths: PackedStringArray) -> PackedStringArray:
+	var dirty := PackedStringArray()
+	if target_paths.is_empty():
+		return dirty
+	var wanted := {}
+	for path in target_paths:
+		wanted[path] = true
+	var script_editor := EditorInterface.get_script_editor()
+	if not script_editor:
+		return dirty
+	if script_editor.has_method("get_open_script_editors"):
+		for editor in script_editor.get_open_script_editors():
+			if not editor or not editor.has_method("get_edited_resource"):
+				continue
+			var resource = editor.get_edited_resource()
+			if not resource or not wanted.has(str(resource.resource_path)):
+				continue
+			var base_editor = editor.get_base_editor() if editor.has_method("get_base_editor") else null
+			var code_edit := base_editor as CodeEdit
+			if code_edit and code_edit.get_version() != code_edit.get_saved_version():
+				dirty.append(str(resource.resource_path))
+		return dirty
+	# Compatibility fallback can inspect the active tab without switching tabs.
+	var current_script = script_editor.get_current_script()
+	var current_editor = script_editor.get_current_editor()
+	if current_script and wanted.has(str(current_script.resource_path)) and current_editor:
+		var code_edit := current_editor.get_base_editor() as CodeEdit
+		if code_edit and code_edit.get_version() != code_edit.get_saved_version():
+			dirty.append(str(current_script.resource_path))
+	return dirty
 
 
 func _sync_open_script_with_disk(target_path: String) -> void:

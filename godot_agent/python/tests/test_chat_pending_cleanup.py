@@ -14,7 +14,7 @@ import server_state  # noqa: E402
 class ChatPendingCleanupTests(unittest.TestCase):
     def test_clear_pending_confirmations_discards_all_chat_scoped_state(self):
         state = server_state.STATE
-        keys = ("pending_action", "pending_batch", "pending_plan", "plan_parts", "content_parts")
+        keys = ("pending_action", "pending_refactor", "pending_batch", "pending_plan", "plan_parts", "content_parts")
         previous = {key: state.get(key) for key in keys}
         try:
             for key in keys:

@@ -94,6 +94,27 @@ def test_impossible_patch_is_blocking():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_rename_symbol_uses_safe_dry_run():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({
+            "action": "rename_symbol", "kind": "function",
+            "declaration": "res://src/scripts/player.gd:3",
+            "old_name": "jump", "new_name": "perform_jump",
+        }))
+        assert result["acceptable"] and result["score"] >= 90
+        assert any("Safe rename" in item for item in result["evidence"])
+        bad = judge_answer(root, _answer({
+            "action": "rename_symbol", "kind": "function",
+            "declaration": "res://src/scripts/player.gd:99",
+            "old_name": "jump", "new_name": "perform_jump",
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "refactor" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_broken_gdscript_is_blocking():
     root = _project()
     try:
