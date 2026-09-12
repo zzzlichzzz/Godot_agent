@@ -8,6 +8,8 @@
 import os
 import json as _json
 import threading
+import hmac
+import time
 
 import history_manager as history
 import chat_store
@@ -42,6 +44,10 @@ STATE = {
     "godot_executable": None,      # trusted editor executable path from OS.get_executable_path()
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
     "editor_context": None,     # снимок только текущего хода для gather_context
+    "runtime_status": None,
+    "pending_runtime_request": None,
+    "runtime_turn_id": 0,
+    "runtime_inspections_this_turn": 0,
     "progress": {"active": False},
     "fs_snapshot": None,       # отпечаток файлов проекта (mtime+size) для обнаружения ВНЕШНИХ изменений
     "fs_snapshot_root": None,
@@ -74,6 +80,59 @@ _holder = {"driver": None, "driver_error": None}
 # (вставка финального промпта, сверка v88.4, ожидание ответа).
 _exchange = {"count": 0}
 _exchange_lock = threading.Lock()
+_runtime_request_lock = threading.RLock()
+
+
+def claim_runtime_request(data):
+    """Validate and reserve one result while holding the runtime-turn lock."""
+    _runtime_request_lock.acquire()
+    pending = STATE.get("pending_runtime_request")
+    if not isinstance(pending, dict):
+        _runtime_request_lock.release()
+        return None, "missing"
+    if str(data.get("request_id") or "") != str(pending.get("request_id") or ""):
+        _runtime_request_lock.release()
+        return None, "request"
+    if not hmac.compare_digest(
+            str(data.get("result_token") or ""), str(pending.get("result_token") or "")):
+        _runtime_request_lock.release()
+        return None, "token"
+    if time.time() > float(pending.get("deadline") or 0):
+        STATE["pending_runtime_request"] = None
+        _runtime_request_lock.release()
+        return None, "expired"
+    if (int(data.get("session_id", -1)) != int(pending.get("session_id", -2))
+            or str(data.get("run_id") or "") != str(pending.get("run_id") or "")):
+        _runtime_request_lock.release()
+        return None, "session"
+    if (pending.get("chat_id") != STATE.get("current_chat_id")
+            or int(pending.get("turn_id") or 0) != int(STATE.get("runtime_turn_id") or 0)):
+        _runtime_request_lock.release()
+        return None, "turn"
+    return pending, None
+
+
+def release_runtime_request(pending):
+    """Consume a reserved request and release the runtime-turn lock."""
+    try:
+        current = STATE.get("pending_runtime_request")
+        if (isinstance(current, dict) and isinstance(pending, dict)
+                and current.get("request_id") == pending.get("request_id")):
+            STATE["pending_runtime_request"] = None
+    finally:
+        _runtime_request_lock.release()
+
+
+def reset_runtime_turn(status=None, increment=False):
+    """Serialize chat/initialization changes against accepted runtime results."""
+    with _runtime_request_lock:
+        STATE["runtime_status"] = status
+        STATE["pending_runtime_request"] = None
+        if increment:
+            STATE["runtime_turn_id"] = int(STATE.get("runtime_turn_id") or 0) + 1
+        else:
+            STATE["runtime_turn_id"] = 0
+        STATE["runtime_inspections_this_turn"] = 0
 
 
 def begin_exchange():
@@ -304,6 +363,8 @@ def clear_pending_confirmations():
     STATE["pending_plan"] = None
     STATE["plan_parts"] = None
     STATE["content_parts"] = None
+    with _runtime_request_lock:
+        STATE["pending_runtime_request"] = None
 
 
 def _sync_chat_after_reply():

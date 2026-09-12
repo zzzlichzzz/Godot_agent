@@ -38,6 +38,7 @@ import gd_functions
 import librarian
 import log_reader
 import editor_context
+import runtime_debug
 import gather_context
 import symbol_refactor
 import scene_actions
@@ -106,7 +107,8 @@ import live_input
 import rate_limit  # v104.12: детект 429/лимитов + спящий режим
 import server_state
 from server_state import (
-    STATE, get_driver, set_driver, set_driver_error,
+    STATE, get_driver, set_driver, set_driver_error, claim_runtime_request,
+    release_runtime_request, reset_runtime_turn,
     _load_primed, _save_primed,
     _apply_session_context, _ensure_current_chat, _remember,
     _sync_chat_after_reply, _set_progress, _clear_progress,
@@ -429,6 +431,12 @@ def _describe_action(action):
         if symbols:
             details.append("символы: " + ", ".join(str(x) for x in symbols[:4]))
         return "Агент хочет одним проходом собрать контекст проекта" + ((": " + "; ".join(details)) if details else "")
+    if act == "inspect_runtime":
+        sections = action.get("sections") or []
+        selectors = action.get("properties") or []
+        property_count = sum(len(item.get("names") or []) for item in selectors if isinstance(item, dict))
+        return "Агент хочет прочитать состояние запущенной игры: %s (%d свойств)" % (
+            ", ".join(str(item) for item in sections), property_count)
     if act == "rename_symbol":
         return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
@@ -897,6 +905,24 @@ def _package_model_reply(text, action, project_root, depth=0):
         time.sleep(1.5)
         text2, act2 = _reply_with_self_heal(followup, project_root)
         return _package_model_reply(text2, act2, project_root, depth + 1)
+    if action and action.get("action") == "inspect_runtime":
+        try:
+            normalized = runtime_debug.normalize_action(action)
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                raise runtime_debug.RuntimeDebugError(
+                    "only one inspect_runtime action is allowed per user turn")
+            runtime_debug.select_session(
+                STATE.get("runtime_status"), normalized.get("session_id"))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            return jsonify({"answer": (text + "\n\n[Система]: inspect_runtime отклонён: %s" % exc).strip(),
+                            "pending_action": None})
+        STATE["pending_action"] = normalized
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": normalized,
+                        "pending_action_description": _describe_action(normalized),
+                        "pending_action_code": None})
     if action and action.get("action") == "copy_file":
         STATE["pending_action"] = None
         raw_copies = action.get("copies")
@@ -1951,6 +1977,7 @@ def init_session():
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
     STATE["editor_context"] = None
+    reset_runtime_turn(runtime_debug.normalize_status(data.get("runtime_status")))
     if STATE.get("fs_snapshot") is None or STATE.get("fs_snapshot_root") != STATE["project_root"]:
         _refresh_fs_snapshot(STATE["project_root"])
     reinit = bool(data.get("reinit", False))
@@ -1980,6 +2007,7 @@ def chat():
     _apply_session_context(data)
     STATE["editor_context"] = editor_context.normalize_snapshot(
         data.get("editor_context"))
+    reset_runtime_turn(runtime_debug.normalize_status(data.get("runtime_status")), increment=True)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     STATE["battle_choice_summary"] = None
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
@@ -2042,6 +2070,7 @@ def chat():
 
         prompt, context_sizes = editor_context.attach_to_prompt(
             prompt, STATE.get("editor_context"))
+        prompt = runtime_debug.attach_status(prompt, STATE.get("runtime_status"))
         if context_sizes.get("total"):
             sizes = ", ".join("%s=%d" % (key, context_sizes[key])
                               for key in sorted(context_sizes))
@@ -2158,7 +2187,27 @@ def confirm_action():
             STATE["pending_resource_action"] = None
             STATE["pending_validation"] = None
             STATE["pending_transaction"] = None
+            STATE["pending_runtime_request"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
+
+        if act_type == "inspect_runtime":
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                STATE["pending_action"] = None
+                return jsonify({"error": "Runtime snapshot уже запрашивался в этом ходе."}), 409
+            try:
+                pending = runtime_debug.create_request(
+                    action, STATE.get("runtime_status"), STATE.get("current_chat_id"),
+                    STATE.get("runtime_turn_id"))
+                pending["project_root"] = STATE.get("project_root")
+            except runtime_debug.RuntimeDebugError as exc:
+                STATE["pending_action"] = None
+                return jsonify({"error": str(exc)}), 409
+            STATE["pending_runtime_request"] = pending
+            STATE["runtime_inspections_this_turn"] = 1
+            STATE["pending_action"] = None
+            return jsonify({"answer": "[Система]: Runtime inspection подтверждён.",
+                            "pending_action": None,
+                            "runtime_request": runtime_debug.public_request(pending)})
 
         if act_type == "rename_symbol":
             prepared = STATE.get("pending_refactor")
@@ -2421,6 +2470,7 @@ def confirm_action():
         STATE["pending_scene_action"] = None
         STATE["pending_project_settings_action"] = None
         STATE["pending_resource_action"] = None
+        STATE["pending_runtime_request"] = None
         STATE["pending_validation"] = None
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
@@ -2525,6 +2575,47 @@ def editor_action_result():
         print("❌ ОШИБКА editor_action_result: %s" % exc)
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/chat/runtime_inspect/result', methods=['POST'])
+def runtime_inspect_result():
+    if request.content_length is not None and request.content_length > runtime_debug.MAX_HTTP_BODY_BYTES:
+        return jsonify({"error": "Runtime result превышает допустимый размер."}), 413
+    data = request.json or {}
+    status = str(data.get("status") or "protocol_error")
+    if status not in runtime_debug.RESULT_STATUSES:
+        return jsonify({"error": "Неизвестный runtime status."}), 400
+    pending, claim_error = claim_runtime_request(data)
+    if claim_error == "token":
+        return jsonify({"error": "Неверный runtime result token."}), 403
+    if claim_error == "expired":
+        return jsonify({"error": "Runtime inspection истёк."}), 410
+    if claim_error in ("session", "turn", "request"):
+        return jsonify({"error": "Runtime inspection устарел или относится к другой сессии."}), 409
+    if claim_error:
+        return jsonify({"error": "Нет ожидающего runtime inspection."}), 409
+    try:
+        if status != "ok":
+            messages = {
+                "runtime_not_running": "Игра больше не запущена.",
+                "ambiguous_session": "Нужно явно выбрать runtime session.",
+                "bridge_unavailable": "AgentRuntimeBridge не подключён как debug Autoload.",
+                "session_stopped": "Runtime session остановлена.",
+                "stale_runtime_session": "Игра была перезапущена во время inspection.",
+                "timeout": "Runtime inspection превысил лимит времени.",
+                "response_too_large": "Runtime snapshot превысил допустимый размер.",
+            }
+            return jsonify({"answer": "[Система]: " + messages.get(status, "Runtime inspection не выполнен."),
+                            "pending_action": None, "runtime_status": status})
+        snapshot = runtime_debug.normalize_snapshot(data.get("snapshot"))
+        runtime_debug.validate_snapshot_request(snapshot, pending)
+        followup = runtime_debug.format_snapshot(snapshot)
+        text, new_action = _reply_with_self_heal(followup, pending.get("project_root"))
+        return _package_model_reply(text, new_action, pending.get("project_root"))
+    except runtime_debug.RuntimeDebugError as exc:
+        return jsonify({"error": str(exc)}), 413 if "96 KiB" in str(exc) else 400
+    finally:
+        release_runtime_request(pending)
 
 
 @app.route('/chat/rollback/preview', methods=['POST'])

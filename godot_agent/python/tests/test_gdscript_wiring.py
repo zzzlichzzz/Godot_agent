@@ -435,12 +435,33 @@ check("panel coordinates resource transaction",
 check("panel retries retained resource finalize envelope",
       "_pending_resource_finalize_body" in panel
       and "_schedule_resource_finalize_retry" in panel
-      and "return _pending_action_active or not _pending_resource_finalize_body.is_empty()" in panel
+      and "not _pending_resource_finalize_body.is_empty()" in panel[panel.find("func _has_pending_action"):]
       and "_send_pending_resource_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
 check("panel explicitly dispatches all editor transaction kinds",
       all(value in panel for value in ('editor_action_kind == "scene"',
                                        'editor_action_kind == "project_settings"',
                                        'editor_action_kind == "resource"')))
+runtime_debugger = read(_os0.path.join(ADDON, "agent_runtime_debugger.gd"))
+runtime_bridge = read(_os0.path.join(ADDON, "agent_runtime_bridge.gd"))
+check("plugin registers and removes runtime debugger",
+      "add_debugger_plugin" in plugin and "remove_debugger_plugin" in plugin
+      and "set_runtime_debugger" in plugin)
+check("runtime debugger uses public capture protocol",
+      "extends EditorDebuggerPlugin" in runtime_debugger
+      and "_has_capture" in runtime_debugger and "_capture" in runtime_debugger
+      and 'NAMESPACE + ":inspect"' in runtime_debugger
+      and "session.is_active()" in runtime_debugger
+      and '"result_token"' not in runtime_debugger)
+check("runtime bridge is debug-only and read-only",
+      "OS.is_debug_build()" in runtime_bridge and "EngineDebugger.is_active()" in runtime_bridge
+      and "register_message_capture" in runtime_bridge
+      and all(name not in runtime_bridge for name in ("set_property", "queue_free(", "change_scene_to", "UndoRedo")))
+check("panel sends compact runtime status and handles bounded result",
+      '"runtime_status": _runtime_status' in panel
+      and "_start_runtime_inspect" in panel and "RUNTIME_RESULT_URL" in panel
+      and "_pending_runtime_request" in panel)
+check("automatic runtime log setup is read-only",
+      "ProjectSettings.save()" not in panel[panel.find("func _ensure_file_logging_enabled"):panel.find("func _start_progress_poll")])
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

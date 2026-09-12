@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 
 import api_history
 import editor_context
+import runtime_debug
 import api_keys
 import anthropic_compat
 import catalog
@@ -225,7 +226,8 @@ def _guess_user_kind(prompt):
     чтение файла можно схлопнуть, реплику пользователя — нельзя.
     """
     head = (prompt or "").lstrip()[:16]
-    if head.startswith(u"[Система]") or head.startswith("[System]"):
+    if (head.startswith(u"[Система]") or head.startswith("[System]")
+            or (prompt or "").lstrip().startswith("[Godot runtime snapshot;")):
         return api_history.KIND_TOOL_RESULT
     return api_history.KIND_PROMPT
 
@@ -1135,7 +1137,7 @@ class ApiBackend(object):
         """
         api_history.append_exchange(
             self._base_dir, self.chat_id,
-            editor_context.user_prompt_without_context(prompt), raw,
+            editor_context.user_prompt_without_context(runtime_debug.strip_status(prompt)), raw,
             user_kind=_guess_user_kind(prompt), usage=usage)
 
         action_raw, prose = split_action_block(raw)

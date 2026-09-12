@@ -16,7 +16,8 @@ class ChatPendingCleanupTests(unittest.TestCase):
         state = server_state.STATE
         keys = ("pending_action", "pending_refactor", "pending_scene_action",
                 "pending_project_settings_action", "pending_resource_action",
-                "pending_validation", "pending_transaction", "pending_batch", "pending_plan", "plan_parts", "content_parts")
+                "pending_validation", "pending_transaction", "pending_runtime_request",
+                "pending_batch", "pending_plan", "plan_parts", "content_parts")
         previous = {key: state.get(key) for key in keys}
         try:
             for key in keys:
