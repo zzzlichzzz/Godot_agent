@@ -30,6 +30,8 @@ const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const EDITOR_ACTION_RESULT_URL = "http://" + HOST + "/chat/editor_action/result"
 const RUNTIME_RESULT_URL = "http://" + HOST + "/chat/runtime_inspect/result"
+const RUNTIME_CHECK_BIND_URL = "http://" + HOST + "/chat/runtime_check/bind"
+const RUNTIME_CHECK_RESULT_URL = "http://" + HOST + "/chat/runtime_check/result"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
@@ -91,6 +93,12 @@ var _runtime_debugger = null
 var _runtime_status: Dictionary = {"enabled": false, "protocol": 1, "sessions": []}
 var _pending_runtime_request: Dictionary = {}
 var _runtime_timeout_timer: Timer = null
+var _pending_runtime_check: Dictionary = {}
+var _runtime_check_session_id: int = -1
+var _runtime_check_run_id: String = ""
+var _runtime_check_launch_deadline: int = 0
+var _runtime_check_owned_scene: bool = false
+var _pending_runtime_check_result_body: Dictionary = {}
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -226,6 +234,7 @@ func set_runtime_debugger(debugger) -> void:
 	_runtime_status = _runtime_debugger.get_status()
 	_runtime_debugger.status_changed.connect(_on_runtime_status_changed)
 	_runtime_debugger.inspect_completed.connect(_on_runtime_inspect_completed)
+	_runtime_debugger.check_completed.connect(_on_runtime_check_completed)
 	_runtime_timeout_timer = Timer.new()
 	_runtime_timeout_timer.one_shot = true
 	add_child(_runtime_timeout_timer)
@@ -259,6 +268,10 @@ func _on_runtime_inspect_completed(result: Dictionary) -> void:
 
 
 func _on_runtime_inspect_timeout() -> void:
+	if not _pending_runtime_check.is_empty():
+		if _runtime_debugger:
+			_runtime_debugger.cancel_pending("timeout")
+		return
 	if _runtime_debugger:
 		_runtime_debugger.cancel_pending("timeout")
 
@@ -283,6 +296,160 @@ func _send_runtime_result(status: String, snapshot) -> void:
 		if _runtime_timeout_timer:
 			_runtime_timeout_timer.stop()
 		_set_ui_busy(false)
+
+
+func _start_runtime_check(envelope: Dictionary) -> void:
+	_pending_runtime_check = (envelope.get("runtime_check_request", {}) as Dictionary).duplicate(true)
+	if _pending_runtime_check.is_empty():
+		return
+	if EditorInterface.is_playing_scene():
+		_send_runtime_check_result("runtime_already_running", {})
+		return
+	var scene_path := str(_pending_runtime_check.get("scene", ""))
+	EditorInterface.play_custom_scene(scene_path)
+	_runtime_check_owned_scene = true
+	_runtime_check_launch_deadline = Time.get_ticks_msec() + 8000
+	_runtime_check_session_id = -1
+	_runtime_check_run_id = ""
+	_view.add_system("Запускаю сцену для локальной игровой проверки...")
+
+
+func _exit_tree() -> void:
+	if not _pending_runtime_check.is_empty():
+		if _runtime_debugger:
+			_runtime_debugger.cancel_pending("cancelled")
+		# Before the debugger announces a run, this panel is still authoritative:
+		# it launched only after verifying that no user game was running.
+		if _runtime_check_owned_scene and _runtime_check_session_id < 0 \
+				and EditorInterface.is_playing_scene():
+			EditorInterface.stop_playing_scene()
+		else:
+			_stop_owned_runtime_check_scene()
+
+
+func _try_bind_runtime_check() -> void:
+	if _pending_runtime_check.is_empty() or _runtime_check_launch_deadline <= 0 or _is_network_busy:
+		return
+	if Time.get_ticks_msec() > _runtime_check_launch_deadline:
+		_stop_owned_runtime_check_scene()
+		_send_runtime_check_result("launch_timeout", {})
+		return
+	var sessions = _runtime_status.get("sessions", [])
+	if not sessions is Array:
+		return
+	var active: Array = []
+	var ready: Array = []
+	for raw in sessions:
+		if raw is Dictionary and bool(raw.get("active", false)):
+			active.append(raw)
+			if bool(raw.get("bridge_ready", false)) and "run_check_v1" in raw.get("capabilities", []):
+				ready.append(raw)
+	# Remember the exact run as soon as the debugger sees it. This lets timeout
+	# cleanup stop only the scene launched by this check, even before handshake.
+	if active.size() == 1:
+		_runtime_check_session_id = int(active[0].get("session_id", -1))
+		_runtime_check_run_id = str(active[0].get("run_id", ""))
+	if ready.size() != 1:
+		return
+	var session := ready[0] as Dictionary
+	_runtime_check_session_id = int(session.get("session_id", -1))
+	_runtime_check_run_id = str(session.get("run_id", ""))
+	if _runtime_check_session_id < 0 or _runtime_check_run_id.is_empty():
+		return
+	_runtime_check_launch_deadline = 0
+	var body := {
+		"request_id": str(_pending_runtime_check.get("request_id", "")),
+		"result_token": str(_pending_runtime_check.get("result_token", "")),
+		"session_id": _runtime_check_session_id,
+		"run_id": _runtime_check_run_id,
+		"runtime_status": _runtime_status,
+	}
+	_pending_request_kind = "runtime_check_bind"
+	_set_ui_busy(true)
+	var error := http_request.request(RUNTIME_CHECK_BIND_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if error != OK:
+		_set_ui_busy(false)
+		_runtime_check_launch_deadline = Time.get_ticks_msec() + 1000
+
+
+func _execute_bound_runtime_check(envelope: Dictionary) -> void:
+	var game_request = envelope.get("game_request", {})
+	if not game_request is Dictionary:
+		_stop_owned_runtime_check_scene()
+		_send_runtime_check_result("protocol_error", {})
+		return
+	game_request = (game_request as Dictionary).duplicate(true)
+	game_request["session_id"] = _runtime_check_session_id
+	var result := {"ok": false, "status": "bridge_unavailable"}
+	if _runtime_debugger:
+		result = _runtime_debugger.run_check(game_request)
+	if not bool(result.get("ok", false)):
+		_stop_owned_runtime_check_scene()
+		_send_runtime_check_result(str(result.get("status", "bridge_unavailable")), {})
+		return
+	_runtime_timeout_timer.start(maxf(1.0, float(game_request.get("timeout_ms", 12000)) / 1000.0 + 1.0))
+	_view.add_system("Локальная игровая проверка выполняется...")
+
+
+func _on_runtime_check_completed(result: Dictionary) -> void:
+	if _pending_runtime_check.is_empty():
+		return
+	if str(result.get("request_id", "")) != str(_pending_runtime_check.get("request_id", "")):
+		return
+	if _runtime_timeout_timer:
+		_runtime_timeout_timer.stop()
+	_stop_owned_runtime_check_scene()
+	_send_runtime_check_result(str(result.get("status", "protocol_error")), result.get("result", {}))
+
+
+func _stop_owned_runtime_check_scene() -> void:
+	var owns_current_run := false
+	for raw in _runtime_status.get("sessions", []):
+		if raw is Dictionary and bool(raw.get("active", false)) \
+				and int(raw.get("session_id", -2)) == _runtime_check_session_id \
+				and str(raw.get("run_id", "")) == _runtime_check_run_id:
+			owns_current_run = true
+			break
+	if _runtime_check_owned_scene and owns_current_run and EditorInterface.is_playing_scene():
+		EditorInterface.stop_playing_scene()
+	_runtime_check_owned_scene = false
+
+
+func _send_runtime_check_result(status: String, result_value) -> void:
+	if _pending_runtime_check.is_empty():
+		return
+	_pending_runtime_check_result_body = {
+		"request_id": str(_pending_runtime_check.get("request_id", "")),
+		"result_token": str(_pending_runtime_check.get("result_token", "")),
+		"session_id": _runtime_check_session_id,
+		"run_id": _runtime_check_run_id,
+		"status": status,
+		"result": result_value if result_value is Dictionary else {},
+	}
+	_send_pending_runtime_check_result()
+
+
+func _send_pending_runtime_check_result() -> void:
+	if _pending_runtime_check_result_body.is_empty() or _is_network_busy:
+		return
+	_pending_request_kind = "runtime_check_result"
+	_set_ui_busy(true)
+	var error := http_request.request(RUNTIME_CHECK_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_runtime_check_result_body))
+	if error != OK:
+		_set_ui_busy(false)
+		_log_error("Не удалось передать результат локальной игровой проверки серверу")
+
+
+func _clear_runtime_check_state() -> void:
+	_stop_owned_runtime_check_scene()
+	_pending_runtime_check = {}
+	_pending_runtime_check_result_body = {}
+	_runtime_check_session_id = -1
+	_runtime_check_run_id = ""
+	_runtime_check_launch_deadline = 0
+	if _runtime_timeout_timer:
+		_runtime_timeout_timer.stop()
 
 
 func _locale():
@@ -665,7 +832,8 @@ func _set_pending_action(active: bool, description: String = "") -> void:
 
 func _has_pending_action() -> bool:
 	return (_pending_action_active or not _pending_resource_finalize_body.is_empty()
-		or not _pending_runtime_request.is_empty())
+		or not _pending_runtime_request.is_empty() or not _pending_runtime_check.is_empty()
+		or not _pending_runtime_check_result_body.is_empty())
 
 
 func _clear_pending_action_state() -> void:
@@ -983,7 +1151,7 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime"]:
+	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
@@ -1687,10 +1855,21 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_start_runtime_inspect(json)
 			return
 
+		if kind == "confirm" and json.get("runtime_check_request") is Dictionary:
+			_start_runtime_check(json)
+			return
+
+		if kind == "runtime_check_bind":
+			_execute_bound_runtime_check(json)
+			return
+
 		if kind == "runtime_result":
 			_pending_runtime_request = {}
 			if _runtime_timeout_timer:
 				_runtime_timeout_timer.stop()
+
+		if kind == "runtime_check_result":
+			_clear_runtime_check_state()
 
 		if kind == "resource_finalize":
 			var resource_path := str(_pending_resource_action.get("resource", ""))
@@ -1974,6 +2153,21 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		await get_tree().process_frame
 	else:
+		if kind == "runtime_check_bind":
+			if response_code in [400, 403, 409, 410, 413]:
+				_log_error("Сервер окончательно отклонил привязку локальной игровой проверки.")
+				_clear_runtime_check_state()
+			else:
+				_log_error("Привязка игровой проверки будет повторена.")
+				_runtime_check_launch_deadline = Time.get_ticks_msec() + 1000
+			return
+		if kind == "runtime_check_result":
+			if response_code in [400, 403, 409, 410, 413]:
+				_log_error("Сервер окончательно отклонил результат локальной игровой проверки.")
+				_clear_runtime_check_state()
+			else:
+				_log_error("Сервер временно не принял результат; отправка будет повторена.")
+			return
 		if kind == "runtime_result":
 			_pending_runtime_request = {}
 			if _runtime_timeout_timer:
@@ -1994,7 +2188,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			if _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime"]:
+			if _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
 				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
@@ -2237,6 +2431,9 @@ func _on_play_watch_tick() -> void:
 	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \
 			and _pending_request_kind != "resource_finalize":
 		_send_pending_resource_finalize()
+	_try_bind_runtime_check()
+	if not _pending_runtime_check_result_body.is_empty() and not _is_network_busy:
+		_send_pending_runtime_check_result()
 	var playing := EditorInterface.is_playing_scene()
 	if _was_playing and not playing:
 		_was_playing = false

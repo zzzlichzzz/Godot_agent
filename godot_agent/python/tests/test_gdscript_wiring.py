@@ -462,6 +462,19 @@ check("panel sends compact runtime status and handles bounded result",
       and "_pending_runtime_request" in panel)
 check("automatic runtime log setup is read-only",
       "ProjectSettings.save()" not in panel[panel.find("func _ensure_file_logging_enabled"):panel.find("func _start_progress_poll")])
+check("runtime debugger supports deterministic checks",
+      'NAMESPACE + ":run_check"' in runtime_debugger
+      and "check_completed" in runtime_debugger and "run_check_v1" in runtime_debugger)
+check("runtime bridge executes bounded InputMap checks",
+      "InputEventAction.new" in runtime_bridge and "InputMap.has_action" in runtime_bridge
+      and "_run_check_steps" in runtime_bridge and "_release_inputs" in runtime_bridge
+      and "_error_sequence" in runtime_bridge and "MAX_CHECK_RESULT_BYTES" in runtime_bridge
+      and all(value not in runtime_bridge for value in ("InputEventKey.new", "InputEventMouseButton.new")))
+check("panel owns launch bind result lifecycle for checks",
+      "EditorInterface.play_custom_scene" in panel and "EditorInterface.stop_playing_scene" in panel
+      and "RUNTIME_CHECK_BIND_URL" in panel and "RUNTIME_CHECK_RESULT_URL" in panel
+      and "_try_bind_runtime_check" in panel and "_pending_runtime_check_result_body" in panel
+      and "func _exit_tree" in panel)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

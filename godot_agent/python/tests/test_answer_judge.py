@@ -103,6 +103,30 @@ def test_runtime_inspection_is_bounded_read_action():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_runtime_check_is_deterministic_bounded_action():
+    root = _project()
+    try:
+        os.makedirs(os.path.join(root, "scenes"))
+        with open(os.path.join(root, "scenes", "main.tscn"), "w", encoding="utf-8") as handle:
+            handle.write('[gd_scene format=3]\n\n[node name="Main" type="Node2D"]\n')
+        result = judge_answer(root, _answer({
+            "action": "run_check", "scene": "res://scenes/main.tscn",
+            "steps": [{"op": "wait_frames", "frames": 2},
+                      {"op": "assert_node", "node": ".", "exists": True}],
+        }))
+        assert result["acceptable"] and result["score"] >= 90
+        assert any("deterministic local game check" in item for item in result["evidence"])
+        bad = judge_answer(root, _answer({
+            "action": "run_check", "scene": "res://scenes/main.tscn",
+            "steps": [{"op": "assert_property", "node": "../Main",
+                       "property": "position", "operator": "eq", "expected": 0}],
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "runtime_check" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_impossible_patch_is_blocking():
     root = _project()
     try:
