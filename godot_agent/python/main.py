@@ -38,6 +38,7 @@ import gd_functions
 import librarian
 import log_reader
 import editor_context
+import gather_context
 import chat_store
 import dashboard
 import json as _json
@@ -407,6 +408,14 @@ def _describe_action(action):
     if act == "list_files":
         return "Агент хочет получить свежее дерево файлов проекта" + ((" (папка %s)" % action.get("dir")) if action.get("dir") else "")
     if act == "list_scene": return f"Агент хочет посмотреть структуру сцены: {path}"
+    if act == "gather_context":
+        symbols = action.get("symbols") if isinstance(action.get("symbols"), list) else []
+        details = []
+        if action.get("query"):
+            details.append("запрос «%s»" % str(action.get("query"))[:120])
+        if symbols:
+            details.append("символы: " + ", ".join(str(x) for x in symbols[:4]))
+        return "Агент хочет одним проходом собрать контекст проекта" + ((": " + "; ".join(details)) if details else "")
     if act == "plan":
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
@@ -1708,6 +1717,7 @@ def init_session():
     STATE["pending_batch"] = None
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
+    STATE["editor_context"] = None
     if STATE.get("fs_snapshot") is None or STATE.get("fs_snapshot_root") != STATE["project_root"]:
         _refresh_fs_snapshot(STATE["project_root"])
     reinit = bool(data.get("reinit", False))
@@ -1735,6 +1745,8 @@ def chat():
         return jsonify({"error": "Есть неподтверждённые запросы файлов агента."}), 409
 
     _apply_session_context(data)
+    STATE["editor_context"] = editor_context.normalize_snapshot(
+        data.get("editor_context"))
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     STATE["battle_choice_summary"] = None
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
@@ -1796,7 +1808,7 @@ def chat():
             prompt = f"{ext_note}\n\n{prompt}"
 
         prompt, context_sizes = editor_context.attach_to_prompt(
-            prompt, data.get("editor_context"))
+            prompt, STATE.get("editor_context"))
         if context_sizes.get("total"):
             sizes = ", ".join("%s=%d" % (key, context_sizes[key])
                               for key in sorted(context_sizes))
@@ -1937,6 +1949,19 @@ def confirm_action():
                 print(f"--> Поиск по проекту: {query!r}")
                 results, truncated = search_project_text(project_root, query)
                 followup = _format_search_results(query, results, truncated)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "gather_context":
+            STATE["pending_action"] = None
+            print("--> Составной сбор контекста проекта...")
+            result = gather_context.gather(
+                project_root, action,
+                editor_snapshot=STATE.get("editor_context"),
+                addon_dir=STATE.get("addon_dir"),
+                allow_addons=bool(STATE.get("addon_intent")))
+            followup = gather_context.format_result(result)
+            print("--> Контекст собран, отправляем одним сообщением (%d симв.)" % len(followup))
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 

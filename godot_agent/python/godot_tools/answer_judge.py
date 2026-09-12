@@ -18,7 +18,7 @@ from tscn_lint import is_scene_path, lint_and_fix_tscn
 
 READ_ACTIONS = {
     "ask_librarian", "read_file", "read_function", "search_project",
-    "list_files", "list_scene",
+    "list_files", "list_scene", "gather_context",
 }
 WRITE_ACTIONS = {"create_file", "patch_file", "move_file"}
 
@@ -91,6 +91,29 @@ def _judge_read_action(project_root, action):
         # Automatic and broad orientation is valuable when paths are unknown,
         # but a confirmed exact file is slightly more informative.
         score += 2
+        return score, findings, evidence
+
+    if act == "gather_context":
+        query = action.get("query")
+        symbols = action.get("symbols")
+        classes = action.get("godot_api")
+        if query is not None and (not isinstance(query, str) or len(query) > 500):
+            findings.append(_finding("blocking", "schema", "gather_context query must be text up to 500 characters"))
+        if symbols is not None and (not isinstance(symbols, list) or len(symbols) > 8
+                                    or not all(isinstance(x, str) for x in symbols)):
+            findings.append(_finding("blocking", "schema", "gather_context symbols must contain at most 8 strings"))
+        if classes is not None and (not isinstance(classes, list) or len(classes) > 4
+                                    or not all(isinstance(x, str) for x in classes)):
+            findings.append(_finding("blocking", "schema", "gather_context godot_api must contain at most 4 class names"))
+        try:
+            max_chars = int(action.get("max_chars", 12000))
+            if max_chars < 2000 or max_chars > 20000:
+                findings.append(_finding("blocking", "schema", "gather_context max_chars must be 2000..20000"))
+        except (TypeError, ValueError):
+            findings.append(_finding("blocking", "schema", "gather_context max_chars must be an integer"))
+        if not findings:
+            score = 90
+            evidence.append("One bounded read-only pass replaces multiple context actions")
         return score, findings, evidence
 
     if act in ("read_file", "read_function"):

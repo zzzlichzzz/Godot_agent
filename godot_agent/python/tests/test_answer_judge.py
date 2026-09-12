@@ -60,6 +60,27 @@ def test_librarian_beats_nonexistent_read_file():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_gather_context_is_high_value_read_action():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({
+            "action": "gather_context", "query": "player jump",
+            "symbols": ["Player.jump"], "godot_api": ["CharacterBody2D"],
+            "max_chars": 12000,
+        }))
+        assert result["acceptable"]
+        assert result["vote_eligible"]
+        assert result["score"] >= 90
+        bad = judge_answer(root, _answer({
+            "action": "gather_context", "symbols": "Player.jump",
+            "max_chars": 50000,
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "schema" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_impossible_patch_is_blocking():
     root = _project()
     try:
