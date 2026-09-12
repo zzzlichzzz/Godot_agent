@@ -21,6 +21,7 @@ STATE = {
     "pending_refactor": None, # private prepared multi-file rename transaction
     "pending_scene_action": None, # private editor-side scene transaction
     "pending_project_settings_action": None, # private editor-side ProjectSettings transaction
+    "pending_resource_action": None, # private editor-side resource transaction
     "pending_validation": None, # private Godot headless receipt for the pending write
     "pending_transaction": None, # private prepared atomic multi-file transaction
     "current_chat_id": None,  # активный чат (см. chat_store.py)
@@ -296,6 +297,7 @@ def clear_pending_confirmations():
     STATE["pending_refactor"] = None
     STATE["pending_scene_action"] = None
     STATE["pending_project_settings_action"] = None
+    STATE["pending_resource_action"] = None
     STATE["pending_validation"] = None
     STATE["pending_transaction"] = None
     STATE["pending_batch"] = None

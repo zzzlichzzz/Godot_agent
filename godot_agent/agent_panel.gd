@@ -78,6 +78,14 @@ var _project_settings_executor = null
 var _pending_project_settings_action: Dictionary = {}
 var _pending_project_settings_expected_hash: String = ""
 var _pending_project_settings_semantic_hash: String = ""
+var _resource_executor = null
+var _pending_resource_action: Dictionary = {}
+var _pending_resource_expected_hash: String = ""
+var _pending_resource_semantic_hash: String = ""
+var _pending_resource_dependency_fingerprint: String = ""
+var _pending_resource_finalize_body: Dictionary = {}
+var _resource_finalize_retries: int = 0
+var _resource_finalize_retrying: bool = false
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -198,6 +206,12 @@ func set_editor_plugin(plugin: EditorPlugin) -> void:
 		if settings_executor_script:
 			_project_settings_executor = settings_executor_script.new()
 			_project_settings_executor.configure(plugin)
+	var resource_executor_path := get_script().resource_path.get_base_dir() + "/agent_resource_executor.gd"
+	if FileAccess.file_exists(resource_executor_path):
+		var resource_executor_script = load(resource_executor_path)
+		if resource_executor_script:
+			_resource_executor = resource_executor_script.new()
+			_resource_executor.configure(plugin)
 
 
 func _locale():
@@ -579,7 +593,7 @@ func _set_pending_action(active: bool, description: String = "") -> void:
 
 
 func _has_pending_action() -> bool:
-	return _pending_action_active
+	return _pending_action_active or not _pending_resource_finalize_body.is_empty()
 
 
 func _clear_pending_action_state() -> void:
@@ -595,6 +609,12 @@ func _clear_pending_action_state() -> void:
 	_pending_project_settings_action = {}
 	_pending_project_settings_expected_hash = ""
 	_pending_project_settings_semantic_hash = ""
+	_pending_resource_action = {}
+	_pending_resource_expected_hash = ""
+	_pending_resource_semantic_hash = ""
+	_pending_resource_dependency_fingerprint = ""
+	# Finalize envelope очищается только после терминального ответа сервера.
+	# Обычная смена/очистка pending action не должна терять уже записанный ресурс.
 	_pending_log_send = false
 
 
@@ -890,7 +910,7 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings"]:
+	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource"]:
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
@@ -900,6 +920,9 @@ func _send_confirm_request(approved: bool) -> void:
 		body["editor_semantic_hash"] = _pending_scene_semantic_hash
 	elif approved and _last_pending_action_type == "edit_project_settings":
 		body["editor_semantic_hash"] = _pending_project_settings_semantic_hash
+	elif approved and _last_pending_action_type == "edit_resource":
+		body["editor_semantic_hash"] = _pending_resource_semantic_hash
+		body["dependency_fingerprint"] = _pending_resource_dependency_fingerprint
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
 	_set_ui_busy(true)
@@ -987,6 +1010,75 @@ func _execute_project_settings_action(envelope: Dictionary) -> void:
 	if err != OK:
 		_log_error("Не удалось завершить транзакцию настроек проекта")
 		_set_ui_busy(false)
+
+
+func _prepare_resource_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
+	if _resource_executor == null:
+		return {"ok": false, "error": "Исполнитель ресурсов недоступен"}
+	_pending_resource_action = pending.duplicate(true)
+	_pending_resource_expected_hash = str(prepare_data.get("expected_resource_hash", ""))
+	var result: Dictionary = _resource_executor.prepare(
+		_pending_resource_action, _pending_resource_expected_hash)
+	if bool(result.get("ok", false)):
+		_pending_resource_semantic_hash = str(result.get("semantic_hash", ""))
+		_pending_resource_dependency_fingerprint = str(result.get("dependency_fingerprint", ""))
+	else:
+		_pending_resource_semantic_hash = ""
+		_pending_resource_dependency_fingerprint = ""
+	return result
+
+
+func _execute_resource_action(envelope: Dictionary) -> void:
+	var execution: Dictionary
+	if _resource_executor == null:
+		execution = {"ok": false, "error": "Исполнитель ресурсов недоступен", "resource_hash": ""}
+	else:
+		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		action["_expected_semantic_hash"] = _pending_resource_semantic_hash
+		action["_expected_dependency_fingerprint"] = str(
+			envelope.get("expected_dependency_fingerprint", _pending_resource_dependency_fingerprint))
+		execution = _resource_executor.execute(
+			action, str(envelope.get("expected_resource_hash", "")))
+	_pending_resource_finalize_body = {
+		"action_id": str(envelope.get("action_id", "")),
+		"execution_token": str(envelope.get("execution_token", "")),
+		"editor_action_kind": "resource",
+		"success": bool(execution.get("ok", false)),
+		"resource_hash": str(execution.get("resource_hash", "")),
+		"error_code": str(execution.get("code", "")),
+		"error": str(execution.get("error", "")),
+	}
+	_resource_finalize_retries = 0
+	_send_pending_resource_finalize()
+
+
+func _send_pending_resource_finalize() -> void:
+	if _pending_resource_finalize_body.is_empty():
+		return
+	if _is_network_busy:
+		_schedule_resource_finalize_retry()
+		return
+	_pending_request_kind = "resource_finalize"
+	_set_ui_busy(true)
+	_resource_finalize_retries += 1
+	var err := http_request.request(
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_resource_finalize_body))
+	if err != OK:
+		_set_ui_busy(false)
+		_schedule_resource_finalize_retry()
+
+
+func _schedule_resource_finalize_retry() -> void:
+	if _resource_finalize_retrying or _pending_resource_finalize_body.is_empty():
+		return
+	_resource_finalize_retrying = true
+	await get_tree().create_timer(float(mini(_resource_finalize_retries + 1, 5))).timeout
+	_resource_finalize_retrying = false
+	if not _is_network_busy:
+		_send_pending_resource_finalize()
+	else:
+		_schedule_resource_finalize_retry()
 
 
 func _start_plan_execution(total: int) -> void:
@@ -1511,10 +1603,37 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			return
 
 		if kind == "confirm" and bool(json.get("execute_in_editor", false)):
-			if str(json.get("editor_action_kind", "")) == "project_settings":
+			var editor_action_kind := str(json.get("editor_action_kind", "scene"))
+			if editor_action_kind == "project_settings":
 				_execute_project_settings_action(json)
-			else:
+			elif editor_action_kind == "resource":
+				_execute_resource_action(json)
+			elif editor_action_kind == "scene":
 				_execute_scene_action(json)
+			else:
+				_log_error("Неизвестный тип editor-транзакции: " + editor_action_kind)
+			return
+
+		if kind == "resource_finalize":
+			var resource_path := str(_pending_resource_action.get("resource", ""))
+			if bool(json.get("success", false)):
+				_view.add_agent_message(str(json.get("answer", "Структурные изменения ресурса применены.")),
+					str(json.get("history_entry_id", "")))
+			elif bool(json.get("restored", false)):
+				_view.add_warning(str(json.get("answer", "Исходный ресурс восстановлен.")))
+				if _resource_executor:
+					_resource_executor.reload_after_recovery(resource_path)
+			else:
+				_view.add_error(str(json.get("answer", "Не удалось безопасно завершить транзакцию ресурса.")))
+			_pending_resource_action = {}
+			_pending_resource_expected_hash = ""
+			_pending_resource_semantic_hash = ""
+			_pending_resource_dependency_fingerprint = ""
+			_pending_resource_finalize_body = {}
+			_resource_finalize_retries = 0
+			_resource_finalize_retrying = false
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
 			return
 
 		if kind == "project_settings_finalize":
@@ -1732,6 +1851,17 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				var settings_lines = settings_preview.get("changes", [])
 				if settings_lines is Array and not settings_lines.is_empty():
 					_view.add_system("Предпросмотр настроек проекта:\n• " + "\n• ".join(settings_lines))
+			elif _last_pending_action_type == "edit_resource":
+				var resource_preview := _prepare_resource_action(
+					pending, json.get("resource_prepare", {}))
+				if not bool(resource_preview.get("ok", false)):
+					_view.add_warning("Godot отклонил ресурс: " + str(resource_preview.get("error", "")))
+					_on_reject_pressed()
+					return
+				var resource_lines = resource_preview.get("changes", [])
+				if resource_lines is Array and not resource_lines.is_empty():
+					_view.add_system("Предпросмотр структурных изменений ресурса:\n• " +
+						"\n• ".join(resource_lines))
 
 			# Дифф сам по себе достаточен для карточки: patch_file, который
 			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
@@ -1766,6 +1896,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		await get_tree().process_frame
 	else:
+		if kind == "resource_finalize":
+			_schedule_resource_finalize_retry()
+			return
 		if kind == "check_log" and _auto_check:
 			# Авто-проверка не спамит в чат: нет лога, лог уже отправлялся,
 			# сервер занят или выключен — просто тихо пропускаем.
@@ -1777,7 +1910,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			if _last_pending_action_type not in ["edit_scene", "edit_project_settings"]:
+			if _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource"]:
 				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
@@ -2017,6 +2150,9 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 func _on_play_watch_tick() -> void:
 	if _hl: _hl.watchdog()
 	_reconcile_confirm_buttons()
+	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \
+			and _pending_request_kind != "resource_finalize":
+		_send_pending_resource_finalize()
 	var playing := EditorInterface.is_playing_scene()
 	if _was_playing and not playing:
 		_was_playing = false
