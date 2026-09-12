@@ -207,19 +207,19 @@ var _minilich_github_label: Label = null
 
 func set_editor_plugin(plugin: EditorPlugin) -> void:
 	_editor_plugin = plugin
-	var executor_path := get_script().resource_path.get_base_dir() + "/agent_scene_executor.gd"
+	var executor_path: String = get_script().resource_path.get_base_dir() + "/agent_scene_executor.gd"
 	if FileAccess.file_exists(executor_path):
 		var executor_script = load(executor_path)
 		if executor_script:
 			_scene_executor = executor_script.new()
 			_scene_executor.configure(plugin)
-	var settings_executor_path := get_script().resource_path.get_base_dir() + "/agent_project_settings_executor.gd"
+	var settings_executor_path: String = get_script().resource_path.get_base_dir() + "/agent_project_settings_executor.gd"
 	if FileAccess.file_exists(settings_executor_path):
 		var settings_executor_script = load(settings_executor_path)
 		if settings_executor_script:
 			_project_settings_executor = settings_executor_script.new()
 			_project_settings_executor.configure(plugin)
-	var resource_executor_path := get_script().resource_path.get_base_dir() + "/agent_resource_executor.gd"
+	var resource_executor_path: String = get_script().resource_path.get_base_dir() + "/agent_resource_executor.gd"
 	if FileAccess.file_exists(resource_executor_path):
 		var resource_executor_script = load(resource_executor_path)
 		if resource_executor_script:
@@ -1108,7 +1108,7 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 
 func _capture_editor_context() -> Dictionary:
 	if _editor_context_script == null:
-		var script_path := get_script().resource_path.get_base_dir() + "/agent_editor_context.gd"
+		var script_path: String = get_script().resource_path.get_base_dir() + "/agent_editor_context.gd"
 		if FileAccess.file_exists(script_path):
 			_editor_context_script = load(script_path)
 	if _editor_context_script != null:

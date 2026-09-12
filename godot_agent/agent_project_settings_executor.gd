@@ -190,13 +190,9 @@ func _apply(operations: Array) -> Dictionary:
 		var operation: Dictionary = operations[index]
 		var op := str(operation.get("op", ""))
 		if op == "add_autoload":
-			var add_error := _plugin.add_autoload_singleton(str(operation["name"]), str(operation["path"]))
-			if add_error != OK:
-				return _fail("autoload_add_failed", "Не удалось добавить autoload: " + error_string(add_error))
+			_plugin.add_autoload_singleton(str(operation["name"]), str(operation["path"]))
 		elif op == "remove_autoload":
-			var remove_error := _plugin.remove_autoload_singleton(str(operation["name"]))
-			if remove_error != OK:
-				return _fail("autoload_remove_failed", "Не удалось удалить autoload: " + error_string(remove_error))
+			_plugin.remove_autoload_singleton(str(operation["name"]))
 		elif op == "set_display_settings":
 			var mapping := _display_mapping()
 			for field in operation:
@@ -234,14 +230,10 @@ func _restore(before: Dictionary) -> Dictionary:
 		if str(key).begins_with("autoload/"):
 			var name := str(key).trim_prefix("autoload/")
 			if ProjectSettings.has_setting(key):
-				var remove_error := _plugin.remove_autoload_singleton(name)
-				if remove_error != OK:
-					return _fail("autoload_restore_failed", "Не удалось удалить autoload при восстановлении: " + error_string(remove_error))
+				_plugin.remove_autoload_singleton(name)
 			if bool(item.get("present", false)):
 				var path := str(item.get("value", "")).trim_prefix("*")
-				var add_error := _plugin.add_autoload_singleton(name, path)
-				if add_error != OK:
-					return _fail("autoload_restore_failed", "Не удалось вернуть autoload: " + error_string(add_error))
+				_plugin.add_autoload_singleton(name, path)
 			continue
 		if bool(item.get("present", false)):
 			ProjectSettings.set_setting(key, item.get("value"))
@@ -279,11 +271,18 @@ func _semantic_hash(state: Dictionary) -> String:
 		var item: Dictionary = state[key]
 		rows.append("%s|%s|%s" % [key, bool(item.get("present", false)), var_to_str(item.get("value"))])
 	rows.sort()
-	return HashingContext.hash(HashingContext.HASH_SHA256, "\n".join(rows).to_utf8_buffer()).hex_encode()
+	return _sha256("\n".join(rows).to_utf8_buffer())
 
 
 func _file_hash() -> String:
-	return HashingContext.hash(HashingContext.HASH_SHA256, FileAccess.get_file_as_bytes("res://project.godot")).hex_encode()
+	return _sha256(FileAccess.get_file_as_bytes("res://project.godot"))
+
+
+func _sha256(data: PackedByteArray) -> String:
+	var context := HashingContext.new()
+	context.start(HashingContext.HASH_SHA256)
+	context.update(data)
+	return context.finish().hex_encode()
 
 
 func _with_hash(result: Dictionary) -> Dictionary:
