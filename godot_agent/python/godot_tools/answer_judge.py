@@ -333,6 +333,18 @@ def judge_answer(project_root, full_text, addon_dir=None):
                 except Exception as exc:
                     score = 45
                     findings.append(_finding("blocking", "project_settings", str(exc)))
+            elif act == "transaction":
+                try:
+                    import transaction_actions
+                    prepared = transaction_actions.prepare(
+                        project_root, action, allow_addons=bool(addon_dir),
+                        addon_dir=addon_dir)
+                    score = 95
+                    evidence.append("Atomic transaction validates %d operations in %d files" % (
+                        len(prepared["action"]["operations"]), len(prepared["files"])))
+                except Exception as exc:
+                    score = 45
+                    findings.append(_finding("blocking", "transaction", str(exc)))
             else:
                 findings.append(_finding("blocking", "schema",
                                          "unknown action: %s" % act))

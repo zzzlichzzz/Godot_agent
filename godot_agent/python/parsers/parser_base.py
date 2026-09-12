@@ -1297,9 +1297,9 @@ def _resolve_content_refs(obj, raw):
         return obj, []
     missing = []
     _resolve_one_ref(obj, raw, missing)
-    steps = obj.get("steps")
-    if isinstance(steps, list):
-        for step in steps:
+    nested = obj.get("operations") if obj.get("action") == "transaction" else obj.get("steps")
+    if isinstance(nested, list):
+        for step in nested:
             _resolve_one_ref(step, raw, missing)
     if missing:
         # v86.24: запасной путь — тела из ```-блоков по порядку следования.
@@ -1310,7 +1310,7 @@ def _resolve_content_refs(obj, raw):
 _KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
                   u"ask_librarian", u"gather_context", u"rename_symbol", u"edit_scene",
-                  u"edit_project_settings", u"parse_error"}
+                  u"edit_project_settings", u"transaction", u"parse_error"}
 
 _ACTION_SYNONYMS = {
     u"create": u"create_file", u"write_file": u"create_file",
@@ -1324,6 +1324,7 @@ _ACTION_SYNONYMS = {
     u"renamesymbol": u"rename_symbol", u"refactor_symbol": u"rename_symbol",
     u"editscene": u"edit_scene", u"scene_edit": u"edit_scene",
     u"editprojectsettings": u"edit_project_settings", u"project_settings": u"edit_project_settings",
+    u"batch_transaction": u"transaction", u"atomic_transaction": u"transaction",
     u"read": u"read_file", u"readfile": u"read_file",
     u"open_file": u"read_file",
     u"copy": u"copy_file", u"copyfile": u"copy_file",
@@ -1408,6 +1409,11 @@ def coerce_action_schema(obj):
         for k, step in enumerate(steps):
             if isinstance(step, dict):
                 _coerce_one_action(step, fixes, u"шаг %d: " % (k + 1))
+    operations = obj.get(u"operations")
+    if obj.get(u"action") == u"transaction" and isinstance(operations, list):
+        for k, operation in enumerate(operations):
+            if isinstance(operation, dict):
+                _coerce_one_action(operation, fixes, u"операция %d: " % (k + 1))
     return obj, fixes
 
 

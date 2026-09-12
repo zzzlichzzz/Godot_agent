@@ -217,7 +217,8 @@ def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=
     return entry["id"]
 
 
-def record_batch_change(project_root, action_type, paths, chat_id=None, chat_title=None):
+def record_batch_change(project_root, action_type, paths, chat_id=None, chat_title=None,
+                        states=None):
     """Create one journal entry and one before-snapshot per affected file."""
     unique_paths = list(dict.fromkeys(str(path) for path in paths if path))
     if not unique_paths:
@@ -230,13 +231,21 @@ def record_batch_change(project_root, action_type, paths, chat_id=None, chat_tit
         entry["chat_title"] = chat_title or ""
     hist = _history_dir(project_root)
     try:
+        state_by_path = {item["path"]: item for item in (states or [])}
         for index, path in enumerate(unique_paths):
             absolute = _resolve_safe_path(project_root, path)
-            if not os.path.isfile(absolute):
+            state = state_by_path.get(path)
+            before_present = bool(state.get("before_bytes") is not None) if state else os.path.isfile(absolute)
+            after_present = bool(state.get("after_bytes") is not None) if state else True
+            if not before_present and state is None:
                 raise FileNotFoundError(path)
-            snap_rel = os.path.join("snapshots", "%s_%d_before" % (entry["id"], index))
-            shutil.copy2(absolute, os.path.join(hist, snap_rel))
-            entry["files"].append({"path": path, "snapshot": snap_rel})
+            item = {"path": path, "before_present": before_present,
+                    "after_present": after_present}
+            if before_present:
+                snap_rel = os.path.join("snapshots", "%s_%d_before" % (entry["id"], index))
+                shutil.copy2(absolute, os.path.join(hist, snap_rel))
+                item["snapshot"] = snap_rel
+            entry["files"].append(item)
     except Exception:
         for item in entry["files"]:
             try:
@@ -260,6 +269,7 @@ def commit_change(project_root, entry_id):
                 for item in e["files"]:
                     item["after_hash"] = _file_hash(
                         _resolve_safe_path(project_root, item["path"]))
+                    item["after_present"] = item["after_hash"] is not None
             else:
                 target = e.get("dest") or e["path"]
                 e["after_hash"] = _file_hash(_resolve_safe_path(project_root, target))
@@ -537,9 +547,10 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
                 "Перед любыми правками сначала запроси list_files, а каждый нужный файл перечитай через read_file."
                 % (total_changes, total_files))
     kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён",
-               "move_file": "перемещён", "rename_symbol": "переименован символ",
-                "edit_scene": "структурно изменена сцена",
-                "edit_project_settings": "изменены настройки проекта"}
+                "move_file": "перемещён", "rename_symbol": "переименован символ",
+                 "edit_scene": "структурно изменена сцена",
+                 "edit_project_settings": "изменены настройки проекта",
+                 "transaction": "применена пакетная транзакция"}
     lines = []
     for p in order[:max_lines]:
         r = per_file[p]
@@ -571,7 +582,7 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                     "эти изменения. Нажмите откат ещё раз для подтверждения." % item["path"]
                 ), True, [], None
             snapshot = os.path.join(_history_dir(project_root), item.get("snapshot", ""))
-            if not os.path.isfile(snapshot):
+            if item.get("before_present", True) and not os.path.isfile(snapshot):
                 return False, "Снапшот для отката не найден: %s" % item["path"], False, [], None
         current = {}
         temps = {}
@@ -579,32 +590,43 @@ def _revert_entry_on_disk(project_root, entry, force=False):
         try:
             for item in files:
                 absolute = _resolve_safe_path(project_root, item["path"])
-                with open(absolute, "rb") as handle:
-                    current[item["path"]] = handle.read()
-                snapshot = os.path.join(_history_dir(project_root), item["snapshot"])
-                descriptor, temp_path = tempfile.mkstemp(
-                    prefix=".agent_rollback_", dir=os.path.dirname(absolute))
-                with os.fdopen(descriptor, "wb") as handle:
-                    with open(snapshot, "rb") as source:
-                        shutil.copyfileobj(source, handle)
-                    handle.flush()
-                    os.fsync(handle.fileno())
-                temps[item["path"]] = temp_path
+                current[item["path"]] = (os.path.isfile(absolute), None)
+                if os.path.isfile(absolute):
+                    with open(absolute, "rb") as handle:
+                        current[item["path"]] = (True, handle.read())
+                if item.get("before_present", True):
+                    snapshot = os.path.join(_history_dir(project_root), item["snapshot"])
+                    descriptor, temp_path = tempfile.mkstemp(
+                        prefix=".agent_rollback_", dir=os.path.dirname(absolute))
+                    with os.fdopen(descriptor, "wb") as handle:
+                        with open(snapshot, "rb") as source:
+                            shutil.copyfileobj(source, handle)
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                    temps[item["path"]] = temp_path
             for item in files:
                 absolute = _resolve_safe_path(project_root, item["path"])
-                os.replace(temps.pop(item["path"]), absolute)
+                if item.get("before_present", True):
+                    os.replace(temps.pop(item["path"]), absolute)
+                elif os.path.exists(absolute):
+                    os.remove(absolute)
                 restored.append(item["path"])
         except Exception as exc:
             for path in restored:
                 try:
                     absolute = _resolve_safe_path(project_root, path)
-                    descriptor, temp_path = tempfile.mkstemp(
-                        prefix=".agent_rollback_restore_", dir=os.path.dirname(absolute))
-                    with os.fdopen(descriptor, "wb") as handle:
-                        handle.write(current[path])
-                        handle.flush()
-                        os.fsync(handle.fileno())
-                    os.replace(temp_path, absolute)
+                    was_present, old_bytes = current[path]
+                    if not was_present:
+                        if os.path.exists(absolute):
+                            os.remove(absolute)
+                    else:
+                        descriptor, temp_path = tempfile.mkstemp(
+                            prefix=".agent_rollback_restore_", dir=os.path.dirname(absolute))
+                        with os.fdopen(descriptor, "wb") as handle:
+                            handle.write(old_bytes)
+                            handle.flush()
+                            os.fsync(handle.fileno())
+                        os.replace(temp_path, absolute)
                 except Exception:
                     pass
             return False, "Пакетный откат не выполнен: %s" % exc, False, [], None
