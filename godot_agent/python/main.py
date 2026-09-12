@@ -43,6 +43,7 @@ import symbol_refactor
 import scene_actions
 import project_settings_actions
 import transaction_actions
+import high_level_actions
 import godot_headless_validation
 import chat_store
 import dashboard
@@ -942,6 +943,19 @@ def _package_model_reply(text, action, project_root, depth=0):
             return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
         text2, act2 = _reply_with_self_heal(followup, project_root)
         return _package_model_reply(text2, act2, project_root, depth + 1)
+    if action and action.get("action") == "project_command":
+        try:
+            compiled = high_level_actions.compile_action(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            followup = ("[Система]: project_command отклонена локальным компилятором: %s. "
+                        "Исправь схему команды; не заменяй её небезопасными текстовыми правками." % exc)
+            if depth >= MAX_ACTION_FIX_RETRIES:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        return _package_model_reply(text, compiled, project_root, depth)
     if action and action.get("action") == "plan":
         STATE["pending_action"] = None
         # Многочастный план: модель присылает шаги несколькими сообщениями
