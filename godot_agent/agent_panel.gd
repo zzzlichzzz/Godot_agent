@@ -798,7 +798,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = _json_headers()
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "reinit": true}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "godot_executable": OS.get_executable_path(), "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -829,7 +829,8 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 		"prompt": prompt,
 		"project_root": project_root,
 		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+		"godot_executable": OS.get_executable_path()
 	}
 	if not _pending_editor_context.is_empty():
 		body["editor_context"] = _pending_editor_context

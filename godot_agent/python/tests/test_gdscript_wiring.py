@@ -389,6 +389,8 @@ check("scene executor owns structural operations",
                                                "_reparent_node")))
 check("scene executor avoids textual scene writes and UndoRedo",
       "FileAccess.WRITE" not in scene_executor and "UndoRedo" not in scene_executor)
+check("panel sends trusted Godot executable for engine validation",
+      "OS.get_executable_path()" in panel and '"godot_executable"' in panel)
 check("panel coordinates scene prepare execute finalize",
       all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
                                      "_send_scene_result", "_pending_scene_semantic_hash",
