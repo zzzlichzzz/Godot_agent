@@ -97,6 +97,10 @@ def _is_project_settings_path(path):
     return p in ("project.godot", "res://project.godot")
 
 
+def _is_text_scene_path(path):
+    return isinstance(path, str) and path.replace("\\", "/").lower().endswith(".tscn")
+
+
 def _addon_blocked_message(path):
     return (
         "Путь %s находится в папке аддона (res://addons/...). Правки аддонов разрешены ТОЛЬКО "
@@ -447,9 +451,10 @@ def _describe_action(action):
         return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
             int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
-    if act == "edit_scene":
-        return "Агент хочет структурно изменить сцену %s (%d операций)" % (
-            action.get("scene", ""), len(action.get("operations") or []))
+    if act in ("edit_scene", "create_scene"):
+        verb = "создать" if act == "create_scene" else "структурно изменить"
+        return "Агент хочет %s сцену %s (%d операций)" % (
+            verb, action.get("scene", ""), len(action.get("operations") or []))
     if act == "edit_project_settings":
         return "Агент хочет изменить настройки проекта через API Godot (%d операций)" % len(
             action.get("operations") or [])
@@ -496,6 +501,8 @@ def _validate_plan_steps(steps, max_steps=None):
                 "шаг %d трогает файл аддона (res://addons/...), а пользователь это явно не запрашивал. "
                 "Не включай аддоны в план, если пользователь явно не попросил изменить аддон." % (i + 1)
             )
+        if _is_text_scene_path(step.get("path")) or _is_text_scene_path(step.get("dest")):
+            return False, "шаг %d пишет .tscn как текст. Используй create_scene/edit_scene." % (i + 1)
         if act == "create_file" and not isinstance(step.get("content"), str):
             return False, "шаг %d (create_file) не содержит текстового 'content'." % (i + 1)
         if act == "patch_file" and (not step.get("search") or not isinstance(step.get("replace"), str)):
@@ -661,6 +668,9 @@ def _apply_write_step(action, project_root, chain_id=None, validation=None):
     dest = action.get("dest", "")
     if _is_project_settings_path(path) or _is_project_settings_path(dest):
         return {"ok": False, "message": "project.godot изменяется только через edit_project_settings.",
+                "changed_path": None, "changed_block": None}
+    if _is_text_scene_path(path) or _is_text_scene_path(dest):
+        return {"ok": False, "message": ".tscn изменяются только через create_scene/edit_scene.",
                 "changed_path": None, "changed_block": None}
     if (not STATE.get("addon_intent")) and (_is_addon_path(path) or _is_addon_path(dest)):
         return {"ok": False, "message": _addon_blocked_message(path if _is_addon_path(path) else dest),
@@ -967,6 +977,9 @@ def _package_model_reply(text, action, project_root, depth=0):
             if _is_project_settings_path(s) or _is_project_settings_path(d):
                 results.append("✗ %s -> %s: project.godot изменяется только через edit_project_settings" % (s, d))
                 continue
+            if _is_text_scene_path(s) or _is_text_scene_path(d):
+                results.append("✗ %s -> %s: сцены создаются и изменяются только через create_scene/edit_scene" % (s, d))
+                continue
             if (not STATE.get("addon_intent")) and (_is_addon_path(s) or _is_addon_path(d)):
                 results.append("\u2717 %s -> %s: %s" % (s, d, _addon_blocked_message(s if _is_addon_path(s) else d)))
                 continue
@@ -1126,14 +1139,14 @@ def _package_model_reply(text, action, project_root, depth=0):
                         "pending_action_code": None,
                         "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
                          "pending_action_diffs": diffs})
-    if action and action.get("action") == "edit_scene":
+    if action and action.get("action") in ("edit_scene", "create_scene"):
         try:
             prepared = scene_actions.prepare(
                 project_root, action, allow_addons=bool(STATE.get("addon_intent")))
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_scene_action"] = None
-            followup = ("[Система]: edit_scene отклонён локальной проверкой схемы: %s. "
+            followup = ("[Система]: структурное действие сцены отклонено локальной проверкой схемы: %s. "
                         "Исправь пути/операции; не заменяй структурную операцию сырой правкой .tscn."
                         % exc)
             if depth >= 2:
@@ -1202,6 +1215,16 @@ def _package_model_reply(text, action, project_root, depth=0):
                         "pending_action_code": None,
                         "resource_prepare": resource_actions.public_prepared(prepared)})
     if action and action.get("action") in ("create_file", "patch_file", "move_file"):
+        if _is_text_scene_path(action.get("path")) or _is_text_scene_path(action.get("dest")):
+            engine_error = ("[Система]: сырая запись .tscn отклонена. Для новой сцены используй "
+                            "create_scene, для существующей — edit_scene; не обходи структурный API.")
+            STATE["pending_action"] = None
+            STATE["pending_validation"] = None
+            if depth < MAX_ACTION_FIX_RETRIES:
+                text2, action2 = _reply_with_self_heal(engine_error, project_root)
+                return _package_model_reply(text2, action2, project_root, depth + 1)
+            return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
+                            "pending_action": None})
         try:
             batch = godot_headless_validation.batch_from_action(project_root, action)
             receipt = godot_headless_validation.validate_batch(
@@ -2313,14 +2336,14 @@ def confirm_action():
                 "history_entry_id": result["entry_id"],
             })
 
-        if act_type == "edit_scene":
+        if act_type in ("edit_scene", "create_scene"):
             prepared = STATE.get("pending_scene_action")
             if not isinstance(prepared, dict):
                 STATE["pending_action"] = None
                 return jsonify({"error": "Подготовленная транзакция сцены утрачена."}), 409
             _normalized, absolute = scene_actions.normalize_action(
                 project_root, prepared["action"], bool(STATE.get("addon_intent")))
-            if scene_actions.file_sha256(absolute) != prepared["before_hash"]:
+            if act_type == "edit_scene" and scene_actions.file_sha256(absolute) != prepared["before_hash"]:
                 STATE["pending_action"] = None
                 STATE["pending_scene_action"] = None
                 return jsonify({"error": "Сцена изменилась после предпросмотра."}), 409
@@ -2330,20 +2353,27 @@ def confirm_action():
                 STATE["pending_scene_action"] = None
                 return jsonify({"error": "Godot не подтвердил структурный предпросмотр сцены."}), 409
             prepared["editor_semantic_hash"] = editor_semantic_hash
+            states = None
+            if act_type == "create_scene":
+                if os.path.lexists(absolute):
+                    STATE["pending_action"] = None
+                    STATE["pending_scene_action"] = None
+                    return jsonify({"error": "Сцена появилась после предпросмотра; создание отменено."}), 409
+                states = [{"path": prepared["scene"], "before_bytes": None, "after_bytes": b"pending"}]
             entry_id = history.record_batch_change(
-                project_root, "edit_scene", [prepared["scene"]], *_current_chat_info())
+                project_root, act_type, [prepared["scene"]], *_current_chat_info(), states=states)
             prepared["entry_id"] = entry_id
             prepared["execution_token"] = os.urandom(24).hex()
             prepared["state"] = "executing"
             STATE["pending_action"] = None
             return jsonify({
-                "answer": "[Система]: Изменение подтверждено; Godot применяет структурные операции.",
+                "answer": "[Система]: Действие подтверждено; Godot применяет структурные операции.",
                 "pending_action": None,
                 "execute_in_editor": True,
                 "editor_action": prepared["action"],
                 "action_id": prepared["action_id"],
                 "action_digest": prepared["action_digest"],
-                "expected_scene_hash": prepared["before_hash"],
+                "expected_scene_hash": prepared["before_hash"] or "",
                 "execution_token": prepared["execution_token"],
             })
 
@@ -2543,6 +2573,9 @@ def editor_action_result():
     success = bool(data.get("success"))
     is_settings = pending_key == "pending_project_settings_action"
     is_resource = pending_key == "pending_resource_action"
+    is_create_scene = prepared.get("action", {}).get("action") == "create_scene"
+    target_written = bool(data.get("target_written")) if is_create_scene else False
+    staged_hash = str(data.get("staged_hash") or "") if is_create_scene else ""
     hash_field = "project_hash" if is_settings else ("resource_hash" if is_resource else "scene_hash")
     reported_hash = str(data.get(hash_field) or "")
     try:
@@ -2552,6 +2585,10 @@ def editor_action_result():
             _normalized, absolute = actions_module.normalize_action(
                 project_root, prepared["action"], bool(STATE.get("addon_intent")),
                 require_exists=False)
+        elif pending_key == "pending_scene_action":
+            _normalized, absolute = actions_module.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")),
+                require_target_state=False)
         else:
             _normalized, absolute = actions_module.normalize_action(
                 project_root, prepared["action"], bool(STATE.get("addon_intent")))
@@ -2559,9 +2596,30 @@ def editor_action_result():
             actual_hash = actions_module.file_sha256(absolute)
         except (OSError, FileNotFoundError):
             actual_hash = ""
+        if is_create_scene and success:
+            if target_written:
+                history.abort_change(project_root, entry_id)
+                STATE[pending_key] = None
+                return jsonify({"error": "Godot не должен напрямую записывать новую сцену."}), 409
+            try:
+                actual_hash = scene_actions.materialize_staged_scene(
+                    absolute, str(prepared.get("action_id") or ""), staged_hash)
+                target_written = True
+                reported_hash = actual_hash
+            except scene_actions.SceneActionError as exc:
+                scene_actions.discard_staged_scene(
+                    absolute, str(prepared.get("action_id") or ""))
+                history.abort_change(project_root, entry_id)
+                STATE[pending_key] = None
+                body = {"success": False, "restored": True,
+                        "answer": "[Система]: Новая сцена не опубликована: %s" % exc,
+                        "changed_paths": []}
+                _EDITOR_ACTION_RESULTS[identity] = (body, 409)
+                return jsonify(body), 409
         if reported_hash and reported_hash != actual_hash:
             restored, message, paths = history.restore_reserved_change(
-                project_root, entry_id, current_hash=actual_hash or None)
+                project_root, entry_id, current_hash=actual_hash or None,
+                remove_created=False)
             if restored:
                 STATE[pending_key] = None
                 _refresh_fs_snapshot(project_root)
@@ -2573,8 +2631,12 @@ def editor_action_result():
                 _EDITOR_ACTION_RESULTS[identity] = (body, status)
             return jsonify(body), status
         if not success:
+            if is_create_scene:
+                scene_actions.discard_staged_scene(
+                    absolute, str(prepared.get("action_id") or ""))
             restored, message, paths = history.restore_reserved_change(
-                project_root, entry_id, current_hash=reported_hash or actual_hash or None)
+                project_root, entry_id, current_hash=reported_hash or actual_hash or None,
+                remove_created=is_create_scene and target_written)
             if restored:
                 STATE[pending_key] = None
                 _refresh_fs_snapshot(project_root)
@@ -2585,7 +2647,15 @@ def editor_action_result():
                 _EDITOR_ACTION_RESULTS[identity] = (body, status)
             return jsonify(body), status
         already_satisfied = bool(data.get("already_satisfied")) if is_settings else False
-        if actual_hash == prepared.get("before_hash") and not already_satisfied:
+        if is_create_scene and not target_written:
+            history.abort_change(project_root, entry_id)
+            STATE[pending_key] = None
+            return jsonify({"error": "Godot не подтвердил запись новой сцены."}), 409
+        if is_create_scene and not actual_hash:
+            history.abort_change(project_root, entry_id)
+            STATE[pending_key] = None
+            return jsonify({"error": "Godot сообщил создание сцены, но целевой файл отсутствует."}), 409
+        if actual_hash == prepared.get("before_hash") and not already_satisfied and not is_create_scene:
             history.abort_change(project_root, entry_id)
             STATE[pending_key] = None
             return jsonify({"error": "Godot сообщил успех, но целевой файл не изменился."}), 409
@@ -2607,7 +2677,8 @@ def editor_action_result():
             "success": True,
             "answer": ("[Система]: Настройки проекта применены; требуется перезапуск редактора."
                        if is_settings else ("[Система]: Структурные изменения ресурса применены и сохранены."
-                       if is_resource else "[Система]: Структурные изменения сцены применены и сохранены.")),
+                       if is_resource else ("[Система]: Сцена создана и сохранена."
+                       if is_create_scene else "[Система]: Структурные изменения сцены применены и сохранены."))),
             "history_entry_id": entry_id,
             "changed_paths": [changed_path], "requires_editor_restart": is_settings,
         }
@@ -2772,7 +2843,7 @@ def rollback_preview():
     kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
                "patch_file": "правка файла", "move_file": "перемещение файла",
                "rename_symbol": "переименование символа",
-               "edit_scene": "структурное изменение сцены",
+               "edit_scene": "структурное изменение сцены", "create_scene": "создание сцены",
                "edit_project_settings": "изменение настроек проекта",
                "edit_resource": "структурное изменение ресурса",
                "transaction": "пакетная транзакция"}

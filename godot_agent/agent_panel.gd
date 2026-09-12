@@ -77,6 +77,9 @@ var _scene_executor = null
 var _pending_scene_action: Dictionary = {}
 var _pending_scene_expected_hash: String = ""
 var _pending_scene_semantic_hash: String = ""
+var _pending_scene_finalize_body: Dictionary = {}
+var _scene_finalize_retries: int = 0
+var _scene_finalize_retrying: bool = false
 var _project_settings_executor = null
 var _pending_project_settings_action: Dictionary = {}
 var _pending_project_settings_expected_hash: String = ""
@@ -831,7 +834,8 @@ func _set_pending_action(active: bool, description: String = "") -> void:
 
 
 func _has_pending_action() -> bool:
-	return (_pending_action_active or not _pending_resource_finalize_body.is_empty()
+	return (_pending_action_active or not _pending_scene_finalize_body.is_empty()
+		or not _pending_resource_finalize_body.is_empty()
 		or not _pending_runtime_request.is_empty() or not _pending_runtime_check.is_empty()
 		or not _pending_runtime_check_result_body.is_empty())
 
@@ -1151,13 +1155,13 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
+	if approved and _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
 	var body = {"approved": approved}
-	if approved and _last_pending_action_type == "edit_scene":
+	if approved and _last_pending_action_type in ["edit_scene", "create_scene"]:
 		body["editor_semantic_hash"] = _pending_scene_semantic_hash
 	elif approved and _last_pending_action_type == "edit_project_settings":
 		body["editor_semantic_hash"] = _pending_project_settings_semantic_hash
@@ -1175,21 +1179,47 @@ func _send_confirm_request(approved: bool) -> void:
 
 
 func _send_scene_result(execution: Dictionary, envelope: Dictionary) -> void:
-	var body := {
+	_pending_scene_finalize_body = {
 		"action_id": str(envelope.get("action_id", "")),
 		"execution_token": str(envelope.get("execution_token", "")),
 		"success": bool(execution.get("ok", false)),
 		"scene_hash": str(execution.get("scene_hash", "")),
+		"target_written": bool(execution.get("target_written", false)),
+		"staged_hash": str(execution.get("staged_hash", "")),
 		"error_code": str(execution.get("code", "")),
 		"error": str(execution.get("error", "")),
 	}
+	_scene_finalize_retries = 0
+	_send_pending_scene_finalize()
+
+
+func _send_pending_scene_finalize() -> void:
+	if _pending_scene_finalize_body.is_empty():
+		return
+	if _is_network_busy:
+		_schedule_scene_finalize_retry()
+		return
 	_pending_request_kind = "scene_finalize"
 	_set_ui_busy(true)
+	_scene_finalize_retries += 1
 	var err := http_request.request(
-		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_scene_finalize_body))
 	if err != OK:
-		_log_error("Не удалось завершить транзакцию сцены")
 		_set_ui_busy(false)
+		_schedule_scene_finalize_retry()
+
+
+func _schedule_scene_finalize_retry() -> void:
+	if _scene_finalize_retrying or _pending_scene_finalize_body.is_empty():
+		return
+	_scene_finalize_retrying = true
+	await get_tree().create_timer(float(mini(_scene_finalize_retries + 1, 5))).timeout
+	_scene_finalize_retrying = false
+	if not _is_network_busy:
+		_send_pending_scene_finalize()
+	else:
+		_schedule_scene_finalize_retry()
 
 
 func _prepare_scene_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
@@ -1208,6 +1238,8 @@ func _execute_scene_action(envelope: Dictionary) -> void:
 		execution = {"ok": false, "error": "Исполнитель структурных сцен недоступен", "scene_hash": ""}
 	else:
 		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		if str(action.get("action", "")) == "create_scene":
+			action["_create_action_id"] = str(envelope.get("action_id", ""))
 		if _pending_scene_semantic_hash != "":
 			action["_expected_semantic_hash"] = _pending_scene_semantic_hash
 		execution = _scene_executor.execute(action, str(envelope.get("expected_scene_hash", "")))
@@ -1924,6 +1956,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_pending_scene_action = {}
 			_pending_scene_expected_hash = ""
 			_pending_scene_semantic_hash = ""
+			_pending_scene_finalize_body = {}
+			_scene_finalize_retries = 0
+			_scene_finalize_retrying = false
 			_last_pending_action_type = ""
 			_last_pending_action_paths = PackedStringArray()
 			return
@@ -2090,7 +2125,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 					_last_pending_action_paths.append(str(raw_path))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
-			if _last_pending_action_type == "edit_scene":
+			if _last_pending_action_type in ["edit_scene", "create_scene"]:
 				var scene_preview := _prepare_scene_action(pending, json.get("scene_prepare", {}))
 				if not bool(scene_preview.get("ok", false)):
 					_view.add_warning("Godot отклонил предпросмотр сцены: " + str(scene_preview.get("error", "")))
@@ -2178,6 +2213,21 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "resource_finalize":
 			_schedule_resource_finalize_retry()
 			return
+		if kind == "scene_finalize":
+			if response_code in [400, 403, 409, 410, 413]:
+				var scene_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции сцены."))) if json else "Сервер отклонил завершение транзакции сцены."
+				_view.add_error(scene_error)
+				_pending_scene_action = {}
+				_pending_scene_expected_hash = ""
+				_pending_scene_semantic_hash = ""
+				_pending_scene_finalize_body = {}
+				_scene_finalize_retries = 0
+				_scene_finalize_retrying = false
+				_last_pending_action_type = ""
+				_last_pending_action_paths = PackedStringArray()
+			else:
+				_schedule_scene_finalize_retry()
+			return
 		if kind == "check_log" and _auto_check:
 			# Авто-проверка не спамит в чат: нет лога, лог уже отправлялся,
 			# сервер занят или выключен — просто тихо пропускаем.
@@ -2189,7 +2239,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			if _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
+			if _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
 				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
@@ -2427,6 +2477,9 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 # ---------------------------------------------------------------------------
 
 func _on_play_watch_tick() -> void:
+	if not _pending_scene_finalize_body.is_empty() and not _scene_finalize_retrying and not _is_network_busy \
+			and _pending_request_kind != "scene_finalize":
+		_send_pending_scene_finalize()
 	if _hl: _hl.watchdog()
 	_reconcile_confirm_buttons()
 	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \

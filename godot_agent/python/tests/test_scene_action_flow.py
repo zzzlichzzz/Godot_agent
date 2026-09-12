@@ -136,7 +136,108 @@ try:
     assert open(scene, "rb").read() == original_scene
     assert STATE["pending_scene_action"] is None
 
-    print("PASS edit_scene Flask prepare/confirm/finalize/recovery flow")
+    # Typed scene creation uses the same editor transaction, but history knows
+    # the file did not exist and rollback therefore removes it.
+    create_action = {
+        "action": "create_scene", "scene": "res://scenes/created.tscn",
+        "root": {"name": "Created", "type": "Node2D"}, "operations": [],
+    }
+    created = os.path.join(root, "scenes", "created.tscn")
+    STATE.update({"pending_action": None, "pending_scene_action": None})
+    with main.app.test_request_context("/chat", method="POST", json={}):
+        create_prepare, create_prepare_status = payload(
+            main._package_model_reply("Создаю сцену.", create_action, root))
+    assert create_prepare_status == 200 and create_prepare["scene_prepare"]["prepare_in_editor"]
+    assert not os.path.exists(created)
+    with main.app.test_request_context(
+            "/chat/confirm_action", method="POST", json={
+                "approved": True, "editor_semantic_hash": "d" * 64}):
+        create_confirm, create_confirm_status = payload(main.confirm_action())
+    assert create_confirm_status == 200 and not os.path.exists(created)
+    staged_created = scene_actions.staged_scene_path(created, create_confirm["action_id"])
+    write(root, os.path.relpath(staged_created, root).replace("\\", "/"),
+          '[gd_scene format=3]\n\n[node name="Created" type="Node2D"]\n')
+    staged_created_hash = scene_actions.file_sha256(staged_created)
+    create_result = {"action_id": create_confirm["action_id"],
+                     "execution_token": create_confirm["execution_token"],
+                     "success": True, "scene_hash": staged_created_hash,
+                     "staged_hash": staged_created_hash,
+                     "target_written": False}
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json=create_result):
+        created_json, created_status = payload(main.editor_action_result())
+    assert created_status == 200 and created_json["history_entry_id"]
+    assert os.path.isfile(created) and not os.path.exists(staged_created)
+    created_info = history_manager.entry_info(root, created_json["history_entry_id"])
+    assert created_info and created_info["type"] == "create_scene"
+    ok, _message, _force, paths, _diff = history_manager.rollback_entry(
+        root, created_json["history_entry_id"])
+    assert ok and paths == ["res://scenes/created.tscn"] and not os.path.exists(created)
+
+    # A confirmed partial write is owned by the agent and can be removed.
+    partial_action = dict(create_action, scene="res://scenes/partial.tscn")
+    partial = os.path.join(root, "scenes", "partial.tscn")
+    STATE.update({"pending_action": None, "pending_scene_action": None})
+    with main.app.test_request_context("/chat", method="POST", json={}):
+        payload(main._package_model_reply("Частичное создание.", partial_action, root))
+    with main.app.test_request_context("/chat/confirm_action", method="POST", json={
+            "approved": True, "editor_semantic_hash": "e" * 64}):
+        partial_confirm, _status = payload(main.confirm_action())
+    write(root, "scenes/partial.tscn", "partial output\n")
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json={
+            "action_id": partial_confirm["action_id"],
+            "execution_token": partial_confirm["execution_token"],
+            "success": False, "scene_hash": scene_actions.file_sha256(partial),
+            "target_written": True}):
+        partial_json, partial_status = payload(main.editor_action_result())
+    assert partial_status == 200 and partial_json["restored"] is True
+    assert not os.path.exists(partial)
+
+    # A file created externally during the transaction is never deleted when
+    # the executor reports it did not write the target.
+    collision_action = dict(create_action, scene="res://scenes/external.tscn")
+    external = os.path.join(root, "scenes", "external.tscn")
+    STATE.update({"pending_action": None, "pending_scene_action": None})
+    with main.app.test_request_context("/chat", method="POST", json={}):
+        payload(main._package_model_reply("Проверка коллизии.", collision_action, root))
+    with main.app.test_request_context("/chat/confirm_action", method="POST", json={
+            "approved": True, "editor_semantic_hash": "f" * 64}):
+        collision_confirm, _status = payload(main.confirm_action())
+    write(root, "scenes/external.tscn", "external owner\n")
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json={
+            "action_id": collision_confirm["action_id"],
+            "execution_token": collision_confirm["execution_token"],
+            "success": False, "scene_hash": scene_actions.file_sha256(external),
+            "target_written": False}):
+        collision_json, collision_status = payload(main.editor_action_result())
+    assert collision_status == 200 and collision_json["restored"] is True
+    assert open(external, "rb").read() == b"external owner\n"
+
+    # A destination created after Godot staged the scene wins atomically. The
+    # server never overwrites it and discards the agent-owned staged file.
+    race_action = dict(create_action, scene="res://scenes/race.tscn")
+    race = os.path.join(root, "scenes", "race.tscn")
+    STATE.update({"pending_action": None, "pending_scene_action": None})
+    with main.app.test_request_context("/chat", method="POST", json={}):
+        payload(main._package_model_reply("Проверка гонки.", race_action, root))
+    with main.app.test_request_context("/chat/confirm_action", method="POST", json={
+            "approved": True, "editor_semantic_hash": "1" * 64}):
+        race_confirm, _status = payload(main.confirm_action())
+    staged_race = scene_actions.staged_scene_path(race, race_confirm["action_id"])
+    write(root, os.path.relpath(staged_race, root).replace("\\", "/"),
+          '[gd_scene format=3]\n\n[node name="Agent" type="Node2D"]\n')
+    staged_race_hash = scene_actions.file_sha256(staged_race)
+    write(root, "scenes/race.tscn", "external race winner\n")
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json={
+            "action_id": race_confirm["action_id"],
+            "execution_token": race_confirm["execution_token"],
+            "success": True, "scene_hash": staged_race_hash,
+            "staged_hash": staged_race_hash, "target_written": False}):
+        race_json, race_status = payload(main.editor_action_result())
+    assert race_status == 409 and race_json["restored"] is True
+    assert open(race, "rb").read() == b"external race winner\n"
+    assert not os.path.exists(staged_race)
+
+    print("PASS edit/create scene Flask prepare/confirm/finalize/recovery flow")
 finally:
     for name, value in originals.items():
         setattr(main, name, value)

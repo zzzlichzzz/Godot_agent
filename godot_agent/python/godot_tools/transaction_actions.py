@@ -87,6 +87,8 @@ def normalize_action(project_root, action, allow_addons=False):
             allowed = ("action", "path", "summary", "dest")
         _exact(raw, allowed, "операция %d" % index)
         item = {"action": kind, "path": _canonical(project_root, raw.get("path"), allow_addons)}
+        if item["path"].lower().endswith(".tscn"):
+            raise TransactionError("Структурные сцены нельзя менять в transaction; используй create_scene/edit_scene")
         if raw.get("summary"):
             item["summary"] = str(raw["summary"])[:500]
         if kind == "create_file":
@@ -100,6 +102,8 @@ def normalize_action(project_root, action, allow_addons=False):
             item["replace"] = sanitize_llm_text(raw["replace"].replace("\r\n", "\n")) or ""
         else:
             item["dest"] = _canonical(project_root, raw.get("dest"), allow_addons)
+            if item["dest"].lower().endswith(".tscn"):
+                raise TransactionError("Структурные сцены нельзя перемещать в transaction")
             if item["dest"] == item["path"]:
                 raise TransactionError("move_file не меняет путь")
         operations.append(item)

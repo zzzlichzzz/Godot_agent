@@ -294,7 +294,8 @@ def abort_change(project_root, entry_id):
                 pass
 
 
-def restore_reserved_change(project_root, entry_id, current_hash=None):
+def restore_reserved_change(project_root, entry_id, current_hash=None,
+                            remove_created=False):
     """Restore an uncommitted batch reservation after an editor-side failure.
 
     The caller may provide the hash reported by Godot. If the file has changed
@@ -314,6 +315,19 @@ def restore_reserved_change(project_root, entry_id, current_hash=None):
     absolute = _resolve_safe_path(project_root, item["path"])
     if current_hash and _file_hash(absolute) != current_hash:
         return False, "Файл изменился после отчёта редактора; снапшот сохранён", []
+    if not item.get("before_present", True):
+        if os.path.exists(absolute):
+            if not remove_created:
+                abort_change(project_root, entry_id)
+                return True, "Внешний файл сохранён; агент не записывал целевой путь", []
+            if not current_hash:
+                return False, "Созданный файл не подтверждён хэшем; резерв истории сохранён", []
+            try:
+                os.remove(absolute)
+            except OSError as exc:
+                return False, "Не удалось удалить незавершённый созданный файл: %s" % exc, []
+        abort_change(project_root, entry_id)
+        return True, "Незавершённый созданный файл удалён", [item["path"]]
     snapshot = os.path.join(_history_dir(project_root), item.get("snapshot", ""))
     if not os.path.isfile(snapshot):
         return False, "Снапшот editor-транзакции не найден", []
@@ -548,7 +562,7 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
                 % (total_changes, total_files))
     kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён",
                 "move_file": "перемещён", "rename_symbol": "переименован символ",
-                 "edit_scene": "структурно изменена сцена",
+                 "edit_scene": "структурно изменена сцена", "create_scene": "создана сцена",
                  "edit_project_settings": "изменены настройки проекта",
                  "edit_resource": "структурно изменён ресурс",
                  "transaction": "применена пакетная транзакция"}

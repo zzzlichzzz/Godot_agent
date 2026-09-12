@@ -181,6 +181,20 @@ def test_edit_scene_uses_structural_schema_validation():
         }))
         assert not bad["acceptable"]
         assert any(item["category"] == "scene" for item in bad["blocking"])
+
+        create = judge_answer(root, _answer({
+            "action": "create_scene", "scene": "res://scenes/player.tscn",
+            "root": {"name": "Player", "type": "CharacterBody2D"},
+            "operations": [],
+        }))
+        assert create["acceptable"] and create["score"] >= 90
+        for raw in (
+                {"action": "create_file", "path": "res://scenes/raw.tscn", "content": "x"},
+                {"action": "patch_file", "path": "res://scenes/main.tscn", "search": "Main", "replace": "Other"},
+                {"action": "move_file", "path": "res://scenes/main.tscn", "dest": "res://scenes/other.tscn"}):
+            rejected = judge_answer(root, _answer(raw))
+            assert not rejected["acceptable"]
+            assert any(item["category"] == "scene" for item in rejected["blocking"])
     finally:
         shutil.rmtree(root, ignore_errors=True)
 
