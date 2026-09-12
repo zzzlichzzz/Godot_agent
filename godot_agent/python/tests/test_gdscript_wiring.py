@@ -369,3 +369,10 @@ check(u"срок повтора показывается только при unt
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))
 sys.exit(0 if n_ok == len(results) else 1)
+check("rename plural diffs use read-only cards",
+      'json.get("pending_action_diffs")' in panel and "add_readonly_diff" in panel
+      and "mark_preview_only" in diff_card)
+check("rename confirmation blocks dirty scripts",
+      "_dirty_open_scripts(_last_pending_action_paths)" in panel)
+check("rename result reloads every changed path",
+      'json.get("changed_paths")' in panel and "for changed_path in changed_paths" in panel)

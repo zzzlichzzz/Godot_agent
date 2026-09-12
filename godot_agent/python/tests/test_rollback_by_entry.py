@@ -74,6 +74,14 @@ def apply_create(rel, content, chat_id="c1", chat_title="Чат 1", chain_id=Non
     return eid
 
 
+def apply_batch(paths, replacements, chat_id="c1", chat_title="Чат 1"):
+    eid = H.record_batch_change(PROJ, "rename_symbol", paths, chat_id, chat_title)
+    for rel, (search, replace) in replacements.items():
+        write(rel, read(rel).replace(search, replace))
+    H.commit_change(PROJ, eid)
+    return eid
+
+
 # ---------------------------------------------------------------------------
 # 1) Адресный откат отменяет ИМЕННО своё изменение
 # ---------------------------------------------------------------------------
@@ -200,6 +208,36 @@ check(u"last_committed_info по-прежнему отдаёт последне�
 check(u"и теперь тоже несёт id записи", bool(info_last.get("id")))
 okl, _m, _nf, _p, _d = H.rollback_last(PROJ)
 check(u"rollback_last работает", okl and read("res://z.gd").strip() == u"var z := 1")
+
+# ---------------------------------------------------------------------------
+# 8) Составная запись откатывается целиком и учитывает все затронутые пути
+# ---------------------------------------------------------------------------
+write("res://r1.gd", u"func old_name():\n\tpass\n")
+write("res://r2.gd", u"func use():\n\told_name()\n")
+e_batch = apply_batch(
+    ["res://r1.gd", "res://r2.gd"],
+    {"res://r1.gd": ("old_name", "new_name"),
+     "res://r2.gd": ("old_name", "new_name")})
+info_batch = H.entry_info(PROJ, e_batch)
+check(u"составная запись содержит оба пути",
+      info_batch.get("paths") == ["res://r1.gd", "res://r2.gd"], info_batch)
+
+# Более поздняя правка ЛЮБОГО файла пакета блокирует откат всей записи.
+e_later = apply_patch("res://r2.gd", "new_name()", "new_name(1)")
+okb, msgb, nfb, _paths, _diff = H.rollback_entry(PROJ, e_batch, force=True)
+check(u"более поздняя правка одного файла блокирует compound rollback",
+      not okb and not nfb and u"от новых к старым" in msgb, msgb)
+H.rollback_entry(PROJ, e_later)
+
+# Ручная правка требует force, но затем возвращаются оба файла одним действием.
+write("res://r1.gd", read("res://r1.gd") + "# manual\n")
+okb, _msg, nfb, _paths, _diff = H.rollback_entry(PROJ, e_batch)
+check(u"ручная правка compound-файла требует force", not okb and nfb)
+okb, _msg, nfb, paths_batch, _diff = H.rollback_entry(PROJ, e_batch, force=True)
+check(u"compound rollback с force восстанавливает оба файла", okb and not nfb
+      and paths_batch == ["res://r1.gd", "res://r2.gd"])
+check(u"оба файла пакета восстановлены",
+      "old_name" in read("res://r1.gd") and "old_name" in read("res://r2.gd"))
 
 for d in (PROJ, STORE):
     shutil.rmtree(d, ignore_errors=True)

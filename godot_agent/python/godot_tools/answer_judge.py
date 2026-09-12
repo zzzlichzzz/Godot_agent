@@ -14,6 +14,7 @@ from parser_base import (answer_transfer_incomplete, parse_action_json,
                          score_answer_variant, split_net_text_and_action)
 from project_tools import _resolve_safe_path
 from tscn_lint import is_scene_path, lint_and_fix_tscn
+import symbol_refactor
 
 
 READ_ACTIONS = {
@@ -300,6 +301,16 @@ def judge_answer(project_root, full_text, addon_dir=None):
                         findings.extend(fs)
                         evidence.extend(ev)
                     score = 88 - min(20, max(0, len(steps) - 1) * 2)
+            elif act == "rename_symbol":
+                try:
+                    prepared = symbol_refactor.prepare_rename(
+                        project_root, action, addon_dir=addon_dir)
+                    score = 94
+                    evidence.append("Safe rename resolves %d references in %d files" % (
+                        prepared["reference_count"], len(prepared["files"])))
+                except Exception as exc:
+                    score = 45
+                    findings.append(_finding("blocking", "refactor", str(exc)))
             else:
                 findings.append(_finding("blocking", "schema",
                                          "unknown action: %s" % act))

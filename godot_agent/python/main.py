@@ -39,6 +39,7 @@ import librarian
 import log_reader
 import editor_context
 import gather_context
+import symbol_refactor
 import chat_store
 import dashboard
 import json as _json
@@ -416,6 +417,10 @@ def _describe_action(action):
         if symbols:
             details.append("символы: " + ", ".join(str(x) for x in symbols[:4]))
         return "Агент хочет одним проходом собрать контекст проекта" + ((": " + "; ".join(details)) if details else "")
+    if act == "rename_symbol":
+        return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
+            action.get("old_name", ""), action.get("new_name", ""),
+            int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
     if act == "plan":
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
@@ -945,6 +950,34 @@ def _package_model_reply(text, action, project_root, depth=0):
             "pending_action_description": _describe_action(synthetic),
             "pending_action_code": None,
         })
+    if action and action.get("action") == "rename_symbol":
+        try:
+            prepared = symbol_refactor.prepare_rename(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")),
+                addon_dir=STATE.get("addon_dir"))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            followup = ("[Система]: rename_symbol отклонён безопасным локальным анализом: %s. "
+                        "Не заменяй имя слепыми patch_file; исправь locator/имя или объясни "
+                        "пользователю найденную неоднозначность." % exc)
+            if depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(action)
+        public.update(symbol_refactor.public_prepared(prepared))
+        STATE["pending_refactor"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        diffs = symbol_refactor.prepared_diffs(prepared)
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
+                        "pending_action_diffs": diffs})
     if not text and action is None:
         # Пустой ответ из браузера: парсер мог не дождаться конца генерации
         # длинного ответа. Не молчим — пользователь должен это увидеть.
@@ -1714,6 +1747,7 @@ def init_session():
         STATE["godot_version"] = _gv
     _apply_session_context(data)
     STATE["pending_action"] = None
+    STATE["pending_refactor"] = None
     STATE["pending_batch"] = None
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
@@ -1919,7 +1953,38 @@ def confirm_action():
             print(f"--> Действие '{act_type}' ОТКЛОНЕНО пользователем.")
             server_state.queue_action_note(f"[Система: Пользователь ОТКЛОНИЛ ваше действие {act_type} для {path}. Изменение НЕ было применено! Скорректируй подход.]")
             STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
+
+        if act_type == "rename_symbol":
+            prepared = STATE.get("pending_refactor")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция переименования утрачена."}), 409
+            print("--> rename_symbol %s -> %s. Применяем %d файл(ов)..." % (
+                prepared.get("old_name"), prepared.get("new_name"),
+                len(prepared.get("files") or [])))
+            try:
+                result = symbol_refactor.apply_prepared_rename(
+                    project_root, prepared, *_current_chat_info())
+            except symbol_refactor.StaleRenameError as exc:
+                STATE["pending_action"] = None
+                STATE["pending_refactor"] = None
+                return jsonify({"error": str(exc)}), 409
+            STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            changed_paths = result["changed_paths"]
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+            return jsonify({
+                "answer": "[Система]: Символ %s безопасно переименован в %s (%d файл(ов), %d ссылок)." % (
+                    prepared["old_name"], prepared["new_name"], result["file_count"],
+                    result["reference_count"]),
+                "pending_action": None, "changed_paths": changed_paths,
+                "history_entry_id": result["entry_id"],
+            })
 
         if act_type in ("create_file", "patch_file", "move_file"):
             print(f"--> {act_type} {path}. Выполняем локально...")
@@ -2006,6 +2071,7 @@ def confirm_action():
 
     except Exception as e:
         STATE["pending_action"] = None
+        STATE["pending_refactor"] = None
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -2034,8 +2100,13 @@ def rollback_preview():
         return jsonify({"found": False,
                         "gone": bool(entry_id)})
     kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
-               "patch_file": "правка файла", "move_file": "перемещение файла"}
-    desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), info["path"])
+               "patch_file": "правка файла", "move_file": "перемещение файла",
+               "rename_symbol": "переименование символа"}
+    paths = [str(path) for path in (info.get("paths") or []) if path]
+    target = ", ".join(paths[:3]) if len(paths) > 1 else info["path"]
+    if len(paths) > 3:
+        target += " и ещё %d" % (len(paths) - 3)
+    desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), target)
     when = time.strftime("%H:%M", time.localtime(info.get("ts", 0)))
     title = info.get("chat_title") or ""
     if title:
