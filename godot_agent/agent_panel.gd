@@ -29,6 +29,7 @@ const CHAT_URL = "http://" + HOST + "/chat"
 const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const EDITOR_ACTION_RESULT_URL = "http://" + HOST + "/chat/editor_action/result"
+const RUNTIME_RESULT_URL = "http://" + HOST + "/chat/runtime_inspect/result"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
@@ -86,6 +87,10 @@ var _pending_resource_dependency_fingerprint: String = ""
 var _pending_resource_finalize_body: Dictionary = {}
 var _resource_finalize_retries: int = 0
 var _resource_finalize_retrying: bool = false
+var _runtime_debugger = null
+var _runtime_status: Dictionary = {"enabled": false, "protocol": 1, "sessions": []}
+var _pending_runtime_request: Dictionary = {}
+var _runtime_timeout_timer: Timer = null
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -212,6 +217,72 @@ func set_editor_plugin(plugin: EditorPlugin) -> void:
 		if resource_executor_script:
 			_resource_executor = resource_executor_script.new()
 			_resource_executor.configure(plugin)
+
+
+func set_runtime_debugger(debugger) -> void:
+	_runtime_debugger = debugger
+	if _runtime_debugger == null:
+		return
+	_runtime_status = _runtime_debugger.get_status()
+	_runtime_debugger.status_changed.connect(_on_runtime_status_changed)
+	_runtime_debugger.inspect_completed.connect(_on_runtime_inspect_completed)
+	_runtime_timeout_timer = Timer.new()
+	_runtime_timeout_timer.one_shot = true
+	add_child(_runtime_timeout_timer)
+	_runtime_timeout_timer.timeout.connect(_on_runtime_inspect_timeout)
+
+
+func _on_runtime_status_changed(status: Dictionary) -> void:
+	_runtime_status = status.duplicate(true)
+
+
+func _start_runtime_inspect(envelope: Dictionary) -> void:
+	_pending_runtime_request = (envelope.get("runtime_request", {}) as Dictionary).duplicate(true)
+	var result := {"ok": false, "status": "bridge_unavailable"}
+	if _runtime_debugger:
+		result = _runtime_debugger.inspect(_pending_runtime_request)
+	if not bool(result.get("ok", false)):
+		_send_runtime_result(str(result.get("status", "bridge_unavailable")), {})
+		return
+	_runtime_timeout_timer.start(maxf(0.1, float(_pending_runtime_request.get("timeout_ms", 3000)) / 1000.0))
+	_view.add_system("Получаю read-only снимок запущенной игры...")
+
+
+func _on_runtime_inspect_completed(result: Dictionary) -> void:
+	if _pending_runtime_request.is_empty():
+		return
+	if str(result.get("request_id", "")) != str(_pending_runtime_request.get("request_id", "")):
+		return
+	if _runtime_timeout_timer:
+		_runtime_timeout_timer.stop()
+	_send_runtime_result(str(result.get("status", "protocol_error")), result.get("snapshot", {}))
+
+
+func _on_runtime_inspect_timeout() -> void:
+	if _runtime_debugger:
+		_runtime_debugger.cancel_pending("timeout")
+
+
+func _send_runtime_result(status: String, snapshot) -> void:
+	if _pending_runtime_request.is_empty():
+		return
+	var body := {
+		"request_id": str(_pending_runtime_request.get("request_id", "")),
+		"result_token": str(_pending_runtime_request.get("result_token", "")),
+		"session_id": int(_pending_runtime_request.get("session_id", -1)),
+		"run_id": str(_pending_runtime_request.get("run_id", "")),
+		"status": status,
+		"snapshot": snapshot if snapshot is Dictionary else {},
+	}
+	_pending_request_kind = "runtime_result"
+	_set_ui_busy(true)
+	var err := http_request.request(RUNTIME_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error("Не удалось передать runtime snapshot серверу")
+		_pending_runtime_request = {}
+		if _runtime_timeout_timer:
+			_runtime_timeout_timer.stop()
+		_set_ui_busy(false)
 
 
 func _locale():
@@ -593,7 +664,8 @@ func _set_pending_action(active: bool, description: String = "") -> void:
 
 
 func _has_pending_action() -> bool:
-	return _pending_action_active or not _pending_resource_finalize_body.is_empty()
+	return (_pending_action_active or not _pending_resource_finalize_body.is_empty()
+		or not _pending_runtime_request.is_empty())
 
 
 func _clear_pending_action_state() -> void:
@@ -818,7 +890,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = _json_headers()
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "godot_executable": OS.get_executable_path(), "reinit": true}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "godot_executable": OS.get_executable_path(), "runtime_status": _runtime_status, "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -850,7 +922,8 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 		"project_root": project_root,
 		"user_data_dir": OS.get_user_data_dir(),
 		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
-		"godot_executable": OS.get_executable_path()
+		"godot_executable": OS.get_executable_path(),
+		"runtime_status": _runtime_status
 	}
 	if not _pending_editor_context.is_empty():
 		body["editor_context"] = _pending_editor_context
@@ -910,7 +983,7 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource"]:
+	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime"]:
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
@@ -1360,15 +1433,11 @@ func _on_rollback_confirmed() -> void:
 
 
 func _ensure_file_logging_enabled() -> void:
-	# Чтобы кнопка «Ошибки запуска» работала, игра должна писать лог в
-	# user://logs/godot.log. На десктопе это обычно уже включено (override
-	# .pc), но если выключено — включаем один раз и сохраняем настройки.
+	# Read-only inspection must never alter project.godot automatically.
 	var base_on := bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging", false))
 	var pc_on := bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging.pc", true))
 	if not base_on and not pc_on:
-		ProjectSettings.set_setting("debug/file_logging/enable_file_logging.pc", true)
-		ProjectSettings.save()
-		print("Включено файловое логирование запусков игры (user://logs/godot.log).")
+		print("Godot Agent: файловое логирование выключено; включите его вручную для встроенных runtime errors.")
 
 
 func _on_check_log_pressed() -> void:
@@ -1613,6 +1682,15 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			else:
 				_log_error("Неизвестный тип editor-транзакции: " + editor_action_kind)
 			return
+
+		if kind == "confirm" and json.get("runtime_request") is Dictionary:
+			_start_runtime_inspect(json)
+			return
+
+		if kind == "runtime_result":
+			_pending_runtime_request = {}
+			if _runtime_timeout_timer:
+				_runtime_timeout_timer.stop()
 
 		if kind == "resource_finalize":
 			var resource_path := str(_pending_resource_action.get("resource", ""))
@@ -1896,6 +1974,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		await get_tree().process_frame
 	else:
+		if kind == "runtime_result":
+			_pending_runtime_request = {}
+			if _runtime_timeout_timer:
+				_runtime_timeout_timer.stop()
+			_log_error("Runtime inspection завершён без ответа модели: " + str(response_code))
+			return
 		if kind == "resource_finalize":
 			_schedule_resource_finalize_retry()
 			return
@@ -1910,7 +1994,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			if _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource"]:
+			if _last_pending_action_type not in ["edit_scene", "edit_project_settings", "edit_resource", "inspect_runtime"]:
 				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:

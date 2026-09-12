@@ -23,6 +23,7 @@ extends EditorPlugin
 var _dock: Control = null
 var _loc = null
 var _promote_focus_done: bool = false
+var _runtime_debugger = null
 
 
 func _enter_tree() -> void:
@@ -35,6 +36,12 @@ func _enter_tree() -> void:
 	var locale_path: String = _find_file(base, "agent_locale.gd")
 	if locale_path != "":
 		_loc = load(locale_path)
+	var debugger_path: String = _find_file(base, "agent_runtime_debugger.gd")
+	if debugger_path != "":
+		var debugger_script = load(debugger_path)
+		if debugger_script:
+			_runtime_debugger = debugger_script.new()
+			add_debugger_plugin(_runtime_debugger)
 	_dock = _build_panel(panel_script_path)
 	_dock.name = _lt("dock_title", "ИИ Агент")
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
@@ -44,6 +51,10 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _runtime_debugger:
+		_runtime_debugger.cancel_pending("session_stopped")
+		remove_debugger_plugin(_runtime_debugger)
+		_runtime_debugger = null
 	if _dock:
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
@@ -205,4 +216,6 @@ func _build_panel(panel_script_path: String) -> Control:
 	panel.set_script(load(panel_script_path))
 	if panel.has_method("set_editor_plugin"):
 		panel.call("set_editor_plugin", self)
+	if _runtime_debugger and panel.has_method("set_runtime_debugger"):
+		panel.call("set_runtime_debugger", _runtime_debugger)
 	return panel

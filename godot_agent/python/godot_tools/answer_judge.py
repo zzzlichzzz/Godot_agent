@@ -16,11 +16,12 @@ from project_tools import _resolve_safe_path
 from tscn_lint import is_scene_path, lint_and_fix_tscn
 import symbol_refactor
 import high_level_actions
+import runtime_debug
 
 
 READ_ACTIONS = {
     "ask_librarian", "read_file", "read_function", "search_project",
-    "list_files", "list_scene", "gather_context",
+    "list_files", "list_scene", "gather_context", "inspect_runtime",
 }
 WRITE_ACTIONS = {"create_file", "patch_file", "move_file"}
 
@@ -115,6 +116,14 @@ def _judge_read_action(project_root, action):
     evidence = []
     act = action.get("action")
     score = 55
+    if act == "inspect_runtime":
+        try:
+            normalized = runtime_debug.normalize_action(action)
+        except runtime_debug.RuntimeDebugError as exc:
+            return 45, [_finding("blocking", "runtime", str(exc))], evidence
+        property_count = sum(len(item["names"]) for item in normalized["properties"])
+        return 93, [], ["One bounded read-only runtime snapshot validates %d sections and %d properties" % (
+            len(normalized["sections"]), property_count)]
     if act == "ask_librarian":
         score = 75
         query = action.get("query")

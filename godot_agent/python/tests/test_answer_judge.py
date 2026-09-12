@@ -81,6 +81,28 @@ def test_gather_context_is_high_value_read_action():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_runtime_inspection_is_bounded_read_action():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({
+            "action": "inspect_runtime",
+            "sections": ["tree", "properties", "metrics", "errors"],
+            "properties": [{"node": "Player", "names": ["health", "global_position"]}],
+            "max_age_ms": 1000,
+        }))
+        assert result["acceptable"] and result["score"] >= 90
+        assert any("bounded read-only runtime snapshot" in item for item in result["evidence"])
+        bad = judge_answer(root, _answer({
+            "action": "inspect_runtime", "sections": ["properties"],
+            "properties": [{"node": "../Player", "names": ["health"]}],
+            "set_property": True,
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "runtime" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_impossible_patch_is_blocking():
     root = _project()
     try:
