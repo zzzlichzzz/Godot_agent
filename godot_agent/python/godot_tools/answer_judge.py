@@ -17,6 +17,7 @@ from tscn_lint import is_scene_path, lint_and_fix_tscn
 import symbol_refactor
 import high_level_actions
 import runtime_debug
+import runtime_checks
 
 
 READ_ACTIONS = {
@@ -116,6 +117,13 @@ def _judge_read_action(project_root, action):
     evidence = []
     act = action.get("action")
     score = 55
+    if act == "run_check":
+        try:
+            normalized = runtime_checks.normalize_action(project_root, action)
+        except runtime_checks.RuntimeCheckError as exc:
+            return 45, [_finding("blocking", "runtime_check", str(exc))], evidence
+        return 94, [], ["One deterministic local game check validates %d bounded steps" %
+                        len(normalized["steps"])]
     if act == "inspect_runtime":
         try:
             normalized = runtime_debug.normalize_action(action)
@@ -321,7 +329,7 @@ def judge_answer(project_root, full_text, addon_dir=None):
         else:
             act = action.get("action")
             score = 58
-            if act in READ_ACTIONS:
+            if act in READ_ACTIONS or act == "run_check":
                 action_score, action_findings, action_evidence = _judge_read_action(
                     project_root, action)
                 score = action_score

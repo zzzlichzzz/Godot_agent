@@ -39,6 +39,7 @@ import librarian
 import log_reader
 import editor_context
 import runtime_debug
+import runtime_checks
 import gather_context
 import symbol_refactor
 import scene_actions
@@ -108,7 +109,8 @@ import rate_limit  # v104.12: детект 429/лимитов + спящий р�
 import server_state
 from server_state import (
     STATE, get_driver, set_driver, set_driver_error, claim_runtime_request,
-    release_runtime_request, reset_runtime_turn,
+    release_runtime_request, reset_runtime_turn, bind_runtime_check,
+    claim_runtime_check, release_runtime_check,
     _load_primed, _save_primed,
     _apply_session_context, _ensure_current_chat, _remember,
     _sync_chat_after_reply, _set_progress, _clear_progress,
@@ -141,6 +143,7 @@ import server_auth
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
 _EDITOR_ACTION_RESULTS = {}
+_RUNTIME_CHECK_RESULTS = {}
 # Проверка источника запросов. Что она даёт и чего НЕ даёт — в докстринге
 # server_auth: от программы под той же учётной записью она не защищает, но
 # закрывает чужую учётную запись, случайные обращения и — главное — панель
@@ -437,6 +440,9 @@ def _describe_action(action):
         property_count = sum(len(item.get("names") or []) for item in selectors if isinstance(item, dict))
         return "Агент хочет прочитать состояние запущенной игры: %s (%d свойств)" % (
             ", ".join(str(item) for item in sections), property_count)
+    if act == "run_check":
+        return "Агент хочет локально проверить сцену %s (%d шагов)" % (
+            action.get("scene", ""), len(action.get("steps") or []))
     if act == "rename_symbol":
         return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
@@ -916,6 +922,23 @@ def _package_model_reply(text, action, project_root, depth=0):
         except Exception as exc:
             STATE["pending_action"] = None
             return jsonify({"answer": (text + "\n\n[Система]: inspect_runtime отклонён: %s" % exc).strip(),
+                            "pending_action": None})
+        STATE["pending_action"] = normalized
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": normalized,
+                        "pending_action_description": _describe_action(normalized),
+                         "pending_action_code": None})
+    if action and action.get("action") == "run_check":
+        try:
+            normalized = runtime_checks.normalize_action(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                raise runtime_checks.RuntimeCheckError(
+                    "only one inspect_runtime or run_check action is allowed per user turn")
+        except Exception as exc:
+            STATE["pending_action"] = None
+            return jsonify({"answer": (text + "\n\n[Система]: run_check отклонён: %s" % exc).strip(),
                             "pending_action": None})
         STATE["pending_action"] = normalized
         _remember("agent", text)
@@ -2188,6 +2211,7 @@ def confirm_action():
             STATE["pending_validation"] = None
             STATE["pending_transaction"] = None
             STATE["pending_runtime_request"] = None
+            STATE["pending_runtime_check"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
 
         if act_type == "inspect_runtime":
@@ -2208,6 +2232,20 @@ def confirm_action():
             return jsonify({"answer": "[Система]: Runtime inspection подтверждён.",
                             "pending_action": None,
                             "runtime_request": runtime_debug.public_request(pending)})
+
+        if act_type == "run_check":
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                STATE["pending_action"] = None
+                return jsonify({"error": "Runtime action уже выполнялся в этом ходе."}), 409
+            pending = runtime_checks.create_request(
+                action, STATE.get("current_chat_id"), STATE.get("runtime_turn_id"), project_root,
+                STATE.get("user_data_dir"))
+            STATE["pending_runtime_check"] = pending
+            STATE["runtime_inspections_this_turn"] = 1
+            STATE["pending_action"] = None
+            return jsonify({"answer": "[Система]: Локальная игровая проверка подтверждена.",
+                            "pending_action": None,
+                            "runtime_check_request": runtime_checks.public_request(pending)})
 
         if act_type == "rename_symbol":
             prepared = STATE.get("pending_refactor")
@@ -2616,6 +2654,83 @@ def runtime_inspect_result():
         return jsonify({"error": str(exc)}), 413 if "96 KiB" in str(exc) else 400
     finally:
         release_runtime_request(pending)
+
+
+@app.route('/chat/runtime_check/bind', methods=['POST'])
+def runtime_check_bind():
+    data = request.json or {}
+    pending, error = bind_runtime_check(data)
+    if error == "token":
+        return jsonify({"error": "Неверный runtime check token."}), 403
+    if error == "expired":
+        return jsonify({"error": "Локальная проверка истекла."}), 410
+    if error:
+        return jsonify({"error": "Проверка не может быть привязана к этой runtime session."}), 409
+    return jsonify({"success": True, "game_request": runtime_checks.game_request(pending)})
+
+
+@app.route('/chat/runtime_check/result', methods=['POST'])
+def runtime_check_result():
+    if request.content_length is not None and request.content_length > runtime_checks.MAX_HTTP_BODY_BYTES:
+        return jsonify({"error": "Runtime check result превышает допустимый размер."}), 413
+    data = request.json or {}
+    identity = (str(data.get("request_id") or ""), str(data.get("result_token") or ""))
+    cached = _RUNTIME_CHECK_RESULTS.get(identity)
+    if cached:
+        return jsonify(cached[0]), cached[1]
+    status = str(data.get("status") or "protocol_error")
+    if status not in runtime_checks.RESULT_STATUSES:
+        return jsonify({"error": "Неизвестный runtime check status."}), 400
+    prebind_statuses = {"runtime_already_running", "launch_failed", "launch_timeout",
+                        "bridge_unavailable", "session_stopped", "cancelled"}
+    pending, error = claim_runtime_check(data, allow_unbound=status in prebind_statuses)
+    if error == "token":
+        return jsonify({"error": "Неверный runtime check token."}), 403
+    if error == "expired":
+        return jsonify({"error": "Локальная проверка истекла."}), 410
+    if error:
+        # A concurrent duplicate can wait for the first result to finish. The
+        # first response is cached before releasing the runtime lock.
+        cached = _RUNTIME_CHECK_RESULTS.get(identity)
+        if cached:
+            return jsonify(cached[0]), cached[1]
+        return jsonify({"error": "Локальная проверка устарела или уже завершена."}), 409
+    try:
+        if status != "ok":
+            body = {"success": False, "passed": False,
+                    "answer": "[Система]: Локальная игровая проверка не выполнена: %s." % status,
+                    "runtime_status": status}
+            _cache_runtime_check_result(identity, body, 200)
+            return jsonify(body)
+        log_errors = runtime_checks.collect_log_errors(pending.get("log_cursor"))
+        report = runtime_checks.finalize_result(
+            pending, data.get("result"), log_errors=log_errors,
+            log_available=runtime_checks.log_source_available(pending.get("log_cursor")))
+        body = {"success": True, "passed": report["passed"], "check_report": report,
+                "answer": ("[Система]: Локальная игровая проверка пройдена."
+                           if report["passed"] else
+                           "[Система]: Локальная игровая проверка обнаружила несоответствия.")}
+        if not report["passed"]:
+            followup = runtime_checks.format_report(report)
+            text, next_action = _reply_with_self_heal(followup, pending.get("project_root"))
+            packaged = _package_model_reply(text, next_action, pending.get("project_root"))
+            response = packaged[0] if isinstance(packaged, tuple) else packaged
+            response_json = response.get_json()
+            response_json.update({"success": True, "passed": False, "check_report": report})
+            _cache_runtime_check_result(identity, response_json, 200)
+            return jsonify(response_json)
+        _cache_runtime_check_result(identity, body, 200)
+        return jsonify(body)
+    except runtime_checks.RuntimeCheckError as exc:
+        return jsonify({"error": str(exc)}), 400
+    finally:
+        release_runtime_check(pending)
+
+
+def _cache_runtime_check_result(identity, body, status):
+    _RUNTIME_CHECK_RESULTS[identity] = (body, status)
+    if len(_RUNTIME_CHECK_RESULTS) > 32:
+        _RUNTIME_CHECK_RESULTS.pop(next(iter(_RUNTIME_CHECK_RESULTS)))
 
 
 @app.route('/chat/rollback/preview', methods=['POST'])

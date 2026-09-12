@@ -46,6 +46,7 @@ STATE = {
     "editor_context": None,     # снимок только текущего хода для gather_context
     "runtime_status": None,
     "pending_runtime_request": None,
+    "pending_runtime_check": None,
     "runtime_turn_id": 0,
     "runtime_inspections_this_turn": 0,
     "progress": {"active": False},
@@ -128,11 +129,98 @@ def reset_runtime_turn(status=None, increment=False):
     with _runtime_request_lock:
         STATE["runtime_status"] = status
         STATE["pending_runtime_request"] = None
+        STATE["pending_runtime_check"] = None
         if increment:
             STATE["runtime_turn_id"] = int(STATE.get("runtime_turn_id") or 0) + 1
         else:
             STATE["runtime_turn_id"] = 0
         STATE["runtime_inspections_this_turn"] = 0
+
+
+def bind_runtime_check(data):
+    """Bind one confirmed check to the new bridge-ready run."""
+    with _runtime_request_lock:
+        pending = STATE.get("pending_runtime_check")
+        if not isinstance(pending, dict):
+            return None, "missing"
+        if str(data.get("request_id") or "") != pending.get("request_id"):
+            return None, "request"
+        if not hmac.compare_digest(str(data.get("result_token") or ""), pending.get("result_token") or ""):
+            return None, "token"
+        if time.time() > float(pending.get("deadline") or 0):
+            STATE["pending_runtime_check"] = None
+            return None, "expired"
+        if pending.get("chat_id") != STATE.get("current_chat_id") or int(pending.get("turn_id") or 0) != int(STATE.get("runtime_turn_id") or 0):
+            return None, "turn"
+        session_id = int(data.get("session_id", -1))
+        run_id = str(data.get("run_id") or "")
+        if session_id < 0 or not run_id:
+            return None, "session"
+        supplied_status = data.get("runtime_status")
+        if isinstance(supplied_status, dict):
+            # The check starts a new game after the user turn, so the status
+            # stored by /chat is necessarily stale. Keep only the protocol
+            # allowlisted shape before using the freshly reported run.
+            import runtime_debug
+            STATE["runtime_status"] = runtime_debug.normalize_status(supplied_status)
+        sessions = (STATE.get("runtime_status") or {}).get("sessions") or []
+        matching = [item for item in sessions if isinstance(item, dict)
+                    and int(item.get("session_id", -2)) == session_id
+                    and str(item.get("run_id") or "") == run_id]
+        if (len(matching) != 1 or not matching[0].get("active")
+                or not matching[0].get("bridge_ready")
+                or "run_check_v1" not in (matching[0].get("capabilities") or [])):
+            return None, "session"
+        if pending.get("state") == "bound":
+            if (int(pending.get("session_id", -2)) == session_id
+                    and str(pending.get("run_id") or "") == run_id):
+                return pending, None
+            return None, "state"
+        if pending.get("state") != "awaiting_bind":
+            return None, "state"
+        pending["session_id"] = session_id
+        pending["run_id"] = run_id
+        pending["state"] = "bound"
+        return pending, None
+
+
+def claim_runtime_check(data, allow_unbound=False):
+    _runtime_request_lock.acquire()
+    pending = STATE.get("pending_runtime_check")
+    if not isinstance(pending, dict):
+        _runtime_request_lock.release()
+        return None, "missing"
+    if str(data.get("request_id") or "") != pending.get("request_id"):
+        _runtime_request_lock.release()
+        return None, "request"
+    if not hmac.compare_digest(str(data.get("result_token") or ""), pending.get("result_token") or ""):
+        _runtime_request_lock.release()
+        return None, "token"
+    if time.time() > float(pending.get("deadline") or 0):
+        STATE["pending_runtime_check"] = None
+        _runtime_request_lock.release()
+        return None, "expired"
+    if pending.get("state") != "bound" and not (allow_unbound and pending.get("state") == "awaiting_bind"):
+        _runtime_request_lock.release()
+        return None, "state"
+    if (pending.get("state") == "bound"
+            and (int(data.get("session_id", -1)) != int(pending.get("session_id", -2))
+                 or str(data.get("run_id") or "") != pending.get("run_id"))):
+        _runtime_request_lock.release()
+        return None, "session"
+    if pending.get("chat_id") != STATE.get("current_chat_id") or int(pending.get("turn_id") or 0) != int(STATE.get("runtime_turn_id") or 0):
+        _runtime_request_lock.release()
+        return None, "turn"
+    return pending, None
+
+
+def release_runtime_check(pending):
+    try:
+        current = STATE.get("pending_runtime_check")
+        if isinstance(current, dict) and current.get("request_id") == pending.get("request_id"):
+            STATE["pending_runtime_check"] = None
+    finally:
+        _runtime_request_lock.release()
 
 
 def begin_exchange():
@@ -365,6 +453,7 @@ def clear_pending_confirmations():
     STATE["content_parts"] = None
     with _runtime_request_lock:
         STATE["pending_runtime_request"] = None
+        STATE["pending_runtime_check"] = None
 
 
 def _sync_chat_after_reply():

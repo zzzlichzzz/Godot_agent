@@ -62,6 +62,8 @@ def normalize_status(value):
             "breaked": bool(raw.get("breaked")),
             "debuggable": bool(raw.get("debuggable")),
             "bridge_ready": bool(raw.get("bridge_ready")),
+            "capabilities": [str(item)[:64] for item in (raw.get("capabilities") or [])[:8]
+                             if isinstance(item, str)],
         })
     return {"enabled": bool(value.get("enabled", True)),
             "protocol": PROTOCOL, "sessions": sessions}

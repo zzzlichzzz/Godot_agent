@@ -3,6 +3,7 @@ extends EditorDebuggerPlugin
 
 signal status_changed(status: Dictionary)
 signal inspect_completed(result: Dictionary)
+signal check_completed(result: Dictionary)
 
 const NAMESPACE := "godot_agent_runtime"
 const PROTOCOL := 1
@@ -22,8 +23,26 @@ func _capture(message: String, data: Array, session_id: int) -> bool:
 			var state: Dictionary = _sessions.get(session_id, {})
 			if not state.is_empty() and int((data[0] as Dictionary).get("protocol", 0)) == PROTOCOL:
 				state["bridge_ready"] = true
+				state["capabilities"] = (data[0] as Dictionary).get("capabilities", [])
 				_sessions[session_id] = state
 				status_changed.emit(get_status())
+		return true
+	if message == NAMESPACE + ":check_result":
+		if data.size() != 1 or not data[0] is Dictionary:
+			return true
+		var check_payload := data[0] as Dictionary
+		if _pending.is_empty() or str(_pending.get("kind", "")) != "run_check":
+			return true
+		if int(_pending.get("session_id", -1)) != session_id:
+			return true
+		if str(check_payload.get("request_id", "")) != str(_pending.get("request_id", "")) \
+				or str(check_payload.get("run_id", "")) != str(_pending.get("run_id", "")):
+			return true
+		_pending = {}
+		check_completed.emit({"status": str(check_payload.get("status", "protocol_error")),
+			"session_id": session_id, "run_id": str(check_payload.get("run_id", "")),
+			"request_id": str(check_payload.get("request_id", "")),
+			"result": check_payload.get("result", {})})
 		return true
 	if message == NAMESPACE + ":snapshot":
 		if data.size() != 1 or not data[0] is Dictionary:
@@ -87,10 +106,32 @@ func inspect(request: Dictionary) -> Dictionary:
 	if str(state.get("run_id", "")) != str(request.get("run_id", "")):
 		return {"ok": false, "status": "stale_runtime_session", "error": "runtime run changed"}
 	_pending = request.duplicate(true)
+	_pending["kind"] = "inspect"
 	var runtime_request := {}
 	for key in ["protocol", "request_id", "run_id", "sections", "properties", "max_age_ms"]:
 		runtime_request[key] = request.get(key)
 	session.send_message(NAMESPACE + ":inspect", [runtime_request])
+	return {"ok": true}
+
+
+func run_check(request: Dictionary) -> Dictionary:
+	if not _pending.is_empty():
+		return {"ok": false, "status": "protocol_error", "error": "runtime request already pending"}
+	var session_id := int(request.get("session_id", -1))
+	var state: Dictionary = _sessions.get(session_id, {})
+	var session := get_session(session_id)
+	if state.is_empty() or session == null or not bool(state.get("active")):
+		return {"ok": false, "status": "runtime_not_running"}
+	if not bool(state.get("bridge_ready")) or not "run_check_v1" in state.get("capabilities", []):
+		return {"ok": false, "status": "bridge_unavailable"}
+	if str(state.get("run_id", "")) != str(request.get("run_id", "")):
+		return {"ok": false, "status": "stale_runtime_session"}
+	_pending = request.duplicate(true)
+	_pending["kind"] = "run_check"
+	var game_request := {}
+	for key in ["protocol", "request_id", "run_id", "steps", "timeout_ms", "screenshot"]:
+		game_request[key] = request.get(key)
+	session.send_message(NAMESPACE + ":run_check", [game_request])
 	return {"ok": true}
 
 
@@ -99,9 +140,14 @@ func cancel_pending(status: String = "session_stopped") -> void:
 		return
 	var request := _pending
 	_pending = {}
-	inspect_completed.emit({"status": status, "session_id": int(request.get("session_id", -1)),
-		"run_id": str(request.get("run_id", "")), "request_id": str(request.get("request_id", "")),
-		"snapshot": {}})
+	var result := {"status": status, "session_id": int(request.get("session_id", -1)),
+		"run_id": str(request.get("run_id", "")), "request_id": str(request.get("request_id", ""))}
+	if str(request.get("kind", "")) == "run_check":
+		result["result"] = {}
+		check_completed.emit(result)
+	else:
+		result["snapshot"] = {}
+		inspect_completed.emit(result)
 
 
 func _on_session_started(session_id: int) -> void:
