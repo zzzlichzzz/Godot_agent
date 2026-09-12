@@ -63,6 +63,26 @@ check(u"запрос пользователя явно отделён и ост�
 check(u"эфемерный контекст удаляется перед записью API-истории",
       editor_context.user_prompt_without_context(prompt) == "исправь эту функцию")
 
+unrelated_snapshot = dict(snapshot)
+unrelated_snapshot["script"] = dict(snapshot["script"])
+unrelated_snapshot["script"].pop("selection")
+unrelated, _ = editor_context.attach_to_prompt("как устроен InputMap?", unrelated_snapshot)
+check(u"открытый скрипт не отправляется без явной ссылки на редактор",
+      "Current script:" not in unrelated and "Code near caret" not in unrelated,
+      unrelated)
+check(u"списки открытых вкладок никогда не попадают в модельный prompt",
+      "Open scenes:" not in block and "Other open scripts:" not in block, block)
+selected_prompt, _ = editor_context.attach_to_prompt(
+    "объясни выделение", snapshot)
+check(u"явно выделенный код остаётся доступен",
+      "health -= 1" in selected_prompt, selected_prompt)
+caret_snapshot = dict(snapshot)
+caret_snapshot["script"] = dict(snapshot["script"])
+caret_snapshot["script"].pop("selection")
+deictic, _ = editor_context.attach_to_prompt("исправь эту функцию", caret_snapshot)
+check(u"контекст курсора отправляется только по явной ссылке",
+      "LOW PRIORITY" in deictic, deictic)
+
 for malformed in (None, [], {}, {"schema_version": 2},
                   {"schema_version": 1, "script": "bad"}):
     formatted, _ = editor_context.format_snapshot(malformed)
