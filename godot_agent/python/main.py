@@ -37,6 +37,7 @@ import minilich
 import gd_functions
 import librarian
 import log_reader
+import editor_context
 import chat_store
 import dashboard
 import json as _json
@@ -1793,6 +1794,13 @@ def chat():
         if ext_note:
             print("--> Обнаружены внешние изменения файлов проекта, сообщаем модели")
             prompt = f"{ext_note}\n\n{prompt}"
+
+        prompt, context_sizes = editor_context.attach_to_prompt(
+            prompt, data.get("editor_context"))
+        if context_sizes.get("total"):
+            sizes = ", ".join("%s=%d" % (key, context_sizes[key])
+                              for key in sorted(context_sizes))
+            print("--> Editor context v1: " + sizes)
 
         # v104.2: источник истины про мега-промпт — запись САМОГО чата, а не
         # глобальный флаг проекта (тот перетирается при создании/открытии

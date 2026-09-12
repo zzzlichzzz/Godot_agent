@@ -268,7 +268,21 @@ check(u"панель не спрашивает has_method у загруженн�
 check(u"панель берёт токен у узла ServerLink",
       "_link.project_token()" in panel)
 
-# --- 8) русский текст из .tscn обязан переписываться из словаря ---
+# --- 8) Контекст живого редактора передаётся только как read-only снимок ---
+context_path = _os0.path.join(ADDON, "agent_editor_context.gd")
+check(u"сборщик контекста редактора существует", _os0.path.isfile(context_path))
+context_src = read(context_path) if _os0.path.isfile(context_path) else ""
+check(u"снимок имеет версию схемы", "SCHEMA_VERSION" in context_src)
+send_chat = re.search(r"func _send_chat_raw\(.*?(?=\nfunc )", panel, re.DOTALL)
+send_chat_src = send_chat.group(0) if send_chat else ""
+check(u"снимок прикрепляется к /chat", 'body["editor_context"]' in send_chat_src)
+mutating_context_calls = [call for call in (
+    "ResourceSaver.save", "set_setting(", "open_scene_from_path(",
+    "edit_script(", "FileAccess.WRITE") if call in context_src]
+check(u"сборщик контекста не изменяет проект", not mutating_context_calls,
+      mutating_context_calls)
+
+# --- 9) русский текст из .tscn обязан переписываться из словаря ---
 #
 # РЕАЛЬНАЯ ПОЛОМКА, из-за которой эта проверка написана. Надписи карточек лежат
 # в .tscn по-русски — так их видно в редакторе сцен, и это удобно. Но значение из
@@ -324,7 +338,7 @@ check(u"русский текст из .tscn переписывается из �
 check(u"проверка нашла надписи, которые надо переписывать", checked_pairs >= 8,
       checked_pairs)
 
-# --- 9) Несколько ключей на провайдера ---
+# --- 10) Несколько ключей на провайдера ---
 #
 # Квота бесплатных тарифов считается НА КЛЮЧ, поэтому второй аккаунт того же
 # сервиса — рабочий способ продолжить работу. Панель обязана уметь ДОПИСАТЬ

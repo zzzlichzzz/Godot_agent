@@ -101,6 +101,8 @@ var _auto_check: bool = false
 var _hl = null  # подсистема подсветки (agent_highlight.gd)
 var _start_screen: Control = null
 var _pending_chat_prompt: String = ""
+var _pending_editor_context: Dictionary = {}
+var _editor_context_script = null
 var _resend_after_open: bool = false
 var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
 var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
@@ -785,6 +787,8 @@ func _on_send_pressed() -> void:
 
 func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	_pending_chat_prompt = prompt
+	if not ignore_mismatch or _pending_editor_context.is_empty():
+		_pending_editor_context = _capture_editor_context()
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = _json_headers()
 	var body = {
@@ -793,6 +797,8 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 		"user_data_dir": OS.get_user_data_dir(),
 		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
 	}
+	if not _pending_editor_context.is_empty():
+		body["editor_context"] = _pending_editor_context
 	if ignore_mismatch:
 		body["ignore_site_mismatch"] = true
 	http_request.set_http_proxy("", 0)
@@ -802,6 +808,18 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	if err != OK:
 		_log_error(_t("err_send"))
 		_set_ui_busy(false)
+
+
+func _capture_editor_context() -> Dictionary:
+	if _editor_context_script == null:
+		var script_path := get_script().resource_path.get_base_dir() + "/agent_editor_context.gd"
+		if FileAccess.file_exists(script_path):
+			_editor_context_script = load(script_path)
+	if _editor_context_script != null:
+		var snapshot = _editor_context_script.capture()
+		if snapshot is Dictionary:
+			return snapshot
+	return {}
 
 
 func _on_confirm_pressed() -> void:

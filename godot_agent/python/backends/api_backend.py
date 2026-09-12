@@ -27,6 +27,7 @@ import time
 import xml.etree.ElementTree as ET
 
 import api_history
+import editor_context
 import api_keys
 import anthropic_compat
 import catalog
@@ -1133,7 +1134,8 @@ class ApiBackend(object):
         самом деле видела.
         """
         api_history.append_exchange(
-            self._base_dir, self.chat_id, prompt, raw,
+            self._base_dir, self.chat_id,
+            editor_context.user_prompt_without_context(prompt), raw,
             user_kind=_guess_user_kind(prompt), usage=usage)
 
         action_raw, prose = split_action_block(raw)

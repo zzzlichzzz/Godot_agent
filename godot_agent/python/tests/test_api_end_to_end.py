@@ -155,7 +155,19 @@ check(u"запуск браузера даже не начинался", not S.b
 # ---------------------------------------------------------------------------
 # 2) Сообщение пользователю -> ответ модели -> действие на подтверждение
 # ---------------------------------------------------------------------------
-st, j = post("/chat", {"prompt": u"сделай двойной прыжок"})
+st, j = post("/chat", {
+    "prompt": u"сделай двойной прыжок",
+    "editor_context": {
+        "schema_version": 1,
+        "scene": {"active": "res://src/player.tscn"},
+        "selection": {"nodes": [{"path": "Player", "type": "CharacterBody2D",
+                                  "script": "res://src/scripts/player.gd"}]},
+        "script": {"path": "res://src/scripts/player.gd",
+                   "caret": {"line": 5, "column": 1},
+                   "caret_context": {"start_line": 4, "end_line": 7,
+                                     "text": "var jumps := 1"}},
+    },
+})
 check(u"/chat ответил 200", st == 200, (st, j))
 answer = str(j.get("answer", ""))
 check(u"ответ пришёл", len(answer) > 0)
@@ -185,7 +197,14 @@ check(u"в системном блоке дерево реального про�
 check(u"в системном блоке версия движка из /init", u"Godot 4.6" in sysmsg)
 check(u"запрос пользователя ушёл последним",
       msgs[-1].get("role") == "user"
-      and u"двойной прыжок" in msgs[-1].get("content", ""))
+       and u"двойной прыжок" in msgs[-1].get("content", ""))
+check(u"контекст редактора ушёл только в текущее пользовательское сообщение",
+      u"Godot editor context v1" in msgs[-1].get("content", "")
+      and u"res://src/player.tscn" in msgs[-1].get("content", "")
+      and u"Godot editor context v1" not in sysmsg)
+check(u"исходный запрос расположен после снимка редактора",
+      msgs[-1].get("content", "").endswith(
+          u"=== USER REQUEST ===\nсделай двойной прыжок"))
 check(u"мега-промпт НЕ подмешан в текст запроса",
       u"agent_action" not in msgs[-1].get("content", ""))
 check(u"модель из записи чата", req.get("model") == "m/e2e")
@@ -196,6 +215,8 @@ check(u"лимит вывода задан", int(req.get("max_tokens") or 0) > 0
 # ---------------------------------------------------------------------------
 hist = api_history.load_messages(UDD, CID)
 check(u"в истории пара запрос+ответ", len(hist) == 2, len(hist))
+check(u"эфемерный снимок не раздувает API-историю",
+      hist[0]["content"] == u"сделай двойной прыжок", hist[0]["content"])
 check(u"в истории СЫРОЙ ответ с блоком действия",
       "```agent_action" in hist[1]["content"])
 check(u"в истории нет BBCode", "[b]" not in hist[1]["content"])
