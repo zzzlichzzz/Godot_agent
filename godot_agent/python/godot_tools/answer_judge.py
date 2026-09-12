@@ -44,11 +44,11 @@ def _judge_structural_action(project_root, action, addon_dir):
                 project_root, action, addon_dir=addon_dir)
             return 94, [], ["Safe rename resolves %d references in %d files" % (
                 prepared["reference_count"], len(prepared["files"]))]
-        if act == "edit_scene":
+        if act in ("edit_scene", "create_scene"):
             import scene_actions
             normalized, _absolute = scene_actions.normalize_action(
                 project_root, action, bool(addon_dir))
-            return 93, [], ["Structural scene edit validates %d operations" %
+            return 93, [], ["Structural scene action validates %d operations" %
                             len(normalized["operations"])]
         if act == "edit_project_settings":
             import project_settings_actions
@@ -70,7 +70,7 @@ def _judge_structural_action(project_root, action, addon_dir):
             return 95, [], ["Atomic transaction validates %d operations in %d files" % (
                 len(prepared["action"]["operations"]), len(prepared["files"]))]
     except Exception as exc:
-        categories = {"rename_symbol": "refactor", "edit_scene": "scene",
+        categories = {"rename_symbol": "refactor", "edit_scene": "scene", "create_scene": "scene",
                       "edit_project_settings": "project_settings",
                       "edit_resource": "resource",
                       "transaction": "transaction"}
@@ -239,6 +239,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
         return [_finding("blocking", "path", str(exc), path, step)], evidence
 
     if act == "create_file":
+        if path.lower().endswith(".tscn"):
+            return [_finding("blocking", "scene", "new .tscn must use create_scene", path, step)], evidence
         content = action.get("content")
         if not isinstance(content, str):
             findings.append(_finding("blocking", "schema",
@@ -247,6 +249,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
         overlay[path] = content.replace("\r\n", "\n")
         evidence.append("Virtual create succeeds: %s" % path)
     elif act == "patch_file":
+        if path.lower().endswith(".tscn"):
+            return [_finding("blocking", "scene", "existing .tscn must use edit_scene", path, step)], evidence
         search = action.get("search")
         replace = action.get("replace")
         if not search or not isinstance(replace, str):
@@ -273,6 +277,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
             findings.append(_finding("blocking", "schema",
                                      "move_file has invalid destination", path, step))
             return findings, evidence
+        if path.lower().endswith(".tscn") or dest.lower().endswith(".tscn"):
+            return [_finding("blocking", "scene", ".tscn paths must use create_scene/edit_scene", path, step)], evidence
         try:
             content = _read_text(project_root, path, overlay)
         except Exception:
@@ -361,7 +367,7 @@ def judge_answer(project_root, full_text, addon_dir=None):
                         findings.extend(fs)
                         evidence.extend(ev)
                     score = 88 - min(20, max(0, len(steps) - 1) * 2)
-            elif act in ("rename_symbol", "edit_scene", "edit_project_settings", "edit_resource", "transaction"):
+            elif act in ("rename_symbol", "edit_scene", "create_scene", "edit_project_settings", "edit_resource", "transaction"):
                 score, action_findings, action_evidence = _judge_structural_action(
                     project_root, action, addon_dir)
                 findings.extend(action_findings)

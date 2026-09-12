@@ -116,6 +116,36 @@ def test_sequence_and_addon_policy_are_conservative():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_create_scene_schema_requires_absent_target_and_existing_script():
+    root = fixture()
+    try:
+        action = {
+            "action": "create_scene", "scene": "res://scenes/player.tscn",
+            "root": {"name": "Player", "type": "CharacterBody2D",
+                     "script": "res://src/hud.gd"},
+            "operations": [], "summary": "Player scene",
+        }
+        normalized, absolute = scene_actions.normalize_action(root, action)
+        assert normalized["root"]["type"] == "CharacterBody2D"
+        assert not os.path.exists(absolute)
+        prepared = scene_actions.prepare(root, action)
+        assert prepared["before_hash"] is None
+        assert scene_actions.public_prepared(prepared)["expected_scene_hash"] == ""
+        assert scene_actions.operation_summary(normalized)[0].startswith("0. создать корень")
+        write(root, "scenes/player.tscn", "collision")
+        raises(lambda: scene_actions.normalize_action(root, action), "уже существует")
+        action["scene"] = "res://scenes/missing_script.tscn"
+        action["root"]["script"] = "res://src/missing.gd"
+        raises(lambda: scene_actions.normalize_action(root, action), "не найден")
+        action["root"] = {"name": "Bad/Name", "type": "Node"}
+        raises(lambda: scene_actions.normalize_action(root, action), "корня")
+        action["root"] = {"name": "Main", "type": "Node"}
+        action["summary"] = "x" * 501
+        raises(lambda: scene_actions.normalize_action(root, action), "summary")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def run_all():
     tests = [value for name, value in sorted(globals().items())
              if name.startswith("test_") and callable(value)]

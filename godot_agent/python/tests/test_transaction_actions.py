@@ -126,6 +126,9 @@ def test_schema_parser_and_atomic_failure_restore():
         for bad in (
                 {"action": "transaction", "operations": []},
                 {"action": "transaction", "operations": [{"action": "create_file", "path": "res://project.godot", "content": "x"}]},
+                {"action": "transaction", "operations": [{"action": "create_file", "path": "res://scenes/new.tscn", "content": "x"}]},
+                {"action": "transaction", "operations": [{"action": "patch_file", "path": "res://scenes/main.tscn", "search": "a", "replace": "b"}]},
+                {"action": "transaction", "operations": [{"action": "move_file", "path": "res://src/player.gd", "dest": "res://scenes/new.tscn"}]},
                 {"action": "transaction", "operations": [{"action": "edit_scene"}]},
                 {"action": "transaction", "operations": [{"action": "patch_file", "path": "res://src/player.gd", "search": "missing", "replace": "x"}]}):
             try:

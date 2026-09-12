@@ -60,17 +60,31 @@ def normalize_node_path(value, field="node"):
     return path
 
 
-def _normalize_scene_path(project_root, value, allow_addons=False):
+def _normalize_scene_path(project_root, value, allow_addons=False, must_exist=True):
     path = _text(value, "scene", 500).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(".tscn"):
         raise SceneActionError("scene должен быть res:// путём к текстовой .tscn")
     relative = path[len("res://"):].lstrip("/")
-    if relative.startswith("addons/") and not allow_addons:
+    if relative.lower().startswith("addons/") and not allow_addons:
         raise SceneActionError("Сцены аддонов разрешены только по явному запросу пользователя")
     absolute = _resolve_safe_path(project_root, path)
-    if not os.path.isfile(absolute):
+    if must_exist and not os.path.isfile(absolute):
         raise SceneActionError("Сцена не найдена: %s" % path)
+    if must_exist is False and os.path.lexists(absolute):
+        raise SceneActionError("Сцена уже существует: %s" % path)
     return path, absolute
+
+
+def _normalize_script(project_root, value, allow_addons=False):
+    script = _text(value, "script", 500).replace("\\", "/")
+    if not script.startswith("res://") or not script.lower().endswith(".gd"):
+        raise SceneActionError("script должен быть res:// путём к .gd")
+    relative = script[len("res://"):].lstrip("/")
+    if relative.lower().startswith("addons/") and not allow_addons:
+        raise SceneActionError("Скрипты аддонов разрешены только по явному запросу пользователя")
+    if not os.path.isfile(_resolve_safe_path(project_root, script)):
+        raise SceneActionError("Скрипт не найден: %s" % script)
+    return script
 
 
 def normalize_variant(value):
@@ -188,30 +202,45 @@ def _validate_sequence(operations):
             moved_old.add(old)
 
 
-def normalize_action(project_root, action, allow_addons=False):
-    _exact_fields(action, ("action", "scene", "operations"), ("summary",))
-    if action.get("action") != "edit_scene":
-        raise SceneActionError("Ожидалось action=edit_scene")
-    scene, absolute = _normalize_scene_path(project_root, action["scene"], allow_addons)
+def normalize_action(project_root, action, allow_addons=False, require_target_state=True):
+    kind = action.get("action") if isinstance(action, dict) else None
+    if kind not in ("edit_scene", "create_scene"):
+        raise SceneActionError("Ожидалось action=edit_scene или action=create_scene")
+    required = ("action", "scene", "operations", "root") if kind == "create_scene" else (
+        "action", "scene", "operations")
+    _exact_fields(action, required, ("summary",))
+    must_exist = True if kind == "edit_scene" else False
+    if not require_target_state:
+        must_exist = None
+    scene, absolute = _normalize_scene_path(project_root, action["scene"], allow_addons, must_exist)
     raw_operations = action["operations"]
-    if not isinstance(raw_operations, list) or not (1 <= len(raw_operations) <= MAX_OPERATIONS):
-        raise SceneActionError("operations должен содержать от 1 до %d операций" % MAX_OPERATIONS)
+    minimum = 0 if kind == "create_scene" else 1
+    if not isinstance(raw_operations, list) or not (minimum <= len(raw_operations) <= MAX_OPERATIONS):
+        raise SceneActionError("operations должен содержать от %d до %d операций" % (minimum, MAX_OPERATIONS))
     operations = [_normalize_operation(item) for item in raw_operations]
     for operation in operations:
         if operation["op"] != "attach_script":
             continue
-        script = operation["script"]
-        relative = script[len("res://"):].lstrip("/")
-        if relative.startswith("addons/") and not allow_addons:
-            raise SceneActionError("Скрипты аддонов разрешены только по явному запросу пользователя")
-        script_absolute = _resolve_safe_path(project_root, script)
-        if not os.path.isfile(script_absolute):
-            raise SceneActionError("Скрипт не найден: %s" % script)
+        operation["script"] = _normalize_script(project_root, operation["script"], allow_addons)
     _validate_sequence(operations)
-    normalized = {"action": "edit_scene", "scene": scene, "operations": operations}
+    normalized = {"action": kind, "scene": scene, "operations": operations}
+    if kind == "create_scene":
+        root = action["root"]
+        _exact_fields(root, ("name", "type"), ("script",))
+        name = _text(root["name"], "root.name", 120)
+        node_type = _text(root["type"], "root.type", 120)
+        if not _NODE_NAME_RE.match(name) or not _CLASS_RE.match(node_type):
+            raise SceneActionError("Некорректное имя или native type корня сцены")
+        normalized_root = {"name": name, "type": node_type}
+        if root.get("script") is not None:
+            normalized_root["script"] = _normalize_script(
+                project_root, root["script"], allow_addons)
+        normalized["root"] = normalized_root
     summary = action.get("summary")
-    if isinstance(summary, str) and summary.strip():
-        normalized["summary"] = summary.strip()[:500]
+    if summary is not None:
+        if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 500:
+            raise SceneActionError("summary должен быть непустой строкой до 500 символов")
+        normalized["summary"] = summary.strip()
     return normalized, absolute
 
 
@@ -226,6 +255,50 @@ def file_sha256(absolute):
         return hashlib.sha256(handle.read()).hexdigest()
 
 
+def staged_scene_path(absolute, action_id):
+    if not isinstance(action_id, str) or not re.fullmatch(r"[0-9a-f]{32}", action_id):
+        raise SceneActionError("Некорректный идентификатор временной сцены")
+    return absolute + ".agent-create-%s.tmp.tscn" % action_id
+
+
+def materialize_staged_scene(absolute, action_id, expected_hash):
+    """Atomically publish a staged scene without ever replacing a destination."""
+    staged = staged_scene_path(absolute, action_id)
+    if os.path.lexists(absolute):
+        raise SceneActionError("Целевая сцена появилась после предпросмотра")
+    if not os.path.isfile(staged) or os.path.islink(staged):
+        raise SceneActionError("Временная сцена не найдена или небезопасна")
+    actual_hash = file_sha256(staged)
+    if not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+        raise SceneActionError("Godot не передал корректный хэш временной сцены")
+    if actual_hash != expected_hash:
+        raise SceneActionError("Хэш временной сцены не совпал с отчётом Godot")
+    try:
+        # The staged file is a sibling, so hard-link creation is atomic and
+        # fails when another process has already claimed the destination.
+        os.link(staged, absolute)
+    except FileExistsError:
+        raise SceneActionError("Целевая сцена появилась после предпросмотра")
+    except OSError as exc:
+        raise SceneActionError("Не удалось атомарно опубликовать сцену: %s" % exc)
+    try:
+        os.unlink(staged)
+    except OSError:
+        # Destination is already complete and authoritative. A stale staging
+        # file is harmless and can be removed by a later preparation.
+        pass
+    return file_sha256(absolute)
+
+
+def discard_staged_scene(absolute, action_id):
+    staged = staged_scene_path(absolute, action_id)
+    if os.path.isfile(staged) and not os.path.islink(staged):
+        try:
+            os.unlink(staged)
+        except OSError:
+            pass
+
+
 def prepare(project_root, action, allow_addons=False):
     normalized, absolute = normalize_action(project_root, action, allow_addons)
     return {
@@ -233,7 +306,7 @@ def prepare(project_root, action, allow_addons=False):
         "action": normalized,
         "scene": normalized["scene"],
         "action_digest": canonical_digest(normalized),
-        "before_hash": file_sha256(absolute),
+        "before_hash": file_sha256(absolute) if normalized["action"] == "edit_scene" else None,
         "state": "preview",
     }
 
@@ -242,7 +315,7 @@ def public_prepared(prepared):
     return {
         "action_id": prepared["action_id"],
         "action_digest": prepared["action_digest"],
-        "expected_scene_hash": prepared["before_hash"],
+        "expected_scene_hash": prepared["before_hash"] or "",
         "prepare_in_editor": True,
     }
 
@@ -253,5 +326,10 @@ def operation_summary(action):
         "connect_signal": "подключить сигнал", "attach_script": "назначить скрипт",
         "reparent_node": "переместить узел",
     }
-    return ["%d. %s" % (index, labels.get(op["op"], op["op"]))
-            for index, op in enumerate(action.get("operations") or [], 1)]
+    result = []
+    if action.get("action") == "create_scene":
+        root = action.get("root") or {}
+        result.append("0. создать корень %s (%s)" % (root.get("name", ""), root.get("type", "")))
+    result.extend("%d. %s" % (index, labels.get(op["op"], op["op"]))
+                  for index, op in enumerate(action.get("operations") or [], 1))
+    return result

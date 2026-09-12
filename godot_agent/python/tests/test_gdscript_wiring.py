@@ -393,12 +393,23 @@ check("scene executor refuses open scenes without guessing dirty state",
       'return _fail("scene_open"' in scene_executor
       and "get_unsaved_scenes" not in scene_executor
       and "is_scene_unsaved" not in scene_executor)
+check("scene executor creates typed scenes through PackedScene temp save",
+      "_create_detached" in scene_executor
+      and "ClassDB.instantiate" in scene_executor
+      and '"create_scene"' in scene_executor
+      and ".agent-create-" in scene_executor
+      and '"staged_hash"' in scene_executor
+      and '"target_written"' in scene_executor
+      and "DirAccess.rename_absolute" not in scene_executor)
 check("panel sends trusted Godot executable for engine validation",
       "OS.get_executable_path()" in panel and '"godot_executable"' in panel)
 check("panel coordinates scene prepare execute finalize",
       all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
                                      "_send_scene_result", "_pending_scene_semantic_hash",
-                                     "scene_finalize")))
+                                     "_pending_scene_finalize_body", "scene_finalize")))
+check("panel stops retrying terminal scene finalize failures",
+      'if response_code in [400, 403, 409, 410, 413]:' in panel
+      and '_pending_scene_finalize_body = {}' in panel)
 settings_executor = read(_os0.path.join(ADDON, "agent_project_settings_executor.gd"))
 check("project settings executor uses Godot APIs",
       "ProjectSettings.set_setting" in settings_executor

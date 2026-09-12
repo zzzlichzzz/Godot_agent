@@ -1,7 +1,7 @@
 @tool
 extends RefCounted
 
-# Executes the normalized edit_scene protocol on Godot's main editor thread.
+# Executes normalized edit_scene/create_scene on Godot's main editor thread.
 # Python validates JSON and coordinates history; only Godot touches PackedScene.
 
 var _plugin: EditorPlugin
@@ -17,6 +17,8 @@ func prepare(action: Dictionary, expected_hash: String) -> Dictionary:
 		return target
 	var root := target.get("root") as Node
 	var changes: Array[String] = []
+	if str(action.get("action", "")) == "create_scene":
+		changes.append("Создать корень %s (%s)" % [root.name, root.get_class()])
 	var applied := _apply_operations(root, action.get("operations", []), changes)
 	var semantic_hash := _semantic_hash(root, action.get("operations", [])) if bool(applied.get("ok", false)) else ""
 	if root and bool(target.get("detached", false)):
@@ -33,6 +35,8 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		return _with_hash(target, str(action.get("scene", "")))
 	var root := target.get("root") as Node
 	var changes: Array[String] = []
+	if str(action.get("action", "")) == "create_scene":
+		changes.append("Создать корень %s (%s)" % [root.name, root.get_class()])
 	var applied := _apply_operations(root, action.get("operations", []), changes)
 	if not bool(applied.get("ok", false)):
 		if root and bool(target.get("detached", false)):
@@ -53,11 +57,19 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		return _with_hash(_fail("preview_mismatch", "Результат больше не совпадает с подтверждённым предпросмотром"), str(action.get("scene", "")))
 	var scene_path := str(action.get("scene", ""))
 	var save_error := OK
+	var target_written := false
+	var staged_hash := ""
 	if bool(target.get("detached", false)):
 		var packed := PackedScene.new()
 		save_error = packed.pack(root)
 		if save_error == OK:
-			save_error = ResourceSaver.save(packed, scene_path)
+			if str(action.get("action", "")) == "create_scene":
+				var staged := _stage_new_scene(
+					packed, scene_path, str(action.get("_create_action_id", "")))
+				save_error = int(staged.get("error", FAILED))
+				staged_hash = str(staged.get("staged_hash", ""))
+			else:
+				save_error = ResourceSaver.save(packed, scene_path)
 		root.free()
 	else:
 		var editor := _editor_interface()
@@ -69,9 +81,12 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		if result is int:
 			save_error = int(result)
 	if save_error != OK:
-		return _with_hash(_fail("save_failed", "Godot не смог сохранить сцену: %s" % error_string(save_error)), scene_path)
+		var failure := _with_hash(_fail("save_failed", "Godot не смог сохранить сцену: %s" % error_string(save_error)), scene_path)
+		failure["target_written"] = target_written
+		return failure
 	return {"ok": true, "mode": target.get("mode", "closed"), "changes": changes,
-		"scene_hash": _file_hash(scene_path)}
+		"scene_hash": staged_hash if str(action.get("action", "")) == "create_scene" else _file_hash(scene_path),
+		"staged_hash": staged_hash, "target_written": target_written}
 
 
 func reload_after_recovery(scene_path: String) -> void:
@@ -88,6 +103,10 @@ func _open_target(action: Dictionary, expected_hash: String, for_preview: bool) 
 	var scene_path := str(action.get("scene", ""))
 	if not scene_path.begins_with("res://") or not scene_path.to_lower().ends_with(".tscn"):
 		return _fail("scene_path", "Godot executor принимает только res://*.tscn")
+	if str(action.get("action", "")) == "create_scene":
+		if FileAccess.file_exists(scene_path) or DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(scene_path)):
+			return _fail("scene_exists", "Сцена уже существует: " + scene_path)
+		return _create_detached(action)
 	if scene_path == "" or not FileAccess.file_exists(scene_path):
 		return _fail("scene_missing", "Сцена не найдена: " + scene_path)
 	if _file_hash(scene_path) != expected_hash:
@@ -101,6 +120,49 @@ func _open_target(action: Dictionary, expected_hash: String, for_preview: bool) 
 		# across supported Godot 4 versions. Never risk overwriting an unsaved tab.
 		return _fail("scene_open", "Сохраните и закройте сцену перед структурным изменением")
 	return _load_detached(scene_path, "closed")
+
+
+func _create_detached(action: Dictionary) -> Dictionary:
+	var root_data: Dictionary = action.get("root", {})
+	var node_class := str(root_data.get("type", ""))
+	if not ClassDB.class_exists(node_class) or not ClassDB.can_instantiate(node_class) \
+			or not ClassDB.is_parent_class(node_class, "Node"):
+		return _fail("invalid_root_type", "Класс нельзя создать как корень Node: " + node_class)
+	var created = ClassDB.instantiate(node_class)
+	if not created is Node:
+		return _fail("invalid_root_type", "ClassDB не создал корневой Node")
+	var root := created as Node
+	root.name = str(root_data.get("name", "Root"))
+	if root_data.has("script"):
+		var attached := _attach_script(root, {"node": ".", "script": root_data["script"], "replace_existing": false})
+		if not bool(attached.get("ok", false)):
+			root.free()
+			return attached
+	return {"ok": true, "root": root, "detached": true, "mode": "create"}
+
+
+func _stage_new_scene(packed: PackedScene, scene_path: String, action_id: String) -> Dictionary:
+	var absolute := ProjectSettings.globalize_path(scene_path)
+	if FileAccess.file_exists(scene_path) or DirAccess.dir_exists_absolute(absolute):
+		return {"error": ERR_ALREADY_EXISTS}
+	if action_id.length() != 32 or not action_id.is_valid_hex_number(false):
+		return {"error": ERR_INVALID_PARAMETER}
+	var parent := absolute.get_base_dir()
+	var make_error := DirAccess.make_dir_recursive_absolute(parent)
+	if make_error != OK:
+		return {"error": make_error}
+	var temporary := absolute + ".agent-create-%s.tmp.tscn" % action_id
+	if FileAccess.file_exists(temporary):
+		DirAccess.remove_absolute(temporary)
+	var save_error := ResourceSaver.save(packed, temporary)
+	if save_error != OK:
+		if FileAccess.file_exists(temporary):
+			DirAccess.remove_absolute(temporary)
+		return {"error": save_error}
+	if FileAccess.file_exists(scene_path) or DirAccess.dir_exists_absolute(absolute):
+		DirAccess.remove_absolute(temporary)
+		return {"error": ERR_ALREADY_EXISTS}
+	return {"error": OK, "staged_hash": _file_hash(temporary)}
 
 
 func _load_detached(scene_path: String, mode: String) -> Dictionary:
@@ -301,7 +363,7 @@ func _collect_semantic_rows(root: Node, node: Node, rows: Array[String]) -> void
 		var script = node.get_script()
 		if script is Script:
 			script_path = str((script as Script).resource_path)
-		rows.append("node|%s|%s|%s" % [_path(root, node), node.get_class(), script_path])
+		rows.append("node|%s|%s|%s|%s" % [_path(root, node), node.name, node.get_class(), script_path])
 		for signal_info in node.get_signal_list():
 			var signal_name := StringName(str(signal_info.get("name", "")))
 			for connection in node.get_signal_connection_list(signal_name):
