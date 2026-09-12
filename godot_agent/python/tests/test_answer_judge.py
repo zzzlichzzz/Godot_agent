@@ -139,6 +139,24 @@ def test_edit_scene_uses_structural_schema_validation():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_project_settings_uses_structural_schema_validation():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({
+            "action": "edit_project_settings", "operations": [
+                {"op": "add_input_action", "name": "jump", "deadzone": 0.2}],
+        }))
+        assert result["acceptable"] and result["score"] >= 90
+        bad = judge_answer(root, _answer({
+            "action": "edit_project_settings", "operations": [
+                {"op": "set_display_settings", "renderer": "unknown"}],
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "project_settings" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_broken_gdscript_is_blocking():
     root = _project()
     try:

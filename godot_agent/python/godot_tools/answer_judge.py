@@ -322,6 +322,17 @@ def judge_answer(project_root, full_text, addon_dir=None):
                 except Exception as exc:
                     score = 45
                     findings.append(_finding("blocking", "scene", str(exc)))
+            elif act == "edit_project_settings":
+                try:
+                    import project_settings_actions
+                    normalized, _absolute = project_settings_actions.normalize_action(
+                        project_root, action, bool(addon_dir))
+                    score = 93
+                    evidence.append("ProjectSettings edit validates %d operations" %
+                                    len(normalized["operations"]))
+                except Exception as exc:
+                    score = 45
+                    findings.append(_finding("blocking", "project_settings", str(exc)))
             else:
                 findings.append(_finding("blocking", "schema",
                                          "unknown action: %s" % act))

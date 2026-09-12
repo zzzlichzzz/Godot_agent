@@ -393,6 +393,20 @@ check("panel coordinates scene prepare execute finalize",
       all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
                                      "_send_scene_result", "_pending_scene_semantic_hash",
                                      "scene_finalize")))
+settings_executor = read(_os0.path.join(ADDON, "agent_project_settings_executor.gd"))
+check("project settings executor uses Godot APIs",
+      "ProjectSettings.set_setting" in settings_executor
+      and "ProjectSettings.save" in settings_executor
+      and "add_autoload_singleton" in settings_executor
+      and "InputEventKey.new" in settings_executor)
+check("project settings executor avoids textual writes and UndoRedo",
+      "FileAccess.WRITE" not in settings_executor and "UndoRedo" not in settings_executor)
+check("panel coordinates project settings transaction",
+      all(name in panel for name in ("_prepare_project_settings_action",
+                                     "_execute_project_settings_action",
+                                     "project_settings_finalize",
+                                     "_pending_project_settings_semantic_hash",
+                                     "agent_project_settings_executor.gd")))
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

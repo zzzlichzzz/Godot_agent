@@ -20,6 +20,7 @@ STATE = {
     "pending_action": None,   # ожидающее подтверждения WRITE-действие
     "pending_refactor": None, # private prepared multi-file rename transaction
     "pending_scene_action": None, # private editor-side scene transaction
+    "pending_project_settings_action": None, # private editor-side ProjectSettings transaction
     "current_chat_id": None,  # активный чат (см. chat_store.py)
     "current_site_id": None,  # явный режим сайта, включая arena vs arena_battle
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
@@ -291,6 +292,7 @@ def clear_pending_confirmations():
     STATE["pending_action"] = None
     STATE["pending_refactor"] = None
     STATE["pending_scene_action"] = None
+    STATE["pending_project_settings_action"] = None
     STATE["pending_batch"] = None
     STATE["pending_plan"] = None
     STATE["plan_parts"] = None

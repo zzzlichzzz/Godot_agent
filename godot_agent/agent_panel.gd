@@ -74,6 +74,10 @@ var _scene_executor = null
 var _pending_scene_action: Dictionary = {}
 var _pending_scene_expected_hash: String = ""
 var _pending_scene_semantic_hash: String = ""
+var _project_settings_executor = null
+var _pending_project_settings_action: Dictionary = {}
+var _pending_project_settings_expected_hash: String = ""
+var _pending_project_settings_semantic_hash: String = ""
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -188,6 +192,12 @@ func set_editor_plugin(plugin: EditorPlugin) -> void:
 		if executor_script:
 			_scene_executor = executor_script.new()
 			_scene_executor.configure(plugin)
+	var settings_executor_path := get_script().resource_path.get_base_dir() + "/agent_project_settings_executor.gd"
+	if FileAccess.file_exists(settings_executor_path):
+		var settings_executor_script = load(settings_executor_path)
+		if settings_executor_script:
+			_project_settings_executor = settings_executor_script.new()
+			_project_settings_executor.configure(plugin)
 
 
 func _locale():
@@ -582,6 +592,9 @@ func _clear_pending_action_state() -> void:
 	_pending_scene_action = {}
 	_pending_scene_expected_hash = ""
 	_pending_scene_semantic_hash = ""
+	_pending_project_settings_action = {}
+	_pending_project_settings_expected_hash = ""
+	_pending_project_settings_semantic_hash = ""
 	_pending_log_send = false
 
 
@@ -876,7 +889,7 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved and _last_pending_action_type != "edit_scene":
+	if approved and _last_pending_action_type not in ["edit_scene", "edit_project_settings"]:
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
@@ -884,6 +897,8 @@ func _send_confirm_request(approved: bool) -> void:
 	var body = {"approved": approved}
 	if approved and _last_pending_action_type == "edit_scene":
 		body["editor_semantic_hash"] = _pending_scene_semantic_hash
+	elif approved and _last_pending_action_type == "edit_project_settings":
+		body["editor_semantic_hash"] = _pending_project_settings_semantic_hash
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
 	_set_ui_busy(true)
@@ -932,6 +947,45 @@ func _execute_scene_action(envelope: Dictionary) -> void:
 			action["_expected_semantic_hash"] = _pending_scene_semantic_hash
 		execution = _scene_executor.execute(action, str(envelope.get("expected_scene_hash", "")))
 	_send_scene_result(execution, envelope)
+
+
+func _prepare_project_settings_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
+	if _project_settings_executor == null:
+		return {"ok": false, "error": "Исполнитель настроек проекта недоступен"}
+	_pending_project_settings_action = pending.duplicate(true)
+	_pending_project_settings_expected_hash = str(prepare_data.get("expected_project_hash", ""))
+	var result: Dictionary = _project_settings_executor.prepare(
+		_pending_project_settings_action, _pending_project_settings_expected_hash)
+	_pending_project_settings_semantic_hash = str(result.get("semantic_hash", "")) if bool(result.get("ok", false)) else ""
+	return result
+
+
+func _execute_project_settings_action(envelope: Dictionary) -> void:
+	var execution: Dictionary
+	if _project_settings_executor == null:
+		execution = {"ok": false, "error": "Исполнитель настроек проекта недоступен", "project_hash": ""}
+	else:
+		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		if _pending_project_settings_semantic_hash != "":
+			action["_expected_semantic_hash"] = _pending_project_settings_semantic_hash
+		execution = _project_settings_executor.execute(
+			action, str(envelope.get("expected_project_hash", "")))
+	var body := {
+		"action_id": str(envelope.get("action_id", "")),
+		"execution_token": str(envelope.get("execution_token", "")),
+		"editor_action_kind": "project_settings",
+		"success": bool(execution.get("ok", false)),
+		"project_hash": str(execution.get("project_hash", "")),
+		"error_code": str(execution.get("code", "")),
+		"error": str(execution.get("error", "")),
+	}
+	_pending_request_kind = "project_settings_finalize"
+	_set_ui_busy(true)
+	var err := http_request.request(
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error("Не удалось завершить транзакцию настроек проекта")
+		_set_ui_busy(false)
 
 
 func _start_plan_execution(total: int) -> void:
@@ -1425,6 +1479,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var pr_msg = str(json.get("message", _t("rollback_done")))
 			_view.add_success(_t("success_prefix") + pr_msg)
 			_note_autoload_removed(json)
+			if bool(json.get("requires_editor_restart", false)):
+				_view.add_warning("Перезапустите редактор Godot, чтобы восстановленные настройки проекта полностью применились.")
 			var pr_paths = json.get("paths")
 			if pr_paths is Array:
 				for pp in pr_paths:
@@ -1454,7 +1510,26 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			return
 
 		if kind == "confirm" and bool(json.get("execute_in_editor", false)):
-			_execute_scene_action(json)
+			if str(json.get("editor_action_kind", "")) == "project_settings":
+				_execute_project_settings_action(json)
+			else:
+				_execute_scene_action(json)
+			return
+
+		if kind == "project_settings_finalize":
+			if bool(json.get("success", false)):
+				_view.add_agent_message(str(json.get("answer", "Настройки проекта применены.")),
+					str(json.get("history_entry_id", "")))
+				_view.add_warning("Перезапустите редактор Godot, чтобы все настройки и autoload гарантированно обновились.")
+			elif bool(json.get("restored", false)):
+				_view.add_warning(str(json.get("answer", "Исходный project.godot восстановлен. Перезапустите редактор.")))
+			else:
+				_view.add_error(str(json.get("answer", "Не удалось безопасно завершить транзакцию настроек.")))
+			_pending_project_settings_action = {}
+			_pending_project_settings_expected_hash = ""
+			_pending_project_settings_semantic_hash = ""
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
 			return
 
 		if kind == "scene_finalize":
@@ -1509,6 +1584,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var msg = str(json.get("message", _t("rollback_done")))
 			_view.add_success(_t("success_prefix") + msg)
 			_note_autoload_removed(json)
+			if bool(json.get("requires_editor_restart", false)):
+				_view.add_warning("Перезапустите редактор Godot, чтобы восстановленные настройки проекта полностью применились.")
 			# Синхронизируем откаченные файлы с открытыми вкладками. Иначе
 			# вкладка показывает ДО-откатный текст, и Godot может позже
 			# молча пересохранить его ПОВЕРХ результата отката.
@@ -1644,6 +1721,16 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				var preview_lines = scene_preview.get("changes", [])
 				if preview_lines is Array and not preview_lines.is_empty():
 					_view.add_system("Предпросмотр структурных изменений:\n• " + "\n• ".join(preview_lines))
+			elif _last_pending_action_type == "edit_project_settings":
+				var settings_preview := _prepare_project_settings_action(
+					pending, json.get("project_settings_prepare", {}))
+				if not bool(settings_preview.get("ok", false)):
+					_view.add_warning("Godot отклонил настройки проекта: " + str(settings_preview.get("error", "")))
+					_on_reject_pressed()
+					return
+				var settings_lines = settings_preview.get("changes", [])
+				if settings_lines is Array and not settings_lines.is_empty():
+					_view.add_system("Предпросмотр настроек проекта:\n• " + "\n• ".join(settings_lines))
 
 			# Дифф сам по себе достаточен для карточки: patch_file, который
 			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
@@ -1689,7 +1776,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			if _last_pending_action_type != "edit_scene":
+			if _last_pending_action_type not in ["edit_scene", "edit_project_settings"]:
 				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
