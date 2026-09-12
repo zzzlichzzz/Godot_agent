@@ -408,7 +408,39 @@ check("panel coordinates project settings transaction",
                                      "_execute_project_settings_action",
                                      "project_settings_finalize",
                                      "_pending_project_settings_semantic_hash",
-                                     "agent_project_settings_executor.gd")))
+                                      "agent_project_settings_executor.gd")))
+resource_executor = read(_os0.path.join(ADDON, "agent_resource_executor.gd"))
+check("resource executor uses detached Godot resource APIs",
+      "ResourceLoader.load" in resource_executor and "ResourceSaver.save" in resource_executor
+      and "ResourceLoader.CACHE_MODE_IGNORE" in resource_executor)
+check("resource executor supports specialized editors",
+      all(name in resource_executor for name in ("_animation_add_value_track",
+                                                  "_sprite_frames_add_animation",
+                                                  "_theme_set_item",
+                                                  "_tileset_add_atlas_source")))
+check("resource executor tracks imports previews and semantic state",
+      "dependency_fingerprint" in resource_executor and "semantic_hash" in resource_executor
+       and "queue_resource_preview" in resource_executor and "check_for_invalidation" in resource_executor)
+check("resource executor validates and atomically replaces temporary save",
+      "temporary_semantic_mismatch" in resource_executor
+      and "DirAccess.rename_absolute" in resource_executor
+      and "saved_semantic_mismatch" in resource_executor
+      and "canonical_path" in resource_executor)
+check("resource executor avoids textual writes and UndoRedo",
+      "FileAccess.WRITE" not in resource_executor and "UndoRedo" not in resource_executor)
+check("panel coordinates resource transaction",
+      all(name in panel for name in ("_prepare_resource_action", "_execute_resource_action",
+                                     "resource_finalize", "_pending_resource_semantic_hash",
+                                      "agent_resource_executor.gd")))
+check("panel retries retained resource finalize envelope",
+      "_pending_resource_finalize_body" in panel
+      and "_schedule_resource_finalize_retry" in panel
+      and "return _pending_action_active or not _pending_resource_finalize_body.is_empty()" in panel
+      and "_send_pending_resource_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
+check("panel explicitly dispatches all editor transaction kinds",
+      all(value in panel for value in ('editor_action_kind == "scene"',
+                                       'editor_action_kind == "project_settings"',
+                                       'editor_action_kind == "resource"')))
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

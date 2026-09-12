@@ -54,6 +54,12 @@ def _judge_structural_action(project_root, action, addon_dir):
                 project_root, action, bool(addon_dir))
             return 93, [], ["ProjectSettings edit validates %d operations" %
                             len(normalized["operations"])]
+        if act == "edit_resource":
+            import resource_actions
+            normalized, _absolute = resource_actions.normalize_action(
+                project_root, action, bool(addon_dir))
+            return 93, [], ["Structural resource edit validates %d operations" %
+                            len(normalized["operations"])]
         if act == "transaction":
             import transaction_actions
             prepared = transaction_actions.prepare(
@@ -64,6 +70,7 @@ def _judge_structural_action(project_root, action, addon_dir):
     except Exception as exc:
         categories = {"rename_symbol": "refactor", "edit_scene": "scene",
                       "edit_project_settings": "project_settings",
+                      "edit_resource": "resource",
                       "transaction": "transaction"}
         return 45, [_finding("blocking", categories.get(act, "schema"), str(exc))], []
     return 45, [_finding("blocking", "schema", "unsupported compiled action: %s" % act)], []
@@ -337,7 +344,7 @@ def judge_answer(project_root, full_text, addon_dir=None):
                         findings.extend(fs)
                         evidence.extend(ev)
                     score = 88 - min(20, max(0, len(steps) - 1) * 2)
-            elif act in ("rename_symbol", "edit_scene", "edit_project_settings", "transaction"):
+            elif act in ("rename_symbol", "edit_scene", "edit_project_settings", "edit_resource", "transaction"):
                 score, action_findings, action_evidence = _judge_structural_action(
                     project_root, action, addon_dir)
                 findings.extend(action_findings)

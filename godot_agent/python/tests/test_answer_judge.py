@@ -157,6 +157,30 @@ def test_project_settings_uses_structural_schema_validation():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_resource_uses_structural_schema_validation():
+    root = _project()
+    try:
+        resources = os.path.join(root, "resources")
+        os.makedirs(resources)
+        with open(os.path.join(resources, "data.tres"), "w", encoding="utf-8") as handle:
+            handle.write('[gd_resource type="Resource" format=3]\n')
+        result = judge_answer(root, _answer({
+            "action": "edit_resource", "resource": "res://resources/data.tres",
+            "operations": [{"op": "set_property", "target": [], "property": "value",
+                            "value": {"type": "int", "value": 1}}],
+        }))
+        assert result["acceptable"] and result["score"] >= 90
+        bad = judge_answer(root, _answer({
+            "action": "edit_resource", "resource": "res://resources/data.tres",
+            "operations": [{"op": "set_property", "target": "root", "property": "value",
+                            "value": {"type": "int", "value": 1}}],
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "resource" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_transaction_uses_atomic_overlay_validation():
     root = _project()
     try:

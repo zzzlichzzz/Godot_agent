@@ -313,10 +313,10 @@ def restore_reserved_change(project_root, entry_id, current_hash=None):
     item = files[0]
     absolute = _resolve_safe_path(project_root, item["path"])
     if current_hash and _file_hash(absolute) != current_hash:
-        return False, "Сцена изменилась после отчёта редактора; снапшот сохранён", []
+        return False, "Файл изменился после отчёта редактора; снапшот сохранён", []
     snapshot = os.path.join(_history_dir(project_root), item.get("snapshot", ""))
     if not os.path.isfile(snapshot):
-        return False, "Снапшот сцены не найден", []
+        return False, "Снапшот editor-транзакции не найден", []
     parent = os.path.dirname(absolute)
     fd, temporary = tempfile.mkstemp(prefix=".agent_scene_restore_", dir=parent)
     try:
@@ -331,7 +331,7 @@ def restore_reserved_change(project_root, entry_id, current_hash=None):
         except OSError:
             pass
     abort_change(project_root, entry_id)
-    return True, "Исходная сцена восстановлена", [item["path"]]
+    return True, "Исходный файл editor-транзакции восстановлен", [item["path"]]
 
 
 def _entry_public_info(entry, committed):
@@ -550,6 +550,7 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
                 "move_file": "перемещён", "rename_symbol": "переименован символ",
                  "edit_scene": "структурно изменена сцена",
                  "edit_project_settings": "изменены настройки проекта",
+                 "edit_resource": "структурно изменён ресурс",
                  "transaction": "применена пакетная транзакция"}
     lines = []
     for p in order[:max_lines]:

@@ -42,6 +42,7 @@ import gather_context
 import symbol_refactor
 import scene_actions
 import project_settings_actions
+import resource_actions
 import transaction_actions
 import high_level_actions
 import godot_headless_validation
@@ -438,6 +439,9 @@ def _describe_action(action):
     if act == "edit_project_settings":
         return "Агент хочет изменить настройки проекта через API Godot (%d операций)" % len(
             action.get("operations") or [])
+    if act == "edit_resource":
+        return "Агент хочет структурно изменить ресурс %s (%d операций)" % (
+            action.get("resource", ""), len(action.get("operations") or []))
     if act == "transaction":
         return "Агент хочет атомарно изменить %d файл(ов) (%d операций)" % (
             int(action.get("file_count") or 0), int(action.get("operation_count") or 0))
@@ -1123,6 +1127,31 @@ def _package_model_reply(text, action, project_root, depth=0):
                         "pending_action_description": _describe_action(public),
                         "pending_action_code": None,
                         "project_settings_prepare": project_settings_actions.public_prepared(prepared)})
+    if action and action.get("action") == "edit_resource":
+        try:
+            prepared = resource_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_resource_action"] = None
+            followup = ("[Система]: edit_resource отклонён локальной проверкой схемы: %s. "
+                        "Исправь ресурс/операции; не заменяй структурную операцию сырой правкой .tres."
+                        % exc)
+            if depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(prepared["action"])
+        public.update(resource_actions.public_prepared(prepared))
+        STATE["pending_resource_action"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "resource_prepare": resource_actions.public_prepared(prepared)})
     if action and action.get("action") in ("create_file", "patch_file", "move_file"):
         try:
             batch = godot_headless_validation.batch_from_action(project_root, action)
@@ -1915,6 +1944,7 @@ def init_session():
     STATE["pending_refactor"] = None
     STATE["pending_scene_action"] = None
     STATE["pending_project_settings_action"] = None
+    STATE["pending_resource_action"] = None
     STATE["pending_validation"] = None
     STATE["pending_transaction"] = None
     STATE["pending_batch"] = None
@@ -2125,6 +2155,7 @@ def confirm_action():
             STATE["pending_refactor"] = None
             STATE["pending_scene_action"] = None
             STATE["pending_project_settings_action"] = None
+            STATE["pending_resource_action"] = None
             STATE["pending_validation"] = None
             STATE["pending_transaction"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
@@ -2261,6 +2292,41 @@ def confirm_action():
                 "execution_token": prepared["execution_token"],
             })
 
+        if act_type == "edit_resource":
+            prepared = STATE.get("pending_resource_action")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция ресурса утрачена."}), 409
+            _normalized, absolute = resource_actions.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+            if resource_actions.file_sha256(absolute) != prepared["before_hash"]:
+                STATE["pending_action"] = None
+                STATE["pending_resource_action"] = None
+                return jsonify({"error": "Ресурс изменился после предпросмотра."}), 409
+            editor_semantic_hash = str(data.get("editor_semantic_hash") or "")
+            dependency_fingerprint = str(data.get("dependency_fingerprint") or "")
+            if len(editor_semantic_hash) != 64 or len(dependency_fingerprint) != 64:
+                STATE["pending_action"] = None
+                STATE["pending_resource_action"] = None
+                return jsonify({"error": "Godot не подтвердил структурный предпросмотр ресурса."}), 409
+            prepared["editor_semantic_hash"] = editor_semantic_hash
+            prepared["dependency_fingerprint"] = dependency_fingerprint
+            entry_id = history.record_batch_change(
+                project_root, "edit_resource", [prepared["resource"]], *_current_chat_info())
+            prepared["entry_id"] = entry_id
+            prepared["execution_token"] = os.urandom(24).hex()
+            prepared["state"] = "executing"
+            STATE["pending_action"] = None
+            return jsonify({
+                "answer": "[Система]: Изменение подтверждено; Godot применяет операции ресурса.",
+                "pending_action": None, "execute_in_editor": True,
+                "editor_action_kind": "resource", "editor_action": prepared["action"],
+                "action_id": prepared["action_id"], "action_digest": prepared["action_digest"],
+                "expected_resource_hash": prepared["before_hash"],
+                "expected_dependency_fingerprint": dependency_fingerprint,
+                "execution_token": prepared["execution_token"],
+            })
+
         if act_type in ("create_file", "patch_file", "move_file"):
             print(f"--> {act_type} {path}. Выполняем локально...")
             result = _apply_write_step(
@@ -2354,6 +2420,7 @@ def confirm_action():
         STATE["pending_refactor"] = None
         STATE["pending_scene_action"] = None
         STATE["pending_project_settings_action"] = None
+        STATE["pending_resource_action"] = None
         STATE["pending_validation"] = None
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
@@ -2362,14 +2429,20 @@ def confirm_action():
 
 @app.route('/chat/editor_action/result', methods=['POST'])
 def editor_action_result():
-    """Finalize one Godot-executed scene or ProjectSettings transaction."""
+    """Finalize one Godot-executed scene, settings, or resource transaction."""
     data = request.json or {}
     identity = (str(data.get("action_id") or ""), str(data.get("execution_token") or ""))
     cached = _EDITOR_ACTION_RESULTS.get(identity)
     if cached is not None:
         body, status = cached
         return jsonify(body), status
-    pending_key = "pending_project_settings_action" if data.get("editor_action_kind") == "project_settings" else "pending_scene_action"
+    action_kind = str(data.get("editor_action_kind") or "scene")
+    pending_keys = {"scene": "pending_scene_action",
+                    "project_settings": "pending_project_settings_action",
+                    "resource": "pending_resource_action"}
+    pending_key = pending_keys.get(action_kind)
+    if pending_key is None:
+        return jsonify({"error": "Неизвестный тип editor-транзакции."}), 400
     prepared = STATE.get(pending_key)
     if not isinstance(prepared, dict) or prepared.get("state") != "executing":
         return jsonify({"error": "Нет выполняемой editor-транзакции."}), 409
@@ -2378,28 +2451,42 @@ def editor_action_result():
         return jsonify({"error": "Токен editor-транзакции не совпадает."}), 403
     project_root = STATE.get("project_root")
     entry_id = prepared.get("entry_id")
-    changed_path = prepared.get("scene") or prepared.get("target")
+    changed_path = prepared.get("scene") or prepared.get("resource") or prepared.get("target")
     success = bool(data.get("success"))
     is_settings = pending_key == "pending_project_settings_action"
-    reported_hash = str(data.get("project_hash" if is_settings else "scene_hash") or "")
+    is_resource = pending_key == "pending_resource_action"
+    hash_field = "project_hash" if is_settings else ("resource_hash" if is_resource else "scene_hash")
+    reported_hash = str(data.get(hash_field) or "")
     try:
-        actions_module = project_settings_actions if is_settings else scene_actions
-        _normalized, absolute = actions_module.normalize_action(
-            project_root, prepared["action"], bool(STATE.get("addon_intent")))
-        actual_hash = actions_module.file_sha256(absolute)
+        actions_module = (project_settings_actions if is_settings else
+                          (resource_actions if is_resource else scene_actions))
+        if is_resource:
+            _normalized, absolute = actions_module.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")),
+                require_exists=False)
+        else:
+            _normalized, absolute = actions_module.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+        try:
+            actual_hash = actions_module.file_sha256(absolute)
+        except (OSError, FileNotFoundError):
+            actual_hash = ""
         if reported_hash and reported_hash != actual_hash:
             restored, message, paths = history.restore_reserved_change(
-                project_root, entry_id, current_hash=actual_hash)
+                project_root, entry_id, current_hash=actual_hash or None)
             if restored:
                 STATE[pending_key] = None
                 _refresh_fs_snapshot(project_root)
             body = {"success": False, "restored": restored,
                     "answer": "[Система]: Хэш отчёта Godot не совпал с диском. " + message,
                     "changed_paths": paths}
-            return jsonify(body), (200 if restored else 409)
+            status = 200 if restored else 409
+            if restored:
+                _EDITOR_ACTION_RESULTS[identity] = (body, status)
+            return jsonify(body), status
         if not success:
             restored, message, paths = history.restore_reserved_change(
-                project_root, entry_id, current_hash=reported_hash or actual_hash)
+                project_root, entry_id, current_hash=reported_hash or actual_hash or None)
             if restored:
                 STATE[pending_key] = None
                 _refresh_fs_snapshot(project_root)
@@ -2414,21 +2501,25 @@ def editor_action_result():
             STATE[pending_key] = None
             return jsonify({"error": "Godot сообщил успех, но целевой файл не изменился."}), 409
         history.commit_change(project_root, entry_id)
-        STATE[pending_key] = None
-        librarian.note_files_changed(project_root, [changed_path])
-        _remember_file(project_root, changed_path)
-        _touch_file_read(changed_path)
-        _refresh_fs_snapshot(project_root)
         body = {
             "success": True,
             "answer": ("[Система]: Настройки проекта применены; требуется перезапуск редактора."
-                       if is_settings else "[Система]: Структурные изменения сцены применены и сохранены."),
+                       if is_settings else ("[Система]: Структурные изменения ресурса применены и сохранены."
+                       if is_resource else "[Система]: Структурные изменения сцены применены и сохранены.")),
             "history_entry_id": entry_id,
             "changed_paths": [changed_path], "requires_editor_restart": is_settings,
         }
         _EDITOR_ACTION_RESULTS[identity] = (body, 200)
+        STATE[pending_key] = None
         if len(_EDITOR_ACTION_RESULTS) > 32:
             _EDITOR_ACTION_RESULTS.pop(next(iter(_EDITOR_ACTION_RESULTS)))
+        try:
+            librarian.note_files_changed(project_root, [changed_path])
+            _remember_file(project_root, changed_path)
+            _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+        except Exception as exc:
+            print("⚠️ Editor-транзакция зафиксирована, но обновление кэшей не выполнено: %s" % exc)
         return jsonify(body)
     except Exception as exc:
         print("❌ ОШИБКА editor_action_result: %s" % exc)
@@ -2463,6 +2554,7 @@ def rollback_preview():
                "rename_symbol": "переименование символа",
                "edit_scene": "структурное изменение сцены",
                "edit_project_settings": "изменение настроек проекта",
+               "edit_resource": "структурное изменение ресурса",
                "transaction": "пакетная транзакция"}
     paths = [str(path) for path in (info.get("paths") or []) if path]
     target = ", ".join(paths[:3]) if len(paths) > 1 else info["path"]
