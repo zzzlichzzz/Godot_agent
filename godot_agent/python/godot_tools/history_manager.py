@@ -538,7 +538,8 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
                 % (total_changes, total_files))
     kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён",
                "move_file": "перемещён", "rename_symbol": "переименован символ",
-               "edit_scene": "структурно изменена сцена"}
+                "edit_scene": "структурно изменена сцена",
+                "edit_project_settings": "изменены настройки проекта"}
     lines = []
     for p in order[:max_lines]:
         r = per_file[p]
