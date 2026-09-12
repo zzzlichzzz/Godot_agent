@@ -173,6 +173,26 @@ def test_transaction_uses_atomic_overlay_validation():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_project_command_compiles_then_uses_primitive_judge():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({"action": "project_command", "command": {
+            "type": "atomic_files", "operations": [{"action": "patch_file",
+                "path": "res://src/scripts/player.gd", "search": "velocity.y = -300",
+                "replace": "velocity.y = -450"}]}}))
+        assert result["acceptable"] and result["score"] >= 90
+        assert any("deterministically compiles to transaction" in item
+                   for item in result["evidence"])
+        bad = judge_answer(root, _answer({"action": "project_command", "command": {
+            "type": "atomic_files", "operations": [{"action": "patch_file",
+                "path": "res://src/scripts/player.gd", "search": "missing",
+                "replace": "x"}]}}))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "transaction" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_broken_gdscript_is_blocking():
     root = _project()
     try:

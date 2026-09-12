@@ -1297,20 +1297,30 @@ def _resolve_content_refs(obj, raw):
         return obj, []
     missing = []
     _resolve_one_ref(obj, raw, missing)
-    nested = obj.get("operations") if obj.get("action") == "transaction" else obj.get("steps")
+    if (obj.get("action") == "project_command"
+            and isinstance(obj.get("command"), dict)
+            and obj["command"].get("type") == "atomic_files"):
+        nested = obj["command"].get("operations")
+    else:
+        nested = obj.get("operations") if obj.get("action") == "transaction" else obj.get("steps")
     if isinstance(nested, list):
         for step in nested:
             _resolve_one_ref(step, raw, missing)
     if missing:
         # v86.24: запасной путь — тела из ```-блоков по порядку следования.
-        missing = _resolve_refs_from_fences(obj, raw, missing)
+        fallback = obj
+        if (obj.get("action") == "project_command"
+                and isinstance(obj.get("command"), dict)
+                and obj["command"].get("type") == "atomic_files"):
+            fallback = {"steps": nested}
+        missing = _resolve_refs_from_fences(fallback, raw, missing)
     return obj, missing
 
 
 _KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
                   u"ask_librarian", u"gather_context", u"rename_symbol", u"edit_scene",
-                  u"edit_project_settings", u"transaction", u"parse_error"}
+                  u"edit_project_settings", u"transaction", u"project_command", u"parse_error"}
 
 _ACTION_SYNONYMS = {
     u"create": u"create_file", u"write_file": u"create_file",
@@ -1325,6 +1335,7 @@ _ACTION_SYNONYMS = {
     u"editscene": u"edit_scene", u"scene_edit": u"edit_scene",
     u"editprojectsettings": u"edit_project_settings", u"project_settings": u"edit_project_settings",
     u"batch_transaction": u"transaction", u"atomic_transaction": u"transaction",
+    u"projectcommand": u"project_command", u"agent_command": u"project_command",
     u"read": u"read_file", u"readfile": u"read_file",
     u"open_file": u"read_file",
     u"copy": u"copy_file", u"copyfile": u"copy_file",
@@ -1414,6 +1425,12 @@ def coerce_action_schema(obj):
         for k, operation in enumerate(operations):
             if isinstance(operation, dict):
                 _coerce_one_action(operation, fixes, u"операция %d: " % (k + 1))
+    command = obj.get(u"command")
+    if (obj.get(u"action") == u"project_command" and isinstance(command, dict)
+            and command.get(u"type") == u"atomic_files"):
+        for k, operation in enumerate(command.get(u"operations") or []):
+            if isinstance(operation, dict):
+                _coerce_one_action(operation, fixes, u"операция %d: " % (k + 1))
     return obj, fixes
 
 
@@ -1468,6 +1485,12 @@ def parse_action_json(raw: str):
                 print(u"[parser_base] для content_ref/search_ref/replace_ref не найдено тело — образец сохранён в золотой корпус: %s" % saved)
             return None, _ref_err
         winner, _schema_fixes = coerce_action_schema(winner)
+        # Ref fields can be nested under project_command.command.operations.
+        # Re-resolve after schema coercion so aliases do not hide that shape.
+        winner, _missing_refs = _resolve_content_refs(winner, raw)
+        if _missing_refs:
+            return None, (u"не найдено тело для метки(ок) %s"
+                          % u", ".join(sorted(set(_missing_refs))))
         if _schema_fixes:
             print(u"[parser_base] действие приведено к схеме: %s (v86.21)" % u"; ".join(_schema_fixes))
         return winner, None

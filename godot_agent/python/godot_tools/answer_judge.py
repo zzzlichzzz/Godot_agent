@@ -15,6 +15,7 @@ from parser_base import (answer_transfer_incomplete, parse_action_json,
 from project_tools import _resolve_safe_path
 from tscn_lint import is_scene_path, lint_and_fix_tscn
 import symbol_refactor
+import high_level_actions
 
 
 READ_ACTIONS = {
@@ -31,6 +32,41 @@ def _finding(severity, category, message, path=None, step=None):
     if step is not None:
         out["step"] = step
     return out
+
+
+def _judge_structural_action(project_root, action, addon_dir):
+    act = action.get("action")
+    try:
+        if act == "rename_symbol":
+            prepared = symbol_refactor.prepare_rename(
+                project_root, action, addon_dir=addon_dir)
+            return 94, [], ["Safe rename resolves %d references in %d files" % (
+                prepared["reference_count"], len(prepared["files"]))]
+        if act == "edit_scene":
+            import scene_actions
+            normalized, _absolute = scene_actions.normalize_action(
+                project_root, action, bool(addon_dir))
+            return 93, [], ["Structural scene edit validates %d operations" %
+                            len(normalized["operations"])]
+        if act == "edit_project_settings":
+            import project_settings_actions
+            normalized, _absolute = project_settings_actions.normalize_action(
+                project_root, action, bool(addon_dir))
+            return 93, [], ["ProjectSettings edit validates %d operations" %
+                            len(normalized["operations"])]
+        if act == "transaction":
+            import transaction_actions
+            prepared = transaction_actions.prepare(
+                project_root, action, allow_addons=bool(addon_dir),
+                addon_dir=addon_dir)
+            return 95, [], ["Atomic transaction validates %d operations in %d files" % (
+                len(prepared["action"]["operations"]), len(prepared["files"]))]
+    except Exception as exc:
+        categories = {"rename_symbol": "refactor", "edit_scene": "scene",
+                      "edit_project_settings": "project_settings",
+                      "transaction": "transaction"}
+        return 45, [_finding("blocking", categories.get(act, "schema"), str(exc))], []
+    return 45, [_finding("blocking", "schema", "unsupported compiled action: %s" % act)], []
 
 
 def _read_text(project_root, path, overlay):
@@ -301,50 +337,25 @@ def judge_answer(project_root, full_text, addon_dir=None):
                         findings.extend(fs)
                         evidence.extend(ev)
                     score = 88 - min(20, max(0, len(steps) - 1) * 2)
-            elif act == "rename_symbol":
+            elif act in ("rename_symbol", "edit_scene", "edit_project_settings", "transaction"):
+                score, action_findings, action_evidence = _judge_structural_action(
+                    project_root, action, addon_dir)
+                findings.extend(action_findings)
+                evidence.extend(action_evidence)
+            elif act == "project_command":
                 try:
-                    prepared = symbol_refactor.prepare_rename(
-                        project_root, action, addon_dir=addon_dir)
-                    score = 94
-                    evidence.append("Safe rename resolves %d references in %d files" % (
-                        prepared["reference_count"], len(prepared["files"])))
+                    compiled = high_level_actions.compile_action(
+                        project_root, action, allow_addons=bool(addon_dir))
                 except Exception as exc:
                     score = 45
-                    findings.append(_finding("blocking", "refactor", str(exc)))
-            elif act == "edit_scene":
-                try:
-                    import scene_actions
-                    normalized, _absolute = scene_actions.normalize_action(
-                        project_root, action, bool(addon_dir))
-                    score = 93
-                    evidence.append("Structural scene edit validates %d operations" %
-                                    len(normalized["operations"]))
-                except Exception as exc:
-                    score = 45
-                    findings.append(_finding("blocking", "scene", str(exc)))
-            elif act == "edit_project_settings":
-                try:
-                    import project_settings_actions
-                    normalized, _absolute = project_settings_actions.normalize_action(
-                        project_root, action, bool(addon_dir))
-                    score = 93
-                    evidence.append("ProjectSettings edit validates %d operations" %
-                                    len(normalized["operations"]))
-                except Exception as exc:
-                    score = 45
-                    findings.append(_finding("blocking", "project_settings", str(exc)))
-            elif act == "transaction":
-                try:
-                    import transaction_actions
-                    prepared = transaction_actions.prepare(
-                        project_root, action, allow_addons=bool(addon_dir),
-                        addon_dir=addon_dir)
-                    score = 95
-                    evidence.append("Atomic transaction validates %d operations in %d files" % (
-                        len(prepared["action"]["operations"]), len(prepared["files"])))
-                except Exception as exc:
-                    score = 45
-                    findings.append(_finding("blocking", "transaction", str(exc)))
+                    findings.append(_finding("blocking", "project_command", str(exc)))
+                else:
+                    score, action_findings, action_evidence = _judge_structural_action(
+                        project_root, compiled, addon_dir)
+                    findings.extend(action_findings)
+                    evidence.append("High-level %s deterministically compiles to %s" % (
+                        action["command"]["type"], compiled["action"]))
+                    evidence.extend(action_evidence)
             else:
                 findings.append(_finding("blocking", "schema",
                                          "unknown action: %s" % act))
