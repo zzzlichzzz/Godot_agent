@@ -42,6 +42,7 @@ import gather_context
 import symbol_refactor
 import scene_actions
 import project_settings_actions
+import transaction_actions
 import godot_headless_validation
 import chat_store
 import dashboard
@@ -436,6 +437,9 @@ def _describe_action(action):
     if act == "edit_project_settings":
         return "Агент хочет изменить настройки проекта через API Godot (%d операций)" % len(
             action.get("operations") or [])
+    if act == "transaction":
+        return "Агент хочет атомарно изменить %d файл(ов) (%d операций)" % (
+            int(action.get("file_count") or 0), int(action.get("operation_count") or 0))
     if act == "plan":
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
@@ -980,6 +984,39 @@ def _package_model_reply(text, action, project_root, depth=0):
             "pending_action_description": _describe_action(synthetic),
             "pending_action_code": None,
         })
+    if action and action.get("action") == "transaction":
+        receipt = None
+        try:
+            prepared = transaction_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")),
+                addon_dir=STATE.get("addon_dir"))
+            receipt = godot_headless_validation.validate_batch(
+                project_root, prepared["batch"], executable=STATE.get("godot_executable"))
+            engine_error = godot_headless_validation.blocking_message(receipt)
+            if engine_error:
+                raise transaction_actions.TransactionError(engine_error)
+            transaction_actions.attach_validation(prepared, receipt)
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_transaction"] = None
+            followup = ("[Система]: transaction отклонена локальной пакетной проверкой: %s. "
+                        "Исправь операции и пришли весь пакет заново; не разбивай его на небезопасные частичные правки." % exc)
+            report = (receipt or {}).get("report") or {}
+            infrastructure_failure = receipt is not None and not report.get("new_diagnostics")
+            if depth >= 2 or infrastructure_failure:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = transaction_actions.public_prepared(prepared)
+        STATE["pending_transaction"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diffs": transaction_actions.prepared_diffs(prepared)})
     if action and action.get("action") == "rename_symbol":
         try:
             prepared = symbol_refactor.prepare_rename(
@@ -1865,6 +1902,7 @@ def init_session():
     STATE["pending_scene_action"] = None
     STATE["pending_project_settings_action"] = None
     STATE["pending_validation"] = None
+    STATE["pending_transaction"] = None
     STATE["pending_batch"] = None
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
@@ -2074,6 +2112,7 @@ def confirm_action():
             STATE["pending_scene_action"] = None
             STATE["pending_project_settings_action"] = None
             STATE["pending_validation"] = None
+            STATE["pending_transaction"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
 
         if act_type == "rename_symbol":
@@ -2111,6 +2150,33 @@ def confirm_action():
                 "answer": "[Система]: Символ %s безопасно переименован в %s (%d файл(ов), %d ссылок)." % (
                     prepared["old_name"], prepared["new_name"], result["file_count"],
                     result["reference_count"]),
+                "pending_action": None, "changed_paths": changed_paths,
+                "history_entry_id": result["entry_id"],
+            })
+
+        if act_type == "transaction":
+            prepared = STATE.get("pending_transaction")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная пакетная транзакция утрачена."}), 409
+            try:
+                result = transaction_actions.apply_prepared(
+                    project_root, prepared, *_current_chat_info())
+            except (transaction_actions.StaleTransactionError,
+                    godot_headless_validation.StaleValidationError) as exc:
+                STATE["pending_action"] = None
+                STATE["pending_transaction"] = None
+                return jsonify({"error": str(exc)}), 409
+            STATE["pending_action"] = None
+            STATE["pending_transaction"] = None
+            changed_paths = result["changed_paths"]
+            librarian.note_files_changed(project_root, changed_paths)
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+            return jsonify({
+                "answer": "[Система]: Пакетная транзакция применена атомарно (%d файл(ов))." % result["file_count"],
                 "pending_action": None, "changed_paths": changed_paths,
                 "history_entry_id": result["entry_id"],
             })
@@ -2267,6 +2333,9 @@ def confirm_action():
             return jsonify({"error": f"Неизвестный тип действия: {act_type}"}), 400
 
     except Exception as e:
+        if not (act_type == "transaction" and isinstance(STATE.get("pending_transaction"), dict)
+                and STATE["pending_transaction"].get("state") == "recovery_required"):
+            STATE["pending_transaction"] = None
         STATE["pending_action"] = None
         STATE["pending_refactor"] = None
         STATE["pending_scene_action"] = None
@@ -2379,7 +2448,8 @@ def rollback_preview():
                "patch_file": "правка файла", "move_file": "перемещение файла",
                "rename_symbol": "переименование символа",
                "edit_scene": "структурное изменение сцены",
-               "edit_project_settings": "изменение настроек проекта"}
+               "edit_project_settings": "изменение настроек проекта",
+               "transaction": "пакетная транзакция"}
     paths = [str(path) for path in (info.get("paths") or []) if path]
     target = ", ".join(paths[:3]) if len(paths) > 1 else info["path"]
     if len(paths) > 3:

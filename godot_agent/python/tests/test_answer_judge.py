@@ -157,6 +157,22 @@ def test_project_settings_uses_structural_schema_validation():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_transaction_uses_atomic_overlay_validation():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({"action": "transaction", "operations": [
+            {"action": "create_file", "path": "res://health.gd", "content": "extends Node\n"},
+            {"action": "patch_file", "path": "res://src/scripts/player.gd", "search": "velocity.y = -300", "replace": "velocity.y = -400"}]}))
+        assert result["acceptable"] and result["score"] >= 90
+        assert any("Atomic transaction" in value for value in result["evidence"])
+        bad = judge_answer(root, _answer({"action": "transaction", "operations": [
+            {"action": "create_file", "path": "res://project.godot", "content": "x"}]}))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "transaction" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_broken_gdscript_is_blocking():
     root = _project()
     try:
