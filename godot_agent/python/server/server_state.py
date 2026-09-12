@@ -21,6 +21,7 @@ STATE = {
     "pending_refactor": None, # private prepared multi-file rename transaction
     "pending_scene_action": None, # private editor-side scene transaction
     "pending_project_settings_action": None, # private editor-side ProjectSettings transaction
+    "pending_validation": None, # private Godot headless receipt for the pending write
     "current_chat_id": None,  # активный чат (см. chat_store.py)
     "current_site_id": None,  # явный режим сайта, включая arena vs arena_battle
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
@@ -36,6 +37,7 @@ STATE = {
     "action_notes": {},
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
     "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
+    "godot_executable": None,      # trusted editor executable path from OS.get_executable_path()
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
     "editor_context": None,     # снимок только текущего хода для gather_context
     "progress": {"active": False},
@@ -293,6 +295,7 @@ def clear_pending_confirmations():
     STATE["pending_refactor"] = None
     STATE["pending_scene_action"] = None
     STATE["pending_project_settings_action"] = None
+    STATE["pending_validation"] = None
     STATE["pending_batch"] = None
     STATE["pending_plan"] = None
     STATE["plan_parts"] = None
@@ -392,6 +395,9 @@ def _apply_session_context(data):
         STATE["addon_dir"] = data["addon_dir"]
         # v104.3: папка плагина не должна попадать в дерево/сводку/поиск/снапшот
         project_tools.exclude_agent_addon_dirs(data["addon_dir"])
+    executable = str(data.get("godot_executable") or "").strip()
+    if executable and os.path.isfile(executable):
+        STATE["godot_executable"] = os.path.abspath(executable)
     udd = data.get("user_data_dir")
     if udd and udd != STATE.get("user_data_dir"):
         STATE["user_data_dir"] = udd

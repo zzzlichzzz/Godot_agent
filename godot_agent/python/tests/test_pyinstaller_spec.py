@@ -76,6 +76,10 @@ bat = read_any(BAT)
 
 check(u"файл сборки .spec найден", _os0.path.isfile(SPEC))
 check(u"скрипт сборки .bat найден", _os0.path.isfile(BAT))
+check(u"headless harness включён в СКРИПТ СБОРКИ",
+      "--add-data" in bat and "agent_headless_validator.gd" in bat)
+check(u"headless harness включён в .spec",
+      "agent_headless_validator.gd" in spec and "datas=[" in spec.replace(" ", ""))
 
 hidden = set(re.findall(r"'([A-Za-z0-9_.]+)'", spec))
 pathex_m = re.search(r"pathex=\[([^\]]*)\]", spec)

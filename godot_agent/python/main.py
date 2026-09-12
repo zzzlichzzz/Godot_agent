@@ -42,6 +42,7 @@ import gather_context
 import symbol_refactor
 import scene_actions
 import project_settings_actions
+import godot_headless_validation
 import chat_store
 import dashboard
 import json as _json
@@ -620,7 +621,7 @@ def _content_collect_final(action):
     return chunk
 
 
-def _apply_write_step(action, project_root, chain_id=None):
+def _apply_write_step(action, project_root, chain_id=None, validation=None):
     """Применяет ОДНО write-действие (create_file/patch_file/move_file) на диске,
     с записью в журнал изменений. Общий путь для одиночных действий
     и для шагов плана (chain_id задаётся только во втором случае).
@@ -641,6 +642,13 @@ def _apply_write_step(action, project_root, chain_id=None):
     if (not STATE.get("addon_intent")) and (_is_addon_path(path) or _is_addon_path(dest)):
         return {"ok": False, "message": _addon_blocked_message(path if _is_addon_path(path) else dest),
                 "changed_path": None, "changed_block": None}
+    if validation is not None:
+        try:
+            godot_headless_validation.verify_receipt(
+                project_root, validation.get("batch"), validation.get("receipt"))
+        except Exception as exc:
+            return {"ok": False, "message": str(exc),
+                    "changed_path": None, "changed_block": None}
     entry_id = history.record_change(project_root, action, *_current_chat_info(), chain_id=chain_id)
     try:
         if act_type == "create_file":
@@ -988,6 +996,20 @@ def _package_model_reply(text, action, project_root, depth=0):
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        batch = godot_headless_validation.batch_from_rename(project_root, prepared)
+        receipt = godot_headless_validation.validate_batch(
+            project_root, batch, executable=STATE.get("godot_executable"))
+        engine_error = godot_headless_validation.blocking_message(receipt)
+        if engine_error:
+            STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            report = receipt.get("report") or {}
+            if depth < MAX_ACTION_FIX_RETRIES and report.get("new_diagnostics"):
+                text2, action2 = _reply_with_self_heal(engine_error, project_root)
+                return _package_model_reply(text2, action2, project_root, depth + 1)
+            return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
+                            "pending_action": None})
+        prepared["validation"] = {"batch": batch, "receipt": receipt}
         public = dict(action)
         public.update(symbol_refactor.public_prepared(prepared))
         STATE["pending_refactor"] = prepared
@@ -1050,6 +1072,26 @@ def _package_model_reply(text, action, project_root, depth=0):
                         "pending_action_description": _describe_action(public),
                         "pending_action_code": None,
                         "project_settings_prepare": project_settings_actions.public_prepared(prepared)})
+    if action and action.get("action") in ("create_file", "patch_file", "move_file"):
+        try:
+            batch = godot_headless_validation.batch_from_action(project_root, action)
+            receipt = godot_headless_validation.validate_batch(
+                project_root, batch, executable=STATE.get("godot_executable"))
+        except Exception as exc:
+            receipt = None
+            engine_error = "[Система]: не удалось подготовить изолированную проверку Godot: %s" % exc
+        else:
+            engine_error = godot_headless_validation.blocking_message(receipt)
+        if engine_error:
+            STATE["pending_action"] = None
+            STATE["pending_validation"] = None
+            report = (receipt or {}).get("report") or {}
+            if depth < MAX_ACTION_FIX_RETRIES and report.get("new_diagnostics"):
+                text2, action2 = _reply_with_self_heal(engine_error, project_root)
+                return _package_model_reply(text2, action2, project_root, depth + 1)
+            return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
+                            "pending_action": None})
+        STATE["pending_validation"] = {"batch": batch, "receipt": receipt}
     if not text and action is None:
         # Пустой ответ из браузера: парсер мог не дождаться конца генерации
         # длинного ответа. Не молчим — пользователь должен это увидеть.
@@ -1822,6 +1864,7 @@ def init_session():
     STATE["pending_refactor"] = None
     STATE["pending_scene_action"] = None
     STATE["pending_project_settings_action"] = None
+    STATE["pending_validation"] = None
     STATE["pending_batch"] = None
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
@@ -2030,6 +2073,7 @@ def confirm_action():
             STATE["pending_refactor"] = None
             STATE["pending_scene_action"] = None
             STATE["pending_project_settings_action"] = None
+            STATE["pending_validation"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
 
         if act_type == "rename_symbol":
@@ -2041,14 +2085,23 @@ def confirm_action():
                 prepared.get("old_name"), prepared.get("new_name"),
                 len(prepared.get("files") or [])))
             try:
+                validation = prepared.get("validation") or {}
+                godot_headless_validation.verify_receipt(
+                    project_root, validation.get("batch"), validation.get("receipt"))
                 result = symbol_refactor.apply_prepared_rename(
                     project_root, prepared, *_current_chat_info())
             except symbol_refactor.StaleRenameError as exc:
                 STATE["pending_action"] = None
                 STATE["pending_refactor"] = None
                 return jsonify({"error": str(exc)}), 409
+            except godot_headless_validation.StaleValidationError as exc:
+                STATE["pending_action"] = None
+                STATE["pending_refactor"] = None
+                STATE["pending_validation"] = None
+                return jsonify({"error": str(exc)}), 409
             STATE["pending_action"] = None
             STATE["pending_refactor"] = None
+            STATE["pending_validation"] = None
             changed_paths = result["changed_paths"]
             for changed_path in changed_paths:
                 _remember_file(project_root, changed_path)
@@ -2130,8 +2183,10 @@ def confirm_action():
 
         if act_type in ("create_file", "patch_file", "move_file"):
             print(f"--> {act_type} {path}. Выполняем локально...")
-            result = _apply_write_step(action, project_root)
+            result = _apply_write_step(
+                action, project_root, validation=STATE.get("pending_validation"))
             STATE["pending_action"] = None
+            STATE["pending_validation"] = None
             if not result["ok"]:
                 raise RuntimeError(result["message"])
             # changed_path/changed_block — панель откроет файл в редакторе и
@@ -2216,6 +2271,7 @@ def confirm_action():
         STATE["pending_refactor"] = None
         STATE["pending_scene_action"] = None
         STATE["pending_project_settings_action"] = None
+        STATE["pending_validation"] = None
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -2475,19 +2531,35 @@ def plan_step():
         result = None
         step_diff = None
         while True:
+            engine_fixable = None
             _plan_paths = set(s.get("path") or "" for s in plan["steps"] if s.get("action") == "create_file")
             lint_msg = _lint_action_code(step, project_root, planned_paths=_plan_paths) if step.get("action") != "move_file" else None
+            if lint_msg is None:
+                batch = godot_headless_validation.batch_from_action(project_root, step)
+                receipt = godot_headless_validation.validate_batch(
+                    project_root, batch, executable=STATE.get("godot_executable"))
+                lint_msg = godot_headless_validation.blocking_message(receipt)
+                validation = {"batch": batch, "receipt": receipt}
+                engine_fixable = bool((receipt.get("report") or {}).get("new_diagnostics"))
             if lint_msg is None:
                 # Дифф считаем ДО записи на диск: после неё «старого» текста уже
                 # нет, и показать в панели, что именно изменилось, стало бы нечем.
                 # Шаг мог прийти сюда исправленным self-heal — берём его текущую версию.
                 step_diff = action_diff_preview(project_root, step)
-                result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
+                result = _apply_write_step(
+                    step, project_root, chain_id=plan["chain_id"], validation=validation)
                 if result["ok"]:
                     break
                 fail_reason = result["message"]
             else:
                 fail_reason = _lenient_resend_note(step, lint_msg)
+                if engine_fixable is False:
+                    STATE["pending_plan"] = None
+                    server_state.queue_action_note(
+                        "[Система: выполнение плана остановлено: инфраструктурная проверка Godot не прошла. Уже выполненные шаги остались на диске.]")
+                    return jsonify({"ok": False, "stopped": True, "index": idx,
+                                    "total": plan["total"], "chain_id": plan["chain_id"],
+                                    "error": fail_reason, "message": fail_reason})
             # шаг не прошёл проверку/применение — прежде чем останавливать весь план
             # и звать ручной откат, пытаемся самоисцелиться через зачинку обратно модели.
             if heal_attempts >= MAX_ACTION_FIX_RETRIES:
