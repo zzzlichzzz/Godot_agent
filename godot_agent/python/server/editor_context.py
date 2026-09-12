@@ -43,14 +43,6 @@ def _scene_block(value):
         lines.append("Active scene: " + active)
     elif value.get("unsaved") is True:
         lines.append("Active scene: unsaved")
-    opened = []
-    if isinstance(value.get("open"), list):
-        for item in value["open"][:12]:
-            path = _path(item)
-            if path and path not in opened:
-                opened.append(path)
-    if opened:
-        lines.append("Open scenes: " + ", ".join(opened))
     return lines
 
 
@@ -128,15 +120,45 @@ def _script_block(value):
                     label += ", lines %d%s" % (first, "-%d" % last if last else "")
                 lines.append(label + ":")
                 lines.extend(code)
-    opened = []
-    if isinstance(value.get("open"), list):
-        for item in value["open"][:12]:
-            item = _path(item)
-            if item and item != path and item not in opened:
-                opened.append(item)
-    if opened:
-        lines.append("Other open scripts: " + ", ".join(opened))
     return lines
+
+
+def _script_context_requested(user_prompt):
+    """Return whether the request explicitly refers to the current editor code."""
+    if not isinstance(user_prompt, str):
+        return False
+    text = " ".join(user_prompt.lower().split())
+    cues = (
+        "этот код", "этом код", "эту функцию", "этой функции",
+        "текущая функция", "текущую функцию", "текущий скрипт",
+        "текущем скрипте", "открытый скрипт", "открытом скрипте",
+        "выделенный код", "выделенном коде", "выделение", "под курсором",
+        "в этом месте", "вот здесь",
+        "this code", "this function", "current function", "current script",
+        "open script", "selected code", "selection", "at the cursor",
+        "under the cursor", "in this place", "right here",
+    )
+    return any(cue in text for cue in cues)
+
+
+def snapshot_for_prompt(user_prompt, snapshot):
+    """Keep high-value live state while omitting unrelated open editor code."""
+    clean = normalize_snapshot(snapshot)
+    if not clean:
+        return {}
+    scene = clean.get("scene")
+    if isinstance(scene, dict):
+        scene.pop("open", None)
+        if not scene:
+            clean.pop("scene", None)
+    script = clean.get("script")
+    if isinstance(script, dict):
+        selected = isinstance(script.get("selection"), dict)
+        if not selected and not _script_context_requested(user_prompt):
+            clean.pop("script", None)
+        else:
+            script.pop("open", None)
+    return clean if len(clean) > 1 else {}
 
 
 def _diagnostics_block(value):
@@ -327,7 +349,8 @@ def format_snapshot(value, max_chars=DEFAULT_MAX_CHARS):
 
 
 def attach_to_prompt(user_prompt, snapshot, max_chars=DEFAULT_MAX_CHARS):
-    block, stats = format_snapshot(snapshot, max_chars=max_chars)
+    block, stats = format_snapshot(
+        snapshot_for_prompt(user_prompt, snapshot), max_chars=max_chars)
     if not block:
         return user_prompt, stats
     return "%s\n\n%s\n%s" % (block, _USER, user_prompt), stats
