@@ -26,14 +26,17 @@ v105 (Библиотекарь):
    (с отступом) не индексируются — это шум.
 """
 import json
+import hashlib
 import os
 import re
 import threading
 import time
 
 from . import ml_data
+import gd_semantic_parser
 
 INDEX_FILE = "project_index.json"
+SEMANTIC_INDEX_FILE = "project_semantic_index.json"
 # v105.13 (патч производительности, п.1): было MAX_FILES = 2000 — потолок
 # из времён, когда индекс строился на демо-проектах. Реальный крупный
 # проект (несколько тысяч сцен и скриптов) в него не влезал, и лишние
@@ -211,6 +214,18 @@ def _cap_symbols(symbols, limit=MAX_SYMBOLS):
 # mtime не из паранойи: на Windows/FAT гранулярность mtime грубая, и две
 # записи подряд могут получить одинаковую метку.
 _MEM_CACHE = {}  # abs_root -> {"stamp": (mtime, size), "data": dict}
+_PROJECT_LOCKS = {}
+_PROJECT_LOCKS_GUARD = threading.Lock()
+
+
+def _project_lock(project_root):
+    key = _cache_key(project_root)
+    with _PROJECT_LOCKS_GUARD:
+        lock = _PROJECT_LOCKS.get(key)
+        if lock is None:
+            lock = threading.RLock()
+            _PROJECT_LOCKS[key] = lock
+        return lock
 
 
 def _cache_key(project_root):
@@ -241,6 +256,10 @@ def _cache_store(project_root, data):
 
 def _index_path(project_root):
     return os.path.join(ml_data.storage_dir(project_root), INDEX_FILE)
+
+
+def _semantic_index_path(project_root):
+    return os.path.join(ml_data.storage_dir(project_root), SEMANTIC_INDEX_FILE)
 
 
 def _file_stamp(full):
@@ -356,8 +375,75 @@ def _save(project_root, data):
     _cache_store(project_root, data)
 
 
+def _read_semantic_index(project_root):
+    try:
+        with open(_semantic_index_path(project_root), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        if (isinstance(data, dict) and isinstance(data.get("files"), list)
+                and data.get("root") == os.path.abspath(project_root or ".")):
+            return data
+    except Exception:
+        pass
+    return None
+
+
+def _save_semantic_index(project_root, data):
+    path = _semantic_index_path(project_root)
+    tmp = "%s.%d.%d.tmp" % (path, os.getpid(), threading.get_ident())
+    try:
+        with open(tmp, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _build_semantic_entry(root, rel):
+    full = os.path.join(root, rel.replace("/", os.sep))
+    try:
+        with open(full, "r", encoding="utf-8-sig", errors="replace") as handle:
+            text = handle.read(200000)
+    except OSError:
+        return None
+    stamp = _file_stamp(full) or (0, len(text.encode("utf-8")))
+    return {"path": rel, "mtime": stamp[0], "size": stamp[1],
+            "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "semantic": gd_semantic_parser.parse(text, rel)}
+
+
+def _refresh_semantic_index(project_root, gd_rels, complete):
+    root = os.path.abspath(project_root or ".")
+    previous = _read_semantic_index(project_root) or {}
+    old = {entry.get("path"): entry for entry in previous.get("files", [])
+           if isinstance(entry, dict) and entry.get("path")}
+    files = []
+    for rel in sorted(set(gd_rels)):
+        fresh = _build_semantic_entry(root, rel)
+        if fresh is None:
+            continue
+        prior = old.get(rel)
+        if isinstance(prior, dict) and prior.get("sha256") == fresh.get("sha256"):
+            prior["mtime"], prior["size"] = fresh["mtime"], fresh["size"]
+            files.append(prior)
+        else:
+            files.append(fresh)
+    data = {"schema_version": 1, "built": time.time(), "root": root,
+            "complete": bool(complete), "files": files}
+    _save_semantic_index(project_root, data)
+    return data
+
+
 def build_index(project_root):
     """Обходит проект и сохраняет компактный индекс. Возвращает число файлов."""
+    with _project_lock(project_root):
+        return _build_index_locked(project_root)
+
+
+def _build_index_locked(project_root):
     root = os.path.abspath(project_root or ".")
     # v105.13 (п.1): раньше обход ПРЕРЫВАЛСЯ по MAX_FILES, и решение,
     # какой файл важен, принимал порядок каталогов на диске. Сначала
@@ -372,6 +458,7 @@ def build_index(project_root):
                 continue
             full = os.path.join(cur, fn)
             rels.append(os.path.relpath(full, root).replace(os.sep, "/"))
+    all_gd_rels = [rel for rel in rels if rel.lower().endswith(".gd")]
     skipped = 0
     if len(rels) > MAX_FILES:
         skipped = len(rels) - MAX_FILES
@@ -406,6 +493,9 @@ def build_index(project_root):
         data["truncated"] = True
         data["skipped_files"] = skipped
     _save(project_root, data)
+    selected_gd = [rel for rel in rels if rel.lower().endswith(".gd")]
+    _refresh_semantic_index(project_root, selected_gd,
+                            len(selected_gd) == len(all_gd_rels))
     return len(entries)
 
 
@@ -482,6 +572,11 @@ def update_entries(project_root, changed_rels=(), deleted_rels=()):
     индекса ещё нет (он построится лениво при первом поиске, отдельно
     строить не нужно). Метка built сохраняется прежней, чтобы страховочная
     полная пересборка по STALE_SEC работала как раньше."""
+    with _project_lock(project_root):
+        return _update_entries_locked(project_root, changed_rels, deleted_rels)
+
+
+def _update_entries_locked(project_root, changed_rels=(), deleted_rels=()):
     data = _read_index_raw(project_root)
     if data is None:
         return False
@@ -528,6 +623,27 @@ def update_entries(project_root, changed_rels=(), deleted_rels=()):
         data["truncated"] = True
         data["skipped_files"] = int(data.get("skipped_files") or 0) + skipped_now
     _save(project_root, data)
+    semantic = _read_semantic_index(project_root)
+    if semantic is not None:
+        semantic_by_path = {entry.get("path"): entry for entry in semantic.get("files", [])
+                            if isinstance(entry, dict) and entry.get("path")}
+        for rel in deleted_rels or ():
+            semantic_by_path.pop(_norm_rel(rel), None)
+        for rel in changed_rels or ():
+            nrel = _norm_rel(rel)
+            if not nrel.lower().endswith(".gd"):
+                continue
+            fresh = _build_semantic_entry(root, nrel)
+            if fresh is None:
+                semantic_by_path.pop(nrel, None)
+            else:
+                semantic_by_path[nrel] = fresh
+        semantic["files"] = sorted(semantic_by_path.values(),
+                                   key=lambda entry: entry.get("path", ""))
+        semantic["built"] = time.time()
+        if skipped_now:
+            semantic["complete"] = False
+        _save_semantic_index(project_root, semantic)
     return True
 
 
@@ -642,6 +758,69 @@ def search(project_root, query, limit=8):
     scored = [(sc, files[i]) for i, sc in counts.items() if sc > 0]
     scored.sort(key=lambda s: (-s[0], s[1]["path"]))
     return [dict(e, score=sc) for sc, e in scored[:limit]]
+
+
+def semantic_snapshot(project_root, refresh=False):
+    """Return current semantic files and completeness without exposing cache state."""
+    data = _read_semantic_index(project_root)
+    if refresh or data is None:
+        build_index(project_root)
+        data = _read_semantic_index(project_root)
+    data = data or {"files": [], "complete": False}
+    files = []
+    for entry in data.get("files", []):
+        if isinstance(entry.get("semantic"), dict):
+            files.append({"path": entry.get("path"), "sha256": entry.get("sha256"),
+                          "semantic": entry.get("semantic")})
+    return {"files": files,
+            "complete": bool(data.get("complete")),
+            "skipped_files": 0 if data.get("complete") else 1}
+
+
+def find_declarations(project_root, kind=None, name=None, refresh=False):
+    """Find exact semantic declarations; callers must reject multiple matches."""
+    snapshot = semantic_snapshot(project_root, refresh=refresh)
+    found = []
+    for entry in snapshot["files"]:
+        for declaration in entry["semantic"].get("declarations", []):
+            if kind is not None and declaration.get("kind") != kind:
+                continue
+            if name is not None and declaration.get("name") != name:
+                continue
+            item = dict(declaration)
+            item["path"] = "res://" + entry["path"]
+            item["sha256"] = entry.get("sha256")
+            found.append(item)
+    found.sort(key=lambda item: (item["path"], item.get("start", 0)))
+    return found
+
+
+def find_name_facts(project_root, name, refresh=False):
+    """Return declarations/references/string candidates for conservative refactors."""
+    snapshot = semantic_snapshot(project_root, refresh=refresh)
+    result = {"declarations": [], "references": [], "strings": [],
+              "complete": snapshot["complete"],
+              "skipped_files": snapshot["skipped_files"], "partial_files": []}
+    for entry in snapshot["files"]:
+        semantic = entry["semantic"]
+        path = "res://" + entry["path"]
+        if semantic.get("parse_status") != "ok":
+            result["partial_files"].append(path)
+        for key in ("declarations", "references"):
+            for fact in semantic.get(key, []):
+                if fact.get("name") == name:
+                    item = dict(fact)
+                    item["path"] = path
+                    item["sha256"] = entry.get("sha256")
+                    result[key].append(item)
+        for fact in semantic.get("strings", []):
+            value = str(fact.get("value") or "")
+            if name in value:
+                item = dict(fact)
+                item["path"] = path
+                item["sha256"] = entry.get("sha256")
+                result["strings"].append(item)
+    return result
 
 
 def describe_for_prompt(project_root, query, limit=6):
