@@ -101,7 +101,7 @@ func _open_target(action: Dictionary, expected_hash: String) -> Dictionary:
 		return _fail("invalid_path", "Поддерживаются только существующие res://*.tres")
 	if _file_hash(path) != expected_hash:
 		return _fail("stale_resource", "Ресурс изменился после подготовки")
-	var edited := _plugin.get_editor_interface().get_edited_resource()
+	var edited := _plugin.get_editor_interface().get_inspector().get_edited_object() as Resource
 	if edited and edited.resource_path == path:
 		return _fail("resource_open", "Закройте ресурс в Inspector перед изменением")
 	var filesystem := _plugin.get_editor_interface().get_resource_filesystem()
@@ -262,7 +262,7 @@ func _animation_add_value_track(root: Resource, operation: Dictionary, changes: 
 		"discrete": Animation.UPDATE_DISCRETE, "capture": Animation.UPDATE_CAPTURE}
 	animation.track_set_interpolation_type(index, interpolation[str(operation.interpolation)])
 	animation.value_track_set_update_mode(index, update[str(operation.update_mode)])
-	for key in operation.keys:
+	for key in operation["keys"]:
 		if float(key.time) > animation.length:
 			return _fail("key_out_of_range", "Ключ Animation находится после конца анимации")
 		var decoded := _decode_value(key.value)
@@ -370,10 +370,10 @@ func _decode_value(tagged: Dictionary) -> Dictionary:
 			var loaded = ResourceLoader.load(str(raw), "", ResourceLoader.CACHE_MODE_IGNORE)
 			return {"ok": true, "value": loaded} if loaded is Resource else _fail("resource_load_failed", "ResourcePath не загружается")
 		"NewSubresource":
-			var class_name := str(tagged.get("class", ""))
-			if not ClassDB.class_exists(class_name) or not ClassDB.can_instantiate(class_name) or not ClassDB.is_parent_class(class_name, "Resource"):
+			var resource_class := str(tagged.get("class", ""))
+			if not ClassDB.class_exists(resource_class) or not ClassDB.can_instantiate(resource_class) or not ClassDB.is_parent_class(resource_class, "Resource"):
 				return _fail("invalid_resource_class", "Класс NewSubresource недоступен")
-			var instance = ClassDB.instantiate(class_name)
+			var instance = ClassDB.instantiate(resource_class)
 			if not instance is Resource:
 				return _fail("invalid_resource_class", "NewSubresource не является Resource")
 			for item in tagged.get("properties", []):

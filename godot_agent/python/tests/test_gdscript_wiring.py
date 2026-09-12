@@ -389,6 +389,10 @@ check("scene executor owns structural operations",
                                                "_reparent_node")))
 check("scene executor avoids textual scene writes and UndoRedo",
       "FileAccess.WRITE" not in scene_executor and "UndoRedo" not in scene_executor)
+check("scene executor refuses open scenes without guessing dirty state",
+      'return _fail("scene_open"' in scene_executor
+      and "get_unsaved_scenes" not in scene_executor
+      and "is_scene_unsaved" not in scene_executor)
 check("panel sends trusted Godot executable for engine validation",
       "OS.get_executable_path()" in panel and '"godot_executable"' in panel)
 check("panel coordinates scene prepare execute finalize",
@@ -403,6 +407,22 @@ check("project settings executor uses Godot APIs",
       and "InputEventKey.new" in settings_executor)
 check("project settings executor avoids textual writes and UndoRedo",
       "FileAccess.WRITE" not in settings_executor and "UndoRedo" not in settings_executor)
+check("new executors avoid invalid static hashing and void return checks",
+      all("HashingContext.hash(" not in src for src in
+          (scene_executor, settings_executor))
+      and not re.search(r"var\s+\w+\s*:?=\s*_plugin\.(?:add|remove)_autoload_singleton", settings_executor))
+reserved_locals = []
+for path in GD_FILES:
+    text = read(path)
+    for match in re.finditer(r"\bvar\s+(class_name)\b", text):
+        reserved_locals.append((_os0.path.basename(path), match.group(1)))
+check("зарезервированное class_name не используется как local variable",
+      not reserved_locals, reserved_locals)
+panel_script_paths = re.findall(
+    r"var\s+\w+_path\s*([^\n=]*?)=\s*get_script\(\)\.resource_path", panel)
+check("пути от get_script resource_path имеют явный String type",
+      panel_script_paths and all(": String" in prefix for prefix in panel_script_paths),
+      panel_script_paths)
 check("panel coordinates project settings transaction",
       all(name in panel for name in ("_prepare_project_settings_action",
                                      "_execute_project_settings_action",
@@ -410,6 +430,8 @@ check("panel coordinates project settings transaction",
                                      "_pending_project_settings_semantic_hash",
                                       "agent_project_settings_executor.gd")))
 resource_executor = read(_os0.path.join(ADDON, "agent_resource_executor.gd"))
+check("resource executor avoids invalid static hashing",
+      "HashingContext.hash(" not in resource_executor)
 check("resource executor uses detached Godot resource APIs",
       "ResourceLoader.load" in resource_executor and "ResourceSaver.save" in resource_executor
       and "ResourceLoader.CACHE_MODE_IGNORE" in resource_executor)

@@ -96,26 +96,10 @@ func _open_target(action: Dictionary, expected_hash: String, for_preview: bool) 
 	if editor == null:
 		return _fail("editor_unavailable", "EditorInterface недоступен")
 	var open_scenes := Array(editor.get_open_scenes())
-	var active := editor.get_edited_scene_root()
-	var active_path := str(active.scene_file_path) if active else ""
-	if scene_path in open_scenes and active_path != scene_path:
-		return _fail("scene_open_inactive", "Сцена открыта в другой вкладке; сделайте её активной или закройте")
-	if active_path == scene_path:
-		if editor.is_playing_scene():
-			return _fail("game_running", "Остановите запущенную игру перед изменением активной сцены")
-		if editor.has_method("get_unsaved_scenes"):
-			var unsaved = editor.call("get_unsaved_scenes")
-			if unsaved is PackedStringArray or unsaved is Array:
-				if scene_path in Array(unsaved):
-					return _fail("scene_dirty", "Сначала сохраните активную сцену")
-		elif editor.has_method("is_scene_unsaved"):
-			if bool(editor.call("is_scene_unsaved")):
-				return _fail("scene_dirty", "Сначала сохраните активную сцену")
-		else:
-			return _fail("editor_api_unsupported", "Эта версия Godot не позволяет надёжно проверить несохранённую сцену")
-		if for_preview:
-			return _load_detached(scene_path, "active")
-		return {"ok": true, "root": active, "detached": false, "mode": "active"}
+	if scene_path in open_scenes:
+		# Public EditorInterface APIs do not expose a reliable dirty-state query
+		# across supported Godot 4 versions. Never risk overwriting an unsaved tab.
+		return _fail("scene_open", "Сохраните и закройте сцену перед структурным изменением")
 	return _load_detached(scene_path, "closed")
 
 
@@ -178,17 +162,17 @@ func _add_node(root: Node, operation: Dictionary) -> Dictionary:
 	var name := str(operation.get("name", ""))
 	if parent.has_node(NodePath(name)):
 		return _fail("node_exists", "Узел уже существует: " + name)
-	var class_name := str(operation.get("type", ""))
-	if not ClassDB.class_exists(class_name) or not ClassDB.can_instantiate(class_name) or not ClassDB.is_parent_class(class_name, "Node"):
-		return _fail("invalid_node_type", "Класс нельзя создать как Node: " + class_name)
-	var created = ClassDB.instantiate(class_name)
+	var node_class := str(operation.get("type", ""))
+	if not ClassDB.class_exists(node_class) or not ClassDB.can_instantiate(node_class) or not ClassDB.is_parent_class(node_class, "Node"):
+		return _fail("invalid_node_type", "Класс нельзя создать как Node: " + node_class)
+	var created = ClassDB.instantiate(node_class)
 	if not created is Node:
 		return _fail("invalid_node_type", "ClassDB не создал Node")
 	var node := created as Node
 	node.name = name
 	parent.add_child(node)
 	node.owner = root
-	return {"ok": true, "summary": "Добавлен %s %s" % [class_name, _path(root, node)]}
+	return {"ok": true, "summary": "Добавлен %s %s" % [node_class, _path(root, node)]}
 
 
 func _set_node_property(root: Node, operation: Dictionary) -> Dictionary:
@@ -308,7 +292,7 @@ func _semantic_hash(root: Node, operations: Array) -> String:
 				rows.append("property|%s|%s|%s" % [
 					_path(root, node), property_name, var_to_str(node.get(property_name))])
 	rows.sort()
-	return HashingContext.hash(HashingContext.HASH_SHA256, "\n".join(rows).to_utf8_buffer()).hex_encode()
+	return _sha256("\n".join(rows).to_utf8_buffer())
 
 
 func _collect_semantic_rows(root: Node, node: Node, rows: Array[String]) -> void:
@@ -336,7 +320,14 @@ func _collect_semantic_rows(root: Node, node: Node, rows: Array[String]) -> void
 func _file_hash(path: String) -> String:
 	if not FileAccess.file_exists(path):
 		return ""
-	return HashingContext.hash(HashingContext.HASH_SHA256, FileAccess.get_file_as_bytes(path)).hex_encode()
+	return _sha256(FileAccess.get_file_as_bytes(path))
+
+
+func _sha256(data: PackedByteArray) -> String:
+	var context := HashingContext.new()
+	context.start(HashingContext.HASH_SHA256)
+	context.update(data)
+	return context.finish().hex_encode()
 
 
 func _with_hash(result: Dictionary, scene_path: String) -> Dictionary:
