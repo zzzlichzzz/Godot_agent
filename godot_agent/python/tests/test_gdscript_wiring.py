@@ -132,6 +132,7 @@ check(u"все обработчики из .connect() объявлены в св
 # --- 4) сигналы стартового экрана и их подключения в панели ---
 start = read(_os0.path.join(ADDON, "agent_start_screen.gd"))
 panel = read(_os0.path.join(ADDON, "agent_panel.gd"))
+diff_card = read(_os0.path.join(ADDON, "DiffPreviewCard.gd"))
 declared = set(re.findall(r"^signal\s+([A-Za-z0-9_]+)", start, re.MULTILINE))
 emitted = set(re.findall(r"([A-Za-z0-9_]+)\.emit\(", start))
 check(u"сигналы стартового экрана объявлены", len(declared) >= 12, sorted(declared))
@@ -366,9 +367,6 @@ for _fn in ("_api_build_key_row", "_api_key_state_text",
 check(u"срок повтора показывается только при until > 0",
       re.search(r"until\s*>\s*0", start) is not None)
 
-n_ok = sum(1 for r in results if r)
-print("ИТОГО: %d/%d" % (n_ok, len(results)))
-sys.exit(0 if n_ok == len(results) else 1)
 check("rename plural diffs use read-only cards",
       'json.get("pending_action_diffs")' in panel and "add_readonly_diff" in panel
       and "mark_preview_only" in diff_card)
@@ -376,3 +374,26 @@ check("rename confirmation blocks dirty scripts",
       "_dirty_open_scripts(_last_pending_action_paths)" in panel)
 check("rename result reloads every changed path",
       'json.get("changed_paths")' in panel and "for changed_path in changed_paths" in panel)
+scene_executor = read(_os0.path.join(ADDON, "agent_scene_executor.gd"))
+plugin = read(_os0.path.join(ADDON, "plugin_universal.gd"))
+check("plugin injects EditorPlugin into panel", "set_editor_plugin" in plugin)
+check("scene executor uses PackedScene API",
+      "PackedScene.GEN_EDIT_STATE_INSTANCE" in scene_executor
+      and "packed.pack(root)" in scene_executor and "ResourceSaver.save" in scene_executor)
+check("scene execution matches confirmed preview",
+      "semantic_hash" in scene_executor and "preview_mismatch" in scene_executor
+      and "_pending_scene_semantic_hash" in panel)
+check("scene executor owns structural operations",
+      all(name in scene_executor for name in ("_add_node", "_set_node_property",
+                                               "_attach_script", "_connect_signal",
+                                               "_reparent_node")))
+check("scene executor avoids textual scene writes and UndoRedo",
+      "FileAccess.WRITE" not in scene_executor and "UndoRedo" not in scene_executor)
+check("panel coordinates scene prepare execute finalize",
+      all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
+                                     "_send_scene_result", "_pending_scene_semantic_hash",
+                                     "scene_finalize")))
+
+n_ok = sum(1 for r in results if r)
+print("ИТОГО: %d/%d" % (n_ok, len(results)))
+sys.exit(0 if n_ok == len(results) else 1)

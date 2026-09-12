@@ -203,4 +203,6 @@ func _build_panel(panel_script_path: String) -> Control:
 	# Скрипт панели подключаем ПОСЛЕ создания детей: когда панель попадёт
 	# в док, сработает _ready() и все @onready-ссылки найдут свои узлы.
 	panel.set_script(load(panel_script_path))
+	if panel.has_method("set_editor_plugin"):
+		panel.call("set_editor_plugin", self)
 	return panel

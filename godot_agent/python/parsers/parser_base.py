@@ -1309,7 +1309,7 @@ def _resolve_content_refs(obj, raw):
 
 _KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
-                  u"ask_librarian", u"gather_context", u"rename_symbol", u"parse_error"}
+                  u"ask_librarian", u"gather_context", u"rename_symbol", u"edit_scene", u"parse_error"}
 
 _ACTION_SYNONYMS = {
     u"create": u"create_file", u"write_file": u"create_file",
@@ -1321,6 +1321,7 @@ _ACTION_SYNONYMS = {
     u"move": u"move_file", u"rename": u"move_file",
     u"rename_file": u"move_file", u"movefile": u"move_file",
     u"renamesymbol": u"rename_symbol", u"refactor_symbol": u"rename_symbol",
+    u"editscene": u"edit_scene", u"scene_edit": u"edit_scene",
     u"read": u"read_file", u"readfile": u"read_file",
     u"open_file": u"read_file",
     u"copy": u"copy_file", u"copyfile": u"copy_file",

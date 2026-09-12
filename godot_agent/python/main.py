@@ -40,6 +40,7 @@ import log_reader
 import editor_context
 import gather_context
 import symbol_refactor
+import scene_actions
 import chat_store
 import dashboard
 import json as _json
@@ -127,6 +128,7 @@ import server_auth
 
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
+_EDITOR_ACTION_RESULTS = {}
 # Проверка источника запросов. Что она даёт и чего НЕ даёт — в докстринге
 # server_auth: от программы под той же учётной записью она не защищает, но
 # закрывает чужую учётную запись, случайные обращения и — главное — панель
@@ -421,6 +423,9 @@ def _describe_action(action):
         return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
             int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
+    if act == "edit_scene":
+        return "Агент хочет структурно изменить сцену %s (%d операций)" % (
+            action.get("scene", ""), len(action.get("operations") or []))
     if act == "plan":
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
@@ -977,7 +982,32 @@ def _package_model_reply(text, action, project_root, depth=0):
                         "pending_action_description": _describe_action(public),
                         "pending_action_code": None,
                         "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
-                        "pending_action_diffs": diffs})
+                         "pending_action_diffs": diffs})
+    if action and action.get("action") == "edit_scene":
+        try:
+            prepared = scene_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_scene_action"] = None
+            followup = ("[Система]: edit_scene отклонён локальной проверкой схемы: %s. "
+                        "Исправь пути/операции; не заменяй структурную операцию сырой правкой .tscn."
+                        % exc)
+            if depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(prepared["action"])
+        public.update(scene_actions.public_prepared(prepared))
+        STATE["pending_scene_action"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "scene_prepare": scene_actions.public_prepared(prepared)})
     if not text and action is None:
         # Пустой ответ из браузера: парсер мог не дождаться конца генерации
         # длинного ответа. Не молчим — пользователь должен это увидеть.
@@ -1748,6 +1778,7 @@ def init_session():
     _apply_session_context(data)
     STATE["pending_action"] = None
     STATE["pending_refactor"] = None
+    STATE["pending_scene_action"] = None
     STATE["pending_batch"] = None
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
@@ -1954,6 +1985,7 @@ def confirm_action():
             server_state.queue_action_note(f"[Система: Пользователь ОТКЛОНИЛ ваше действие {act_type} для {path}. Изменение НЕ было применено! Скорректируй подход.]")
             STATE["pending_action"] = None
             STATE["pending_refactor"] = None
+            STATE["pending_scene_action"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
 
         if act_type == "rename_symbol":
@@ -1984,6 +2016,40 @@ def confirm_action():
                     result["reference_count"]),
                 "pending_action": None, "changed_paths": changed_paths,
                 "history_entry_id": result["entry_id"],
+            })
+
+        if act_type == "edit_scene":
+            prepared = STATE.get("pending_scene_action")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция сцены утрачена."}), 409
+            _normalized, absolute = scene_actions.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+            if scene_actions.file_sha256(absolute) != prepared["before_hash"]:
+                STATE["pending_action"] = None
+                STATE["pending_scene_action"] = None
+                return jsonify({"error": "Сцена изменилась после предпросмотра."}), 409
+            editor_semantic_hash = str(data.get("editor_semantic_hash") or "")
+            if len(editor_semantic_hash) != 64:
+                STATE["pending_action"] = None
+                STATE["pending_scene_action"] = None
+                return jsonify({"error": "Godot не подтвердил структурный предпросмотр сцены."}), 409
+            prepared["editor_semantic_hash"] = editor_semantic_hash
+            entry_id = history.record_batch_change(
+                project_root, "edit_scene", [prepared["scene"]], *_current_chat_info())
+            prepared["entry_id"] = entry_id
+            prepared["execution_token"] = os.urandom(24).hex()
+            prepared["state"] = "executing"
+            STATE["pending_action"] = None
+            return jsonify({
+                "answer": "[Система]: Изменение подтверждено; Godot применяет структурные операции.",
+                "pending_action": None,
+                "execute_in_editor": True,
+                "editor_action": prepared["action"],
+                "action_id": prepared["action_id"],
+                "action_digest": prepared["action_digest"],
+                "expected_scene_hash": prepared["before_hash"],
+                "execution_token": prepared["execution_token"],
             })
 
         if act_type in ("create_file", "patch_file", "move_file"):
@@ -2072,9 +2138,82 @@ def confirm_action():
     except Exception as e:
         STATE["pending_action"] = None
         STATE["pending_refactor"] = None
+        STATE["pending_scene_action"] = None
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/chat/editor_action/result', methods=['POST'])
+def editor_action_result():
+    """Finalize one Godot-executed structural scene transaction."""
+    data = request.json or {}
+    identity = (str(data.get("action_id") or ""), str(data.get("execution_token") or ""))
+    cached = _EDITOR_ACTION_RESULTS.get(identity)
+    if cached is not None:
+        body, status = cached
+        return jsonify(body), status
+    prepared = STATE.get("pending_scene_action")
+    if not isinstance(prepared, dict) or prepared.get("state") != "executing":
+        return jsonify({"error": "Нет выполняемой editor-транзакции."}), 409
+    expected = (prepared.get("action_id"), prepared.get("execution_token"))
+    if identity != expected:
+        return jsonify({"error": "Токен editor-транзакции не совпадает."}), 403
+    project_root = STATE.get("project_root")
+    entry_id = prepared.get("entry_id")
+    scene_path = prepared.get("scene")
+    success = bool(data.get("success"))
+    reported_hash = str(data.get("scene_hash") or "")
+    try:
+        _normalized, absolute = scene_actions.normalize_action(
+            project_root, prepared["action"], bool(STATE.get("addon_intent")))
+        actual_hash = scene_actions.file_sha256(absolute)
+        if reported_hash and reported_hash != actual_hash:
+            restored, message, paths = history.restore_reserved_change(
+                project_root, entry_id, current_hash=actual_hash)
+            if restored:
+                STATE["pending_scene_action"] = None
+                _refresh_fs_snapshot(project_root)
+            body = {"success": False, "restored": restored,
+                    "answer": "[Система]: Хэш отчёта Godot не совпал с диском. " + message,
+                    "changed_paths": paths}
+            return jsonify(body), (200 if restored else 409)
+        if not success:
+            restored, message, paths = history.restore_reserved_change(
+                project_root, entry_id, current_hash=reported_hash or actual_hash)
+            if restored:
+                STATE["pending_scene_action"] = None
+                _refresh_fs_snapshot(project_root)
+            body = {"success": False, "restored": restored,
+                    "answer": "[Система]: " + message, "changed_paths": paths}
+            status = 200 if restored else 409
+            if restored:
+                _EDITOR_ACTION_RESULTS[identity] = (body, status)
+            return jsonify(body), status
+        if actual_hash == prepared.get("before_hash"):
+            history.abort_change(project_root, entry_id)
+            STATE["pending_scene_action"] = None
+            return jsonify({"error": "Godot сообщил успех, но сцена не изменилась."}), 409
+        history.commit_change(project_root, entry_id)
+        STATE["pending_scene_action"] = None
+        librarian.note_files_changed(project_root, [scene_path])
+        _remember_file(project_root, scene_path)
+        _touch_file_read(scene_path)
+        _refresh_fs_snapshot(project_root)
+        body = {
+            "success": True,
+            "answer": "[Система]: Структурные изменения сцены применены и сохранены.",
+            "history_entry_id": entry_id,
+            "changed_paths": [scene_path],
+        }
+        _EDITOR_ACTION_RESULTS[identity] = (body, 200)
+        if len(_EDITOR_ACTION_RESULTS) > 32:
+            _EDITOR_ACTION_RESULTS.pop(next(iter(_EDITOR_ACTION_RESULTS)))
+        return jsonify(body)
+    except Exception as exc:
+        print("❌ ОШИБКА editor_action_result: %s" % exc)
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route('/chat/rollback/preview', methods=['POST'])
@@ -2101,7 +2240,8 @@ def rollback_preview():
                         "gone": bool(entry_id)})
     kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
                "patch_file": "правка файла", "move_file": "перемещение файла",
-               "rename_symbol": "переименование символа"}
+               "rename_symbol": "переименование символа",
+               "edit_scene": "структурное изменение сцены"}
     paths = [str(path) for path in (info.get("paths") or []) if path]
     target = ", ".join(paths[:3]) if len(paths) > 1 else info["path"]
     if len(paths) > 3:

@@ -311,6 +311,17 @@ def judge_answer(project_root, full_text, addon_dir=None):
                 except Exception as exc:
                     score = 45
                     findings.append(_finding("blocking", "refactor", str(exc)))
+            elif act == "edit_scene":
+                try:
+                    import scene_actions
+                    normalized, _absolute = scene_actions.normalize_action(
+                        project_root, action, bool(addon_dir))
+                    score = 93
+                    evidence.append("Structural scene edit validates %d operations" %
+                                    len(normalized["operations"]))
+                except Exception as exc:
+                    score = 45
+                    findings.append(_finding("blocking", "scene", str(exc)))
             else:
                 findings.append(_finding("blocking", "schema",
                                          "unknown action: %s" % act))

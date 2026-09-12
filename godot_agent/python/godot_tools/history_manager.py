@@ -284,6 +284,46 @@ def abort_change(project_root, entry_id):
                 pass
 
 
+def restore_reserved_change(project_root, entry_id, current_hash=None):
+    """Restore an uncommitted batch reservation after an editor-side failure.
+
+    The caller may provide the hash reported by Godot. If the file has changed
+    again since that report, recovery refuses to overwrite it and keeps the
+    reservation/snapshot for manual resolution.
+    """
+    journal = _load_journal(project_root)
+    entry = next((item for item in journal if item.get("id") == entry_id), None)
+    if entry is None:
+        return False, "Резерв истории не найден", []
+    if entry.get("committed"):
+        return False, "Изменение уже зафиксировано", []
+    files = entry.get("files") or []
+    if len(files) != 1:
+        return False, "Восстановление editor-транзакции ожидает один файл", []
+    item = files[0]
+    absolute = _resolve_safe_path(project_root, item["path"])
+    if current_hash and _file_hash(absolute) != current_hash:
+        return False, "Сцена изменилась после отчёта редактора; снапшот сохранён", []
+    snapshot = os.path.join(_history_dir(project_root), item.get("snapshot", ""))
+    if not os.path.isfile(snapshot):
+        return False, "Снапшот сцены не найден", []
+    parent = os.path.dirname(absolute)
+    fd, temporary = tempfile.mkstemp(prefix=".agent_scene_restore_", dir=parent)
+    try:
+        with os.fdopen(fd, "wb") as output, open(snapshot, "rb") as source:
+            shutil.copyfileobj(source, output)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, absolute)
+    finally:
+        try:
+            os.remove(temporary)
+        except OSError:
+            pass
+    abort_change(project_root, entry_id)
+    return True, "Исходная сцена восстановлена", [item["path"]]
+
+
 def _entry_public_info(entry, committed):
     """Описание записи журнала для предпросмотра отката в панели."""
     info = {
@@ -497,7 +537,8 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
                 "Перед любыми правками сначала запроси list_files, а каждый нужный файл перечитай через read_file."
                 % (total_changes, total_files))
     kind_ru = {"create_file": "создан/перезаписан", "patch_file": "изменён",
-               "move_file": "перемещён", "rename_symbol": "переименован символ"}
+               "move_file": "перемещён", "rename_symbol": "переименован символ",
+               "edit_scene": "структурно изменена сцена"}
     lines = []
     for p in order[:max_lines]:
         r = per_file[p]

@@ -28,6 +28,7 @@ const TOKEN_FILE := "user://godot_agent_token.txt"
 const CHAT_URL = "http://" + HOST + "/chat"
 const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
+const EDITOR_ACTION_RESULT_URL = "http://" + HOST + "/chat/editor_action/result"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
@@ -68,6 +69,11 @@ var _last_pending_action_type: String = ""
 var _last_pending_action_path: String = ""
 var _last_pending_action_dest: String = ""
 var _last_pending_action_paths: PackedStringArray = PackedStringArray()
+var _editor_plugin: EditorPlugin = null
+var _scene_executor = null
+var _pending_scene_action: Dictionary = {}
+var _pending_scene_expected_hash: String = ""
+var _pending_scene_semantic_hash: String = ""
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -172,6 +178,16 @@ var _minilich_train_warn: Label = null
 var _minilich_repos_edit: LineEdit = null
 var _minilich_github_btn: Button = null
 var _minilich_github_label: Label = null
+
+
+func set_editor_plugin(plugin: EditorPlugin) -> void:
+	_editor_plugin = plugin
+	var executor_path := get_script().resource_path.get_base_dir() + "/agent_scene_executor.gd"
+	if FileAccess.file_exists(executor_path):
+		var executor_script = load(executor_path)
+		if executor_script:
+			_scene_executor = executor_script.new()
+			_scene_executor.configure(plugin)
 
 
 func _locale():
@@ -563,6 +579,9 @@ func _clear_pending_action_state() -> void:
 	_last_pending_action_path = ""
 	_last_pending_action_dest = ""
 	_last_pending_action_paths = PackedStringArray()
+	_pending_scene_action = {}
+	_pending_scene_expected_hash = ""
+	_pending_scene_semantic_hash = ""
 	_pending_log_send = false
 
 
@@ -857,12 +876,14 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved:
+	if approved and _last_pending_action_type != "edit_scene":
 		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
 	var body = {"approved": approved}
+	if approved and _last_pending_action_type == "edit_scene":
+		body["editor_semantic_hash"] = _pending_scene_semantic_hash
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
 	_set_ui_busy(true)
@@ -871,6 +892,46 @@ func _send_confirm_request(approved: bool) -> void:
 		_log_error(_t("err_send_confirm"))
 		_set_ui_busy(false)
 		_reopen_scenes_after_write()  # v49: запрос не ушёл — вернуть закрытые сцены
+
+
+func _send_scene_result(execution: Dictionary, envelope: Dictionary) -> void:
+	var body := {
+		"action_id": str(envelope.get("action_id", "")),
+		"execution_token": str(envelope.get("execution_token", "")),
+		"success": bool(execution.get("ok", false)),
+		"scene_hash": str(execution.get("scene_hash", "")),
+		"error_code": str(execution.get("code", "")),
+		"error": str(execution.get("error", "")),
+	}
+	_pending_request_kind = "scene_finalize"
+	_set_ui_busy(true)
+	var err := http_request.request(
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error("Не удалось завершить транзакцию сцены")
+		_set_ui_busy(false)
+
+
+func _prepare_scene_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
+	if _scene_executor == null:
+		return {"ok": false, "error": "Исполнитель структурных сцен недоступен"}
+	_pending_scene_action = pending.duplicate(true)
+	_pending_scene_expected_hash = str(prepare_data.get("expected_scene_hash", ""))
+	var result: Dictionary = _scene_executor.prepare(_pending_scene_action, _pending_scene_expected_hash)
+	_pending_scene_semantic_hash = str(result.get("semantic_hash", "")) if bool(result.get("ok", false)) else ""
+	return result
+
+
+func _execute_scene_action(envelope: Dictionary) -> void:
+	var execution: Dictionary
+	if _scene_executor == null:
+		execution = {"ok": false, "error": "Исполнитель структурных сцен недоступен", "scene_hash": ""}
+	else:
+		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		if _pending_scene_semantic_hash != "":
+			action["_expected_semantic_hash"] = _pending_scene_semantic_hash
+		execution = _scene_executor.execute(action, str(envelope.get("expected_scene_hash", "")))
+	_send_scene_result(execution, envelope)
 
 
 func _start_plan_execution(total: int) -> void:
@@ -1392,6 +1453,28 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_export_api_to_server(true)
 			return
 
+		if kind == "confirm" and bool(json.get("execute_in_editor", false)):
+			_execute_scene_action(json)
+			return
+
+		if kind == "scene_finalize":
+			var scene_path := str(_pending_scene_action.get("scene", ""))
+			if bool(json.get("success", false)):
+				_view.add_agent_message(str(json.get("answer", "Структурные изменения сцены применены.")),
+					str(json.get("history_entry_id", "")))
+			elif bool(json.get("restored", false)):
+				_view.add_warning(str(json.get("answer", "Исходная сцена восстановлена.")))
+				if _scene_executor:
+					_scene_executor.reload_after_recovery(scene_path)
+			else:
+				_view.add_error(str(json.get("answer", "Не удалось безопасно завершить транзакцию сцены.")))
+			_pending_scene_action = {}
+			_pending_scene_expected_hash = ""
+			_pending_scene_semantic_hash = ""
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
+			return
+
 		if kind == "rollback_preview":
 			if bool(json.get("found", false)):
 				if bool(json.get("blocked", false)):
@@ -1552,6 +1635,15 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 					_last_pending_action_paths.append(str(raw_path))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
+			if _last_pending_action_type == "edit_scene":
+				var scene_preview := _prepare_scene_action(pending, json.get("scene_prepare", {}))
+				if not bool(scene_preview.get("ok", false)):
+					_view.add_warning("Godot отклонил предпросмотр сцены: " + str(scene_preview.get("error", "")))
+					_on_reject_pressed()
+					return
+				var preview_lines = scene_preview.get("changes", [])
+				if preview_lines is Array and not preview_lines.is_empty():
+					_view.add_system("Предпросмотр структурных изменений:\n• " + "\n• ".join(preview_lines))
 
 			# Дифф сам по себе достаточен для карточки: patch_file, который
 			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
@@ -1597,7 +1689,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
+			if _last_pending_action_type != "edit_scene":
+				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
