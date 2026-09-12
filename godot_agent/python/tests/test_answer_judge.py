@@ -115,6 +115,30 @@ def test_rename_symbol_uses_safe_dry_run():
         shutil.rmtree(root, ignore_errors=True)
 
 
+def test_edit_scene_uses_structural_schema_validation():
+    root = _project()
+    try:
+        scene_dir = os.path.join(root, "scenes")
+        os.makedirs(scene_dir)
+        with open(os.path.join(scene_dir, "main.tscn"), "w", encoding="utf-8") as handle:
+            handle.write('[gd_scene format=3]\n\n[node name="Main" type="Node"]\n')
+        result = judge_answer(root, _answer({
+            "action": "edit_scene", "scene": "res://scenes/main.tscn",
+            "operations": [{"op": "add_node", "parent": ".",
+                            "name": "HUD", "type": "CanvasLayer"}],
+        }))
+        assert result["acceptable"] and result["score"] >= 90
+        bad = judge_answer(root, _answer({
+            "action": "edit_scene", "scene": "res://scenes/main.tscn",
+            "operations": [{"op": "set_node_property", "node": "../Outside",
+                            "property": "visible", "value": {"type": "bool", "value": True}}],
+        }))
+        assert not bad["acceptable"]
+        assert any(item["category"] == "scene" for item in bad["blocking"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def test_broken_gdscript_is_blocking():
     root = _project()
     try:
