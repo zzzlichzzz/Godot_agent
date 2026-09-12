@@ -1309,7 +1309,7 @@ def _resolve_content_refs(obj, raw):
 
 _KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
-                  u"ask_librarian", u"parse_error"}
+                  u"ask_librarian", u"gather_context", u"parse_error"}
 
 _ACTION_SYNONYMS = {
     u"create": u"create_file", u"write_file": u"create_file",

@@ -165,9 +165,130 @@ def _run_block(value):
     return ["Run state: " + ("playing" if value["playing"] else "stopped")]
 
 
+def normalize_snapshot(value):
+    """Return a bounded primitive-only schema-v1 snapshot for later local tools."""
+    if not isinstance(value, dict) or value.get("schema_version") != SCHEMA_VERSION:
+        return {}
+    out = {"schema_version": SCHEMA_VERSION}
+    scene = value.get("scene")
+    if isinstance(scene, dict):
+        clean = {}
+        active = _path(scene.get("active"))
+        if active:
+            clean["active"] = active
+        elif scene.get("unsaved") is True:
+            clean["unsaved"] = True
+        opened = []
+        for item in scene.get("open", [])[:12] if isinstance(scene.get("open"), list) else []:
+            path = _path(item)
+            if path and path not in opened:
+                opened.append(path)
+        if opened:
+            clean["open"] = opened
+        if clean:
+            out["scene"] = clean
+    selection = value.get("selection")
+    nodes = []
+    if isinstance(selection, dict) and isinstance(selection.get("nodes"), list):
+        for raw in selection["nodes"][:8]:
+            if not isinstance(raw, dict):
+                continue
+            path, node_type = _text(raw.get("path"), 300), _text(raw.get("type"), 100)
+            if not path or not node_type:
+                continue
+            node = {"path": path, "type": node_type}
+            script = _path(raw.get("script"))
+            owner = _text(raw.get("owner"), 300)
+            if script:
+                node["script"] = script
+            if owner:
+                node["owner"] = owner
+            groups = [_text(x, 80) for x in raw.get("groups", [])[:8]] if isinstance(raw.get("groups"), list) else []
+            groups = [x for x in groups if x]
+            if groups:
+                node["groups"] = groups
+            props = {}
+            if isinstance(raw.get("properties"), dict):
+                for key in sorted(raw["properties"])[:12]:
+                    name, val = _text(key, 80), raw["properties"][key]
+                    if name and isinstance(val, (str, int, float, bool)):
+                        props[name] = _text(str(val), 120) if isinstance(val, str) else val
+            if props:
+                node["properties"] = props
+            nodes.append(node)
+    if nodes:
+        out["selection"] = {"nodes": nodes}
+    script = value.get("script")
+    if isinstance(script, dict):
+        clean = {}
+        path = _path(script.get("path"))
+        if path:
+            clean["path"] = path
+        if script.get("dirty") is True:
+            clean["dirty"] = True
+        caret = script.get("caret")
+        if isinstance(caret, dict):
+            line, column = _positive_int(caret.get("line")), _positive_int(caret.get("column"))
+            if line:
+                clean["caret"] = {"line": line}
+                if column:
+                    clean["caret"]["column"] = column
+        selected = script.get("selection")
+        if isinstance(selected, dict):
+            text = _text(selected.get("text"), 4500)
+            if text:
+                clean["selection"] = {"text": text}
+                for key in ("from_line", "from_column", "to_line", "to_column"):
+                    number = _positive_int(selected.get(key))
+                    if number:
+                        clean["selection"][key] = number
+        if "selection" not in clean:
+            context = script.get("caret_context")
+            if isinstance(context, dict):
+                text = _text(context.get("text"), 3500)
+                if text:
+                    clean["caret_context"] = {"text": text}
+                    for key in ("start_line", "end_line"):
+                        number = _positive_int(context.get(key))
+                        if number:
+                            clean["caret_context"][key] = number
+        opened = []
+        for item in script.get("open", [])[:12] if isinstance(script.get("open"), list) else []:
+            item = _path(item)
+            if item and item not in opened:
+                opened.append(item)
+        if opened:
+            clean["open"] = opened
+        if clean:
+            out["script"] = clean
+    diagnostics = value.get("diagnostics")
+    items = []
+    if isinstance(diagnostics, dict) and isinstance(diagnostics.get("items"), list):
+        for raw in diagnostics["items"][:8]:
+            if not isinstance(raw, dict):
+                continue
+            message = _text(raw.get("message"), 400)
+            if not message:
+                continue
+            item = {"message": message}
+            path, line = _path(raw.get("path")), _positive_int(raw.get("line"))
+            if path:
+                item["path"] = path
+            if line:
+                item["line"] = line
+            items.append(item)
+    if items:
+        out["diagnostics"] = {"items": items}
+    run = value.get("run")
+    if isinstance(run, dict) and isinstance(run.get("playing"), bool):
+        out["run"] = {"playing": run["playing"]}
+    return out if len(out) > 1 else {}
+
+
 def format_snapshot(value, max_chars=DEFAULT_MAX_CHARS):
     """Return (prompt block, section character counts), dropping malformed data."""
-    if not isinstance(value, dict) or value.get("schema_version") != SCHEMA_VERSION:
+    value = normalize_snapshot(value)
+    if not value:
         return "", {}
     try:
         limit = max(512, min(int(max_chars), HARD_MAX_CHARS))

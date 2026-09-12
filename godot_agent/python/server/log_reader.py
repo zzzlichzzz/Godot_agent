@@ -73,7 +73,7 @@ def _code_context(project_root, res_path, line_no):
     return "\n".join(out)
 
 
-def _list_input_actions(project_root):
+def list_input_actions(project_root):
     """Список пользовательских действий из секции [input] в project.godot.
     Локальное чтение текстового файла — никаких запросов и API.
     None — если project.godot прочитать не удалось."""
@@ -95,6 +95,9 @@ def _list_input_actions(project_root):
         if m:
             actions.append(m.group(1).strip())
     return actions
+
+
+_list_input_actions = list_input_actions
 
 
 def collect_errors(user_data_dir, project_root, state_dir):

@@ -34,6 +34,7 @@ STATE = {
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
     "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
+    "editor_context": None,     # снимок только текущего хода для gather_context
     "progress": {"active": False},
     "fs_snapshot": None,       # отпечаток файлов проекта (mtime+size) для обнаружения ВНЕШНИХ изменений
     "fs_snapshot_root": None,

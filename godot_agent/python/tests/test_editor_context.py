@@ -42,6 +42,7 @@ snapshot = {
 }
 
 block, sizes = editor_context.format_snapshot(snapshot)
+normalized = editor_context.normalize_snapshot(snapshot)
 check(u"снимок форматируется", block.startswith("[Godot editor context v1"), block)
 check(u"активная сцена передана", "res://levels/main.tscn" in block)
 check(u"абсолютный путь отфильтрован", "C:/secret" not in block)
@@ -50,6 +51,9 @@ check(u"выделенный код приоритетнее окна курсо
       "health -= 1" in block and "LOW PRIORITY" not in block)
 check(u"позиция курсора однобазовая и сохранена", "line 42, column 9" in block)
 check(u"неизвестное поле отброшено", "must disappear" not in block)
+check(u"структурированный снимок тоже очищен",
+      normalized.get("scene", {}).get("open") == ["res://levels/main.tscn"]
+      and "unknown" not in normalized, normalized)
 check(u"метаданные содержат только размеры",
       sizes.get("total") == len(block) and "health" not in str(sizes), sizes)
 
