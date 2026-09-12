@@ -58,6 +58,9 @@
   ('ada92cb5d92a588d1b93__mypyc.cp314-win_amd64.pyd',
    'C:\\Users\\Lich\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\ada92cb5d92a588d1b93__mypyc.cp314-win_amd64.pyd',
    'EXTENSION'),
+  ('agent_headless_validator.gd',
+   'D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent\\godot_agent\\agent_headless_validator.gd',
+   'DATA'),
   ('api-ms-win-core-console-l1-1-0.dll',
    'C:\\Program Files\\Eclipse '
    'Adoptium\\jdk-17.0.19.10-hotspot\\bin\\api-ms-win-core-console-l1-1-0.dll',

@@ -42,6 +42,7 @@ imports:
  &#8226;   <a href="#dashboard">dashboard</a>
  &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
  &#8226;   <a href="#doh">doh</a>
+ &#8226;   <a href="#editor_context">editor_context</a>
  &#8226;   <a href="#encodings">encodings</a>
  &#8226;   <a href="#encodings._win_cp_codecs">encodings._win_cp_codecs</a>
  &#8226;   <a href="#encodings.aliases">encodings.aliases</a>
@@ -168,12 +169,15 @@ imports:
  &#8226;   <a href="#enum">enum</a>
  &#8226;   <a href="#flask">flask</a>
  &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
  &#8226;   <a href="#gd_api_check">gd_api_check</a>
  &#8226;   <a href="#gd_functions">gd_functions</a>
  &#8226;   <a href="#gd_lint">gd_lint</a>
  &#8226;   <a href="#genericpath">genericpath</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#heapq">heapq</a>
+ &#8226;   <a href="#high_level_actions">high_level_actions</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#io">io</a>
  &#8226;   <a href="#json">json</a>
@@ -475,6 +479,7 @@ imports:
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#posixpath">posixpath</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#providers">providers</a>
  &#8226;   <a href="#pyi_rth_inspect.py">pyi_rth_inspect.py</a>
@@ -489,6 +494,10 @@ imports:
  &#8226;   <a href="#re._constants">re._constants</a>
  &#8226;   <a href="#re._parser">re._parser</a>
  &#8226;   <a href="#reprlib">reprlib</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#scene_deps">scene_deps</a>
  &#8226;   <a href="#selenium">selenium</a>
  &#8226;   <a href="#selenium.common">selenium.common</a>
@@ -622,8 +631,10 @@ imports:
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#traceback">traceback</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#tscn_lint">tscn_lint</a>
  &#8226;   <a href="#types">types</a>
  &#8226;   <a href="#warnings">warnings</a>
@@ -4358,10 +4369,18 @@ imported by:
 imports:
     <a href="#gd_api_check">gd_api_check</a>
  &#8226;   <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#high_level_actions">high_level_actions</a>
  &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#parser_base">parser_base</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#tscn_lint">tscn_lint</a>
 
   </div>
@@ -4407,12 +4426,14 @@ imports:
  &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#api_keys">api_keys</a>
  &#8226;   <a href="#catalog">catalog</a>
+ &#8226;   <a href="#editor_context">editor_context</a>
  &#8226;   <a href="#md_to_bbcode">md_to_bbcode</a>
  &#8226;   <a href="#openai_compat">openai_compat</a>
  &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#providers">providers</a>
  &#8226;   <a href="#rate_limit">rate_limit</a>
  &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#xml.etree.ElementTree">xml.etree.ElementTree</a>
 
@@ -8115,6 +8136,7 @@ imported by:
  &#8226;   <a href="#flask.sansio.blueprints">flask.sansio.blueprints</a>
  &#8226;   <a href="#flask.sansio.scaffold">flask.sansio.scaffold</a>
  &#8226;   <a href="#functools">functools</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#importlib.metadata._collections">importlib.metadata._collections</a>
  &#8226;   <a href="#importlib.resources.readers">importlib.resources.readers</a>
@@ -8964,6 +8986,7 @@ imported by:
  &#8226;   <a href="#email.generator">email.generator</a>
  &#8226;   <a href="#flask.testing">flask.testing</a>
  &#8226;   <a href="#gettext">gettext</a>
+ &#8226;   <a href="#high_level_actions">high_level_actions</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#json_repair.schema_repair">json_repair.schema_repair</a>
@@ -9782,6 +9805,19 @@ imported by:
 imported by:
     <a href="#cffi.lock">cffi.lock</a>
  &#8226;   <a href="#sortedcontainers.sortedlist">sortedcontainers.sortedlist</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="editor_context"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/server/editor_context.py" type="text/plain"><tt>editor_context</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imported by:
+    <a href="#api_backend">api_backend</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -14011,6 +14047,31 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="gather_context"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/gather_context.py" type="text/plain"><tt>gather_context</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#editor_context">editor_context</a>
+ &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
+ &#8226;   <a href="#gd_api_check">gd_api_check</a>
+ &#8226;   <a href="#gd_functions">gd_functions</a>
+ &#8226;   <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#librarian">librarian</a>
+ &#8226;   <a href="#log_reader">log_reader</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#tscn_lint">tscn_lint</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="gc"></a>
   <tt>gc</tt> <span class="moduletype"><i>(builtin module)</i></span>  <div class="import">
 imports:
@@ -14046,7 +14107,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#gd_api_check">gd_api_check</a>
+    <a href="#gather_context">gather_context</a>
+ &#8226;   <a href="#gd_api_check">gd_api_check</a>
  &#8226;   <a href="#librarian">librarian</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#tscn_lint">tscn_lint</a>
@@ -14067,7 +14129,10 @@ imports:
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
 
   </div>
 
@@ -14083,7 +14148,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#main.py">main.py</a>
+    <a href="#gather_context">gather_context</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -14100,7 +14166,27 @@ imports:
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="gd_semantic_parser"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/gd_semantic_parser.py" type="text/plain"><tt>gd_semantic_parser</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#re">re</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
 
   </div>
 
@@ -14241,6 +14327,34 @@ imported by:
  &#8226;   <a href="#setuptools.discovery">setuptools.discovery</a>
  &#8226;   <a href="#setuptools.dist">setuptools.dist</a>
  &#8226;   <a href="#setuptools.installer">setuptools.installer</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="godot_headless_validation"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/godot_headless_validation.py" type="text/plain"><tt>godot_headless_validation</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#collections">collections</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#subprocess">subprocess</a>
+ &#8226;   <a href="#sys">sys</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#uuid">uuid</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
 
   </div>
 
@@ -14580,21 +14694,28 @@ imported by:
  &#8226;   <a href="#PyInstaller.utils.osx">PyInstaller.utils.osx</a>
  &#8226;   <a href="#agent_prompts">agent_prompts</a>
  &#8226;   <a href="#flask.sessions">flask.sessions</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#hmac">hmac</a>
  &#8226;   <a href="#itsdangerous.signer">itsdangerous.signer</a>
  &#8226;   <a href="#jinja2.bccache">jinja2.bccache</a>
  &#8226;   <a href="#jinja2.loaders">jinja2.loaders</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
+ &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
  &#8226;   <a href="#numpy.random.tests.test_generator_mt19937">numpy.random.tests.test_generator_mt19937</a>
  &#8226;   <a href="#numpy.random.tests.test_random">numpy.random.tests.test_random</a>
  &#8226;   <a href="#numpy.random.tests.test_randomstate">numpy.random.tests.test_randomstate</a>
  &#8226;   <a href="#pefile">pefile</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#random">random</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#selenium.webdriver.remote.shadowroot">selenium.webdriver.remote.shadowroot</a>
  &#8226;   <a href="#selenium.webdriver.remote.webelement">selenium.webdriver.remote.webelement</a>
  &#8226;   <a href="#setuptools._vendor.wheel.wheelfile">setuptools._vendor.wheel.wheelfile</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
  &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#uuid">uuid</a>
@@ -14633,6 +14754,25 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="high_level_actions"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/high_level_actions.py" type="text/plain"><tt>high_level_actions</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#copy">copy</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="history_manager"></a>
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/history_manager.py" type="text/plain"><tt>history_manager</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -14642,6 +14782,7 @@ imports:
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#uuid">uuid</a>
 
@@ -14653,6 +14794,8 @@ imported by:
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
  &#8226;   <a href="#server_state">server_state</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
 
   </div>
 
@@ -14675,6 +14818,7 @@ imported by:
     <a href="#itsdangerous.signer">itsdangerous.signer</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
  &#8226;   <a href="#secrets">secrets</a>
+ &#8226;   <a href="#server_state">server_state</a>
  &#8226;   <a href="#trio._dtls">trio._dtls</a>
  &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#websocket._handshake">websocket._handshake</a>
@@ -16961,6 +17105,7 @@ imported by:
  &#8226;   <a href="#flask.json">flask.json</a>
  &#8226;   <a href="#flask.json.provider">flask.json.provider</a>
  &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#itsdangerous._json">itsdangerous._json</a>
@@ -16989,7 +17134,12 @@ imported by:
  &#8226;   <a href="#openai_compat">openai_compat</a>
  &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#pdb">pdb</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#qwen_net">qwen_net</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#selenium.webdriver.common.api_request_context">selenium.webdriver.common.api_request_context</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi._script_handlers">selenium.webdriver.common.bidi._script_handlers</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi.cdp">selenium.webdriver.common.bidi.cdp</a>
@@ -17614,7 +17764,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#main.py">main.py</a>
+    <a href="#gather_context">gather_context</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -17713,7 +17864,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#main.py">main.py</a>
+    <a href="#gather_context">gather_context</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -17953,8 +18105,12 @@ imported by:
  &#8226;   <a href="#numpy.lib.tests.test_function_base">numpy.lib.tests.test_function_base</a>
  &#8226;   <a href="#numpy.polynomial.tests.test_printing">numpy.polynomial.tests.test_printing</a>
  &#8226;   <a href="#pefile">pefile</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#random">random</a>
  &#8226;   <a href="#reprlib">reprlib</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#selectors">selectors</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi.script">selenium.webdriver.common.bidi.script</a>
  &#8226;   <a href="#setuptools._vendor.more_itertools.more">setuptools._vendor.more_itertools.more</a>
@@ -18050,6 +18206,7 @@ imported by:
  &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
  &#8226;   <a href="#minilich.ml_tokenizer">minilich.ml_tokenizer</a>
  &#8226;   <a href="#minilich.ml_train">minilich.ml_train</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
 
   </div>
 
@@ -18155,7 +18312,9 @@ imported by:
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/minilich/ml_project_index.py" type="text/plain"><tt>minilich.ml_project_index</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#json">json</a>
+    <a href="#gd_semantic_parser">gd_semantic_parser</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#minilich">minilich</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
  &#8226;   <a href="#os">os</a>
@@ -18169,6 +18328,7 @@ imported by:
     <a href="#answer_judge">answer_judge</a>
  &#8226;   <a href="#librarian">librarian</a>
  &#8226;   <a href="#minilich">minilich</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
 
   </div>
 
@@ -29555,6 +29715,7 @@ imported by:
  &#8226;   <a href="#getpass">getpass</a>
  &#8226;   <a href="#gettext">gettext</a>
  &#8226;   <a href="#glob">glob</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#gzip">gzip</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
@@ -29656,6 +29817,7 @@ imported by:
  &#8226;   <a href="#pkgutil">pkgutil</a>
  &#8226;   <a href="#platform">platform</a>
  &#8226;   <a href="#posixpath">posixpath</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#providers">providers</a>
  &#8226;   <a href="#py_compile">py_compile</a>
@@ -29663,7 +29825,10 @@ imported by:
  &#8226;   <a href="#pyi_rth_inspect.py">pyi_rth_inspect.py</a>
  &#8226;   <a href="#pyi_rth_setuptools.py">pyi_rth_setuptools.py</a>
  &#8226;   <a href="#random">random</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
  &#8226;   <a href="#runpy">runpy</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#scene_deps">scene_deps</a>
  &#8226;   <a href="#selenium.webdriver">selenium.webdriver</a>
  &#8226;   <a href="#selenium.webdriver.chromium.options">selenium.webdriver.chromium.options</a>
@@ -29741,11 +29906,13 @@ imported by:
  &#8226;   <a href="#socks">socks</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#tarfile">tarfile</a>
  &#8226;   <a href="#tempfile">tempfile</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#timeit">timeit</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#trio._core._thread_cache">trio._core._thread_cache</a>
  &#8226;   <a href="#trio._dtls">trio._dtls</a>
  &#8226;   <a href="#trio._highlevel_open_unix_stream">trio._highlevel_open_unix_stream</a>
@@ -30751,6 +30918,30 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="project_settings_actions"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/project_settings_actions.py" type="text/plain"><tt>project_settings_actions</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#math">math</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#uuid">uuid</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#high_level_actions">high_level_actions</a>
+ &#8226;   <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="project_tools"></a>
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/project_tools.py" type="text/plain"><tt>project_tools</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -30766,11 +30957,19 @@ imports:
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#librarian">librarian</a>
  &#8226;   <a href="#log_reader">log_reader</a>
  &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#server_state">server_state</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
 
   </div>
 
@@ -31362,11 +31561,14 @@ imported by:
  &#8226;   <a href="#fnmatch">fnmatch</a>
  &#8226;   <a href="#fractions">fractions</a>
  &#8226;   <a href="#ftplib">ftplib</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#gd_api_check">gd_api_check</a>
  &#8226;   <a href="#gd_functions">gd_functions</a>
  &#8226;   <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#gd_semantic_parser">gd_semantic_parser</a>
  &#8226;   <a href="#gettext">gettext</a>
  &#8226;   <a href="#glob">glob</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#h11._events">h11._events</a>
  &#8226;   <a href="#h11._headers">h11._headers</a>
  &#8226;   <a href="#h11._readers">h11._readers</a>
@@ -31438,6 +31640,7 @@ imported by:
  &#8226;   <a href="#platform">platform</a>
  &#8226;   <a href="#posixpath">posixpath</a>
  &#8226;   <a href="#pprint">pprint</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#pycparser.c_lexer">pycparser.c_lexer</a>
  &#8226;   <a href="#pydoc">pydoc</a>
@@ -31446,7 +31649,9 @@ imported by:
  &#8226;   <a href="#re._compiler">re._compiler</a>
  &#8226;   <a href="#re._constants">re._constants</a>
  &#8226;   <a href="#re._parser">re._parser</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
  &#8226;   <a href="#rlcompleter">rlcompleter</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#scene_deps">scene_deps</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi._network_handlers">selenium.webdriver.common.bidi._network_handlers</a>
  &#8226;   <a href="#selenium.webdriver.firefox.firefox_profile">selenium.webdriver.firefox.firefox_profile</a>
@@ -31497,6 +31702,7 @@ imported by:
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#string">string</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#tarfile">tarfile</a>
  &#8226;   <a href="#text_sanitize">text_sanitize</a>
@@ -31679,6 +31885,30 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="resource_actions"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/resource_actions.py" type="text/plain"><tt>resource_actions</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#math">math</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
+ &#8226;   <a href="#uuid">uuid</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="rlcompleter"></a>
   <a target="code" href="///C:/Users/Lich/AppData/Local/Python/pythoncore-3.14-64/Lib/rlcompleter.py" type="text/plain"><tt>rlcompleter</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -31728,6 +31958,74 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="runtime_checks"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/runtime_checks.py" type="text/plain"><tt>runtime_checks</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#json">json</a>
+ &#8226;   <a href="#math">math</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#secrets">secrets</a>
+ &#8226;   <a href="#time">time</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="runtime_debug"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/runtime_debug.py" type="text/plain"><tt>runtime_debug</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#json">json</a>
+ &#8226;   <a href="#secrets">secrets</a>
+ &#8226;   <a href="#time">time</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#api_backend">api_backend</a>
+ &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#server_state">server_state</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="scene_actions"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/scene_actions.py" type="text/plain"><tt>scene_actions</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#math">math</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#uuid">uuid</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#high_level_actions">high_level_actions</a>
+ &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="scene_deps"></a>
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/scene_deps.py" type="text/plain"><tt>scene_deps</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -31768,6 +32066,8 @@ imports:
   <div class="import">
 imported by:
     <a href="#multiprocessing.shared_memory">multiprocessing.shared_memory</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
  &#8226;   <a href="#werkzeug.security">werkzeug.security</a>
 
   </div>
@@ -34846,9 +35146,11 @@ imports:
     <a href="#agent_prompts">agent_prompts</a>
  &#8226;   <a href="#chat_store">chat_store</a>
  &#8226;   <a href="#history_manager">history_manager</a>
+ &#8226;   <a href="#hmac">hmac</a>
  &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
  &#8226;   <a href="#sites">sites</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
@@ -38708,6 +39010,7 @@ imported by:
  &#8226;   <a href="#click.shell_completion">click.shell_completion</a>
  &#8226;   <a href="#click.testing">click.testing</a>
  &#8226;   <a href="#ctypes.util">ctypes.util</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
@@ -39474,6 +39777,7 @@ imported by:
  &#8226;   <a href="#click.shell_completion">click.shell_completion</a>
  &#8226;   <a href="#ctypes._aix">ctypes._aix</a>
  &#8226;   <a href="#ctypes.util">ctypes.util</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#multiprocessing.popen_spawn_win32">multiprocessing.popen_spawn_win32</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
@@ -39504,6 +39808,34 @@ imported by:
  &#8226;   <a href="#webbrowser">webbrowser</a>
  &#8226;   <a href="#werkzeug._reloader">werkzeug._reloader</a>
  &#8226;   <a href="#werkzeug.debug">werkzeug.debug</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="symbol_refactor"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/symbol_refactor.py" type="text/plain"><tt>symbol_refactor</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#gd_api_check">gd_api_check</a>
+ &#8226;   <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#gd_semantic_parser">gd_semantic_parser</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
+ &#8226;   <a href="#minilich">minilich</a>
+ &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -39629,6 +39961,7 @@ imported by:
  &#8226;   <a href="#getpass">getpass</a>
  &#8226;   <a href="#gettext">gettext</a>
  &#8226;   <a href="#glob">glob</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#gzip">gzip</a>
  &#8226;   <a href="#h11._receivebuffer">h11._receivebuffer</a>
  &#8226;   <a href="#http.client">http.client</a>
@@ -40006,6 +40339,8 @@ imported by:
  &#8226;   <a href="#click.testing">click.testing</a>
  &#8226;   <a href="#ctypes.util">ctypes.util</a>
  &#8226;   <a href="#dotenv.main">dotenv.main</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#importlib.resources._common">importlib.resources._common</a>
  &#8226;   <a href="#jinja2.bccache">jinja2.bccache</a>
  &#8226;   <a href="#multiprocessing.heap">multiprocessing.heap</a>
@@ -40027,6 +40362,8 @@ imported by:
  &#8226;   <a href="#setuptools._distutils.util">setuptools._distutils.util</a>
  &#8226;   <a href="#setuptools._vendor.jaraco.context">setuptools._vendor.jaraco.context</a>
  &#8226;   <a href="#setuptools.installer">setuptools.installer</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
  &#8226;   <a href="#urllib.response">urllib.response</a>
  &#8226;   <a href="#werkzeug.formparser">werkzeug.formparser</a>
@@ -40218,7 +40555,9 @@ imported by:
  &#8226;   <a href="#sniffio._impl">sniffio._impl</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#subprocess">subprocess</a>
+ &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#trio._core._entry_queue">trio._core._entry_queue</a>
  &#8226;   <a href="#trio._core._run_context">trio._core._run_context</a>
  &#8226;   <a href="#trio._core._thread_cache">trio._core._thread_cache</a>
@@ -40289,6 +40628,7 @@ imported by:
  &#8226;   <a href="#email.generator">email.generator</a>
  &#8226;   <a href="#email.utils">email.utils</a>
  &#8226;   <a href="#gc">gc</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#gzip">gzip</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
@@ -40322,6 +40662,8 @@ imported by:
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#qwen_parser">qwen_parser</a>
  &#8226;   <a href="#random">random</a>
+ &#8226;   <a href="#runtime_checks">runtime_checks</a>
+ &#8226;   <a href="#runtime_debug">runtime_debug</a>
  &#8226;   <a href="#selenium.webdriver.common.api_request_context">selenium.webdriver.common.api_request_context</a>
  &#8226;   <a href="#selenium.webdriver.common.service">selenium.webdriver.common.service</a>
  &#8226;   <a href="#selenium.webdriver.remote.server">selenium.webdriver.remote.server</a>
@@ -40629,6 +40971,32 @@ imports:
   <div class="import">
 imported by:
     <a href="#_py_warnings">_py_warnings</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="transaction_actions"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/transaction_actions.py" type="text/plain"><tt>transaction_actions</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#gd_api_check">gd_api_check</a>
+ &#8226;   <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#uuid">uuid</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#main.py">main.py</a>
 
   </div>
 
@@ -42767,6 +43135,7 @@ imports:
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
  &#8226;   <a href="#minilich.ml_fix">minilich.ml_fix</a>
@@ -45133,11 +45502,16 @@ imported by:
  &#8226;   <a href="#click.types">click.types</a>
  &#8226;   <a href="#flask.json.provider">flask.json.provider</a>
  &#8226;   <a href="#flask.json.tag">flask.json.tag</a>
+ &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#pefile">pefile</a>
+ &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
+ &#8226;   <a href="#resource_actions">resource_actions</a>
+ &#8226;   <a href="#scene_actions">scene_actions</a>
  &#8226;   <a href="#selenium.webdriver.common.actions.input_device">selenium.webdriver.common.actions.input_device</a>
  &#8226;   <a href="#selenium.webdriver.common.bidi._script_handlers">selenium.webdriver.common.bidi._script_handlers</a>
  &#8226;   <a href="#selenium.webdriver.remote.script_key">selenium.webdriver.remote.script_key</a>
+ &#8226;   <a href="#transaction_actions">transaction_actions</a>
  &#8226;   <a href="#werkzeug.debug">werkzeug.debug</a>
  &#8226;   <a href="#werkzeug.routing.converters">werkzeug.routing.converters</a>
 
