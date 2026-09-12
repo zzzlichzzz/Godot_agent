@@ -54,6 +54,30 @@ try:
     assert status == 200 and prepared["project_settings_prepare"]["prepare_in_editor"]
     assert open(project_file, "rb").read() == original
 
+    # A fully satisfied editor-side plan is a successful no-op, not a failed
+    # transaction. It must not leave a rollback entry for an unchanged file.
+    no_op_entry_id = history_manager.record_batch_change(
+        root, "edit_project_settings", ["res://project.godot"], "settings-flow", "Settings flow")
+    STATE.update({"pending_action": {"action": "edit_project_settings"},
+                  "pending_project_settings_action": {
+                      "action": action, "action_id": "already-satisfied",
+                      "action_digest": "a" * 64, "before_hash": project_settings_actions.file_sha256(project_file),
+                      "editor_semantic_hash": "e" * 64, "entry_id": no_op_entry_id,
+                      "execution_token": "token", "state": "executing"}})
+    no_op_body = {"action_id": "already-satisfied", "execution_token": "token",
+                  "editor_action_kind": "project_settings", "success": True,
+                  "already_satisfied": True,
+                  "project_hash": project_settings_actions.file_sha256(project_file)}
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json=no_op_body):
+        no_op, status = payload(main.editor_action_result())
+    assert status == 200 and no_op["already_satisfied"] is True
+    assert no_op["history_entry_id"] is None and no_op["changed_paths"] == []
+    assert history_manager.entry_info(root, no_op_entry_id) is None
+    STATE["pending_action"] = None
+    with main.app.test_request_context("/chat", method="POST", json={}):
+        prepared, status = payload(main._package_model_reply("Добавляю jump.", action, root))
+    assert status == 200 and prepared["project_settings_prepare"]["prepare_in_editor"]
+
     with main.app.test_request_context("/chat/confirm_action", method="POST", json={
             "approved": True, "editor_semantic_hash": "d" * 64}):
         confirmed, status = payload(main.confirm_action())

@@ -18,15 +18,16 @@ func prepare(action: Dictionary, expected_hash: String) -> Dictionary:
 	var before := _capture(action)
 	var simulated := before.duplicate(true)
 	var changes: Array[String] = []
-	var result := _simulate(simulated, action.get("operations", []), changes)
+	var effective_operations: Array[Dictionary] = []
+	var result := _simulate(simulated, action.get("operations", []), changes, effective_operations)
 	if not bool(result.get("ok", false)):
 		return result
 	var before_hash := _semantic_hash(before)
 	var result_hash := _semantic_hash(simulated)
-	if before_hash == result_hash:
-		return _fail("no_changes", "Настройки уже имеют запрошенные значения")
 	return {"ok": true, "changes": changes, "semantic_hash": result_hash,
-		"before_semantic_hash": before_hash, "requires_editor_restart": true}
+		"before_semantic_hash": before_hash, "requires_editor_restart": not effective_operations.is_empty(),
+		"already_satisfied": effective_operations.is_empty(),
+		"effective_operation_count": effective_operations.size()}
 
 
 func execute(action: Dictionary, expected_hash: String) -> Dictionary:
@@ -36,13 +37,17 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 	var before := _capture(action)
 	var simulated := before.duplicate(true)
 	var changes: Array[String] = []
-	var preview := _simulate(simulated, action.get("operations", []), changes)
+	var effective_operations: Array[Dictionary] = []
+	var preview := _simulate(simulated, action.get("operations", []), changes, effective_operations)
 	if not bool(preview.get("ok", false)):
 		return _with_hash(preview)
 	var expected_semantic_hash := str(action.get("_expected_semantic_hash", ""))
 	if expected_semantic_hash == "" or _semantic_hash(simulated) != expected_semantic_hash:
 		return _with_hash(_fail("preview_mismatch", "Настройки больше не совпадают с подтверждённым предпросмотром"))
-	var applied := _apply(action.get("operations", []))
+	if effective_operations.is_empty():
+		return {"ok": true, "project_hash": _file_hash(), "changes": changes,
+			"already_satisfied": true, "requires_editor_restart": false}
+	var applied := _apply(effective_operations)
 	if not bool(applied.get("ok", false)):
 		var restored := _restore(before)
 		applied["memory_restored"] = bool(restored.get("ok", false))
@@ -97,14 +102,17 @@ func _capture(action: Dictionary) -> Dictionary:
 	return state
 
 
-func _simulate(state: Dictionary, operations: Array, changes: Array[String]) -> Dictionary:
+func _simulate(state: Dictionary, operations: Array, changes: Array[String], effective_operations: Array[Dictionary]) -> Dictionary:
 	for index in range(operations.size()):
-		var operation = operations[index]
+		var operation: Dictionary = operations[index]
 		var result := _simulate_operation(state, operation)
 		if not bool(result.get("ok", false)):
 			result["operation_index"] = index + 1
 			return result
 		changes.append(str(result.get("summary", operation.get("op", ""))))
+		if bool(result.get("apply", false)):
+			var effective: Dictionary = result.get("operation", operation)
+			effective_operations.append(effective)
 	return {"ok": true}
 
 
@@ -113,9 +121,10 @@ func _simulate_operation(state: Dictionary, operation: Dictionary) -> Dictionary
 	if op == "add_input_action":
 		var key := "input/" + str(operation.get("name", ""))
 		if state.has(key) and bool(state[key].get("present", false)):
-			return _fail("input_action_exists", "InputMap action уже существует: " + key.trim_prefix("input/"))
+			return {"ok": true, "apply": false,
+				"summary": "Действие ввода уже существует; текущие deadzone и события сохранены: " + key.trim_prefix("input/")}
 		state[key] = {"present": true, "value": {"deadzone": float(operation.get("deadzone", 0.2)), "events": []}}
-		return {"ok": true, "summary": "Добавлено действие ввода " + key.trim_prefix("input/")}
+		return {"ok": true, "apply": true, "summary": "Добавлено действие ввода " + key.trim_prefix("input/")}
 	if op == "add_input_event":
 		var key := "input/" + str(operation.get("action", ""))
 		if not state.has(key) or not bool(state[key].get("present", false)):
@@ -128,31 +137,63 @@ func _simulate_operation(state: Dictionary, operation: Dictionary) -> Dictionary
 		var event = event_result.get("value")
 		for existing in events:
 			if existing is InputEvent and (existing as InputEvent).is_match(event, true):
-				return _fail("input_event_exists", "Такое событие ввода уже назначено")
+				return {"ok": true, "apply": false,
+					"summary": "Событие ввода уже назначено для " + key.trim_prefix("input/")}
 		events.append(event)
 		config["events"] = events
 		state[key] = {"present": true, "value": config}
-		return {"ok": true, "summary": "Добавлено событие для " + key.trim_prefix("input/")}
+		return {"ok": true, "apply": true, "summary": "Добавлено событие для " + key.trim_prefix("input/")}
 	if op == "add_autoload":
 		var key := "autoload/" + str(operation.get("name", ""))
 		if state.has(key) and bool(state[key].get("present", false)):
-			return _fail("autoload_exists", "Autoload уже существует: " + key.trim_prefix("autoload/"))
+			var existing_path := str(state[key].get("value", "")).trim_prefix("*")
+			var requested_path := str(operation.get("path", ""))
+			if existing_path != requested_path:
+				return _fail("autoload_conflict", "Autoload уже существует с другим путём: " + key.trim_prefix("autoload/"))
+			return {"ok": true, "apply": false,
+				"summary": "Autoload уже настроен: " + key.trim_prefix("autoload/")}
 		state[key] = {"present": true, "value": "*" + str(operation.get("path", ""))}
-		return {"ok": true, "summary": "Добавлен autoload " + key.trim_prefix("autoload/")}
+		return {"ok": true, "apply": true, "summary": "Добавлен autoload " + key.trim_prefix("autoload/")}
 	if op == "remove_autoload":
 		var key := "autoload/" + str(operation.get("name", ""))
 		if not state.has(key) or not bool(state[key].get("present", false)):
-			return _fail("autoload_missing", "Autoload не найден: " + key.trim_prefix("autoload/"))
+			return {"ok": true, "apply": false,
+				"summary": "Autoload уже отсутствует: " + key.trim_prefix("autoload/")}
 		state[key] = {"present": false, "value": null}
-		return {"ok": true, "summary": "Удалён autoload " + key.trim_prefix("autoload/")}
+		return {"ok": true, "apply": true, "summary": "Удалён autoload " + key.trim_prefix("autoload/")}
+	if op == "set_display_settings":
+		var effective := {"op": "set_display_settings"}
+		var summaries: Array[String] = []
+		var mapping := _display_mapping()
+		for field in operation:
+			if not mapping.has(field):
+				continue
+			var display_key := str(mapping[field])
+			if not _setting_supported(display_key):
+				return _fail("setting_unsupported", "Эта версия Godot не поддерживает настройку: " + display_key)
+			var display_value = _display_value(field, operation[field])
+			if state.has(display_key) and bool(state[display_key].get("present", false)) \
+					and state[display_key].get("value") == display_value:
+				continue
+			state[display_key] = {"present": true, "value": display_value}
+			effective[field] = operation[field]
+			summaries.append(display_key)
+		if effective.size() == 1:
+			return {"ok": true, "apply": false, "summary": "Настройки окна уже имеют запрошенные значения"}
+		return {"ok": true, "apply": true, "operation": effective,
+			"summary": "Изменены настройки окна: " + ", ".join(summaries)}
 	var setting := _setting_for(operation)
 	if not bool(setting.get("ok", false)):
 		return setting
 	var setting_key := str(setting.get("key", ""))
 	if not _setting_supported(setting_key):
 		return _fail("setting_unsupported", "Эта версия Godot не поддерживает настройку: " + setting_key)
-	state[setting_key] = {"present": true, "value": setting.get("value")}
-	return {"ok": true, "summary": "Изменена настройка " + setting_key}
+	var setting_value = setting.get("value")
+	if state.has(setting_key) and bool(state[setting_key].get("present", false)) \
+			and state[setting_key].get("value") == setting_value:
+		return {"ok": true, "apply": false, "summary": "Настройка уже имеет запрошенное значение: " + setting_key}
+	state[setting_key] = {"present": true, "value": setting_value}
+	return {"ok": true, "apply": true, "summary": "Изменена настройка " + setting_key}
 
 
 func _setting_for(operation: Dictionary) -> Dictionary:

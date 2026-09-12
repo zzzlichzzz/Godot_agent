@@ -1241,6 +1241,7 @@ func _execute_project_settings_action(envelope: Dictionary) -> void:
 		"editor_action_kind": "project_settings",
 		"success": bool(execution.get("ok", false)),
 		"project_hash": str(execution.get("project_hash", "")),
+		"already_satisfied": bool(execution.get("already_satisfied", false)),
 		"error_code": str(execution.get("code", "")),
 		"error": str(execution.get("error", "")),
 	}

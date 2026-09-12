@@ -2584,10 +2584,24 @@ def editor_action_result():
             if restored:
                 _EDITOR_ACTION_RESULTS[identity] = (body, status)
             return jsonify(body), status
-        if actual_hash == prepared.get("before_hash"):
+        already_satisfied = bool(data.get("already_satisfied")) if is_settings else False
+        if actual_hash == prepared.get("before_hash") and not already_satisfied:
             history.abort_change(project_root, entry_id)
             STATE[pending_key] = None
             return jsonify({"error": "Godot сообщил успех, но целевой файл не изменился."}), 409
+        if already_satisfied:
+            history.abort_change(project_root, entry_id)
+            body = {
+                "success": True,
+                "already_satisfied": True,
+                "answer": "[Система]: Запрошенные настройки проекта уже были применены; запись не потребовалась.",
+                "history_entry_id": None,
+                "changed_paths": [],
+                "requires_editor_restart": False,
+            }
+            _EDITOR_ACTION_RESULTS[identity] = (body, 200)
+            STATE[pending_key] = None
+            return jsonify(body)
         history.commit_change(project_root, entry_id)
         body = {
             "success": True,
