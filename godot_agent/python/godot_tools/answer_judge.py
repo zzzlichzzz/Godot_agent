@@ -67,6 +67,8 @@ def _judge_structural_action(project_root, action, addon_dir):
             prepared = transaction_actions.prepare(
                 project_root, action, allow_addons=bool(addon_dir),
                 addon_dir=addon_dir)
+            if prepared.get("already_satisfied"):
+                return 96, [], ["Atomic transaction is already satisfied locally"]
             return 95, [], ["Atomic transaction validates %d operations in %d files" % (
                 len(prepared["action"]["operations"]), len(prepared["files"]))]
     except Exception as exc:
@@ -85,7 +87,7 @@ def _read_text(project_root, path, overlay):
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(path)
     with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as handle:
-        return handle.read().replace("\r\n", "\n")
+        return handle.read().replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _path_exists(project_root, path, overlay):
@@ -257,6 +259,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
             findings.append(_finding("blocking", "schema",
                                      "patch_file requires search and replace", path, step))
             return findings, evidence
+        search = search.replace("\r\n", "\n").replace("\r", "\n")
+        replace = replace.replace("\r\n", "\n").replace("\r", "\n")
         try:
             original = _read_text(project_root, path, overlay)
         except Exception:

@@ -41,6 +41,17 @@ def _hash(data):
     return hashlib.sha256(data).hexdigest() if data is not None else None
 
 
+def _text_equivalent(left, right):
+    if left is None or right is None:
+        return left is right
+    try:
+        left_text = left.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+        right_text = right.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+    except UnicodeDecodeError:
+        return left == right
+    return left_text == right_text
+
+
 def _read(path):
     if not os.path.isfile(path):
         return None
@@ -155,11 +166,18 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
     normalized = normalize_action(project_root, action, allow_addons)
     overlay = {}
     public_paths = []
+    effective_operation_count = 0
+    skipped_operation_count = 0
     for operation in normalized["operations"]:
         kind, path = operation["action"], operation["path"]
         item = _entry(project_root, overlay, path)
         if kind == "create_file":
-            item["after_bytes"] = operation["content"].encode("utf-8")
+            candidate = operation["content"].encode("utf-8")
+            if _text_equivalent(item["after_bytes"], candidate):
+                skipped_operation_count += 1
+            else:
+                item["after_bytes"] = candidate
+                effective_operation_count += 1
             public_paths.append(path)
         elif kind == "patch_file":
             if item["after_bytes"] is None:
@@ -170,7 +188,12 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
                 raise TransactionError("patch_file поддерживает только UTF-8: %s" % path)
             if text.count(operation["search"]) != 1:
                 raise TransactionError("patch_file должен иметь одно точное совпадение: %s" % path)
-            item["after_bytes"] = text.replace(operation["search"], operation["replace"], 1).encode("utf-8")
+            candidate = text.replace(operation["search"], operation["replace"], 1).encode("utf-8")
+            if _text_equivalent(item["after_bytes"], candidate):
+                skipped_operation_count += 1
+            else:
+                item["after_bytes"] = candidate
+                effective_operation_count += 1
             public_paths.append(path)
         else:
             dest = operation["dest"]
@@ -181,6 +204,7 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
                 raise TransactionError("Назначение move_file уже существует: %s" % dest)
             dest_item["after_bytes"] = item["after_bytes"]
             item["after_bytes"] = None
+            effective_operation_count += 1
             public_paths.extend((path, dest))
             uid_source = path + ".uid"
             uid_item = _entry(project_root, overlay, uid_source)
@@ -199,8 +223,6 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
         item["after_hash"] = _hash(item["after_bytes"])
         _validate_script(project_root, path, item["after_bytes"], addon_dir)
         files.append(item)
-    if not files:
-        raise TransactionError("Транзакция не меняет проект")
     final = {item["path"]: item["after_bytes"] for item in overlay.values()}
     for check in normalized["checks"]:
         data = final.get(check["path"], _read(_resolve_safe_path(project_root, check["path"])))
@@ -208,6 +230,11 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
             raise TransactionError("Файл проверки отсутствует в итоговом overlay: %s" % check["path"])
         if check["type"] == "parse_script":
             _validate_script(project_root, check["path"], data, addon_dir)
+    if not files:
+        return {"transaction_id": uuid.uuid4().hex, "action": normalized,
+                "files": [], "paths": [], "batch": None, "state": "already_satisfied",
+                "already_satisfied": True, "effective_operation_count": 0,
+                "skipped_operation_count": len(normalized["operations"])}
     batch_operations = []
     source_hashes = {}
     targets = [check["path"] for check in normalized["checks"]]
@@ -223,7 +250,10 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
         project_root, source_hashes.keys(), excluded=source_hashes.keys()))
     batch = godot_headless_validation.make_batch("transaction", batch_operations, targets, source_hashes)
     return {"transaction_id": uuid.uuid4().hex, "action": normalized, "files": files,
-            "paths": [item["path"] for item in files], "batch": batch, "state": "preview"}
+            "paths": [item["path"] for item in files], "batch": batch, "state": "preview",
+            "already_satisfied": False,
+            "effective_operation_count": effective_operation_count,
+            "skipped_operation_count": skipped_operation_count}
 
 
 def attach_validation(prepared, receipt):
@@ -235,7 +265,10 @@ def public_prepared(prepared):
     return {"action": "transaction", "transaction_id": prepared["transaction_id"],
             "summary": prepared["action"].get("summary", ""), "paths": prepared["paths"],
             "operation_count": len(prepared["action"]["operations"]),
-            "check_count": len(prepared["action"]["checks"]), "file_count": len(prepared["files"])}
+            "check_count": len(prepared["action"]["checks"]), "file_count": len(prepared["files"]),
+            "already_satisfied": bool(prepared.get("already_satisfied")),
+            "effective_operation_count": int(prepared.get("effective_operation_count", 0)),
+            "skipped_operation_count": int(prepared.get("skipped_operation_count", 0))}
 
 
 def prepared_diffs(prepared):
@@ -253,6 +286,8 @@ def prepared_diffs(prepared):
 
 
 def verify_prepared(project_root, prepared):
+    if prepared.get("already_satisfied"):
+        raise TransactionError("Уже выполненная транзакция не требует применения")
     godot_headless_validation.verify_receipt(project_root, prepared["batch"], prepared["receipt"])
     for item in prepared["files"]:
         current = _read(_resolve_safe_path(project_root, item["path"]))
