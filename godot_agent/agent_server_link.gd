@@ -188,7 +188,8 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 	if err != OK:
 		_kind = ""
 		_inflight = false
-		_drain_queue()
+		chats_response.emit(kind, {"error": _t("srv_no_response") + " (" + str(err) + ")"}, extra)
+		call_deferred("_drain_queue")
 
 
 func _drain_queue() -> void:
@@ -207,12 +208,22 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 	_kind = ""
 	_extra = {}
 	_inflight = false
-	_drain_queue()
+	# HTTP-ошибка означает, что сервер доступен и осознанно отклонил запрос.
+	# Передаём ответ панели: ей нужно восстановить draft/resend envelope.
+	if result == HTTPRequest.RESULT_SUCCESS and response_code != 200:
+		var failure = JSON.parse_string(body.get_string_from_utf8())
+		if failure == null or typeof(failure) != TYPE_DICTIONARY:
+			failure = {"error": _t("srv_no_response") + " (HTTP " + str(response_code) + ")"}
+		server_state_changed.emit(true)
+		chats_response.emit(kind, failure, extra)
+		call_deferred("_drain_queue")
+		return
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
 		# Таймаут = сервер жив, но занят; остальные ошибки = сервер не отвечает.
 		# По этому сигналу панель показывает/прячет кнопку ручного запуска.
 		server_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)
 		if kind == "status":
+			call_deferred("_drain_queue")
 			return
 		if kind == "minilich_status" or kind == "minilich_set" or kind == "minilich_github" or kind.begins_with("api_") or kind == "chat_model":
 			# Отдельная ветка: клик по галочке или кнопке настроек не должен
@@ -224,29 +235,40 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 			# панель сформировать не должна), и уводить их в автозапуск значит
 			# скрывать от себя же собственную ошибку.
 			chats_response.emit(kind, {"error": _t("srv_no_response") + " (HTTP " + str(response_code) + ")"}, extra)
+			call_deferred("_drain_queue")
 			return
 		if result == HTTPRequest.RESULT_TIMEOUT:
 			# Сервер жив, но занят долгой операцией (например, открывает
 			# страницу в браузере). НЕ запускаем новые копии сервера.
 			hide_loading_requested.emit()
 			link_status.emit(_t("srv_busy"), "error")
+			chats_response.emit(kind, {"error": _t("srv_busy")}, extra)
+			call_deferred("_drain_queue")
 			return
 		if not autostart_ok:
 			# Фоновый запрос (авто-обновление списка чатов/сайтов при открытии панели).
 			# Не запускаем сервер просто от того, что открылся Godot — только по
 			# реальному действию пользователя (новый/открытый чат, отправка сообщения).
+			chats_response.emit(kind, {"error": _t("srv_no_response")}, extra)
+			call_deferred("_drain_queue")
 			return
 		if kind == "new" or kind == "open":
 			# Запоминаем действие пользователя и повторим его после запуска сервера.
 			_retry_after_server = [{"kind": kind, "extra": extra}]
 		_maybe_autostart_server()
+		call_deferred("_drain_queue")
 		return
 	var json = JSON.parse_string(body.get_string_from_utf8())
 	if json == null or typeof(json) != TYPE_DICTIONARY:
+		chats_response.emit(kind, {"error": "Сервер вернул повреждённый JSON."}, extra)
+		call_deferred("_drain_queue")
 		return
 	server_state_changed.emit(true)
-	_on_server_alive()
 	chats_response.emit(kind, json, extra)
+	_on_server_alive()
+	# Панель синхронно обработала response signal и обновила chat id; только
+	# теперь можно запускать следующий queued navigation request.
+	call_deferred("_drain_queue")
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +285,16 @@ func _maybe_autostart_server() -> void:
 		# блокировка после неудачного ожидания — из-за них повторные нажатия
 		# подолгу «искали» сервер, хотя сам exe стартует быстро.)
 		link_status.emit(_t("srv_wait_boot"), "status")
+		# Недавно запущенный процесс мог уже упасть. Продолжаем ограниченный
+		# опрос, чтобы pending open/new получил replay или terminal failure.
+		_server_wait_left = max(_server_wait_left, 20)
+		if _server_wait_timer == null:
+			_server_wait_timer = Timer.new()
+			_server_wait_timer.wait_time = 0.5
+			_server_wait_timer.one_shot = false
+			add_child(_server_wait_timer)
+			_server_wait_timer.timeout.connect(_on_server_wait_tick)
+		_server_wait_timer.start()
 		return
 	_server_start_attempted = true
 	show_loading_requested.emit(_t("srv_search"))
@@ -271,6 +303,7 @@ func _maybe_autostart_server() -> void:
 	if not _launch_server_process():
 		hide_loading_requested.emit()
 		link_status.emit(_t("srv_not_found"), "error")
+		_emit_retry_failures(_t("srv_not_found"))
 		return
 	print("[agent] Поиск и запуск сервера занял %d мс" % (Time.get_ticks_msec() - t0))
 	show_loading_requested.emit(_t("srv_start"))
@@ -298,6 +331,7 @@ func _on_server_wait_tick() -> void:
 		_last_server_launch_msec = 0
 		hide_loading_requested.emit()
 		link_status.emit(_t("srv_fail"), "error")
+		_emit_retry_failures(_t("srv_fail"))
 		return
 	_server_wait_left -= 1
 	link_status.emit(_t("srv_connecting_n") % int(ceil(_server_wait_left * 0.5)), "status")
@@ -332,6 +366,17 @@ func _on_server_alive() -> void:
 				request(rk, r.get("extra", {}))
 		if not replayed:
 			hide_loading_requested.emit()
+
+
+func _emit_retry_failures(message: String) -> void:
+	var pending: Array = _retry_after_server
+	_retry_after_server = []
+	for item in pending:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var kind := str(item.get("kind", ""))
+		if kind != "":
+			chats_response.emit(kind, {"error": message}, item.get("extra", {}))
 
 
 # ---------------------------------------------------------------------------

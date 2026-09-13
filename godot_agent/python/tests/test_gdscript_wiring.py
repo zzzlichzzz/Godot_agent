@@ -269,6 +269,28 @@ check(u"панель не спрашивает has_method у загруженн�
 check(u"панель берёт токен у узла ServerLink",
       "_link.project_token()" in panel)
 
+check(u"chat request привязан к открытому chat id",
+      '"chat_id": _current_chat_id' in panel)
+check(u"поле ввода очищается централизованно и возвращает фокус",
+      "func _clear_chat_input" in panel
+      and 'call_deferred("grab_focus")' in panel
+      and "_restore_chat_draft()" in panel)
+check(u"повтор после site mismatch привязан к chat generation",
+      "_site_resend_envelope" in panel
+      and "_chat_navigation_generation" in panel
+      and "_resend_after_open" not in panel)
+check(u"черновики разделены между чатами",
+      "_chat_drafts" in panel and "func _switch_chat_draft" in panel)
+check(u"ошибка сохранения transcript видна пользователю",
+      "transcript_warning" in panel)
+response_pos = link.find("chats_response.emit(kind, json, extra)")
+drain_pos = link.find('call_deferred("_drain_queue")', response_pos)
+check(u"очередь навигации запускается после передачи ответа панели",
+      response_pos >= 0 and drain_pos > response_pos)
+check(u"HTTP-ошибка навигации передаётся панели без автозапуска сервера",
+      "response_code != 200" in link
+      and "chats_response.emit(kind, failure, extra)" in link)
+
 # --- 8) Контекст живого редактора передаётся только как read-only снимок ---
 context_path = _os0.path.join(ADDON, "agent_editor_context.gd")
 check(u"сборщик контекста редактора существует", _os0.path.isfile(context_path))

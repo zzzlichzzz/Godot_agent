@@ -138,7 +138,9 @@ var _start_screen: Control = null
 var _pending_chat_prompt: String = ""
 var _pending_editor_context: Dictionary = {}
 var _editor_context_script = null
-var _resend_after_open: bool = false
+var _site_resend_envelope: Dictionary = {}
+var _chat_navigation_generation: int = 0
+var _chat_drafts: Dictionary = {}
 var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
 var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
 
@@ -899,6 +901,67 @@ func _set_ui_busy(busy: bool) -> void:
 			_view.hide_status()
 		_progress_inflight = false
 		_hide_stop_button()
+		if input_field and input_field.is_visible_in_tree():
+			input_field.call_deferred("grab_focus")
+			input_field.queue_redraw()
+
+
+func _clear_chat_input(reset_live: bool = true) -> void:
+	if input_field == null:
+		return
+	input_field.clear()
+	input_field.set_caret_line(0)
+	input_field.set_caret_column(0)
+	if input_field.has_method("deselect"):
+		input_field.call("deselect")
+	input_field.scroll_vertical = 0
+	input_field.scroll_horizontal = 0
+	input_field.queue_redraw()
+	if reset_live:
+		_live_seq += 1
+		_live_last_sent = "\u0000"
+		_live_dirty = true
+	if not _is_network_busy and input_field.is_visible_in_tree():
+		input_field.call_deferred("grab_focus")
+
+
+func _restore_chat_draft() -> void:
+	if input_field == null or _pending_chat_prompt.is_empty():
+		return
+	if input_field.text.is_empty():
+		input_field.text = _pending_chat_prompt
+		input_field.set_caret_line(max(0, input_field.get_line_count() - 1))
+		input_field.set_caret_column(input_field.get_line(input_field.get_caret_line()).length())
+		input_field.queue_redraw()
+	_live_dirty = true
+	input_field.call_deferred("grab_focus")
+
+
+func _finish_chat_send() -> void:
+	_pending_chat_prompt = ""
+	_pending_editor_context = {}
+	if _current_chat_id != "":
+		_chat_drafts.erase(_current_chat_id)
+
+
+func _switch_chat_draft(next_chat_id: String) -> void:
+	if input_field == null or next_chat_id == _current_chat_id:
+		return
+	var previous_draft := input_field.text
+	if previous_draft.is_empty() and not _pending_chat_prompt.is_empty():
+		previous_draft = _pending_chat_prompt
+	if _current_chat_id != "":
+		if previous_draft.is_empty():
+			_chat_drafts.erase(_current_chat_id)
+		else:
+			_chat_drafts[_current_chat_id] = previous_draft
+	input_field.text = str(_chat_drafts.get(next_chat_id, ""))
+	input_field.set_caret_line(max(0, input_field.get_line_count() - 1))
+	input_field.set_caret_column(input_field.get_line(input_field.get_caret_line()).length())
+	input_field.queue_redraw()
+	_live_seq += 1
+	_live_last_sent = "\u0000"
+	_live_dirty = true
 
 
 func _on_server_state_changed(running: bool) -> void:
@@ -1074,9 +1137,9 @@ func _on_send_pressed() -> void:
 	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
-	var user_text = input_field.text.strip_edges()
-	if user_text.is_empty(): return
-	input_field.text = ""
+	var user_text := input_field.text
+	if user_text.strip_edges().is_empty(): return
+	_clear_chat_input(true)
 	_rollback_force_next = false
 	_view.add_user_message(_escape_bbcode(user_text))
 	_view.add_system(_t("analyzing"))
@@ -1091,6 +1154,7 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	var headers = _json_headers()
 	var body = {
 		"prompt": prompt,
+		"chat_id": _current_chat_id,
 		"project_root": project_root,
 		"user_data_dir": OS.get_user_data_dir(),
 		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
@@ -1108,6 +1172,7 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	if err != OK:
 		_log_error(_t("err_send"))
 		_set_ui_busy(false)
+		_restore_chat_draft()
 
 
 func _capture_editor_context() -> Dictionary:
@@ -1747,6 +1812,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if json.has("site_mismatch") and bool(json.get("site_mismatch", false)):
 			_handle_site_mismatch(str(json.get("site", "")), str(json.get("prompt", "")))
 			return
+		if kind == "chat":
+			_finish_chat_send()
+			var transcript_warning := str(json.get("transcript_warning", ""))
+			if transcript_warning != "":
+				if _view:
+					_view.add_system(transcript_warning)
+				_notify(transcript_warning, "error")
 
 		if kind == "init":
 			_view.add_success(_t("reinit_done"))
@@ -2189,6 +2261,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		await get_tree().process_frame
 	else:
+		if kind == "chat":
+			_restore_chat_draft()
 		if kind == "runtime_check_bind":
 			if response_code in [400, 403, 409, 410, 413]:
 				_log_error("Сервер окончательно отклонил привязку локальной игровой проверки.")
@@ -2619,9 +2693,41 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 				_pending_view = ""
 				_start_screen.show_sites()
 		return
+	if json.has("error"):
+		var message := str(json.get("error", _t("srv_no_response")))
+		_log_error(message)
+		_notify(message, "error")
+		if kind == "open" or kind == "new":
+			_site_resend_envelope = {}
+			_restore_chat_draft()
+		return
 	var cur = json.get("current_id")
+	if cur != null and (kind == "open" or kind == "new"):
+		_switch_chat_draft(str(cur))
 	if cur != null:
 		_current_chat_id = str(cur)
+	if kind == "open" or kind == "new":
+		_chat_navigation_generation += 1
+		# Не стираем новый draft, набранный пока запрос навигации был в пути.
+		# Очищаем только действительно пустое/старое визуальное состояние.
+		if input_field == null or input_field.text.is_empty():
+			_clear_chat_input(true)
+		var keeps_resend := (kind == "open"
+			and not _site_resend_envelope.is_empty()
+			and bool(_site_resend_envelope.get("waiting_open", false))
+			and str(_site_resend_envelope.get("chat_id", "")) == _current_chat_id
+			and int(_site_resend_envelope.get("expected_generation", -1)) == _chat_navigation_generation)
+		if not keeps_resend:
+			if not _site_resend_envelope.is_empty():
+				var source_chat := str(_site_resend_envelope.get("chat_id", ""))
+				var source_prompt := str(_site_resend_envelope.get("prompt", ""))
+				if source_chat != "" and source_prompt != "":
+					_chat_drafts[source_chat] = source_prompt
+			_site_resend_envelope = {}
+			# Это завершение навигации, а не успешная отправка сообщения.
+			# Не удаляем восстановленный draft нового чата.
+			_pending_chat_prompt = ""
+			_pending_editor_context = {}
 	_fill_chat_list(json.get("chats", []))
 	if _start_screen:
 		_start_screen.set_chats(json.get("chats", []))
@@ -2646,15 +2752,29 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 		if warn != "":
 			_view.add_system(warn)
 			_notify(warn, "error")
+		var trimmed := int(json.get("transcript_trimmed", 0))
+		if trimmed > 0:
+			_view.add_system("Более старые сообщения этого чата не показаны: %d." % trimmed)
 		_enter_chat_ui()
 		# У чата по ключу API нет страницы в браузере: ждать её загрузки нечего,
 		# а ожидание ещё и 40 раз опросило бы /browser/status и закончилось
 		# ложным предупреждением «страница долго грузится».
 		if str(json.get("kind", "browser")) != "api":
 			_begin_page_wait()
-		if _resend_after_open:
-			_resend_after_open = false
-			_send_chat_raw(_pending_chat_prompt, true)
+		if warn != "" and not _site_resend_envelope.is_empty():
+			_site_resend_envelope = {}
+			_restore_chat_draft()
+			return
+		if (not _site_resend_envelope.is_empty()
+				and bool(_site_resend_envelope.get("waiting_open", false))
+				and str(_site_resend_envelope.get("chat_id", "")) == _current_chat_id
+				and int(_site_resend_envelope.get("expected_generation", -1)) == _chat_navigation_generation):
+			var resend := _site_resend_envelope.duplicate(true)
+			_site_resend_envelope = {}
+			_pending_editor_context = resend.get("editor_context", {})
+			_send_chat_raw(str(resend.get("prompt", "")), true)
+		elif not _site_resend_envelope.is_empty():
+			_site_resend_envelope = {}
 	elif kind == "new" and _view:
 		_clear_pending_action_state()
 		_view.clear()
@@ -2876,6 +2996,9 @@ func _enter_chat_ui() -> void:
 		_start_screen.visible = false
 	if has_node("VBoxContainer"):
 		$VBoxContainer.visible = true
+	if input_field:
+		input_field.call_deferred("grab_focus")
+		input_field.queue_redraw()
 
 
 func _apply_chatbar_texts() -> void:
@@ -2954,6 +3077,13 @@ func _on_start_load_chat(chat_id: String) -> void:
 
 func _handle_site_mismatch(site_name: String, prompt: String) -> void:
 	_pending_chat_prompt = prompt
+	_site_resend_envelope = {
+		"prompt": prompt,
+		"editor_context": _pending_editor_context.duplicate(true),
+		"chat_id": _current_chat_id,
+		"generation": _chat_navigation_generation,
+		"waiting_open": false,
+	}
 	# Карточкой в чате вместо модального окна. ВАЖНО: «Нет» здесь не отмена —
 	# запрос всё равно уходит, только без переключения страницы
 	# (см. _on_site_switch_no), поэтому колбэк обязателен.
@@ -2970,17 +3100,38 @@ func _handle_site_mismatch(site_name: String, prompt: String) -> void:
 
 
 func _on_site_switch_yes() -> void:
-	if _current_chat_id == "":
-		_send_chat_raw(_pending_chat_prompt, true)
+	if (_site_resend_envelope.is_empty()
+			or str(_site_resend_envelope.get("chat_id", "")) != _current_chat_id
+			or int(_site_resend_envelope.get("generation", -1)) != _chat_navigation_generation):
+		_log_error("Чат изменился; исходный запрос не был повторно отправлен.")
+		_site_resend_envelope = {}
+		_restore_chat_draft()
 		return
-	_resend_after_open = true
+	if _current_chat_id == "":
+		var direct := _site_resend_envelope.duplicate(true)
+		_site_resend_envelope = {}
+		_pending_editor_context = direct.get("editor_context", {})
+		_send_chat_raw(str(direct.get("prompt", "")), true)
+		return
+	_site_resend_envelope["waiting_open"] = true
+	_site_resend_envelope["expected_generation"] = _chat_navigation_generation + 1
 	_request_chats("open", {"id": _current_chat_id})
 
 
 func _on_site_switch_no() -> void:
 	if _view:
 		_view.add_system(_t("stay_on_page"))
-	_send_chat_raw(_pending_chat_prompt, true)
+	if (_site_resend_envelope.is_empty()
+			or str(_site_resend_envelope.get("chat_id", "")) != _current_chat_id
+			or int(_site_resend_envelope.get("generation", -1)) != _chat_navigation_generation):
+		_log_error("Чат изменился; исходный запрос не был повторно отправлен.")
+		_site_resend_envelope = {}
+		_restore_chat_draft()
+		return
+	var resend := _site_resend_envelope.duplicate(true)
+	_site_resend_envelope = {}
+	_pending_editor_context = resend.get("editor_context", {})
+	_send_chat_raw(str(resend.get("prompt", "")), true)
 
 
 # ---------------------------------------------------------------------------

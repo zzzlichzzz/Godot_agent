@@ -39,6 +39,9 @@ STATE = {
     # Теперь заметка помечается chat_id того чата, где произошло действие, и
     # отдаётся только этому же чату; см. queue_action_note/pop_action_note_for_current.
     "action_notes": {},
+    # Одноразовые сводки изменений принадлежат конкретному чату. Общая строка
+    # позволяла сводке старого чата попасть в только что созданный.
+    "stale_notes": {},
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
     "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
     "godot_executable": None,      # trusted editor executable path from OS.get_executable_path()
@@ -81,7 +84,10 @@ _holder = {"driver": None, "driver_error": None}
 # (вставка финального промпта, сверка v88.4, ожидание ответа).
 _exchange = {"count": 0}
 _exchange_lock = threading.Lock()
+_activity = {"exchange": False, "navigation": False}
 _runtime_request_lock = threading.RLock()
+_notes_lock = threading.RLock()
+_turn_context = threading.local()
 
 
 def claim_runtime_request(data):
@@ -238,6 +244,64 @@ def exchange_active():
         return _exchange["count"] > 0
 
 
+def try_begin_turn_exchange():
+    """Атомарно допускает один ход, исключая навигацию и второй ход."""
+    with _exchange_lock:
+        if _activity["exchange"] or _activity["navigation"]:
+            return False
+        _activity["exchange"] = True
+        _exchange["count"] += 1
+        _turn_context.owns_exchange = True
+        return True
+
+
+def try_begin_navigation():
+    """Атомарно резервирует смену чата, пока модель не обрабатывает ход."""
+    with _exchange_lock:
+        if _activity["exchange"] or _activity["navigation"]:
+            return False
+        _activity["navigation"] = True
+        _turn_context.owns_navigation = True
+        return True
+
+
+def clear_request_activity(_error=None):
+    with _exchange_lock:
+        if getattr(_turn_context, "owns_exchange", False):
+            _activity["exchange"] = False
+            _exchange["count"] = max(0, _exchange["count"] - 1)
+            del _turn_context.owns_exchange
+        if getattr(_turn_context, "owns_navigation", False):
+            _activity["navigation"] = False
+            del _turn_context.owns_navigation
+
+
+def begin_turn_transcript(chat_id):
+    _turn_context.transcript_chat_id = str(chat_id or "")
+    _turn_context.transcript_entries = []
+
+
+def commit_turn_transcript():
+    chat_id = getattr(_turn_context, "transcript_chat_id", "")
+    entries = getattr(_turn_context, "transcript_entries", None)
+    if chat_id and entries:
+        chat_store.append_transcript_entries(_chats_dir(), chat_id, entries)
+    discard_turn_transcript()
+
+
+def ensure_turn_agent_response(text):
+    entries = getattr(_turn_context, "transcript_entries", None)
+    if entries is None or not text or any(role == "agent" for role, _ in entries):
+        return
+    entries.append(("agent", str(text)))
+
+
+def discard_turn_transcript():
+    for name in ("transcript_chat_id", "transcript_entries"):
+        if hasattr(_turn_context, name):
+            delattr(_turn_context, name)
+
+
 def set_driver(d):
     _holder["driver"] = d
 
@@ -335,9 +399,28 @@ def _chats_dir():
     return STATE.get("user_data_dir")
 
 
+def bind_turn_chat(chat_id):
+    _turn_context.chat_id = str(chat_id or "")
+
+
+def clear_turn_chat(_error=None):
+    discard_turn_transcript()
+    if hasattr(_turn_context, "chat_id"):
+        del _turn_context.chat_id
+
+
+def turn_chat_id():
+    return getattr(_turn_context, "chat_id", "") or STATE.get("current_chat_id")
+
+
+def turn_chat_is_current():
+    cid = getattr(_turn_context, "chat_id", "")
+    return not cid or cid == STATE.get("current_chat_id")
+
+
 def get_current_chat():
     base = _chats_dir()
-    cid = STATE.get("current_chat_id")
+    cid = turn_chat_id()
     if not base or not cid:
         return None
     return chat_store.find_chat(base, cid)
@@ -399,13 +482,17 @@ def _ensure_current_chat(first_prompt=""):
 def _remember(role, text):
     """Дописывает реплику в сохранённый диалог текущего чата."""
     base = _chats_dir()
-    cid = STATE.get("current_chat_id")
+    cid = turn_chat_id()
     if not base or not cid or not text:
+        return
+    entries = getattr(_turn_context, "transcript_entries", None)
+    if entries is not None and getattr(_turn_context, "transcript_chat_id", "") == cid:
+        entries.append((role, text))
         return
     try:
         chat_store.append_transcript(base, cid, role, text)
-    except Exception:
-        pass
+    except Exception as exc:
+        print("[chat_store] Не удалось сохранить реплику: %s" % exc)
 
 
 def queue_action_note(note, chat_id=None):
@@ -417,25 +504,80 @@ def queue_action_note(note, chat_id=None):
     cid = chat_id or STATE.get("current_chat_id")
     if not cid:
         return
-    STATE.setdefault("action_notes", {})[cid] = note
+    with _notes_lock:
+        STATE.setdefault("action_notes", {})[cid] = note
 
 
 def pop_action_note_for_current():
     """v45: возвращает и убирает заметку ТОЛЬКО для текущего активного чата.
     Заметки других чатов при этом НЕ трогаются и остаются дожидаться своих
     собственных чатов (а не любого, кто первым отправит сообщение)."""
-    cid = STATE.get("current_chat_id")
-    notes = STATE.get("action_notes") or {}
-    if not cid or cid not in notes:
-        return ""
-    return notes.pop(cid) or ""
+    cid = turn_chat_id()
+    with _notes_lock:
+        notes = STATE.get("action_notes") or {}
+        if not cid or cid not in notes:
+            return ""
+        return notes.pop(cid) or ""
+
+
+def peek_action_note_for_current():
+    cid = turn_chat_id()
+    with _notes_lock:
+        return ((STATE.get("action_notes") or {}).get(cid) or "") if cid else ""
+
+
+def consume_action_note_for_current(expected):
+    cid = turn_chat_id()
+    with _notes_lock:
+        notes = STATE.get("action_notes") or {}
+        if cid and notes.get(cid) == expected:
+            notes.pop(cid, None)
 
 
 def discard_action_note_for_chat(chat_id):
     """v45: убирает (без выдачи) отложенную заметку конкретного чата —
     используется при удалении чата, чтобы словарь заметок не рос бесконечно."""
-    notes = STATE.get("action_notes") or {}
-    notes.pop(chat_id, None)
+    with _notes_lock:
+        notes = STATE.get("action_notes") or {}
+        notes.pop(chat_id, None)
+
+
+def queue_stale_note(chat_id, note):
+    if chat_id and note:
+        with _notes_lock:
+            notes = STATE.setdefault("stale_notes", {})
+            existing = str(notes.get(chat_id) or "")
+            if not existing:
+                notes[chat_id] = note
+            elif note not in existing:
+                notes[chat_id] = existing + "\n\n" + note
+
+
+def pop_stale_note_for_current():
+    cid = turn_chat_id()
+    if not cid:
+        return ""
+    with _notes_lock:
+        return (STATE.get("stale_notes") or {}).pop(cid, "") or ""
+
+
+def peek_stale_note_for_current():
+    cid = turn_chat_id()
+    with _notes_lock:
+        return ((STATE.get("stale_notes") or {}).get(cid) or "") if cid else ""
+
+
+def consume_stale_note_for_current(expected):
+    cid = turn_chat_id()
+    with _notes_lock:
+        notes = STATE.get("stale_notes") or {}
+        if cid and notes.get(cid) == expected:
+            notes.pop(cid, None)
+
+
+def discard_stale_note_for_chat(chat_id):
+    with _notes_lock:
+        (STATE.get("stale_notes") or {}).pop(chat_id, None)
 
 
 def clear_pending_confirmations():
@@ -459,7 +601,7 @@ def clear_pending_confirmations():
 def _sync_chat_after_reply():
     """После ответа обновляет URL страницы и флаг primed текущего чата."""
     base = _chats_dir()
-    cid = STATE.get("current_chat_id")
+    cid = turn_chat_id()
     if not base or not cid:
         return
     rec = chat_store.find_chat(base, cid)
