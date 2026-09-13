@@ -1858,7 +1858,9 @@ class BaseSiteParser:
         contenteditable-поля меняют переводы строк/пробелы (<br>, NBSP)
         при вставке, поэтому дословное сравнение давало бы ложные «не совпало»."""
         def _norm(s):
-            return u"".join((s or u"").split())
+            value = (s or u"").replace(u"\r\n", u"\n").replace(u"\r", u"\n")
+            value = value.replace(u"\u00a0", u" ")
+            return value[:-1] if value.endswith(u"\n") else value
         return _norm(field_text) == _norm(prompt)
 
     def _field_text_too_short(self, field_text, prompt):
@@ -3041,7 +3043,6 @@ class BaseSiteParser:
             except (JavascriptException, StaleElementReferenceException):
                 el = self.find_input(driver)
             time.sleep(0.3)
-        _as_is = False
         if not inserted and (_mismatch_val or "").strip():
             if self._field_text_too_short(_mismatch_val, prompt):
                 # v104.8: в поле явно НЕ наш текст (обрезок недоехавшей вставки
@@ -3060,24 +3061,15 @@ class BaseSiteParser:
                     self._log("финальная вставка не удалась: %s" % _e_fin)
                 if not inserted:
                     _val_fin = self._read_input_text(driver, el)
-                    if ((_val_fin or "").strip()
-                            and not self._field_text_too_short(_val_fin, prompt)):
-                        self._log("после финальной вставки длина сопоставима — "
-                                  "отправляю как есть (v104.8).")
-                        inserted = True
-                        _as_is = True
-                    else:
-                        self._log("«как есть» НЕ отправляю: в поле обрезок/чужой текст "
-                                  "(%d симв. вместо %d; v104.8)."
-                                  % (len(_val_fin or u""), len(prompt or u"")))
+                    self._log("текст после финальной вставки не совпал с prompt — "
+                              "отправку блокирую (%d симв. вместо %d)."
+                              % (len(_val_fin or u""), len(prompt or u"")))
             else:
-                # v88.4: поле непустое, длина сопоставима, но текст так и не совпал:
-                # некоторые поля меняют отображение текста (разметка) — не роняем
-                # отправку, но предупреждаем в логе.
+                # Сопоставимая длина не доказывает равенство: это может быть
+                # старый prompt или его обрезок. Единственное допустимое
+                # несовпадение — подтверждённое attachment выше.
                 self._log("текст в поле так и не совпал с отправляемым после всех попыток — "
-                          "отправляю как есть (возможно, поле меняет отображение текста; v88.4).")
-                inserted = True
-                _as_is = True
+                          "отправку блокирую.")
         if not inserted:
             raise Exception("Не удалось вставить текст в поле ввода (%s)." % self.LOG_TAG)
         # v105: сайт превратил вставку во вложение (kimi: >4000 байт уезжает в
@@ -3094,7 +3086,7 @@ class BaseSiteParser:
         # v104.8: контрольная сверка ПЕРЕД самой отправкой: медленная вставка
         # могла «доехать» и подменить содержимое поля уже ПОСЛЕ проверки
         # (репорт 24.07: qwen), либо текст изменило живое зеркало ввода.
-        if not _as_is and not getattr(self, "_insert_became_attachment", False):
+        if not getattr(self, "_insert_became_attachment", False):
             _val_pre = self._read_input_text(driver, el)
             if not self._insert_text_matches(_val_pre, prompt):
                 self._log("поле изменилось после проверки (поздняя вставка?) — "
@@ -3108,10 +3100,14 @@ class BaseSiteParser:
                 except Exception as _e_re:
                     self._log("восстановление текста перед отправкой не удалось: %s" % _e_re)
                 _val_pre = self._read_input_text(driver, el)
-                if self._field_text_too_short(_val_pre, prompt):
+                if not self._insert_text_matches(_val_pre, prompt):
                     raise Exception("Поле ввода подменилось перед отправкой, восстановить "
                                     "текст не удалось (%s)." % self.LOG_TAG)
         self.before_submit(driver, el)
+        if not getattr(self, "_insert_became_attachment", False):
+            el = self.find_input(driver) or el
+            if not self._insert_text_matches(self._read_input_text(driver, el), prompt):
+                raise Exception("Поле ввода изменилось перед submit (%s)." % self.LOG_TAG)
         # v51: снимок ПОСЛЕДНЕГО ответа модели ДО отправки — для анти-дубля
         # (защита от возврата СТАРОГО сообщения вместо нового ответа).
         _pre = self.extract_answer_snapshot(driver) or {}  # v88.3: быстрый снимок, без ожидания докачки
@@ -3121,8 +3117,15 @@ class BaseSiteParser:
             self.submit(driver, el)
         except StaleElementReferenceException:
             el = self.find_input(driver)
-            if el:
-                self.submit(driver, el)
+            if not el:
+                raise Exception("Поле ввода исчезло перед повтором submit (%s)."
+                                % self.LOG_TAG)
+            if (not getattr(self, "_insert_became_attachment", False)
+                    and not self._insert_text_matches(
+                        self._read_input_text(driver, el), prompt)):
+                raise Exception("Поле ввода подменилось перед повтором submit (%s)."
+                                % self.LOG_TAG)
+            self.submit(driver, el)
         self.after_submit(driver, el)
         sent = self.confirm_sent(driver, el)
         # Сообщение могло не уйти из-за временного глюка сайта (особенно на больших сообщениях/вложениях) —
@@ -3138,6 +3141,11 @@ class BaseSiteParser:
             try:
                 el = self.find_input(driver) or el
                 self.before_submit(driver, el)
+                if (not getattr(self, "_insert_became_attachment", False)
+                        and not self._insert_text_matches(
+                            self._read_input_text(driver, el), prompt)):
+                    raise Exception("Поле ввода изменилось перед повторным submit (%s)."
+                                    % self.LOG_TAG)
                 self.submit(driver, el)
                 self.after_submit(driver, el)
             except (JavascriptException, StaleElementReferenceException) as e:

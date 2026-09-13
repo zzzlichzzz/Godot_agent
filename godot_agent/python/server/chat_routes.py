@@ -28,7 +28,8 @@ chats_bp = Blueprint("chats", __name__)
 def _busy_error():
     """Пока идёт обработка запроса, браузер занят парсером — навигация по
     чатам привела бы к вечной загрузке. Возвращаем понятную ошибку."""
-    if (S.STATE.get("progress") or {}).get("active"):
+    if ((S.STATE.get("progress") or {}).get("active")
+            or not S.try_begin_navigation()):
         return jsonify({"error": "Агент сейчас обрабатывает запрос — браузер занят. "
                                  "Дождитесь ответа или нажмите «Стоп»."}), 409
     return None
@@ -65,7 +66,7 @@ def _navigate(driver, url):
                 found = True
                 break
         if found:
-            return
+            return True
         driver.switch_to.window(cur_handle)
     except Exception:
         pass
@@ -75,7 +76,7 @@ def _navigate(driver, url):
         pass
     try:
         driver.execute_script("window.location.href = arguments[0];", url)
-        return
+        return True
     except Exception:
         pass
     # Фолбэк: обычная навигация с ограничением по времени, чтобы не зависнуть.
@@ -85,8 +86,9 @@ def _navigate(driver, url):
         pass
     try:
         driver.get(url)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def _check_chat_page(driver, url, wait=6.0):
@@ -749,7 +751,7 @@ def _new_api_chat(data, base):
     S.STATE["is_primed"] = False
     S._save_primed(S.STATE.get("project_root"), False)
     S.clear_pending_confirmations()
-    S.STATE["stale_note"] = ""
+    S.discard_stale_note_for_chat(rec["id"])
     api_history.clear(base, rec["id"])
     chat_store.append_transcript(
         base, rec["id"], "system",
@@ -791,6 +793,9 @@ def chats_model():
     сервера, и осмысленный текст отказа пользователь бы просто не увидел. Код
     400 остаётся для запросов, которые панель сформировать не может вовсе.
     """
+    busy = _busy_error()
+    if busy:
+        return busy
     data = request.json or {}
     base = S._chats_dir()
     cid = S.STATE.get("current_chat_id")
@@ -933,7 +938,8 @@ def chats_new():
     except Exception as e:
         return jsonify({"error": str(e)}), 503
     try:
-        _navigate(driver, target_url)
+        if not _navigate(driver, target_url):
+            return jsonify({"error": "Не удалось открыть новую страницу чата."}), 503
         time.sleep(1.5)
     except Exception as e:
         return jsonify({"error": "Не удалось открыть новую страницу: %s" % e}), 500
@@ -951,7 +957,7 @@ def chats_new():
     S.STATE["is_primed"] = False
     S._save_primed(S.STATE.get("project_root"), False)
     S.clear_pending_confirmations()
-    S.STATE["stale_note"] = ""  # новый чат праймится свежим деревом — сводка не нужна
+    S.discard_stale_note_for_chat(rec["id"])
     # v48: первое сообщение нового чата — системное напоминание выбрать модель.
     chat_store.append_transcript(base, rec["id"], "system",
         "Не забудьте выбрать нейросеть (модель) на странице в браузере, прежде чем отправлять первое сообщение.")
@@ -980,12 +986,17 @@ def chats_open():
         except Exception as e:
             return jsonify({"error": str(e)}), 503
         try:
-            _navigate(driver, rec["url"])
+            if not _navigate(driver, rec["url"]):
+                return jsonify({"error": "Не удалось открыть страницу сохранённого чата."}), 503
         except Exception as e:
             return jsonify({"error": "Не удалось открыть страницу чата: %s" % e}), 500
         page_note = _check_chat_page(driver, rec["url"])
         if page_note:
             print("--> ВНИМАНИЕ:", page_note)
+            # Не переключаем серверный current_chat_id на чат, страницу
+            # которого браузер фактически не открыл. Иначе следующий resend
+            # с ignore_site_mismatch попадёт в чужой composer.
+            return jsonify({"error": page_note, "code": "chat_page_mismatch"}), 409
     S.STATE["current_chat_id"] = cid
     S.STATE["current_site_id"] = rec.get("site_id")
     S.STATE["is_primed"] = bool(rec.get("primed"))
@@ -996,13 +1007,12 @@ def chats_open():
     # Сводка «что изменилось в проекте, пока чат был неактивен» — уйдёт
     # модели вместе со СЛЕДУЮЩИМ сообщением пользователя. Защита от полотна —
     # внутри summarize_changes_since (лимит строк / короткий абзац).
-    S.STATE["stale_note"] = ""
     _root = S.STATE.get("project_root")
     if _root:
         try:
             _note = history.summarize_changes_since(_root, prev_used, exclude_chat_id=cid)
             if _note:
-                S.STATE["stale_note"] = _note
+                S.queue_stale_note(cid, _note)
                 print("--> Подготовлена сводка изменений проекта для чата (%d симв.)" % len(_note))
         except Exception:
             pass
@@ -1016,9 +1026,10 @@ def chats_open():
                      # напоминать про выбор модели на сайте.
                      "kind": S.chat_kind(rec),
                      "provider": rec.get("provider", ""),
-                     "model": rec.get("model", ""),
-                     "warning": page_note,
-                    "transcript": rec.get("transcript", [])})
+                      "model": rec.get("model", ""),
+                      "warning": page_note,
+                      "transcript_trimmed": int(rec.get("transcript_trimmed") or 0),
+                      "transcript": rec.get("transcript", [])})
 
 
 @chats_bp.route('/chats/rename', methods=['POST'])
@@ -1046,16 +1057,15 @@ def chats_delete():
     cid = (data.get("id") or "").strip()
     if not base or not cid:
         return jsonify({"error": "Нужен id."}), 400
-    # История API-чата лежит отдельным файлом — убираем вместе с чатом, иначе
-    # папка копит переписки уже несуществующих чатов.
-    if not api_history.delete(base, cid):
-        return jsonify({"error": "Не удалось удалить историю API-чата с диска."}), 500
     if not chat_store.delete_chat(base, cid):
         return jsonify({"error": "Чат не найден или его не удалось удалить с диска."}), 404
+    if not api_history.delete(base, cid):
+        print("[chat_store] Не удалось удалить осиротевшую API-историю чата %s" % cid)
     # Журнал отката хранит изменения файлов отдельно от переписки. Сам откат
     # сохраняем, но убираем id и название удалённого чата.
     history.forget_chat(S.STATE.get("project_root"), cid)
     S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
+    S.discard_stale_note_for_chat(cid)
     if S.STATE.get("current_chat_id") == cid:
         S.clear_pending_confirmations()
         S.STATE["current_chat_id"] = None

@@ -146,6 +146,28 @@ import server_auth
 
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
+app.teardown_request(server_state.clear_turn_chat)
+app.teardown_request(server_state.clear_request_activity)
+
+_CHAT_CONTINUATION_PATHS = {
+    "/chat/confirm_action", "/chat/editor_action/result",
+    "/chat/runtime_inspect/result", "/chat/runtime_check/bind",
+    "/chat/runtime_check/result",
+    "/chat/rollback/preview", "/chat/rollback",
+    "/chat/plan/step", "/chat/plan/stop",
+    "/chat/plan/rollback_chain", "/project/send_log_errors",
+}
+
+
+@app.before_request
+def _admit_chat_continuation():
+    """Serialize stateful continuations with user turns and navigation."""
+    if request.path not in _CHAT_CONTINUATION_PATHS:
+        return None
+    if server_state.try_begin_turn_exchange():
+        return None
+    return jsonify({"error": "Агент уже обрабатывает другой запрос или переключает чат.",
+                    "code": "busy"}), 409
 _EDITOR_ACTION_RESULTS = {}
 _RUNTIME_CHECK_RESULTS = {}
 # Проверка источника запросов. Что она даёт и чего НЕ даёт — в докстринге
@@ -162,7 +184,7 @@ def _current_parser():
     site_id = None
     try:
         base = server_state._chats_dir()
-        cid = STATE.get("current_chat_id")
+        cid = server_state.turn_chat_id()
         if base and cid:
             rec = chat_store.find_chat(base, cid) or {}
             site_id = rec.get("site_id")
@@ -2044,6 +2066,21 @@ def chat():
     data = request.json or {}
     prompt = data.get('prompt', '')
     project_root = data.get('project_root')
+    old_fs_snapshot = STATE.get("fs_snapshot")
+    old_fs_snapshot_root = STATE.get("fs_snapshot_root")
+
+    if not server_state.try_begin_turn_exchange():
+        return jsonify({"error": "Агент уже обрабатывает запрос или переключает чат.",
+                        "code": "busy"}), 409
+
+    requested_chat_id = str(data.get("chat_id") or "").strip()
+    current_chat_id = str(STATE.get("current_chat_id") or "")
+    if requested_chat_id and requested_chat_id != current_chat_id:
+        return jsonify({"error": "Открытый чат изменился до отправки сообщения.",
+                        "code": "chat_changed"}), 409
+    turn_chat_id = requested_chat_id or current_chat_id
+    if turn_chat_id:
+        server_state.bind_turn_chat(turn_chat_id)
 
     if STATE["pending_action"] is not None:
         return jsonify({"error": "Есть неподтверждённое действие агента."}), 409
@@ -2051,6 +2088,11 @@ def chat():
         return jsonify({"error": "Есть неподтверждённые запросы файлов агента."}), 409
 
     _apply_session_context(data)
+    if requested_chat_id:
+        base = server_state._chats_dir()
+        if not base or chat_store.find_chat(base, requested_chat_id) is None:
+            return jsonify({"error": "Чат для отправки сообщения не найден.",
+                            "code": "chat_not_found"}), 404
     STATE["editor_context"] = editor_context.normalize_snapshot(
         data.get("editor_context"))
     reset_runtime_turn(runtime_debug.normalize_status(data.get("runtime_status")), increment=True)
@@ -2071,7 +2113,12 @@ def chat():
     # задаётся заново на каждое такое сообщение, а не один раз, чтобы доступ к аддонам не застревал навсегда.
     STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
-    _ensure_current_chat(prompt)
+    ensured_chat = _ensure_current_chat(prompt)
+    if not turn_chat_id and ensured_chat is not None:
+        turn_chat_id = str(ensured_chat.get("id") or "")
+        if turn_chat_id:
+            server_state.bind_turn_chat(turn_chat_id)
+    server_state.begin_turn_transcript(turn_chat_id)
     # Страховка: если история ТЕКУЩЕГО чата пуста — это первое сообщение,
     # и мега-промпт нужен ВСЕГДА: глобальный флаг мог остаться от старого чата
     # или подгрузиться с диска при /init уже ПОСЛЕ создания нового чата.
@@ -2096,16 +2143,15 @@ def chat():
     try:
         # v45: заметка отдаётся только тому же чату, где произошло действие/откат —
         # другие чаты (в т.ч. только созданные) её НЕ видят.
-        note = server_state.pop_action_note_for_current()
+        note = server_state.peek_action_note_for_current()
         if note:
             prompt = f"{note}\n\n{prompt}"
 
         # Сводка «что изменилось, пока чат был неактивен» (готовится при
         # открытии чата, отправляется ОДИН раз с первым сообщением).
-        stale = STATE.get("stale_note", "")
+        stale = server_state.peek_stale_note_for_current()
         if stale:
             prompt = f"{stale}\n\n{prompt}"
-            STATE["stale_note"] = ""
 
         # Файлы, изменённые ВНЕ агента (пользователь удалил сцену, поменял
         # скрипт руками...) — модель узнаёт об этом вместе с этим сообщением.
@@ -2158,9 +2204,50 @@ def chat():
             print(f"\n---> Отправка сообщения ({len(prompt)} симв.)")
             text, action = _reply_with_self_heal(prompt, current_root)
 
-        return _attach_battle_choice(
+        packaged = _attach_battle_choice(
             _package_model_reply(text, action, current_root))
+        packaged_status = (int(packaged[1]) if isinstance(packaged, tuple)
+                           and len(packaged) > 1 else
+                           int(getattr(packaged, "status_code", 200) or 200))
+        if packaged_status >= 400:
+            server_state.discard_turn_transcript()
+            STATE["fs_snapshot"] = old_fs_snapshot
+            STATE["fs_snapshot_root"] = old_fs_snapshot_root
+            return packaged
+        try:
+            visible_payload = (packaged[0].get_json(silent=True)
+                               if isinstance(packaged, tuple)
+                               else packaged.get_json(silent=True))
+        except Exception:
+            visible_payload = None
+        if isinstance(visible_payload, dict):
+            server_state.ensure_turn_agent_response(visible_payload.get("answer"))
+        try:
+            server_state.commit_turn_transcript()
+        except Exception as persist_error:
+            # Модель уже приняла запрос и pending action мог быть подготовлен.
+            # Ошибка HTTP восстановила бы draft и продублировала его на сайте/API.
+            # Возвращаем принятый результат, но явно сообщаем, что локальная
+            # история не сохранена: скрытая потеря хуже видимого предупреждения.
+            server_state.discard_turn_transcript()
+            print("❌ Не удалось сохранить transcript принятого хода: %s" % persist_error)
+            if isinstance(visible_payload, dict):
+                visible_payload["transcript_persisted"] = False
+                visible_payload["transcript_warning"] = (
+                    "Ответ получен, но локальную историю чата сохранить не удалось. "
+                    "Не закрывайте этот чат до исправления доступа к диску.")
+                return jsonify(visible_payload)
+            return packaged
+        server_state.consume_action_note_for_current(note)
+        server_state.consume_stale_note_for_current(stale)
+        if not server_state.turn_chat_is_current():
+            server_state.clear_pending_confirmations()
+            return jsonify({"error": "Чат изменился во время обработки; ответ сохранён в исходном чате.",
+                            "code": "chat_changed"}), 409
+        return packaged
     except Exception as e:
+        STATE["fs_snapshot"] = old_fs_snapshot
+        STATE["fs_snapshot_root"] = old_fs_snapshot_root
         print(f"❌ ОШИБКА: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -2530,6 +2617,7 @@ def confirm_action():
             return jsonify({"error": f"Неизвестный тип действия: {act_type}"}), 400
 
     except Exception as e:
+        server_state.discard_turn_transcript()
         if not (act_type == "transaction" and isinstance(STATE.get("pending_transaction"), dict)
                 and STATE["pending_transaction"].get("state") == "recovery_required"):
             STATE["pending_transaction"] = None
@@ -3328,13 +3416,10 @@ def send_log_errors():
     report = STATE.get("pending_log_report")
     if not report:
         return jsonify({"error": "Нет подготовленного отчёта. Нажмите «Ошибки запуска» заново."}), 400
-    STATE["pending_log_report"] = None
     project_root = STATE.get("project_root")
     try:
-        # Фиксируем отпечаток ДО отправки: этот же лог больше не отправить.
-        log_reader.save_sent_fingerprint(history.get_storage_dir(project_root), report["fingerprint"])
         message = log_reader.format_report(report)
-        note = server_state.pop_action_note_for_current()  # v45: только заметка своего чата
+        note = server_state.peek_action_note_for_current()
         if note:
             message = f"{note}\n\n{message}"
         # v104.2: сверка с записью чата — как в /chat (не шлём мега-промпт
@@ -3351,6 +3436,17 @@ def send_log_errors():
             message = f"{system_context}\n\n{message}"
         print(f"--> Отправка отчёта об ошибках запуска ({len(message)} симв.)")
         text, action = _reply_with_self_heal(message, project_root)
+        packaged = _package_model_reply(text, action, project_root)
+        status = (int(packaged[1]) if isinstance(packaged, tuple)
+                  and len(packaged) > 1 else
+                  int(getattr(packaged, "status_code", 200) or 200))
+        if status >= 400:
+            return packaged
+        # Одноразовое состояние потребляем только после принятого ответа.
+        STATE["pending_log_report"] = None
+        log_reader.save_sent_fingerprint(
+            history.get_storage_dir(project_root), report["fingerprint"])
+        server_state.consume_action_note_for_current(note)
         if _need_prime:
             # v104.2: флаг — только ПОСЛЕ успешной отправки, и теперь он ещё и
             # сохраняется (раньше здесь не было ни _save_primed, ни
@@ -3358,7 +3454,7 @@ def send_log_errors():
             STATE["is_primed"] = True
             _save_primed(project_root, True)
             server_state.mark_chat_prompt_version()
-        return _package_model_reply(text, action, project_root)
+        return packaged
     except Exception as e:
         print(f"❌ ОШИБКА send_log_errors: {e}")
         traceback.print_exc()

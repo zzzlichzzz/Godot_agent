@@ -192,11 +192,76 @@ def test_no_regen_keeps_old_timeout_behavior():
     raise AssertionError("ожидался TimeoutError, как до v87.9")
 
 
+class _FakeMismatchedComposerParser(_FakeRegenParser):
+    SEND_RETRIES = 1
+
+    def __init__(self):
+        super().__init__()
+        self.submit_calls = 0
+
+    def insert_input(self, driver, el, prompt):
+        # Сайт оставил старую сводку сопоставимой длины вместо нового prompt.
+        driver.field_text = "Сводка старого чата, которую нельзя отправлять"
+
+    def _wait_field_matches(self, driver, el, prompt, timeout):
+        return False
+
+    def submit(self, driver, el):
+        self.submit_calls += 1
+
+
+def test_mismatched_composer_is_never_submitted():
+    p = _FakeMismatchedComposerParser()
+    d = _FakeDriver()
+    try:
+        p.send_message_and_get_response(d, "Новый пользовательский запрос другой длины")
+    except Exception as exc:
+        assert "Не удалось вставить текст" in str(exc), exc
+    else:
+        raise AssertionError("несовпадающий composer должен блокировать отправку")
+    assert p.submit_calls == 0, "чужой composer text не должен быть отправлен"
+
+
+def test_composer_whitespace_is_semantic():
+    parser = _FakeMismatchedComposerParser()
+    assert parser._insert_text_matches("a b", "ab") is False
+    assert parser._insert_text_matches("line 1\n  code", "line 1\ncode") is False
+    assert parser._insert_text_matches("line\r\n", "line\n") is True
+    assert parser._insert_text_matches("a\u00a0b", "a b") is True
+
+
+class _FakeStaleSubmitParser(_FakeRegenParser):
+    def __init__(self):
+        super().__init__()
+        self.submit_calls = 0
+
+    def submit(self, driver, el):
+        self.submit_calls += 1
+        if self.submit_calls == 1:
+            driver.field_text = "чужой текст после замены DOM"
+            raise StaleElementReferenceException("composer replaced")
+
+
+def test_stale_composer_replacement_is_never_submitted():
+    parser = _FakeStaleSubmitParser()
+    driver = _FakeDriver()
+    try:
+        parser.send_message_and_get_response(driver, "ожидаемый prompt")
+    except Exception as exc:
+        assert "подменилось" in str(exc), exc
+    else:
+        raise AssertionError("заменённый composer не должен отправляться повторно")
+    assert parser.submit_calls == 1
+
+
 def _run_all():
     tests = [
         test_regen_after_timeout,
         test_regen_after_empty_answer,
         test_no_regen_keeps_old_timeout_behavior,
+        test_mismatched_composer_is_never_submitted,
+        test_composer_whitespace_is_semantic,
+        test_stale_composer_replacement_is_never_submitted,
     ]
     failed = 0
     for t in tests:
