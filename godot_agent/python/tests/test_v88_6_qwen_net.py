@@ -212,6 +212,34 @@ def test_fs_old_format_snapshot_compat():
     assert changed == ["a.gd"], changed  # без хэша с обеих сторон — по mtime+size
 
 
+def test_fs_generated_uid_sidecars_are_silent():
+    import project_tools as pt
+    root = tempfile.mkdtemp(prefix="fsuid_")
+    try:
+        with open(os.path.join(root, "player.gd"), "w") as fh:
+            fh.write("extends Node\n")
+        before = pt.snapshot_files(root)
+        with open(os.path.join(root, "player.gd.uid"), "w") as fh:
+            fh.write("uid://generated\n")
+        after_uid = pt.snapshot_files(root, prev=before)
+        assert pt.diff_snapshots(before, after_uid) == ([], [], [])
+
+        with open(os.path.join(root, "player.gd"), "a") as fh:
+            fh.write("var hp = 10\n")
+        after_code = pt.snapshot_files(root, prev=after_uid)
+        added, changed, deleted = pt.diff_snapshots(after_uid, after_code)
+        assert changed == ["player.gd"], (added, changed, deleted)
+
+        # Old snapshots and direct callers are filtered as well.
+        note = pt.format_fs_changes(
+            ["new.gd.uid", "new.gd"], ["old.gd.uid"], ["gone.gd.uid"])
+        assert "res://new.gd" in note
+        assert ".uid" not in note
+        assert pt.format_fs_changes(["only.gd.uid"], [], []) == ""
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def _run_all():
     tests = [
         test_sse_full_decode_and_apply,
@@ -220,6 +248,7 @@ def _run_all():
         test_net_text_splits_action,
         test_fs_resave_not_reported,
         test_fs_old_format_snapshot_compat,
+        test_fs_generated_uid_sidecars_are_silent,
     ]
     failed = 0
     for fn in tests:

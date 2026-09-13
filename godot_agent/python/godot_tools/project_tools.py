@@ -20,6 +20,11 @@ EXCLUDED_FILES = {'.DS_Store'}
 HISTORY_DIR_NAME = ".agent_history"
 
 
+def _is_generated_sidecar(path):
+    """Godot-managed sidecars are useful locally but only add model noise."""
+    return str(path or '').replace('\\', '/').lower().endswith('.uid')
+
+
 def exclude_agent_addon_dirs(addon_dir):
     """v104.3: исключает папку САМОГО плагина из дерева проекта, сводки,
     search_project и снапшота внешних изменений (все они фильтруют обход по
@@ -69,7 +74,7 @@ def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=No
         if rel != '.':
             lines.append(f"{indent}{os.path.basename(dirpath)}/")
         for f in sorted(filenames):
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             if only_exts is not None and os.path.splitext(f)[1].lower() not in only_exts:
                 continue
@@ -441,7 +446,7 @@ def build_project_overview(project_root, only_exts=None, max_entries=None, compa
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         for f in filenames:
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             if only_exts is not None and os.path.splitext(f)[1].lower() not in only_exts:
                 continue
@@ -457,7 +462,7 @@ def build_project_overview(project_root, only_exts=None, max_entries=None, compa
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
         for f in sorted(filenames):
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             ext = os.path.splitext(f)[1].lower() or '(без расширения)'
             if rel == '.':
@@ -675,7 +680,7 @@ def snapshot_files(project_root, prev=None):
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         for f in filenames:
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             abs_path = os.path.join(dirpath, f)
             try:
@@ -718,6 +723,11 @@ def format_fs_changes(added, changed, deleted, limit=12, diffs=None):
     diffs: {rel_path: (diff_text, n_lines)} — точечные diff для изменённых
     файлов, чьё старое содержимое модель уже видела: ей НЕ нужно
     перечитывать весь файл заново (экономия токенов)."""
+    # Filter defensively as callers may still hold snapshots made before
+    # generated Godot sidecars were excluded from snapshot_files().
+    added = [p for p in added if not _is_generated_sidecar(p)]
+    changed = [p for p in changed if not _is_generated_sidecar(p)]
+    deleted = [p for p in deleted if not _is_generated_sidecar(p)]
     if not (added or changed or deleted):
         return ''
     diffs = diffs or {}
