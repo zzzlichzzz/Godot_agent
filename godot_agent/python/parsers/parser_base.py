@@ -1355,12 +1355,40 @@ _ACTION_SYNONYMS = {
 _DEST_SYNONYMS = (u"destination", u"new_path", u"dest_path", u"target", u"to")
 _READ_ACTIONS = (u"read_file", u"read_files", u"read_function")
 _TEXT_LIST_FIELDS = (u"content", u"search", u"replace")
+_ACTION_WRAPPERS = (u"arguments", u"input", u"tool_input")
+
+
+def _unwrap_action_wrapper(obj, fixes):
+    """Разворачивает только одну однозначную tool-call обёртку."""
+    if not isinstance(obj, dict) or obj.get(u"action"):
+        return obj
+    wrappers = [key for key in _ACTION_WRAPPERS if isinstance(obj.get(key), dict)]
+    if len(wrappers) != 1:
+        return obj
+    wrapper = wrappers[0]
+    if set(obj) - {wrapper, u"tool_name", u"name"}:
+        return obj
+    nested = dict(obj[wrapper])
+    tool_name = obj.get(u"tool_name") or obj.get(u"name")
+    if tool_name is not None and not isinstance(tool_name, str):
+        return obj
+    if not nested.get(u"action"):
+        if not tool_name:
+            return obj
+        nested[u"action"] = tool_name
+    elif tool_name:
+        inner = str(nested[u"action"]).strip().lower().replace(u"-", u"_").replace(u" ", u"_")
+        outer = str(tool_name).strip().lower().replace(u"-", u"_").replace(u" ", u"_")
+        if _ACTION_SYNONYMS.get(inner, inner) != _ACTION_SYNONYMS.get(outer, outer):
+            return obj
+    fixes.append(u"обёртка %s -> action" % wrapper)
+    return nested
 
 
 def _coerce_one_action(d, fixes, prefix):
     """v86.21: мягкое приведение ОДНОГО действия к схеме (in-place).
-    Только безопасные однозначные починки; старые поля НЕ удаляются
-    (лишние ключи безвредны, а потерять данные нельзя)."""
+    Только безопасные однозначные починки. Поглощённый alias удаляется;
+    конфликтующие значения остаются для явного отказа строгого валидатора."""
     act = d.get(u"action")
     if isinstance(act, str):
         norm = act.strip().lower().replace(u"-", u"_").replace(u" ", u"_")
@@ -1389,13 +1417,26 @@ def _coerce_one_action(d, fixes, prefix):
         if (not d.get(u"path") and isinstance(ps, list) and len(ps) == 1
                 and isinstance(ps[0], str)):
             d[u"path"] = ps[0]
+            d.pop(u"paths", None)
             fixes.append(prefix + u"paths (список из 1) -> path")
-    if act == u"move_file" and not d.get(u"dest"):
-        for syn in _DEST_SYNONYMS:
-            if isinstance(d.get(syn), str) and d.get(syn):
-                d[u"dest"] = d[syn]
-                fixes.append(prefix + u"%s -> dest" % syn)
-                break
+        elif (isinstance(d.get(u"path"), str) and isinstance(ps, list)
+              and ps == [d[u"path"]]):
+            d.pop(u"paths", None)
+            fixes.append(prefix + u"лишний paths совпадает с path")
+    if act == u"move_file":
+        aliases = [(syn, d.get(syn)) for syn in _DEST_SYNONYMS
+                   if isinstance(d.get(syn), str) and d.get(syn)]
+        values = {value for _syn, value in aliases}
+        if not d.get(u"dest") and aliases and len(values) == 1:
+            d[u"dest"] = aliases[0][1]
+            for syn, _value in aliases:
+                d.pop(syn, None)
+            fixes.append(prefix + u"%s -> dest" % u"/".join(syn for syn, _value in aliases))
+        elif (isinstance(d.get(u"dest"), str) and aliases
+              and values == {d[u"dest"]}):
+            for syn, _value in aliases:
+                d.pop(syn, None)
+            fixes.append(prefix + u"лишний alias назначения совпадает с dest")
     for field in _TEXT_LIST_FIELDS:
         v = d.get(field)
         if (isinstance(v, list) and v
@@ -1417,6 +1458,7 @@ def coerce_action_schema(obj):
     fixes = []
     if not isinstance(obj, dict):
         return obj, fixes
+    obj = _unwrap_action_wrapper(obj, fixes)
     _coerce_one_action(obj, fixes, u"")
     steps = obj.get(u"steps")
     if obj.get(u"action") == u"plan" and isinstance(steps, list):

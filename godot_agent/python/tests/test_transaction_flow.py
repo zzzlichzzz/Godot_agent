@@ -83,6 +83,22 @@ try:
     assert ok and len(paths) == 2
     assert not os.path.exists(os.path.join(root, "src", "health.gd"))
     assert "\tpass" in read(root, "src/player.gd")
+
+    original_validate = main.godot_headless_validation.validate_batch
+    main.godot_headless_validation.validate_batch = lambda *_args, **_kwargs: (
+        (_ for _ in ()).throw(AssertionError("no-op must not run Godot validation")))
+    try:
+        no_op = {"action": "transaction", "operations": [
+            {"action": "create_file", "path": "res://src/player.gd",
+             "content": read(root, "src/player.gd")}], "summary": "already done"}
+        with main.app.test_request_context("/chat", method="POST", json={}):
+            no_op_json, no_op_status = payload(
+                main._package_model_reply("Проверяю пакет.", no_op, root))
+        assert no_op_status == 200 and no_op_json["already_satisfied"] is True
+        assert no_op_json["pending_action"] is None and no_op_json["changed_paths"] == []
+        assert STATE.get("pending_transaction") is None
+    finally:
+        main.godot_headless_validation.validate_batch = original_validate
     print("PASS transaction Flask prepare/confirm/rollback flow")
 finally:
     for name, value in originals.items():

@@ -253,6 +253,28 @@ def test_transaction_uses_atomic_overlay_validation():
             {"action": "create_file", "path": "res://project.godot", "content": "x"}]}))
         assert not bad["acceptable"]
         assert any(item["category"] == "transaction" for item in bad["blocking"])
+
+        with open(os.path.join(root, "src", "scripts", "player.gd"), "r",
+                  encoding="utf-8") as handle:
+            current = handle.read()
+        no_op = judge_answer(root, _answer({"action": "transaction", "operations": [
+            {"action": "create_file", "path": "res://src/scripts/player.gd",
+             "content": current}]}))
+        assert no_op["acceptable"] and no_op["score"] >= 90
+        assert any("already satisfied" in value for value in no_op["evidence"])
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_patch_judge_matches_runtime_crlf_normalization():
+    root = _project()
+    try:
+        result = judge_answer(root, _answer({
+            "action": "patch_file", "path": "res://src/scripts/player.gd",
+            "search": "func jump():\r\n\tvelocity.y = -300",
+            "replace": "func jump():\r\n\tvelocity.y = -450",
+        }))
+        assert result["acceptable"], result
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

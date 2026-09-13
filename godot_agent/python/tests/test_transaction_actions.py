@@ -116,6 +116,26 @@ def test_schema_parser_and_atomic_failure_restore():
                 {"action": "Create", "path": "res://src/new.gd", "content": "extends Node"}]})
         assert parsed["action"] == "transaction" and parsed["operations"][0]["action"] == "create_file"
         assert fixes
+        wrapped, wrapper_fixes = parser_base.coerce_action_schema({
+            "tool_name": "move-file", "arguments": {
+                "path": "res://src/player.gd", "destination": "res://src/hero.gd"}})
+        assert wrapped == {"action": "move_file", "path": "res://src/player.gd",
+                           "dest": "res://src/hero.gd"}
+        assert wrapper_fixes
+        wrapped_again, second_fixes = parser_base.coerce_action_schema(wrapped)
+        assert wrapped_again == wrapped and not second_fixes
+        identical, _fixes = parser_base.coerce_action_schema({
+            "action": "move_file", "path": "res://src/player.gd",
+            "dest": "res://src/hero.gd", "destination": "res://src/hero.gd"})
+        assert "destination" not in identical
+        conflicting, _fixes = parser_base.coerce_action_schema({
+            "action": "move_file", "path": "res://src/player.gd",
+            "dest": "res://src/hero.gd", "destination": "res://src/other.gd"})
+        assert conflicting["destination"] == "res://src/other.gd"
+        ambiguous, _fixes = parser_base.coerce_action_schema({
+            "arguments": {"action": "read_file", "path": "res://project.godot"},
+            "input": {"action": "read_file", "path": "res://src/player.gd"}})
+        assert "action" not in ambiguous
         raw = ("```agent_action\n"
                "{\"action\":\"transaction\",\"operations\":[{\"action\":\"create_file\","
                "\"path\":\"res://src/ref.gd\",\"content_ref\":\"BODY\",\"content_ref_lines\":1}]}\n"
@@ -158,6 +178,27 @@ def test_schema_parser_and_atomic_failure_restore():
         actions._replace_file = old_replace
         shutil.rmtree(root, ignore_errors=True)
         shutil.rmtree(store, ignore_errors=True)
+
+
+def test_already_satisfied_transaction_needs_no_validation_or_history():
+    root = project()
+    try:
+        before = read(root, "src/player.gd")
+        prepared = actions.prepare(root, {"action": "transaction", "operations": [
+            {"action": "create_file", "path": "res://src/player.gd", "content": before}]})
+        assert prepared["already_satisfied"] is True
+        assert prepared["batch"] is None and prepared["files"] == [] and prepared["paths"] == []
+        assert prepared["effective_operation_count"] == 0
+        assert prepared["skipped_operation_count"] == 1
+        assert actions.prepared_diffs(prepared) == []
+        try:
+            actions.verify_prepared(root, prepared)
+            raise AssertionError("already-satisfied transaction reached apply verification")
+        except actions.TransactionError:
+            pass
+        assert read(root, "src/player.gd") == before
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":
