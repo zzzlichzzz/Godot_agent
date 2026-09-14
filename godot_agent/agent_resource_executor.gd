@@ -48,6 +48,13 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 	var save_error := ResourceSaver.save(resource, temporary_path)
 	if save_error != OK:
 		return _fail("save_failed", "ResourceSaver.save вернул ошибку %s" % save_error)
+	# Saving to a new path allocates a new UID; preserve the target's identity
+	# before publishing the temporary file.
+	if uid_before != ResourceUID.INVALID_ID:
+		var uid_error := ResourceSaver.set_uid(temporary_path, uid_before)
+		if uid_error != OK:
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
+			return _fail("uid_preserve_failed", "ResourceSaver.set_uid failed: %s" % uid_error)
 	var temporary_resource = ResourceLoader.load(temporary_path, "", ResourceLoader.CACHE_MODE_IGNORE)
 	if not temporary_resource is Resource:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
@@ -428,22 +435,24 @@ func _semantic_hash(root: Resource, operations: Array, canonical_path: String = 
 	var rows: Array[String] = [root.get_class()]
 	for operation in operations:
 		rows.append(JSON.stringify(operation, "", true))
-	var root_path := canonical_path if canonical_path != "" else root.resource_path
-	rows.append(_resource_projection(root, root_path, {}, 0, true))
+	rows.append(canonical_path if canonical_path != "" else root.resource_path)
+	rows.append(_resource_projection(root, root.resource_path, {}, 0))
 	return ("\n".join(rows)).sha256_text()
 
 
-func _resource_projection(resource: Resource, root_path: String, visited: Dictionary, depth: int,
-		is_root: bool = false) -> String:
+func _resource_projection(resource: Resource, root_path: String, visited: Dictionary, depth: int) -> String:
 	if depth > 6 or visited.has(resource.get_instance_id()):
 		return "<cycle>"
 	visited[resource.get_instance_id()] = true
-	var stable_path := root_path if is_root else resource.resource_path
-	var rows: Array[String] = [resource.get_class(), stable_path]
+	# Local paths and scene-unique IDs are serialization details: newly created
+	# subresources acquire them on save, and staging changes their path prefix.
+	var rows: Array[String] = [resource.get_class()]
 	for info in resource.get_property_list():
 		if not _is_stored(info):
 			continue
 		var name := str(info.name)
+		if name == "resource_scene_unique_id":
+			continue
 		var value = resource.get(name)
 		if value is Resource and ((value as Resource).resource_path == "" or (value as Resource).resource_path.begins_with(root_path + "::")):
 			rows.append(name + "=" + _resource_projection(value, root_path, visited, depth + 1))
