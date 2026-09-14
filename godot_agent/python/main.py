@@ -20,6 +20,7 @@ from project_tools import (
     create_project_file,
     patch_project_file,
     move_project_file,
+    MoveRecoveryError,
     copy_project_file,
     search_project_text,
     describe_scene,
@@ -720,6 +721,9 @@ def _apply_write_step(action, project_root, chain_id=None, validation=None):
         else:
             history.abort_change(project_root, entry_id)
             return {"ok": False, "message": "Неизвестный тип действия: %s" % act_type, "changed_path": None, "changed_block": None}
+    except MoveRecoveryError as e:
+        return {"ok": False, "message": str(e), "changed_path": None, "changed_block": None,
+                "recovery_required": True, "recovery_entry_id": entry_id}
     except Exception as e:
         history.abort_change(project_root, entry_id)
         return {"ok": False, "message": str(e), "changed_path": None, "changed_block": None}
