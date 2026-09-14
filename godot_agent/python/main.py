@@ -2713,9 +2713,11 @@ def editor_action_result():
                         "changed_paths": []}
                 _EDITOR_ACTION_RESULTS[identity] = (body, 409)
                 return jsonify(body), 409
+        if success and not is_create_scene and not reported_hash:
+            return jsonify({"error": "Godot не передал хэш записанного файла; резерв истории сохранён."}), 409
         if reported_hash and reported_hash != actual_hash:
             restored, message, paths = history.restore_reserved_change(
-                project_root, entry_id, current_hash=actual_hash or None,
+                project_root, entry_id, current_hash=reported_hash,
                 remove_created=False)
             if restored:
                 STATE[pending_key] = None
@@ -2732,7 +2734,7 @@ def editor_action_result():
                 scene_actions.discard_staged_scene(
                     absolute, str(prepared.get("action_id") or ""))
             restored, message, paths = history.restore_reserved_change(
-                project_root, entry_id, current_hash=reported_hash or actual_hash or None,
+                project_root, entry_id, current_hash=reported_hash or None,
                 remove_created=is_create_scene and target_written)
             if restored:
                 STATE[pending_key] = None
@@ -2756,6 +2758,8 @@ def editor_action_result():
             history.abort_change(project_root, entry_id)
             STATE[pending_key] = None
             return jsonify({"error": "Godot сообщил успех, но целевой файл не изменился."}), 409
+        if already_satisfied and actual_hash != prepared.get("before_hash"):
+            return jsonify({"error": "Godot сообщил already_satisfied, но project.godot изменился."}), 409
         if already_satisfied:
             history.abort_change(project_root, entry_id)
             body = {

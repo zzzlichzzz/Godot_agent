@@ -287,6 +287,12 @@ def abort_change(project_root, entry_id):
     if len(new_journal) != len(journal):
         _save_journal(project_root, new_journal)
     for entry in removed:
+        snapshot = entry.get("snapshot")
+        if snapshot:
+            try:
+                os.remove(os.path.join(_history_dir(project_root), snapshot))
+            except OSError:
+                pass
         for item in entry.get("files", []):
             try:
                 os.remove(os.path.join(_history_dir(project_root), item.get("snapshot", "")))
@@ -313,7 +319,14 @@ def restore_reserved_change(project_root, entry_id, current_hash=None,
         return False, "Восстановление editor-транзакции ожидает один файл", []
     item = files[0]
     absolute = _resolve_safe_path(project_root, item["path"])
-    if current_hash and _file_hash(absolute) != current_hash:
+    # Editor reports hash exact bytes, unlike newline-tolerant rollback checks.
+    observed_hash = None
+    if os.path.lexists(absolute):
+        if not os.path.isfile(absolute) or os.path.islink(absolute):
+            return False, "Целевой путь изменился; снапшот сохранён", []
+        with open(absolute, "rb") as source:
+            observed_hash = hashlib.sha256(source.read()).hexdigest()
+    if current_hash and observed_hash != current_hash:
         return False, "Файл изменился после отчёта редактора; снапшот сохранён", []
     if not item.get("before_present", True):
         if os.path.exists(absolute):
@@ -328,6 +341,8 @@ def restore_reserved_change(project_root, entry_id, current_hash=None,
                 return False, "Не удалось удалить незавершённый созданный файл: %s" % exc, []
         abort_change(project_root, entry_id)
         return True, "Незавершённый созданный файл удалён", [item["path"]]
+    if observed_hash is not None and not current_hash:
+        return False, "Нет хэша отчёта редактора; существующий файл и снапшот сохранены", []
     snapshot = os.path.join(_history_dir(project_root), item.get("snapshot", ""))
     if not os.path.isfile(snapshot):
         return False, "Снапшот editor-транзакции не найден", []
@@ -338,6 +353,16 @@ def restore_reserved_change(project_root, entry_id, current_hash=None,
             shutil.copyfileobj(source, output)
             output.flush()
             os.fsync(output.fileno())
+        # Snapshot preparation can take time. Refuse a newly changed target.
+        if os.path.lexists(absolute):
+            if not os.path.isfile(absolute) or os.path.islink(absolute):
+                return False, "Целевой путь изменился во время восстановления", []
+            with open(absolute, "rb") as target:
+                latest_hash = hashlib.sha256(target.read()).hexdigest()
+        else:
+            latest_hash = None
+        if latest_hash != observed_hash:
+            return False, "Файл изменился во время восстановления; снапшот сохранён", []
         os.replace(temporary, absolute)
     finally:
         try:

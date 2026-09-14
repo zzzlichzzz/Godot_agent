@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 
 from text_sanitize import sanitize_llm_text
 
@@ -131,8 +132,7 @@ def create_project_file(project_root, godot_path, content):
     # каждый перенос строки — и откат ложно считал бы файл "изменённым".
     # v86.2: страховка на записи — невидимые символы из веб-DOM (NBSP, NUL,
     # zero-width) не должны попасть в файлы проекта, даже если парсер их пропустил.
-    with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(sanitize_llm_text(content.replace('\r\n', '\n')) or '')
+    _atomic_write_text(abs_path, sanitize_llm_text(content.replace('\r\n', '\n')) or '')
     return existed
 
 
@@ -167,8 +167,25 @@ def patch_project_file(project_root, godot_path, search_code, replace_code):
     abs_path = _resolve_safe_path(project_root, godot_path)
     _, new_content = patch_result_text(project_root, godot_path, search_code, replace_code)
     # LF как в Godot (см. комментарий в create_project_file).
-    with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(new_content)
+    _atomic_write_text(abs_path, new_content)
+
+
+def _atomic_write_text(abs_path, content):
+    """Write UTF-8/LF text without truncating the target on failure."""
+    parent = os.path.dirname(abs_path)
+    os.makedirs(parent, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=".agent-write-", dir=parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as output:
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, abs_path)
+    finally:
+        try:
+            os.remove(temporary)
+        except OSError:
+            pass
 
 
 def move_project_file(project_root, source_godot_path, dest_godot_path):
