@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import tempfile
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 import _bootstrap  # noqa: E402,F401
@@ -99,6 +100,23 @@ try:
         assert STATE.get("pending_transaction") is None
     finally:
         main.godot_headless_validation.validate_batch = original_validate
+    checked_no_op = dict(no_op, checks=[{"type": "parse_script", "path": "res://src/player.gd"}])
+    for status in ("passed", "unavailable", "failed"):
+        calls = []
+        def validate_checks(project_root, batch, **kwargs):
+            assert batch["operations"] == []
+            assert batch["required_targets"] == ["res://src/player.gd"]
+            calls.append(batch)
+            return {"candidate_digest": batch["candidate_digest"],
+                    "source_hashes": batch["source_hashes"],
+                    "report": {"status": status, "blocking": status != "passed"}}
+        with patch.object(main.godot_headless_validation, "validate_batch", validate_checks), \
+                patch.object(main, "_reply_with_self_heal", side_effect=AssertionError("unexpected model call")), \
+                main.app.test_request_context("/chat", method="POST", json={}):
+            body, code = payload(main._package_model_reply("Check", checked_no_op, root, depth=2))
+        assert len(calls) == 1
+        assert bool(body.get("already_satisfied")) == (status == "passed")
+        assert body.get("pending_action") is None and STATE.get("pending_transaction") is None
     print("PASS transaction Flask prepare/confirm/rollback flow")
 finally:
     for name, value in originals.items():

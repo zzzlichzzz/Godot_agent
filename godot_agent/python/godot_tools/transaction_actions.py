@@ -231,8 +231,13 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
         if check["type"] == "parse_script":
             _validate_script(project_root, check["path"], data, addon_dir)
     if not files:
+        check_targets = [check["path"] for check in normalized["checks"]]
+        batch = (godot_headless_validation.make_batch(
+            "transaction", [], check_targets,
+            {path: item["before_hash"] for path, item in overlay.items()},
+            required_targets=check_targets) if check_targets else None)
         return {"transaction_id": uuid.uuid4().hex, "action": normalized,
-                "files": [], "paths": [], "batch": None, "state": "already_satisfied",
+                "files": [], "paths": [], "batch": batch, "state": "already_satisfied",
                 "already_satisfied": True, "effective_operation_count": 0,
                 "skipped_operation_count": len(normalized["operations"])}
     batch_operations = []
@@ -248,7 +253,9 @@ def prepare(project_root, action, allow_addons=False, addon_dir=None):
                 targets.append(item["path"])
     targets.extend(godot_headless_validation._referencer_targets(
         project_root, source_hashes.keys(), excluded=source_hashes.keys()))
-    batch = godot_headless_validation.make_batch("transaction", batch_operations, targets, source_hashes)
+    batch = godot_headless_validation.make_batch(
+        "transaction", batch_operations, targets, source_hashes,
+        required_targets=[check["path"] for check in normalized["checks"]])
     return {"transaction_id": uuid.uuid4().hex, "action": normalized, "files": files,
             "paths": [item["path"] for item in files], "batch": batch, "state": "preview",
             "already_satisfied": False,

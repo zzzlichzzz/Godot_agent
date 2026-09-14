@@ -4,6 +4,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 PYTHON_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -138,6 +139,48 @@ class HeadlessValidationTests(unittest.TestCase):
             "search": "\tpass", "replace": "\tprint(1)",
         })
         self.assertIn("res://main.tscn", batch["targets"])
+
+    def test_explicit_checks_block_preexisting_errors_without_writes(self):
+        with open(self.script, "w", encoding="utf-8") as handle:
+            handle.write("extends Node\n# ENGINE_ERROR\n")
+        batch = validation.make_batch("transaction", [], ["res://player.gd"], {},
+                                      required_targets=["res://player.gd"])
+        receipt = validation.validate_batch(
+            self.root, batch, mode="auto", command_prefix=[sys.executable, self.fake],
+            harness_path=self.harness, temp_root=self.temp)
+        self.assertTrue(receipt["report"]["blocking"])
+        self.assertTrue(receipt["report"]["check_diagnostics"])
+        self.assertFalse(receipt["report"]["new_diagnostics"])
+        with patch.object(validation, "discover_executable", return_value=None):
+            unavailable = validation.validate_batch(self.root, batch, mode="off")
+        self.assertEqual(unavailable["report"]["status"], "unavailable")
+        self.assertTrue(unavailable["report"]["blocking"])
+
+    def test_referencer_change_invalidates_validation_receipt(self):
+        scene = os.path.join(self.root, "main.tscn")
+        with open(scene, "w", encoding="utf-8") as handle:
+            handle.write('[gd_scene format=3]\n# res://player.gd\n')
+        batch, receipt = self.validate({"action": "patch_file", "path": "res://player.gd",
+                                       "search": "pass", "replace": "print(1)"})
+        self.assertIn("res://main.tscn", receipt["source_hashes"])
+        with open(scene, "a", encoding="utf-8") as handle:
+            handle.write("# externally changed\n")
+        with self.assertRaises(validation.StaleValidationError):
+            validation.verify_receipt(self.root, batch, receipt)
+
+    def test_stale_source_during_copy_and_missing_harness_fail_closed(self):
+        action = {"action": "patch_file", "path": "res://player.gd", "search": "pass", "replace": "print(1)"}
+        batch = validation.batch_from_action(self.root, action)
+        with open(self.script, "a", encoding="utf-8") as handle:
+            handle.write("# outside edit\n")
+        with self.assertRaises(validation.StaleValidationError):
+            validation.validate_batch(self.root, batch, command_prefix=[sys.executable, self.fake],
+                                      harness_path=self.harness, temp_root=self.temp)
+        with open(self.fake, "w", encoding="utf-8") as handle:
+            handle.write("# exits zero but returns no validation result\n")
+        _, receipt = self.validate(action)
+        self.assertTrue(receipt["report"]["blocking"])
+        self.assertEqual(receipt["report"]["status"], "inconclusive")
 
 
 if __name__ == "__main__":
