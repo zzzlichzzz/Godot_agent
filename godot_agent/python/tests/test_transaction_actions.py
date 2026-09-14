@@ -197,6 +197,11 @@ def test_already_satisfied_transaction_needs_no_validation_or_history():
         except actions.TransactionError:
             pass
         assert read(root, "src/player.gd") == before
+        checked = actions.prepare(root, {"action": "transaction", "operations": [
+            {"action": "create_file", "path": "res://src/player.gd", "content": before}],
+            "checks": [{"type": "parse_script", "path": "res://src/player.gd"}]})
+        assert checked["already_satisfied"] and checked["batch"]["operations"] == []
+        assert checked["batch"]["required_targets"] == ["res://src/player.gd"]
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

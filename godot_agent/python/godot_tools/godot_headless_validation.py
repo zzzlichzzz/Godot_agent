@@ -139,7 +139,7 @@ def _referencer_targets(project_root, changed_paths, excluded=()):
     return targets
 
 
-def make_batch(action_kind, operations, targets, source_hashes):
+def make_batch(action_kind, operations, targets, source_hashes, required_targets=()):
     serial = []
     for operation in operations:
         row = {key: value for key, value in operation.items() if key != "content"}
@@ -147,10 +147,12 @@ def make_batch(action_kind, operations, targets, source_hashes):
             row["content_sha256"] = _sha256(operation["content"])
         serial.append(row)
     digest = _sha256(json.dumps({"kind": action_kind, "operations": serial,
-                                 "targets": sorted(set(targets))},
+                                 "targets": sorted(set(targets)),
+                                 "required_targets": sorted(set(required_targets))},
                                 sort_keys=True, separators=(",", ":")).encode("utf-8"))
     return {"schema_version": SCHEMA_VERSION, "action_kind": action_kind,
             "operations": operations, "targets": sorted(set(targets)),
+            "required_targets": sorted(set(required_targets)),
             "source_hashes": dict(source_hashes), "candidate_digest": digest}
 
 
@@ -292,6 +294,10 @@ def validate_batch(project_root, batch, executable=None, mode=None, timeout=DEFA
     mode = str(mode or os.environ.get("GODOT_AGENT_HEADLESS_VALIDATION", "auto")).lower()
     if mode not in ("off", "auto", "required"):
         mode = "auto"
+    # Explicit checks assert validity, not just absence of regressions. They
+    # cannot succeed when the engine is missing or when baseline has errors.
+    if batch.get("required_targets"):
+        mode = "required"
     if mode == "off" or not batch.get("targets"):
         return _receipt(batch, {"status": "skipped", "mode": mode, "new_diagnostics": [],
                                 "pre_existing_diagnostics": []})
@@ -301,6 +307,9 @@ def validate_batch(project_root, batch, executable=None, mode=None, timeout=DEFA
         report = {"status": "unavailable", "mode": mode, "new_diagnostics": [],
                   "pre_existing_diagnostics": [], "blocking": mode == "required"}
         return _receipt(batch, report)
+    batch = dict(batch, source_hashes=dict(batch["source_hashes"]))
+    for path in batch["targets"]:
+        batch["source_hashes"].setdefault(path, _file_hash(_resolve_safe_path(project_root, path)))
     owner = tempfile.mkdtemp(prefix="godot_agent_validation_", dir=temp_root)
     baseline = os.path.join(owner, "baseline")
     candidate = os.path.join(owner, "candidate")
@@ -308,6 +317,9 @@ def validate_batch(project_root, batch, executable=None, mode=None, timeout=DEFA
         with open(os.path.join(owner, ".owner"), "w", encoding="ascii") as handle:
             handle.write(str(uuid.uuid4()))
         _copy_project(project_root, baseline)
+        for path, expected in batch["source_hashes"].items():
+            if _file_hash(_overlay_path(baseline, path)) != expected:
+                raise StaleValidationError("Файл изменился при подготовке проверки Godot: %s" % path)
         shutil.copytree(baseline, candidate)
         _apply_operations(candidate, batch["operations"])
         for root in (baseline, candidate):
@@ -315,13 +327,18 @@ def validate_batch(project_root, batch, executable=None, mode=None, timeout=DEFA
         baseline_run = _run_process(baseline, command, timeout)
         candidate_run = _run_process(candidate, command, timeout)
         new_items, old_items = _subtract_baseline(baseline_run["diagnostics"], candidate_run["diagnostics"])
+        required = set(batch.get("required_targets") or [])
+        check_errors = [item for item in candidate_run["diagnostics"]
+                        if required and item["severity"] == "error"]
         infrastructure_bad = candidate_run["status"] in ("timeout", "crashed")
         baseline_bad = baseline_run["status"] in ("timeout", "crashed")
-        blocking = infrastructure_bad or baseline_bad or any(item["severity"] == "error" for item in new_items)
+        blocking = (infrastructure_bad or baseline_bad or bool(check_errors) or
+                    any(item["severity"] == "error" for item in new_items))
         status = "inconclusive" if baseline_bad else ("failed" if blocking else "passed")
         report = {"status": status, "mode": mode, "blocking": blocking,
                   "baseline_status": baseline_run["status"], "candidate_status": candidate_run["status"],
                   "new_diagnostics": new_items, "pre_existing_diagnostics": old_items,
+                  "check_diagnostics": check_errors,
                   "duration_ms": baseline_run["duration_ms"] + candidate_run["duration_ms"],
                   "timed_out": baseline_run.get("timed_out") or candidate_run.get("timed_out"),
                   "output_truncated": baseline_run.get("output_truncated") or candidate_run.get("output_truncated")}
@@ -366,6 +383,7 @@ def _run_process(root, command, timeout):
     truncated = output_truncated or log_truncated or len(output_bytes) + len(log_bytes) > MAX_OUTPUT_CHARS
     diagnostics = _parse_output(decoded)
     result_path = os.path.join(root, ".godot_agent_validation", "result.json")
+    harness_failed = False
     try:
         with open(result_path, "r", encoding="utf-8") as handle:
             result = json.load(handle)
@@ -373,9 +391,11 @@ def _run_process(root, command, timeout):
                                  item.get("message", "Ошибка загрузки ресурса"), item.get("path", ""))
                            for item in (result.get("diagnostics") or []))
     except Exception:
+        harness_failed = True
         if not timed_out:
             diagnostics.append(_diag("error", "harness", "Godot не вернул структурированный результат"))
-    status = "timeout" if timed_out else ("failed" if any(d["severity"] == "error" for d in diagnostics)
+    status = "timeout" if timed_out else ("crashed" if harness_failed or truncated else
+                                         "failed" if any(d["severity"] == "error" for d in diagnostics)
                                            else ("passed" if code == 0 else "crashed"))
     return {"status": status, "diagnostics": diagnostics, "duration_ms": int((time.monotonic()-started)*1000),
             "timed_out": timed_out, "output_truncated": truncated, "exit_code": code}
@@ -415,12 +435,12 @@ def blocking_message(receipt):
         return None
     if report.get("status") == "unavailable":
         return "[Система]: обязательная проверка настоящим Godot недоступна: executable не найден."
-    diagnostics = report.get("new_diagnostics") or []
+    diagnostics = report.get("check_diagnostics") or report.get("new_diagnostics") or []
     if diagnostics:
         lines = ["- %s%s: %s" % (item.get("path") or "Godot",
                                   (":%s" % item.get("line")) if item.get("line") else "",
                                   item.get("message")) for item in diagnostics[:8]]
         return ("[Система]: кандидат не прошёл изолированную проверку настоящим Godot. "
-                "Линты уже были пройдены, но движок нашёл новые ошибки:\n" + "\n".join(lines) +
+                "Движок нашёл ошибки кандидата или явно запрошенной проверки:\n" + "\n".join(lines) +
                 "\nИсправь действие и пришли agent_action заново.")
     return "[Система]: изолированная проверка Godot завершилась сбоем или таймаутом; действие не применено."

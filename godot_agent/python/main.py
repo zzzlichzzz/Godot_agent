@@ -1094,28 +1094,33 @@ def _package_model_reply(text, action, project_root, depth=0):
             prepared = transaction_actions.prepare(
                 project_root, action, allow_addons=bool(STATE.get("addon_intent")),
                 addon_dir=STATE.get("addon_dir"))
+            if prepared["batch"] is not None:
+                receipt = godot_headless_validation.validate_batch(
+                    project_root, prepared["batch"], executable=STATE.get("godot_executable"))
+                engine_error = godot_headless_validation.blocking_message(receipt)
+                if engine_error:
+                    raise transaction_actions.TransactionError(engine_error)
+                godot_headless_validation.verify_receipt(project_root, prepared["batch"], receipt)
+                transaction_actions.attach_validation(prepared, receipt)
             if prepared.get("already_satisfied"):
                 STATE["pending_action"] = None
                 STATE["pending_transaction"] = None
+                check_note = " Запрошенные проверки Godot пройдены." if prepared["batch"] else ""
                 message = (text + "\n\n[Система]: Пакет уже полностью выполнен в проекте; "
-                           "запись файлов, подтверждение и дополнительный запрос к модели не требуются.").strip()
+                           "запись файлов, подтверждение и дополнительный запрос к модели не требуются."
+                           + check_note).strip()
                 return jsonify({"answer": message, "pending_action": None,
                                 "already_satisfied": True, "changed_paths": [],
                                 "effective_operation_count": 0,
                                 "skipped_operation_count": prepared.get("skipped_operation_count", 0)})
-            receipt = godot_headless_validation.validate_batch(
-                project_root, prepared["batch"], executable=STATE.get("godot_executable"))
-            engine_error = godot_headless_validation.blocking_message(receipt)
-            if engine_error:
-                raise transaction_actions.TransactionError(engine_error)
-            transaction_actions.attach_validation(prepared, receipt)
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_transaction"] = None
             followup = ("[Система]: transaction отклонена локальной пакетной проверкой: %s. "
                         "Исправь операции и пришли весь пакет заново; не разбивай его на небезопасные частичные правки." % exc)
             report = (receipt or {}).get("report") or {}
-            infrastructure_failure = receipt is not None and not report.get("new_diagnostics")
+            infrastructure_failure = receipt is not None and not (
+                report.get("new_diagnostics") or report.get("check_diagnostics"))
             if depth >= 2 or infrastructure_failure:
                 return jsonify({"answer": (text + "\n\n" + followup).strip(),
                                 "pending_action": None})
