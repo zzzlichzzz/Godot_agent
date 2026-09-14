@@ -910,6 +910,9 @@ def browser_status():
 
 @chats_bp.route('/chats/list', methods=['POST'])
 def chats_list():
+    busy = _busy_error()
+    if busy:
+        return busy
     data = request.json or {}
     S._apply_session_context(data)
     base = S._chats_dir()
@@ -921,11 +924,11 @@ def chats_list():
 
 @chats_bp.route('/chats/new', methods=['POST'])
 def chats_new():
-    data = request.json or {}
-    S._apply_session_context(data)
     busy = _busy_error()
     if busy:
         return busy
+    data = request.json or {}
+    S._apply_session_context(data)
     base = S._chats_dir()
     if not base:
         return jsonify({"error": "Нет user_data_dir (отправьте сообщение или Синхронизацию)."}), 400
@@ -969,11 +972,11 @@ def chats_new():
 
 @chats_bp.route('/chats/open', methods=['POST'])
 def chats_open():
-    data = request.json or {}
-    S._apply_session_context(data)
     busy = _busy_error()
     if busy:
         return busy
+    data = request.json or {}
+    S._apply_session_context(data)
     base = S._chats_dir()
     cid = (data.get("id") or "").strip()
     rec = chat_store.find_chat(base, cid) if base else None
@@ -1034,6 +1037,9 @@ def chats_open():
 
 @chats_bp.route('/chats/rename', methods=['POST'])
 def chats_rename():
+    busy = _busy_error()
+    if busy:
+        return busy
     data = request.json or {}
     S._apply_session_context(data)
     base = S._chats_dir()
@@ -1048,11 +1054,11 @@ def chats_rename():
 
 @chats_bp.route('/chats/delete', methods=['POST'])
 def chats_delete():
-    data = request.json or {}
-    S._apply_session_context(data)
     busy = _busy_error()
     if busy:
         return busy
+    data = request.json or {}
+    S._apply_session_context(data)
     base = S._chats_dir()
     cid = (data.get("id") or "").strip()
     if not base or not cid:

@@ -27,6 +27,7 @@
 """
 import os
 import threading
+import hmac
 
 HEADER = "X-Agent-Token"
 TOKEN_FILE = "godot_agent_token.txt"
@@ -149,20 +150,66 @@ def check(path, header_token, user_data_dir):
     return True, 0, ""
 
 
-def install(app, jsonify):
+def install(app, jsonify, body_limits=None):
     """Ставит проверку на все маршруты приложения."""
     from flask import request
+    from werkzeug.exceptions import RequestEntityTooLarge
+
+    # Flask 3.0 has no per-request max_content_length setter. Override its
+    # property so Werkzeug also bounds streamed bodies without Content-Length.
+    request_base = app.request_class
+    limits = dict(body_limits or {})
+    if app.config.get("MAX_CONTENT_LENGTH") is None:
+        app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+    class BoundedRequest(request_base):
+        @property
+        def max_content_length(self):
+            general = super().max_content_length
+            specific = limits.get(self.path)
+            if specific is None:
+                return general
+            return min(general, specific) if general is not None else specific
+
+    app.request_class = BoundedRequest
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def _too_large(_error):
+        return jsonify({"error": "Request body exceeds the allowed size.",
+                        "code": "request_too_large"}), 413
 
     @app.before_request
     def _guard():  # noqa: ANN202
+        if any(request.path == p or request.path.startswith(p + "/") for p in OPEN_PATHS):
+            return None
+        limit = request.max_content_length
+        if limit is not None and request.content_length is not None and request.content_length > limit:
+            raise RequestEntityTooLarge()
+        header_token = request.headers.get(HEADER, "").strip()
+        with _lock:
+            bound_token = _bound["token"]
+            owner = _bound["user_data_dir"]
+        # An established session authenticates the header before parsing JSON.
+        # Initial binding still needs a bounded body containing user_data_dir.
+        if bound_token is not None and not hmac.compare_digest(
+                header_token.encode("utf-8"), bound_token.encode("utf-8")):
+            return jsonify({"error": "Токен запроса не совпал. Сервер обслуживает %s. "
+                                     "Если токен проекта изменился, перезапустите сервер." % owner}), 403
         body = {}
         if request.method == "POST":
-            try:
-                body = request.get_json(silent=True) or {}
-            except Exception:
+            if limit is not None and not request.content_length:
+                # LimitedStream may stop exactly at the limit instead of
+                # raising on read-all. Never parse an unframed truncated body.
+                raw = request.get_data(cache=True)
+                if len(raw) >= limit:
+                    raise RequestEntityTooLarge()
+            body = request.get_json(silent=True)
+            if body is None:
                 body = {}
+            if not isinstance(body, dict):
+                return jsonify({"error": "Request JSON must be an object."}), 400
         ok, code, message = check(request.path,
-                                  request.headers.get(HEADER, ""),
+                                  header_token,
                                   body.get("user_data_dir"))
         if ok:
             return None
