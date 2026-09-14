@@ -7,7 +7,7 @@ import os
 import re
 import uuid
 
-from project_tools import _resolve_safe_path
+from project_tools import _resolve_safe_path, is_addon_path
 from scene_actions import normalize_variant
 
 
@@ -59,8 +59,7 @@ def _path(project_root, value, field, extensions=None, allow_addons=False):
     path = _text(value, field).replace("\\", "/")
     if not path.startswith("res://"):
         raise ResourceActionError("%s должен быть res:// путём" % field)
-    relative = path[6:].lstrip("/")
-    if relative.startswith("addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(path, project_root):
         raise ResourceActionError("Ресурсы аддонов разрешены только по явному запросу пользователя")
     if extensions and not path.lower().endswith(tuple(extensions)):
         raise ResourceActionError("%s имеет неподдерживаемое расширение" % field)
@@ -242,7 +241,7 @@ def normalize_action(project_root, action, allow_addons=False, require_exists=Tr
             raise ResourceActionError("resource должен быть путём res://*.tres")
         absolute = _resolve_safe_path(project_root, raw_resource)
         resource = "res://" + os.path.relpath(absolute, project_root).replace("\\", "/")
-        if not allow_addons and resource.lower().startswith("res://addons/"):
+        if not allow_addons and is_addon_path(resource, project_root):
             raise ResourceActionError("Пути addons требуют явного намерения")
     raw_operations = action["operations"]
     if not isinstance(raw_operations, list) or not (1 <= len(raw_operations) <= MAX_OPERATIONS):

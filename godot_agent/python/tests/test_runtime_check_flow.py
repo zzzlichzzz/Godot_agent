@@ -26,11 +26,11 @@ with open(os.path.join(root, "scenes", "main.tscn"), "w", encoding="utf-8") as h
     handle.write('[gd_scene format=3]\n\n[node name="Main" type="Node2D"]\n')
 
 originals = {name: getattr(main, name) for name in (
-    "_remember", "_sync_chat_after_reply", "_reply_with_self_heal")}
+    "_remember", "_sync_chat_after_reply", "_reply_once")}
 calls = []
 main._remember = lambda *_args: None
 main._sync_chat_after_reply = lambda: None
-main._reply_with_self_heal = lambda prompt, _root: (calls.append(prompt) or ("Проверка разобрана.", None))
+main._reply_once = lambda prompt: (calls.append(prompt) or ("Проверка разобрана.", None))
 
 status = {"enabled": True, "protocol": 1, "sessions": []}
 ready_status = {"enabled": True, "protocol": 1, "sessions": [{
@@ -105,17 +105,23 @@ try:
     concurrent_results = []
 
     def submit_result():
-        with main.app.test_request_context("/chat/runtime_check/result", method="POST", json=concurrent_body):
+        with main.app.test_client() as client:
             barrier.wait()
-            concurrent_results.append(payload(main.runtime_check_result()))
+            response = client.post("/chat/runtime_check/result", json=concurrent_body)
+            concurrent_results.append(payload(response))
 
     threads = [threading.Thread(target=submit_result) for _ in range(2)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
-    assert sorted(code for _body, code in concurrent_results) == [200, 200]
-    assert concurrent_results[0][0] == concurrent_results[1][0]
+    assert any(code == 200 for _body, code in concurrent_results)
+    assert all(code == 200 or (code == 503 and body.get("retryable"))
+               for body, code in concurrent_results)
+    with main.app.test_client() as client:
+        replay = client.post("/chat/runtime_check/result", json=concurrent_body)
+    assert replay.status_code == 200
+    assert all(body == replay.get_json() for body, code in concurrent_results if code == 200)
     print("PASS runtime check prepare, bind, pass/fail, replay and model-call policy")
 finally:
     for name, value in originals.items():

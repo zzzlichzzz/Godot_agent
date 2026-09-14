@@ -25,12 +25,12 @@ with open(os.path.join(root, "project.godot"), "w", encoding="utf-8") as handle:
     handle.write("config_version=5\n")
 
 originals = {name: getattr(main, name) for name in (
-    "_remember", "_sync_chat_after_reply", "_reply_with_self_heal")}
+    "_remember", "_sync_chat_after_reply", "_reply_once")}
 remembered = []
 calls = []
 main._remember = lambda *args: remembered.append(args)
 main._sync_chat_after_reply = lambda: None
-main._reply_with_self_heal = lambda prompt, _root: (calls.append(prompt) or ("Runtime проанализирован.", None))
+main._reply_once = lambda prompt: (calls.append(prompt) or ("Runtime проанализирован.", None))
 
 status = {"enabled": True, "protocol": 1, "sessions": [{
     "session_id": 3, "run_id": "run-3", "active": True,
@@ -80,8 +80,8 @@ try:
     assert STATE["pending_runtime_request"] is None
 
     with main.app.test_request_context("/chat/runtime_inspect/result", method="POST", json=ok):
-        _replay, replay_code = payload(main.runtime_inspect_result())
-    assert replay_code == 409 and len(calls) == 1
+        replay, replay_code = payload(main.runtime_inspect_result())
+    assert replay_code == 200 and replay == final and len(calls) == 1
 
     STATE["runtime_inspections_this_turn"] = 0
     with main.app.test_request_context("/chat", method="POST", json={}):
@@ -94,13 +94,17 @@ try:
     barrier = threading.Barrier(2)
     concurrent_codes = []
     def submit_result():
-        with main.app.test_request_context("/chat/runtime_inspect/result", method="POST", json=concurrent_body):
+        with main.app.test_client() as client:
             barrier.wait()
-            concurrent_codes.append(payload(main.runtime_inspect_result())[1])
+            response = client.post("/chat/runtime_inspect/result", json=concurrent_body)
+            concurrent_codes.append(response.status_code)
     threads = [threading.Thread(target=submit_result) for _ in range(2)]
     for thread in threads: thread.start()
     for thread in threads: thread.join()
-    assert sorted(concurrent_codes) == [200, 409] and len(calls) == 2
+    assert 200 in concurrent_codes and set(concurrent_codes) <= {200, 503} and len(calls) == 2
+    with main.app.test_client() as client:
+        replay = client.post("/chat/runtime_inspect/result", json=concurrent_body)
+    assert replay.status_code == 200 and len(calls) == 2
 
     STATE["pending_runtime_request"] = dict(runtime_debug.create_request(action, status, "runtime-chat", 9),
                                               deadline=time.time() - 1)

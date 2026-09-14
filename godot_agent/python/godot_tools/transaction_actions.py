@@ -10,7 +10,7 @@ import gd_api_check
 import gd_lint
 import godot_headless_validation
 import history_manager
-from project_tools import _resolve_safe_path, build_diff_preview, sanitize_llm_text
+from project_tools import _resolve_safe_path, build_diff_preview, sanitize_llm_text, is_addon_path
 
 
 MAX_OPERATIONS = 30
@@ -30,7 +30,7 @@ class StaleTransactionError(TransactionError):
 
 
 def _lock(project_root):
-    key = os.path.realpath(project_root)
+    key = os.path.normcase(os.path.realpath(project_root))
     with _LOCKS_GUARD:
         return _LOCKS.setdefault(key, threading.RLock())
 
@@ -61,14 +61,16 @@ def _read(path):
 
 def _canonical(project_root, value, allow_addons):
     path = str(value or "").replace("\\", "/")
-    if not path.startswith("res://") or path in ("res://", "res://project.godot"):
+    if not path.startswith("res://") or path.lower() in ("res://", "res://project.godot"):
         raise TransactionError("Некорректный или запрещённый путь: %s" % path)
     rel = path[6:].strip("/")
     if not rel or any(part in ("", ".", "..") for part in rel.split("/")):
         raise TransactionError("Некорректный путь: %s" % path)
-    if rel.lower().startswith("addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(path, project_root):
         raise TransactionError("Изменение res://addons требует явного запроса пользователя")
-    _resolve_safe_path(project_root, path)
+    absolute = _resolve_safe_path(project_root, path)
+    if os.path.normcase(absolute) == os.path.normcase(os.path.realpath(os.path.join(project_root, "project.godot"))):
+        raise TransactionError("project.godot изменяется только через edit_project_settings")
     return "res://" + rel
 
 
@@ -143,7 +145,12 @@ def normalize_action(project_root, action, allow_addons=False):
 
 def _entry(project_root, overlay, path):
     if path not in overlay:
-        before = _read(_resolve_safe_path(project_root, path))
+        absolute = _resolve_safe_path(project_root, path)
+        identity = os.path.normcase(absolute)
+        for other in overlay:
+            if os.path.normcase(_resolve_safe_path(project_root, other)) == identity:
+                raise TransactionError("Один файл указан разными путями: %s, %s" % (other, path))
+        before = _read(absolute)
         overlay[path] = {"path": path, "before_bytes": before, "after_bytes": before,
                          "before_hash": _hash(before)}
     return overlay[path]

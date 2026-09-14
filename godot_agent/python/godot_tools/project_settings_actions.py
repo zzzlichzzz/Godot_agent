@@ -7,7 +7,7 @@ import os
 import re
 import uuid
 
-from project_tools import _resolve_safe_path
+from project_tools import _resolve_safe_path, is_addon_path
 
 
 class ProjectSettingsActionError(ValueError):
@@ -49,8 +49,7 @@ def _project_path(project_root, value, field, extensions, allow_addons=False):
     path = _text(value, field, 500).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(extensions):
         raise ProjectSettingsActionError("%s имеет неподдерживаемый res:// путь" % field)
-    relative = path[len("res://"):].lstrip("/")
-    if relative.startswith("addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(path, project_root):
         raise ProjectSettingsActionError("Ресурсы аддонов разрешены только по явному запросу")
     absolute = _resolve_safe_path(project_root, path)
     if not os.path.isfile(absolute):
