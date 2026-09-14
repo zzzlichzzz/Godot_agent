@@ -35,9 +35,37 @@ transcript — что показать человеку, messages — что п�
 """
 import json
 import os
+import tempfile
+import threading
 import time
+from functools import wraps
 
 _DIR_NAME = "agent_api_history"
+
+
+class ApiHistoryError(Exception):
+    """Existing history cannot be read safely; never replace it with empty data."""
+
+
+_locks = {}
+_locks_guard = threading.Lock()
+
+
+def _lock(base_dir, chat_id):
+    path = history_path(base_dir, chat_id)
+    key = os.path.normcase(os.path.realpath(path)) if path else ""
+    with _locks_guard:
+        return _locks.setdefault(key, threading.RLock())
+
+
+def _locked_history(func):
+    """Serialize per-file transactions in this process, including nested load/save."""
+    @wraps(func)
+    def locked(base_dir, chat_id, *args, **kwargs):
+        with _lock(base_dir, chat_id):
+            return func(base_dir, chat_id, *args, **kwargs)
+    return locked
+
 
 # Жёсткий предел числа сообщений в файле — страховка от бесконечного роста.
 # Рабочее ограничение контекста делается не им, а бюджетом токенов ниже.
@@ -97,63 +125,71 @@ def _empty():
             "trimmed": 0}
 
 
+@_locked_history
 def _load(base_dir, chat_id):
     p = history_path(base_dir, chat_id)
-    if not p or not os.path.isfile(p):
+    if not p:
         return _empty()
     try:
         with open(p, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except Exception as e:
-        print("[api_history] Файл истории чата %s не читается (%s) — начинаю пустую."
-              % (chat_id, e))
+    except FileNotFoundError:
         return _empty()
-    if not isinstance(data, dict) or not isinstance(data.get("messages"), list):
-        return _empty()
-    out = _empty()
-    for m in data["messages"]:
-        if not isinstance(m, dict):
-            continue
-        role = str(m.get("role") or "")
-        content = m.get("content")
-        if role not in (ROLE_USER, ROLE_ASSISTANT, ROLE_SYSTEM):
-            continue
-        if not isinstance(content, str):
-            continue
-        out["messages"].append({
-            "role": role,
-            "content": content,
-            "kind": str(m.get("kind") or ""),
-            "ts": float(m.get("ts") or 0.0),
-        })
-    if isinstance(data.get("usage_total"), dict):
-        for k in ("prompt_tokens", "completion_tokens", "requests"):
-            try:
-                out["usage_total"][k] = int(data["usage_total"].get(k) or 0)
-            except Exception:
-                pass
+    except (OSError, ValueError) as e:
+        raise ApiHistoryError("Cannot read API history for chat %s: %s"
+                              % (chat_id, e)) from e
     try:
+        if not isinstance(data, dict) or not isinstance(data.get("messages"), list):
+            raise ValueError("expected an object with a messages list")
+        out = _empty()
+        for m in data["messages"]:
+            if not isinstance(m, dict):
+                raise ValueError("expected a message object")
+            role = m.get("role")
+            content = m.get("content")
+            if role not in (ROLE_USER, ROLE_ASSISTANT, ROLE_SYSTEM):
+                raise ValueError("invalid message role")
+            if not isinstance(content, str):
+                raise ValueError("invalid message content")
+            out["messages"].append({
+                "role": role,
+                "content": content,
+                "kind": str(m.get("kind") or ""),
+                "ts": float(m.get("ts") or 0.0),
+            })
+        usage = data.get("usage_total", {})
+        if not isinstance(usage, dict):
+            raise ValueError("invalid usage totals")
+        for k in ("prompt_tokens", "completion_tokens", "requests"):
+            out["usage_total"][k] = int(usage.get(k) or 0)
         out["trimmed"] = int(data.get("trimmed") or 0)
-    except Exception:
-        pass
+    except (TypeError, ValueError, OverflowError) as e:
+        raise ApiHistoryError("Invalid API history for chat %s: %s"
+                              % (chat_id, e)) from e
     return out
 
 
+@_locked_history
 def _save(base_dir, chat_id, data):
     p = history_path(base_dir, chat_id)
     if not p:
         return False
-    tmp = p + ".tmp"
+    tmp = None
     try:
         os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(tmp, "w", encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=os.path.dirname(p),
+                prefix=os.path.basename(p) + ".", suffix=".tmp", delete=False) as f:
+            tmp = f.name
             json.dump(data, f, ensure_ascii=False, indent=1)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, p)
         return True
     except Exception as e:
         print("[api_history] Не удалось сохранить историю чата %s (%s)" % (chat_id, e))
         try:
-            if os.path.isfile(tmp):
+            if tmp is not None and os.path.isfile(tmp):
                 os.remove(tmp)
         except Exception:
             pass
@@ -186,6 +222,7 @@ def _messages_tokens(messages):
 # Запись
 # ---------------------------------------------------------------------------
 
+@_locked_history
 def append(base_dir, chat_id, role, content, kind=""):
     """Дописывает одно сообщение. Обычный путь — append_exchange; эта функция
     нужна для одиночных системных вставок."""
@@ -198,6 +235,7 @@ def append(base_dir, chat_id, role, content, kind=""):
     return _save(base_dir, chat_id, data)
 
 
+@_locked_history
 def append_exchange(base_dir, chat_id, user_text, assistant_text,
                     user_kind=KIND_PROMPT, usage=None):
     """Атомарно дописывает пару «что отправили — что ответили».
@@ -241,6 +279,7 @@ def _enforce_hard_cap(data):
         data["trimmed"] = int(data.get("trimmed") or 0) + drop
 
 
+@_locked_history
 def clear(base_dir, chat_id):
     """Забыть весь диалог, но сохранить накопленный расход токенов."""
     data = _load(base_dir, chat_id)
@@ -251,6 +290,7 @@ def clear(base_dir, chat_id):
     return _save(base_dir, chat_id, fresh)
 
 
+@_locked_history
 def delete(base_dir, chat_id):
     """Удаляет файл истории — вызывается при удалении самого чата, чтобы
     папка не копила файлы уже несуществующих переписок."""
