@@ -12,7 +12,7 @@ import gd_lint
 import gd_semantic_parser
 import history_manager
 from minilich import ml_project_index
-from project_tools import _resolve_safe_path, build_diff_preview
+from project_tools import _resolve_safe_path, build_diff_preview, is_addon_path
 
 
 KINDS = {"class_name", "function", "signal"}
@@ -38,7 +38,7 @@ class StaleRenameError(RuntimeError):
 
 
 def _project_lock(project_root):
-    key = os.path.realpath(project_root or ".")
+    key = os.path.normcase(os.path.realpath(project_root or "."))
     with _LOCKS_GUARD:
         return _LOCKS.setdefault(key, threading.RLock())
 
@@ -221,7 +221,7 @@ def _collision(declarations, declaration, kind, new_name):
 def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
     """Build a private all-file transaction without writing project files."""
     kind, old_name, new_name, target_path, line, column = _validate_action(action)
-    if target_path.startswith("res://addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(target_path, project_root):
         raise RenameError("Правки res://addons/ требуют явного запроса пользователя")
     _resolve_safe_path(project_root, target_path)
 
@@ -271,7 +271,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]
-        if path.startswith("res://addons/") and not allow_addons:
+        if not allow_addons and is_addon_path(path, project_root):
             facts = [fact for fact in entry["semantic"].get("references", [])
                      if fact.get("name") == old_name]
             if facts:

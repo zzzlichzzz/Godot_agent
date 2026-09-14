@@ -11,7 +11,7 @@ import librarian
 import log_reader
 import tscn_lint
 from project_tools import (_resolve_safe_path, describe_scene, read_project_file,
-                           search_project_text)
+                           search_project_text, is_addon_path)
 
 
 DEFAULT_MAX_CHARS = 12000
@@ -69,10 +69,9 @@ def validate_request(action):
 def _allowed_path(project_root, path, allow_addons=False):
     if not isinstance(path, str) or not path.startswith("res://"):
         return ""
-    rel = path[6:].replace("\\", "/").lstrip("/")
-    if not allow_addons and rel.startswith("addons/"):
-        return ""
     try:
+        if not allow_addons and is_addon_path(path, project_root):
+            return ""
         _resolve_safe_path(project_root, path)
     except Exception:
         return ""

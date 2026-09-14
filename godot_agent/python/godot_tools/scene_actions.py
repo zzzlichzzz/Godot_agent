@@ -11,7 +11,7 @@ import os
 import re
 import uuid
 
-from project_tools import _resolve_safe_path
+from project_tools import _resolve_safe_path, is_addon_path
 
 
 class SceneActionError(ValueError):
@@ -64,8 +64,7 @@ def _normalize_scene_path(project_root, value, allow_addons=False, must_exist=Tr
     path = _text(value, "scene", 500).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(".tscn"):
         raise SceneActionError("scene должен быть res:// путём к текстовой .tscn")
-    relative = path[len("res://"):].lstrip("/")
-    if relative.lower().startswith("addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(path, project_root):
         raise SceneActionError("Сцены аддонов разрешены только по явному запросу пользователя")
     absolute = _resolve_safe_path(project_root, path)
     if must_exist and not os.path.isfile(absolute):
@@ -79,8 +78,7 @@ def _normalize_script(project_root, value, allow_addons=False):
     script = _text(value, "script", 500).replace("\\", "/")
     if not script.startswith("res://") or not script.lower().endswith(".gd"):
         raise SceneActionError("script должен быть res:// путём к .gd")
-    relative = script[len("res://"):].lstrip("/")
-    if relative.lower().startswith("addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(script, project_root):
         raise SceneActionError("Скрипты аддонов разрешены только по явному запросу пользователя")
     if not os.path.isfile(_resolve_safe_path(project_root, script)):
         raise SceneActionError("Скрипт не найден: %s" % script)

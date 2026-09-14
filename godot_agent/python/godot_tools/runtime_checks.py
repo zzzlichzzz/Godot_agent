@@ -6,7 +6,7 @@ import os
 import secrets
 import time
 
-from project_tools import _resolve_safe_path
+from project_tools import _resolve_safe_path, is_addon_path
 
 
 PROTOCOL = 1
@@ -19,7 +19,7 @@ MAX_RESULT_BYTES = 160 * 1024
 MAX_HTTP_BODY_BYTES = 192 * 1024
 MAX_LOG_DELTA_BYTES = 256 * 1024
 RESULT_STATUSES = {
-    "ok", "runtime_already_running", "launch_failed", "launch_timeout",
+    "ok", "runtime_not_running", "runtime_already_running", "launch_failed", "launch_timeout",
     "bridge_unavailable", "stale_runtime_session", "session_stopped",
     "timeout", "cancelled", "protocol_error", "response_too_large",
 }
@@ -96,7 +96,7 @@ def _scene_path(project_root, value, allow_addons):
     path = _text(value, "scene", 256).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(".tscn"):
         raise RuntimeCheckError("scene must be an existing res://*.tscn")
-    if path.lower().startswith("res://addons/") and not allow_addons:
+    if not allow_addons and is_addon_path(path, project_root):
         raise RuntimeCheckError("addon scenes require explicit addon intent")
     absolute = _resolve_safe_path(project_root, path)
     if not os.path.isfile(absolute):

@@ -97,13 +97,27 @@ def _resolve_safe_path(project_root, godot_path):
     # v52: realpath, не abspath — abspath НЕ разрешает симвлинки; симвлинк внутри проекта, ведущая наружу, могла бы обойти проверку ниже.
     project_root_abs = os.path.realpath(project_root)
     abs_path = os.path.realpath(os.path.join(project_root_abs, rel))
-    if abs_path != project_root_abs and not abs_path.startswith(project_root_abs + os.sep):
+    root_identity = os.path.normcase(project_root_abs)
+    path_identity = os.path.normcase(abs_path)
+    if path_identity != root_identity and not path_identity.startswith(root_identity + os.sep):
         raise ValueError(f"Путь вне проекта отклонен: {godot_path}")
     # Служебная папка истории агента недоступна для чтения/записи через действия.
     rel_norm = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
-    if rel_norm == HISTORY_DIR_NAME or rel_norm.startswith(HISTORY_DIR_NAME + '/'):
+    if rel_norm.casefold() == HISTORY_DIR_NAME or rel_norm.casefold().startswith(HISTORY_DIR_NAME + '/'):
         raise ValueError("Доступ к служебной папке истории запрещён.")
     return abs_path
+
+
+def is_addon_path(path, project_root=None):
+    """Use resolved identity when available; policy is case-insensitive on every OS."""
+    value = str(path or "").replace("\\", "/")
+    if project_root:
+        value = os.path.relpath(_resolve_safe_path(project_root, value),
+                                os.path.realpath(project_root)).replace("\\", "/")
+    else:
+        import posixpath
+        value = posixpath.normpath(value.removeprefix("res://").lstrip("/"))
+    return value.casefold() == "addons" or value.casefold().startswith("addons/")
 
 
 def read_project_file(project_root, godot_path, max_chars=50000):

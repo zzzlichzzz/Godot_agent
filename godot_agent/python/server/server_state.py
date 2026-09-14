@@ -91,43 +91,7 @@ _turn_context = threading.local()
 
 
 def claim_runtime_request(data):
-    """Validate and reserve one result while holding the runtime-turn lock."""
-    _runtime_request_lock.acquire()
-    pending = STATE.get("pending_runtime_request")
-    if not isinstance(pending, dict):
-        _runtime_request_lock.release()
-        return None, "missing"
-    if str(data.get("request_id") or "") != str(pending.get("request_id") or ""):
-        _runtime_request_lock.release()
-        return None, "request"
-    if not hmac.compare_digest(
-            str(data.get("result_token") or ""), str(pending.get("result_token") or "")):
-        _runtime_request_lock.release()
-        return None, "token"
-    if time.time() > float(pending.get("deadline") or 0):
-        STATE["pending_runtime_request"] = None
-        _runtime_request_lock.release()
-        return None, "expired"
-    if (int(data.get("session_id", -1)) != int(pending.get("session_id", -2))
-            or str(data.get("run_id") or "") != str(pending.get("run_id") or "")):
-        _runtime_request_lock.release()
-        return None, "session"
-    if (pending.get("chat_id") != STATE.get("current_chat_id")
-            or int(pending.get("turn_id") or 0) != int(STATE.get("runtime_turn_id") or 0)):
-        _runtime_request_lock.release()
-        return None, "turn"
-    return pending, None
-
-
-def release_runtime_request(pending):
-    """Consume a reserved request and release the runtime-turn lock."""
-    try:
-        current = STATE.get("pending_runtime_request")
-        if (isinstance(current, dict) and isinstance(pending, dict)
-                and current.get("request_id") == pending.get("request_id")):
-            STATE["pending_runtime_request"] = None
-    finally:
-        _runtime_request_lock.release()
+    return _claim_runtime_result(data, "pending_runtime_request")
 
 
 def reset_runtime_turn(status=None, increment=False):
@@ -136,6 +100,7 @@ def reset_runtime_turn(status=None, increment=False):
         STATE["runtime_status"] = status
         STATE["pending_runtime_request"] = None
         STATE["pending_runtime_check"] = None
+        STATE["runtime_result_generation"] = object()
         if increment:
             STATE["runtime_turn_id"] = int(STATE.get("runtime_turn_id") or 0) + 1
         else:
@@ -191,42 +156,36 @@ def bind_runtime_check(data):
 
 
 def claim_runtime_check(data, allow_unbound=False):
-    _runtime_request_lock.acquire()
-    pending = STATE.get("pending_runtime_check")
-    if not isinstance(pending, dict):
-        _runtime_request_lock.release()
-        return None, "missing"
-    if str(data.get("request_id") or "") != pending.get("request_id"):
-        _runtime_request_lock.release()
-        return None, "request"
-    if not hmac.compare_digest(str(data.get("result_token") or ""), pending.get("result_token") or ""):
-        _runtime_request_lock.release()
-        return None, "token"
-    if time.time() > float(pending.get("deadline") or 0):
-        STATE["pending_runtime_check"] = None
-        _runtime_request_lock.release()
-        return None, "expired"
-    if pending.get("state") != "bound" and not (allow_unbound and pending.get("state") == "awaiting_bind"):
-        _runtime_request_lock.release()
-        return None, "state"
-    if (pending.get("state") == "bound"
-            and (int(data.get("session_id", -1)) != int(pending.get("session_id", -2))
-                 or str(data.get("run_id") or "") != pending.get("run_id"))):
-        _runtime_request_lock.release()
-        return None, "session"
-    if pending.get("chat_id") != STATE.get("current_chat_id") or int(pending.get("turn_id") or 0) != int(STATE.get("runtime_turn_id") or 0):
-        _runtime_request_lock.release()
-        return None, "turn"
-    return pending, None
+    return _claim_runtime_result(data, "pending_runtime_check", allow_unbound)
 
 
-def release_runtime_check(pending):
-    try:
-        current = STATE.get("pending_runtime_check")
-        if isinstance(current, dict) and current.get("request_id") == pending.get("request_id"):
-            STATE["pending_runtime_check"] = None
-    finally:
-        _runtime_request_lock.release()
+def _claim_runtime_result(data, pending_key, allow_unbound=False):
+    """Consume once under a short lock; HTTP admission owns the model exchange."""
+    with _runtime_request_lock:
+        pending = STATE.get(pending_key)
+        if not isinstance(pending, dict):
+            return None, "missing"
+        if data.get("request_id") != pending.get("request_id"):
+            return None, "request"
+        if not hmac.compare_digest(str(data.get("result_token") or "").encode("utf-8"),
+                                   str(pending.get("result_token") or "").encode("utf-8")):
+            return None, "token"
+        if time.time() > float(pending.get("deadline") or 0):
+            STATE[pending_key] = None
+            return None, "expired"
+        unbound = allow_unbound and pending.get("state") == "awaiting_bind"
+        if pending_key == "pending_runtime_check" and pending.get("state") != "bound" and not unbound:
+            return None, "state"
+        if not unbound and (type(data.get("session_id")) is not int
+                            or data["session_id"] != pending.get("session_id")
+                            or data.get("run_id") != pending.get("run_id")):
+            return None, "session"
+        if (pending.get("chat_id") != STATE.get("current_chat_id")
+                or pending.get("turn_id") != STATE.get("runtime_turn_id")
+                or pending.get("project_root") != STATE.get("project_root")):
+            return None, "turn"
+        STATE[pending_key] = None
+        return pending, None
 
 
 def begin_exchange():
@@ -596,6 +555,7 @@ def clear_pending_confirmations():
     with _runtime_request_lock:
         STATE["pending_runtime_request"] = None
         STATE["pending_runtime_check"] = None
+        STATE["runtime_result_generation"] = object()
 
 
 def _sync_chat_after_reply():
