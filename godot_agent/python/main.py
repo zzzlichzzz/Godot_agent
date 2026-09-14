@@ -149,6 +149,13 @@ app.register_blueprint(chats_bp)
 app.teardown_request(server_state.clear_turn_chat)
 app.teardown_request(server_state.clear_request_activity)
 
+# Bound and authenticate request bodies before any stateful admission hook.
+server_auth.install(app, jsonify, body_limits={
+    "/init": 128 * 1024,
+    "/chat/runtime_inspect/result": runtime_debug.MAX_HTTP_BODY_BYTES,
+    "/chat/runtime_check/result": runtime_checks.MAX_HTTP_BODY_BYTES,
+})
+
 _CHAT_CONTINUATION_PATHS = {
     "/chat/confirm_action", "/chat/editor_action/result",
     "/chat/runtime_inspect/result", "/chat/runtime_check/bind",
@@ -170,11 +177,6 @@ def _admit_chat_continuation():
                     "code": "busy"}), 409
 _EDITOR_ACTION_RESULTS = {}
 _RUNTIME_CHECK_RESULTS = {}
-# Проверка источника запросов. Что она даёт и чего НЕ даёт — в докстринге
-# server_auth: от программы под той же учётной записью она не защищает, но
-# закрывает чужую учётную запись, случайные обращения и — главное — панель
-# другого проекта Godot, чьи правки иначе уехали бы в этот проект.
-server_auth.install(app, jsonify)
 
 
 def _current_parser():
@@ -2036,6 +2038,17 @@ def _build_priming_context(project_root):
 
 @app.route('/init', methods=['POST'])
 def init_session():
+    if not server_state.try_begin_navigation():
+        return jsonify({"error": "Агент обрабатывает запрос; синхронизация отложена.",
+                        "code": "busy"}), 409
+    # Editor writes execute between HTTP requests. Admission alone does not
+    # protect their reserved history and capability tokens from a reset.
+    if any(STATE.get(key) is not None for key in (
+            "pending_scene_action", "pending_project_settings_action",
+            "pending_resource_action", "pending_transaction",
+            "pending_runtime_request", "pending_runtime_check")):
+        return jsonify({"error": "Сначала завершите или отклоните ожидающую операцию.",
+                        "code": "pending_operation"}), 409
     data = request.json or {}
     STATE["project_root"] = data.get('project_root')
     # v87.9: точная версия движка для мега-промпта (плагин шлёт её в /init).
