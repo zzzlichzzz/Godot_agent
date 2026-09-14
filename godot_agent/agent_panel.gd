@@ -30,7 +30,6 @@ const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
 const EDITOR_ACTION_RESULT_URL = "http://" + HOST + "/chat/editor_action/result"
 const RUNTIME_RESULT_URL = "http://" + HOST + "/chat/runtime_inspect/result"
-const RUNTIME_CHECK_BIND_URL = "http://" + HOST + "/chat/runtime_check/bind"
 const RUNTIME_CHECK_RESULT_URL = "http://" + HOST + "/chat/runtime_check/result"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
@@ -102,8 +101,6 @@ var _runtime_timeout_timer: Timer = null
 var _pending_runtime_check: Dictionary = {}
 var _runtime_check_session_id: int = -1
 var _runtime_check_run_id: String = ""
-var _runtime_check_launch_deadline: int = 0
-var _runtime_check_owned_scene: bool = false
 var _pending_runtime_check_result_body: Dictionary = {}
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
@@ -311,93 +308,24 @@ func _start_runtime_check(envelope: Dictionary) -> void:
 	_pending_runtime_check = (envelope.get("runtime_check_request", {}) as Dictionary).duplicate(true)
 	if _pending_runtime_check.is_empty():
 		return
-	if EditorInterface.is_playing_scene():
-		_send_runtime_check_result("runtime_already_running", {})
-		return
-	var scene_path := str(_pending_runtime_check.get("scene", ""))
-	EditorInterface.play_custom_scene(scene_path)
-	_runtime_check_owned_scene = true
-	_runtime_check_launch_deadline = Time.get_ticks_msec() + 8000
 	_runtime_check_session_id = -1
 	_runtime_check_run_id = ""
-	_view.add_system("Запускаю сцену для локальной игровой проверки...")
+	# Godot 4.6.1 exposes neither editor-run PIDs nor a debugger-session remote
+	# PID. A sole/new session, scene name or bridge-reported PID is not proof
+	# that play_custom_scene launched it. Refuse before launching or sending input.
+	_view.add_system("run_check unavailable: Godot 4.6.1 cannot prove ownership of the launched debugger session. No scene was launched or stopped.")
+	_send_runtime_check_result("bridge_unavailable", {})
 
 
 func _exit_tree() -> void:
 	if not _pending_runtime_check.is_empty():
 		if _runtime_debugger:
 			_runtime_debugger.cancel_pending("cancelled")
-		# Before the debugger announces a run, this panel is still authoritative:
-		# it launched only after verifying that no user game was running.
-		if _runtime_check_owned_scene and _runtime_check_session_id < 0 \
-				and EditorInterface.is_playing_scene():
-			EditorInterface.stop_playing_scene()
-		else:
-			_stop_owned_runtime_check_scene()
 
 
-func _try_bind_runtime_check() -> void:
-	if _pending_runtime_check.is_empty() or _runtime_check_launch_deadline <= 0 or _is_network_busy:
-		return
-	if Time.get_ticks_msec() > _runtime_check_launch_deadline:
-		_stop_owned_runtime_check_scene()
-		_send_runtime_check_result("launch_timeout", {})
-		return
-	var sessions = _runtime_status.get("sessions", [])
-	if not sessions is Array:
-		return
-	var active: Array = []
-	var ready: Array = []
-	for raw in sessions:
-		if raw is Dictionary and bool(raw.get("active", false)):
-			active.append(raw)
-			if bool(raw.get("bridge_ready", false)) and "run_check_v1" in raw.get("capabilities", []):
-				ready.append(raw)
-	# Remember the exact run as soon as the debugger sees it. This lets timeout
-	# cleanup stop only the scene launched by this check, even before handshake.
-	if active.size() == 1:
-		_runtime_check_session_id = int(active[0].get("session_id", -1))
-		_runtime_check_run_id = str(active[0].get("run_id", ""))
-	if ready.size() != 1:
-		return
-	var session := ready[0] as Dictionary
-	_runtime_check_session_id = int(session.get("session_id", -1))
-	_runtime_check_run_id = str(session.get("run_id", ""))
-	if _runtime_check_session_id < 0 or _runtime_check_run_id.is_empty():
-		return
-	_runtime_check_launch_deadline = 0
-	var body := {
-		"request_id": str(_pending_runtime_check.get("request_id", "")),
-		"result_token": str(_pending_runtime_check.get("result_token", "")),
-		"session_id": _runtime_check_session_id,
-		"run_id": _runtime_check_run_id,
-		"runtime_status": _runtime_status,
-	}
-	_pending_request_kind = "runtime_check_bind"
-	_set_ui_busy(true)
-	var error := http_request.request(RUNTIME_CHECK_BIND_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
-	if error != OK:
-		_set_ui_busy(false)
-		_runtime_check_launch_deadline = Time.get_ticks_msec() + 1000
-
-
-func _execute_bound_runtime_check(envelope: Dictionary) -> void:
-	var game_request = envelope.get("game_request", {})
-	if not game_request is Dictionary:
-		_stop_owned_runtime_check_scene()
-		_send_runtime_check_result("protocol_error", {})
-		return
-	game_request = (game_request as Dictionary).duplicate(true)
-	game_request["session_id"] = _runtime_check_session_id
-	var result := {"ok": false, "status": "bridge_unavailable"}
-	if _runtime_debugger:
-		result = _runtime_debugger.run_check(game_request)
-	if not bool(result.get("ok", false)):
-		_stop_owned_runtime_check_scene()
-		_send_runtime_check_result(str(result.get("status", "bridge_unavailable")), {})
-		return
-	_runtime_timeout_timer.start(maxf(1.0, float(game_request.get("timeout_ms", 12000)) / 1000.0 + 1.0))
-	_view.add_system("Локальная игровая проверка выполняется...")
+func _execute_bound_runtime_check(_envelope: Dictionary) -> void:
+	# A server bind response cannot establish local process ownership either.
+	_send_runtime_check_result("bridge_unavailable", {})
 
 
 func _on_runtime_check_completed(result: Dictionary) -> void:
@@ -407,21 +335,7 @@ func _on_runtime_check_completed(result: Dictionary) -> void:
 		return
 	if _runtime_timeout_timer:
 		_runtime_timeout_timer.stop()
-	_stop_owned_runtime_check_scene()
 	_send_runtime_check_result(str(result.get("status", "protocol_error")), result.get("result", {}))
-
-
-func _stop_owned_runtime_check_scene() -> void:
-	var owns_current_run := false
-	for raw in _runtime_status.get("sessions", []):
-		if raw is Dictionary and bool(raw.get("active", false)) \
-				and int(raw.get("session_id", -2)) == _runtime_check_session_id \
-				and str(raw.get("run_id", "")) == _runtime_check_run_id:
-			owns_current_run = true
-			break
-	if _runtime_check_owned_scene and owns_current_run and EditorInterface.is_playing_scene():
-		EditorInterface.stop_playing_scene()
-	_runtime_check_owned_scene = false
 
 
 func _send_runtime_check_result(status: String, result_value) -> void:
@@ -451,12 +365,10 @@ func _send_pending_runtime_check_result() -> void:
 
 
 func _clear_runtime_check_state() -> void:
-	_stop_owned_runtime_check_scene()
 	_pending_runtime_check = {}
 	_pending_runtime_check_result_body = {}
 	_runtime_check_session_id = -1
 	_runtime_check_run_id = ""
-	_runtime_check_launch_deadline = 0
 	if _runtime_timeout_timer:
 		_runtime_timeout_timer.stop()
 
@@ -1203,15 +1115,19 @@ func _on_reject_pressed() -> void:
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
-	if approved and _last_pending_action_type == "rename_symbol":
-		var dirty_paths := _dirty_open_scripts(_last_pending_action_paths)
+	if approved and _last_pending_action_type in ["rename_symbol", "transaction", "create_file", "patch_file", "move_file"]:
+		var targets := _last_pending_action_paths.duplicate()
+		for path in [_last_pending_action_path, _last_pending_action_dest]:
+			if not str(path).is_empty() and not targets.has(str(path)):
+				targets.append(str(path))
+		var dirty_paths := _dirty_open_scripts(targets)
 		if not dirty_paths.is_empty():
 			_view.add_warning("Сначала сохраните изменённые вкладки: " + ", ".join(dirty_paths))
 			return
-	_set_pending_action(false)
 	# Подтверждение отправки отчёта об ошибках запуска — отдельная ветка:
 	# при отказе сервер вообще не трогаем (и браузер тоже).
 	if _pending_log_send:
+		_set_pending_action(false)
 		_pending_log_send = false
 		if not approved:
 			_view.add_system(_t("errs_cancelled"))
@@ -1231,6 +1147,7 @@ func _send_confirm_request(approved: bool) -> void:
 		if not open_targets.is_empty():
 			_view.add_warning("Сохраните и закройте целевые сцены перед файловой операцией: " + ", ".join(open_targets))
 			return
+	_set_pending_action(false)
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
@@ -2300,12 +2217,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "chat":
 			_restore_chat_draft()
 		if kind == "runtime_check_bind":
-			if response_code in [400, 403, 409, 410, 413]:
-				_log_error("Сервер окончательно отклонил привязку локальной игровой проверки.")
-				_clear_runtime_check_state()
-			else:
-				_log_error("Привязка игровой проверки будет повторена.")
-				_runtime_check_launch_deadline = Time.get_ticks_msec() + 1000
+			_send_runtime_check_result("bridge_unavailable", {})
 			return
 		if kind == "runtime_check_result":
 			if response_code in [400, 403, 409, 410, 413]:
@@ -2503,15 +2415,13 @@ func _reopen_scenes_after_write() -> void:
 
 
 func _ensure_script_autoreload_setting() -> void:
-	# v46: включаем в настройках редактора автоперечитывание скриптов,
-	# изменённых вне Godot (по аналогии с авто-включением файлового лога):
-	# убирает постоянный вопрос о перезагрузке скриптов после правок агента.
+	# Editor preferences belong to the user, not to the plugin.
 	var es = EditorInterface.get_editor_settings()
 	if es == null:
 		return
 	var key := "text_editor/behavior/files/auto_reload_scripts_on_external_change"
 	if es.has_setting(key) and not bool(es.get_setting(key)):
-		es.set_setting(key, true)
+		push_warning("Автоперезагрузка скриптов выключена. При необходимости включите её в Editor Settings; агент не меняет эту настройку.")
 
 
 func _force_reload_open_script() -> void:
@@ -2522,35 +2432,30 @@ func _force_reload_open_script() -> void:
 
 
 func _dirty_open_scripts(target_paths: PackedStringArray) -> PackedStringArray:
-	var dirty := PackedStringArray()
+	var affected := PackedStringArray()
 	if target_paths.is_empty():
-		return dirty
+		return affected
 	var wanted := {}
 	for path in target_paths:
-		wanted[path] = true
+		wanted[path.to_lower()] = true
 	var script_editor := EditorInterface.get_script_editor()
 	if not script_editor:
-		return dirty
-	if script_editor.has_method("get_open_script_editors"):
-		for editor in script_editor.get_open_script_editors():
-			if not editor or not editor.has_method("get_edited_resource"):
-				continue
-			var resource = editor.get_edited_resource()
-			if not resource or not wanted.has(str(resource.resource_path)):
-				continue
-			var base_editor = editor.get_base_editor() if editor.has_method("get_base_editor") else null
-			var code_edit := base_editor as CodeEdit
-			if code_edit and code_edit.get_version() != code_edit.get_saved_version():
-				dirty.append(str(resource.resource_path))
-		return dirty
-	# Compatibility fallback can inspect the active tab without switching tabs.
-	var current_script = script_editor.get_current_script()
-	var current_editor = script_editor.get_current_editor()
-	if current_script and wanted.has(str(current_script.resource_path)) and current_editor:
-		var code_edit := current_editor.get_base_editor() as CodeEdit
-		if code_edit and code_edit.get_version() != code_edit.get_saved_version():
-			dirty.append(str(current_script.resource_path))
-	return dirty
+		return affected
+	for script in script_editor.get_open_scripts():
+		if script and wanted.has(str(script.resource_path).to_lower()):
+			affected.append(str(script.resource_path))
+	if affected.is_empty():
+		return affected
+	# Public ScriptEditorBase has no get_edited_resource(). Do not assume that
+	# two editor arrays share an order: require all open buffers to be clean.
+	var editors := script_editor.get_open_script_editors()
+	if editors.is_empty():
+		return affected
+	for editor in editors:
+		var code_edit := editor.get_base_editor() as CodeEdit
+		if code_edit == null or code_edit.get_version() != code_edit.get_saved_version():
+			return affected
+	return PackedStringArray()
 
 
 func _sync_open_script_with_disk(target_path: String) -> void:
@@ -2622,7 +2527,6 @@ func _on_play_watch_tick() -> void:
 	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \
 			and _pending_request_kind != "resource_finalize":
 		_send_pending_resource_finalize()
-	_try_bind_runtime_check()
 	if not _pending_runtime_check_result_body.is_empty() and not _is_network_busy:
 		_send_pending_runtime_check_result()
 	var playing := EditorInterface.is_playing_scene()

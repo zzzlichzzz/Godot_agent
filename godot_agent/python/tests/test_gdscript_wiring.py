@@ -393,7 +393,7 @@ check("rename plural diffs use read-only cards",
       'json.get("pending_action_diffs")' in panel and "add_readonly_diff" in panel
       and "mark_preview_only" in diff_card)
 check("rename confirmation blocks dirty scripts",
-      "_dirty_open_scripts(_last_pending_action_paths)" in panel)
+      "_dirty_open_scripts(targets)" in panel)
 check("rename result reloads every changed path",
       'json.get("changed_paths")' in panel and "for changed_path in changed_paths" in panel)
 scene_executor = read(_os0.path.join(ADDON, "agent_scene_executor.gd"))
@@ -475,7 +475,15 @@ check("panel retains settings finalize until a terminal result",
       and "_send_pending_project_settings_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
 check("file operations never close user scenes automatically",
       'call("close_scene")' not in panel and "func _close_scenes_before_write" not in panel
-      and "_open_pending_scene_paths()" in panel)
+       and "_open_pending_scene_paths()" in panel)
+dirty_helper = panel[panel.find("func _dirty_open_scripts"):panel.find("func _sync_open_script_with_disk")]
+check("dirty script safety does not call unavailable resource accessor",
+      "editor.get_edited_resource(" not in dirty_helper
+      and "get_open_scripts()" in dirty_helper and "get_open_script_editors()" in dirty_helper
+      and "get_saved_version()" in dirty_helper)
+autoreload_helper = panel[panel.find("func _ensure_script_autoreload_setting"):panel.find("func _force_reload_open_script")]
+check("plugin does not silently change script autoreload preference",
+      "set_setting(" not in autoreload_helper)
 for finalize_kind in ("resource_finalize", "project_settings_finalize"):
     failure_branch = panel[panel.rfind('if kind == "%s":' % finalize_kind):]
     check("terminal %s is not retried forever" % finalize_kind,
@@ -494,7 +502,7 @@ check("resource executor supports specialized editors",
 check("resource executor tracks imports previews and semantic state",
       "dependency_fingerprint" in resource_executor and "semantic_hash" in resource_executor
        and "queue_resource_preview" in resource_executor and "check_for_invalidation" in resource_executor)
-check("resource executor validates and atomically replaces temporary save",
+check("resource executor validates staged save and preserves recovery evidence",
       "temporary_semantic_mismatch" in resource_executor
       and "DirAccess.rename_absolute" in resource_executor
       and "saved_semantic_mismatch" in resource_executor
@@ -545,11 +553,11 @@ check("runtime bridge executes bounded InputMap checks",
       and "_run_check_steps" in runtime_bridge and "_release_inputs" in runtime_bridge
       and "_error_sequence" in runtime_bridge and "MAX_CHECK_RESULT_BYTES" in runtime_bridge
       and all(value not in runtime_bridge for value in ("InputEventKey.new", "InputEventMouseButton.new")))
-check("panel owns launch bind result lifecycle for checks",
-      "EditorInterface.play_custom_scene" in panel and "EditorInterface.stop_playing_scene" in panel
-      and "RUNTIME_CHECK_BIND_URL" in panel and "RUNTIME_CHECK_RESULT_URL" in panel
-      and "_try_bind_runtime_check" in panel and "_pending_runtime_check_result_body" in panel
-      and "func _exit_tree" in panel)
+check("panel refuses unprovable runtime ownership without starting or stopping games",
+       "EditorInterface.play_custom_scene" not in panel and "EditorInterface.stop_playing_scene" not in panel
+       and "RUNTIME_CHECK_RESULT_URL" in panel and '"bridge_unavailable"' in panel
+       and "_pending_runtime_check_result_body" in panel
+       and "func _exit_tree" in panel)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))
