@@ -616,6 +616,13 @@ RESCUE_NOTE = (u"\n[color=#c08040]— связь с провайдером об�
 # упёрлась в свой max_tokens, и лечится это разными вещами.
 LENGTH_NOTE = (u"\n[color=#c08040]— ответ обрезан лимитом вывода модели —[/color]\n")
 
+HISTORY_SAVE_WARNING = (
+    u"\n[color=#c08040]История API не сохранена: ответ получен и показан, "
+    u"но этот обмен отсутствует в памяти диалога и учёте токенов. "
+    u"Ошибка сохранения не вызывает повтор запроса. "
+    u"Проверьте хранилище истории перед продолжением."
+    u"[/color]\n")
+
 # Сколько символов недополученного ответа показать, когда повторы не помогли.
 # Показываем именно НАЧАЛО: обрыв съедает конец, и первые полторы тысячи
 # символов — это как раз объяснение модели, ради которого стоит смотреть на
@@ -891,6 +898,12 @@ class ApiBackend(object):
             except oc.Cancelled:
                 # Переводим в исключение, которое main.py уже умеет обрабатывать.
                 raise parser_base.ParserCancelled(u"Остановлено пользователем.")
+            except api_history.ApiHistoryError as e:
+                print("[api_backend] %s" % e)
+                return self._fail(
+                    u"[История API недоступна]: история повреждена или не читается. "
+                    u"Запрос не отправлен. Восстановите файл истории или начните "
+                    u"новый чат; существующая история не изменена.")
             except oc.ApiError as e:
                 if not should_rotate_key(e):
                     # Ключ не виноват (сервис, сеть, посредник, сам запрос) —
@@ -1135,10 +1148,14 @@ class ApiBackend(object):
         запрос при ошибке, память диалога разошлась бы с тем, что модель на
         самом деле видела.
         """
-        api_history.append_exchange(
-            self._base_dir, self.chat_id,
-            editor_context.user_prompt_without_context(runtime_debug.strip_status(prompt)), raw,
-            user_kind=_guess_user_kind(prompt), usage=usage)
+        try:
+            saved = api_history.append_exchange(
+                self._base_dir, self.chat_id,
+                editor_context.user_prompt_without_context(runtime_debug.strip_status(prompt)), raw,
+                user_kind=_guess_user_kind(prompt), usage=usage)
+        except api_history.ApiHistoryError as e:
+            print("[api_backend] %s" % e)
+            saved = False
 
         action_raw, prose = split_action_block(raw)
         action, _ = parse_action(raw)
@@ -1158,8 +1175,19 @@ class ApiBackend(object):
             # вывода. В браузерном режиме это приходилось угадывать по
             # поломанному JSON.
             display += LENGTH_NOTE
-        display += usage_line(usage, api_history.stats(
-            self._base_dir, self.chat_id).get("usage_total"))
+        # Persistence failures must not discard an accepted answer or trigger a resend.
+        if not saved:
+            display += HISTORY_SAVE_WARNING
+        else:
+            try:
+                totals = api_history.stats(self._base_dir, self.chat_id)["usage_total"]
+            except api_history.ApiHistoryError as e:
+                print("[api_backend] %s" % e)
+                display += (u"\n[color=#c08040]История API сохранена, но повторное "
+                            u"чтение не удалось. Итоговый расход токенов недоступен; "
+                            u"проверьте хранилище истории.[/color]\n")
+            else:
+                display += usage_line(usage, totals)
         return {"text": display, "action": action, "raw": raw,
                 "usage": usage, "finish_reason": finish,
                 "model": model_name}

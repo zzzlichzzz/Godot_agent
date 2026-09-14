@@ -185,23 +185,33 @@ H.delete(BASE, CID)
 check(u"delete убирает файл", not _os0.path.isfile(H.history_path(BASE, CID)))
 
 # ---------------------------------------------------------------------------
-# 9) Битый файл не валит сервер
+# 9) Corrupt history fails closed and is never replaced by an empty chat.
 # ---------------------------------------------------------------------------
 CID4 = "broken00test"
 p = H.history_path(BASE, CID4)
 _os0.makedirs(_os0.path.dirname(p), exist_ok=True)
 with open(p, "w", encoding="utf-8") as f:
     f.write("{ это не json")
-check(u"битый файл истории -> пустая история", H.load_messages(BASE, CID4) == [])
-check(u"после битого файла запись работает",
-      H.append_exchange(BASE, CID4, u"q", u"a")
-      and len(H.load_messages(BASE, CID4)) == 2)
+for operation in (lambda: H.load_messages(BASE, CID4),
+                  lambda: H.append_exchange(BASE, CID4, "q", "a")):
+    try:
+        operation()
+    except H.ApiHistoryError:
+        check("corrupt history raises ApiHistoryError", True)
+    else:
+        check("corrupt history raises ApiHistoryError", False)
+with open(p, "r", encoding="utf-8") as f:
+    check("corrupt history remains unchanged", f.read() == "{ это не json")
 
 with open(p, "w", encoding="utf-8") as f:
     f.write('{"messages": [{"role": "bogus", "content": "x"}, '
             '{"role": "user"}, {"role": "user", "content": "ok"}]}')
-check(u"мусорные записи внутри файла отфильтрованы",
-      [m["content"] for m in H.load_messages(BASE, CID4)] == ["ok"])
+try:
+    H.load_messages(BASE, CID4)
+except H.ApiHistoryError:
+    check("invalid messages are not silently discarded", True)
+else:
+    check("invalid messages are not silently discarded", False)
 
 check(u"оценка токенов растёт с длиной",
       H.estimate_tokens("x" * 300) > H.estimate_tokens("x" * 30))

@@ -4,8 +4,10 @@
 (с переходом браузера на его страницу), переименование и удаление.
 Вынесено из main.py в отдельный Blueprint.
 """
+import os
 import threading
 import time
+import uuid
 from flask import Blueprint, request, jsonify
 
 import chat_store
@@ -718,6 +720,40 @@ def api_test():
                     "message": u"Ответ получен за %d мс%s." % (ms, proxy_note)})
 
 
+def _api_chat_committed_payload(base, rec, note):
+    """Display/config failures cannot reject an already committed API chat change."""
+    warnings = []
+    try:
+        chat_store.append_transcript(base, rec["id"], "system", note)
+    except OSError as e:
+        print("[chat_routes] API chat transcript: %s" % e)
+        warnings.append(u"Не удалось сохранить уведомление в экранной переписке.")
+    try:
+        saved = (api_keys.set_defaults(rec["provider"], rec["model"]),
+                 api_keys.note_model_used(rec["provider"], rec["model"]),
+                 api_keys.set_model(rec["provider"], rec["model"]))
+        if not all(saved):
+            warnings.append(u"Не все настройки выбора модели сохранены.")
+    except OSError as e:
+        print("[chat_routes] API chat preferences: %s" % e)
+        warnings.append(u"Не удалось сохранить настройки выбора модели.")
+    try:
+        chats = chat_store.list_chats(base, PROMPT_HASH)
+    except OSError as e:
+        print("[chat_routes] API chat list: %s" % e)
+        chats = []
+        warnings.append(u"Не удалось прочитать список чатов.")
+    warning = ""
+    if warnings:
+        warning = (u"Предупреждение: чат и выбранная модель уже сохранены. "
+                   + " ".join(warnings) + u" Повторять операцию не нужно.")
+    # These two panel handlers display site, but do not yet render warning.
+    return {"ok": True, "kind": "api", "provider": rec["provider"],
+            "model": rec["model"], "current_id": rec["id"], "chats": chats,
+            "site": rec["site_name"] + ("\n" + warning if warning else ""),
+            "warning": warning}
+
+
 def _new_api_chat(data, base):
     """Новый чат по ключу API: без браузера, без адреса страницы.
 
@@ -732,37 +768,52 @@ def _new_api_chat(data, base):
     if provider is None:
         return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
     model = (data.get("model") or "").strip() or providers.model_for(pid)
-    if model:
-        api_keys.set_model(pid, model)
     ok, why = providers.readiness(pid)
-    if not ok:
+    if not ok and not (model and providers.readiness_code(pid) == "no_model"):
         return jsonify({"error": u"Провайдер «%s» не готов: %s. Откройте "
                                  u"настройки API-ключа." % (provider["name"], why)}), 400
-    api_keys.set_defaults(pid, model)
-    api_keys.note_model_used(pid, model)
-    rec = chat_store.create_chat(base, url="", primed=False)
-    chat_store.update_chat(base, rec["id"], kind="api", provider=pid, model=model,
-                           # site_name переиспользуем как подпись чата в списке:
-                           # панель уже умеет её показывать, отдельное поле не нужно.
-                           site_name=u"%s · %s" % (provider["name"], model))
-    rec = chat_store.find_chat(base, rec["id"]) or rec
+    rec = {"id": uuid.uuid4().hex[:12], "title": chat_store.DEFAULT_TITLE,
+           "manual_title": False, "url": "", "primed": False,
+           "created": time.time(), "last_used": time.time(), "transcript": [],
+           "kind": "api", "provider": pid, "model": model,
+           "site_name": u"%s · %s" % (provider["name"], model)}
+    # Publish one complete record, not create_chat's visible browser placeholder.
+    # A process crash between files can leave an unlisted empty history, never
+    # a visible half-initialized chat. Existing history is never reused/cleared.
+    with chat_store._lock(base), api_history._lock(base, rec["id"]):
+        initialized = False
+        try:
+            chats = chat_store._load(base)
+            if (any(c.get("id") == rec["id"] for c in chats)
+                    or os.path.lexists(api_history.history_path(base, rec["id"]))):
+                raise OSError(u"Идентификатор уже занят; существующая история не изменена.")
+            if not api_history.clear(base, rec["id"]):
+                raise OSError(u"Не удалось создать API-историю.")
+            initialized = True
+            chats.append(rec)
+            if not chat_store._save(base, chats):
+                raise OSError(u"Не удалось сохранить запись нового чата.")
+        except (OSError, api_history.ApiHistoryError) as e:
+            error = u"API-чат не создан; текущий чат не изменён. %s" % e
+            if initialized and not api_history.delete(base, rec["id"]):
+                error += (u" Остался не включённый в список файл пустой истории: %s."
+                          % api_history.history_path(base, rec["id"]))
+            print("[chat_routes] %s" % error)
+            return jsonify({"ok": False, "error": error})
     S.STATE["current_chat_id"] = rec["id"]
     S.STATE["current_site_id"] = None
     S.STATE["is_primed"] = False
     S._save_primed(S.STATE.get("project_root"), False)
     S.clear_pending_confirmations()
     S.discard_stale_note_for_chat(rec["id"])
-    api_history.clear(base, rec["id"])
-    chat_store.append_transcript(
-        base, rec["id"], "system",
+    payload = _api_chat_committed_payload(
+        base, rec,
         u"Чат работает по ключу API: %s, модель %s. Модель закреплена за этим "
         u"чатом — чтобы работать на другой, создайте новый чат."
         % (provider["name"], model))
     print("--> Новый API-чат:", rec["id"], pid, model)
-    return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH),
-                    "current_id": rec["id"], "title": rec["title"],
-                    "site": rec.get("site_name", ""), "site_id": "",
-                    "kind": "api", "provider": pid, "model": model})
+    payload.update(title=rec["title"], site_id="")
+    return jsonify(payload)
 
 
 @chats_bp.route('/chats/model', methods=['POST'])
@@ -799,7 +850,10 @@ def chats_model():
     data = request.json or {}
     base = S._chats_dir()
     cid = S.STATE.get("current_chat_id")
-    rec = chat_store.find_chat(base, cid) if (base and cid) else None
+    try:
+        rec = chat_store.find_chat(base, cid) if (base and cid) else None
+    except OSError as e:
+        return jsonify({"ok": False, "error": u"Модель не изменена: %s" % e})
     if rec is None:
         return jsonify({"error": u"Нет открытого чата."}), 400
     if S.chat_kind(rec) != "api":
@@ -851,8 +905,6 @@ def chats_model():
                                  u"настройки API-ключа."
                                  % (provider["name"], why)})
 
-    chat_store.update_chat(base, cid, provider=pid, model=model,
-                           site_name=u"%s · %s" % (provider["name"], model))
     was_name = (providers.get_provider(was_pid) or {}).get("name") or was_pid
     note = (u"[Система]: дальше в этом чате отвечает другая модель — %s (%s) "
             u"вместо %s (%s). Предыдущие ответы в переписке писала ПРЕЖНЯЯ "
@@ -862,29 +914,39 @@ def chats_model():
     # В историю запроса — чтобы понимала новая модель. Роль user и вид «заметка»:
     # обрезка контекста не имеет права схлопнуть эту строку, иначе новая модель
     # решит, что весь диалог её собственный.
-    api_history.append(base, cid, api_history.ROLE_USER, note,
-                       kind=api_history.KIND_NOTE)
+    # Same lock order as creation. Navigation admission excludes provider turns.
+    # These files are not a crash-atomic pair: if the process dies after append,
+    # the old model can retain the switch note. On ordinary metadata failures,
+    # restore the complete snapshot (including messages trimmed by append).
+    with chat_store._lock(base), api_history._lock(base, cid):
+        try:
+            before = api_history._load(base, cid)
+            if not api_history.append(base, cid, api_history.ROLE_USER, note,
+                                      kind=api_history.KIND_NOTE):
+                raise OSError(u"Не удалось сохранить заметку в API-истории.")
+        except (OSError, api_history.ApiHistoryError) as e:
+            return jsonify({"ok": False, "error": u"Модель не изменена: %s" % e})
+        try:
+            rec = chat_store.update_chat(base, cid, provider=pid, model=model,
+                                         site_name=u"%s · %s" % (provider["name"], model))
+        except OSError as e:
+            restored = api_history._save(base, cid, before)
+            error = u"Модель не изменена: %s." % e
+            if not restored:
+                error += (u" Не удалось восстановить API-историю: в ней осталась "
+                          u"заметка о НЕСОСТОЯВШЕЙСЯ смене модели, а старые сообщения "
+                          u"могли быть обрезаны лимитом истории. Проверьте файл %s "
+                          u"перед продолжением." % api_history.history_path(base, cid))
+            return jsonify({"ok": False, "error": error})
     # В транскрипт — чтобы видел пользователь. Тот же факт, но своими словами:
     # ему не нужны инструкции, адресованные модели.
-    chat_store.append_transcript(
-        base, cid, "system",
+    payload = _api_chat_committed_payload(
+        base, rec,
         u"Модель чата изменена: %s (%s) вместо %s (%s). Переписка сохранена."
         % (model, provider["name"], was_model or u"?", was_name or u"?"))
-    # Предложение по умолчанию для СЛЕДУЮЩЕГО нового чата тоже обновляем: раз
-    # человек ушёл на эту модель посреди задачи, вероятнее всего он и дальше
-    # захочет её, а не ту, что исчерпалась.
-    api_keys.set_defaults(pid, model)
-    api_keys.note_model_used(pid, model)
-    # Модель у ПРОВАЙДЕРА тоже запоминаем: следующий переход на этого провайдера
-    # без явного выбора модели (см. подстановку выше) должен привести к той, на
-    # которой человек только что остановился, а не к записи из реестра.
-    api_keys.set_model(pid, model)
     print("--> Чат %s: модель сменена %s/%s -> %s/%s"
           % (cid, was_pid, was_model, pid, model))
-    return jsonify({"ok": True, "kind": "api", "provider": pid, "model": model,
-                    "site": u"%s · %s" % (provider["name"], model),
-                    "chats": chat_store.list_chats(base, PROMPT_HASH),
-                    "current_id": cid})
+    return jsonify(payload)
 
 
 @chats_bp.route('/browser/status', methods=['POST'])
