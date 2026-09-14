@@ -467,7 +467,19 @@ check("panel coordinates project settings transaction",
                                      "_execute_project_settings_action",
                                      "project_settings_finalize",
                                      "_pending_project_settings_semantic_hash",
-                                      "agent_project_settings_executor.gd")))
+                                       "agent_project_settings_executor.gd")))
+check("panel retains settings finalize until a terminal result",
+      all(name in panel for name in ("_pending_project_settings_finalize_body",
+                                     "func _send_pending_project_settings_finalize",
+                                     "func _schedule_project_settings_finalize_retry"))
+      and "_send_pending_project_settings_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
+check("file operations never close user scenes automatically",
+      'call("close_scene")' not in panel and "func _close_scenes_before_write" not in panel
+      and "_open_pending_scene_paths()" in panel)
+for finalize_kind in ("resource_finalize", "project_settings_finalize"):
+    failure_branch = panel[panel.rfind('if kind == "%s":' % finalize_kind):]
+    check("terminal %s is not retried forever" % finalize_kind,
+          'if response_code in [400, 403, 409, 410, 413]:' in failure_branch.split("\n\t\tif kind ==", 1)[0])
 resource_executor = read(_os0.path.join(ADDON, "agent_resource_executor.gd"))
 check("resource executor avoids invalid static hashing",
       "HashingContext.hash(" not in resource_executor)
@@ -504,6 +516,8 @@ check("panel explicitly dispatches all editor transaction kinds",
                                        'editor_action_kind == "resource"')))
 runtime_debugger = read(_os0.path.join(ADDON, "agent_runtime_debugger.gd"))
 runtime_bridge = read(_os0.path.join(ADDON, "agent_runtime_bridge.gd"))
+check("runtime error assertion uses only current check errors",
+      '_errors_since(int(_check.get("error_cursor", 0))).is_empty()' in runtime_bridge)
 check("plugin registers and removes runtime debugger",
       "add_debugger_plugin" in plugin and "remove_debugger_plugin" in plugin
       and "set_runtime_debugger" in plugin)

@@ -89,10 +89,25 @@ try:
                    "execution_token": confirmed["execution_token"],
                    "editor_action_kind": "project_settings", "success": True,
                    "project_hash": project_settings_actions.file_sha256(project_file)}
+    # A false no-op report must not discard the only recovery reservation.
+    invalid_no_op = dict(result_body, already_satisfied=True)
+    reservation = STATE["pending_project_settings_action"]["entry_id"]
+    with main.app.test_request_context("/chat/editor_action/result", method="POST",
+                                       json=dict(result_body, project_hash="")):
+        _, status = payload(main.editor_action_result())
+    assert status == 409 and STATE["pending_project_settings_action"] is not None
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json=invalid_no_op):
+        rejected, status = payload(main.editor_action_result())
+    assert status == 409 and "already_satisfied" in rejected["error"]
+    assert any(e["id"] == reservation for e in history_manager._load_journal(root))
+    assert STATE["pending_project_settings_action"] is not None
     with main.app.test_request_context("/chat/editor_action/result", method="POST", json=result_body):
         final, status = payload(main.editor_action_result())
     assert status == 200 and final["requires_editor_restart"] is True
     assert STATE["pending_project_settings_action"] is None
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json=result_body):
+        duplicate, status = payload(main.editor_action_result())
+    assert status == 200 and duplicate == final
     info = history_manager.entry_info(root, final["history_entry_id"])
     assert info and info["type"] == "edit_project_settings"
     with main.app.test_request_context("/chat/rollback", method="POST", json={

@@ -147,7 +147,7 @@ func _evaluate_assertion(step: Dictionary) -> Dictionary:
 	var op := str(step.get("op", ""))
 	var result := {"index": index, "op": op}
 	if op == "assert_no_errors":
-		result["actual"] = _errors.is_empty()
+		result["actual"] = _errors_since(int(_check.get("error_cursor", 0))).is_empty()
 		return result
 	var root := get_tree().current_scene
 	var path := str(step.get("node", ""))
@@ -163,6 +163,14 @@ func _evaluate_assertion(step: Dictionary) -> Dictionary:
 			result["actual"] = read.get("value")
 		else:
 			result["error"] = str(read.get("error", "property_unavailable"))
+	return result
+
+
+func _errors_since(sequence: int) -> Array:
+	var result: Array = []
+	for item in _errors:
+		if int(item.get("sequence", 0)) > sequence:
+			result.append(item)
 	return result
 
 

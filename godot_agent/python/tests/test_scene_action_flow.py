@@ -116,8 +116,8 @@ try:
     assert open(scene, "rb").read() == original_scene
     assert STATE["pending_scene_action"] is None
 
-    # A mismatching editor report also restores the reserved snapshot instead
-    # of leaving an unfinalized transaction behind.
+    # An external edit after the editor report must survive recovery. Keep the
+    # reservation so the user can resolve the conflict instead of losing data.
     STATE.update({"pending_action": None, "pending_scene_action": None})
     with main.app.test_request_context("/chat", method="POST", json={}):
         payload(main._package_model_reply("Несовпадающий отчёт.", action, root))
@@ -132,9 +132,19 @@ try:
             "execution_token": mismatch_confirm["execution_token"],
             "success": True, "scene_hash": "0" * 64}):
         mismatch_json, mismatch_result_status = payload(main.editor_action_result())
-    assert mismatch_result_status == 200 and mismatch_json["restored"] is True
-    assert open(scene, "rb").read() == original_scene
-    assert STATE["pending_scene_action"] is None
+    assert mismatch_result_status == 409 and mismatch_json["restored"] is False
+    assert open(scene, "rb").read() == b"partially saved scene\n"
+    conflict = STATE["pending_scene_action"]
+    assert conflict is not None
+    assert any(e["id"] == conflict["entry_id"] for e in history_manager._load_journal(root))
+    # Even a failure report with no hash is not permission to overwrite it.
+    with main.app.test_request_context("/chat/editor_action/result", method="POST", json={
+            "action_id": mismatch_confirm["action_id"],
+            "execution_token": mismatch_confirm["execution_token"],
+            "success": False, "scene_hash": ""}):
+        no_hash_json, no_hash_status = payload(main.editor_action_result())
+    assert no_hash_status == 409 and not no_hash_json["restored"]
+    assert open(scene, "rb").read() == b"partially saved scene\n"
 
     # Typed scene creation uses the same editor transaction, but history knows
     # the file did not exist and rollback therefore removes it.

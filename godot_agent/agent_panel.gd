@@ -84,6 +84,9 @@ var _project_settings_executor = null
 var _pending_project_settings_action: Dictionary = {}
 var _pending_project_settings_expected_hash: String = ""
 var _pending_project_settings_semantic_hash: String = ""
+var _pending_project_settings_finalize_body: Dictionary = {}
+var _project_settings_finalize_retries: int = 0
+var _project_settings_finalize_retrying: bool = false
 var _resource_executor = null
 var _pending_resource_action: Dictionary = {}
 var _pending_resource_expected_hash: String = ""
@@ -837,6 +840,7 @@ func _set_pending_action(active: bool, description: String = "") -> void:
 
 func _has_pending_action() -> bool:
 	return (_pending_action_active or not _pending_scene_finalize_body.is_empty()
+		or not _pending_project_settings_finalize_body.is_empty()
 		or not _pending_resource_finalize_body.is_empty()
 		or not _pending_runtime_request.is_empty() or not _pending_runtime_check.is_empty()
 		or not _pending_runtime_check_result_body.is_empty())
@@ -1221,7 +1225,10 @@ func _send_confirm_request(approved: bool) -> void:
 			_set_ui_busy(false)
 		return
 	if approved and _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
-		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
+		var open_targets := _open_pending_scene_paths()
+		if not open_targets.is_empty():
+			_view.add_warning("Сохраните и закройте целевые сцены перед файловой операцией: " + ", ".join(open_targets))
+			return
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
@@ -1332,7 +1339,7 @@ func _execute_project_settings_action(envelope: Dictionary) -> void:
 			action["_expected_semantic_hash"] = _pending_project_settings_semantic_hash
 		execution = _project_settings_executor.execute(
 			action, str(envelope.get("expected_project_hash", "")))
-	var body := {
+	_pending_project_settings_finalize_body = {
 		"action_id": str(envelope.get("action_id", "")),
 		"execution_token": str(envelope.get("execution_token", "")),
 		"editor_action_kind": "project_settings",
@@ -1342,13 +1349,37 @@ func _execute_project_settings_action(envelope: Dictionary) -> void:
 		"error_code": str(execution.get("code", "")),
 		"error": str(execution.get("error", "")),
 	}
+	_project_settings_finalize_retries = 0
+	_send_pending_project_settings_finalize()
+
+
+func _send_pending_project_settings_finalize() -> void:
+	if _pending_project_settings_finalize_body.is_empty():
+		return
+	if _is_network_busy:
+		_schedule_project_settings_finalize_retry()
+		return
 	_pending_request_kind = "project_settings_finalize"
 	_set_ui_busy(true)
+	_project_settings_finalize_retries += 1
 	var err := http_request.request(
-		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_project_settings_finalize_body))
 	if err != OK:
-		_log_error("Не удалось завершить транзакцию настроек проекта")
 		_set_ui_busy(false)
+		_schedule_project_settings_finalize_retry()
+
+
+func _schedule_project_settings_finalize_retry() -> void:
+	if _project_settings_finalize_retrying or _pending_project_settings_finalize_body.is_empty():
+		return
+	_project_settings_finalize_retrying = true
+	await get_tree().create_timer(float(mini(_project_settings_finalize_retries + 1, 5))).timeout
+	_project_settings_finalize_retrying = false
+	if not _is_network_busy:
+		_send_pending_project_settings_finalize()
+	else:
+		_schedule_project_settings_finalize_retry()
 
 
 func _prepare_resource_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
@@ -2010,6 +2041,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_pending_project_settings_action = {}
 			_pending_project_settings_expected_hash = ""
 			_pending_project_settings_semantic_hash = ""
+			_pending_project_settings_finalize_body = {}
+			_project_settings_finalize_retries = 0
+			_project_settings_finalize_retrying = false
 			_last_pending_action_type = ""
 			_last_pending_action_paths = PackedStringArray()
 			return
@@ -2285,7 +2319,35 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_log_error("Runtime inspection завершён без ответа модели: " + str(response_code))
 			return
 		if kind == "resource_finalize":
-			_schedule_resource_finalize_retry()
+			if response_code in [400, 403, 409, 410, 413]:
+				var resource_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции ресурса."))) if json else "Сервер отклонил завершение транзакции ресурса."
+				_view.add_error(resource_error)
+				_pending_resource_action = {}
+				_pending_resource_expected_hash = ""
+				_pending_resource_semantic_hash = ""
+				_pending_resource_dependency_fingerprint = ""
+				_pending_resource_finalize_body = {}
+				_resource_finalize_retries = 0
+				_resource_finalize_retrying = false
+				_last_pending_action_type = ""
+				_last_pending_action_paths = PackedStringArray()
+			else:
+				_schedule_resource_finalize_retry()
+			return
+		if kind == "project_settings_finalize":
+			if response_code in [400, 403, 409, 410, 413]:
+				var settings_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции настроек."))) if json else "Сервер отклонил завершение транзакции настроек."
+				_view.add_error(settings_error)
+				_pending_project_settings_action = {}
+				_pending_project_settings_expected_hash = ""
+				_pending_project_settings_semantic_hash = ""
+				_pending_project_settings_finalize_body = {}
+				_project_settings_finalize_retries = 0
+				_project_settings_finalize_retrying = false
+				_last_pending_action_type = ""
+				_last_pending_action_paths = PackedStringArray()
+			else:
+				_schedule_project_settings_finalize_retry()
 			return
 		if kind == "scene_finalize":
 			if response_code in [400, 403, 409, 410, 413]:
@@ -2413,24 +2475,20 @@ func _auto_reload_changed_scene(p: String) -> void:
 			return
 
 
-func _close_scenes_before_write() -> void:
-	# v49: Godot не применяет правки с ДИСКА к уже открытой сцене — изменения агента
-	# «не видны», пока сцену не закрыть и не открыть заново. Поэтому перед одобренной
-	# записью закрываем целевую сцену (сам файл агент правит на диске), а после ответа
-	# сервера открываем её обратно уже в новом виде — без вопросов о перезагрузке.
-	_scenes_to_reopen = PackedStringArray()
-	var ei: Object = EditorInterface
-	if not ei.has_method("close_scene"):
-		return  # старый Godot без close_scene: остаётся авто-перечитывание (v46)
-	for raw in [_last_pending_action_path, _last_pending_action_dest]:
+func _open_pending_scene_paths() -> PackedStringArray:
+	var result := PackedStringArray()
+	var open_scenes := EditorInterface.get_open_scenes()
+	var targets := _last_pending_action_paths.duplicate()
+	targets.append(_last_pending_action_path)
+	targets.append(_last_pending_action_dest)
+	for raw in targets:
 		var sp := str(raw)
-		if sp == "" or not (sp.ends_with(".tscn") or sp.ends_with(".scn")):
+		if sp == "" or not (sp.to_lower().ends_with(".tscn") or sp.to_lower().ends_with(".scn")):
 			continue
-		if not EditorInterface.get_open_scenes().has(sp):
-			continue
-		EditorInterface.open_scene_from_path(sp)  # делаем вкладку сцены активной
-		if int(ei.call("close_scene")) == OK and not _scenes_to_reopen.has(sp):
-			_scenes_to_reopen.append(sp)
+		for opened in open_scenes:
+			if str(opened).to_lower() == sp.to_lower() and not result.has(sp):
+				result.append(sp)
+	return result
 
 
 func _reopen_scenes_after_write() -> void:
@@ -2556,6 +2614,9 @@ func _on_play_watch_tick() -> void:
 		_send_pending_scene_finalize()
 	if _hl: _hl.watchdog()
 	_reconcile_confirm_buttons()
+	if not _pending_project_settings_finalize_body.is_empty() and not _project_settings_finalize_retrying and not _is_network_busy \
+			and _pending_request_kind != "project_settings_finalize":
+		_send_pending_project_settings_finalize()
 	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \
 			and _pending_request_kind != "resource_finalize":
 		_send_pending_resource_finalize()
