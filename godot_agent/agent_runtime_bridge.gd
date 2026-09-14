@@ -235,7 +235,9 @@ func _capture_check_screenshot(options: Dictionary, _result: Dictionary) -> Dict
 	var max_width := clampi(int(options.get("max_width", 480)), 64, 480)
 	var max_height := clampi(int(options.get("max_height", 270)), 64, 270)
 	if image.get_width() > max_width or image.get_height() > max_height:
-		image.resize(max_width, max_height, Image.INTERPOLATE_LANCZOS)
+		var scale_factor := minf(float(max_width) / image.get_width(), float(max_height) / image.get_height())
+		image.resize(maxi(1, floori(image.get_width() * scale_factor)),
+			maxi(1, floori(image.get_height() * scale_factor)), Image.INTERPOLATE_LANCZOS)
 	return {"ok": true, "data": Marshalls.raw_to_base64(
 		image.save_jpg_to_buffer(clampf(float(options.get("quality", 0.65)), 0.4, 0.8)))}
 
