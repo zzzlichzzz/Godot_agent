@@ -164,6 +164,7 @@ var _live_dirty: bool = false
 var _live_inflight: bool = false
 var _live_seq: int = 0
 var _live_last_sent: String = ""
+var _live_force_send: bool = false
 var _progress_timer: Timer = null
 var _progress_inflight: bool = false
 # Весь визуал чата (пузыри, печать, стрим, статус) — в agent_chat_view.gd.
@@ -923,7 +924,7 @@ func _clear_chat_input(reset_live: bool = true) -> void:
 	input_field.queue_redraw()
 	if reset_live:
 		_live_seq += 1
-		_live_last_sent = "\u0000"
+		_live_force_send = true
 		_live_dirty = true
 	if not _is_network_busy and input_field.is_visible_in_tree():
 		input_field.call_deferred("grab_focus")
@@ -964,7 +965,7 @@ func _switch_chat_draft(next_chat_id: String) -> void:
 	input_field.set_caret_column(input_field.get_line(input_field.get_caret_line()).length())
 	input_field.queue_redraw()
 	_live_seq += 1
-	_live_last_sent = "\u0000"
+	_live_force_send = true
 	_live_dirty = true
 
 
@@ -1080,7 +1081,7 @@ func _on_live_input_tick() -> void:
 	if _is_network_busy: return  # идёт обмен — конвейер сам вставит финальный промпт
 	if input_field == null or _live_http == null: return
 	var txt: String = input_field.text
-	if txt == _live_last_sent:
+	if txt == _live_last_sent and not _live_force_send:
 		_live_dirty = false
 		return
 	_live_seq += 1
@@ -1091,6 +1092,7 @@ func _on_live_input_tick() -> void:
 		return  # сервер занят/недоступен — молча попробуем на следующем тике
 	_live_inflight = true
 	_live_last_sent = txt
+	_live_force_send = false
 	_live_dirty = false
 
 
