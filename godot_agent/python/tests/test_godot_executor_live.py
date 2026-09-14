@@ -14,7 +14,10 @@ import sys
 import tempfile
 
 
-CASES = {"scene", "settings", "resource_property", "theme", "sprite_frames", "animation"}
+CASES = {"replace_probe", "scene", "settings", "resource_property", "theme", "sprite_frames", "animation"}
+CASES.update("resource_safety_" + mode for mode in (
+    "sentinel", "stale_preview", "stale_publish", "stale_temp", "backup_collision", "publish_failure",
+    "restore", "restore_conflict", "restore_failure", "save_failure"))
 SENTINEL = "GODOT_EXECUTOR_RESULTS "
 
 
@@ -24,12 +27,14 @@ def main():
     parser.add_argument("--godot", default=os.environ.get("GODOT_AGENT_GODOT_EXECUTABLE"))
     parser.add_argument("--temp-parent", default=None)
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--replace-probe-only", action="store_true")
     args = parser.parse_args()
     executable = args.godot or shutil.which("godot") or shutil.which("godot4")
     if not executable:
         parser.error("Specify --godot; these tests require the real engine.")
     executable = str(Path(executable).resolve(strict=True))
     addon = Path(__file__).resolve().parents[2]
+    expected_cases = {"replace_probe"} if args.replace_probe_only else CASES
     with tempfile.TemporaryDirectory(prefix="godot-executors-", dir=args.temp_parent) as temp:
         root = Path(temp)
         copied = root / "addons" / "godot_agent"
@@ -48,7 +53,10 @@ def main():
             directory.mkdir(parents=True)
             env[name] = str(directory)
         base = [executable, "--headless", "--path", str(root), "--editor", "--language", "en"]
-        for arguments in (["--import", "--quit"], ["--script", "res://executor_live.gd"]):
+        harness = ["--script", "res://executor_live.gd"]
+        if args.replace_probe_only:
+            harness += ["--", "--replace-probe-only"]
+        for arguments in (["--import", "--quit"], harness):
             command = base + arguments
             print("RUN " + subprocess.list2cmdline(command), flush=True)
             try:
@@ -76,11 +84,11 @@ def main():
                 if len(reports) != 1:
                     raise RuntimeError("Missing or duplicate executor completion sentinel")
                 report = json.loads(reports[0])
-                if set(report.get("completed", [])) != CASES or report.get("failures") != []:
+                if set(report.get("completed", [])) != expected_cases or report.get("failures") != []:
                     raise RuntimeError("Incomplete or failing executor results: %r" % report)
             if cleanup:
                 print("LIMITATION: Godot emitted %d shutdown RID leak diagnostics (shown above)." % len(cleanup))
-        print("PASS: %d real Godot executor scenarios in an isolated editor project" % len(CASES))
+        print("PASS: %d real Godot executor scenarios in an isolated editor project" % len(expected_cases))
 
 
 if __name__ == "__main__":

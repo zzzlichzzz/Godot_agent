@@ -21,6 +21,10 @@ EXCLUDED_FILES = {'.DS_Store'}
 HISTORY_DIR_NAME = ".agent_history"
 
 
+class MoveRecoveryError(RuntimeError):
+    """A move could not be restored; its reservation and files must be retained."""
+
+
 def _is_generated_sidecar(path):
     """Godot-managed sidecars are useful locally but only add model noise."""
     return str(path or '').replace('\\', '/').lower().endswith('.uid')
@@ -203,22 +207,53 @@ def _atomic_write_text(abs_path, content):
 
 
 def move_project_file(project_root, source_godot_path, dest_godot_path):
-    """Перемещает или переименовывает файл, создавая папки при необходимости."""
+    """Move a file and its UID without clobbering; restore on ordinary I/O failure."""
     abs_source = _resolve_safe_path(project_root, source_godot_path)
     abs_dest = _resolve_safe_path(project_root, dest_godot_path)
+    source_uid = _resolve_safe_path(project_root, abs_source + ".uid")
+    dest_uid = _resolve_safe_path(project_root, abs_dest + ".uid")
     if not os.path.isfile(abs_source):
         raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
-    if os.path.exists(abs_dest):
-        raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
+    identities = {os.path.normcase(p) for p in (abs_source, abs_dest, source_uid, dest_uid)}
+    if len(identities) != 4:
+        raise FileExistsError("Source, destination and UID paths must not alias each other")
+    # Check the requested slots too: realpath can hide a dangling symlink.
+    requested_dest = os.path.join(project_root, dest_godot_path.removeprefix("res://"))
+    for target in (requested_dest, requested_dest + ".uid", abs_dest, abs_dest + ".uid"):
+        if os.path.lexists(target):
+            raise FileExistsError(f"Destination already exists: {target}")
+    pairs = [(abs_source, abs_dest)]
+    if os.path.lexists(abs_source + ".uid"):
+        if os.path.islink(abs_source + ".uid") or not os.path.isfile(source_uid):
+            raise ValueError("Source UID must be a regular file, not a symlink or directory")
+        pairs.append((source_uid, dest_uid))
     os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
-    shutil.move(abs_source, abs_dest)
-    # Godot хранит уникальный идентификатор ресурса в соседнем *.uid —
-    # переносим его тоже, иначе ссылки на файл в проекте могут сломаться.
-    if os.path.exists(abs_source + ".uid") and not os.path.exists(abs_dest + ".uid"):
+    linked = []
+    try:
+        for source, target in pairs:
+            identity = os.stat(source)
+            # link is fail-if-exists, unlike POSIX rename/shutil.move. No EXDEV fallback.
+            os.link(source, target)
+            linked.append([source, target, identity, False])
+            os.unlink(source)
+            linked[-1][3] = True
+    except OSError as move_error:
         try:
-            shutil.move(abs_source + ".uid", abs_dest + ".uid")
-        except OSError:
-            pass
+            for source, target, identity, removed in reversed(linked):
+                # Never clean up a target replaced by another writer.
+                if not os.path.samestat(os.stat(target), identity):
+                    raise OSError(f"Recovery target changed: {target}")
+                if removed:
+                    os.link(target, source)
+                elif not os.path.samestat(os.stat(source), identity):
+                    raise OSError(f"Recovery source changed: {source}")
+                os.unlink(target)
+        except OSError as recovery_error:
+            raise MoveRecoveryError(
+                f"Move recovery failed: {recovery_error}; original error: {move_error}. "
+                f"Files retained for manual recovery; inspect {pairs!r}"
+            ) from recovery_error
+        raise
 
 
 def copy_project_file(project_root, source_godot_path, dest_godot_path):

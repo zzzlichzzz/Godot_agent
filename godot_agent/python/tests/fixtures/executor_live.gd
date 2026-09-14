@@ -3,12 +3,14 @@ extends SceneTree
 const SceneExecutor = preload("res://addons/godot_agent/agent_scene_executor.gd")
 const SettingsExecutor = preload("res://addons/godot_agent/agent_project_settings_executor.gd")
 const ResourceExecutor = preload("res://addons/godot_agent/agent_resource_executor.gd")
+const ResourceFaults = preload("res://executor_resource_faults.gd")
 var failures: Array[String] = []
 var completed: Array[String] = []
 var plugin: EditorPlugin
 var scene_executor = SceneExecutor.new()
 var settings_executor = SettingsExecutor.new()
 var resource_executor = ResourceExecutor.new()
+var safety_executors: Array = []
 
 
 func _initialize() -> void:
@@ -24,7 +26,10 @@ func _run() -> void:
 	scene_executor.configure(plugin)
 	settings_executor.configure(plugin)
 	resource_executor.configure(plugin)
-	for test in [_scene, _settings, _resource_property, _theme, _sprite_frames, _animation]:
+	var tests := [_replace_probe, _scene, _settings, _resource_property, _theme, _sprite_frames, _animation, _resource_safety]
+	if "--replace-probe-only" in OS.get_cmdline_user_args():
+		tests = [_replace_probe]
+	for test in tests:
 		test.call()
 		await process_frame
 		while EditorInterface.get_resource_filesystem().is_scanning():
@@ -34,6 +39,7 @@ func _run() -> void:
 	scene_executor = null
 	settings_executor = null
 	resource_executor = null
+	safety_executors.clear()
 	plugin.free()
 	await process_frame
 	await process_frame
@@ -55,6 +61,43 @@ func success(result: Dictionary, label: String) -> bool:
 func done(name: String) -> void:
 	completed.append(name)
 	print("CASE_COMPLETED " + name)
+
+
+func write_bytes(path: String, bytes: PackedByteArray) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if check(file != null, "open fixture file " + path):
+		file.store_buffer(bytes)
+		file.close()
+
+
+func _replace_probe() -> void:
+	var target := ProjectSettings.globalize_path("res://rename-target.bin")
+	var source := ProjectSettings.globalize_path("res://rename-source.bin")
+	var backup := source + ".backup"
+	write_bytes(target, "original".to_utf8_buffer())
+	write_bytes(source, "replacement".to_utf8_buffer())
+	check(DirAccess.copy_absolute(target, backup) == OK, "non-destructive original copy")
+	check(FileAccess.get_file_as_string(target) == "original", "copy leaves original target present")
+	var error := DirAccess.rename_absolute(source, target)
+	print("RENAME_OVERWRITE_PROBE " + OS.get_name() + " " + error_string(error))
+	check(error == OK, "same-directory rename overwrites existing target")
+	check(FileAccess.get_file_as_string(target) == "replacement" and not FileAccess.file_exists(source), "rename publishes source bytes and consumes source")
+	check(FileAccess.get_file_as_string(backup) == "original", "rename preserves independent original copy")
+	check(DirAccess.rename_absolute(backup, target) == OK, "rename restores over published target")
+	check(FileAccess.get_file_as_string(target) == "original", "rename restores exact original bytes")
+	if OS.get_name() == "Windows":
+		write_bytes(source, "locked source".to_utf8_buffer())
+		check(DirAccess.copy_absolute(target, backup) == OK, "retain original for locked-source probe")
+		var held := FileAccess.open(source, FileAccess.READ)
+		if check(held != null, "hold real Windows source handle"):
+			var locked_error := DirAccess.rename_absolute(source, target)
+			held.close()
+			print("RENAME_LOCKED_SOURCE_PROBE " + error_string(locked_error) + " target_exists=" + str(FileAccess.file_exists(target)))
+			check(locked_error != OK and FileAccess.file_exists(source), "locked source prevents move")
+			# 4.6.1 deletes the destination before this move fails: overwrite is NOT atomic.
+			check(FileAccess.get_file_as_string(backup) == "original", "backup survives failed overwrite even if destination was deleted")
+			check(DirAccess.rename_absolute(backup, target) == OK, "restore probe original after failed overwrite")
+	done("replace_probe")
 
 
 func _scene() -> void:
@@ -232,3 +275,81 @@ func _animation() -> void:
 			check(loaded.track_get_path(0) == NodePath("Sprite2D:position") and loaded.track_get_key_count(0) == 2, "Animation path and keys persist")
 			check(loaded.track_get_key_time(0, 1) == 1.5 and loaded.track_get_key_value(0, 1) == Vector2(10, 20) and loaded.track_get_key_transition(0, 1) == 0.5, "Animation typed key/time/transition persist")
 	done("animation")
+
+
+func _resource_safety() -> void:
+	for mode in ["sentinel", "stale_preview", "stale_publish", "stale_temp", "backup_collision", "publish_failure", "restore", "restore_conflict", "restore_failure", "save_failure"]:
+		var name: String = "resource_safety_" + mode
+		var path := "res://%s.tres" % name
+		var executor := ResourceFaults.new()
+		executor.configure(plugin)
+		executor.mode = mode
+		safety_executors.append(executor)
+		check(ResourceSaver.save(Animation.new(), path) == OK, name + " seed save")
+		var original := FileAccess.get_file_as_bytes(path)
+		var original_hash := FileAccess.get_sha256(path)
+		var original_uid := ResourceLoader.get_resource_uid(path)
+		executor.external_bytes = original + "; external edit, must survive\n".to_utf8_buffer()
+		var sentinel := path + ".agent-backup"
+		write_bytes(sentinel, "unrelated predictable backup".to_utf8_buffer())
+		var action := {"resource": path, "action_id": name, "wait_for_import": [], "operations": [
+			{"op": "set_property", "target": [], "property": "length", "value": {"type": "float", "value": 2.0}}]}
+		var preview: Dictionary = executor.prepare(action, original_hash)
+		if not success(preview, name + " prepare"):
+			done(name)
+			continue
+		action["_expected_semantic_hash"] = preview.semantic_hash
+		action["_expected_dependency_fingerprint"] = preview.dependency_fingerprint
+		if mode == "stale_preview":
+			write_bytes(path, executor.external_bytes)
+		var result: Dictionary = executor.execute(action, original_hash)
+		if executor.held_file != null:
+			executor.held_file.close()
+			executor.held_file = null
+		print("RESOURCE_SAFETY " + mode + " " + JSON.stringify(result))
+		check(FileAccess.get_file_as_string(sentinel) == "unrelated predictable backup", name + " never touches predictable sentinel")
+		if executor.source_path != "" and mode != "publish_failure":
+			check(not FileAccess.file_exists(executor.source_path), name + " temporary file consumed or cleaned")
+		var actual := FileAccess.get_file_as_bytes(path) if FileAccess.file_exists(path) else PackedByteArray()
+		if mode == "sentinel":
+			success(result, name + " execute")
+			check(actual != original and ResourceLoader.get_resource_uid(path) == original_uid, name + " publishes content with original UID")
+			check(executor.backup_at_validation == original_hash and executor.validation_passed, name + " original retained through real postchecks")
+			check(not FileAccess.file_exists(executor.backup_path), name + " own backup cleaned after success")
+		else:
+			check(not result.get("ok", true), name + " explicit failure")
+			var codes := {"stale_preview": "stale_resource", "stale_publish": "stale_resource", "stale_temp": "stale_temporary", "backup_collision": "backup_exists", "publish_failure": "replace_failed", "restore": "saved_semantic_mismatch", "restore_conflict": "recovery_conflict", "restore_failure": "recovery_failed", "save_failure": "save_failed"}
+			check(result.get("code") == codes[mode], name + " failure code")
+			if mode in ["stale_preview", "stale_publish", "restore_conflict"]:
+				check(actual == executor.external_bytes, name + " preserves external edit exactly")
+				check(result.get("resource_hash", "") != FileAccess.get_sha256(path), name + " never authorizes server recovery over external bytes")
+				if mode == "stale_publish":
+					check(executor.boundary_fault_applied, name + " changes target after backup and immediately before final freshness check")
+			elif mode == "restore_failure":
+				check(actual == executor.published_bytes, name + " failed rename leaves publication present")
+			elif mode == "publish_failure":
+				check(actual == original or not FileAccess.file_exists(path), name + " failed publication leaves original or absent target")
+				check(result.get("temporary_path") == executor.source_path and FileAccess.file_exists(executor.source_path), name + " explicitly retains unpublished candidate")
+			else:
+				check(actual == original, name + " original bytes preserved/restored exactly")
+			if mode in ["restore", "restore_conflict", "restore_failure"]:
+				check(executor.validation_passed and executor.backup_at_validation == original_hash, name + " actual postchecks ran with original backup intact")
+				check(result.get("validation_code") == "saved_semantic_mismatch", name + " retains validation cause")
+				if mode != "restore_conflict":
+					check(result.get("resource_hash") == FileAccess.get_sha256(path), name + " reports owned final hash")
+				if mode == "restore":
+					check(result.get("restored", false), name + " reports successful local recovery")
+					check(ResourceLoader.get_resource_uid(path) == original_uid, name + " restores UID")
+					check(not FileAccess.file_exists(executor.backup_path) and not FileAccess.file_exists(executor.backup_path + ".restore"), name + " successful recovery cleans own files")
+				else:
+					check(not result.get("restored", true) and result.has("recovery_error"), name + " explicit recovery failure")
+					check(result.get("backup_path") == executor.backup_path and FileAccess.get_file_as_bytes(executor.backup_path) == original, name + " original recovery evidence retained")
+					if mode == "restore_failure":
+						check(result.get("recovery_path") == executor.backup_path + ".restore" and FileAccess.get_file_as_bytes(executor.backup_path + ".restore") == original, name + " failed rename retains staged recovery evidence")
+			elif mode == "backup_collision":
+				check(FileAccess.get_file_as_string(executor.backup_path) == "unrelated unique-path sentinel", name + " refuses backup collision without deleting evidence")
+			elif mode == "publish_failure":
+				check(result.get("backup_path") == executor.backup_path and FileAccess.get_file_as_bytes(executor.backup_path) == original, name + " explicitly retains original after failed publication")
+			elif executor.backup_path != "":
+				check(not FileAccess.file_exists(executor.backup_path), name + " no backup left before publication")
+		done(name)

@@ -44,9 +44,12 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		return _fail("dependency_changed", "Импортируемая зависимость изменилась после предпросмотра")
 	var path := str(action.get("resource", ""))
 	var uid_before := ResourceLoader.get_resource_uid(path)
-	var temporary_path := path.get_basename() + ".agent-resource-%s.tmp.tres" % str(Time.get_ticks_usec())
-	var save_error := ResourceSaver.save(resource, temporary_path)
+	var temporary_path := path.get_basename() + ".agent-resource-%s.tmp.tres" % Crypto.new().generate_random_bytes(16).hex_encode()
+	if FileAccess.file_exists(temporary_path) or DirAccess.dir_exists_absolute(temporary_path):
+		return _fail("temporary_exists", "Temporary resource path already exists")
+	var save_error := _save_temporary_resource(resource, temporary_path)
 	if save_error != OK:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
 		return _fail("save_failed", "ResourceSaver.save вернул ошибку %s" % save_error)
 	# Saving to a new path allocates a new UID; preserve the target's identity
 	# before publishing the temporary file.
@@ -55,6 +58,7 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		if uid_error != OK:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
 			return _fail("uid_preserve_failed", "ResourceSaver.set_uid failed: %s" % uid_error)
+	var temporary_hash := _file_hash(temporary_path)
 	var temporary_resource = ResourceLoader.load(temporary_path, "", ResourceLoader.CACHE_MODE_IGNORE)
 	if not temporary_resource is Resource:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
@@ -64,20 +68,25 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		return _fail("temporary_semantic_mismatch", "Временный ресурс отличается от предпросмотра")
 	temporary_resource = null
 	resource = null
-	var replace_error := _replace_resource_file(temporary_path, path)
-	if replace_error != OK:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
-		return _post_save_fail("replace_failed", "Не удалось атомарно заменить ресурс: %s" % replace_error, path)
-	var reloaded = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
-	if not reloaded is Resource:
-		return _post_save_fail("reload_failed", "Сохранённый ресурс не загружается", path)
-	var uid_after := ResourceLoader.get_resource_uid(path)
-	if uid_before != uid_after:
-		return _post_save_fail("uid_changed", "UID существующего ресурса изменился при сохранении", path)
-	var reloaded_semantic := _semantic_hash(reloaded, action.get("operations", []), path)
-	if reloaded_semantic != str(action.get("_expected_semantic_hash", "")):
-		return _post_save_fail("saved_semantic_mismatch",
-			"Сохранённый ресурс отличается от подтверждённого предпросмотра", path)
+	var published := _replace_resource_file(temporary_path, path, temporary_hash, expected_hash)
+	if not bool(published.get("ok", false)):
+		if not published.has("temporary_path"):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
+		# Never authorize the server to overwrite bytes from a concurrent writer.
+		published["resource_hash"] = expected_hash if FileAccess.file_exists(path) else ""
+		return published
+	var backup_path := str(published.backup_path)
+	var validated := _validate_saved_resource(path, action, uid_before)
+	if bool(validated.get("ok", false)) and _file_hash(path) != temporary_hash:
+		validated = _fail("saved_file_changed", "Published resource changed during validation")
+	if not bool(validated.get("ok", false)):
+		return _recover_resource_file(validated, backup_path, path, expected_hash, temporary_hash)
+	var cleanup_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_path))
+	if cleanup_error != OK:
+		var failure := _fail("backup_cleanup_failed", "Validated resource saved, but backup cleanup failed: %s" % cleanup_error)
+		failure["resource_hash"] = temporary_hash
+		failure["backup_path"] = backup_path
+		return failure
 	var filesystem := _plugin.get_editor_interface().get_resource_filesystem()
 	if filesystem and filesystem.has_method("update_file"):
 		filesystem.update_file(path)
@@ -87,6 +96,21 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		previewer.queue_resource_preview(path, self, "_on_preview_ready", action.get("action_id", ""))
 	return {"ok": true, "resource_hash": _file_hash(path), "semantic_hash": semantic_hash,
 		"preview_status": "requested"}
+
+
+func _save_temporary_resource(resource: Resource, path: String) -> Error:
+	return ResourceSaver.save(resource, path)
+
+
+func _validate_saved_resource(path: String, action: Dictionary, uid_before: int) -> Dictionary:
+	var reloaded = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	if not reloaded is Resource:
+		return _fail("reload_failed", "Saved resource could not be reloaded")
+	if ResourceLoader.get_resource_uid(path) != uid_before:
+		return _fail("uid_changed", "Saved resource UID changed")
+	if _semantic_hash(reloaded, action.get("operations", []), path) != str(action.get("_expected_semantic_hash", "")):
+		return _fail("saved_semantic_mismatch", "Saved resource differs from the approved preview")
+	return {"ok": true}
 
 
 func reload_after_recovery(path: String) -> void:
@@ -501,23 +525,86 @@ func _fail(code: String, message: String) -> Dictionary:
 	return {"ok": false, "code": code, "error": message}
 
 
-func _post_save_fail(code: String, message: String, path: String) -> Dictionary:
-	var result := _fail(code, message)
-	result["resource_hash"] = _file_hash(path)
+func _replace_resource_file(source: String, target: String, source_hash: String, target_hash: String) -> Dictionary:
+	var source_absolute := ProjectSettings.globalize_path(source)
+	var target_absolute := ProjectSettings.globalize_path(target)
+	var backup_path := source + ".backup"
+	var backup_absolute := ProjectSettings.globalize_path(backup_path)
+	if FileAccess.file_exists(backup_absolute) or DirAccess.dir_exists_absolute(backup_absolute):
+		return _fail("backup_exists", "Refusing to overwrite an existing backup: " + backup_path)
+	# Do not move the original aside. Godot overwrites on Windows, but 4.6.1
+	# implements that as delete-then-move, NOT an atomic replace. Keep the copy
+	# through validation/failure; a crash can still require manual recovery.
+	var backup_error := DirAccess.copy_absolute(target_absolute, backup_absolute)
+	if backup_error != OK:
+		var failure := _fail("backup_failed", "Could not copy original resource: %s" % backup_error)
+		failure["backup_path"] = backup_path
+		return failure
+	var ready := {"ok": true}
+	if _file_hash(backup_path) != target_hash:
+		ready = _fail("stale_resource", "Original resource changed while creating backup")
+	elif _file_hash(source) != source_hash:
+		ready = _fail("stale_temporary", "Validated temporary resource changed before publication")
+	elif _file_hash(target) != target_hash:
+		ready = _fail("stale_resource", "Original resource changed before publication")
+	if not bool(ready.get("ok", false)):
+		if DirAccess.remove_absolute(backup_absolute) != OK:
+			ready["backup_path"] = backup_path
+		return ready
+	var replace_error := DirAccess.rename_absolute(source_absolute, target_absolute)
+	if replace_error != OK:
+		var failure := _fail("replace_failed", "Resource rename failed: %s; target may be absent, backup and temporary file retained" % replace_error)
+		failure["backup_path"] = backup_path
+		failure["temporary_path"] = source
+		return failure
+	return {"ok": true, "backup_path": backup_path}
+
+
+func _recover_resource_file(failure: Dictionary, backup_path: String, target: String,
+		original_hash: String, published_hash: String) -> Dictionary:
+	var result := failure.duplicate()
+	result["validation_code"] = failure.get("code", "")
+	result["restored"] = false
+	result["backup_path"] = backup_path
+	result["original_hash"] = original_hash
+	result["published_hash"] = published_hash
+	var restore_path := backup_path + ".restore"
+	var recovery := _restore_resource_file(backup_path, restore_path, target, original_hash, published_hash)
+	if bool(recovery.get("ok", false)):
+		result["restored"] = true
+		var cleanup_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_path))
+		if cleanup_error == OK:
+			result.erase("backup_path")
+		else:
+			result["recovery_error"] = "Original restored, but backup cleanup failed: %s" % cleanup_error
+	else:
+		result["code"] = recovery.get("code", "recovery_failed")
+		result["recovery_error"] = recovery.get("error", "")
+		if FileAccess.file_exists(restore_path):
+			result["recovery_path"] = restore_path
+	result["resource_hash"] = original_hash if bool(result.restored) else published_hash
+	if not FileAccess.file_exists(target):
+		result["resource_hash"] = ""
 	return result
 
 
-func _replace_resource_file(source: String, target: String) -> Error:
-	var source_absolute := ProjectSettings.globalize_path(source)
-	var target_absolute := ProjectSettings.globalize_path(target)
-	var backup_absolute := target_absolute + ".agent-backup"
-	DirAccess.remove_absolute(backup_absolute)
-	var backup_error := DirAccess.rename_absolute(target_absolute, backup_absolute)
-	if backup_error != OK:
-		return backup_error
-	var replace_error := DirAccess.rename_absolute(source_absolute, target_absolute)
-	if replace_error != OK:
-		var restore_error := DirAccess.rename_absolute(backup_absolute, target_absolute)
-		return restore_error if restore_error != OK else replace_error
-	DirAccess.remove_absolute(backup_absolute)
-	return OK
+func _restore_resource_file(backup_path: String, restore_path: String, target: String,
+		original_hash: String, published_hash: String) -> Dictionary:
+	if _file_hash(backup_path) != original_hash:
+		return _fail("recovery_failed", "Original backup is missing or changed; retain recovery evidence")
+	if _file_hash(target) != published_hash:
+		return _fail("recovery_conflict", "Target no longer contains our publication; original backup retained")
+	if FileAccess.file_exists(restore_path) or DirAccess.dir_exists_absolute(restore_path):
+		return _fail("recovery_failed", "Recovery staging path already exists; no files removed")
+	# Restore from a copy so even a failed restore/postcheck leaves original evidence.
+	var copy_error := DirAccess.copy_absolute(ProjectSettings.globalize_path(backup_path), ProjectSettings.globalize_path(restore_path))
+	if copy_error != OK or _file_hash(restore_path) != original_hash:
+		return _fail("recovery_failed", "Could not stage original for recovery: %s" % copy_error)
+	if _file_hash(target) != published_hash:
+		return _fail("recovery_conflict", "Target changed before recovery rename; evidence retained")
+	var restore_error := DirAccess.rename_absolute(ProjectSettings.globalize_path(restore_path), ProjectSettings.globalize_path(target))
+	if restore_error != OK:
+		return _fail("recovery_failed", "Recovery rename failed: %s; evidence retained" % restore_error)
+	if _file_hash(target) != original_hash:
+		return _fail("recovery_failed", "Recovered target does not match original; backup retained")
+	return {"ok": true}
