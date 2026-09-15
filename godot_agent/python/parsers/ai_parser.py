@@ -604,16 +604,19 @@ class AiStudioParser(BaseSiteParser):
             return result
         # v88.0: план В - DOM пуст, но сеть захватила ответ (страховка от
         # смены разметки AI Studio). Сетевой текст берётся только если
-        # после submit() реально ушёл НОВЫЙ POST - защита от устаревшего
-        # ответа прошлого обмена.
+        # буфер принадлежит НОВОМУ ответу, а не только уже ушёл новый POST.
         mon = AiStudioParser._monitor
         before = AiStudioParser._req_count_before_send
-        if mon is not None and before is not None and mon.chat_request_count() > before:
-            net = (mon.current_text() or "").strip()
-            if net:
-                text, action_raw = split_text_and_action(net)
-                print("[ai_parser] план В: ответ взят из сетевого захвата (%d симв.)" % len(net))
-                return {"text": text, "actionRaw": action_raw}
+        try:
+            if (mon is not None and before is not None and mon._cdp.is_alive()
+                    and mon.answer_request_count() > before):
+                net = (mon.current_text() or "").strip()
+                if net:
+                    text, action_raw = split_text_and_action(net)
+                    print("[ai_parser] план В: ответ взят из сетевого захвата (%d симв.)" % len(net))
+                    return {"text": text, "actionRaw": action_raw}
+        except Exception:
+            pass
         return result
 
     def find_input(self, driver):
