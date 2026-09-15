@@ -1,6 +1,6 @@
 # Проверка после пользовательских тестов
 
-Актуально после `9837cb0`. Это отчёт о проверенном объёме, а не гарантия
+Обновлено 2026-09-15, включая `0508272`. Это отчёт о проверенном объёме, а не гарантия
 отсутствия всех ошибок. Архитектурный план не равен реализованной функциональности;
 текущий статус находится в [GODOT_INTEGRATION_STATUS.md](GODOT_INTEGRATION_STATUS.md).
 
@@ -49,15 +49,23 @@ Engine-тесты используют временный проект без в
 python -B -X utf8 tests\run_integration_regressions.py --godot "C:\tools\Godot.exe"
 ```
 
-Результат: все 52 набора прошли. В первом общем запуске прошёл 51 набор;
-оставшийся ownership runner требовал лишний CLI-аргумент. После исправления
-только этого runner он отдельно прошёл. Успешные 51 проверки без причины
-повторно не запускались. В четырёх отдельных symlink cases не хватило прав Windows.
+Первоначальная проверка: 51 общий PASS и отдельно исправленный ownership runner.
+При продолжении 2026-09-15 исходные 52 набора прошли единым запуском. После
+расширения runner общий результат стал **59/59 PASS**: 55 офлайн-наборов и
+4 live-набора. Последующие изменения проверялись адресно, без повторения
+незатронутых успешных suites: каталог 123/123, executor 26 сценариев, GDScript wiring
+98/98 и ресурсный HTTP-flow. В четырёх symlink cases не хватило прав Windows.
 
-Live coverage: компиляция 23 addon scripts; 17 executor-сценариев с реальными
+Текущее live coverage: компиляция 23 addon scripts; 26 executor-сценариев с реальными
 PackedScene/ProjectSettings/ResourceSaver, сериализацией owners/properties/scripts/
-signals, InputMap idempotency, Animation/SpriteFrames/Theme, UID, Windows file locks,
-backup conflicts и восстановлением. Ownership-suite проверяет public ClassDB,
+signals, InputMap idempotency, Animation/SpriteFrames/Theme/TileSet atlas, UID,
+Windows file locks, backup conflicts и восстановлением. Проверены отказы для
+открытых сцен (чистая, грязная, неактивная вкладка), root/embedded ресурсов Inspector
+с сохранением несохранённых значений, сохранение autoreload preference false/true.
+Пять production-validator тестов проверяют настоящий Python-to-Godot путь:
+baseline/candidate, новые parse errors, прежние errors против mandatory checks,
+referencers/broken move, missing resource, receipt freshness, неизменность
+исходного проекта с Unicode/space path и cleanup overlays. Ownership-suite проверяет public ClassDB,
 5 безопасных отказов и 8 decoded JPEG dimensions. Настоящие remote/replacement
 игры и визуальный UI в этой suite не запускались.
 
@@ -90,6 +98,9 @@ Executor/ownership harness допускают только конкретные 
    чатов, focus/repaint и примера InputMap пользователя. DOM/network тесты в наборе
    имитируют сбои и не используют пользовательские аккаунты. Неоднозначный accepted
    send может потребовать ручной проверки чата; автоматический resend отключён.
+   Живые editor-state тесты вызывают executors и helper настройки напрямую, не
+   полный UI/HTTP-поток панели. Матрица dirty script buffers пока покрыта только
+   source-wiring проверками, а не живым ScriptEditor.
 7. **Сборка.** Проверены исходники Python/GDScript, а не заново собранный server EXE.
    Если используется frozen server, изменения Python требуют его пересборки обычным
    `python/build_server_exe.bat`. Установленная/запущенная пользовательская игра
@@ -119,3 +130,43 @@ RID/ObjectDB diagnostics воспроизводятся. Исходный про
    сохранение пользовательских настроек и отказ от неподтверждённого запуска.
 6. Обновить результаты и оставшиеся ограничения без объявления ручного UI,
    crash recovery или frozen EXE проверенными по одним unit tests.
+
+### Результаты этапов
+
+Все этапы с кодом завершены адресной проверкой, коммитом и push в `development`.
+Контекст завершённых этапов сжимался перед продолжением.
+
+| Этап | Изменение и проверка | Коммит |
+| --- | --- | --- |
+| 1. Исходная точка | Сохранены отчёт/статус/runner предыдущего чата; 52/52 PASS единым запуском | `e7f6979` |
+| 2. Headless-validator | Некорректный result JSON больше не считается успехом; 9 unit tests (включая 7 malformed-result вариантов), 5 live tests | `a234633` |
+| 3. TileSet atlas | Сохранение/reload/UID, сохранение старого source; duplicate ID, out-of-bounds после первого tile и неверный texture type не меняют файл; 19 live executor-сценариев | `cce193a` |
+| 4. API и каталог | 6 дополнительных suites изолированы/усилены; исправлены ошибки body-read и ограничено gzip-распаковывание; 59/59 общий PASS, затем 123/123 адресно для каталога | `99aa488` |
+| 5. Состояние редактора | Исправлен Inspector guard для `file.tres::Subresource`; 26 live executor-сценариев, 98/98 wiring и ресурсный HTTP-flow | `0508272` |
+| 6. Отчёт | Обновлены фактическое покрытие, команды, результаты и ограничения; сверка с runner и diff | Этот документ и статус |
+
+Найденные и исправленные production-дефекты:
+
+- Validator принимал JSON без обязательного поля `diagnostics` как успешный.
+  Теперь проверяются schema version, list и обязательные поля diagnostic; неполный
+  или испорченный ответ блокирует проверку, а не вычитается как старый baseline.
+- Каталог моделей пропускал исключения при чтении response body наружу и ограничивал
+  только сжатый размер. Timeout/IncompleteRead, усечённый Content-Length, oversized
+  response, invalid gzip и oversized decoded body теперь дают ошибку refresh,
+  сохраняя предыдущий каталог. Распаковывание ограничено `MAX_BYTES + 1`.
+- Inspector guard сравнивал только полный путь `.tres`, пропуская выбранный
+  вложенный ресурс. Сравнение родительского пути теперь блокирует и preview,
+  и execute до изменения выбранного subresource или исходного файла.
+
+Исправлены также слабые тесты: проверка дубликата User-Agent теперь видит raw
+headers; проверка отсутствия секретов требует реального запроса к loopback-серверу;
+session-only key exhaustion сравнивает конфигурацию на диске, persistence-тесты
+инвалидируют память перед чтением. Transport использует уникальный config dir;
+proxy-failure и DNS delegation воспроизводятся без внешнего DNS/провайдера.
+Production catalogue transport тестируется локальным сервером, не пользовательским
+аккаунтом. Полноценные Anthropic cancellation/split-SSE/error сценарии остаются
+отдельным направлением; включение compatibility suite не означает их покрытия.
+
+Незавершённые направления выше не закрывались фиктивно. Server EXE не собирался,
+пользовательская игра и настройки не изменялись; посторонние `.pyc`/`.gd.uid`
+не включены в коммиты аудита.
