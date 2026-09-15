@@ -133,7 +133,7 @@ func _open_target(action: Dictionary, expected_hash: String) -> Dictionary:
 	if _file_hash(path) != expected_hash:
 		return _fail("stale_resource", "Ресурс изменился после подготовки")
 	var edited := _plugin.get_editor_interface().get_inspector().get_edited_object() as Resource
-	if edited and edited.resource_path == path:
+	if edited and edited.resource_path.get_slice("::", 0) == path:
 		return _fail("resource_open", "Закройте ресурс в Inspector перед изменением")
 	var filesystem := _plugin.get_editor_interface().get_resource_filesystem()
 	if filesystem and filesystem.is_scanning():

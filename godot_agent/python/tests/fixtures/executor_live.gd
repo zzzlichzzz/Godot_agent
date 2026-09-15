@@ -34,6 +34,8 @@ func _run() -> void:
 		await process_frame
 		while EditorInterface.get_resource_filesystem().is_scanning():
 			await process_frame
+	if not "--replace-probe-only" in OS.get_cmdline_user_args():
+		await _editor_state()
 	# Let queued editor previews complete while their receivers are still alive.
 	await create_timer(0.5).timeout
 	scene_executor = null
@@ -45,6 +47,115 @@ func _run() -> void:
 	await process_frame
 	print("GODOT_EXECUTOR_RESULTS " + JSON.stringify({"completed": completed, "failures": failures}))
 	quit(0 if failures.is_empty() else 1)
+
+
+func _editor_state() -> void:
+	var panel = load("res://addons/godot_agent/agent_panel.gd").new()
+	var settings := EditorInterface.get_editor_settings()
+	var key := "text_editor/behavior/files/auto_reload_scripts_on_external_change"
+	var original: Variant = settings.get_setting(key)
+	for enabled in [false, true]:
+		settings.set_setting(key, enabled)
+		panel._ensure_script_autoreload_setting()
+		panel._ensure_script_autoreload_setting()
+		check(settings.has_setting(key) and settings.get_setting(key) == enabled, "autoreload preference preserved immediately")
+		await process_frame
+		check(settings.get_setting(key) == enabled, "autoreload preference preserved after frame")
+		done("autoreload_true_preserved" if enabled else "autoreload_false_preserved")
+	settings.set_setting(key, original)
+	panel.free()
+
+	for embedded in [false, true]:
+		var case_name := "resource_open_embedded" if embedded else "resource_open_inspector"
+		var path := "res://%s.tres" % case_name
+		var seed := GradientTexture2D.new()
+		seed.gradient = Gradient.new()
+		check(ResourceSaver.save(seed, path) == OK, case_name + " seed")
+		var before := FileAccess.get_sha256(path)
+		var uid := ResourceLoader.get_resource_uid(path)
+		var property_name := "interpolation_mode" if embedded else "width"
+		var action := {"resource": path, "wait_for_import": [], "operations": [
+			{"op": "set_property", "target": ["gradient"] if embedded else [],
+			"property": property_name, "value": {"type": "int", "value": 1 if embedded else 32}}]}
+		var preview: Dictionary = resource_executor.prepare(action, before)
+		if not success(preview, case_name + " prepare before selecting"):
+			continue
+		action["_expected_semantic_hash"] = preview.semantic_hash
+		action["_expected_dependency_fingerprint"] = preview.dependency_fingerprint
+		var texture := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE_DEEP) as GradientTexture2D
+		var selected: Resource = texture.gradient if embedded else texture
+		check(selected.resource_path.begins_with(path + "::") if embedded else selected.resource_path == path, case_name + " selected path")
+		EditorInterface.edit_resource(selected)
+		for frame in range(120):
+			if EditorInterface.get_inspector().get_edited_object() == selected:
+				break
+			await process_frame
+		if not check(EditorInterface.get_inspector().get_edited_object() == selected, case_name + " inspector ready"):
+			continue
+		var files_before := DirAccess.get_files_at("res://")
+		files_before.sort()
+		for dirty in [false, true]:
+			if dirty:
+				selected.set(property_name, 2 if embedded else 48)
+			var value: Variant = selected.get(property_name)
+			check(resource_executor.prepare(action, before).get("code") == "resource_open", case_name + " preview refuses selected resource")
+			check(resource_executor.execute(action, before).get("code") == "resource_open", case_name + " execution refuses selected resource")
+			await process_frame
+			check(EditorInterface.get_inspector().get_edited_object() == selected and selected.get(property_name) == value, case_name + " selection and unsaved value preserved")
+			check(FileAccess.get_sha256(path) == before and ResourceLoader.get_resource_uid(path) == uid, case_name + " file and UID preserved")
+		var files_after := DirAccess.get_files_at("res://")
+		files_after.sort()
+		check(files_after == files_before, case_name + " no staging artifacts")
+		EditorInterface.inspect_object(null)
+		await process_frame
+		done(case_name)
+
+	var path := "res://open_guard.tscn"
+	var seed := Node2D.new()
+	seed.name = "Guarded"
+	var packed := PackedScene.new()
+	check(packed.pack(seed) == OK and ResourceSaver.save(packed, path) == OK, "open scene seed")
+	seed.free()
+	var before := FileAccess.get_sha256(path)
+	var action := {"action": "edit_scene", "scene": path, "operations": [
+		{"op": "set_node_property", "node": ".", "property": "position", "value": {"type": "Vector2", "value": [9, 5]}}]}
+	var preview: Dictionary = scene_executor.prepare(action, before)
+	if not success(preview, "scene preview before opening"):
+		return
+	action["_expected_semantic_hash"] = preview.semantic_hash
+	EditorInterface.open_scene_from_path(path)
+	for frame in range(120):
+		var edited := EditorInterface.get_edited_scene_root()
+		if edited and edited.scene_file_path == path:
+			break
+		await process_frame
+	var live := EditorInterface.get_edited_scene_root() as Node2D
+	if not check(live != null and live.scene_file_path == path, "open scene ready"):
+		return
+	var identity := live.get_instance_id()
+	for state in ["clean", "dirty", "inactive"]:
+		if state == "dirty":
+			live.position = Vector2(77, 88)
+			EditorInterface.mark_scene_as_unsaved()
+		elif state == "inactive":
+			var other_path := "res://other_open_guard.tscn"
+			check(ResourceSaver.save(packed, other_path) == OK, "inactive scene seed")
+			EditorInterface.open_scene_from_path(other_path)
+			for frame in range(120):
+				var edited := EditorInterface.get_edited_scene_root()
+				if edited and edited.scene_file_path == other_path:
+					break
+				await process_frame
+			check(EditorInterface.get_edited_scene_root() != live, "guarded scene tab inactive")
+		var value := live.position
+		check(scene_executor.prepare(action, before).get("code") == "scene_open", state + " scene preview refused")
+		var result: Dictionary = scene_executor.execute(action, before)
+		check(result.get("code") == "scene_open" and result.get("scene_hash") == before, state + " scene execution refused")
+		await process_frame
+		check(path in EditorInterface.get_open_scenes() and live in EditorInterface.get_open_scene_roots(), state + " scene tab/root preserved")
+		check(live.get_instance_id() == identity and live.position == value, state + " scene unsaved value preserved")
+		check(FileAccess.get_sha256(path) == before, state + " scene disk preserved")
+		done("scene_open_" + state)
 
 
 func check(condition: bool, label: String) -> bool:
