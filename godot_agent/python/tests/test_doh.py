@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
 _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
-import _bootstrap  # noqa: E402,F401
 """Тесты DNS over HTTPS (doh).
 
 Зачем это нужно. Если интернет-провайдер подменяет DNS, адрес провайдера API
@@ -22,10 +21,12 @@ import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
 
 CFG = tempfile.mkdtemp(prefix="agent_cfg_doh_")
 _os0.environ["GODOT_AGENT_CONFIG_DIR"] = CFG
 
+import _bootstrap  # noqa: E402,F401
 import api_keys
 import doh
 
@@ -190,18 +191,32 @@ check(u"порт сохранён", info[0][4][1] == 443)
 check(u"семейство и тип пригодны для соединения",
       info[0][0] == socket.AF_INET and info[0][1] == socket.SOCK_STREAM, info[0])
 
-# Локальные имена по-прежнему разрешает система.
-local = socket.getaddrinfo(u"localhost", 80)
-check(u"localhost разрешает система", bool(local))
+# Assert delegation without consulting the machine's DNS configuration.
+system_answer = [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP,
+                  "", ("192.0.2.42", 443))]
+with patch.object(doh, "_orig_getaddrinfo", return_value=system_answer) as original:
+    local = socket.getaddrinfo("localhost", 443)
+    check(u"localhost разрешает система", local == system_answer)
+    original.assert_called_once_with("localhost", 443, 0, 0, 0, 0)
 
-# Выключение возвращает системный резолвер по имени, которого нет в ANSWERS.
-doh.configure(False, DOH_URL)
-check(u"после выключения DoH resolve пустой", doh.resolve(u"example.test") == [])
-try:
-    socket.getaddrinfo(u"example.test", 443)
-    check(u"выключенный DoH не подменяет ответы", False)
-except socket.gaierror:
-    check(u"выключенный DoH не подменяет ответы", True)
+    doh.clear_cache()
+    original.reset_mock()
+    with patch.object(doh, "query", side_effect=ValueError("controlled DoH failure")) as query:
+        info = socket.getaddrinfo("example.test", 443, socket.AF_INET,
+                                  socket.SOCK_STREAM, socket.IPPROTO_TCP, socket.AI_CANONNAME)
+    query.assert_called_once_with("example.test")
+    check("failed DoH delegates to the original resolver", info == system_answer)
+    original.assert_called_once_with("example.test", 443, socket.AF_INET,
+                                     socket.SOCK_STREAM, socket.IPPROTO_TCP, socket.AI_CANONNAME)
+
+    doh.configure(False, DOH_URL)
+    check(u"после выключения DoH resolve пустой", doh.resolve(u"example.test") == [])
+    original.reset_mock()
+    SEEN["queries"] = []
+    info = socket.getaddrinfo("example.test", 443)
+    check(u"выключенный DoH не подменяет ответы", info == system_answer)
+    original.assert_called_once_with("example.test", 443, 0, 0, 0, 0)
+    check("disabled DoH sends no queries", SEEN["queries"] == [])
 
 doh.uninstall()
 check(u"резолвер возвращён системе", not doh.is_installed())

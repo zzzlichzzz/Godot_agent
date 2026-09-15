@@ -23,6 +23,12 @@ import time
 
 CFG = tempfile.mkdtemp(prefix="agent_cfg_catalog_")
 _os0.environ["GODOT_AGENT_CONFIG_DIR"] = CFG
+for name in ("GODOT_AGENT_DEEPSEEK_KEY", "DEEPSEEK_API_KEY",
+             "GODOT_AGENT_GROQ_KEY", "GROQ_API_KEY",
+             "GODOT_AGENT_NANO_LIKE_KEY", "NANO_LIKE_API_KEY",
+             "GODOT_AGENT_CLAUDE_LIKE_KEY", "CLAUDE_LIKE_API_KEY",
+             "GODOT_AGENT_TWO_SECRETS_KEY", "TWO_ACCOUNT_ID", "TWO_API_KEY"):
+    _os0.environ.pop(name, None)
 
 import api_keys
 import providers as P
@@ -182,6 +188,7 @@ with open(api_keys.config_path(), "r", encoding="utf-8") as f:
     on_disk = json.load(f)
 check(u"раздел наблюдений реально дошёл до файла",
       (on_disk.get("provider_stats") or {}).get("openrouter", {}).get("models_total") == 324)
+api_keys._invalidate_cfg()
 check(u"раздел наблюдений НЕ выбрасывается при следующем чтении",
       (api_keys._load().get("provider_stats") or {}).get("openrouter", {}).get("models_free") == 57)
 
@@ -209,6 +216,7 @@ with open(api_keys.config_path(), "r", encoding="utf-8") as f:
 check(u"счётчик каталога реально дошёл до файла",
       (on_disk.get("provider_stats") or {}).get("openrouter", {}).get(
           "models_free_catalog") == 61)
+api_keys._invalidate_cfg()
 check(u"счётчик каталога НЕ выбрасывается при следующем чтении",
       (api_keys._load().get("provider_stats") or {}).get("openrouter", {}).get(
           "models_free_catalog") == 61)

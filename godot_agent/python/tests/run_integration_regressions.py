@@ -20,6 +20,8 @@ test_api_history test_api_history_failures test_api_backend test_api_route_persi
 test_path_policy_safety test_move_safety test_chat_state_isolation test_chat_site_restore
 test_api_routes test_v87_9_regen test_v88_6_qwen_net test_deepseek_no_double_send
 test_v105_attachment_note test_paste_attachment test_librarian
+test_api_transport test_api_secrets_and_limits test_anthropic_compat
+test_catalog test_provider_catalog test_doh
 """.split()
 
 
