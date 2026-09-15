@@ -1,7 +1,7 @@
 # Статус глубокой интеграции с Godot
 
-Документ обновлён после исправлений и проверки на настоящем Godot 4.6.1,
-включая коммит `9837cb0`. Подробности проверки и оставшиеся риски:
+Документ обновлён 2026-09-15 после исправлений и проверки на настоящем Godot 4.6.1,
+включая коммит `0508272`. Подробности проверки и оставшиеся риски:
 [`POST_TESTING_AUDIT.md`](POST_TESTING_AUDIT.md). Исходный замысел сохранён в
 [`GODOT_INTEGRATION_ROADMAP.md`](GODOT_INTEGRATION_ROADMAP.md).
 
@@ -18,7 +18,7 @@
 | Проверка настоящим Godot | Реализовано | Baseline/candidate overlay для файловых действий и rename. Существующие `gd_lint`, `gd_api_check`, `tscn_lint` остаются первым барьером. |
 | `transaction` | Реализовано | Один overlay, preview, confirm и history entry для `create_file`, `patch_file`, `move_file`. Scene/settings/resource действия остаются отдельными транзакциями. |
 | `project_command` | Реализовано | Поддержаны `create_scene_component`, `create_input_action`, `register_autoload`, `rename_symbol`, `atomic_files`. |
-| `edit_resource` | Реализовано | Только существующие текстовые `.tres`: свойства, ссылки, Animation value tracks, SpriteFrames, Theme и TileSet atlas source. Бинарные `.res` и изменение `.import` не поддерживаются. |
+| `edit_resource` | Реализовано | Только существующие текстовые `.tres`: свойства, ссылки, Animation value tracks, SpriteFrames, Theme и TileSet atlas source. Ресурс и его вложенные subresources должны быть закрыты в Inspector. Бинарные `.res` и изменение `.import` не поддерживаются. |
 | `inspect_runtime` | Реализовано | Read-only active scene, bounded tree, явно запрошенные native ClassDB properties, custom errors/events и метрики. Нет общего stack/locals API и произвольных GDScript getters. |
 | `run_check` | Автоматический запуск заблокирован | Протокол и unit tests сохранены, но панель не запускает/не останавливает игру и не отправляет check в непроверенную сессию. Стабильного доказательства принадлежности запуска через public API Godot 4.6.1 не найдено. |
 
@@ -88,7 +88,8 @@ godot --headless --path <overlay> --language en --log-file <log> --script res://
 `OS.get_executable_path()`. Проверка не покрывает динамически вычисляемые пути
 и все возможные игровые состояния. Явные `checks` в transaction требуют
 доступный движок даже при no-op; ошибки явно проверяемых targets не вычитаются
-как допустимый baseline. Отсутствующий результат harness не считается успехом.
+как допустимый baseline. Отсутствующий или некорректный по схеме результат harness
+не считается успехом: обязательны версия схемы и список корректных diagnostics.
 
 ## Транзакции И Откат
 
@@ -142,11 +143,25 @@ python -B -X utf8 tests\run_integration_regressions.py --godot "C:\tools\Godot.e
 `selfcheck.py --full` не входит в этот набор: он запускает длительное обучение
 mini-lich и имеет известный предсуществующий сбой на malformed `\q`.
 
-Проверены 49 офлайн-наборов и 3 реальных engine-набора на официальном Godot 4.6.1:
-23 скрипта, 17 executor-сценариев, отказ от неподтверждённого запуска и 8 случаев
-JPEG-размеров. Четыре symlink-теста пропущены из-за прав Windows. В headless editor
-остаются shutdown RID/ObjectDB warnings; тесты не доказывают отсутствие утечек.
-Пользовательский проект в этих проверках не запускался.
+Общий запуск после расширения runner: **59/59 PASS**, 55 офлайн-наборов и
+4 реальных engine-набора на официальном Godot 4.6.1. После последней правки
+Inspector повторно прошли затронутые проверки: 26 executor-сценариев, 98/98
+проверок GDScript wiring и ресурсный HTTP prepare/confirm/finalize/rollback flow.
+После усиления assertions каталога отдельно прошли 123/123 проверки каталога.
+Полный набор после этих адресных проверок повторно не запускался.
+
+Live coverage включает компиляцию 23 addon scripts, PackedScene/ProjectSettings/
+ResourceSaver, TileSet atlas и безопасные отказы, открытые чистые/грязные/неактивные
+сцены, Inspector с root/embedded ресурсом, сохранение обоих значений autoreload
+preference, отказ от неподтверждённого запуска и 8 случаев JPEG-размеров.
+Пять production-validator тестов используют настоящий движок для baseline/candidate,
+parse errors, explicit checks, referencers и freshness receipts; проверяют
+неизменность исходных файлов и удаление собственных overlays.
+
+Четыре symlink-теста пропущены из-за прав Windows. В headless editor остаются
+shutdown RID/ObjectDB diagnostics; тесты не доказывают отсутствие утечек.
+Пользовательский проект не запускался. Dirty script buffers и полный UI-поток
+плагина не проверены живым редактором; frozen server EXE не пересобирался.
 
 Перед релизом остаётся ручной smoke test реального интерфейса:
 
