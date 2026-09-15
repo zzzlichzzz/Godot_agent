@@ -29,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--session-dir", required=True, type=Path)
     parser.add_argument("--port", type=int, default=5001)
+    parser.add_argument("--turns", type=int, default=1, choices=range(1, 5))
     args = parser.parse_args()
     owner = args.session_dir.resolve()
     owner.mkdir(parents=False, exist_ok=False)
@@ -89,35 +90,51 @@ def main():
 
             cdp.on_event("Network.requestWillBeSent", observe)
             cdp.send_command("Network.enable")
-            marker = "AUDIT_" + secrets.token_hex(6)
-            expected = "\n".join("%s_%03d [array] \u0442\u0435\u0441\u0442" % (marker, n) for n in range(1, 81))
-            prompt = ("Browser transport test in an empty disposable project. Do not use tools or file actions. "
-                      "Return every line between BEGIN and END verbatim in one plain code block, "
-                      "without omissions, then the normal final completion marker.\nBEGIN\n" + expected + "\nEND")
-            (owner / "send-attempted").write_text("One POST only; no automatic retry", encoding="utf-8")
-            samples = []
-            started = time.monotonic()
-            with ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(request, "/chat", {**context, "prompt": prompt})
-                while not future.done():
-                    samples.append(request("/chat/progress", timeout=5))
-                    time.sleep(0.5)
-                result = future.result()
-            dom = cdp.send_command("Runtime.evaluate", {
-                "expression": "(function(){" + JS_GET_ANSWER_STREAM + "})()", "returnByValue": True,
-            })["result"].get("value", "")
-            answer = result.get("answer", "")
-            evidence = {"context": context, "seconds": round(time.monotonic() - started, 2),
-                        "posts": sorted(posts), "result": result, "dom": dom, "progress": samples,
-                        "expected": expected}
-            (owner / "evidence.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
-            assert len(posts) == 1, "Expected exactly one generation POST"
-            assert not result.get("pending_action"), "Unexpected file action"
-            for line in expected.splitlines():
-                assert line in dom, "DOM omitted " + line
-                # Server presentation escapes BBCode brackets.
-                assert line.translate(str.maketrans({"[": "[lb]", "]": "[rb]"})) in answer or line in answer, "Server omitted " + line
-            print("PASS live AI Studio: 80 Unicode/code lines, one POST, server/DOM agree; %.2fs" % evidence["seconds"])
+            previous_markers = []
+            for turn in range(args.turns):
+                marker = "AUDIT_" + secrets.token_hex(6)
+                count = 80 if turn == 0 else 8
+                expected = "\n".join("%s_%03d [array] \u0442\u0435\u0441\u0442" % (marker, n) for n in range(1, count + 1))
+                prompt = ("Browser transport test in an empty disposable project. Do not use tools or file actions. "
+                          "Return only the NEW lines between BEGIN and END verbatim in one plain code block, "
+                          "without omissions or previous answers, then the normal final completion marker.\nBEGIN\n" + expected + "\nEND")
+                (owner / ("send-attempted-%d" % turn)).write_text("One POST only; no automatic retry", encoding="utf-8")
+                samples = []
+                failure = None
+                before_posts = set(posts)
+                started = time.monotonic()
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(request, "/chat", {**context, "prompt": prompt})
+                    while not future.done():
+                        samples.append(request("/chat/progress", timeout=5))
+                        time.sleep(0.5)
+                    try:
+                        result = future.result()
+                    except Exception as exc:
+                        failure = exc
+                        result = {"error": str(exc)}
+                        if isinstance(exc, urllib.error.HTTPError):
+                            result["body"] = exc.read().decode("utf-8", errors="replace")
+                dom = cdp.send_command("Runtime.evaluate", {
+                    "expression": "(function(){" + JS_GET_ANSWER_STREAM + "})()", "returnByValue": True,
+                })["result"].get("value", "")
+                answer = result.get("answer", "")
+                evidence = {"context": dict(context), "seconds": round(time.monotonic() - started, 2),
+                            "posts": sorted(posts - before_posts), "result": result, "dom": dom,
+                            "progress": samples, "expected": expected,
+                            "browser": request("/browser/status", {})}
+                (owner / ("evidence-%d.json" % turn)).write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
+                if failure is not None:
+                    raise failure
+                assert len(posts - before_posts) == 1, "Expected exactly one generation POST per turn"
+                assert not result.get("pending_action"), "Unexpected file action"
+                for line in expected.splitlines():
+                    assert line in dom, "DOM omitted " + line
+                    # Server presentation escapes BBCode brackets.
+                    assert line.translate(str.maketrans({"[": "[lb]", "]": "[rb]"})) in answer or line in answer, "Server omitted " + line
+                assert all(old not in answer and old not in dom for old in previous_markers), "Previous answer leaked"
+                previous_markers.append(marker)
+                print("PASS live AI Studio turn %d: %d Unicode/code lines, one POST, server/DOM agree; %.2fs" % (turn + 1, count, evidence["seconds"]))
             print("Evidence:", owner)
         finally:
             if cdp is not None:
