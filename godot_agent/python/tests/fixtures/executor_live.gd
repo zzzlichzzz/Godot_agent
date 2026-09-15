@@ -26,7 +26,7 @@ func _run() -> void:
 	scene_executor.configure(plugin)
 	settings_executor.configure(plugin)
 	resource_executor.configure(plugin)
-	var tests := [_replace_probe, _scene, _settings, _resource_property, _theme, _sprite_frames, _animation, _resource_safety]
+	var tests := [_replace_probe, _scene, _settings, _resource_property, _theme, _sprite_frames, _animation, _tileset, _resource_safety]
 	if "--replace-probe-only" in OS.get_cmdline_user_args():
 		tests = [_replace_probe]
 	for test in tests:
@@ -275,6 +275,53 @@ func _animation() -> void:
 			check(loaded.track_get_path(0) == NodePath("Sprite2D:position") and loaded.track_get_key_count(0) == 2, "Animation path and keys persist")
 			check(loaded.track_get_key_time(0, 1) == 1.5 and loaded.track_get_key_value(0, 1) == Vector2(10, 20) and loaded.track_get_key_transition(0, 1) == 0.5, "Animation typed key/time/transition persist")
 	done("animation")
+
+
+func _tileset() -> void:
+	var seed := TileSet.new()
+	seed.tile_size = Vector2i(16, 16)
+	var original_source := TileSetAtlasSource.new()
+	var original_texture := GradientTexture2D.new()
+	original_texture.gradient = Gradient.new()
+	original_source.texture = original_texture
+	original_source.create_tile(Vector2i.ZERO)
+	seed.add_source(original_source, 3)
+	var operation := {"op": "tileset_add_atlas_source", "source_id": 7,
+		"texture_region_size": [16, 16], "tiles": [[0, 0], [1, 1]],
+		"texture": {"type": "NewSubresource", "class": "GradientTexture2D", "properties": [
+			{"property": "width", "value": {"type": "int", "value": 32}},
+			{"property": "height", "value": {"type": "int", "value": 32}},
+			{"property": "gradient", "value": {"type": "NewSubresource", "class": "Gradient", "properties": []}}]}}
+	var loaded := resource_roundtrip(seed, "tileset", [operation]) as TileSet
+	if loaded:
+		check(loaded.tile_size == Vector2i(16, 16) and loaded.get_source_count() == 2, "TileSet size and source count persist")
+		if check(loaded.has_source(3), "TileSet preserves existing source"):
+			var old := loaded.get_source(3) as TileSetAtlasSource
+			check(old != null and old.has_tile(Vector2i.ZERO), "TileSet preserves existing tile")
+		if check(loaded.has_source(7), "TileSet new source ID persists"):
+			var atlas := loaded.get_source(7) as TileSetAtlasSource
+			if check(atlas != null, "TileSet atlas type persists"):
+				check(atlas.texture_region_size == Vector2i(16, 16), "TileSet atlas region size persists")
+				check(atlas.get_tiles_count() == 2 and atlas.has_tile(Vector2i.ZERO) and atlas.has_tile(Vector2i.ONE), "TileSet atlas coordinates persist")
+				check(atlas.texture is GradientTexture2D and atlas.texture.get_size() == Vector2(32, 32), "TileSet nested texture persists")
+	done("tileset")
+	var path := "res://tileset.tres"
+	var before := FileAccess.get_sha256(path)
+	for code in ["source_exists", "tile_out_of_bounds", "texture_type"]:
+		var invalid := operation.duplicate(true)
+		if code != "source_exists":
+			invalid.source_id = 8
+		if code == "tile_out_of_bounds":
+			invalid.tiles = [[0, 0], [2, 0]]
+		elif code == "texture_type":
+			invalid.texture = {"type": "NewSubresource", "class": "Gradient", "properties": []}
+		var action := {"resource": path, "operations": [invalid], "wait_for_import": []}
+		check(resource_executor.prepare(action, before).get("code") == code, "TileSet preview rejects " + code)
+		check(resource_executor.execute(action, before).get("code") == code, "TileSet execute rejects " + code)
+		check(FileAccess.get_sha256(path) == before, "TileSet rejection preserves bytes: " + code)
+		var unchanged := ResourceLoader.load(path, "TileSet", ResourceLoader.CACHE_MODE_IGNORE_DEEP) as TileSet
+		check(unchanged != null and unchanged.get_source_count() == 2 and not unchanged.has_source(8), "TileSet rejection publishes no partial source: " + code)
+	done("tileset_rejections")
 
 
 func _resource_safety() -> void:

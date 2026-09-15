@@ -14,7 +14,8 @@ import sys
 import tempfile
 
 
-CASES = {"replace_probe", "scene", "settings", "resource_property", "theme", "sprite_frames", "animation"}
+CASES = {"replace_probe", "scene", "settings", "resource_property", "theme", "sprite_frames", "animation",
+         "tileset", "tileset_rejections"}
 CASES.update("resource_safety_" + mode for mode in (
     "sentinel", "stale_preview", "stale_publish", "stale_temp", "backup_collision", "publish_failure",
     "restore", "restore_conflict", "restore_failure", "save_failure"))
