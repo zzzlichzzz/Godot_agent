@@ -87,6 +87,10 @@ class _FakeCDP:
 
 
 def _start_request(mon, req_id="req-1"):
+    mon._on_request_will_be_sent({
+        "requestId": req_id,
+        "request": {"url": URL, "method": "POST"},
+    })
     mon._on_response_received({
         "requestId": req_id,
         "response": {"url": URL, "mimeType": MIME},
@@ -247,7 +251,9 @@ def test_insert_verify_matches():
     _install_selenium_stub()
     from parser_base import BaseSiteParser
     match = BaseSiteParser._insert_text_matches
-    assert match(None, u"привет  мир\n", u"привет мир")
+    assert not match(None, u"привет  мир\n", u"привет мир")
+    assert match(None, "line\r\n\tcode\n", "line\n\tcode")
+    assert not match(None, "line\ncode", "line\n\tcode")
     assert match(None, u"привет\u00a0мир", u"привет мир")
     assert not match(None, u"привет мир", u"привет мираж")
     assert not match(None, u"", u"привет")

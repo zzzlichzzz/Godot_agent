@@ -59,6 +59,7 @@ class BaseNetMonitor:
         self._assistant_message_count = 0
         self._generating = False
         self._chat_request_count = 0
+        self._request_counts = {}
         # v88.10: номер исходящего POST, которому принадлежит ТЕКУЩИЙ
         # буфер ответа (выставляется при responseReceived вместе со
         # сбросом буфера) — см. answer_request_count().
@@ -73,6 +74,7 @@ class BaseNetMonitor:
         cdp.on_event("Network.responseReceived", self._on_response_received)
         cdp.on_event("Network.dataReceived", self._on_data_received)
         cdp.on_event("Network.loadingFinished", self._on_loading_finished)
+        cdp.on_event("Network.loadingFailed", self._on_loading_failed)
 
     # -- крючки для подкласса ------------------------------------------------
 
@@ -123,10 +125,14 @@ class BaseNetMonitor:
             method = req.get("method") or ""
         except Exception:
             return
-        if self._match_request(url, method):
+        req_id = params.get("requestId")
+        if req_id and self._match_request(url, method):
             with self._lock:
                 self._chat_request_count += 1
                 cnt = self._chat_request_count
+                # Only the latest POST can start a new answer. Keep this
+                # bounded even when superseded requests never terminate.
+                self._request_counts = {req_id: cnt}
             self._log("исходящий POST к %s #%d: %s"
                       % (self.CHAT_URL_SUBSTR, cnt, params.get("requestId")))
 
@@ -168,13 +174,17 @@ class BaseNetMonitor:
         if self._match_response(url, mime):
             req_id = params.get("requestId")
             with self._lock:
+                count = self._request_counts.get(req_id)
+                if count is None or req_id == self._active_request_id:
+                    return
                 prev = self._active_request_id
+                if prev is not None:
+                    self._cleanup_request_locked(prev)
                 self._active_request_id = req_id
                 self._generating = True
                 self._message_status = None
                 self._reset_answer_state_locked()
-                # v88.10: теперь буфер принадлежит ПОСЛЕДНЕМУ ушедшему POST
-                self._answer_request_count = self._chat_request_count
+                self._answer_request_count = count
                 # v87.8: свежие стрим-буферы только для нового запроса
                 self._stream_bufs = {req_id: bytearray()}
                 self._stream_mode = {}
@@ -195,9 +205,18 @@ class BaseNetMonitor:
         к чанкам, которые dataReceived мог успеть добавить, пока этот
         поток просыпался (чанки с data идут только ПОСЛЕ включения,
         поэтому порядок байт сохраняется)."""
+        with self._lock:
+            evt = self._stream_done.get(req_id)
+            if req_id != self._active_request_id:
+                return
         try:
-            res = self._cdp.send_command(
-                "Network.streamResourceContent", {"requestId": req_id})
+            try:
+                res = self._cdp.send_command(
+                    "Network.streamResourceContent", {"requestId": req_id})
+            except Exception as e:
+                self._log("streamResourceContent unavailable for %s (%s) - using getResponseBody"
+                          % (req_id, e))
+                return
             buffered = res.get("bufferedData") or ""
             data = base64.b64decode(buffered) if buffered else b""
             with self._lock:
@@ -210,12 +229,10 @@ class BaseNetMonitor:
             self._log("живой стрим тела включён для %s (буфер %d байт)"
                       % (req_id, len(data)))
         except Exception as e:
-            # старый Chrome без Network.streamResourceContent или ответ уже
-            # закрыт - остаётся запасной путь через getResponseBody.
-            self._log("streamResourceContent недоступен для %s (%s) - запасной путь через getResponseBody"
-                      % (req_id, e))
+            # Once streaming is enabled, replaying the body could duplicate
+            # events already applied by an append-only parser.
+            self._reset_after_finish(req_id, "stream parse failed: %s" % e, failed=True)
         finally:
-            evt = self._stream_done.get(req_id)
             if evt is not None:
                 evt.set()
 
@@ -245,15 +262,18 @@ class BaseNetMonitor:
             chunk = base64.b64decode(data)
         except Exception:
             return
-        with self._lock:
-            if req_id != self._active_request_id:
-                return
-            buf = self._stream_bufs.get(req_id)
-            if buf is None:
-                return
-            buf.extend(chunk)
-            if self._stream_mode.get(req_id):
-                self._parse_stream_locked(req_id)
+        try:
+            with self._lock:
+                if req_id != self._active_request_id:
+                    return
+                buf = self._stream_bufs.get(req_id)
+                if buf is None:
+                    return
+                buf.extend(chunk)
+                if self._stream_mode.get(req_id):
+                    self._parse_stream_locked(req_id)
+        except Exception as e:
+            self._reset_after_finish(req_id, "stream parse failed: %s" % e, failed=True)
 
     def _finalize_stream(self, req_id):
         """v87.8: завершение запроса, чьё тело читалось живым стримом:
@@ -261,36 +281,39 @@ class BaseNetMonitor:
         with self._lock:
             if req_id != self._active_request_id:
                 return
-            self._parse_stream_locked(req_id)
-            tail = bytes(self._stream_bufs.get(req_id) or b"")
-            if tail:
-                try:
-                    for obj in self._decode_final_tail(tail):
+            failed = False
+            try:
+                self._parse_stream_locked(req_id)
+                tail = bytes(self._stream_bufs.get(req_id) or b"")
+                if tail:
+                    events = self._decode_final_tail(tail)
+                    for obj in events:
                         self._apply_event(obj)
-                    self._stream_bufs[req_id].clear()
-                except Exception as e:
-                    self._log("не удалось разобрать финальный хвост: %s" % e)
-            self._active_request_id = None
-            leftover = len(self._stream_bufs.get(req_id) or b"")
-            self._stream_bufs.pop(req_id, None)
-            self._stream_mode.pop(req_id, None)
-            self._stream_done.pop(req_id, None)
+                    if events:
+                        self._stream_bufs[req_id].clear()
+            except Exception as e:
+                failed = True
+                self._log("stream finalization failed for %s: %s" % (req_id, e))
+            finally:
+                self._cleanup_request_locked(req_id, failed=failed)
             text_len = self._answer_len_locked()
             status = self._message_status
-            still_generating = self._generating
-        self._log("стрим тела завершён: длина_текста=%d, message_status=%s, generating=%s, неразобранный хвост=%d байт"
-                  % (text_len, status, still_generating, leftover))
-        if still_generating:
-            self._reset_after_finish(req_id, "ответ закрыт без явного статуса завершения")
+        self._log("stream closed: text_length=%d, message_status=%s, failed=%s"
+                  % (text_len, status, failed))
 
     def _finish_request(self, req_id):
         """v87.8: дожидается исхода попытки включения стрима (чтобы не
         гадать на гонке «быстрый ответ vs медленный streamResourceContent»),
         затем завершает запрос стрим-путём либо запасным getResponseBody."""
-        evt = self._stream_done.get(req_id)
-        if evt is not None:
-            evt.wait(5.0)
         with self._lock:
+            evt = self._stream_done.get(req_id)
+        if evt is not None:
+            # send_command owns the bounded CDP timeout (15s). Do not race
+            # its outcome with a shorter wait and replay an in-flight stream.
+            evt.wait()
+        with self._lock:
+            if req_id != self._active_request_id:
+                return
             streamed = bool(self._stream_mode.get(req_id))
         if streamed:
             self._finalize_stream(req_id)
@@ -301,6 +324,7 @@ class BaseNetMonitor:
         req_id = params.get("requestId")
         with self._lock:
             if req_id != self._active_request_id:
+                self._request_counts.pop(req_id, None)
                 return
         # v87.4: Network.getResponseBody НЕЛЬЗЯ звать отсюда напрямую - этот
         # метод вызывается СИНХРОННО из CDPSession._read_loop, а send_command
@@ -313,7 +337,34 @@ class BaseNetMonitor:
             target=self._finish_request, args=(req_id,), daemon=True
         ).start()
 
-    def _reset_after_finish(self, req_id, reason):
+    def _on_loading_failed(self, params):
+        req_id = params.get("requestId")
+        with self._lock:
+            if req_id not in self._request_counts and req_id != self._active_request_id:
+                return
+        self._reset_after_finish(
+            req_id,
+            "loadingFailed: %s (canceled=%s)" % (
+                params.get("errorText") or "network error", bool(params.get("canceled"))),
+            failed=True)
+
+    def _cleanup_request_locked(self, req_id, failed=False):
+        """Release request resources under the lock, preserving partial text."""
+        tail = self._stream_bufs.pop(req_id, None)
+        if tail:
+            self._log("request %s: discarded stream tail=%d bytes" % (req_id, len(tail)))
+        self._stream_mode.pop(req_id, None)
+        evt = self._stream_done.pop(req_id, None)
+        if evt is not None:
+            evt.set()
+        self._request_counts.pop(req_id, None)
+        if req_id is not None and req_id == self._active_request_id:
+            self._active_request_id = None
+            self._generating = False
+            if failed:
+                self._message_status = "FAILED"
+
+    def _reset_after_finish(self, req_id, reason, failed=False):
         """v87.5: единая точка сброса состояния запроса - и при ошибке
         (сеть/декодирование), и при успешном разборе без явного статуса
         завершения: loadingFinished означает, что HTTP-ответ получен
@@ -323,12 +374,12 @@ class BaseNetMonitor:
             # v87.7: если активен уже ДРУГОЙ запрос (повторная отправка успела
             # создать новый POST), завершение СТАРОГО запроса не должно
             # сбрасывать состояние нового.
-            if self._active_request_id is not None and req_id != self._active_request_id:
+            active = self._active_request_id
+            self._cleanup_request_locked(req_id, failed=failed)
+            if req_id != active:
                 self._log("запрос %s завершён (%s), но активен уже %s - состояние не трогаю"
                           % (req_id, reason, self._active_request_id))
                 return
-            self._active_request_id = None
-            self._generating = False
         self._log("запрос %s завершён (%s), generating сброшен" % (req_id, reason))
 
     def _fetch_and_apply_body(self, req_id):
@@ -347,7 +398,7 @@ class BaseNetMonitor:
         except Exception as e:
             self._log("Network.getResponseBody failed: %s" % e)
             # v87.4: не оставляем generating=True навечно.
-            self._reset_after_finish(req_id, "getResponseBody упал")
+            self._reset_after_finish(req_id, "getResponseBody упал", failed=True)
             return
         # v87.5: декодирование и применение событий обёрнуты в try/except:
         # иначе исключение тихо гасится в фоновом потоке, generating не
@@ -358,7 +409,6 @@ class BaseNetMonitor:
                 raw_bytes = base64.b64decode(raw)
             else:
                 raw_bytes = raw.encode("utf-8")
-            events = self._decode_frames(raw_bytes)
             with self._lock:
                 # v87.7: повторная проверка актуальности УЖЕ ПОСЛЕ скачивания
                 # тела: новый POST мог появиться, пока шёл send_command.
@@ -366,26 +416,21 @@ class BaseNetMonitor:
                     self._log("тело запроса %s устарело после скачивания (активен %s) - пропускаю"
                               % (req_id, self._active_request_id))
                     return
+                events = self._decode_frames(raw_bytes)
                 for obj in events:
                     self._apply_event(obj)
-                self._active_request_id = None
+                self._cleanup_request_locked(req_id)
                 frame_count = len(events)
                 text_len = self._answer_len_locked()
                 status = self._message_status
-                still_generating = self._generating
         except Exception as e:
             import traceback
             self._log("ошибка разбора тела ответа (%d байт): %r" % (len(body.get("body") or ""), e))
             traceback.print_exc()
-            self._reset_after_finish(req_id, "ошибка разбора тела")
+            self._reset_after_finish(req_id, "ошибка разбора тела", failed=True)
             return
-        self._log("тело ответа разобрано: кадров=%d, длина_текста=%d, message_status=%s, generating=%s"
-                  % (frame_count, text_len, status, still_generating))
-        if still_generating:
-            # loadingFinished => HTTP-ответ получен целиком, больше данных не
-            # будет. v87.7: сброс происходит и когда последний статус -
-            # «генерация» (обрыв до явного завершения).
-            self._reset_after_finish(req_id, "ответ закрыт без явного статуса завершения")
+        self._log("тело ответа разобрано: кадров=%d, длина_текста=%d, message_status=%s"
+                  % (frame_count, text_len, status))
 
     # -- показания -------------------------------------------------------------
 
