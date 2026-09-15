@@ -30,7 +30,8 @@ def main():
     args = parser.parse_args()
     python_root = Path(__file__).resolve().parent.parent
     suites = list(SUITES)
-    live = ["test_godot_live", "test_godot_executor_live", "test_runtime_ownership_live"]
+    live = ["test_godot_live", "test_godot_executor_live", "test_runtime_ownership_live",
+            "test_headless_validator_live"]
     if args.godot:
         suites.extend(live)
     failures = []

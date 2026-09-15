@@ -387,9 +387,16 @@ def _run_process(root, command, timeout):
     try:
         with open(result_path, "r", encoding="utf-8") as handle:
             result = json.load(handle)
+        if (not isinstance(result, dict) or result.get("schema_version") != SCHEMA_VERSION
+                or not isinstance(result.get("diagnostics"), list)):
+            raise ValueError("Invalid validation result schema")
+        for item in result["diagnostics"]:
+            if (not isinstance(item, dict) or item.get("severity") not in ("error", "warning")
+                    or any(not isinstance(item.get(key), str) for key in ("category", "message", "path"))):
+                raise ValueError("Invalid validation diagnostic")
         diagnostics.extend(_diag(item.get("severity", "error"), item.get("category", "load"),
                                  item.get("message", "Ошибка загрузки ресурса"), item.get("path", ""))
-                           for item in (result.get("diagnostics") or []))
+                           for item in result["diagnostics"])
     except Exception:
         harness_failed = True
         if not timed_out:
