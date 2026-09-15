@@ -98,6 +98,7 @@ SDK провайдера (opencode так и делает через npm-пак�
 патчит getaddrinfo на весь процесс.
 """
 import gzip
+import io
 import json
 import os
 import time
@@ -546,7 +547,7 @@ def _fetch(etag=""):
     req.add_header("Accept", "application/json")
     # ЗАЧЕМ ЯВНЫЙ gzip. Без этого заголовка ответ приходит несжатым — 4.0 МБ
     # вместо 399 КБ (замерено). urllib сам его не запрашивает и сам НЕ
-    # распаковывает, поэтому ниже gzip.decompress вручную.
+    # распаковывает, поэтому ниже читаем gzip с ограничением размера.
     req.add_header("Accept-Encoding", "gzip")
     if etag:
         req.add_header("If-None-Match", etag)
@@ -575,6 +576,11 @@ def _fetch(etag=""):
         raw = resp.read(MAX_BYTES + 1)
         new_etag = resp.headers.get("ETag") or ""
         encoding = (resp.headers.get("Content-Encoding") or "").lower()
+        length = resp.headers.get("Content-Length")
+        if length is not None and len(raw) < int(length) and len(raw) <= MAX_BYTES:
+            return None, etag, "Incomplete catalog response body"
+    except Exception as e:
+        return None, etag, "Could not read catalog response: %s" % e
     finally:
         try:
             resp.close()
@@ -585,9 +591,12 @@ def _fetch(etag=""):
             MAX_BYTES // (1024 * 1024))
     if "gzip" in encoding:
         try:
-            raw = gzip.decompress(raw)
+            with gzip.GzipFile(fileobj=io.BytesIO(raw)) as compressed:
+                raw = compressed.read(MAX_BYTES + 1)
         except Exception as e:
             return None, etag, u"ответ каталога не распаковался: %s" % e
+        if len(raw) > MAX_BYTES:
+            return None, etag, "Decompressed catalog response exceeds size limit"
     try:
         data = json.loads(raw.decode("utf-8", "replace"))
     except Exception as e:

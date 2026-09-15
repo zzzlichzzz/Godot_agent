@@ -21,6 +21,7 @@ Zen каталог знает 91 модель, а живой /models отдаё�
 модулей, иначе прогон писал бы в настоящий %APPDATA%\\Godot_agent.
 """
 import gzip
+import http.client
 import json
 import shutil
 import sys
@@ -28,6 +29,7 @@ import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import Mock, patch
 
 CFG = tempfile.mkdtemp(prefix="agent_cfg_modelsdev_")
 _os0.environ["GODOT_AGENT_CONFIG_DIR"] = CFG
@@ -172,6 +174,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         Handler.hits.append(self.path)
         Handler.headers_seen.append({k.lower(): v for k, v in self.headers.items()})
+        if Handler.mode in ("badgzip", "oversize", "gzip_oversize", "truncated"):
+            body = b"x" * 1025 if "oversize" in Handler.mode else b'{"openrouter": {}}'
+            if Handler.mode == "gzip_oversize":
+                body = gzip.compress(body)
+            self.send_response(200)
+            if Handler.mode in ("badgzip", "gzip_oversize"):
+                self.send_header("Content-Encoding", "gzip")
+            self.send_header("Content-Length", str(len(body) + (7 if Handler.mode == "truncated" else 0)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.close_connection = True
+            return
         if Handler.mode == "500":
             self.send_response(500)
             self.send_header("Content-Length", "0")
@@ -533,6 +547,27 @@ updated, err = catalog.refresh(force=True)
 check(u"ошибка сервера объяснена кодом", u"500" in err, err)
 check(u"прежний кэш выжил и после 500", len(catalog.get("openrouter")) == 8)
 
+previous_models = catalog.get("openrouter")
+for mode, reason in (("badgzip", "не распаковался"), ("oversize", "больше"),
+                     ("gzip_oversize", "exceeds size limit"),
+                     ("truncated", "Incomplete catalog response body")):
+    Handler.mode = mode
+    with patch.object(catalog, "MAX_BYTES", 1024):
+        updated, err = catalog.refresh(force=True)
+    check("invalid catalog body rejected: " + mode, updated is False and reason in err, err)
+    check("catalog preserved after " + mode, catalog.get("openrouter") == previous_models)
+    check("catalog failure recorded: " + mode, catalog.state()["error"] == err)
+
+for failure in (TimeoutError("body timed out"), http.client.IncompleteRead(b"partial")):
+    response = Mock()
+    response.read.side_effect = failure
+    with patch.object(catalog.urllib.request, "build_opener") as opener:
+        opener.return_value.open.return_value = response
+        updated, err = catalog.refresh(force=True)
+    check("body read failure reported", updated is False and bool(err), err)
+    check("failed response closed", response.close.call_count == 1)
+    check("body read failure preserves cache", catalog.get("openrouter") == previous_models)
+
 # ---------------------------------------------------------------------------
 # 9) НИ ОДНОГО КЛЮЧА В ЗАПРОСЕ КАТАЛОГА
 #
@@ -544,10 +579,11 @@ api_keys.set_key("deepseek", "sk-DEEPSECRET0123456789")
 Handler.mode = "ok"
 Handler.etag = 'W/"fake-etag-3"'
 Handler.headers_seen = []
-catalog.refresh(force=True)
+updated, err = catalog.refresh(force=True)
 sent = json.dumps(Handler.headers_seen, ensure_ascii=False)
 check(u"каталог загрузился при сохранённых ключах",
-      len(catalog.get("openrouter")) == 8)
+      updated is True and not err and len(Handler.headers_seen) == 1
+      and len(catalog.get("openrouter")) == 8)
 check(u"в запросе каталога нет заголовка Authorization",
       all("authorization" not in h for h in Handler.headers_seen), sent)
 check(u"СЫРОГО ключа в запросе каталога нет", "SECRETVALUE" not in sent

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
 _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
-import _bootstrap  # noqa: E402,F401
 """Тесты транспорта API (openai_compat): поток SSE, отмена, ошибки, прокси.
 
 Тест ОФЛАЙНОВЫЙ: поднимает настоящий HTTP-сервер на 127.0.0.1 и говорит с ним
@@ -9,13 +8,23 @@ import _bootstrap  # noqa: E402,F401
 разрезанные события, keep-alive-комментарии, обрыв, отмена посреди потока, —
 а не поведение подставного объекта. Сеть и ключи не нужны.
 """
+import atexit
 import json
 import socket
 import sys
+import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
 
+CFG = tempfile.TemporaryDirectory(prefix="agent_cfg_transport_")
+atexit.register(CFG.cleanup)
+_os0.environ["GODOT_AGENT_CONFIG_DIR"] = CFG.name
+for name in ("GODOT_AGENT_OPENROUTER_KEY", "OPENROUTER_API_KEY"):
+    _os0.environ.pop(name, None)
+
+import _bootstrap  # noqa: E402,F401
 import api_keys
 import openai_compat as oc
 
@@ -334,16 +343,23 @@ check("пустой хост — не локальный", not oc.is_local_host(
 r5 = call("/ok", proxy="http://127.0.0.1:1/")
 check(u"локальный запрос игнорирует прокси", r5["text"] == u"Привет, мир")
 
-# А внешний адрес через тот же битый прокси обязан честно упасть TransportError.
-try:
-    oc.stream_chat("http://example.invalid/v1", "k", "m", MSG,
-                   proxy="http://127.0.0.1:1/", connect_timeout=5)
-    check(u"внешний адрес через битый прокси -> TransportError", False)
-except oc.TransportError:
-    check(u"внешний адрес через битый прокси -> TransportError", True)
-except oc.ApiError as e:
-    print("   получено: %r" % (e,))
-    check(u"внешний адрес через битый прокси -> TransportError", False)
+# Force proxy use even under NO_PROXY=*, then fail before any DNS or socket I/O.
+with patch("urllib.request.proxy_bypass", return_value=False), patch(
+        "http.client.HTTPConnection.connect", autospec=True,
+        side_effect=ConnectionRefusedError("test proxy refused connection")) as connect:
+    try:
+        oc.stream_chat("http://example.invalid/v1", "k", "m", MSG,
+                       proxy="http://127.0.0.1:1/", connect_timeout=5)
+        check(u"внешний адрес через битый прокси -> TransportError", False)
+    except oc.TransportError:
+        check(u"внешний адрес через битый прокси -> TransportError", True)
+    except oc.ApiError as e:
+        print("   получено: %r" % (e,))
+        check(u"внешний адрес через битый прокси -> TransportError", False)
+    check("connection attempted through the configured proxy",
+          connect.call_count == 1
+          and connect.call_args.args[0].host == "127.0.0.1"
+          and connect.call_args.args[0].port == 1)
 
 # ---------------------------------------------------------------------------
 # 10) Тишина в потоке считается обрывом
@@ -378,9 +394,6 @@ except oc.ApiError as e:
 # ---------------------------------------------------------------------------
 # 11) Ключ не утекает в текст ошибки
 # ---------------------------------------------------------------------------
-import os
-os.environ["GODOT_AGENT_CONFIG_DIR"] = os.path.join(
-    os.environ.get("TEMP") or "/tmp", "godot_agent_test_cfg")
 api_keys.set_key("openrouter", "sk-or-v1-SECRETSECRETSECRET1234")
 leaked = u"Ошибка: ключ sk-or-v1-SECRETSECRETSECRET1234 отклонён"
 check(u"redact убирает ключ из текста ошибки",
@@ -390,6 +403,7 @@ check(u"redact оставляет узнаваемую маску",
 api_keys.delete_key("openrouter")
 
 srv.shutdown()
+CFG.cleanup()
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))
 sys.exit(0 if n_ok == len(results) else 1)
