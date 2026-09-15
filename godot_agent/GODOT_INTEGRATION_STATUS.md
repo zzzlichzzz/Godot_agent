@@ -5,6 +5,10 @@
 [`POST_TESTING_AUDIT.md`](POST_TESTING_AUDIT.md). Исходный замысел сохранён в
 [`GODOT_INTEGRATION_ROADMAP.md`](GODOT_INTEGRATION_ROADMAP.md).
 
+Последующий аудит браузерного сервера и живого AI Studio:
+[`BROWSER_AUDIT.md`](BROWSER_AUDIT.md). Общий офлайн-runner теперь содержит 71 suite;
+приведённые ниже результаты Godot относятся к предыдущему отдельному циклу.
+
 ## Реализовано
 
 | Возможность | Статус | Основные ограничения |

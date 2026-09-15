@@ -25,7 +25,7 @@ from parser_base import (
 # v88.0: сетевой захват ответа (как у kimi) - общая база net_monitor +
 # формат чанков AI Studio в ai_studio_net. Это ДОПОЛНЕНИЕ к DOM-парсеру:
 # при недоступном CDP всё работает по-старому, только по DOM.
-from cdp_ws import CDPSession, find_page_ws_url
+from cdp_ws import CDPSession, list_targets
 from ai_studio_net import AiStudioChatMonitor
 from kimi_parser import split_text_and_action
 
@@ -481,13 +481,26 @@ class AiStudioParser(BaseSiteParser):
     _monitor_lock = threading.Lock()
     _monitor_next_retry = 0.0
     _req_count_before_send = None
+    _monitor_window = None
 
-    def _ensure_monitor(self):
+    def _ensure_monitor(self, driver):
         """Возвращает живой AiStudioChatMonitor или None (чистый DOM-режим).
         Неудачные попытки подключения кэшируются на 30 секунд, чтобы не
         дёргать DevTools-порт на каждый опрос цикла ожидания."""
         with AiStudioParser._monitor_lock:
             mon = AiStudioParser._monitor
+            try:
+                window = driver.current_window_handle
+            except Exception:
+                return None
+            if window != AiStudioParser._monitor_window:
+                if mon is not None:
+                    mon._cdp.close()
+                AiStudioParser._monitor = None
+                AiStudioParser._monitor_window = window
+                AiStudioParser._monitor_next_retry = 0.0
+                AiStudioParser._req_count_before_send = None
+                mon = None
             try:
                 if mon is not None and mon._cdp.is_alive():
                     return mon
@@ -496,8 +509,12 @@ class AiStudioParser(BaseSiteParser):
             now = time.time()
             if now < AiStudioParser._monitor_next_retry:
                 return None
+            cdp = None
             try:
-                ws_url = find_page_ws_url(self.WINDOW_URL_MATCH)
+                # Bind to Selenium's current page, never the first same-site tab.
+                target_id = driver.execute_cdp_cmd("Target.getTargetInfo", {})["targetInfo"]["targetId"]
+                ws_url = next(t["webSocketDebuggerUrl"] for t in list_targets()
+                              if t.get("type") == "page" and t.get("id") == target_id)
                 cdp = CDPSession(ws_url)
                 # подписки регистрируются в конструкторе ДО Network.enable,
                 # чтобы не потерять первые события (как у kimi, v87.1)
@@ -507,10 +524,14 @@ class AiStudioParser(BaseSiteParser):
                     new_mon._assistant_message_count = mon.assistant_message_count()
                     new_mon._chat_request_count = mon.chat_request_count()
                 cdp.send_command("Network.enable")
+                if mon is not None:
+                    mon._cdp.close()
                 AiStudioParser._monitor = new_mon
                 print("[ai_parser] сетевой монитор GenerateContent подключён")
                 return new_mon
             except Exception as e:
+                if cdp is not None:
+                    cdp.close()
                 AiStudioParser._monitor_next_retry = now + 30.0
                 print("[ai_parser] сетевой монитор недоступен (%s) - работаю только по DOM" % e)
                 return None
@@ -525,7 +546,7 @@ class AiStudioParser(BaseSiteParser):
         # «долго думала - ПУСТОЙ ответ», см. kimi v87.8). После завершения
         # запроса источник длины снова DOM, чтобы устаревший сетевой текст
         # прошлого обмена не ломал quiet-период.
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         if mon is not None and mon.is_generating():
             try:
                 net_len = len(mon.current_text())
@@ -543,7 +564,7 @@ class AiStudioParser(BaseSiteParser):
         if text:
             return text
         # v88.0: DOM ещё пуст, но сеть уже стримит ответ - показываем его
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         if mon is not None and mon.is_generating():
             return mon.current_text()
         return ""
@@ -551,7 +572,7 @@ class AiStudioParser(BaseSiteParser):
     def is_generating(self, driver):
         # v88.0: сетевой признак (активный запрос GenerateContent) надёжнее
         # DOM-спиннера; DOM остаётся запасным признаком
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         if mon is not None and mon.is_generating():
             return True
         return is_generating(driver)
@@ -640,7 +661,7 @@ class AiStudioParser(BaseSiteParser):
     def submit(self, driver, el):
         # v88.0: снимок счётчика POST до отправки - страховка от устаревшего
         # сетевого текста в extract_raw_fallback (как _req_count_before_send у kimi)
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         AiStudioParser._req_count_before_send = (
             mon.chat_request_count() if mon is not None else None)
         el.send_keys(Keys.CONTROL, Keys.ENTER)

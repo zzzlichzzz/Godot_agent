@@ -92,12 +92,12 @@ def test_stale_seq_skipped():
     assert len(p.calls) == 1
 
 
-def test_same_text_skipped():
+def test_same_text_rechecks_actual_composer():
     m, p = _mk()
     assert m.apply(1, u"текст")["applied"]
     r = m.apply(2, u"текст")
-    assert not r["applied"] and r["reason"] == "same_text", r
-    assert len(p.calls) == 1
+    assert r["applied"], r
+    assert len(p.calls) == 2
     assert m.apply(3, u"текст2")["applied"]
 
 
@@ -245,6 +245,18 @@ def test_base_mirror_input_backspace_on_delete():
     assert p.input_el.value == u"ab", repr(p.input_el.value)
 
 
+def test_same_text_restored_after_external_clear_without_duplicate_keys():
+    p = _MirrorProbe()
+    mirror, _ = _mk(parser=p, driver=_FakeDriver(p.input_el))
+    assert mirror.apply(1, "draft")['applied']
+    keys = list(p.input_el.keys_log)
+    assert mirror.apply(2, "draft")['applied']
+    assert p.input_el.keys_log == keys
+    p.input_el.value = ""
+    assert mirror.apply(3, "draft")['applied']
+    assert p.input_el.value == "draft"
+
+
 def test_base_mirror_input_no_field_fast_fail():
     p = _MirrorProbe()
     p.input_el = None
@@ -275,7 +287,8 @@ def _run_all():
     tests = [
         test_applies_text,
         test_stale_seq_skipped,
-        test_same_text_skipped,
+        test_same_text_rechecks_actual_composer,
+        test_same_text_restored_after_external_clear_without_duplicate_keys,
         test_busy_skipped,
         test_no_browser_skipped,
         test_parser_error_no_raise,

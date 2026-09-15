@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import shutil
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 import _bootstrap  # noqa: E402,F401
@@ -37,3 +38,9 @@ def test_restore_battle_chat_preserves_site_id_after_restart():
         server_state.STATE["current_chat_id"] = old_chat_id
         server_state.STATE["current_site_id"] = old_site_id
         server_state.set_driver(old_driver)
+        shutil.rmtree(root)
+
+
+if __name__ == "__main__":
+    test_restore_battle_chat_preserves_site_id_after_restart()
+    print("PASS restored battle chat keeps its site identity")
