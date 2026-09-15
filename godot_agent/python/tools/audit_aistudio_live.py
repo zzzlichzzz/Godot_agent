@@ -30,7 +30,11 @@ def main():
     parser.add_argument("--session-dir", required=True, type=Path)
     parser.add_argument("--port", type=int, default=5001)
     parser.add_argument("--turns", type=int, default=1, choices=range(1, 5))
+    parser.add_argument("--navigate", action="store_true",
+                        help="Restore the first chat before turn 2; start a fresh chat before turn 3")
     args = parser.parse_args()
+    if args.navigate and args.turns < 3:
+        parser.error("--navigate requires --turns 3 or 4")
     owner = args.session_dir.resolve()
     owner.mkdir(parents=False, exist_ok=False)
     project, user = owner / "project", owner / "user"
@@ -76,10 +80,12 @@ def main():
             opened = request("/chats/new", {**context, "site_id": "aistudio"})
             context["chat_id"] = opened["current_id"]
             time.sleep(3)
+            browser = request("/browser/status", {})
             targets = [t for t in list_targets() if t.get("type") == "page"
-                       and urllib.parse.urlsplit(t.get("url", "")).hostname == "aistudio.google.com"]
+                       and urllib.parse.urlsplit(t.get("url", "")).hostname == "aistudio.google.com"
+                       and t.get("url") == browser.get("url")]
             if len(targets) != 1:
-                raise RuntimeError("Expected exactly one AI Studio tab; refusing ambiguous observation")
+                raise RuntimeError("Cannot uniquely identify the server's AI Studio tab")
             cdp = CDPSession(targets[0]["webSocketDebuggerUrl"])
             posts = set()
 
@@ -92,6 +98,17 @@ def main():
             cdp.send_command("Network.enable")
             previous_markers = []
             for turn in range(args.turns):
+                if args.navigate and turn in (1, 2):
+                    first_id = context["chat_id"]
+                    opened = request("/chats/new", {**context, "site_id": "aistudio"})
+                    assert opened["current_id"] != first_id
+                    if turn == 1:
+                        restored = request("/chats/open", {**context, "id": first_id})
+                        assert restored["current_id"] == first_id
+                        assert previous_markers[0] in json.dumps(restored["transcript"])
+                    else:
+                        context["chat_id"] = opened["current_id"]
+                    time.sleep(3)
                 marker = "AUDIT_" + secrets.token_hex(6)
                 count = 80 if turn == 0 else 8
                 expected = "\n".join("%s_%03d [array] \u0442\u0435\u0441\u0442" % (marker, n) for n in range(1, count + 1))
