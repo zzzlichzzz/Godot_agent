@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import json
 import shutil
 import sys
 import tempfile
@@ -36,7 +37,7 @@ for target in manifest.get("targets", []):
         diagnostics.append({"severity": "error", "category": "parse", "path": target,
                             "message": "Synthetic engine parse failure"})
 with open(os.path.join(service, "result.json"), "w", encoding="utf-8") as handle:
-    json.dump({"diagnostics": diagnostics}, handle)
+    json.dump({"schema_version": 1, "diagnostics": diagnostics}, handle)
 sys.exit(1 if diagnostics else 0)
 '''
 
@@ -181,6 +182,25 @@ class HeadlessValidationTests(unittest.TestCase):
         _, receipt = self.validate(action)
         self.assertTrue(receipt["report"]["blocking"])
         self.assertEqual(receipt["report"]["status"], "inconclusive")
+
+    def test_malformed_harness_results_fail_closed(self):
+        results = [{}, {"schema_version": 1}, {"schema_version": 2, "diagnostics": []},
+                   {"schema_version": 1, "diagnostics": None},
+                   {"schema_version": 1, "diagnostics": {}},
+                   {"schema_version": 1, "diagnostics": [{"severity": "unexpected"}]},
+                   {"schema_version": 1, "diagnostics": [None]}]
+        action = {"action": "patch_file", "path": "res://player.gd",
+                  "search": "pass", "replace": "print(1)"}
+        for result in results:
+            with self.subTest(result=result):
+                with open(self.fake, "w", encoding="utf-8") as handle:
+                    handle.write("import pathlib, sys\n"
+                                 "root = pathlib.Path(sys.argv[sys.argv.index('--path') + 1])\n"
+                                 "(root / '.godot_agent_validation/result.json').write_text(%r)\n"
+                                 % json.dumps(result))
+                _, receipt = self.validate(action)
+                self.assertTrue(receipt["report"]["blocking"])
+                self.assertEqual("inconclusive", receipt["report"]["status"])
 
 
 if __name__ == "__main__":
