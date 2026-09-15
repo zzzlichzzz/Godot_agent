@@ -211,6 +211,7 @@ def try_begin_turn_exchange():
         _activity["exchange"] = True
         _exchange["count"] += 1
         _turn_context.owns_exchange = True
+        clear_cancel()
         return True
 
 

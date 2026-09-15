@@ -339,6 +339,8 @@ def _reply(prompt):
     attempt = 0
     while True:
         text, action = _reply_once(prompt)
+        if server_state.cancel_requested():
+            raise parser_base.ParserCancelled("остановлено пользователем")
         backend = _current_backend()
         try:
             net_status = backend.pop_rate_limit_status()
@@ -404,7 +406,7 @@ def _reply(prompt):
             while time.time() < t_end:
                 if server_state.cancel_requested():
                     print("<-- [повтор] пауза прервана кнопкой «Стоп».")
-                    return u"[Остановлено] Прерван во время паузы перед повтором.", None
+                    raise parser_base.ParserCancelled("остановлено пользователем")
                 time.sleep(0.5)
         finally:
             _clear_progress()
@@ -412,7 +414,8 @@ def _reply(prompt):
 
 def _reply_once(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
-    server_state.clear_cancel()
+    if server_state.cancel_requested():
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     # v88.11: на время обмена «промпт->ответ» живой ввод (/chat/live_input)
     # не трогает браузер — конвейер сам вставит и сверит финальный промпт.
     server_state.begin_exchange()
@@ -426,11 +429,14 @@ def _reply_once(prompt):
             cancel_cb=server_state.cancel_requested,
             prefer_url=_chat_rec.get("url") or None)
     except parser_base.ParserCancelled:
+        server_state.request_cancel()
         print("<-- Запрос остановлен пользователем.")
         return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     finally:
         _clear_progress()
         server_state.end_exchange()
+    if server_state.cancel_requested():
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     if isinstance(result, dict):
         text, action = result.get("text") or "", result.get("action")
         choice = result.get("battle_choice")
@@ -1689,6 +1695,14 @@ def _lenient_resend_note(action, msg):
 
 
 def _reply_with_self_heal(prompt, project_root):
+    # Cancellation ends the entire repair chain, not just one backend call.
+    try:
+        return _reply_with_self_heal_impl(prompt, project_root)
+    except parser_base.ParserCancelled:
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
+
+
+def _reply_with_self_heal_impl(prompt, project_root):
     text, action = _reply(prompt)
     retries = 0
     while retries < MAX_ACTION_FIX_RETRIES:

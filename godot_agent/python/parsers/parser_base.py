@@ -2842,12 +2842,14 @@ class BaseSiteParser:
                 text = (result or {}).get("text") or ""
                 cur_len = self.answer_len(driver)
                 still_generating = self.is_generating(driver)
+                if _deadline_hit():
+                    raise TimeoutError("Генерация не завершилась вовремя.")
                 action_incomplete = raw is not None and not _looks_json_balanced(
                     _extract_json_object(_strip_code_fences(raw)))
                 answer_empty = (not text.strip()) and (raw is None)
                 if (not still_generating) and cur_len == st["last_length"] and (not action_incomplete) and (not answer_empty):
                     break
-                if still_generating and not _deadline_hit():
+                if still_generating:
                     # v87.9: генерация ЕЩЁ ИДЁТ (модель долго «думает» или дописывает
                     # длинный ответ) — грейс-период НЕ расходуем, а отсчитываем заново:
                     # ждём конца генерации вплоть до общего дедлайна. Раньше «думанье»
@@ -2910,9 +2912,12 @@ class BaseSiteParser:
                     _report("модель пишет ответ…", chars=max(ln, 0))
                     last_len = ln
                     time.sleep(poll_interval)
+                else:
+                    raise TimeoutError("Генерация не завершилась вовремя.")
+                st["last_length"] = last_len
                 result = self.extract_answer(driver)
             st["result"] = result
-            return ST_DONE
+            return ST_VERIFY_COMPLETE
 
         _STATE_HANDLERS = {
             ST_WAIT_NEW_MESSAGE: _state_wait_new_message,
@@ -2924,6 +2929,8 @@ class BaseSiteParser:
         state = ST_WAIT_NEW_MESSAGE
         while state != ST_DONE:
             state = _STATE_HANDLERS[state]()
+        if _deadline_hit():
+            raise TimeoutError("Генерация не завершилась вовремя.")
         return st["result"]
     def extract_answer_robust(self, driver, retries=3, delay=1.5):
         """ПЛАН Б: многоуровневое извлечение ответа.
@@ -3014,10 +3021,7 @@ class BaseSiteParser:
         _busy_start = time.time()
         _busy_logged = False
         while time.time() - _busy_start < 240.0:
-            try:
-                if not self.is_generating(driver):
-                    break
-            except Exception:
+            if not self.is_generating(driver):
                 break
             if not _busy_logged:
                 self._log("модель ещё дописывает предыдущий ответ — жду его конца перед отправкой нового сообщения.")
@@ -3026,7 +3030,7 @@ class BaseSiteParser:
                 raise ParserCancelled("остановлено пользователем")
             time.sleep(0.5)
         else:
-            self._log("предыдущий ответ пишется дольше 240 с — отправляю новое сообщение как есть.")
+            raise TimeoutError("Предыдущий ответ не завершился за 240 с; новое сообщение не отправлено.")
         if _busy_logged:
             time.sleep(1.5)  # даём странице дописать DOM до конца
         # v88.7: ожидание поля вынесено в _wait_for_input (до 45 с + диагностика)
@@ -3156,6 +3160,8 @@ class BaseSiteParser:
         _pre_sig = ((_pre.get("text") or "") + "\x00" + (_pre.get("actionRaw") or ""))
         initial_count = self.count_answers(driver)
         try:
+            if cancel_cb is not None and cancel_cb():
+                raise ParserCancelled("остановлено пользователем")
             self.submit(driver, el)
         except StaleElementReferenceException:
             el = self.find_input(driver)
@@ -3167,6 +3173,8 @@ class BaseSiteParser:
                         self._read_input_text(driver, el), prompt)):
                 raise Exception("Поле ввода подменилось перед повтором submit (%s)."
                                 % self.LOG_TAG)
+            if cancel_cb is not None and cancel_cb():
+                raise ParserCancelled("остановлено пользователем")
             self.submit(driver, el)
         self.after_submit(driver, el)
         sent = self.confirm_sent(driver, el)
@@ -3188,6 +3196,8 @@ class BaseSiteParser:
                             self._read_input_text(driver, el), prompt)):
                     raise Exception("Поле ввода изменилось перед повторным submit (%s)."
                                     % self.LOG_TAG)
+                if cancel_cb is not None and cancel_cb():
+                    raise ParserCancelled("остановлено пользователем")
                 self.submit(driver, el)
                 self.after_submit(driver, el)
             except (JavascriptException, StaleElementReferenceException) as e:
@@ -3217,6 +3227,8 @@ class BaseSiteParser:
             except TimeoutError:
                 if _regen_used < self.REGENERATE_RETRIES:
                     _cnt_before_regen = self.count_answers(driver)
+                    if cancel_cb is not None and cancel_cb():
+                        raise ParserCancelled("остановлено пользователем")
                     if self.try_regenerate(driver):
                         _regen_used += 1
                         initial_count = _cnt_before_regen
@@ -3245,6 +3257,8 @@ class BaseSiteParser:
                 not ((result.get("text") or "").strip()) and result.get("actionRaw") is None)
             if _still_empty and _regen_used < self.REGENERATE_RETRIES:
                 _cnt_before_regen = self.count_answers(driver)
+                if cancel_cb is not None and cancel_cb():
+                    raise ParserCancelled("остановлено пользователем")
                 if self.try_regenerate(driver):
                     _regen_used += 1
                     initial_count = _cnt_before_regen
