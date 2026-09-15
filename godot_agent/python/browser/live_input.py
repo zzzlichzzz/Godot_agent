@@ -28,7 +28,6 @@ class LiveInputMirror(object):
         self._prefer_url_fn = prefer_url_fn  # () -> url вкладки текущего чата | None
         self._lock = threading.Lock()
         self._last_seq = -1
-        self._last_text = None               # последний УСПЕШНО применённый текст
 
     def apply(self, seq, text):
         """Набрать text в поле сайта. Возвращает dict для jsonify:
@@ -55,8 +54,6 @@ class LiveInputMirror(object):
             # Идёт обмен: конвейер отправки сам работает с полем ввода.
             # Текст не потерян — панель дошлёт актуальный после обмена.
             return {"ok": True, "applied": False, "reason": "busy"}
-        if text == self._last_text:
-            return {"ok": True, "applied": False, "reason": "same_text"}
         try:
             driver = self._get_driver()
         except Exception:
@@ -81,5 +78,6 @@ class LiveInputMirror(object):
             return {"ok": False, "applied": False, "reason": "error: %s" % e}
         if not ok:
             return {"ok": True, "applied": False, "reason": "no_input_field"}
-        self._last_text = text
+        # The parser compares against the actual composer. Cached text cannot
+        # prove its contents after send, navigation, or manual browser edits.
         return {"ok": True, "applied": True, "reason": ""}

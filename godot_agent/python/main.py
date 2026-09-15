@@ -3566,6 +3566,9 @@ def chat_live_input():
     его в поле ввода сайта (без отправки). Best effort: любые проблемы ->
     {"applied": false, "reason": ...}, ошибок наружу не бросаем."""
     data = request.json or {}
+    # Hold the existing browser-mutation reservation until request teardown.
+    if not server_state.try_begin_navigation():
+        return jsonify({"ok": True, "applied": False, "reason": "busy"})
     return jsonify(_live_mirror.apply(data.get("seq"), data.get("text", "")))
 
 

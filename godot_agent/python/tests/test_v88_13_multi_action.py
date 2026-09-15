@@ -12,6 +12,12 @@ import json
 import os
 import sys
 import types
+import atexit
+import tempfile
+
+_corpus = tempfile.TemporaryDirectory(prefix="agent_multi_action_corpus_")
+atexit.register(_corpus.cleanup)
+os.environ["GODOT_AGENT_CORPUS_DIR"] = _corpus.name
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

@@ -113,6 +113,38 @@ class HttpBoundarySafetyTests(unittest.TestCase):
         self.assertIs(state.STATE["pending_project_settings_action"], pending)
         self.assertTrue(state.try_begin_navigation())
 
+    def test_live_input_excludes_send_navigation_and_other_input(self):
+        entered, release = threading.Event(), threading.Event()
+        responses = []
+
+        def mirror(*_args):
+            entered.set()
+            if not release.wait(5):
+                raise AssertionError("test did not release live input")
+            return {"ok": True, "applied": True}
+
+        def write_input():
+            with main.app.test_client() as client:
+                responses.append(client.post("/chat/live_input", json={"seq": 1, "text": "draft"},
+                                             headers=self.headers))
+
+        with patch.object(main._live_mirror, "apply", side_effect=mirror) as apply:
+            worker = threading.Thread(target=write_input)
+            worker.start()
+            try:
+                self.assertTrue(entered.wait(5))
+                for route in ("/chat", "/chats/new"):
+                    response = self.client.post(route, json={"prompt": "must not send"}, headers=self.headers)
+                    self.assertEqual(response.status_code, 409)
+                response = self.client.post("/chat/live_input", json={"seq": 2, "text": "other"}, headers=self.headers)
+                self.assertEqual(response.get_json()["reason"], "busy")
+                apply.assert_called_once()
+            finally:
+                release.set()
+                worker.join(5)
+        self.assertEqual(responses[0].status_code, 200)
+        self.assertTrue(state.try_begin_turn_exchange())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,6 +32,8 @@ def main():
     parser.add_argument("--turns", type=int, default=1, choices=range(1, 5))
     parser.add_argument("--navigate", action="store_true",
                         help="Restore the first chat before turn 2; start a fresh chat before turn 3")
+    parser.add_argument("--controls", action="store_true",
+                        help="Check live draft edits, busy guards, and cancellation of one extra request")
     args = parser.parse_args()
     if args.navigate and args.turns < 3:
         parser.error("--navigate requires --turns 3 or 4")
@@ -96,6 +98,16 @@ def main():
 
             cdp.on_event("Network.requestWillBeSent", observe)
             cdp.send_command("Network.enable")
+            draft = "draft [array]\n    indented \u0442\u0435\u0441\u0442"
+            if args.controls:
+                for seq, text in enumerate((draft, "short", draft), 1):
+                    mirrored = request("/chat/live_input", {"seq": seq, "text": text})
+                    assert mirrored.get("applied"), mirrored
+                    value = cdp.send_command("Runtime.evaluate", {
+                        "expression": "document.querySelector('textarea').value", "returnByValue": True,
+                    })["result"].get("value")
+                    assert value == text, "Live draft differs from the requested text"
+                assert not posts, "Live input unexpectedly submitted a request"
             previous_markers = []
             for turn in range(args.turns):
                 if args.navigate and turn in (1, 2):
@@ -152,6 +164,47 @@ def main():
                 assert all(old not in answer and old not in dom for old in previous_markers), "Previous answer leaked"
                 previous_markers.append(marker)
                 print("PASS live AI Studio turn %d: %d Unicode/code lines, one POST, server/DOM agree; %.2fs" % (turn + 1, count, evidence["seconds"]))
+                if args.controls and turn == 0:
+                    mirrored = request("/chat/live_input", {"seq": 10, "text": draft})
+                    assert mirrored.get("applied"), mirrored
+                    value = cdp.send_command("Runtime.evaluate", {
+                        "expression": "document.querySelector('textarea').value", "returnByValue": True,
+                    })["result"].get("value")
+                    assert value == draft, "Identical draft was lost after sending"
+                    cleared = request("/chat/live_input", {"seq": 11, "text": ""})
+                    assert cleared.get("applied"), cleared
+            if args.controls:
+                before_posts = set(posts)
+                prompt = ("No tools or file actions. Produce exactly 160 numbered lines, each containing "
+                          "the number and the words CANCEL_AUDIT transport check, then the completion marker.")
+                (owner / "cancel-send-attempted").write_text("One POST only", encoding="utf-8")
+                started = time.monotonic()
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(request, "/chat", {**context, "prompt": prompt})
+                    while posts == before_posts and not future.done():
+                        if time.monotonic() - started > 60:
+                            raise TimeoutError("No accepted POST for cancellation test")
+                        time.sleep(0.1)
+                    assert not future.done(), "Response completed before cancellation could be tested"
+                    busy = request("/chat/live_input", {"seq": 20, "text": "MUST_NOT_BE_TYPED"})
+                    assert busy.get("reason") == "busy" and not busy.get("applied"), busy
+                    try:
+                        request("/chats/new", {**context, "site_id": "aistudio"})
+                    except urllib.error.HTTPError as exc:
+                        assert exc.code == 409, exc.code
+                    else:
+                        raise AssertionError("Navigation was allowed during generation")
+                    stopped = request("/chat/stop", {})
+                    result = future.result(timeout=30)
+                progress = request("/chat/progress")
+                evidence = {"posts": sorted(posts - before_posts), "stop": stopped,
+                            "busy": busy, "result": result, "progress": progress,
+                            "seconds": round(time.monotonic() - started, 2)}
+                (owner / "controls.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
+                assert len(posts - before_posts) == 1, "Cancellation triggered another POST"
+                assert "\u041e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e" in result.get("answer", ""), result
+                assert not result.get("pending_action") and not progress.get("active"), evidence
+                print("PASS live controls: exact draft edits/reinsert, no draft submit, busy guards, one cancelled POST")
             print("Evidence:", owner)
         finally:
             if cdp is not None:
