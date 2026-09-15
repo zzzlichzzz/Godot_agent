@@ -463,6 +463,13 @@ el.dispatchEvent(new Event('change', { bubbles: true }));
 """
 
 
+_JS_USER_TURN_COUNT = "return document.querySelectorAll('[data-turn-role=\"User\"]').length;"
+
+
+class _DeliveryUncertainError(RuntimeError):
+    pass
+
+
 class AiStudioParser(BaseSiteParser):
     """Google AI Studio: сайт-специфичная часть поверх BaseSiteParser."""
 
@@ -664,7 +671,48 @@ class AiStudioParser(BaseSiteParser):
         mon = self._ensure_monitor(driver)
         AiStudioParser._req_count_before_send = (
             mon.chat_request_count() if mon is not None else None)
+        self._submit_monitor = mon
+        self._submit_window = driver.current_window_handle
+        try:
+            self._user_turns_before_send = driver.execute_script(_JS_USER_TURN_COUNT)
+        except WebDriverException:
+            self._user_turns_before_send = None
         el.send_keys(Keys.CONTROL, Keys.ENTER)
+
+    def confirm_sent(self, driver, el):
+        # A dispatched shortcut is not proof that the page accepted the prompt.
+        deadline = time.monotonic() + 5.0
+        while True:
+            try:
+                if driver.current_window_handle != self._submit_window:
+                    break
+                mon = self._submit_monitor
+                before = AiStudioParser._req_count_before_send
+                if mon is not None and before is not None and mon.chat_request_count() > before:
+                    return True
+                if (self._user_turns_before_send is not None
+                        and driver.execute_script(_JS_USER_TURN_COUNT) > self._user_turns_before_send):
+                    return True
+            except WebDriverException:
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.2, remaining))
+        raise _DeliveryUncertainError(
+            "Не удалось подтвердить отправку сообщения в AI Studio. "
+            "Оно могло быть принято; автоматический повтор отключён во избежание дубля. "
+            "Проверьте чат перед ручным повтором.")
+
+    def send_message_and_get_response(self, driver, prompt, input_retries=None,
+                                      progress_cb=None, cancel_cb=None, prefer_url=None):
+        try:
+            return super().send_message_and_get_response(
+                driver, prompt, input_retries=input_retries, progress_cb=progress_cb,
+                cancel_cb=cancel_cb, prefer_url=prefer_url)
+        except _DeliveryUncertainError as exc:
+            self._log(str(exc))
+            return {"text": "[Ошибка]: " + str(exc), "action": None}
 
 
 PARSER = AiStudioParser()

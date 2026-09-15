@@ -3065,23 +3065,25 @@ class BaseSiteParser:
                         inserted = True
                         _mismatch_val = None
                         break
-                    try:
-                        _att_now = self.count_composer_attachments(driver)
-                    except Exception:
-                        _att_now = None
-                    if (_att_base is not None and _att_now is not None
-                            and _att_now > _att_base):
-                        # v105: раньше флаг здесь НЕ выставлялся — только в
-                        # insert_input_paste_like. Из-за этого контрольная сверка
-                        # перед отправкой (ниже) видела «поле не совпало с
-                        # промптом» — а совпасть оно и не могло, текст уехал в
-                        # файл — и пыталась вставить промпт ЗАНОВО, рискуя
-                        # создать ВТОРОЕ вложение.
-                        self._insert_became_attachment = True
-                        self._log("вставка преобразована сайтом во вложение (.txt) — "
-                                  "отправляю как вложение, без повторных вставок (v104.4)")
-                        inserted = True
-                        break
+                # Late file conversion can leave the composer completely empty.
+                try:
+                    _att_now = self.count_composer_attachments(driver)
+                except Exception:
+                    _att_now = None
+                if (_att_base is not None and _att_now is not None
+                        and _att_now > _att_base):
+                    # v105: раньше флаг здесь НЕ выставлялся — только в
+                    # insert_input_paste_like. Из-за этого контрольная сверка
+                    # перед отправкой (ниже) видела «поле не совпало с
+                    # промптом» — а совпасть оно и не могло, текст уехал в
+                    # файл — и пыталась вставить промпт ЗАНОВО, рискуя
+                    # создать ВТОРОЕ вложение.
+                    self._insert_became_attachment = True
+                    self._log("вставка преобразована сайтом во вложение (.txt) — "
+                              "отправляю как вложение, без повторных вставок (v104.4)")
+                    inserted = True
+                    break
+                if (_val or "").strip():
                     _mismatch_val = _val
                     self._log("проверка вставки: текст в поле НЕ совпал с отправляемым "
                               "(в поле %d симв., должно быть %d) — вставляю заново (v88.4)."
@@ -3191,6 +3193,13 @@ class BaseSiteParser:
             try:
                 el = self.find_input(driver) or el
                 self.before_submit(driver, el)
+                if cancel_cb is not None and cancel_cb():
+                    raise ParserCancelled("остановлено пользователем")
+                # Acceptance may arrive during the delay or preparation. Keep
+                # the first submit's request baseline instead of overwriting it.
+                sent = self.confirm_sent(driver, el)
+                if sent:
+                    break
                 if (not getattr(self, "_insert_became_attachment", False)
                         and not self._insert_text_matches(
                             self._read_input_text(driver, el), prompt)):
