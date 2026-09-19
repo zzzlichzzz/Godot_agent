@@ -203,15 +203,22 @@ def exchange_active():
         return _exchange["count"] > 0
 
 
-def try_begin_turn_exchange():
-    """Атомарно допускает один ход, исключая навигацию и второй ход."""
+def try_begin_turn_exchange(reset_cancel=True):
+    """Атомарно допускает один ход, исключая навигацию и второй ход.
+
+    reset_cancel=True сбрасывает флаг отмены только для НОВОГО хода
+    пользователя (/chat). Continuation-эндпоинты (шаги плана,
+    подтверждения, результаты редактора) должны передавать False,
+    иначе нажатый «Стоп» будет молча стёрт до того, как продолжение
+    успеет его проверить."""
     with _exchange_lock:
         if _activity["exchange"] or _activity["navigation"]:
             return False
         _activity["exchange"] = True
         _exchange["count"] += 1
         _turn_context.owns_exchange = True
-        clear_cancel()
+        if reset_cancel:
+            clear_cancel()
         return True
 
 
