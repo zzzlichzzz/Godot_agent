@@ -168,7 +168,9 @@ def _admit_chat_continuation():
     """Serialize stateful continuations with user turns and navigation."""
     if request.path not in _CHAT_CONTINUATION_PATHS:
         return None
-    if server_state.try_begin_turn_exchange():
+    # Continuations are not fresh user turns: keep any pending cancel so
+    # «Стоп» stays effective across plan steps / confirmations / results.
+    if server_state.try_begin_turn_exchange(reset_cancel=False):
         return None
     if request.path in ("/chat/runtime_inspect/result", "/chat/runtime_check/result"):
         return jsonify({"error": "Runtime result processing is busy; retry this result.",
