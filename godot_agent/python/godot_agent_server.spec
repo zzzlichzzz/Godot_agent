@@ -10,7 +10,7 @@ a = Analysis(
     ['main.py'],
     pathex=['parsers', 'browser', 'godot_tools', 'server', 'api', 'backends'],
     binaries=[],
-    datas=[],
+    datas=[('..\\agent_headless_validator.gd', '.')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

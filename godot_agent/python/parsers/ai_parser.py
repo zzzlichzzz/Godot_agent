@@ -25,7 +25,7 @@ from parser_base import (
 # v88.0: сетевой захват ответа (как у kimi) - общая база net_monitor +
 # формат чанков AI Studio в ai_studio_net. Это ДОПОЛНЕНИЕ к DOM-парсеру:
 # при недоступном CDP всё работает по-старому, только по DOM.
-from cdp_ws import CDPSession, find_page_ws_url
+from cdp_ws import CDPSession, list_targets
 from ai_studio_net import AiStudioChatMonitor
 from kimi_parser import split_text_and_action
 
@@ -463,6 +463,13 @@ el.dispatchEvent(new Event('change', { bubbles: true }));
 """
 
 
+_JS_USER_TURN_COUNT = "return document.querySelectorAll('[data-turn-role=\"User\"]').length;"
+
+
+class _DeliveryUncertainError(RuntimeError):
+    pass
+
+
 class AiStudioParser(BaseSiteParser):
     """Google AI Studio: сайт-специфичная часть поверх BaseSiteParser."""
 
@@ -481,13 +488,26 @@ class AiStudioParser(BaseSiteParser):
     _monitor_lock = threading.Lock()
     _monitor_next_retry = 0.0
     _req_count_before_send = None
+    _monitor_window = None
 
-    def _ensure_monitor(self):
+    def _ensure_monitor(self, driver):
         """Возвращает живой AiStudioChatMonitor или None (чистый DOM-режим).
         Неудачные попытки подключения кэшируются на 30 секунд, чтобы не
         дёргать DevTools-порт на каждый опрос цикла ожидания."""
         with AiStudioParser._monitor_lock:
             mon = AiStudioParser._monitor
+            try:
+                window = driver.current_window_handle
+            except Exception:
+                return None
+            if window != AiStudioParser._monitor_window:
+                if mon is not None:
+                    mon._cdp.close()
+                AiStudioParser._monitor = None
+                AiStudioParser._monitor_window = window
+                AiStudioParser._monitor_next_retry = 0.0
+                AiStudioParser._req_count_before_send = None
+                mon = None
             try:
                 if mon is not None and mon._cdp.is_alive():
                     return mon
@@ -496,8 +516,12 @@ class AiStudioParser(BaseSiteParser):
             now = time.time()
             if now < AiStudioParser._monitor_next_retry:
                 return None
+            cdp = None
             try:
-                ws_url = find_page_ws_url(self.WINDOW_URL_MATCH)
+                # Bind to Selenium's current page, never the first same-site tab.
+                target_id = driver.execute_cdp_cmd("Target.getTargetInfo", {})["targetInfo"]["targetId"]
+                ws_url = next(t["webSocketDebuggerUrl"] for t in list_targets()
+                              if t.get("type") == "page" and t.get("id") == target_id)
                 cdp = CDPSession(ws_url)
                 # подписки регистрируются в конструкторе ДО Network.enable,
                 # чтобы не потерять первые события (как у kimi, v87.1)
@@ -507,10 +531,14 @@ class AiStudioParser(BaseSiteParser):
                     new_mon._assistant_message_count = mon.assistant_message_count()
                     new_mon._chat_request_count = mon.chat_request_count()
                 cdp.send_command("Network.enable")
+                if mon is not None:
+                    mon._cdp.close()
                 AiStudioParser._monitor = new_mon
                 print("[ai_parser] сетевой монитор GenerateContent подключён")
                 return new_mon
             except Exception as e:
+                if cdp is not None:
+                    cdp.close()
                 AiStudioParser._monitor_next_retry = now + 30.0
                 print("[ai_parser] сетевой монитор недоступен (%s) - работаю только по DOM" % e)
                 return None
@@ -525,7 +553,7 @@ class AiStudioParser(BaseSiteParser):
         # «долго думала - ПУСТОЙ ответ», см. kimi v87.8). После завершения
         # запроса источник длины снова DOM, чтобы устаревший сетевой текст
         # прошлого обмена не ломал quiet-период.
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         if mon is not None and mon.is_generating():
             try:
                 net_len = len(mon.current_text())
@@ -543,7 +571,7 @@ class AiStudioParser(BaseSiteParser):
         if text:
             return text
         # v88.0: DOM ещё пуст, но сеть уже стримит ответ - показываем его
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         if mon is not None and mon.is_generating():
             return mon.current_text()
         return ""
@@ -551,7 +579,7 @@ class AiStudioParser(BaseSiteParser):
     def is_generating(self, driver):
         # v88.0: сетевой признак (активный запрос GenerateContent) надёжнее
         # DOM-спиннера; DOM остаётся запасным признаком
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         if mon is not None and mon.is_generating():
             return True
         return is_generating(driver)
@@ -604,16 +632,19 @@ class AiStudioParser(BaseSiteParser):
             return result
         # v88.0: план В - DOM пуст, но сеть захватила ответ (страховка от
         # смены разметки AI Studio). Сетевой текст берётся только если
-        # после submit() реально ушёл НОВЫЙ POST - защита от устаревшего
-        # ответа прошлого обмена.
+        # буфер принадлежит НОВОМУ ответу, а не только уже ушёл новый POST.
         mon = AiStudioParser._monitor
         before = AiStudioParser._req_count_before_send
-        if mon is not None and before is not None and mon.chat_request_count() > before:
-            net = (mon.current_text() or "").strip()
-            if net:
-                text, action_raw = split_text_and_action(net)
-                print("[ai_parser] план В: ответ взят из сетевого захвата (%d симв.)" % len(net))
-                return {"text": text, "actionRaw": action_raw}
+        try:
+            if (mon is not None and before is not None and mon._cdp.is_alive()
+                    and mon.answer_request_count() > before):
+                net = (mon.current_text() or "").strip()
+                if net:
+                    text, action_raw = split_text_and_action(net)
+                    print("[ai_parser] план В: ответ взят из сетевого захвата (%d симв.)" % len(net))
+                    return {"text": text, "actionRaw": action_raw}
+        except Exception:
+            pass
         return result
 
     def find_input(self, driver):
@@ -637,10 +668,51 @@ class AiStudioParser(BaseSiteParser):
     def submit(self, driver, el):
         # v88.0: снимок счётчика POST до отправки - страховка от устаревшего
         # сетевого текста в extract_raw_fallback (как _req_count_before_send у kimi)
-        mon = self._ensure_monitor()
+        mon = self._ensure_monitor(driver)
         AiStudioParser._req_count_before_send = (
             mon.chat_request_count() if mon is not None else None)
+        self._submit_monitor = mon
+        self._submit_window = driver.current_window_handle
+        try:
+            self._user_turns_before_send = driver.execute_script(_JS_USER_TURN_COUNT)
+        except WebDriverException:
+            self._user_turns_before_send = None
         el.send_keys(Keys.CONTROL, Keys.ENTER)
+
+    def confirm_sent(self, driver, el):
+        # A dispatched shortcut is not proof that the page accepted the prompt.
+        deadline = time.monotonic() + 5.0
+        while True:
+            try:
+                if driver.current_window_handle != self._submit_window:
+                    break
+                mon = self._submit_monitor
+                before = AiStudioParser._req_count_before_send
+                if mon is not None and before is not None and mon.chat_request_count() > before:
+                    return True
+                if (self._user_turns_before_send is not None
+                        and driver.execute_script(_JS_USER_TURN_COUNT) > self._user_turns_before_send):
+                    return True
+            except WebDriverException:
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.2, remaining))
+        raise _DeliveryUncertainError(
+            "Не удалось подтвердить отправку сообщения в AI Studio. "
+            "Оно могло быть принято; автоматический повтор отключён во избежание дубля. "
+            "Проверьте чат перед ручным повтором.")
+
+    def send_message_and_get_response(self, driver, prompt, input_retries=None,
+                                      progress_cb=None, cancel_cb=None, prefer_url=None):
+        try:
+            return super().send_message_and_get_response(
+                driver, prompt, input_retries=input_retries, progress_cb=progress_cb,
+                cancel_cb=cancel_cb, prefer_url=prefer_url)
+        except _DeliveryUncertainError as exc:
+            self._log(str(exc))
+            return {"text": "[Ошибка]: " + str(exc), "action": None}
 
 
 PARSER = AiStudioParser()

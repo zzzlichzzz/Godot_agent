@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 
 from text_sanitize import sanitize_llm_text
 
@@ -18,6 +19,15 @@ EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__',
 EXCLUDED_FILES = {'.DS_Store'}
 
 HISTORY_DIR_NAME = ".agent_history"
+
+
+class MoveRecoveryError(RuntimeError):
+    """A move could not be restored; its reservation and files must be retained."""
+
+
+def _is_generated_sidecar(path):
+    """Godot-managed sidecars are useful locally but only add model noise."""
+    return str(path or '').replace('\\', '/').lower().endswith('.uid')
 
 
 def exclude_agent_addon_dirs(addon_dir):
@@ -69,7 +79,7 @@ def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=No
         if rel != '.':
             lines.append(f"{indent}{os.path.basename(dirpath)}/")
         for f in sorted(filenames):
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             if only_exts is not None and os.path.splitext(f)[1].lower() not in only_exts:
                 continue
@@ -91,13 +101,27 @@ def _resolve_safe_path(project_root, godot_path):
     # v52: realpath, не abspath — abspath НЕ разрешает симвлинки; симвлинк внутри проекта, ведущая наружу, могла бы обойти проверку ниже.
     project_root_abs = os.path.realpath(project_root)
     abs_path = os.path.realpath(os.path.join(project_root_abs, rel))
-    if abs_path != project_root_abs and not abs_path.startswith(project_root_abs + os.sep):
+    root_identity = os.path.normcase(project_root_abs)
+    path_identity = os.path.normcase(abs_path)
+    if path_identity != root_identity and not path_identity.startswith(root_identity + os.sep):
         raise ValueError(f"Путь вне проекта отклонен: {godot_path}")
     # Служебная папка истории агента недоступна для чтения/записи через действия.
     rel_norm = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
-    if rel_norm == HISTORY_DIR_NAME or rel_norm.startswith(HISTORY_DIR_NAME + '/'):
+    if rel_norm.casefold() == HISTORY_DIR_NAME or rel_norm.casefold().startswith(HISTORY_DIR_NAME + '/'):
         raise ValueError("Доступ к служебной папке истории запрещён.")
     return abs_path
+
+
+def is_addon_path(path, project_root=None):
+    """Use resolved identity when available; policy is case-insensitive on every OS."""
+    value = str(path or "").replace("\\", "/")
+    if project_root:
+        value = os.path.relpath(_resolve_safe_path(project_root, value),
+                                os.path.realpath(project_root)).replace("\\", "/")
+    else:
+        import posixpath
+        value = posixpath.normpath(value.removeprefix("res://").lstrip("/"))
+    return value.casefold() == "addons" or value.casefold().startswith("addons/")
 
 
 def read_project_file(project_root, godot_path, max_chars=50000):
@@ -126,8 +150,7 @@ def create_project_file(project_root, godot_path, content):
     # каждый перенос строки — и откат ложно считал бы файл "изменённым".
     # v86.2: страховка на записи — невидимые символы из веб-DOM (NBSP, NUL,
     # zero-width) не должны попасть в файлы проекта, даже если парсер их пропустил.
-    with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(sanitize_llm_text(content.replace('\r\n', '\n')) or '')
+    _atomic_write_text(abs_path, sanitize_llm_text(content.replace('\r\n', '\n')) or '')
     return existed
 
 
@@ -162,27 +185,75 @@ def patch_project_file(project_root, godot_path, search_code, replace_code):
     abs_path = _resolve_safe_path(project_root, godot_path)
     _, new_content = patch_result_text(project_root, godot_path, search_code, replace_code)
     # LF как в Godot (см. комментарий в create_project_file).
-    with open(abs_path, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(new_content)
+    _atomic_write_text(abs_path, new_content)
+
+
+def _atomic_write_text(abs_path, content):
+    """Write UTF-8/LF text without truncating the target on failure."""
+    parent = os.path.dirname(abs_path)
+    os.makedirs(parent, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=".agent-write-", dir=parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as output:
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, abs_path)
+    finally:
+        try:
+            os.remove(temporary)
+        except OSError:
+            pass
 
 
 def move_project_file(project_root, source_godot_path, dest_godot_path):
-    """Перемещает или переименовывает файл, создавая папки при необходимости."""
+    """Move a file and its UID without clobbering; restore on ordinary I/O failure."""
     abs_source = _resolve_safe_path(project_root, source_godot_path)
     abs_dest = _resolve_safe_path(project_root, dest_godot_path)
+    source_uid = _resolve_safe_path(project_root, abs_source + ".uid")
+    dest_uid = _resolve_safe_path(project_root, abs_dest + ".uid")
     if not os.path.isfile(abs_source):
         raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
-    if os.path.exists(abs_dest):
-        raise FileExistsError(f"Файл в месте назначения уже существует: {dest_godot_path}")
+    identities = {os.path.normcase(p) for p in (abs_source, abs_dest, source_uid, dest_uid)}
+    if len(identities) != 4:
+        raise FileExistsError("Source, destination and UID paths must not alias each other")
+    # Check the requested slots too: realpath can hide a dangling symlink.
+    requested_dest = os.path.join(project_root, dest_godot_path.removeprefix("res://"))
+    for target in (requested_dest, requested_dest + ".uid", abs_dest, abs_dest + ".uid"):
+        if os.path.lexists(target):
+            raise FileExistsError(f"Destination already exists: {target}")
+    pairs = [(abs_source, abs_dest)]
+    if os.path.lexists(abs_source + ".uid"):
+        if os.path.islink(abs_source + ".uid") or not os.path.isfile(source_uid):
+            raise ValueError("Source UID must be a regular file, not a symlink or directory")
+        pairs.append((source_uid, dest_uid))
     os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
-    shutil.move(abs_source, abs_dest)
-    # Godot хранит уникальный идентификатор ресурса в соседнем *.uid —
-    # переносим его тоже, иначе ссылки на файл в проекте могут сломаться.
-    if os.path.exists(abs_source + ".uid") and not os.path.exists(abs_dest + ".uid"):
+    linked = []
+    try:
+        for source, target in pairs:
+            identity = os.stat(source)
+            # link is fail-if-exists, unlike POSIX rename/shutil.move. No EXDEV fallback.
+            os.link(source, target)
+            linked.append([source, target, identity, False])
+            os.unlink(source)
+            linked[-1][3] = True
+    except OSError as move_error:
         try:
-            shutil.move(abs_source + ".uid", abs_dest + ".uid")
-        except OSError:
-            pass
+            for source, target, identity, removed in reversed(linked):
+                # Never clean up a target replaced by another writer.
+                if not os.path.samestat(os.stat(target), identity):
+                    raise OSError(f"Recovery target changed: {target}")
+                if removed:
+                    os.link(target, source)
+                elif not os.path.samestat(os.stat(source), identity):
+                    raise OSError(f"Recovery source changed: {source}")
+                os.unlink(target)
+        except OSError as recovery_error:
+            raise MoveRecoveryError(
+                f"Move recovery failed: {recovery_error}; original error: {move_error}. "
+                f"Files retained for manual recovery; inspect {pairs!r}"
+            ) from recovery_error
+        raise
 
 
 def copy_project_file(project_root, source_godot_path, dest_godot_path):
@@ -441,7 +512,7 @@ def build_project_overview(project_root, only_exts=None, max_entries=None, compa
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         for f in filenames:
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             if only_exts is not None and os.path.splitext(f)[1].lower() not in only_exts:
                 continue
@@ -457,7 +528,7 @@ def build_project_overview(project_root, only_exts=None, max_entries=None, compa
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
         for f in sorted(filenames):
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             ext = os.path.splitext(f)[1].lower() or '(без расширения)'
             if rel == '.':
@@ -675,7 +746,7 @@ def snapshot_files(project_root, prev=None):
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
         for f in filenames:
-            if f in EXCLUDED_FILES:
+            if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
             abs_path = os.path.join(dirpath, f)
             try:
@@ -718,6 +789,11 @@ def format_fs_changes(added, changed, deleted, limit=12, diffs=None):
     diffs: {rel_path: (diff_text, n_lines)} — точечные diff для изменённых
     файлов, чьё старое содержимое модель уже видела: ей НЕ нужно
     перечитывать весь файл заново (экономия токенов)."""
+    # Filter defensively as callers may still hold snapshots made before
+    # generated Godot sidecars were excluded from snapshot_files().
+    added = [p for p in added if not _is_generated_sidecar(p)]
+    changed = [p for p in changed if not _is_generated_sidecar(p)]
+    deleted = [p for p in deleted if not _is_generated_sidecar(p)]
     if not (added or changed or deleted):
         return ''
     diffs = diffs or {}

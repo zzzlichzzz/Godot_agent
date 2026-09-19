@@ -18,6 +18,7 @@ requestWillBeSent, и сверка с ним пропускала бы ПРОШ�
 (дубль; урок v88.10).
 """
 import sys
+from unittest.mock import patch
 
 import _fake_selenium
 _fake_selenium.install()
@@ -52,6 +53,12 @@ class _Mon(object):
 
     def message_status(self):
         return self._s
+
+    def chat_request_count(self):
+        return 4
+
+    def current_text(self):
+        return "captured answer\n===DONE==="
 
 
 class _BrokenMon(object):
@@ -92,7 +99,25 @@ check("AI Studio: монитора нет -> False", _ai(None, 3) is False)
 check("AI Studio: счётчика нет + завершён -> True",
       _ai(_Mon(1, finished=True), None) is True)
 check("AI Studio: сломанный монитор -> False без исключения",
-      _ai(_BrokenMon(), 3) is False)
+       _ai(_BrokenMon(), 3) is False)
+
+with patch.object(ai_parser, "_safe_execute", return_value={}):
+    for name, mon, before, expected in [
+        ("old buffer after new POST", _Mon(3, finished=True), 3, False),
+        ("current response", _Mon(4, finished=True), 3, True),
+        ("dead connection", _Mon(4, alive=False), 3, False),
+        ("unknown send", _Mon(4), None, False),
+        ("broken connection", _BrokenMon(), 3, False),
+        ("missing monitor", None, 3, False),
+    ]:
+        _AP._monitor, _AP._req_count_before_send = mon, before
+        check("AI Studio raw fallback: " + name,
+              bool(_ap.extract_raw_fallback(None)["text"]) is expected)
+
+with patch.object(ai_parser, "_safe_execute", return_value={"text": "DOM answer"}):
+    _AP._monitor = _BrokenMon()
+    check("AI Studio raw fallback preserves DOM without network",
+          _ap.extract_raw_fallback(None)["text"] == "DOM answer")
 
 # --- Kimi -------------------------------------------------------------------
 

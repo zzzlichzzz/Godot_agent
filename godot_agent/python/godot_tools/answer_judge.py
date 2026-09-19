@@ -14,11 +14,15 @@ from parser_base import (answer_transfer_incomplete, parse_action_json,
                          score_answer_variant, split_net_text_and_action)
 from project_tools import _resolve_safe_path
 from tscn_lint import is_scene_path, lint_and_fix_tscn
+import symbol_refactor
+import high_level_actions
+import runtime_debug
+import runtime_checks
 
 
 READ_ACTIONS = {
     "ask_librarian", "read_file", "read_function", "search_project",
-    "list_files", "list_scene",
+    "list_files", "list_scene", "gather_context", "inspect_runtime",
 }
 WRITE_ACTIONS = {"create_file", "patch_file", "move_file"}
 
@@ -32,6 +36,50 @@ def _finding(severity, category, message, path=None, step=None):
     return out
 
 
+def _judge_structural_action(project_root, action, addon_dir):
+    act = action.get("action")
+    try:
+        if act == "rename_symbol":
+            prepared = symbol_refactor.prepare_rename(
+                project_root, action, addon_dir=addon_dir)
+            return 94, [], ["Safe rename resolves %d references in %d files" % (
+                prepared["reference_count"], len(prepared["files"]))]
+        if act in ("edit_scene", "create_scene"):
+            import scene_actions
+            normalized, _absolute = scene_actions.normalize_action(
+                project_root, action, bool(addon_dir))
+            return 93, [], ["Structural scene action validates %d operations" %
+                            len(normalized["operations"])]
+        if act == "edit_project_settings":
+            import project_settings_actions
+            normalized, _absolute = project_settings_actions.normalize_action(
+                project_root, action, bool(addon_dir))
+            return 93, [], ["ProjectSettings edit validates %d operations" %
+                            len(normalized["operations"])]
+        if act == "edit_resource":
+            import resource_actions
+            normalized, _absolute = resource_actions.normalize_action(
+                project_root, action, bool(addon_dir))
+            return 93, [], ["Structural resource edit validates %d operations" %
+                            len(normalized["operations"])]
+        if act == "transaction":
+            import transaction_actions
+            prepared = transaction_actions.prepare(
+                project_root, action, allow_addons=bool(addon_dir),
+                addon_dir=addon_dir)
+            if prepared.get("already_satisfied"):
+                return 96, [], ["Atomic transaction is already satisfied locally"]
+            return 95, [], ["Atomic transaction validates %d operations in %d files" % (
+                len(prepared["action"]["operations"]), len(prepared["files"]))]
+    except Exception as exc:
+        categories = {"rename_symbol": "refactor", "edit_scene": "scene", "create_scene": "scene",
+                      "edit_project_settings": "project_settings",
+                      "edit_resource": "resource",
+                      "transaction": "transaction"}
+        return 45, [_finding("blocking", categories.get(act, "schema"), str(exc))], []
+    return 45, [_finding("blocking", "schema", "unsupported compiled action: %s" % act)], []
+
+
 def _read_text(project_root, path, overlay):
     if path in overlay:
         return overlay[path]
@@ -39,7 +87,7 @@ def _read_text(project_root, path, overlay):
     if not os.path.isfile(abs_path):
         raise FileNotFoundError(path)
     with open(abs_path, "r", encoding="utf-8-sig", errors="replace") as handle:
-        return handle.read().replace("\r\n", "\n")
+        return handle.read().replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _path_exists(project_root, path, overlay):
@@ -71,6 +119,21 @@ def _judge_read_action(project_root, action):
     evidence = []
     act = action.get("action")
     score = 55
+    if act == "run_check":
+        try:
+            normalized = runtime_checks.normalize_action(project_root, action)
+        except runtime_checks.RuntimeCheckError as exc:
+            return 45, [_finding("blocking", "runtime_check", str(exc))], evidence
+        return 94, [], ["One deterministic local game check validates %d bounded steps" %
+                        len(normalized["steps"])]
+    if act == "inspect_runtime":
+        try:
+            normalized = runtime_debug.normalize_action(action)
+        except runtime_debug.RuntimeDebugError as exc:
+            return 45, [_finding("blocking", "runtime", str(exc))], evidence
+        property_count = sum(len(item["names"]) for item in normalized["properties"])
+        return 93, [], ["One bounded read-only runtime snapshot validates %d sections and %d properties" % (
+            len(normalized["sections"]), property_count)]
     if act == "ask_librarian":
         score = 75
         query = action.get("query")
@@ -91,6 +154,29 @@ def _judge_read_action(project_root, action):
         # Automatic and broad orientation is valuable when paths are unknown,
         # but a confirmed exact file is slightly more informative.
         score += 2
+        return score, findings, evidence
+
+    if act == "gather_context":
+        query = action.get("query")
+        symbols = action.get("symbols")
+        classes = action.get("godot_api")
+        if query is not None and (not isinstance(query, str) or len(query) > 500):
+            findings.append(_finding("blocking", "schema", "gather_context query must be text up to 500 characters"))
+        if symbols is not None and (not isinstance(symbols, list) or len(symbols) > 8
+                                    or not all(isinstance(x, str) for x in symbols)):
+            findings.append(_finding("blocking", "schema", "gather_context symbols must contain at most 8 strings"))
+        if classes is not None and (not isinstance(classes, list) or len(classes) > 4
+                                    or not all(isinstance(x, str) for x in classes)):
+            findings.append(_finding("blocking", "schema", "gather_context godot_api must contain at most 4 class names"))
+        try:
+            max_chars = int(action.get("max_chars", 12000))
+            if max_chars < 2000 or max_chars > 20000:
+                findings.append(_finding("blocking", "schema", "gather_context max_chars must be 2000..20000"))
+        except (TypeError, ValueError):
+            findings.append(_finding("blocking", "schema", "gather_context max_chars must be an integer"))
+        if not findings:
+            score = 90
+            evidence.append("One bounded read-only pass replaces multiple context actions")
         return score, findings, evidence
 
     if act in ("read_file", "read_function"):
@@ -155,6 +241,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
         return [_finding("blocking", "path", str(exc), path, step)], evidence
 
     if act == "create_file":
+        if path.lower().endswith(".tscn"):
+            return [_finding("blocking", "scene", "new .tscn must use create_scene", path, step)], evidence
         content = action.get("content")
         if not isinstance(content, str):
             findings.append(_finding("blocking", "schema",
@@ -163,12 +251,16 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
         overlay[path] = content.replace("\r\n", "\n")
         evidence.append("Virtual create succeeds: %s" % path)
     elif act == "patch_file":
+        if path.lower().endswith(".tscn"):
+            return [_finding("blocking", "scene", "existing .tscn must use edit_scene", path, step)], evidence
         search = action.get("search")
         replace = action.get("replace")
         if not search or not isinstance(replace, str):
             findings.append(_finding("blocking", "schema",
                                      "patch_file requires search and replace", path, step))
             return findings, evidence
+        search = search.replace("\r\n", "\n").replace("\r", "\n")
+        replace = replace.replace("\r\n", "\n").replace("\r", "\n")
         try:
             original = _read_text(project_root, path, overlay)
         except Exception:
@@ -189,6 +281,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
             findings.append(_finding("blocking", "schema",
                                      "move_file has invalid destination", path, step))
             return findings, evidence
+        if path.lower().endswith(".tscn") or dest.lower().endswith(".tscn"):
+            return [_finding("blocking", "scene", ".tscn paths must use create_scene/edit_scene", path, step)], evidence
         try:
             content = _read_text(project_root, path, overlay)
         except Exception:
@@ -245,7 +339,7 @@ def judge_answer(project_root, full_text, addon_dir=None):
         else:
             act = action.get("action")
             score = 58
-            if act in READ_ACTIONS:
+            if act in READ_ACTIONS or act == "run_check":
                 action_score, action_findings, action_evidence = _judge_read_action(
                     project_root, action)
                 score = action_score
@@ -277,6 +371,25 @@ def judge_answer(project_root, full_text, addon_dir=None):
                         findings.extend(fs)
                         evidence.extend(ev)
                     score = 88 - min(20, max(0, len(steps) - 1) * 2)
+            elif act in ("rename_symbol", "edit_scene", "create_scene", "edit_project_settings", "edit_resource", "transaction"):
+                score, action_findings, action_evidence = _judge_structural_action(
+                    project_root, action, addon_dir)
+                findings.extend(action_findings)
+                evidence.extend(action_evidence)
+            elif act == "project_command":
+                try:
+                    compiled = high_level_actions.compile_action(
+                        project_root, action, allow_addons=bool(addon_dir))
+                except Exception as exc:
+                    score = 45
+                    findings.append(_finding("blocking", "project_command", str(exc)))
+                else:
+                    score, action_findings, action_evidence = _judge_structural_action(
+                        project_root, compiled, addon_dir)
+                    findings.extend(action_findings)
+                    evidence.append("High-level %s deterministically compiles to %s" % (
+                        action["command"]["type"], compiled["action"]))
+                    evidence.extend(action_evidence)
             else:
                 findings.append(_finding("blocking", "schema",
                                          "unknown action: %s" % act))

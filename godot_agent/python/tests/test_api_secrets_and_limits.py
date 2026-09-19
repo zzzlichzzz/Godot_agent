@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
 _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
-import _bootstrap  # noqa: E402,F401
 """Тесты барьера секретов и уважения Retry-After.
 
 Два разных вопроса, но оба про то, чтобы сервер вёл себя честно:
@@ -9,13 +8,19 @@ import _bootstrap  # noqa: E402,F401
   * если провайдер сказал, сколько ждать, ждать надо ровно столько, а не
     угадывать по своему расписанию.
 """
+import json
 import shutil
 import sys
 import tempfile
 
 CFG = tempfile.mkdtemp(prefix="agent_cfg_secrets_")
 _os0.environ["GODOT_AGENT_CONFIG_DIR"] = CFG
+for name in ("GODOT_AGENT_OPENROUTER_KEY", "OPENROUTER_API_KEY",
+             "GODOT_AGENT_GROQ_KEY", "GROQ_API_KEY",
+             "GODOT_AGENT_DEEPSEEK_KEY", "DEEPSEEK_API_KEY"):
+    _os0.environ.pop(name, None)
 
+import _bootstrap  # noqa: E402,F401
 import api_keys
 import dashboard
 import rate_limit
@@ -199,13 +204,16 @@ check(u"дубликат не добавляется",
 check(u"resolve_key отдаёт ПЕРВЫЙ пригодный", api_keys.resolve_key("groq") == K1)
 
 # Исчерпание без названного срока — только на сессию.
+with open(api_keys.config_path(), encoding="utf-8") as f:
+    before_exhaustion = json.load(f)
 api_keys.note_key_exhausted("groq", 0, reason=u"free-models-per-day")
 check(u"исчерпанный ключ выпал из кандидатов",
       [k for _i, k in api_keys.usable_keys("groq")] == [K2, K3])
 check(u"resolve_key перешёл на следующий", api_keys.resolve_key("groq") == K2)
+with open(api_keys.config_path(), encoding="utf-8") as f:
+    after_exhaustion = json.load(f)
 check(u"исчерпание без срока НЕ попало в файл (это была бы догадка)",
-      all(not item.get("cooldown_until")
-          for item in api_keys.keys_state("groq")))
+      after_exhaustion == before_exhaustion)
 check(u"панель видит, какой именно ключ исчерпан",
       [k["spent"] for k in api_keys.keys_state("groq")] == [True, False, False])
 check(u"в состоянии для панели нет сырых ключей",

@@ -19,6 +19,7 @@ import sys
 import threading
 import time
 import types
+from unittest import SkipTest
 
 # (путь настраивается в шапке файла — v104-restructure)
 
@@ -93,6 +94,8 @@ def test_connect_frame_multi_and_truncated():
 
 
 def test_block_assembly_matches_real_capture():
+    if not _os0.path.isfile("/data/qwen_repro/chat_code_objs.pkl"):
+        raise SkipTest("external Kimi capture /data/qwen_repro/chat_code_objs.pkl unavailable")
     with open("/data/qwen_repro/chat_code_objs.pkl", "rb") as f:
         objs = pickle.load(f)
     monitor = KimiChatMonitor(_FakeCDP())
@@ -380,6 +383,13 @@ class _StreamOnlyCDP:
 
 
 def _start_stream_request(monitor, req_id="req-1"):
+    monitor._on_request_will_be_sent({
+        "requestId": req_id,
+        "request": {
+            "url": "https://www.kimi.com/apiv2/kimi.chat.v1.ChatService/Chat",
+            "method": "POST",
+        },
+    })
     monitor._on_response_received({
         "requestId": req_id,
         "response": {
@@ -568,17 +578,21 @@ def _run_all():
         test_streaming_body_captured_live,
     ]
     failed = 0
+    skipped = 0
     for t in tests:
         try:
             t()
             print("OK  ", t.__name__)
+        except SkipTest as e:
+            skipped += 1
+            print("SKIP", t.__name__, "->", e)
         except Exception as e:
             failed += 1
             print("FAIL", t.__name__, "->", e)
     if failed:
         print("%d test(s) FAILED" % failed)
         sys.exit(1)
-    print("All v87.1 tests passed.")
+    print("RESULT: %d passed, %d skipped" % (len(tests) - skipped, skipped))
 
 
 if __name__ == "__main__":

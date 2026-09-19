@@ -12,15 +12,13 @@
     ds-assistant-message-main-content, поэтому исключается сам собой;
   - поле ввода — textarea (React): значение ставим через нативный сеттер
     + событие input, иначе React не увидит текст;
-  - отправка — Enter (текст с переносами вставляем через JS, поэтому
-    Enter безопасен); запасной путь — клик по кнопке отправки;
+  - отправка — один Enter; неоднозначную доставку автоматически не повторяем;
   - классы вида _27c9245/fbb737a4 — хеши, они меняются при обновлениях
     сайта — опираемся только на стабильные ds-* имена дизайн-системы.
 """
 import time
 
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import StaleElementReferenceException
 
 from parser_base import (
     BaseSiteParser,
@@ -189,41 +187,6 @@ el.dispatchEvent(new Event('change', { bubbles: true }));
 el.focus();
 """
 
-# Синтетический Enter (keydown/keypress/keyup). React вешает обработчики на
-# корень документа, поэтому bubbles обязателен. Это запасной путь на случай,
-# если реальный Enter из Selenium не привёл к отправке.
-JS_DISPATCH_ENTER = """
-var el = arguments[0];
-el.focus();
-var opts = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-             bubbles: true, cancelable: true };
-el.dispatchEvent(new KeyboardEvent('keydown', opts));
-el.dispatchEvent(new KeyboardEvent('keypress', opts));
-el.dispatchEvent(new KeyboardEvent('keyup', opts));
-return true;
-"""
-
-# Клик по кнопке отправки (круглая кнопка со стрелкой вверх): полная
-# последовательность pointer/mouse-событий — голый .click() React-кнопка
-# на div[role="button"] может игнорировать.
-JS_CLICK_SEND = """
-var btns = document.querySelectorAll('div[role="button"].ds-button--primary.ds-button--circle');
-for (var i = btns.length - 1; i >= 0; i--) {
-    var b = btns[i];
-    if (String(b.className).indexOf('ds-button--disabled') !== -1) continue;
-    var r = b.getBoundingClientRect();
-    var opts = { bubbles: true, cancelable: true, view: window, button: 0,
-                 clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
-    try { b.dispatchEvent(new PointerEvent('pointerdown', opts)); } catch (e) {}
-    b.dispatchEvent(new MouseEvent('mousedown', opts));
-    try { b.dispatchEvent(new PointerEvent('pointerup', opts)); } catch (e) {}
-    b.dispatchEvent(new MouseEvent('mouseup', opts));
-    b.dispatchEvent(new MouseEvent('click', opts));
-    return true;
-}
-return false;
-"""
-
 
 def count_answers(driver):
     return _safe_execute(driver, JS_COUNT_ANSWERS, default=0) or 0
@@ -263,6 +226,10 @@ def extract_answer(driver):
         log_tag=u"[deepseek_parser]")
 
 
+class _DeliveryUncertainError(RuntimeError):
+    """A submit completed, but its delivery could not be confirmed safely."""
+
+
 class DeepSeekParser(BaseSiteParser):
     """DeepSeek: сайт-специфичная часть поверх BaseSiteParser."""
 
@@ -271,6 +238,7 @@ class DeepSeekParser(BaseSiteParser):
     START_PHASE = "модель думает…"  # пока модель «думает», блока ответа ещё нет
     QUIET_PERIOD = 4.0
     POLL_INTERVAL = 0.3
+    SEND_RETRIES = 0
 
     def count_answers(self, driver):
         return count_answers(driver)
@@ -306,49 +274,46 @@ class DeepSeekParser(BaseSiteParser):
         time.sleep(0.4)
 
     def submit(self, driver, el):
+        self._composer_had_text = bool(self._input_leftover(driver, el))
         el.send_keys(Keys.ENTER)
 
     def _input_leftover(self, driver, el):
-        """Текст, оставшийся в поле ввода (пусто => сообщение отправлено)."""
+        """Read the live composer; missing/unreadable is not an empty field."""
         try:
-            val = driver.execute_script("return arguments[0].value;", el)
+            el = self.find_input(driver)
+            if el is None:
+                return None
+            val = driver.execute_script(
+                "return arguments[0].isConnected ? arguments[0].value : null;", el)
         except Exception:
-            val = _safe_execute(
-                driver,
-                "var el = document.querySelector('#chat-input')"
-                " || document.querySelector('textarea');"
-                " return el ? el.value : '';",
-                default="")
-        return (val or "").strip()
-
-    def after_submit(self, driver, el):
-        # Ступенчатая гарантия отправки: после каждой попытки проверяем,
-        # что поле ввода очистилось (значит, сообщение реально ушло).
-        # 1) реальный Enter -> 2) синтетический Enter -> 3) клик по кнопке.
-        time.sleep(1.2)
-        if not self._input_leftover(driver, el):
-            return
-        self._log("Enter не отправил сообщение — пробую синтетический Enter…")
-        try:
-            driver.execute_script(JS_DISPATCH_ENTER, el)
-        except Exception as e:
-            self._log("синтетический Enter не удался: %s" % e)
-        time.sleep(1.0)
-        if not self._input_leftover(driver, el):
-            self._log("сообщение отправлено синтетическим Enter.")
-            return
-        self._log("пробую клик по кнопке отправки…")
-        clicked = _safe_execute(driver, JS_CLICK_SEND, default=False)
-        time.sleep(1.0)
-        if not self._input_leftover(driver, el):
-            self._log("сообщение отправлено кликом по кнопке.")
-            return
-        self._log("ВНИМАНИЕ: текст всё ещё в поле ввода (клик=%s) — "
-                  "сообщение могло не отправиться." % clicked)
+            return None
+        return val.strip() if isinstance(val, str) else None
 
     def confirm_sent(self, driver, el):
-        # Сообщение считаем отправленным, только если поле ввода очистилось.
-        return not self._input_leftover(driver, el)
+        # DeepSeek has no request-scoped network signal. Poll without sending:
+        # retained text cannot distinguish rejection from delayed acceptance.
+        deadline = time.monotonic() + 3.2
+        while True:
+            if (self._input_leftover(driver, el) == ""
+                    and self._composer_had_text):
+                return True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise _DeliveryUncertainError(
+                    "Не удалось подтвердить доставку сообщения в DeepSeek. "
+                    "Оно могло быть принято; повторная отправка отключена во избежание дубля. "
+                    "Проверьте чат перед ручным повтором.")
+            time.sleep(min(0.2, remaining))
+
+    def send_message_and_get_response(self, driver, prompt, input_retries=None,
+                                     progress_cb=None, cancel_cb=None, prefer_url=None):
+        try:
+            return super().send_message_and_get_response(
+                driver, prompt, input_retries=input_retries, progress_cb=progress_cb,
+                cancel_cb=cancel_cb, prefer_url=prefer_url)
+        except _DeliveryUncertainError as exc:
+            self._log(str(exc))
+            return {"text": "[Ошибка]: " + str(exc), "action": None}
 
 
 PARSER = DeepSeekParser()

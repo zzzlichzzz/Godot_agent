@@ -702,6 +702,20 @@ func add_applied_diff(file_path: String, diff_data: Dictionary) -> DiffPreviewCa
 	return card
 
 
+func add_readonly_diff(file_path: String, diff_data: Dictionary) -> DiffPreviewCard:
+	# Multi-file refactor is accepted or rejected only as one transaction.
+	# Per-file buttons would imply unsafe partial application.
+	var card := _make_diff_card()
+	if card == null:
+		return null
+	_chat_container.add_child(card)
+	card.setup_diff(file_path, diff_data)
+	card.set_view_full_texts(_t("diff_show_full"), _t("diff_hide_full"))
+	card.mark_preview_only()
+	_scroll_to_bottom()
+	return card
+
+
 func _plain_diff_text(diff_text: String, diff_data: Dictionary) -> String:
 	# Запасной вид, когда сцена карточки не загрузилась: обычный текстовый
 	# дифф вместо цветного — лучше, чем ничего не показать перед применением.

@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
+import atexit
 import json
 import os as _os0
 import sys as _sys0
+import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+CFG = tempfile.TemporaryDirectory(prefix="agent_cfg_anthropic_")
+atexit.register(CFG.cleanup)
+_os0.environ["GODOT_AGENT_CONFIG_DIR"] = CFG.name
 
 _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(
     _os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
@@ -33,7 +39,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n).decode("utf-8"))
-        seen.append({"path": self.path, "headers": dict(self.headers), "body": body})
+        seen.append({"path": self.path, "headers": dict(self.headers), "body": body,
+                     "user_agents": self.headers.get_all("User-Agent", [])})
         if body.get("stream"):
             events = [
                 {"type": "message_start", "message": {
@@ -104,8 +111,7 @@ check("no third-party client name in User-Agent",
               for w in ("opencode", "claude-cli", "cline", "codex")),
       headers_lower.get("user-agent"))
 check("only one User-Agent header",
-      sum(1 for k in req["headers"] if k.lower() == "user-agent") == 1,
-      list(req["headers"]))
+      req["user_agents"] == [OC0.USER_AGENT], req["user_agents"])
 check("system message moved to system field",
       req["body"].get("system") == "system rules"
       and req["body"]["messages"] == [{"role": "user", "content": "ping"}], req["body"])
@@ -196,5 +202,6 @@ check("real key error still reported as key error",
       u"отклонил ключ" in _txt2, _txt2)
 
 srv.shutdown()
+CFG.cleanup()
 print("ИТОГО: %d/%d" % (sum(1 for x in results if x), len(results)))
 raise SystemExit(0 if all(results) else 1)

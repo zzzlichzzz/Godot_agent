@@ -73,7 +73,7 @@ def _code_context(project_root, res_path, line_no):
     return "\n".join(out)
 
 
-def _list_input_actions(project_root):
+def list_input_actions(project_root):
     """Список пользовательских действий из секции [input] в project.godot.
     Локальное чтение текстового файла — никаких запросов и API.
     None — если project.godot прочитать не удалось."""
@@ -95,6 +95,9 @@ def _list_input_actions(project_root):
         if m:
             actions.append(m.group(1).strip())
     return actions
+
+
+_list_input_actions = list_input_actions
 
 
 def collect_errors(user_data_dir, project_root, state_dir):
@@ -260,17 +263,14 @@ def format_report(report):
             parts.append(
                 "СПРАВКА InputMap: в project.godot (секция [input]) существуют ТОЛЬКО эти действия: "
                 + listing + " (плюс встроенные ui_* самого Godot). НЕ придумывай имена действий: "
-                "либо используй имя из этого списка, либо предложи patch_file для res://project.godot, "
-                "добавляющий недостающее действие в секцию [input].")
+                "либо используй имя из этого списка, либо предложи edit_project_settings с "
+                "add_input_action/add_input_event.")
         else:
             parts.append(
                 "СПРАВКА InputMap: в project.godot НЕТ пользовательских действий (секция [input] пуста "
                 "или отсутствует; есть только встроенные ui_* самого Godot). Чтобы такие ошибки "
-                "исчезли, предложи patch_file для res://project.godot, добавляющий нужные действия "
-                "в секцию [input], или объясни пользователю, как создать их в Project Settings → Input Map. "
-                "ВАЖНО: секции [input] в файле скорее всего НЕТ вообще — НЕ используй '[input]' в 'search'. "
-                "Добавь СРАЗУ ВСЕ недостающие действия ОДНИМ патчем: возьми в 'search' реально "
-                "существующую секцию файла и в 'replace' поставь блок [input] перед ней. "
-                "Если содержимое project.godot тебе неизвестно — сначала запроси его через read_file.")
+                "исчезли, предложи один edit_project_settings со ВСЕМИ недостающими "
+                "add_input_action/add_input_event или объясни пользователю Input Map. "
+                "Не правь project.godot текстом.")
     parts.append("Приложенные фрагменты кода — АКТУАЛЬНОЕ содержимое файлов с диска (равнозначно read_file).]")
     return "\n\n".join(parts)

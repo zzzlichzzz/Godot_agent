@@ -8,6 +8,8 @@
 import os
 import json as _json
 import threading
+import hmac
+import time
 
 import history_manager as history
 import chat_store
@@ -18,6 +20,12 @@ import project_tools
 STATE = {
     "project_root": None,
     "pending_action": None,   # ожидающее подтверждения WRITE-действие
+    "pending_refactor": None, # private prepared multi-file rename transaction
+    "pending_scene_action": None, # private editor-side scene transaction
+    "pending_project_settings_action": None, # private editor-side ProjectSettings transaction
+    "pending_resource_action": None, # private editor-side resource transaction
+    "pending_validation": None, # private Godot headless receipt for the pending write
+    "pending_transaction": None, # private prepared atomic multi-file transaction
     "current_chat_id": None,  # активный чат (см. chat_store.py)
     "current_site_id": None,  # явный режим сайта, включая arena vs arena_battle
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
@@ -31,9 +39,19 @@ STATE = {
     # Теперь заметка помечается chat_id того чата, где произошло действие, и
     # отдаётся только этому же чату; см. queue_action_note/pop_action_note_for_current.
     "action_notes": {},
+    # Одноразовые сводки изменений принадлежат конкретному чату. Общая строка
+    # позволяла сводке старого чата попасть в только что созданный.
+    "stale_notes": {},
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
     "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
+    "godot_executable": None,      # trusted editor executable path from OS.get_executable_path()
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
+    "editor_context": None,     # снимок только текущего хода для gather_context
+    "runtime_status": None,
+    "pending_runtime_request": None,
+    "pending_runtime_check": None,
+    "runtime_turn_id": 0,
+    "runtime_inspections_this_turn": 0,
     "progress": {"active": False},
     "fs_snapshot": None,       # отпечаток файлов проекта (mtime+size) для обнаружения ВНЕШНИХ изменений
     "fs_snapshot_root": None,
@@ -66,6 +84,108 @@ _holder = {"driver": None, "driver_error": None}
 # (вставка финального промпта, сверка v88.4, ожидание ответа).
 _exchange = {"count": 0}
 _exchange_lock = threading.Lock()
+_activity = {"exchange": False, "navigation": False}
+_runtime_request_lock = threading.RLock()
+_notes_lock = threading.RLock()
+_turn_context = threading.local()
+
+
+def claim_runtime_request(data):
+    return _claim_runtime_result(data, "pending_runtime_request")
+
+
+def reset_runtime_turn(status=None, increment=False):
+    """Serialize chat/initialization changes against accepted runtime results."""
+    with _runtime_request_lock:
+        STATE["runtime_status"] = status
+        STATE["pending_runtime_request"] = None
+        STATE["pending_runtime_check"] = None
+        STATE["runtime_result_generation"] = object()
+        if increment:
+            STATE["runtime_turn_id"] = int(STATE.get("runtime_turn_id") or 0) + 1
+        else:
+            STATE["runtime_turn_id"] = 0
+        STATE["runtime_inspections_this_turn"] = 0
+
+
+def bind_runtime_check(data):
+    """Bind one confirmed check to the new bridge-ready run."""
+    with _runtime_request_lock:
+        pending = STATE.get("pending_runtime_check")
+        if not isinstance(pending, dict):
+            return None, "missing"
+        if str(data.get("request_id") or "") != pending.get("request_id"):
+            return None, "request"
+        if not hmac.compare_digest(str(data.get("result_token") or ""), pending.get("result_token") or ""):
+            return None, "token"
+        if time.time() > float(pending.get("deadline") or 0):
+            STATE["pending_runtime_check"] = None
+            return None, "expired"
+        if pending.get("chat_id") != STATE.get("current_chat_id") or int(pending.get("turn_id") or 0) != int(STATE.get("runtime_turn_id") or 0):
+            return None, "turn"
+        session_id = int(data.get("session_id", -1))
+        run_id = str(data.get("run_id") or "")
+        if session_id < 0 or not run_id:
+            return None, "session"
+        supplied_status = data.get("runtime_status")
+        if isinstance(supplied_status, dict):
+            # The check starts a new game after the user turn, so the status
+            # stored by /chat is necessarily stale. Keep only the protocol
+            # allowlisted shape before using the freshly reported run.
+            import runtime_debug
+            STATE["runtime_status"] = runtime_debug.normalize_status(supplied_status)
+        sessions = (STATE.get("runtime_status") or {}).get("sessions") or []
+        matching = [item for item in sessions if isinstance(item, dict)
+                    and int(item.get("session_id", -2)) == session_id
+                    and str(item.get("run_id") or "") == run_id]
+        if (len(matching) != 1 or not matching[0].get("active")
+                or not matching[0].get("bridge_ready")
+                or "run_check_v1" not in (matching[0].get("capabilities") or [])):
+            return None, "session"
+        if pending.get("state") == "bound":
+            if (int(pending.get("session_id", -2)) == session_id
+                    and str(pending.get("run_id") or "") == run_id):
+                return pending, None
+            return None, "state"
+        if pending.get("state") != "awaiting_bind":
+            return None, "state"
+        pending["session_id"] = session_id
+        pending["run_id"] = run_id
+        pending["state"] = "bound"
+        return pending, None
+
+
+def claim_runtime_check(data, allow_unbound=False):
+    return _claim_runtime_result(data, "pending_runtime_check", allow_unbound)
+
+
+def _claim_runtime_result(data, pending_key, allow_unbound=False):
+    """Consume once under a short lock; HTTP admission owns the model exchange."""
+    with _runtime_request_lock:
+        pending = STATE.get(pending_key)
+        if not isinstance(pending, dict):
+            return None, "missing"
+        if data.get("request_id") != pending.get("request_id"):
+            return None, "request"
+        if not hmac.compare_digest(str(data.get("result_token") or "").encode("utf-8"),
+                                   str(pending.get("result_token") or "").encode("utf-8")):
+            return None, "token"
+        if time.time() > float(pending.get("deadline") or 0):
+            STATE[pending_key] = None
+            return None, "expired"
+        unbound = allow_unbound and pending.get("state") == "awaiting_bind"
+        if pending_key == "pending_runtime_check" and pending.get("state") != "bound" and not unbound:
+            return None, "state"
+        if not unbound and (type(data.get("session_id")) is not int
+                            or data["session_id"] != pending.get("session_id")
+                            or data.get("run_id") != pending.get("run_id")):
+            return None, "session"
+        if (pending.get("chat_id") != STATE.get("current_chat_id")
+                or pending.get("turn_id") != STATE.get("runtime_turn_id")
+                or pending.get("project_root") != STATE.get("project_root")):
+            return None, "turn"
+        STATE[pending_key] = None
+        return pending, None
 
 
 def begin_exchange():
@@ -81,6 +201,72 @@ def end_exchange():
 def exchange_active():
     with _exchange_lock:
         return _exchange["count"] > 0
+
+
+def try_begin_turn_exchange(reset_cancel=True):
+    """Атомарно допускает один ход, исключая навигацию и второй ход.
+
+    reset_cancel=True сбрасывает флаг отмены только для НОВОГО хода
+    пользователя (/chat). Continuation-эндпоинты (шаги плана,
+    подтверждения, результаты редактора) должны передавать False,
+    иначе нажатый «Стоп» будет молча стёрт до того, как продолжение
+    успеет его проверить."""
+    with _exchange_lock:
+        if _activity["exchange"] or _activity["navigation"]:
+            return False
+        _activity["exchange"] = True
+        _exchange["count"] += 1
+        _turn_context.owns_exchange = True
+        if reset_cancel:
+            clear_cancel()
+        return True
+
+
+def try_begin_navigation():
+    """Атомарно резервирует смену чата, пока модель не обрабатывает ход."""
+    with _exchange_lock:
+        if _activity["exchange"] or _activity["navigation"]:
+            return False
+        _activity["navigation"] = True
+        _turn_context.owns_navigation = True
+        return True
+
+
+def clear_request_activity(_error=None):
+    with _exchange_lock:
+        if getattr(_turn_context, "owns_exchange", False):
+            _activity["exchange"] = False
+            _exchange["count"] = max(0, _exchange["count"] - 1)
+            del _turn_context.owns_exchange
+        if getattr(_turn_context, "owns_navigation", False):
+            _activity["navigation"] = False
+            del _turn_context.owns_navigation
+
+
+def begin_turn_transcript(chat_id):
+    _turn_context.transcript_chat_id = str(chat_id or "")
+    _turn_context.transcript_entries = []
+
+
+def commit_turn_transcript():
+    chat_id = getattr(_turn_context, "transcript_chat_id", "")
+    entries = getattr(_turn_context, "transcript_entries", None)
+    if chat_id and entries:
+        chat_store.append_transcript_entries(_chats_dir(), chat_id, entries)
+    discard_turn_transcript()
+
+
+def ensure_turn_agent_response(text):
+    entries = getattr(_turn_context, "transcript_entries", None)
+    if entries is None or not text or any(role == "agent" for role, _ in entries):
+        return
+    entries.append(("agent", str(text)))
+
+
+def discard_turn_transcript():
+    for name in ("transcript_chat_id", "transcript_entries"):
+        if hasattr(_turn_context, name):
+            delattr(_turn_context, name)
 
 
 def set_driver(d):
@@ -180,9 +366,28 @@ def _chats_dir():
     return STATE.get("user_data_dir")
 
 
+def bind_turn_chat(chat_id):
+    _turn_context.chat_id = str(chat_id or "")
+
+
+def clear_turn_chat(_error=None):
+    discard_turn_transcript()
+    if hasattr(_turn_context, "chat_id"):
+        del _turn_context.chat_id
+
+
+def turn_chat_id():
+    return getattr(_turn_context, "chat_id", "") or STATE.get("current_chat_id")
+
+
+def turn_chat_is_current():
+    cid = getattr(_turn_context, "chat_id", "")
+    return not cid or cid == STATE.get("current_chat_id")
+
+
 def get_current_chat():
     base = _chats_dir()
-    cid = STATE.get("current_chat_id")
+    cid = turn_chat_id()
     if not base or not cid:
         return None
     return chat_store.find_chat(base, cid)
@@ -244,13 +449,17 @@ def _ensure_current_chat(first_prompt=""):
 def _remember(role, text):
     """Дописывает реплику в сохранённый диалог текущего чата."""
     base = _chats_dir()
-    cid = STATE.get("current_chat_id")
+    cid = turn_chat_id()
     if not base or not cid or not text:
+        return
+    entries = getattr(_turn_context, "transcript_entries", None)
+    if entries is not None and getattr(_turn_context, "transcript_chat_id", "") == cid:
+        entries.append((role, text))
         return
     try:
         chat_store.append_transcript(base, cid, role, text)
-    except Exception:
-        pass
+    except Exception as exc:
+        print("[chat_store] Не удалось сохранить реплику: %s" % exc)
 
 
 def queue_action_note(note, chat_id=None):
@@ -262,40 +471,105 @@ def queue_action_note(note, chat_id=None):
     cid = chat_id or STATE.get("current_chat_id")
     if not cid:
         return
-    STATE.setdefault("action_notes", {})[cid] = note
+    with _notes_lock:
+        STATE.setdefault("action_notes", {})[cid] = note
 
 
 def pop_action_note_for_current():
     """v45: возвращает и убирает заметку ТОЛЬКО для текущего активного чата.
     Заметки других чатов при этом НЕ трогаются и остаются дожидаться своих
     собственных чатов (а не любого, кто первым отправит сообщение)."""
-    cid = STATE.get("current_chat_id")
-    notes = STATE.get("action_notes") or {}
-    if not cid or cid not in notes:
-        return ""
-    return notes.pop(cid) or ""
+    cid = turn_chat_id()
+    with _notes_lock:
+        notes = STATE.get("action_notes") or {}
+        if not cid or cid not in notes:
+            return ""
+        return notes.pop(cid) or ""
+
+
+def peek_action_note_for_current():
+    cid = turn_chat_id()
+    with _notes_lock:
+        return ((STATE.get("action_notes") or {}).get(cid) or "") if cid else ""
+
+
+def consume_action_note_for_current(expected):
+    cid = turn_chat_id()
+    with _notes_lock:
+        notes = STATE.get("action_notes") or {}
+        if cid and notes.get(cid) == expected:
+            notes.pop(cid, None)
 
 
 def discard_action_note_for_chat(chat_id):
     """v45: убирает (без выдачи) отложенную заметку конкретного чата —
     используется при удалении чата, чтобы словарь заметок не рос бесконечно."""
-    notes = STATE.get("action_notes") or {}
-    notes.pop(chat_id, None)
+    with _notes_lock:
+        notes = STATE.get("action_notes") or {}
+        notes.pop(chat_id, None)
+
+
+def queue_stale_note(chat_id, note):
+    if chat_id and note:
+        with _notes_lock:
+            notes = STATE.setdefault("stale_notes", {})
+            existing = str(notes.get(chat_id) or "")
+            if not existing:
+                notes[chat_id] = note
+            elif note not in existing:
+                notes[chat_id] = existing + "\n\n" + note
+
+
+def pop_stale_note_for_current():
+    cid = turn_chat_id()
+    if not cid:
+        return ""
+    with _notes_lock:
+        return (STATE.get("stale_notes") or {}).pop(cid, "") or ""
+
+
+def peek_stale_note_for_current():
+    cid = turn_chat_id()
+    with _notes_lock:
+        return ((STATE.get("stale_notes") or {}).get(cid) or "") if cid else ""
+
+
+def consume_stale_note_for_current(expected):
+    cid = turn_chat_id()
+    with _notes_lock:
+        notes = STATE.get("stale_notes") or {}
+        if cid and notes.get(cid) == expected:
+            notes.pop(cid, None)
+
+
+def discard_stale_note_for_chat(chat_id):
+    with _notes_lock:
+        (STATE.get("stale_notes") or {}).pop(chat_id, None)
 
 
 def clear_pending_confirmations():
     """Discard confirmations that belong to the chat being left."""
     STATE["pending_action"] = None
+    STATE["pending_refactor"] = None
+    STATE["pending_scene_action"] = None
+    STATE["pending_project_settings_action"] = None
+    STATE["pending_resource_action"] = None
+    STATE["pending_validation"] = None
+    STATE["pending_transaction"] = None
     STATE["pending_batch"] = None
     STATE["pending_plan"] = None
     STATE["plan_parts"] = None
     STATE["content_parts"] = None
+    with _runtime_request_lock:
+        STATE["pending_runtime_request"] = None
+        STATE["pending_runtime_check"] = None
+        STATE["runtime_result_generation"] = object()
 
 
 def _sync_chat_after_reply():
     """После ответа обновляет URL страницы и флаг primed текущего чата."""
     base = _chats_dir()
-    cid = STATE.get("current_chat_id")
+    cid = turn_chat_id()
     if not base or not cid:
         return
     rec = chat_store.find_chat(base, cid)
@@ -385,6 +659,9 @@ def _apply_session_context(data):
         STATE["addon_dir"] = data["addon_dir"]
         # v104.3: папка плагина не должна попадать в дерево/сводку/поиск/снапшот
         project_tools.exclude_agent_addon_dirs(data["addon_dir"])
+    executable = str(data.get("godot_executable") or "").strip()
+    if executable and os.path.isfile(executable):
+        STATE["godot_executable"] = os.path.abspath(executable)
     udd = data.get("user_data_dir")
     if udd and udd != STATE.get("user_data_dir"):
         STATE["user_data_dir"] = udd

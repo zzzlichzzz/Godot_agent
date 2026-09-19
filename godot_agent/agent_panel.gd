@@ -28,6 +28,9 @@ const TOKEN_FILE := "user://godot_agent_token.txt"
 const CHAT_URL = "http://" + HOST + "/chat"
 const INIT_URL = "http://" + HOST + "/init"
 const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
+const EDITOR_ACTION_RESULT_URL = "http://" + HOST + "/chat/editor_action/result"
+const RUNTIME_RESULT_URL = "http://" + HOST + "/chat/runtime_inspect/result"
+const RUNTIME_CHECK_RESULT_URL = "http://" + HOST + "/chat/runtime_check/result"
 const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
 const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
 const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
@@ -67,6 +70,38 @@ var _active_plan_card: PlanChecklistCard = null
 var _last_pending_action_type: String = ""
 var _last_pending_action_path: String = ""
 var _last_pending_action_dest: String = ""
+var _last_pending_action_paths: PackedStringArray = PackedStringArray()
+var _editor_plugin: EditorPlugin = null
+var _scene_executor = null
+var _pending_scene_action: Dictionary = {}
+var _pending_scene_expected_hash: String = ""
+var _pending_scene_semantic_hash: String = ""
+var _pending_scene_finalize_body: Dictionary = {}
+var _scene_finalize_retries: int = 0
+var _scene_finalize_retrying: bool = false
+var _project_settings_executor = null
+var _pending_project_settings_action: Dictionary = {}
+var _pending_project_settings_expected_hash: String = ""
+var _pending_project_settings_semantic_hash: String = ""
+var _pending_project_settings_finalize_body: Dictionary = {}
+var _project_settings_finalize_retries: int = 0
+var _project_settings_finalize_retrying: bool = false
+var _resource_executor = null
+var _pending_resource_action: Dictionary = {}
+var _pending_resource_expected_hash: String = ""
+var _pending_resource_semantic_hash: String = ""
+var _pending_resource_dependency_fingerprint: String = ""
+var _pending_resource_finalize_body: Dictionary = {}
+var _resource_finalize_retries: int = 0
+var _resource_finalize_retrying: bool = false
+var _runtime_debugger = null
+var _runtime_status: Dictionary = {"enabled": false, "protocol": 1, "sessions": []}
+var _pending_runtime_request: Dictionary = {}
+var _runtime_timeout_timer: Timer = null
+var _pending_runtime_check: Dictionary = {}
+var _runtime_check_session_id: int = -1
+var _runtime_check_run_id: String = ""
+var _pending_runtime_check_result_body: Dictionary = {}
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
@@ -101,7 +136,11 @@ var _auto_check: bool = false
 var _hl = null  # подсистема подсветки (agent_highlight.gd)
 var _start_screen: Control = null
 var _pending_chat_prompt: String = ""
-var _resend_after_open: bool = false
+var _pending_editor_context: Dictionary = {}
+var _editor_context_script = null
+var _site_resend_envelope: Dictionary = {}
+var _chat_navigation_generation: int = 0
+var _chat_drafts: Dictionary = {}
 var _guard_timer: Timer = null       # таймер-охранник кнопок (вместо await — переживает перезагрузку скрипта)
 var _guard_until_msec: int = 0        # до какого момента кнопки подтверждения заблокированы
 
@@ -122,6 +161,7 @@ var _live_dirty: bool = false
 var _live_inflight: bool = false
 var _live_seq: int = 0
 var _live_last_sent: String = ""
+var _live_force_send: bool = false
 var _progress_timer: Timer = null
 var _progress_inflight: bool = false
 # Весь визуал чата (пузыри, печать, стрим, статус) — в agent_chat_view.gd.
@@ -169,6 +209,168 @@ var _minilich_train_warn: Label = null
 var _minilich_repos_edit: LineEdit = null
 var _minilich_github_btn: Button = null
 var _minilich_github_label: Label = null
+
+
+func set_editor_plugin(plugin: EditorPlugin) -> void:
+	_editor_plugin = plugin
+	var executor_path: String = get_script().resource_path.get_base_dir() + "/agent_scene_executor.gd"
+	if FileAccess.file_exists(executor_path):
+		var executor_script = load(executor_path)
+		if executor_script:
+			_scene_executor = executor_script.new()
+			_scene_executor.configure(plugin)
+	var settings_executor_path: String = get_script().resource_path.get_base_dir() + "/agent_project_settings_executor.gd"
+	if FileAccess.file_exists(settings_executor_path):
+		var settings_executor_script = load(settings_executor_path)
+		if settings_executor_script:
+			_project_settings_executor = settings_executor_script.new()
+			_project_settings_executor.configure(plugin)
+	var resource_executor_path: String = get_script().resource_path.get_base_dir() + "/agent_resource_executor.gd"
+	if FileAccess.file_exists(resource_executor_path):
+		var resource_executor_script = load(resource_executor_path)
+		if resource_executor_script:
+			_resource_executor = resource_executor_script.new()
+			_resource_executor.configure(plugin)
+
+
+func set_runtime_debugger(debugger) -> void:
+	_runtime_debugger = debugger
+	if _runtime_debugger == null:
+		return
+	_runtime_status = _runtime_debugger.get_status()
+	_runtime_debugger.status_changed.connect(_on_runtime_status_changed)
+	_runtime_debugger.inspect_completed.connect(_on_runtime_inspect_completed)
+	_runtime_debugger.check_completed.connect(_on_runtime_check_completed)
+	_runtime_timeout_timer = Timer.new()
+	_runtime_timeout_timer.one_shot = true
+	add_child(_runtime_timeout_timer)
+	_runtime_timeout_timer.timeout.connect(_on_runtime_inspect_timeout)
+
+
+func _on_runtime_status_changed(status: Dictionary) -> void:
+	_runtime_status = status.duplicate(true)
+
+
+func _start_runtime_inspect(envelope: Dictionary) -> void:
+	_pending_runtime_request = (envelope.get("runtime_request", {}) as Dictionary).duplicate(true)
+	var result := {"ok": false, "status": "bridge_unavailable"}
+	if _runtime_debugger:
+		result = _runtime_debugger.inspect(_pending_runtime_request)
+	if not bool(result.get("ok", false)):
+		_send_runtime_result(str(result.get("status", "bridge_unavailable")), {})
+		return
+	_runtime_timeout_timer.start(maxf(0.1, float(_pending_runtime_request.get("timeout_ms", 3000)) / 1000.0))
+	_view.add_system("Получаю read-only снимок запущенной игры...")
+
+
+func _on_runtime_inspect_completed(result: Dictionary) -> void:
+	if _pending_runtime_request.is_empty():
+		return
+	if str(result.get("request_id", "")) != str(_pending_runtime_request.get("request_id", "")):
+		return
+	if _runtime_timeout_timer:
+		_runtime_timeout_timer.stop()
+	_send_runtime_result(str(result.get("status", "protocol_error")), result.get("snapshot", {}))
+
+
+func _on_runtime_inspect_timeout() -> void:
+	if not _pending_runtime_check.is_empty():
+		if _runtime_debugger:
+			_runtime_debugger.cancel_pending("timeout")
+		return
+	if _runtime_debugger:
+		_runtime_debugger.cancel_pending("timeout")
+
+
+func _send_runtime_result(status: String, snapshot) -> void:
+	if _pending_runtime_request.is_empty():
+		return
+	var body := {
+		"request_id": str(_pending_runtime_request.get("request_id", "")),
+		"result_token": str(_pending_runtime_request.get("result_token", "")),
+		"session_id": int(_pending_runtime_request.get("session_id", -1)),
+		"run_id": str(_pending_runtime_request.get("run_id", "")),
+		"status": status,
+		"snapshot": snapshot if snapshot is Dictionary else {},
+	}
+	_pending_request_kind = "runtime_result"
+	_set_ui_busy(true)
+	var err := http_request.request(RUNTIME_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log_error("Не удалось передать runtime snapshot серверу")
+		_pending_runtime_request = {}
+		if _runtime_timeout_timer:
+			_runtime_timeout_timer.stop()
+		_set_ui_busy(false)
+
+
+func _start_runtime_check(envelope: Dictionary) -> void:
+	_pending_runtime_check = (envelope.get("runtime_check_request", {}) as Dictionary).duplicate(true)
+	if _pending_runtime_check.is_empty():
+		return
+	_runtime_check_session_id = -1
+	_runtime_check_run_id = ""
+	# Godot 4.6.1 exposes neither editor-run PIDs nor a debugger-session remote
+	# PID. A sole/new session, scene name or bridge-reported PID is not proof
+	# that play_custom_scene launched it. Refuse before launching or sending input.
+	_view.add_system("run_check unavailable: Godot 4.6.1 cannot prove ownership of the launched debugger session. No scene was launched or stopped.")
+	_send_runtime_check_result("bridge_unavailable", {})
+
+
+func _exit_tree() -> void:
+	if not _pending_runtime_check.is_empty():
+		if _runtime_debugger:
+			_runtime_debugger.cancel_pending("cancelled")
+
+
+func _execute_bound_runtime_check(_envelope: Dictionary) -> void:
+	# A server bind response cannot establish local process ownership either.
+	_send_runtime_check_result("bridge_unavailable", {})
+
+
+func _on_runtime_check_completed(result: Dictionary) -> void:
+	if _pending_runtime_check.is_empty():
+		return
+	if str(result.get("request_id", "")) != str(_pending_runtime_check.get("request_id", "")):
+		return
+	if _runtime_timeout_timer:
+		_runtime_timeout_timer.stop()
+	_send_runtime_check_result(str(result.get("status", "protocol_error")), result.get("result", {}))
+
+
+func _send_runtime_check_result(status: String, result_value) -> void:
+	if _pending_runtime_check.is_empty():
+		return
+	_pending_runtime_check_result_body = {
+		"request_id": str(_pending_runtime_check.get("request_id", "")),
+		"result_token": str(_pending_runtime_check.get("result_token", "")),
+		"session_id": _runtime_check_session_id,
+		"run_id": _runtime_check_run_id,
+		"status": status,
+		"result": result_value if result_value is Dictionary else {},
+	}
+	_send_pending_runtime_check_result()
+
+
+func _send_pending_runtime_check_result() -> void:
+	if _pending_runtime_check_result_body.is_empty() or _is_network_busy:
+		return
+	_pending_request_kind = "runtime_check_result"
+	_set_ui_busy(true)
+	var error := http_request.request(RUNTIME_CHECK_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_runtime_check_result_body))
+	if error != OK:
+		_set_ui_busy(false)
+		_log_error("Не удалось передать результат локальной игровой проверки серверу")
+
+
+func _clear_runtime_check_state() -> void:
+	_pending_runtime_check = {}
+	_pending_runtime_check_result_body = {}
+	_runtime_check_session_id = -1
+	_runtime_check_run_id = ""
+	if _runtime_timeout_timer:
+		_runtime_timeout_timer.stop()
 
 
 func _locale():
@@ -550,7 +752,11 @@ func _set_pending_action(active: bool, description: String = "") -> void:
 
 
 func _has_pending_action() -> bool:
-	return _pending_action_active
+	return (_pending_action_active or not _pending_scene_finalize_body.is_empty()
+		or not _pending_project_settings_finalize_body.is_empty()
+		or not _pending_resource_finalize_body.is_empty()
+		or not _pending_runtime_request.is_empty() or not _pending_runtime_check.is_empty()
+		or not _pending_runtime_check_result_body.is_empty())
 
 
 func _clear_pending_action_state() -> void:
@@ -559,6 +765,19 @@ func _clear_pending_action_state() -> void:
 	_last_pending_action_type = ""
 	_last_pending_action_path = ""
 	_last_pending_action_dest = ""
+	_last_pending_action_paths = PackedStringArray()
+	_pending_scene_action = {}
+	_pending_scene_expected_hash = ""
+	_pending_scene_semantic_hash = ""
+	_pending_project_settings_action = {}
+	_pending_project_settings_expected_hash = ""
+	_pending_project_settings_semantic_hash = ""
+	_pending_resource_action = {}
+	_pending_resource_expected_hash = ""
+	_pending_resource_semantic_hash = ""
+	_pending_resource_dependency_fingerprint = ""
+	# Finalize envelope очищается только после терминального ответа сервера.
+	# Обычная смена/очистка pending action не должна терять уже записанный ресурс.
 	_pending_log_send = false
 
 
@@ -599,6 +818,67 @@ func _set_ui_busy(busy: bool) -> void:
 			_view.hide_status()
 		_progress_inflight = false
 		_hide_stop_button()
+		if input_field and input_field.is_visible_in_tree():
+			input_field.call_deferred("grab_focus")
+			input_field.queue_redraw()
+
+
+func _clear_chat_input(reset_live: bool = true) -> void:
+	if input_field == null:
+		return
+	input_field.clear()
+	input_field.set_caret_line(0)
+	input_field.set_caret_column(0)
+	if input_field.has_method("deselect"):
+		input_field.call("deselect")
+	input_field.scroll_vertical = 0
+	input_field.scroll_horizontal = 0
+	input_field.queue_redraw()
+	if reset_live:
+		_live_seq += 1
+		_live_force_send = true
+		_live_dirty = true
+	if not _is_network_busy and input_field.is_visible_in_tree():
+		input_field.call_deferred("grab_focus")
+
+
+func _restore_chat_draft() -> void:
+	if input_field == null or _pending_chat_prompt.is_empty():
+		return
+	if input_field.text.is_empty():
+		input_field.text = _pending_chat_prompt
+		input_field.set_caret_line(max(0, input_field.get_line_count() - 1))
+		input_field.set_caret_column(input_field.get_line(input_field.get_caret_line()).length())
+		input_field.queue_redraw()
+	_live_dirty = true
+	input_field.call_deferred("grab_focus")
+
+
+func _finish_chat_send() -> void:
+	_pending_chat_prompt = ""
+	_pending_editor_context = {}
+	if _current_chat_id != "":
+		_chat_drafts.erase(_current_chat_id)
+
+
+func _switch_chat_draft(next_chat_id: String) -> void:
+	if input_field == null or next_chat_id == _current_chat_id:
+		return
+	var previous_draft := input_field.text
+	if previous_draft.is_empty() and not _pending_chat_prompt.is_empty():
+		previous_draft = _pending_chat_prompt
+	if _current_chat_id != "":
+		if previous_draft.is_empty():
+			_chat_drafts.erase(_current_chat_id)
+		else:
+			_chat_drafts[_current_chat_id] = previous_draft
+	input_field.text = str(_chat_drafts.get(next_chat_id, ""))
+	input_field.set_caret_line(max(0, input_field.get_line_count() - 1))
+	input_field.set_caret_column(input_field.get_line(input_field.get_caret_line()).length())
+	input_field.queue_redraw()
+	_live_seq += 1
+	_live_force_send = true
+	_live_dirty = true
 
 
 func _on_server_state_changed(running: bool) -> void:
@@ -713,7 +993,7 @@ func _on_live_input_tick() -> void:
 	if _is_network_busy: return  # идёт обмен — конвейер сам вставит финальный промпт
 	if input_field == null or _live_http == null: return
 	var txt: String = input_field.text
-	if txt == _live_last_sent:
+	if txt == _live_last_sent and not _live_force_send:
 		_live_dirty = false
 		return
 	_live_seq += 1
@@ -724,6 +1004,7 @@ func _on_live_input_tick() -> void:
 		return  # сервер занят/недоступен — молча попробуем на следующем тике
 	_live_inflight = true
 	_live_last_sent = txt
+	_live_force_send = false
 	_live_dirty = false
 
 
@@ -762,7 +1043,7 @@ func _on_reinit_pressed() -> void:
 	_rollback_force_next = false
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = _json_headers()
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "reinit": true}
+	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "godot_executable": OS.get_executable_path(), "runtime_status": _runtime_status, "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
@@ -774,9 +1055,9 @@ func _on_send_pressed() -> void:
 	if _has_pending_action():
 		_log_error(_t("resolve_action_first"))
 		return
-	var user_text = input_field.text.strip_edges()
-	if user_text.is_empty(): return
-	input_field.text = ""
+	var user_text := input_field.text
+	if user_text.strip_edges().is_empty(): return
+	_clear_chat_input(true)
 	_rollback_force_next = false
 	_view.add_user_message(_escape_bbcode(user_text))
 	_view.add_system(_t("analyzing"))
@@ -785,14 +1066,21 @@ func _on_send_pressed() -> void:
 
 func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	_pending_chat_prompt = prompt
+	if not ignore_mismatch or _pending_editor_context.is_empty():
+		_pending_editor_context = _capture_editor_context()
 	var project_root = ProjectSettings.globalize_path("res://")
 	var headers = _json_headers()
 	var body = {
 		"prompt": prompt,
+		"chat_id": _current_chat_id,
 		"project_root": project_root,
 		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+		"godot_executable": OS.get_executable_path(),
+		"runtime_status": _runtime_status
 	}
+	if not _pending_editor_context.is_empty():
+		body["editor_context"] = _pending_editor_context
 	if ignore_mismatch:
 		body["ignore_site_mismatch"] = true
 	http_request.set_http_proxy("", 0)
@@ -802,6 +1090,19 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	if err != OK:
 		_log_error(_t("err_send"))
 		_set_ui_busy(false)
+		_restore_chat_draft()
+
+
+func _capture_editor_context() -> Dictionary:
+	if _editor_context_script == null:
+		var script_path: String = get_script().resource_path.get_base_dir() + "/agent_editor_context.gd"
+		if FileAccess.file_exists(script_path):
+			_editor_context_script = load(script_path)
+	if _editor_context_script != null:
+		var snapshot = _editor_context_script.capture()
+		if snapshot is Dictionary:
+			return snapshot
+	return {}
 
 
 func _on_confirm_pressed() -> void:
@@ -814,10 +1115,19 @@ func _on_reject_pressed() -> void:
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
-	_set_pending_action(false)
+	if approved and _last_pending_action_type in ["rename_symbol", "transaction", "create_file", "patch_file", "move_file"]:
+		var targets := _last_pending_action_paths.duplicate()
+		for path in [_last_pending_action_path, _last_pending_action_dest]:
+			if not str(path).is_empty() and not targets.has(str(path)):
+				targets.append(str(path))
+		var dirty_paths := _dirty_open_scripts(targets)
+		if not dirty_paths.is_empty():
+			_view.add_warning("Сначала сохраните изменённые вкладки: " + ", ".join(dirty_paths))
+			return
 	# Подтверждение отправки отчёта об ошибках запуска — отдельная ветка:
 	# при отказе сервер вообще не трогаем (и браузер тоже).
 	if _pending_log_send:
+		_set_pending_action(false)
 		_pending_log_send = false
 		if not approved:
 			_view.add_system(_t("errs_cancelled"))
@@ -832,12 +1142,23 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved:
-		_close_scenes_before_write()  # v49: закрываем открытую целевую сцену перед записью
+	if approved and _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
+		var open_targets := _open_pending_scene_paths()
+		if not open_targets.is_empty():
+			_view.add_warning("Сохраните и закройте целевые сцены перед файловой операцией: " + ", ".join(open_targets))
+			return
+	_set_pending_action(false)
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
 	var body = {"approved": approved}
+	if approved and _last_pending_action_type in ["edit_scene", "create_scene"]:
+		body["editor_semantic_hash"] = _pending_scene_semantic_hash
+	elif approved and _last_pending_action_type == "edit_project_settings":
+		body["editor_semantic_hash"] = _pending_project_settings_semantic_hash
+	elif approved and _last_pending_action_type == "edit_resource":
+		body["editor_semantic_hash"] = _pending_resource_semantic_hash
+		body["dependency_fingerprint"] = _pending_resource_dependency_fingerprint
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
 	_set_ui_busy(true)
@@ -846,6 +1167,207 @@ func _send_confirm_request(approved: bool) -> void:
 		_log_error(_t("err_send_confirm"))
 		_set_ui_busy(false)
 		_reopen_scenes_after_write()  # v49: запрос не ушёл — вернуть закрытые сцены
+
+
+func _send_scene_result(execution: Dictionary, envelope: Dictionary) -> void:
+	_pending_scene_finalize_body = {
+		"action_id": str(envelope.get("action_id", "")),
+		"execution_token": str(envelope.get("execution_token", "")),
+		"success": bool(execution.get("ok", false)),
+		"scene_hash": str(execution.get("scene_hash", "")),
+		"target_written": bool(execution.get("target_written", false)),
+		"staged_hash": str(execution.get("staged_hash", "")),
+		"error_code": str(execution.get("code", "")),
+		"error": str(execution.get("error", "")),
+	}
+	_scene_finalize_retries = 0
+	_send_pending_scene_finalize()
+
+
+func _send_pending_scene_finalize() -> void:
+	if _pending_scene_finalize_body.is_empty():
+		return
+	if _is_network_busy:
+		_schedule_scene_finalize_retry()
+		return
+	_pending_request_kind = "scene_finalize"
+	_set_ui_busy(true)
+	_scene_finalize_retries += 1
+	var err := http_request.request(
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_scene_finalize_body))
+	if err != OK:
+		_set_ui_busy(false)
+		_schedule_scene_finalize_retry()
+
+
+func _schedule_scene_finalize_retry() -> void:
+	if _scene_finalize_retrying or _pending_scene_finalize_body.is_empty():
+		return
+	_scene_finalize_retrying = true
+	await get_tree().create_timer(float(mini(_scene_finalize_retries + 1, 5))).timeout
+	_scene_finalize_retrying = false
+	if not _is_network_busy:
+		_send_pending_scene_finalize()
+	else:
+		_schedule_scene_finalize_retry()
+
+
+func _prepare_scene_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
+	if _scene_executor == null:
+		return {"ok": false, "error": "Исполнитель структурных сцен недоступен"}
+	_pending_scene_action = pending.duplicate(true)
+	_pending_scene_expected_hash = str(prepare_data.get("expected_scene_hash", ""))
+	var result: Dictionary = _scene_executor.prepare(_pending_scene_action, _pending_scene_expected_hash)
+	_pending_scene_semantic_hash = str(result.get("semantic_hash", "")) if bool(result.get("ok", false)) else ""
+	return result
+
+
+func _execute_scene_action(envelope: Dictionary) -> void:
+	var execution: Dictionary
+	if _scene_executor == null:
+		execution = {"ok": false, "error": "Исполнитель структурных сцен недоступен", "scene_hash": ""}
+	else:
+		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		if str(action.get("action", "")) == "create_scene":
+			action["_create_action_id"] = str(envelope.get("action_id", ""))
+		if _pending_scene_semantic_hash != "":
+			action["_expected_semantic_hash"] = _pending_scene_semantic_hash
+		execution = _scene_executor.execute(action, str(envelope.get("expected_scene_hash", "")))
+	_send_scene_result(execution, envelope)
+
+
+func _prepare_project_settings_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
+	if _project_settings_executor == null:
+		return {"ok": false, "error": "Исполнитель настроек проекта недоступен"}
+	_pending_project_settings_action = pending.duplicate(true)
+	_pending_project_settings_expected_hash = str(prepare_data.get("expected_project_hash", ""))
+	var result: Dictionary = _project_settings_executor.prepare(
+		_pending_project_settings_action, _pending_project_settings_expected_hash)
+	_pending_project_settings_semantic_hash = str(result.get("semantic_hash", "")) if bool(result.get("ok", false)) else ""
+	return result
+
+
+func _execute_project_settings_action(envelope: Dictionary) -> void:
+	var execution: Dictionary
+	if _project_settings_executor == null:
+		execution = {"ok": false, "error": "Исполнитель настроек проекта недоступен", "project_hash": ""}
+	else:
+		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		if _pending_project_settings_semantic_hash != "":
+			action["_expected_semantic_hash"] = _pending_project_settings_semantic_hash
+		execution = _project_settings_executor.execute(
+			action, str(envelope.get("expected_project_hash", "")))
+	_pending_project_settings_finalize_body = {
+		"action_id": str(envelope.get("action_id", "")),
+		"execution_token": str(envelope.get("execution_token", "")),
+		"editor_action_kind": "project_settings",
+		"success": bool(execution.get("ok", false)),
+		"project_hash": str(execution.get("project_hash", "")),
+		"already_satisfied": bool(execution.get("already_satisfied", false)),
+		"error_code": str(execution.get("code", "")),
+		"error": str(execution.get("error", "")),
+	}
+	_project_settings_finalize_retries = 0
+	_send_pending_project_settings_finalize()
+
+
+func _send_pending_project_settings_finalize() -> void:
+	if _pending_project_settings_finalize_body.is_empty():
+		return
+	if _is_network_busy:
+		_schedule_project_settings_finalize_retry()
+		return
+	_pending_request_kind = "project_settings_finalize"
+	_set_ui_busy(true)
+	_project_settings_finalize_retries += 1
+	var err := http_request.request(
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_project_settings_finalize_body))
+	if err != OK:
+		_set_ui_busy(false)
+		_schedule_project_settings_finalize_retry()
+
+
+func _schedule_project_settings_finalize_retry() -> void:
+	if _project_settings_finalize_retrying or _pending_project_settings_finalize_body.is_empty():
+		return
+	_project_settings_finalize_retrying = true
+	await get_tree().create_timer(float(mini(_project_settings_finalize_retries + 1, 5))).timeout
+	_project_settings_finalize_retrying = false
+	if not _is_network_busy:
+		_send_pending_project_settings_finalize()
+	else:
+		_schedule_project_settings_finalize_retry()
+
+
+func _prepare_resource_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
+	if _resource_executor == null:
+		return {"ok": false, "error": "Исполнитель ресурсов недоступен"}
+	_pending_resource_action = pending.duplicate(true)
+	_pending_resource_expected_hash = str(prepare_data.get("expected_resource_hash", ""))
+	var result: Dictionary = _resource_executor.prepare(
+		_pending_resource_action, _pending_resource_expected_hash)
+	if bool(result.get("ok", false)):
+		_pending_resource_semantic_hash = str(result.get("semantic_hash", ""))
+		_pending_resource_dependency_fingerprint = str(result.get("dependency_fingerprint", ""))
+	else:
+		_pending_resource_semantic_hash = ""
+		_pending_resource_dependency_fingerprint = ""
+	return result
+
+
+func _execute_resource_action(envelope: Dictionary) -> void:
+	var execution: Dictionary
+	if _resource_executor == null:
+		execution = {"ok": false, "error": "Исполнитель ресурсов недоступен", "resource_hash": ""}
+	else:
+		var action: Dictionary = envelope.get("editor_action", {}).duplicate(true)
+		action["_expected_semantic_hash"] = _pending_resource_semantic_hash
+		action["_expected_dependency_fingerprint"] = str(
+			envelope.get("expected_dependency_fingerprint", _pending_resource_dependency_fingerprint))
+		execution = _resource_executor.execute(
+			action, str(envelope.get("expected_resource_hash", "")))
+	_pending_resource_finalize_body = {
+		"action_id": str(envelope.get("action_id", "")),
+		"execution_token": str(envelope.get("execution_token", "")),
+		"editor_action_kind": "resource",
+		"success": bool(execution.get("ok", false)),
+		"resource_hash": str(execution.get("resource_hash", "")),
+		"error_code": str(execution.get("code", "")),
+		"error": str(execution.get("error", "")),
+	}
+	_resource_finalize_retries = 0
+	_send_pending_resource_finalize()
+
+
+func _send_pending_resource_finalize() -> void:
+	if _pending_resource_finalize_body.is_empty():
+		return
+	if _is_network_busy:
+		_schedule_resource_finalize_retry()
+		return
+	_pending_request_kind = "resource_finalize"
+	_set_ui_busy(true)
+	_resource_finalize_retries += 1
+	var err := http_request.request(
+		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
+		JSON.stringify(_pending_resource_finalize_body))
+	if err != OK:
+		_set_ui_busy(false)
+		_schedule_resource_finalize_retry()
+
+
+func _schedule_resource_finalize_retry() -> void:
+	if _resource_finalize_retrying or _pending_resource_finalize_body.is_empty():
+		return
+	_resource_finalize_retrying = true
+	await get_tree().create_timer(float(mini(_resource_finalize_retries + 1, 5))).timeout
+	_resource_finalize_retrying = false
+	if not _is_network_busy:
+		_send_pending_resource_finalize()
+	else:
+		_schedule_resource_finalize_retry()
 
 
 func _start_plan_execution(total: int) -> void:
@@ -1127,15 +1649,11 @@ func _on_rollback_confirmed() -> void:
 
 
 func _ensure_file_logging_enabled() -> void:
-	# Чтобы кнопка «Ошибки запуска» работала, игра должна писать лог в
-	# user://logs/godot.log. На десктопе это обычно уже включено (override
-	# .pc), но если выключено — включаем один раз и сохраняем настройки.
+	# Read-only inspection must never alter project.godot automatically.
 	var base_on := bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging", false))
 	var pc_on := bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging.pc", true))
 	if not base_on and not pc_on:
-		ProjectSettings.set_setting("debug/file_logging/enable_file_logging.pc", true)
-		ProjectSettings.save()
-		print("Включено файловое логирование запусков игры (user://logs/godot.log).")
+		print("Godot Agent: файловое логирование выключено; включите его вручную для встроенных runtime errors.")
 
 
 func _on_check_log_pressed() -> void:
@@ -1244,6 +1762,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if json.has("site_mismatch") and bool(json.get("site_mismatch", false)):
 			_handle_site_mismatch(str(json.get("site", "")), str(json.get("prompt", "")))
 			return
+		if kind == "chat":
+			_finish_chat_send()
+			var transcript_warning := str(json.get("transcript_warning", ""))
+			if transcript_warning != "":
+				if _view:
+					_view.add_system(transcript_warning)
+				_notify(transcript_warning, "error")
 
 		if kind == "init":
 			_view.add_success(_t("reinit_done"))
@@ -1339,6 +1864,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var pr_msg = str(json.get("message", _t("rollback_done")))
 			_view.add_success(_t("success_prefix") + pr_msg)
 			_note_autoload_removed(json)
+			if bool(json.get("requires_editor_restart", false)):
+				_view.add_warning("Перезапустите редактор Godot, чтобы восстановленные настройки проекта полностью применились.")
 			var pr_paths = json.get("paths")
 			if pr_paths is Array:
 				for pp in pr_paths:
@@ -1365,6 +1892,100 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var current_version = Engine.get_version_info().get("string", "")
 			if not has_cache or cached_version != current_version:
 				_export_api_to_server(true)
+			return
+
+		if kind == "confirm" and bool(json.get("execute_in_editor", false)):
+			var editor_action_kind := str(json.get("editor_action_kind", "scene"))
+			if editor_action_kind == "project_settings":
+				_execute_project_settings_action(json)
+			elif editor_action_kind == "resource":
+				_execute_resource_action(json)
+			elif editor_action_kind == "scene":
+				_execute_scene_action(json)
+			else:
+				_log_error("Неизвестный тип editor-транзакции: " + editor_action_kind)
+			return
+
+		if kind == "confirm" and json.get("runtime_request") is Dictionary:
+			_start_runtime_inspect(json)
+			return
+
+		if kind == "confirm" and json.get("runtime_check_request") is Dictionary:
+			_start_runtime_check(json)
+			return
+
+		if kind == "runtime_check_bind":
+			_execute_bound_runtime_check(json)
+			return
+
+		if kind == "runtime_result":
+			_pending_runtime_request = {}
+			if _runtime_timeout_timer:
+				_runtime_timeout_timer.stop()
+
+		if kind == "runtime_check_result":
+			_clear_runtime_check_state()
+
+		if kind == "resource_finalize":
+			var resource_path := str(_pending_resource_action.get("resource", ""))
+			if bool(json.get("success", false)):
+				_view.add_agent_message(str(json.get("answer", "Структурные изменения ресурса применены.")),
+					str(json.get("history_entry_id", "")))
+			elif bool(json.get("restored", false)):
+				_view.add_warning(str(json.get("answer", "Исходный ресурс восстановлен.")))
+				if _resource_executor:
+					_resource_executor.reload_after_recovery(resource_path)
+			else:
+				_view.add_error(str(json.get("answer", "Не удалось безопасно завершить транзакцию ресурса.")))
+			_pending_resource_action = {}
+			_pending_resource_expected_hash = ""
+			_pending_resource_semantic_hash = ""
+			_pending_resource_dependency_fingerprint = ""
+			_pending_resource_finalize_body = {}
+			_resource_finalize_retries = 0
+			_resource_finalize_retrying = false
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
+			return
+
+		if kind == "project_settings_finalize":
+			if bool(json.get("success", false)):
+				_view.add_agent_message(str(json.get("answer", "Настройки проекта применены.")),
+					str(json.get("history_entry_id", "")))
+				_view.add_warning("Перезапустите редактор Godot, чтобы все настройки и autoload гарантированно обновились.")
+			elif bool(json.get("restored", false)):
+				_view.add_warning(str(json.get("answer", "Исходный project.godot восстановлен. Перезапустите редактор.")))
+			else:
+				_view.add_error(str(json.get("answer", "Не удалось безопасно завершить транзакцию настроек.")))
+			_pending_project_settings_action = {}
+			_pending_project_settings_expected_hash = ""
+			_pending_project_settings_semantic_hash = ""
+			_pending_project_settings_finalize_body = {}
+			_project_settings_finalize_retries = 0
+			_project_settings_finalize_retrying = false
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
+			return
+
+		if kind == "scene_finalize":
+			var scene_path := str(_pending_scene_action.get("scene", ""))
+			if bool(json.get("success", false)):
+				_view.add_agent_message(str(json.get("answer", "Структурные изменения сцены применены.")),
+					str(json.get("history_entry_id", "")))
+			elif bool(json.get("restored", false)):
+				_view.add_warning(str(json.get("answer", "Исходная сцена восстановлена.")))
+				if _scene_executor:
+					_scene_executor.reload_after_recovery(scene_path)
+			else:
+				_view.add_error(str(json.get("answer", "Не удалось безопасно завершить транзакцию сцены.")))
+			_pending_scene_action = {}
+			_pending_scene_expected_hash = ""
+			_pending_scene_semantic_hash = ""
+			_pending_scene_finalize_body = {}
+			_scene_finalize_retries = 0
+			_scene_finalize_retrying = false
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
 			return
 
 		if kind == "rollback_preview":
@@ -1401,6 +2022,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var msg = str(json.get("message", _t("rollback_done")))
 			_view.add_success(_t("success_prefix") + msg)
 			_note_autoload_removed(json)
+			if bool(json.get("requires_editor_restart", false)):
+				_view.add_warning("Перезапустите редактор Godot, чтобы восстановленные настройки проекта полностью применились.")
 			# Синхронизируем откаченные файлы с открытыми вкладками. Иначе
 			# вкладка показывает ДО-откатный текст, и Godot может позже
 			# молча пересохранить его ПОВЕРХ результата отката.
@@ -1455,7 +2078,13 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		# После подтверждённого WRITE-действия — синхронизируем открытую вкладку.
 		# При пакетном чтении файлов _last_pending_action_type пуст — ничего не трогаем.
 		if kind == "confirm" and _last_pending_action_type != "":
-			_force_reload_open_script()
+			var changed_paths = json.get("changed_paths")
+			if changed_paths is Array:
+				for changed_path in changed_paths:
+					_sync_open_script_with_disk(str(changed_path))
+					_auto_reload_changed_scene(str(changed_path))
+			else:
+				_force_reload_open_script()
 			if _last_pending_action_path != "":
 				_auto_reload_changed_scene(_last_pending_action_path)
 			if _last_pending_action_dest != "":
@@ -1464,6 +2093,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_last_pending_action_type = ""
 			_last_pending_action_path = ""
 			_last_pending_action_dest = ""
+			_last_pending_action_paths = PackedStringArray()
 			# Открываем изменённый файл и подсвечиваем строки, написанные агентом.
 			var ch_path = json.get("changed_path")
 			var ch_block = json.get("changed_block")
@@ -1508,17 +2138,63 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			# и, если смог посчитать, разобранный дифф — что добавится и что удалится.
 			var pcode = json.get("pending_action_code")
 			var pdiff = json.get("pending_action_diff")
+			var pdiffs = json.get("pending_action_diffs")
 			var diff_data: Dictionary = pdiff if pdiff is Dictionary else {}
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
+			_last_pending_action_paths = PackedStringArray()
+			var raw_paths = pending.get("paths", [])
+			if raw_paths is Array:
+				for raw_path in raw_paths:
+					_last_pending_action_paths.append(str(raw_path))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
+			if _last_pending_action_type in ["edit_scene", "create_scene"]:
+				var scene_preview := _prepare_scene_action(pending, json.get("scene_prepare", {}))
+				if not bool(scene_preview.get("ok", false)):
+					_view.add_warning("Godot отклонил предпросмотр сцены: " + str(scene_preview.get("error", "")))
+					_on_reject_pressed()
+					return
+				var preview_lines = scene_preview.get("changes", [])
+				if preview_lines is Array and not preview_lines.is_empty():
+					_view.add_system("Предпросмотр структурных изменений:\n• " + "\n• ".join(preview_lines))
+			elif _last_pending_action_type == "edit_project_settings":
+				var settings_preview := _prepare_project_settings_action(
+					pending, json.get("project_settings_prepare", {}))
+				if not bool(settings_preview.get("ok", false)):
+					_view.add_warning("Godot отклонил настройки проекта: " + str(settings_preview.get("error", "")))
+					_on_reject_pressed()
+					return
+				var settings_lines = settings_preview.get("changes", [])
+				if settings_lines is Array and not settings_lines.is_empty():
+					_view.add_system("Предпросмотр настроек проекта:\n• " + "\n• ".join(settings_lines))
+			elif _last_pending_action_type == "edit_resource":
+				var resource_preview := _prepare_resource_action(
+					pending, json.get("resource_prepare", {}))
+				if not bool(resource_preview.get("ok", false)):
+					_view.add_warning("Godot отклонил ресурс: " + str(resource_preview.get("error", "")))
+					_on_reject_pressed()
+					return
+				var resource_lines = resource_preview.get("changes", [])
+				if resource_lines is Array and not resource_lines.is_empty():
+					_view.add_system("Предпросмотр структурных изменений ресурса:\n• " +
+						"\n• ".join(resource_lines))
 
 			# Дифф сам по себе достаточен для карточки: patch_file, который
 			# только УДАЛЯЕТ код, приходит с пустым replace — раньше такой
 			# правке доставалась безликая карточка подтверждения.
-			if (pcode != null and str(pcode) != "") or not diff_data.is_empty():
+			if pdiffs is Array and not (pdiffs as Array).is_empty():
+				for raw_diff in pdiffs:
+					if raw_diff is Dictionary:
+						var readonly_diff := raw_diff as Dictionary
+						_view.add_readonly_diff(str(readonly_diff.get("path", "")), readonly_diff)
+				_view.add_confirmation_card(
+					str(description),
+					func(): _on_confirm_pressed(),
+					func(): _on_reject_pressed()
+				)
+			elif (pcode != null and str(pcode) != "") or not diff_data.is_empty():
 				var file_path = _last_pending_action_path if _last_pending_action_path != "" else _last_pending_action_dest
 				var card = _view.add_diff_preview(file_path, str(pcode) if pcode != null else "", diff_data)
 				if card:
@@ -1538,6 +2214,70 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		await get_tree().process_frame
 	else:
+		if kind == "chat":
+			_restore_chat_draft()
+		if kind == "runtime_check_bind":
+			_send_runtime_check_result("bridge_unavailable", {})
+			return
+		if kind == "runtime_check_result":
+			if response_code in [400, 403, 409, 410, 413]:
+				_log_error("Сервер окончательно отклонил результат локальной игровой проверки.")
+				_clear_runtime_check_state()
+			else:
+				_log_error("Сервер временно не принял результат; отправка будет повторена.")
+			return
+		if kind == "runtime_result":
+			_pending_runtime_request = {}
+			if _runtime_timeout_timer:
+				_runtime_timeout_timer.stop()
+			_log_error("Runtime inspection завершён без ответа модели: " + str(response_code))
+			return
+		if kind == "resource_finalize":
+			if response_code in [400, 403, 409, 410, 413]:
+				var resource_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции ресурса."))) if json else "Сервер отклонил завершение транзакции ресурса."
+				_view.add_error(resource_error)
+				_pending_resource_action = {}
+				_pending_resource_expected_hash = ""
+				_pending_resource_semantic_hash = ""
+				_pending_resource_dependency_fingerprint = ""
+				_pending_resource_finalize_body = {}
+				_resource_finalize_retries = 0
+				_resource_finalize_retrying = false
+				_last_pending_action_type = ""
+				_last_pending_action_paths = PackedStringArray()
+			else:
+				_schedule_resource_finalize_retry()
+			return
+		if kind == "project_settings_finalize":
+			if response_code in [400, 403, 409, 410, 413]:
+				var settings_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции настроек."))) if json else "Сервер отклонил завершение транзакции настроек."
+				_view.add_error(settings_error)
+				_pending_project_settings_action = {}
+				_pending_project_settings_expected_hash = ""
+				_pending_project_settings_semantic_hash = ""
+				_pending_project_settings_finalize_body = {}
+				_project_settings_finalize_retries = 0
+				_project_settings_finalize_retrying = false
+				_last_pending_action_type = ""
+				_last_pending_action_paths = PackedStringArray()
+			else:
+				_schedule_project_settings_finalize_retry()
+			return
+		if kind == "scene_finalize":
+			if response_code in [400, 403, 409, 410, 413]:
+				var scene_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции сцены."))) if json else "Сервер отклонил завершение транзакции сцены."
+				_view.add_error(scene_error)
+				_pending_scene_action = {}
+				_pending_scene_expected_hash = ""
+				_pending_scene_semantic_hash = ""
+				_pending_scene_finalize_body = {}
+				_scene_finalize_retries = 0
+				_scene_finalize_retrying = false
+				_last_pending_action_type = ""
+				_last_pending_action_paths = PackedStringArray()
+			else:
+				_schedule_scene_finalize_retry()
+			return
 		if kind == "check_log" and _auto_check:
 			# Авто-проверка не спамит в чат: нет лога, лог уже отправлялся,
 			# сервер занят или выключен — просто тихо пропускаем.
@@ -1549,7 +2289,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_schedule_api_cache_check_retry()
 			return
 		if kind == "confirm":
-			_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
+			if _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
+				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
 			err_msg = str(json["error"])
@@ -1648,24 +2389,20 @@ func _auto_reload_changed_scene(p: String) -> void:
 			return
 
 
-func _close_scenes_before_write() -> void:
-	# v49: Godot не применяет правки с ДИСКА к уже открытой сцене — изменения агента
-	# «не видны», пока сцену не закрыть и не открыть заново. Поэтому перед одобренной
-	# записью закрываем целевую сцену (сам файл агент правит на диске), а после ответа
-	# сервера открываем её обратно уже в новом виде — без вопросов о перезагрузке.
-	_scenes_to_reopen = PackedStringArray()
-	var ei: Object = EditorInterface
-	if not ei.has_method("close_scene"):
-		return  # старый Godot без close_scene: остаётся авто-перечитывание (v46)
-	for raw in [_last_pending_action_path, _last_pending_action_dest]:
+func _open_pending_scene_paths() -> PackedStringArray:
+	var result := PackedStringArray()
+	var open_scenes := EditorInterface.get_open_scenes()
+	var targets := _last_pending_action_paths.duplicate()
+	targets.append(_last_pending_action_path)
+	targets.append(_last_pending_action_dest)
+	for raw in targets:
 		var sp := str(raw)
-		if sp == "" or not (sp.ends_with(".tscn") or sp.ends_with(".scn")):
+		if sp == "" or not (sp.to_lower().ends_with(".tscn") or sp.to_lower().ends_with(".scn")):
 			continue
-		if not EditorInterface.get_open_scenes().has(sp):
-			continue
-		EditorInterface.open_scene_from_path(sp)  # делаем вкладку сцены активной
-		if int(ei.call("close_scene")) == OK and not _scenes_to_reopen.has(sp):
-			_scenes_to_reopen.append(sp)
+		for opened in open_scenes:
+			if str(opened).to_lower() == sp.to_lower() and not result.has(sp):
+				result.append(sp)
+	return result
 
 
 func _reopen_scenes_after_write() -> void:
@@ -1678,15 +2415,13 @@ func _reopen_scenes_after_write() -> void:
 
 
 func _ensure_script_autoreload_setting() -> void:
-	# v46: включаем в настройках редактора автоперечитывание скриптов,
-	# изменённых вне Godot (по аналогии с авто-включением файлового лога):
-	# убирает постоянный вопрос о перезагрузке скриптов после правок агента.
+	# Editor preferences belong to the user, not to the plugin.
 	var es = EditorInterface.get_editor_settings()
 	if es == null:
 		return
 	var key := "text_editor/behavior/files/auto_reload_scripts_on_external_change"
 	if es.has_setting(key) and not bool(es.get_setting(key)):
-		es.set_setting(key, true)
+		push_warning("Автоперезагрузка скриптов выключена. При необходимости включите её в Editor Settings; агент не меняет эту настройку.")
 
 
 func _force_reload_open_script() -> void:
@@ -1694,6 +2429,33 @@ func _force_reload_open_script() -> void:
 	if _last_pending_action_type == "move_file" and not _last_pending_action_dest.is_empty():
 		target_path = _last_pending_action_dest
 	_sync_open_script_with_disk(target_path)
+
+
+func _dirty_open_scripts(target_paths: PackedStringArray) -> PackedStringArray:
+	var affected := PackedStringArray()
+	if target_paths.is_empty():
+		return affected
+	var wanted := {}
+	for path in target_paths:
+		wanted[path.to_lower()] = true
+	var script_editor := EditorInterface.get_script_editor()
+	if not script_editor:
+		return affected
+	for script in script_editor.get_open_scripts():
+		if script and wanted.has(str(script.resource_path).to_lower()):
+			affected.append(str(script.resource_path))
+	if affected.is_empty():
+		return affected
+	# Public ScriptEditorBase has no get_edited_resource(). Do not assume that
+	# two editor arrays share an order: require all open buffers to be clean.
+	var editors := script_editor.get_open_script_editors()
+	if editors.is_empty():
+		return affected
+	for editor in editors:
+		var code_edit := editor.get_base_editor() as CodeEdit
+		if code_edit == null or code_edit.get_version() != code_edit.get_saved_version():
+			return affected
+	return PackedStringArray()
 
 
 func _sync_open_script_with_disk(target_path: String) -> void:
@@ -1754,8 +2516,19 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 # ---------------------------------------------------------------------------
 
 func _on_play_watch_tick() -> void:
+	if not _pending_scene_finalize_body.is_empty() and not _scene_finalize_retrying and not _is_network_busy \
+			and _pending_request_kind != "scene_finalize":
+		_send_pending_scene_finalize()
 	if _hl: _hl.watchdog()
 	_reconcile_confirm_buttons()
+	if not _pending_project_settings_finalize_body.is_empty() and not _project_settings_finalize_retrying and not _is_network_busy \
+			and _pending_request_kind != "project_settings_finalize":
+		_send_pending_project_settings_finalize()
+	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \
+			and _pending_request_kind != "resource_finalize":
+		_send_pending_resource_finalize()
+	if not _pending_runtime_check_result_body.is_empty() and not _is_network_busy:
+		_send_pending_runtime_check_result()
 	var playing := EditorInterface.is_playing_scene()
 	if _was_playing and not playing:
 		_was_playing = false
@@ -1887,9 +2660,41 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 				_pending_view = ""
 				_start_screen.show_sites()
 		return
+	if json.has("error"):
+		var message := str(json.get("error", _t("srv_no_response")))
+		_log_error(message)
+		_notify(message, "error")
+		if kind == "open" or kind == "new":
+			_site_resend_envelope = {}
+			_restore_chat_draft()
+		return
 	var cur = json.get("current_id")
+	if cur != null and (kind == "open" or kind == "new"):
+		_switch_chat_draft(str(cur))
 	if cur != null:
 		_current_chat_id = str(cur)
+	if kind == "open" or kind == "new":
+		_chat_navigation_generation += 1
+		# Не стираем новый draft, набранный пока запрос навигации был в пути.
+		# Очищаем только действительно пустое/старое визуальное состояние.
+		if input_field == null or input_field.text.is_empty():
+			_clear_chat_input(true)
+		var keeps_resend := (kind == "open"
+			and not _site_resend_envelope.is_empty()
+			and bool(_site_resend_envelope.get("waiting_open", false))
+			and str(_site_resend_envelope.get("chat_id", "")) == _current_chat_id
+			and int(_site_resend_envelope.get("expected_generation", -1)) == _chat_navigation_generation)
+		if not keeps_resend:
+			if not _site_resend_envelope.is_empty():
+				var source_chat := str(_site_resend_envelope.get("chat_id", ""))
+				var source_prompt := str(_site_resend_envelope.get("prompt", ""))
+				if source_chat != "" and source_prompt != "":
+					_chat_drafts[source_chat] = source_prompt
+			_site_resend_envelope = {}
+			# Это завершение навигации, а не успешная отправка сообщения.
+			# Не удаляем восстановленный draft нового чата.
+			_pending_chat_prompt = ""
+			_pending_editor_context = {}
 	_fill_chat_list(json.get("chats", []))
 	if _start_screen:
 		_start_screen.set_chats(json.get("chats", []))
@@ -1914,15 +2719,29 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 		if warn != "":
 			_view.add_system(warn)
 			_notify(warn, "error")
+		var trimmed := int(json.get("transcript_trimmed", 0))
+		if trimmed > 0:
+			_view.add_system("Более старые сообщения этого чата не показаны: %d." % trimmed)
 		_enter_chat_ui()
 		# У чата по ключу API нет страницы в браузере: ждать её загрузки нечего,
 		# а ожидание ещё и 40 раз опросило бы /browser/status и закончилось
 		# ложным предупреждением «страница долго грузится».
 		if str(json.get("kind", "browser")) != "api":
 			_begin_page_wait()
-		if _resend_after_open:
-			_resend_after_open = false
-			_send_chat_raw(_pending_chat_prompt, true)
+		if warn != "" and not _site_resend_envelope.is_empty():
+			_site_resend_envelope = {}
+			_restore_chat_draft()
+			return
+		if (not _site_resend_envelope.is_empty()
+				and bool(_site_resend_envelope.get("waiting_open", false))
+				and str(_site_resend_envelope.get("chat_id", "")) == _current_chat_id
+				and int(_site_resend_envelope.get("expected_generation", -1)) == _chat_navigation_generation):
+			var resend := _site_resend_envelope.duplicate(true)
+			_site_resend_envelope = {}
+			_pending_editor_context = resend.get("editor_context", {})
+			_send_chat_raw(str(resend.get("prompt", "")), true)
+		elif not _site_resend_envelope.is_empty():
+			_site_resend_envelope = {}
 	elif kind == "new" and _view:
 		_clear_pending_action_state()
 		_view.clear()
@@ -2144,6 +2963,9 @@ func _enter_chat_ui() -> void:
 		_start_screen.visible = false
 	if has_node("VBoxContainer"):
 		$VBoxContainer.visible = true
+	if input_field:
+		input_field.call_deferred("grab_focus")
+		input_field.queue_redraw()
 
 
 func _apply_chatbar_texts() -> void:
@@ -2222,6 +3044,13 @@ func _on_start_load_chat(chat_id: String) -> void:
 
 func _handle_site_mismatch(site_name: String, prompt: String) -> void:
 	_pending_chat_prompt = prompt
+	_site_resend_envelope = {
+		"prompt": prompt,
+		"editor_context": _pending_editor_context.duplicate(true),
+		"chat_id": _current_chat_id,
+		"generation": _chat_navigation_generation,
+		"waiting_open": false,
+	}
 	# Карточкой в чате вместо модального окна. ВАЖНО: «Нет» здесь не отмена —
 	# запрос всё равно уходит, только без переключения страницы
 	# (см. _on_site_switch_no), поэтому колбэк обязателен.
@@ -2238,17 +3067,38 @@ func _handle_site_mismatch(site_name: String, prompt: String) -> void:
 
 
 func _on_site_switch_yes() -> void:
-	if _current_chat_id == "":
-		_send_chat_raw(_pending_chat_prompt, true)
+	if (_site_resend_envelope.is_empty()
+			or str(_site_resend_envelope.get("chat_id", "")) != _current_chat_id
+			or int(_site_resend_envelope.get("generation", -1)) != _chat_navigation_generation):
+		_log_error("Чат изменился; исходный запрос не был повторно отправлен.")
+		_site_resend_envelope = {}
+		_restore_chat_draft()
 		return
-	_resend_after_open = true
+	if _current_chat_id == "":
+		var direct := _site_resend_envelope.duplicate(true)
+		_site_resend_envelope = {}
+		_pending_editor_context = direct.get("editor_context", {})
+		_send_chat_raw(str(direct.get("prompt", "")), true)
+		return
+	_site_resend_envelope["waiting_open"] = true
+	_site_resend_envelope["expected_generation"] = _chat_navigation_generation + 1
 	_request_chats("open", {"id": _current_chat_id})
 
 
 func _on_site_switch_no() -> void:
 	if _view:
 		_view.add_system(_t("stay_on_page"))
-	_send_chat_raw(_pending_chat_prompt, true)
+	if (_site_resend_envelope.is_empty()
+			or str(_site_resend_envelope.get("chat_id", "")) != _current_chat_id
+			or int(_site_resend_envelope.get("generation", -1)) != _chat_navigation_generation):
+		_log_error("Чат изменился; исходный запрос не был повторно отправлен.")
+		_site_resend_envelope = {}
+		_restore_chat_draft()
+		return
+	var resend := _site_resend_envelope.duplicate(true)
+	_site_resend_envelope = {}
+	_pending_editor_context = resend.get("editor_context", {})
+	_send_chat_raw(str(resend.get("prompt", "")), true)
 
 
 # ---------------------------------------------------------------------------

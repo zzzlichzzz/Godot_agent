@@ -20,6 +20,7 @@ from project_tools import (
     create_project_file,
     patch_project_file,
     move_project_file,
+    MoveRecoveryError,
     copy_project_file,
     search_project_text,
     describe_scene,
@@ -37,6 +38,17 @@ import minilich
 import gd_functions
 import librarian
 import log_reader
+import editor_context
+import runtime_debug
+import runtime_checks
+import gather_context
+import symbol_refactor
+import scene_actions
+import project_settings_actions
+import resource_actions
+import transaction_actions
+import high_level_actions
+import godot_headless_validation
 import chat_store
 import dashboard
 import json as _json
@@ -74,11 +86,17 @@ def _is_addon_path(path):
     """True, если путь res://... указывает внутрь папки addons/ проекта."""
     if not path:
         return False
-    p = str(path).replace("\\", "/")
-    if p.startswith("res://"):
-        p = p[len("res://"):]
-    p = p.lstrip("/")
-    return p.startswith("addons/")
+    from project_tools import is_addon_path
+    return is_addon_path(path, STATE.get("project_root"))
+
+
+def _is_project_settings_path(path):
+    p = str(path or "").replace("\\", "/").strip().lower()
+    return p in ("project.godot", "res://project.godot")
+
+
+def _is_text_scene_path(path):
+    return isinstance(path, str) and path.replace("\\", "/").lower().endswith(".tscn")
 
 
 def _addon_blocked_message(path):
@@ -92,7 +110,8 @@ import live_input
 import rate_limit  # v104.12: детект 429/лимитов + спящий режим
 import server_state
 from server_state import (
-    STATE, get_driver, set_driver, set_driver_error,
+    STATE, get_driver, set_driver, set_driver_error, claim_runtime_request,
+    reset_runtime_turn, bind_runtime_check, claim_runtime_check,
     _load_primed, _save_primed,
     _apply_session_context, _ensure_current_chat, _remember,
     _sync_chat_after_reply, _set_progress, _clear_progress,
@@ -124,11 +143,44 @@ import server_auth
 
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
-# Проверка источника запросов. Что она даёт и чего НЕ даёт — в докстринге
-# server_auth: от программы под той же учётной записью она не защищает, но
-# закрывает чужую учётную запись, случайные обращения и — главное — панель
-# другого проекта Godot, чьи правки иначе уехали бы в этот проект.
-server_auth.install(app, jsonify)
+app.teardown_request(server_state.clear_turn_chat)
+app.teardown_request(server_state.clear_request_activity)
+
+# Bound and authenticate request bodies before any stateful admission hook.
+server_auth.install(app, jsonify, body_limits={
+    "/init": 128 * 1024,
+    "/chat/runtime_inspect/result": runtime_debug.MAX_HTTP_BODY_BYTES,
+    "/chat/runtime_check/result": runtime_checks.MAX_HTTP_BODY_BYTES,
+})
+
+_CHAT_CONTINUATION_PATHS = {
+    "/chat/confirm_action", "/chat/editor_action/result",
+    "/chat/runtime_inspect/result", "/chat/runtime_check/bind",
+    "/chat/runtime_check/result",
+    "/chat/rollback/preview", "/chat/rollback",
+    "/chat/plan/step", "/chat/plan/stop",
+    "/chat/plan/rollback_chain", "/project/send_log_errors",
+}
+
+
+@app.before_request
+def _admit_chat_continuation():
+    """Serialize stateful continuations with user turns and navigation."""
+    if request.path not in _CHAT_CONTINUATION_PATHS:
+        return None
+    # Continuations are not fresh user turns: keep any pending cancel so
+    # «Стоп» stays effective across plan steps / confirmations / results.
+    if server_state.try_begin_turn_exchange(reset_cancel=False):
+        return None
+    if request.path in ("/chat/runtime_inspect/result", "/chat/runtime_check/result"):
+        return jsonify({"error": "Runtime result processing is busy; retry this result.",
+                        "code": "busy", "retryable": True}), 503, {"Retry-After": "1"}
+    return jsonify({"error": "Агент уже обрабатывает другой запрос или переключает чат.",
+                    "code": "busy"}), 409
+_EDITOR_ACTION_RESULTS = {}
+_RUNTIME_RESULTS = {}
+_RUNTIME_RESULT_TTL = 300.0
+_RUNTIME_RESULT_LIMIT = 32
 
 
 def _current_parser():
@@ -138,7 +190,7 @@ def _current_parser():
     site_id = None
     try:
         base = server_state._chats_dir()
-        cid = STATE.get("current_chat_id")
+        cid = server_state.turn_chat_id()
         if base and cid:
             rec = chat_store.find_chat(base, cid) or {}
             site_id = rec.get("site_id")
@@ -289,6 +341,8 @@ def _reply(prompt):
     attempt = 0
     while True:
         text, action = _reply_once(prompt)
+        if server_state.cancel_requested():
+            raise parser_base.ParserCancelled("остановлено пользователем")
         backend = _current_backend()
         try:
             net_status = backend.pop_rate_limit_status()
@@ -354,7 +408,7 @@ def _reply(prompt):
             while time.time() < t_end:
                 if server_state.cancel_requested():
                     print("<-- [повтор] пауза прервана кнопкой «Стоп».")
-                    return u"[Остановлено] Прерван во время паузы перед повтором.", None
+                    raise parser_base.ParserCancelled("остановлено пользователем")
                 time.sleep(0.5)
         finally:
             _clear_progress()
@@ -362,7 +416,8 @@ def _reply(prompt):
 
 def _reply_once(prompt):
     """Один запрос-ответ к модели, без какой-либо логики восстановления."""
-    server_state.clear_cancel()
+    if server_state.cancel_requested():
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     # v88.11: на время обмена «промпт->ответ» живой ввод (/chat/live_input)
     # не трогает браузер — конвейер сам вставит и сверит финальный промпт.
     server_state.begin_exchange()
@@ -376,11 +431,14 @@ def _reply_once(prompt):
             cancel_cb=server_state.cancel_requested,
             prefer_url=_chat_rec.get("url") or None)
     except parser_base.ParserCancelled:
+        server_state.request_cancel()
         print("<-- Запрос остановлен пользователем.")
         return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     finally:
         _clear_progress()
         server_state.end_exchange()
+    if server_state.cancel_requested():
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
     if isinstance(result, dict):
         text, action = result.get("text") or "", result.get("action")
         choice = result.get("battle_choice")
@@ -406,6 +464,40 @@ def _describe_action(action):
     if act == "list_files":
         return "Агент хочет получить свежее дерево файлов проекта" + ((" (папка %s)" % action.get("dir")) if action.get("dir") else "")
     if act == "list_scene": return f"Агент хочет посмотреть структуру сцены: {path}"
+    if act == "gather_context":
+        symbols = action.get("symbols") if isinstance(action.get("symbols"), list) else []
+        details = []
+        if action.get("query"):
+            details.append("запрос «%s»" % str(action.get("query"))[:120])
+        if symbols:
+            details.append("символы: " + ", ".join(str(x) for x in symbols[:4]))
+        return "Агент хочет одним проходом собрать контекст проекта" + ((": " + "; ".join(details)) if details else "")
+    if act == "inspect_runtime":
+        sections = action.get("sections") or []
+        selectors = action.get("properties") or []
+        property_count = sum(len(item.get("names") or []) for item in selectors if isinstance(item, dict))
+        return "Агент хочет прочитать состояние запущенной игры: %s (%d свойств)" % (
+            ", ".join(str(item) for item in sections), property_count)
+    if act == "run_check":
+        return "Агент хочет локально проверить сцену %s (%d шагов)" % (
+            action.get("scene", ""), len(action.get("steps") or []))
+    if act == "rename_symbol":
+        return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
+            action.get("old_name", ""), action.get("new_name", ""),
+            int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
+    if act in ("edit_scene", "create_scene"):
+        verb = "создать" if act == "create_scene" else "структурно изменить"
+        return "Агент хочет %s сцену %s (%d операций)" % (
+            verb, action.get("scene", ""), len(action.get("operations") or []))
+    if act == "edit_project_settings":
+        return "Агент хочет изменить настройки проекта через API Godot (%d операций)" % len(
+            action.get("operations") or [])
+    if act == "edit_resource":
+        return "Агент хочет структурно изменить ресурс %s (%d операций)" % (
+            action.get("resource", ""), len(action.get("operations") or []))
+    if act == "transaction":
+        return "Агент хочет атомарно изменить %d файл(ов) (%d операций)" % (
+            int(action.get("file_count") or 0), int(action.get("operation_count") or 0))
     if act == "plan":
         total = action.get("total", len(action.get("steps") or []))
         desc = action.get("description", "")
@@ -436,11 +528,15 @@ def _validate_plan_steps(steps, max_steps=None):
             )
         if not step.get("path"):
             return False, "шаг %d (%s) не содержит 'path'." % (i + 1, act)
+        if _is_project_settings_path(step.get("path")) or _is_project_settings_path(step.get("dest")):
+            return False, "шаг %d пытается править project.godot как текст. Используй edit_project_settings." % (i + 1)
         if (not STATE.get("addon_intent")) and (_is_addon_path(step.get("path")) or _is_addon_path(step.get("dest"))):
             return False, (
                 "шаг %d трогает файл аддона (res://addons/...), а пользователь это явно не запрашивал. "
                 "Не включай аддоны в план, если пользователь явно не попросил изменить аддон." % (i + 1)
             )
+        if _is_text_scene_path(step.get("path")) or _is_text_scene_path(step.get("dest")):
+            return False, "шаг %d пишет .tscn как текст. Используй create_scene/edit_scene." % (i + 1)
         if act == "create_file" and not isinstance(step.get("content"), str):
             return False, "шаг %d (create_file) не содержит текстового 'content'." % (i + 1)
         if act == "patch_file" and (not step.get("search") or not isinstance(step.get("replace"), str)):
@@ -589,7 +685,7 @@ def _content_collect_final(action):
     return chunk
 
 
-def _apply_write_step(action, project_root, chain_id=None):
+def _apply_write_step(action, project_root, chain_id=None, validation=None):
     """Применяет ОДНО write-действие (create_file/patch_file/move_file) на диске,
     с записью в журнал изменений. Общий путь для одиночных действий
     и для шагов плана (chain_id задаётся только во втором случае).
@@ -604,9 +700,22 @@ def _apply_write_step(action, project_root, chain_id=None):
     act_type = action.get("action")
     path = action.get("path", "")
     dest = action.get("dest", "")
+    if _is_project_settings_path(path) or _is_project_settings_path(dest):
+        return {"ok": False, "message": "project.godot изменяется только через edit_project_settings.",
+                "changed_path": None, "changed_block": None}
+    if _is_text_scene_path(path) or _is_text_scene_path(dest):
+        return {"ok": False, "message": ".tscn изменяются только через create_scene/edit_scene.",
+                "changed_path": None, "changed_block": None}
     if (not STATE.get("addon_intent")) and (_is_addon_path(path) or _is_addon_path(dest)):
         return {"ok": False, "message": _addon_blocked_message(path if _is_addon_path(path) else dest),
                 "changed_path": None, "changed_block": None}
+    if validation is not None:
+        try:
+            godot_headless_validation.verify_receipt(
+                project_root, validation.get("batch"), validation.get("receipt"))
+        except Exception as exc:
+            return {"ok": False, "message": str(exc),
+                    "changed_path": None, "changed_block": None}
     entry_id = history.record_change(project_root, action, *_current_chat_info(), chain_id=chain_id)
     try:
         if act_type == "create_file":
@@ -620,6 +729,9 @@ def _apply_write_step(action, project_root, chain_id=None):
         else:
             history.abort_change(project_root, entry_id)
             return {"ok": False, "message": "Неизвестный тип действия: %s" % act_type, "changed_path": None, "changed_block": None}
+    except MoveRecoveryError as e:
+        return {"ok": False, "message": str(e), "changed_path": None, "changed_block": None,
+                "recovery_required": True, "recovery_entry_id": entry_id}
     except Exception as e:
         history.abort_change(project_root, entry_id)
         return {"ok": False, "message": str(e), "changed_path": None, "changed_block": None}
@@ -783,7 +895,7 @@ def _read_functions_part(project_root, f):
     return "\n\n".join(out)
 
 
-def _package_model_reply(text, action, project_root, depth=0):
+def _package_model_reply(text, action, project_root, depth=0, allow_followup=True):
     """Единая упаковка ответа модели в HTTP-ответ для Godot:
     parse_error / запрос чтения / write-действие / просто текст."""
     if action and action.get("action") == "parse_error":
@@ -797,7 +909,7 @@ def _package_model_reply(text, action, project_root, depth=0):
     if action and action.get("action") == "create_file" and action.get("continues"):
         STATE["pending_action"] = None
         ok_part, followup = _content_part_add(action)
-        if depth >= MAX_CONTENT_PARTS + 3 or (not ok_part and depth >= 2):
+        if not allow_followup or depth >= MAX_CONTENT_PARTS + 3 or (not ok_part and depth >= 2):
             STATE["content_parts"] = None
             return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
         text2, act2 = _reply_with_self_heal(followup, project_root)
@@ -813,6 +925,11 @@ def _package_model_reply(text, action, project_root, depth=0):
             action.pop("content_part", None)
             action.pop("content_parts_total", None)
             action.pop("content_total_lines", None)
+    if not allow_followup and action and action.get("action") in ("create_file", "patch_file"):
+        problems = _lint_action_code(action, project_root)
+        if problems:
+            STATE["pending_action"] = None
+            return jsonify({"answer": text + "\n\n" + problems, "pending_action": None})
     if action and action.get("action") in ("read_file", "read_files", "read_function"):
         STATE["pending_action"] = None
         STATE["pending_batch"] = _start_read_batch(action, project_root)
@@ -821,7 +938,7 @@ def _package_model_reply(text, action, project_root, depth=0):
             # Все запрошенные файлы missing — сообщаем модели сразу (1 запрос),
             # но не глубже 2 раз — защита от зацикливания на несуществующих путях.
             followup = _finish_read_batch(project_root)
-            if depth >= 2:
+            if not allow_followup or depth >= 2:
                 return jsonify({"answer": text + "\n\n" + followup, "pending_action": None})
             text2, act2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, act2, project_root, depth + 1)
@@ -838,7 +955,7 @@ def _package_model_reply(text, action, project_root, depth=0):
         except Exception as e:
             followup = ("[Librarian]: internal error: %s. Fall back to search_project / "
                         "list_files / read_file." % e)
-        if depth >= 3:
+        if not allow_followup or depth >= 3:
             return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
         # A follow-up generated by the agent should not appear immediately
         # after the previous answer; the ordinary send pipeline adds its own
@@ -846,6 +963,41 @@ def _package_model_reply(text, action, project_root, depth=0):
         time.sleep(1.5)
         text2, act2 = _reply_with_self_heal(followup, project_root)
         return _package_model_reply(text2, act2, project_root, depth + 1)
+    if action and action.get("action") == "inspect_runtime":
+        try:
+            normalized = runtime_debug.normalize_action(action)
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                raise runtime_debug.RuntimeDebugError(
+                    "only one inspect_runtime action is allowed per user turn")
+            runtime_debug.select_session(
+                STATE.get("runtime_status"), normalized.get("session_id"))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            return jsonify({"answer": (text + "\n\n[Система]: inspect_runtime отклонён: %s" % exc).strip(),
+                            "pending_action": None})
+        STATE["pending_action"] = normalized
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": normalized,
+                        "pending_action_description": _describe_action(normalized),
+                         "pending_action_code": None})
+    if action and action.get("action") == "run_check":
+        try:
+            normalized = runtime_checks.normalize_action(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                raise runtime_checks.RuntimeCheckError(
+                    "only one inspect_runtime or run_check action is allowed per user turn")
+        except Exception as exc:
+            STATE["pending_action"] = None
+            return jsonify({"answer": (text + "\n\n[Система]: run_check отклонён: %s" % exc).strip(),
+                            "pending_action": None})
+        STATE["pending_action"] = normalized
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": normalized,
+                        "pending_action_description": _describe_action(normalized),
+                        "pending_action_code": None})
     if action and action.get("action") == "copy_file":
         STATE["pending_action"] = None
         raw_copies = action.get("copies")
@@ -864,6 +1016,12 @@ def _package_model_reply(text, action, project_root, depth=0):
                 pairs.append((s, d))
         results = []
         for s, d in pairs[:20]:
+            if _is_project_settings_path(s) or _is_project_settings_path(d):
+                results.append("✗ %s -> %s: project.godot изменяется только через edit_project_settings" % (s, d))
+                continue
+            if _is_text_scene_path(s) or _is_text_scene_path(d):
+                results.append("✗ %s -> %s: сцены создаются и изменяются только через create_scene/edit_scene" % (s, d))
+                continue
             if (not STATE.get("addon_intent")) and (_is_addon_path(s) or _is_addon_path(d)):
                 results.append("\u2717 %s -> %s: %s" % (s, d, _addon_blocked_message(s if _is_addon_path(s) else d)))
                 continue
@@ -889,10 +1047,23 @@ def _package_model_reply(text, action, project_root, depth=0):
             followup = ("[Система]: Результат копирования (файлы скопированы БЕЗ изменений; "
                         "адаптацию под проект делай через patch_file, он потребует подтверждения):\n"
                         + "\n".join(results))
-        if depth >= 3:
+        if not allow_followup or depth >= 3:
             return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
         text2, act2 = _reply_with_self_heal(followup, project_root)
         return _package_model_reply(text2, act2, project_root, depth + 1)
+    if action and action.get("action") == "project_command":
+        try:
+            compiled = high_level_actions.compile_action(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            followup = ("[Система]: project_command отклонена локальным компилятором: %s. "
+                        "Исправь схему команды; не заменяй её небезопасными текстовыми правками." % exc)
+            if not allow_followup or depth >= MAX_ACTION_FIX_RETRIES:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        return _package_model_reply(text, compiled, project_root, depth, allow_followup=allow_followup)
     if action and action.get("action") == "plan":
         STATE["pending_action"] = None
         # Многочастный план: модель присылает шаги несколькими сообщениями
@@ -901,7 +1072,7 @@ def _package_model_reply(text, action, project_root, depth=0):
         # подтвердит склеенный план ОДИН раз — целиком, за один проход.
         if action.get("continues"):
             ok_part, followup = _plan_part_add(action)
-            if depth >= MAX_PLAN_PARTS + 4 or (not ok_part and depth >= 2):
+            if not allow_followup or depth >= MAX_PLAN_PARTS + 4 or (not ok_part and depth >= 2):
                 STATE["plan_parts"] = None
                 return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
             text2, act2 = _reply_with_self_heal(followup, project_root)
@@ -910,7 +1081,7 @@ def _package_model_reply(text, action, project_root, depth=0):
         ok, err = _validate_plan_steps(steps, max_steps=MAX_PLAN_TOTAL_STEPS)
         if not ok:
             followup = "[Система]: план отклонён автоматически: %s Исправь и пришли agent_action заново (action=plan; если все шаги не помещаются в один ответ — частями через \"continues\": true)." % err
-            if depth >= 2:
+            if not allow_followup or depth >= 2:
                 return jsonify({"answer": (text + "\n\n" + followup).strip(), "pending_action": None})
             text2, act2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, act2, project_root, depth + 1)
@@ -935,6 +1106,200 @@ def _package_model_reply(text, action, project_root, depth=0):
             "pending_action_description": _describe_action(synthetic),
             "pending_action_code": None,
         })
+    if action and action.get("action") == "transaction":
+        receipt = None
+        try:
+            prepared = transaction_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")),
+                addon_dir=STATE.get("addon_dir"))
+            if prepared["batch"] is not None:
+                receipt = godot_headless_validation.validate_batch(
+                    project_root, prepared["batch"], executable=STATE.get("godot_executable"))
+                engine_error = godot_headless_validation.blocking_message(receipt)
+                if engine_error:
+                    raise transaction_actions.TransactionError(engine_error)
+                godot_headless_validation.verify_receipt(project_root, prepared["batch"], receipt)
+                transaction_actions.attach_validation(prepared, receipt)
+            if prepared.get("already_satisfied"):
+                STATE["pending_action"] = None
+                STATE["pending_transaction"] = None
+                check_note = " Запрошенные проверки Godot пройдены." if prepared["batch"] else ""
+                message = (text + "\n\n[Система]: Пакет уже полностью выполнен в проекте; "
+                           "запись файлов, подтверждение и дополнительный запрос к модели не требуются."
+                           + check_note).strip()
+                return jsonify({"answer": message, "pending_action": None,
+                                "already_satisfied": True, "changed_paths": [],
+                                "effective_operation_count": 0,
+                                "skipped_operation_count": prepared.get("skipped_operation_count", 0)})
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_transaction"] = None
+            followup = ("[Система]: transaction отклонена локальной пакетной проверкой: %s. "
+                        "Исправь операции и пришли весь пакет заново; не разбивай его на небезопасные частичные правки." % exc)
+            report = (receipt or {}).get("report") or {}
+            infrastructure_failure = receipt is not None and not (
+                report.get("new_diagnostics") or report.get("check_diagnostics"))
+            if not allow_followup or depth >= 2 or infrastructure_failure:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = transaction_actions.public_prepared(prepared)
+        STATE["pending_transaction"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diffs": transaction_actions.prepared_diffs(prepared)})
+    if action and action.get("action") == "rename_symbol":
+        try:
+            prepared = symbol_refactor.prepare_rename(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")),
+                addon_dir=STATE.get("addon_dir"))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            followup = ("[Система]: rename_symbol отклонён безопасным локальным анализом: %s. "
+                        "Не заменяй имя слепыми patch_file; исправь locator/имя или объясни "
+                        "пользователю найденную неоднозначность." % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        batch = godot_headless_validation.batch_from_rename(project_root, prepared)
+        receipt = godot_headless_validation.validate_batch(
+            project_root, batch, executable=STATE.get("godot_executable"))
+        engine_error = godot_headless_validation.blocking_message(receipt)
+        if engine_error:
+            STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            report = receipt.get("report") or {}
+            if allow_followup and depth < MAX_ACTION_FIX_RETRIES and report.get("new_diagnostics"):
+                text2, action2 = _reply_with_self_heal(engine_error, project_root)
+                return _package_model_reply(text2, action2, project_root, depth + 1)
+            return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
+                            "pending_action": None})
+        prepared["validation"] = {"batch": batch, "receipt": receipt}
+        public = dict(action)
+        public.update(symbol_refactor.public_prepared(prepared))
+        STATE["pending_refactor"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        diffs = symbol_refactor.prepared_diffs(prepared)
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
+                         "pending_action_diffs": diffs})
+    if action and action.get("action") in ("edit_scene", "create_scene"):
+        try:
+            prepared = scene_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_scene_action"] = None
+            followup = ("[Система]: структурное действие сцены отклонено локальной проверкой схемы: %s. "
+                        "Исправь пути/операции; не заменяй структурную операцию сырой правкой .tscn."
+                        % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(prepared["action"])
+        public.update(scene_actions.public_prepared(prepared))
+        STATE["pending_scene_action"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                         "scene_prepare": scene_actions.public_prepared(prepared)})
+    if action and action.get("action") == "edit_project_settings":
+        try:
+            prepared = project_settings_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_project_settings_action"] = None
+            followup = ("[Система]: edit_project_settings отклонён локальной проверкой схемы: %s. "
+                        "Исправь операции; не правь project.godot через patch_file/create_file/move_file."
+                        % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(prepared["action"])
+        public.update(project_settings_actions.public_prepared(prepared))
+        STATE["pending_project_settings_action"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "project_settings_prepare": project_settings_actions.public_prepared(prepared)})
+    if action and action.get("action") == "edit_resource":
+        try:
+            prepared = resource_actions.prepare(
+                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_resource_action"] = None
+            followup = ("[Система]: edit_resource отклонён локальной проверкой схемы: %s. "
+                        "Исправь ресурс/операции; не заменяй структурную операцию сырой правкой .tres."
+                        % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(prepared["action"])
+        public.update(resource_actions.public_prepared(prepared))
+        STATE["pending_resource_action"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "resource_prepare": resource_actions.public_prepared(prepared)})
+    if action and action.get("action") in ("create_file", "patch_file", "move_file"):
+        if _is_text_scene_path(action.get("path")) or _is_text_scene_path(action.get("dest")):
+            engine_error = ("[Система]: сырая запись .tscn отклонена. Для новой сцены используй "
+                            "create_scene, для существующей — edit_scene; не обходи структурный API.")
+            STATE["pending_action"] = None
+            STATE["pending_validation"] = None
+            if allow_followup and depth < MAX_ACTION_FIX_RETRIES:
+                text2, action2 = _reply_with_self_heal(engine_error, project_root)
+                return _package_model_reply(text2, action2, project_root, depth + 1)
+            return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
+                            "pending_action": None})
+        try:
+            batch = godot_headless_validation.batch_from_action(project_root, action)
+            receipt = godot_headless_validation.validate_batch(
+                project_root, batch, executable=STATE.get("godot_executable"))
+        except Exception as exc:
+            receipt = None
+            engine_error = "[Система]: не удалось подготовить изолированную проверку Godot: %s" % exc
+        else:
+            engine_error = godot_headless_validation.blocking_message(receipt)
+        if engine_error:
+            STATE["pending_action"] = None
+            STATE["pending_validation"] = None
+            report = (receipt or {}).get("report") or {}
+            if allow_followup and depth < MAX_ACTION_FIX_RETRIES and report.get("new_diagnostics"):
+                text2, action2 = _reply_with_self_heal(engine_error, project_root)
+                return _package_model_reply(text2, action2, project_root, depth + 1)
+            return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
+                            "pending_action": None})
+        STATE["pending_validation"] = {"batch": batch, "receipt": receipt}
     if not text and action is None:
         # Пустой ответ из браузера: парсер мог не дождаться конца генерации
         # длинного ответа. Не молчим — пользователь должен это увидеть.
@@ -1332,6 +1697,14 @@ def _lenient_resend_note(action, msg):
 
 
 def _reply_with_self_heal(prompt, project_root):
+    # Cancellation ends the entire repair chain, not just one backend call.
+    try:
+        return _reply_with_self_heal_impl(prompt, project_root)
+    except parser_base.ParserCancelled:
+        return "[Остановлено] Запрос прерван кнопкой «Стоп».", None
+
+
+def _reply_with_self_heal_impl(prompt, project_root):
     text, action = _reply(prompt)
     retries = 0
     while retries < MAX_ACTION_FIX_RETRIES:
@@ -1696,6 +2069,17 @@ def _build_priming_context(project_root):
 
 @app.route('/init', methods=['POST'])
 def init_session():
+    if not server_state.try_begin_navigation():
+        return jsonify({"error": "Агент обрабатывает запрос; синхронизация отложена.",
+                        "code": "busy"}), 409
+    # Editor writes execute between HTTP requests. Admission alone does not
+    # protect their reserved history and capability tokens from a reset.
+    if any(STATE.get(key) is not None for key in (
+            "pending_scene_action", "pending_project_settings_action",
+            "pending_resource_action", "pending_transaction",
+            "pending_runtime_request", "pending_runtime_check")):
+        return jsonify({"error": "Сначала завершите или отклоните ожидающую операцию.",
+                        "code": "pending_operation"}), 409
     data = request.json or {}
     STATE["project_root"] = data.get('project_root')
     # v87.9: точная версия движка для мега-промпта (плагин шлёт её в /init).
@@ -1704,9 +2088,17 @@ def init_session():
         STATE["godot_version"] = _gv
     _apply_session_context(data)
     STATE["pending_action"] = None
+    STATE["pending_refactor"] = None
+    STATE["pending_scene_action"] = None
+    STATE["pending_project_settings_action"] = None
+    STATE["pending_resource_action"] = None
+    STATE["pending_validation"] = None
+    STATE["pending_transaction"] = None
     STATE["pending_batch"] = None
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
+    STATE["editor_context"] = None
+    reset_runtime_turn(runtime_debug.normalize_status(data.get("runtime_status")))
     if STATE.get("fs_snapshot") is None or STATE.get("fs_snapshot_root") != STATE["project_root"]:
         _refresh_fs_snapshot(STATE["project_root"])
     reinit = bool(data.get("reinit", False))
@@ -1727,6 +2119,21 @@ def chat():
     data = request.json or {}
     prompt = data.get('prompt', '')
     project_root = data.get('project_root')
+    old_fs_snapshot = STATE.get("fs_snapshot")
+    old_fs_snapshot_root = STATE.get("fs_snapshot_root")
+
+    if not server_state.try_begin_turn_exchange():
+        return jsonify({"error": "Агент уже обрабатывает запрос или переключает чат.",
+                        "code": "busy"}), 409
+
+    requested_chat_id = str(data.get("chat_id") or "").strip()
+    current_chat_id = str(STATE.get("current_chat_id") or "")
+    if requested_chat_id and requested_chat_id != current_chat_id:
+        return jsonify({"error": "Открытый чат изменился до отправки сообщения.",
+                        "code": "chat_changed"}), 409
+    turn_chat_id = requested_chat_id or current_chat_id
+    if turn_chat_id:
+        server_state.bind_turn_chat(turn_chat_id)
 
     if STATE["pending_action"] is not None:
         return jsonify({"error": "Есть неподтверждённое действие агента."}), 409
@@ -1734,6 +2141,14 @@ def chat():
         return jsonify({"error": "Есть неподтверждённые запросы файлов агента."}), 409
 
     _apply_session_context(data)
+    if requested_chat_id:
+        base = server_state._chats_dir()
+        if not base or chat_store.find_chat(base, requested_chat_id) is None:
+            return jsonify({"error": "Чат для отправки сообщения не найден.",
+                            "code": "chat_not_found"}), 404
+    STATE["editor_context"] = editor_context.normalize_snapshot(
+        data.get("editor_context"))
+    reset_runtime_turn(runtime_debug.normalize_status(data.get("runtime_status")), increment=True)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     STATE["battle_choice_summary"] = None
     STATE["plan_parts"] = None  # незавершённые части плана от прошлого обмена сбрасываются
@@ -1751,7 +2166,12 @@ def chat():
     # задаётся заново на каждое такое сообщение, а не один раз, чтобы доступ к аддонам не застревал навсегда.
     STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
-    _ensure_current_chat(prompt)
+    ensured_chat = _ensure_current_chat(prompt)
+    if not turn_chat_id and ensured_chat is not None:
+        turn_chat_id = str(ensured_chat.get("id") or "")
+        if turn_chat_id:
+            server_state.bind_turn_chat(turn_chat_id)
+    server_state.begin_turn_transcript(turn_chat_id)
     # Страховка: если история ТЕКУЩЕГО чата пуста — это первое сообщение,
     # и мега-промпт нужен ВСЕГДА: глобальный флаг мог остаться от старого чата
     # или подгрузиться с диска при /init уже ПОСЛЕ создания нового чата.
@@ -1776,16 +2196,15 @@ def chat():
     try:
         # v45: заметка отдаётся только тому же чату, где произошло действие/откат —
         # другие чаты (в т.ч. только созданные) её НЕ видят.
-        note = server_state.pop_action_note_for_current()
+        note = server_state.peek_action_note_for_current()
         if note:
             prompt = f"{note}\n\n{prompt}"
 
         # Сводка «что изменилось, пока чат был неактивен» (готовится при
         # открытии чата, отправляется ОДИН раз с первым сообщением).
-        stale = STATE.get("stale_note", "")
+        stale = server_state.peek_stale_note_for_current()
         if stale:
             prompt = f"{stale}\n\n{prompt}"
-            STATE["stale_note"] = ""
 
         # Файлы, изменённые ВНЕ агента (пользователь удалил сцену, поменял
         # скрипт руками...) — модель узнаёт об этом вместе с этим сообщением.
@@ -1793,6 +2212,14 @@ def chat():
         if ext_note:
             print("--> Обнаружены внешние изменения файлов проекта, сообщаем модели")
             prompt = f"{ext_note}\n\n{prompt}"
+
+        prompt, context_sizes = editor_context.attach_to_prompt(
+            prompt, STATE.get("editor_context"))
+        prompt = runtime_debug.attach_status(prompt, STATE.get("runtime_status"))
+        if context_sizes.get("total"):
+            sizes = ", ".join("%s=%d" % (key, context_sizes[key])
+                              for key in sorted(context_sizes))
+            print("--> Editor context v1: " + sizes)
 
         # v104.2: источник истины про мега-промпт — запись САМОГО чата, а не
         # глобальный флаг проекта (тот перетирается при создании/открытии
@@ -1830,9 +2257,50 @@ def chat():
             print(f"\n---> Отправка сообщения ({len(prompt)} симв.)")
             text, action = _reply_with_self_heal(prompt, current_root)
 
-        return _attach_battle_choice(
+        packaged = _attach_battle_choice(
             _package_model_reply(text, action, current_root))
+        packaged_status = (int(packaged[1]) if isinstance(packaged, tuple)
+                           and len(packaged) > 1 else
+                           int(getattr(packaged, "status_code", 200) or 200))
+        if packaged_status >= 400:
+            server_state.discard_turn_transcript()
+            STATE["fs_snapshot"] = old_fs_snapshot
+            STATE["fs_snapshot_root"] = old_fs_snapshot_root
+            return packaged
+        try:
+            visible_payload = (packaged[0].get_json(silent=True)
+                               if isinstance(packaged, tuple)
+                               else packaged.get_json(silent=True))
+        except Exception:
+            visible_payload = None
+        if isinstance(visible_payload, dict):
+            server_state.ensure_turn_agent_response(visible_payload.get("answer"))
+        try:
+            server_state.commit_turn_transcript()
+        except Exception as persist_error:
+            # Модель уже приняла запрос и pending action мог быть подготовлен.
+            # Ошибка HTTP восстановила бы draft и продублировала его на сайте/API.
+            # Возвращаем принятый результат, но явно сообщаем, что локальная
+            # история не сохранена: скрытая потеря хуже видимого предупреждения.
+            server_state.discard_turn_transcript()
+            print("❌ Не удалось сохранить transcript принятого хода: %s" % persist_error)
+            if isinstance(visible_payload, dict):
+                visible_payload["transcript_persisted"] = False
+                visible_payload["transcript_warning"] = (
+                    "Ответ получен, но локальную историю чата сохранить не удалось. "
+                    "Не закрывайте этот чат до исправления доступа к диску.")
+                return jsonify(visible_payload)
+            return packaged
+        server_state.consume_action_note_for_current(note)
+        server_state.consume_stale_note_for_current(stale)
+        if not server_state.turn_chat_is_current():
+            server_state.clear_pending_confirmations()
+            return jsonify({"error": "Чат изменился во время обработки; ответ сохранён в исходном чате.",
+                            "code": "chat_changed"}), 409
+        return packaged
     except Exception as e:
+        STATE["fs_snapshot"] = old_fs_snapshot
+        STATE["fs_snapshot_root"] = old_fs_snapshot_root
         print(f"❌ ОШИБКА: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -1899,12 +2367,229 @@ def confirm_action():
             print(f"--> Действие '{act_type}' ОТКЛОНЕНО пользователем.")
             server_state.queue_action_note(f"[Система: Пользователь ОТКЛОНИЛ ваше действие {act_type} для {path}. Изменение НЕ было применено! Скорректируй подход.]")
             STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            STATE["pending_scene_action"] = None
+            STATE["pending_project_settings_action"] = None
+            STATE["pending_resource_action"] = None
+            STATE["pending_validation"] = None
+            STATE["pending_transaction"] = None
+            STATE["pending_runtime_request"] = None
+            STATE["pending_runtime_check"] = None
             return jsonify({"answer": "[Система]: Действие отклонено пользователем.", "pending_action": None})
+
+        if act_type == "inspect_runtime":
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                STATE["pending_action"] = None
+                return jsonify({"error": "Runtime snapshot уже запрашивался в этом ходе."}), 409
+            try:
+                pending = runtime_debug.create_request(
+                    action, STATE.get("runtime_status"), STATE.get("current_chat_id"),
+                    STATE.get("runtime_turn_id"))
+                pending["project_root"] = STATE.get("project_root")
+            except runtime_debug.RuntimeDebugError as exc:
+                STATE["pending_action"] = None
+                return jsonify({"error": str(exc)}), 409
+            STATE["pending_runtime_request"] = pending
+            STATE["runtime_inspections_this_turn"] = 1
+            STATE["pending_action"] = None
+            return jsonify({"answer": "[Система]: Runtime inspection подтверждён.",
+                            "pending_action": None,
+                            "runtime_request": runtime_debug.public_request(pending)})
+
+        if act_type == "run_check":
+            if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
+                STATE["pending_action"] = None
+                return jsonify({"error": "Runtime action уже выполнялся в этом ходе."}), 409
+            pending = runtime_checks.create_request(
+                action, STATE.get("current_chat_id"), STATE.get("runtime_turn_id"), project_root,
+                STATE.get("user_data_dir"))
+            STATE["pending_runtime_check"] = pending
+            STATE["runtime_inspections_this_turn"] = 1
+            STATE["pending_action"] = None
+            return jsonify({"answer": "[Система]: Локальная игровая проверка подтверждена.",
+                            "pending_action": None,
+                            "runtime_check_request": runtime_checks.public_request(pending)})
+
+        if act_type == "rename_symbol":
+            prepared = STATE.get("pending_refactor")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция переименования утрачена."}), 409
+            print("--> rename_symbol %s -> %s. Применяем %d файл(ов)..." % (
+                prepared.get("old_name"), prepared.get("new_name"),
+                len(prepared.get("files") or [])))
+            try:
+                validation = prepared.get("validation") or {}
+                godot_headless_validation.verify_receipt(
+                    project_root, validation.get("batch"), validation.get("receipt"))
+                result = symbol_refactor.apply_prepared_rename(
+                    project_root, prepared, *_current_chat_info())
+            except symbol_refactor.StaleRenameError as exc:
+                STATE["pending_action"] = None
+                STATE["pending_refactor"] = None
+                return jsonify({"error": str(exc)}), 409
+            except godot_headless_validation.StaleValidationError as exc:
+                STATE["pending_action"] = None
+                STATE["pending_refactor"] = None
+                STATE["pending_validation"] = None
+                return jsonify({"error": str(exc)}), 409
+            STATE["pending_action"] = None
+            STATE["pending_refactor"] = None
+            STATE["pending_validation"] = None
+            changed_paths = result["changed_paths"]
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+            return jsonify({
+                "answer": "[Система]: Символ %s безопасно переименован в %s (%d файл(ов), %d ссылок)." % (
+                    prepared["old_name"], prepared["new_name"], result["file_count"],
+                    result["reference_count"]),
+                "pending_action": None, "changed_paths": changed_paths,
+                "history_entry_id": result["entry_id"],
+            })
+
+        if act_type == "transaction":
+            prepared = STATE.get("pending_transaction")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная пакетная транзакция утрачена."}), 409
+            try:
+                result = transaction_actions.apply_prepared(
+                    project_root, prepared, *_current_chat_info())
+            except (transaction_actions.StaleTransactionError,
+                    godot_headless_validation.StaleValidationError) as exc:
+                STATE["pending_action"] = None
+                STATE["pending_transaction"] = None
+                return jsonify({"error": str(exc)}), 409
+            STATE["pending_action"] = None
+            STATE["pending_transaction"] = None
+            changed_paths = result["changed_paths"]
+            librarian.note_files_changed(project_root, changed_paths)
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+            return jsonify({
+                "answer": "[Система]: Пакетная транзакция применена атомарно (%d файл(ов))." % result["file_count"],
+                "pending_action": None, "changed_paths": changed_paths,
+                "history_entry_id": result["entry_id"],
+            })
+
+        if act_type in ("edit_scene", "create_scene"):
+            prepared = STATE.get("pending_scene_action")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция сцены утрачена."}), 409
+            _normalized, absolute = scene_actions.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+            if act_type == "edit_scene" and scene_actions.file_sha256(absolute) != prepared["before_hash"]:
+                STATE["pending_action"] = None
+                STATE["pending_scene_action"] = None
+                return jsonify({"error": "Сцена изменилась после предпросмотра."}), 409
+            editor_semantic_hash = str(data.get("editor_semantic_hash") or "")
+            if len(editor_semantic_hash) != 64:
+                STATE["pending_action"] = None
+                STATE["pending_scene_action"] = None
+                return jsonify({"error": "Godot не подтвердил структурный предпросмотр сцены."}), 409
+            prepared["editor_semantic_hash"] = editor_semantic_hash
+            states = None
+            if act_type == "create_scene":
+                if os.path.lexists(absolute):
+                    STATE["pending_action"] = None
+                    STATE["pending_scene_action"] = None
+                    return jsonify({"error": "Сцена появилась после предпросмотра; создание отменено."}), 409
+                states = [{"path": prepared["scene"], "before_bytes": None, "after_bytes": b"pending"}]
+            entry_id = history.record_batch_change(
+                project_root, act_type, [prepared["scene"]], *_current_chat_info(), states=states)
+            prepared["entry_id"] = entry_id
+            prepared["execution_token"] = os.urandom(24).hex()
+            prepared["state"] = "executing"
+            STATE["pending_action"] = None
+            return jsonify({
+                "answer": "[Система]: Действие подтверждено; Godot применяет структурные операции.",
+                "pending_action": None,
+                "execute_in_editor": True,
+                "editor_action": prepared["action"],
+                "action_id": prepared["action_id"],
+                "action_digest": prepared["action_digest"],
+                "expected_scene_hash": prepared["before_hash"] or "",
+                "execution_token": prepared["execution_token"],
+            })
+
+        if act_type == "edit_project_settings":
+            prepared = STATE.get("pending_project_settings_action")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция настроек проекта утрачена."}), 409
+            _normalized, absolute = project_settings_actions.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+            if project_settings_actions.file_sha256(absolute) != prepared["before_hash"]:
+                STATE["pending_action"] = None
+                STATE["pending_project_settings_action"] = None
+                return jsonify({"error": "project.godot изменился после предпросмотра."}), 409
+            editor_semantic_hash = str(data.get("editor_semantic_hash") or "")
+            if len(editor_semantic_hash) != 64:
+                STATE["pending_action"] = None
+                STATE["pending_project_settings_action"] = None
+                return jsonify({"error": "Godot не подтвердил предпросмотр настроек проекта."}), 409
+            prepared["editor_semantic_hash"] = editor_semantic_hash
+            entry_id = history.record_batch_change(
+                project_root, "edit_project_settings", ["res://project.godot"], *_current_chat_info())
+            prepared["entry_id"] = entry_id
+            prepared["execution_token"] = os.urandom(24).hex()
+            prepared["state"] = "executing"
+            STATE["pending_action"] = None
+            return jsonify({
+                "answer": "[Система]: Изменение подтверждено; Godot применяет настройки проекта.",
+                "pending_action": None, "execute_in_editor": True,
+                "editor_action_kind": "project_settings", "editor_action": prepared["action"],
+                "action_id": prepared["action_id"], "action_digest": prepared["action_digest"],
+                "expected_project_hash": prepared["before_hash"],
+                "execution_token": prepared["execution_token"],
+            })
+
+        if act_type == "edit_resource":
+            prepared = STATE.get("pending_resource_action")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция ресурса утрачена."}), 409
+            _normalized, absolute = resource_actions.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+            if resource_actions.file_sha256(absolute) != prepared["before_hash"]:
+                STATE["pending_action"] = None
+                STATE["pending_resource_action"] = None
+                return jsonify({"error": "Ресурс изменился после предпросмотра."}), 409
+            editor_semantic_hash = str(data.get("editor_semantic_hash") or "")
+            dependency_fingerprint = str(data.get("dependency_fingerprint") or "")
+            if len(editor_semantic_hash) != 64 or len(dependency_fingerprint) != 64:
+                STATE["pending_action"] = None
+                STATE["pending_resource_action"] = None
+                return jsonify({"error": "Godot не подтвердил структурный предпросмотр ресурса."}), 409
+            prepared["editor_semantic_hash"] = editor_semantic_hash
+            prepared["dependency_fingerprint"] = dependency_fingerprint
+            entry_id = history.record_batch_change(
+                project_root, "edit_resource", [prepared["resource"]], *_current_chat_info())
+            prepared["entry_id"] = entry_id
+            prepared["execution_token"] = os.urandom(24).hex()
+            prepared["state"] = "executing"
+            STATE["pending_action"] = None
+            return jsonify({
+                "answer": "[Система]: Изменение подтверждено; Godot применяет операции ресурса.",
+                "pending_action": None, "execute_in_editor": True,
+                "editor_action_kind": "resource", "editor_action": prepared["action"],
+                "action_id": prepared["action_id"], "action_digest": prepared["action_digest"],
+                "expected_resource_hash": prepared["before_hash"],
+                "expected_dependency_fingerprint": dependency_fingerprint,
+                "execution_token": prepared["execution_token"],
+            })
 
         if act_type in ("create_file", "patch_file", "move_file"):
             print(f"--> {act_type} {path}. Выполняем локально...")
-            result = _apply_write_step(action, project_root)
+            result = _apply_write_step(
+                action, project_root, validation=STATE.get("pending_validation"))
             STATE["pending_action"] = None
+            STATE["pending_validation"] = None
             if not result["ok"]:
                 raise RuntimeError(result["message"])
             # changed_path/changed_block — панель откроет файл в редакторе и
@@ -1929,6 +2614,19 @@ def confirm_action():
                 print(f"--> Поиск по проекту: {query!r}")
                 results, truncated = search_project_text(project_root, query)
                 followup = _format_search_results(query, results, truncated)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "gather_context":
+            STATE["pending_action"] = None
+            print("--> Составной сбор контекста проекта...")
+            result = gather_context.gather(
+                project_root, action,
+                editor_snapshot=STATE.get("editor_context"),
+                addon_dir=STATE.get("addon_dir"),
+                allow_addons=bool(STATE.get("addon_intent")))
+            followup = gather_context.format_result(result)
+            print("--> Контекст собран, отправляем одним сообщением (%d симв.)" % len(followup))
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 
@@ -1972,10 +2670,322 @@ def confirm_action():
             return jsonify({"error": f"Неизвестный тип действия: {act_type}"}), 400
 
     except Exception as e:
+        server_state.discard_turn_transcript()
+        if not (act_type == "transaction" and isinstance(STATE.get("pending_transaction"), dict)
+                and STATE["pending_transaction"].get("state") == "recovery_required"):
+            STATE["pending_transaction"] = None
         STATE["pending_action"] = None
+        STATE["pending_refactor"] = None
+        STATE["pending_scene_action"] = None
+        STATE["pending_project_settings_action"] = None
+        STATE["pending_resource_action"] = None
+        STATE["pending_runtime_request"] = None
+        STATE["pending_validation"] = None
         print(f"❌ ОШИБКА confirm_action: {e}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/chat/editor_action/result', methods=['POST'])
+def editor_action_result():
+    """Finalize one Godot-executed scene, settings, or resource transaction."""
+    data = request.json or {}
+    identity = (str(data.get("action_id") or ""), str(data.get("execution_token") or ""))
+    cached = _EDITOR_ACTION_RESULTS.get(identity)
+    if cached is not None:
+        body, status = cached
+        return jsonify(body), status
+    action_kind = str(data.get("editor_action_kind") or "scene")
+    pending_keys = {"scene": "pending_scene_action",
+                    "project_settings": "pending_project_settings_action",
+                    "resource": "pending_resource_action"}
+    pending_key = pending_keys.get(action_kind)
+    if pending_key is None:
+        return jsonify({"error": "Неизвестный тип editor-транзакции."}), 400
+    prepared = STATE.get(pending_key)
+    if not isinstance(prepared, dict) or prepared.get("state") != "executing":
+        return jsonify({"error": "Нет выполняемой editor-транзакции."}), 409
+    expected = (prepared.get("action_id"), prepared.get("execution_token"))
+    if identity != expected:
+        return jsonify({"error": "Токен editor-транзакции не совпадает."}), 403
+    project_root = STATE.get("project_root")
+    entry_id = prepared.get("entry_id")
+    changed_path = prepared.get("scene") or prepared.get("resource") or prepared.get("target")
+    success = bool(data.get("success"))
+    is_settings = pending_key == "pending_project_settings_action"
+    is_resource = pending_key == "pending_resource_action"
+    is_create_scene = prepared.get("action", {}).get("action") == "create_scene"
+    target_written = bool(data.get("target_written")) if is_create_scene else False
+    staged_hash = str(data.get("staged_hash") or "") if is_create_scene else ""
+    hash_field = "project_hash" if is_settings else ("resource_hash" if is_resource else "scene_hash")
+    reported_hash = str(data.get(hash_field) or "")
+    try:
+        actions_module = (project_settings_actions if is_settings else
+                          (resource_actions if is_resource else scene_actions))
+        if is_resource:
+            _normalized, absolute = actions_module.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")),
+                require_exists=False)
+        elif pending_key == "pending_scene_action":
+            _normalized, absolute = actions_module.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")),
+                require_target_state=False)
+        else:
+            _normalized, absolute = actions_module.normalize_action(
+                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+        try:
+            actual_hash = actions_module.file_sha256(absolute)
+        except (OSError, FileNotFoundError):
+            actual_hash = ""
+        if is_create_scene and success:
+            if target_written:
+                history.abort_change(project_root, entry_id)
+                STATE[pending_key] = None
+                return jsonify({"error": "Godot не должен напрямую записывать новую сцену."}), 409
+            try:
+                actual_hash = scene_actions.materialize_staged_scene(
+                    absolute, str(prepared.get("action_id") or ""), staged_hash)
+                target_written = True
+                reported_hash = actual_hash
+            except scene_actions.SceneActionError as exc:
+                scene_actions.discard_staged_scene(
+                    absolute, str(prepared.get("action_id") or ""))
+                history.abort_change(project_root, entry_id)
+                STATE[pending_key] = None
+                body = {"success": False, "restored": True,
+                        "answer": "[Система]: Новая сцена не опубликована: %s" % exc,
+                        "changed_paths": []}
+                _EDITOR_ACTION_RESULTS[identity] = (body, 409)
+                return jsonify(body), 409
+        if success and not is_create_scene and not reported_hash:
+            return jsonify({"error": "Godot не передал хэш записанного файла; резерв истории сохранён."}), 409
+        if reported_hash and reported_hash != actual_hash:
+            restored, message, paths = history.restore_reserved_change(
+                project_root, entry_id, current_hash=reported_hash,
+                remove_created=False)
+            if restored:
+                STATE[pending_key] = None
+                _refresh_fs_snapshot(project_root)
+            body = {"success": False, "restored": restored,
+                    "answer": "[Система]: Хэш отчёта Godot не совпал с диском. " + message,
+                    "changed_paths": paths}
+            status = 200 if restored else 409
+            if restored:
+                _EDITOR_ACTION_RESULTS[identity] = (body, status)
+            return jsonify(body), status
+        if not success:
+            if is_create_scene:
+                scene_actions.discard_staged_scene(
+                    absolute, str(prepared.get("action_id") or ""))
+            restored, message, paths = history.restore_reserved_change(
+                project_root, entry_id, current_hash=reported_hash or None,
+                remove_created=is_create_scene and target_written)
+            if restored:
+                STATE[pending_key] = None
+                _refresh_fs_snapshot(project_root)
+            body = {"success": False, "restored": restored,
+                    "answer": "[Система]: " + message, "changed_paths": paths}
+            status = 200 if restored else 409
+            if restored:
+                _EDITOR_ACTION_RESULTS[identity] = (body, status)
+            return jsonify(body), status
+        already_satisfied = bool(data.get("already_satisfied")) if is_settings else False
+        if is_create_scene and not target_written:
+            history.abort_change(project_root, entry_id)
+            STATE[pending_key] = None
+            return jsonify({"error": "Godot не подтвердил запись новой сцены."}), 409
+        if is_create_scene and not actual_hash:
+            history.abort_change(project_root, entry_id)
+            STATE[pending_key] = None
+            return jsonify({"error": "Godot сообщил создание сцены, но целевой файл отсутствует."}), 409
+        if actual_hash == prepared.get("before_hash") and not already_satisfied and not is_create_scene:
+            history.abort_change(project_root, entry_id)
+            STATE[pending_key] = None
+            return jsonify({"error": "Godot сообщил успех, но целевой файл не изменился."}), 409
+        if already_satisfied and actual_hash != prepared.get("before_hash"):
+            return jsonify({"error": "Godot сообщил already_satisfied, но project.godot изменился."}), 409
+        if already_satisfied:
+            history.abort_change(project_root, entry_id)
+            body = {
+                "success": True,
+                "already_satisfied": True,
+                "answer": "[Система]: Запрошенные настройки проекта уже были применены; запись не потребовалась.",
+                "history_entry_id": None,
+                "changed_paths": [],
+                "requires_editor_restart": False,
+            }
+            _EDITOR_ACTION_RESULTS[identity] = (body, 200)
+            STATE[pending_key] = None
+            return jsonify(body)
+        history.commit_change(project_root, entry_id)
+        body = {
+            "success": True,
+            "answer": ("[Система]: Настройки проекта применены; требуется перезапуск редактора."
+                       if is_settings else ("[Система]: Структурные изменения ресурса применены и сохранены."
+                       if is_resource else ("[Система]: Сцена создана и сохранена."
+                       if is_create_scene else "[Система]: Структурные изменения сцены применены и сохранены."))),
+            "history_entry_id": entry_id,
+            "changed_paths": [changed_path], "requires_editor_restart": is_settings,
+        }
+        _EDITOR_ACTION_RESULTS[identity] = (body, 200)
+        STATE[pending_key] = None
+        if len(_EDITOR_ACTION_RESULTS) > 32:
+            _EDITOR_ACTION_RESULTS.pop(next(iter(_EDITOR_ACTION_RESULTS)))
+        try:
+            librarian.note_files_changed(project_root, [changed_path])
+            _remember_file(project_root, changed_path)
+            _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+        except Exception as exc:
+            print("⚠️ Editor-транзакция зафиксирована, но обновление кэшей не выполнено: %s" % exc)
+        return jsonify(body)
+    except Exception as exc:
+        print("❌ ОШИБКА editor_action_result: %s" % exc)
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/chat/runtime_inspect/result', methods=['POST'])
+def runtime_inspect_result():
+    if request.content_length is not None and request.content_length > runtime_debug.MAX_HTTP_BODY_BYTES:
+        return jsonify({"error": "Runtime result превышает допустимый размер."}), 413
+    data = request.json or {}
+    identity, error = _runtime_result_identity(data)
+    if error:
+        return error
+    cached = _RUNTIME_RESULTS.get(identity)
+    if cached is not None:
+        return jsonify(cached[0]), cached[1]
+    status = str(data.get("status") or "protocol_error")
+    if status not in runtime_debug.RESULT_STATUSES:
+        return jsonify({"error": "Неизвестный runtime status."}), 400
+    pending, claim_error = claim_runtime_request(data)
+    if claim_error == "token":
+        return jsonify({"error": "Неверный runtime result token."}), 403
+    if claim_error == "expired":
+        return jsonify({"error": "Runtime inspection истёк."}), 410
+    if claim_error in ("session", "turn", "request"):
+        return jsonify({"error": "Runtime inspection устарел или относится к другой сессии."}), 409
+    if claim_error:
+        return jsonify({"error": "Нет ожидающего runtime inspection."}), 409
+    try:
+        if status != "ok":
+            messages = {
+                "runtime_not_running": "Игра больше не запущена.",
+                "ambiguous_session": "Нужно явно выбрать runtime session.",
+                "bridge_unavailable": "AgentRuntimeBridge не подключён как debug Autoload.",
+                "session_stopped": "Runtime session остановлена.",
+                "stale_runtime_session": "Игра была перезапущена во время inspection.",
+                "timeout": "Runtime inspection превысил лимит времени.",
+                "response_too_large": "Runtime snapshot превысил допустимый размер.",
+            }
+            return _cache_runtime_result(identity, {
+                "answer": "[Система]: " + messages.get(status, "Runtime inspection не выполнен."),
+                "pending_action": None, "runtime_status": status})
+        snapshot = runtime_debug.normalize_snapshot(data.get("snapshot"))
+        runtime_debug.validate_snapshot_request(snapshot, pending)
+        followup = runtime_debug.format_snapshot(snapshot)
+        text, new_action = _reply_once(followup)
+        response = app.make_response(_package_model_reply(
+            text, new_action, pending.get("project_root"), allow_followup=False))
+        return _cache_runtime_result(identity, response.get_json(), response.status_code)
+    except runtime_debug.RuntimeDebugError as exc:
+        return _cache_runtime_result(identity, {"error": str(exc)}, 413 if "96 KiB" in str(exc) else 400)
+
+
+@app.route('/chat/runtime_check/bind', methods=['POST'])
+def runtime_check_bind():
+    data = request.json or {}
+    pending, error = bind_runtime_check(data)
+    if error == "token":
+        return jsonify({"error": "Неверный runtime check token."}), 403
+    if error == "expired":
+        return jsonify({"error": "Локальная проверка истекла."}), 410
+    if error:
+        return jsonify({"error": "Проверка не может быть привязана к этой runtime session."}), 409
+    return jsonify({"success": True, "game_request": runtime_checks.game_request(pending)})
+
+
+@app.route('/chat/runtime_check/result', methods=['POST'])
+def runtime_check_result():
+    if request.content_length is not None and request.content_length > runtime_checks.MAX_HTTP_BODY_BYTES:
+        return jsonify({"error": "Runtime check result превышает допустимый размер."}), 413
+    data = request.json or {}
+    identity, error = _runtime_result_identity(data)
+    if error:
+        return error
+    cached = _RUNTIME_RESULTS.get(identity)
+    if cached is not None:
+        return jsonify(cached[0]), cached[1]
+    status = str(data.get("status") or "protocol_error")
+    if status not in runtime_checks.RESULT_STATUSES:
+        return jsonify({"error": "Неизвестный runtime check status."}), 400
+    prebind_statuses = {"runtime_already_running", "launch_failed", "launch_timeout",
+                        "bridge_unavailable", "session_stopped", "cancelled"}
+    pending, error = claim_runtime_check(data, allow_unbound=status in prebind_statuses)
+    if error == "token":
+        return jsonify({"error": "Неверный runtime check token."}), 403
+    if error == "expired":
+        return jsonify({"error": "Локальная проверка истекла."}), 410
+    if error:
+        return jsonify({"error": "Локальная проверка устарела или уже завершена."}), 409
+    try:
+        if status != "ok":
+            body = {"success": False, "passed": False,
+                    "answer": "[Система]: Локальная игровая проверка не выполнена: %s." % status,
+                    "runtime_status": status}
+            return _cache_runtime_result(identity, body)
+        log_errors = runtime_checks.collect_log_errors(pending.get("log_cursor"))
+        report = runtime_checks.finalize_result(
+            pending, data.get("result"), log_errors=log_errors,
+            log_available=runtime_checks.log_source_available(pending.get("log_cursor")))
+        body = {"success": True, "passed": report["passed"], "check_report": report,
+                "answer": ("[Система]: Локальная игровая проверка пройдена."
+                           if report["passed"] else
+                           "[Система]: Локальная игровая проверка обнаружила несоответствия.")}
+        if not report["passed"]:
+            followup = runtime_checks.format_report(report)
+            text, next_action = _reply_once(followup)
+            packaged = _package_model_reply(text, next_action, pending.get("project_root"), allow_followup=False)
+            response = packaged[0] if isinstance(packaged, tuple) else packaged
+            response_json = response.get_json()
+            response_json.update({"success": True, "passed": False, "check_report": report})
+            return _cache_runtime_result(identity, response_json)
+        return _cache_runtime_result(identity, body)
+    except runtime_checks.RuntimeCheckError as exc:
+        return _cache_runtime_result(identity, {"error": str(exc)}, 400)
+
+
+def _runtime_result_identity(data):
+    # HTTP admission owns the exchange through cache publication. Never bypass
+    # it for a replay: navigation or a new turn may be changing this binding.
+    if (not isinstance(data, dict)
+            or not isinstance(data.get("request_id"), str) or not data["request_id"]
+            or not isinstance(data.get("result_token"), str) or not data["result_token"]
+            or not data["result_token"].isascii()
+            or type(data.get("session_id", -1)) is not int
+            or not isinstance(data.get("run_id", ""), str)
+            or not isinstance(data.get("status", "protocol_error"), str)):
+        return None, (jsonify({"error": "Invalid runtime result metadata."}), 400)
+    scope = (STATE.get("current_chat_id"), STATE.get("runtime_turn_id"),
+             STATE.get("project_root"), STATE.get("user_data_dir"),
+             STATE.get("runtime_result_generation"))
+    for field, expected in zip(("chat_id", "turn_id", "project_root"), scope):
+        if field in data and (type(data[field]) is not type(expected) or data[field] != expected):
+            return None, (jsonify({"error": "Runtime result belongs to another context."}), 409)
+    now = time.monotonic()
+    for key, cached in list(_RUNTIME_RESULTS.items()):
+        if cached[2] <= now or key[1:6] != scope:
+            del _RUNTIME_RESULTS[key]
+    return (request.path, *scope, data["request_id"], data["result_token"],
+            data.get("session_id", -1), data.get("run_id", "")), None
+
+
+def _cache_runtime_result(identity, body, status=200):
+    _RUNTIME_RESULTS[identity] = (body, status, time.monotonic() + _RUNTIME_RESULT_TTL)
+    if len(_RUNTIME_RESULTS) > _RUNTIME_RESULT_LIMIT:
+        _RUNTIME_RESULTS.pop(next(iter(_RUNTIME_RESULTS)))
+    return jsonify(body), status
 
 
 @app.route('/chat/rollback/preview', methods=['POST'])
@@ -2001,8 +3011,17 @@ def rollback_preview():
         return jsonify({"found": False,
                         "gone": bool(entry_id)})
     kind_ru = {"create_file": "перезапись файла" if info.get("overwrote") else "создание файла",
-               "patch_file": "правка файла", "move_file": "перемещение файла"}
-    desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), info["path"])
+               "patch_file": "правка файла", "move_file": "перемещение файла",
+               "rename_symbol": "переименование символа",
+               "edit_scene": "структурное изменение сцены", "create_scene": "создание сцены",
+               "edit_project_settings": "изменение настроек проекта",
+               "edit_resource": "структурное изменение ресурса",
+               "transaction": "пакетная транзакция"}
+    paths = [str(path) for path in (info.get("paths") or []) if path]
+    target = ", ".join(paths[:3]) if len(paths) > 1 else info["path"]
+    if len(paths) > 3:
+        target += " и ещё %d" % (len(paths) - 3)
+    desc = "%s %s" % (kind_ru.get(info["type"], info["type"]), target)
     when = time.strftime("%H:%M", time.localtime(info.get("ts", 0)))
     title = info.get("chat_title") or ""
     if title:
@@ -2080,6 +3099,8 @@ def rollback():
                 "можешь сразу предлагать patch_file на основе этого диффа."
             )
         resp = {"success": True, "message": msg, "paths": list(paths or [])}
+        if "res://project.godot" in resp["paths"]:
+            resp["requires_editor_restart"] = True
         if diff:
             # Панель подсветит в редакторе восстановленный после отката блок.
             resp["changed_path"] = diff["path"]
@@ -2147,19 +3168,35 @@ def plan_step():
         result = None
         step_diff = None
         while True:
+            engine_fixable = None
             _plan_paths = set(s.get("path") or "" for s in plan["steps"] if s.get("action") == "create_file")
             lint_msg = _lint_action_code(step, project_root, planned_paths=_plan_paths) if step.get("action") != "move_file" else None
+            if lint_msg is None:
+                batch = godot_headless_validation.batch_from_action(project_root, step)
+                receipt = godot_headless_validation.validate_batch(
+                    project_root, batch, executable=STATE.get("godot_executable"))
+                lint_msg = godot_headless_validation.blocking_message(receipt)
+                validation = {"batch": batch, "receipt": receipt}
+                engine_fixable = bool((receipt.get("report") or {}).get("new_diagnostics"))
             if lint_msg is None:
                 # Дифф считаем ДО записи на диск: после неё «старого» текста уже
                 # нет, и показать в панели, что именно изменилось, стало бы нечем.
                 # Шаг мог прийти сюда исправленным self-heal — берём его текущую версию.
                 step_diff = action_diff_preview(project_root, step)
-                result = _apply_write_step(step, project_root, chain_id=plan["chain_id"])
+                result = _apply_write_step(
+                    step, project_root, chain_id=plan["chain_id"], validation=validation)
                 if result["ok"]:
                     break
                 fail_reason = result["message"]
             else:
                 fail_reason = _lenient_resend_note(step, lint_msg)
+                if engine_fixable is False:
+                    STATE["pending_plan"] = None
+                    server_state.queue_action_note(
+                        "[Система: выполнение плана остановлено: инфраструктурная проверка Godot не прошла. Уже выполненные шаги остались на диске.]")
+                    return jsonify({"ok": False, "stopped": True, "index": idx,
+                                    "total": plan["total"], "chain_id": plan["chain_id"],
+                                    "error": fail_reason, "message": fail_reason})
             # шаг не прошёл проверку/применение — прежде чем останавливать весь план
             # и звать ручной откат, пытаемся самоисцелиться через зачинку обратно модели.
             if heal_attempts >= MAX_ACTION_FIX_RETRIES:
@@ -2272,6 +3309,8 @@ def plan_rollback_chain():
         ) % msg
         resp = {"success": True, "message": msg, "paths": list(paths or []),
                 "reverted_count": reverted_count, "total_count": total_count}
+        if "res://project.godot" in resp["paths"]:
+            resp["requires_editor_restart"] = True
         # После отката всей цепочки файлы, добавленные планом в [autoload], больше не существуют — вычищаем их.
         removed_autoloads = clean_dangling_autoloads(STATE["project_root"])
         if removed_autoloads:
@@ -2459,13 +3498,10 @@ def send_log_errors():
     report = STATE.get("pending_log_report")
     if not report:
         return jsonify({"error": "Нет подготовленного отчёта. Нажмите «Ошибки запуска» заново."}), 400
-    STATE["pending_log_report"] = None
     project_root = STATE.get("project_root")
     try:
-        # Фиксируем отпечаток ДО отправки: этот же лог больше не отправить.
-        log_reader.save_sent_fingerprint(history.get_storage_dir(project_root), report["fingerprint"])
         message = log_reader.format_report(report)
-        note = server_state.pop_action_note_for_current()  # v45: только заметка своего чата
+        note = server_state.peek_action_note_for_current()
         if note:
             message = f"{note}\n\n{message}"
         # v104.2: сверка с записью чата — как в /chat (не шлём мега-промпт
@@ -2482,6 +3518,17 @@ def send_log_errors():
             message = f"{system_context}\n\n{message}"
         print(f"--> Отправка отчёта об ошибках запуска ({len(message)} симв.)")
         text, action = _reply_with_self_heal(message, project_root)
+        packaged = _package_model_reply(text, action, project_root)
+        status = (int(packaged[1]) if isinstance(packaged, tuple)
+                  and len(packaged) > 1 else
+                  int(getattr(packaged, "status_code", 200) or 200))
+        if status >= 400:
+            return packaged
+        # Одноразовое состояние потребляем только после принятого ответа.
+        STATE["pending_log_report"] = None
+        log_reader.save_sent_fingerprint(
+            history.get_storage_dir(project_root), report["fingerprint"])
+        server_state.consume_action_note_for_current(note)
         if _need_prime:
             # v104.2: флаг — только ПОСЛЕ успешной отправки, и теперь он ещё и
             # сохраняется (раньше здесь не было ни _save_primed, ни
@@ -2489,7 +3536,7 @@ def send_log_errors():
             STATE["is_primed"] = True
             _save_primed(project_root, True)
             server_state.mark_chat_prompt_version()
-        return _package_model_reply(text, action, project_root)
+        return packaged
     except Exception as e:
         print(f"❌ ОШИБКА send_log_errors: {e}")
         traceback.print_exc()
@@ -2521,6 +3568,9 @@ def chat_live_input():
     его в поле ввода сайта (без отправки). Best effort: любые проблемы ->
     {"applied": false, "reason": ...}, ошибок наружу не бросаем."""
     data = request.json or {}
+    # Hold the existing browser-mutation reservation until request teardown.
+    if not server_state.try_begin_navigation():
+        return jsonify({"ok": True, "applied": False, "reason": "busy"})
     return jsonify(_live_mirror.apply(data.get("seq"), data.get("text", "")))
 
 

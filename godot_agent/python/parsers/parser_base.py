@@ -1297,19 +1297,31 @@ def _resolve_content_refs(obj, raw):
         return obj, []
     missing = []
     _resolve_one_ref(obj, raw, missing)
-    steps = obj.get("steps")
-    if isinstance(steps, list):
-        for step in steps:
+    if (obj.get("action") == "project_command"
+            and isinstance(obj.get("command"), dict)
+            and obj["command"].get("type") == "atomic_files"):
+        nested = obj["command"].get("operations")
+    else:
+        nested = obj.get("operations") if obj.get("action") == "transaction" else obj.get("steps")
+    if isinstance(nested, list):
+        for step in nested:
             _resolve_one_ref(step, raw, missing)
     if missing:
         # v86.24: запасной путь — тела из ```-блоков по порядку следования.
-        missing = _resolve_refs_from_fences(obj, raw, missing)
+        fallback = obj
+        if (obj.get("action") == "project_command"
+                and isinstance(obj.get("command"), dict)
+                and obj["command"].get("type") == "atomic_files"):
+            fallback = {"steps": nested}
+        missing = _resolve_refs_from_fences(fallback, raw, missing)
     return obj, missing
 
 
 _KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
-                  u"ask_librarian", u"parse_error"}
+                  u"ask_librarian", u"gather_context", u"rename_symbol", u"edit_scene", u"create_scene",
+                  u"edit_project_settings", u"edit_resource", u"transaction", u"project_command",
+                  u"inspect_runtime", u"run_check", u"parse_error"}
 
 _ACTION_SYNONYMS = {
     u"create": u"create_file", u"write_file": u"create_file",
@@ -1320,6 +1332,13 @@ _ACTION_SYNONYMS = {
     u"patchfile": u"patch_file", u"edit": u"patch_file",
     u"move": u"move_file", u"rename": u"move_file",
     u"rename_file": u"move_file", u"movefile": u"move_file",
+    u"renamesymbol": u"rename_symbol", u"refactor_symbol": u"rename_symbol",
+    u"editscene": u"edit_scene", u"scene_edit": u"edit_scene",
+    u"createscene": u"create_scene", u"scene_create": u"create_scene",
+    u"editprojectsettings": u"edit_project_settings", u"project_settings": u"edit_project_settings",
+    u"editresource": u"edit_resource", u"resource_edit": u"edit_resource",
+    u"batch_transaction": u"transaction", u"atomic_transaction": u"transaction",
+    u"projectcommand": u"project_command", u"agent_command": u"project_command",
     u"read": u"read_file", u"readfile": u"read_file",
     u"open_file": u"read_file",
     u"copy": u"copy_file", u"copyfile": u"copy_file",
@@ -1336,12 +1355,40 @@ _ACTION_SYNONYMS = {
 _DEST_SYNONYMS = (u"destination", u"new_path", u"dest_path", u"target", u"to")
 _READ_ACTIONS = (u"read_file", u"read_files", u"read_function")
 _TEXT_LIST_FIELDS = (u"content", u"search", u"replace")
+_ACTION_WRAPPERS = (u"arguments", u"input", u"tool_input")
+
+
+def _unwrap_action_wrapper(obj, fixes):
+    """Разворачивает только одну однозначную tool-call обёртку."""
+    if not isinstance(obj, dict) or obj.get(u"action"):
+        return obj
+    wrappers = [key for key in _ACTION_WRAPPERS if isinstance(obj.get(key), dict)]
+    if len(wrappers) != 1:
+        return obj
+    wrapper = wrappers[0]
+    if set(obj) - {wrapper, u"tool_name", u"name"}:
+        return obj
+    nested = dict(obj[wrapper])
+    tool_name = obj.get(u"tool_name") or obj.get(u"name")
+    if tool_name is not None and not isinstance(tool_name, str):
+        return obj
+    if not nested.get(u"action"):
+        if not tool_name:
+            return obj
+        nested[u"action"] = tool_name
+    elif tool_name:
+        inner = str(nested[u"action"]).strip().lower().replace(u"-", u"_").replace(u" ", u"_")
+        outer = str(tool_name).strip().lower().replace(u"-", u"_").replace(u" ", u"_")
+        if _ACTION_SYNONYMS.get(inner, inner) != _ACTION_SYNONYMS.get(outer, outer):
+            return obj
+    fixes.append(u"обёртка %s -> action" % wrapper)
+    return nested
 
 
 def _coerce_one_action(d, fixes, prefix):
     """v86.21: мягкое приведение ОДНОГО действия к схеме (in-place).
-    Только безопасные однозначные починки; старые поля НЕ удаляются
-    (лишние ключи безвредны, а потерять данные нельзя)."""
+    Только безопасные однозначные починки. Поглощённый alias удаляется;
+    конфликтующие значения остаются для явного отказа строгого валидатора."""
     act = d.get(u"action")
     if isinstance(act, str):
         norm = act.strip().lower().replace(u"-", u"_").replace(u" ", u"_")
@@ -1370,13 +1417,26 @@ def _coerce_one_action(d, fixes, prefix):
         if (not d.get(u"path") and isinstance(ps, list) and len(ps) == 1
                 and isinstance(ps[0], str)):
             d[u"path"] = ps[0]
+            d.pop(u"paths", None)
             fixes.append(prefix + u"paths (список из 1) -> path")
-    if act == u"move_file" and not d.get(u"dest"):
-        for syn in _DEST_SYNONYMS:
-            if isinstance(d.get(syn), str) and d.get(syn):
-                d[u"dest"] = d[syn]
-                fixes.append(prefix + u"%s -> dest" % syn)
-                break
+        elif (isinstance(d.get(u"path"), str) and isinstance(ps, list)
+              and ps == [d[u"path"]]):
+            d.pop(u"paths", None)
+            fixes.append(prefix + u"лишний paths совпадает с path")
+    if act == u"move_file":
+        aliases = [(syn, d.get(syn)) for syn in _DEST_SYNONYMS
+                   if isinstance(d.get(syn), str) and d.get(syn)]
+        values = {value for _syn, value in aliases}
+        if not d.get(u"dest") and aliases and len(values) == 1:
+            d[u"dest"] = aliases[0][1]
+            for syn, _value in aliases:
+                d.pop(syn, None)
+            fixes.append(prefix + u"%s -> dest" % u"/".join(syn for syn, _value in aliases))
+        elif (isinstance(d.get(u"dest"), str) and aliases
+              and values == {d[u"dest"]}):
+            for syn, _value in aliases:
+                d.pop(syn, None)
+            fixes.append(prefix + u"лишний alias назначения совпадает с dest")
     for field in _TEXT_LIST_FIELDS:
         v = d.get(field)
         if (isinstance(v, list) and v
@@ -1398,12 +1458,24 @@ def coerce_action_schema(obj):
     fixes = []
     if not isinstance(obj, dict):
         return obj, fixes
+    obj = _unwrap_action_wrapper(obj, fixes)
     _coerce_one_action(obj, fixes, u"")
     steps = obj.get(u"steps")
     if obj.get(u"action") == u"plan" and isinstance(steps, list):
         for k, step in enumerate(steps):
             if isinstance(step, dict):
                 _coerce_one_action(step, fixes, u"шаг %d: " % (k + 1))
+    operations = obj.get(u"operations")
+    if obj.get(u"action") == u"transaction" and isinstance(operations, list):
+        for k, operation in enumerate(operations):
+            if isinstance(operation, dict):
+                _coerce_one_action(operation, fixes, u"операция %d: " % (k + 1))
+    command = obj.get(u"command")
+    if (obj.get(u"action") == u"project_command" and isinstance(command, dict)
+            and command.get(u"type") == u"atomic_files"):
+        for k, operation in enumerate(command.get(u"operations") or []):
+            if isinstance(operation, dict):
+                _coerce_one_action(operation, fixes, u"операция %d: " % (k + 1))
     return obj, fixes
 
 
@@ -1458,6 +1530,12 @@ def parse_action_json(raw: str):
                 print(u"[parser_base] для content_ref/search_ref/replace_ref не найдено тело — образец сохранён в золотой корпус: %s" % saved)
             return None, _ref_err
         winner, _schema_fixes = coerce_action_schema(winner)
+        # Ref fields can be nested under project_command.command.operations.
+        # Re-resolve after schema coercion so aliases do not hide that shape.
+        winner, _missing_refs = _resolve_content_refs(winner, raw)
+        if _missing_refs:
+            return None, (u"не найдено тело для метки(ок) %s"
+                          % u", ".join(sorted(set(_missing_refs))))
         if _schema_fixes:
             print(u"[parser_base] действие приведено к схеме: %s (v86.21)" % u"; ".join(_schema_fixes))
         return winner, None
@@ -1822,7 +1900,9 @@ class BaseSiteParser:
         contenteditable-поля меняют переводы строк/пробелы (<br>, NBSP)
         при вставке, поэтому дословное сравнение давало бы ложные «не совпало»."""
         def _norm(s):
-            return u"".join((s or u"").split())
+            value = (s or u"").replace(u"\r\n", u"\n").replace(u"\r", u"\n")
+            value = value.replace(u"\u00a0", u" ")
+            return value[:-1] if value.endswith(u"\n") else value
         return _norm(field_text) == _norm(prompt)
 
     def _field_text_too_short(self, field_text, prompt):
@@ -2762,12 +2842,14 @@ class BaseSiteParser:
                 text = (result or {}).get("text") or ""
                 cur_len = self.answer_len(driver)
                 still_generating = self.is_generating(driver)
+                if _deadline_hit():
+                    raise TimeoutError("Генерация не завершилась вовремя.")
                 action_incomplete = raw is not None and not _looks_json_balanced(
                     _extract_json_object(_strip_code_fences(raw)))
                 answer_empty = (not text.strip()) and (raw is None)
                 if (not still_generating) and cur_len == st["last_length"] and (not action_incomplete) and (not answer_empty):
                     break
-                if still_generating and not _deadline_hit():
+                if still_generating:
                     # v87.9: генерация ЕЩЁ ИДЁТ (модель долго «думает» или дописывает
                     # длинный ответ) — грейс-период НЕ расходуем, а отсчитываем заново:
                     # ждём конца генерации вплоть до общего дедлайна. Раньше «думанье»
@@ -2830,9 +2912,12 @@ class BaseSiteParser:
                     _report("модель пишет ответ…", chars=max(ln, 0))
                     last_len = ln
                     time.sleep(poll_interval)
+                else:
+                    raise TimeoutError("Генерация не завершилась вовремя.")
+                st["last_length"] = last_len
                 result = self.extract_answer(driver)
             st["result"] = result
-            return ST_DONE
+            return ST_VERIFY_COMPLETE
 
         _STATE_HANDLERS = {
             ST_WAIT_NEW_MESSAGE: _state_wait_new_message,
@@ -2844,6 +2929,8 @@ class BaseSiteParser:
         state = ST_WAIT_NEW_MESSAGE
         while state != ST_DONE:
             state = _STATE_HANDLERS[state]()
+        if _deadline_hit():
+            raise TimeoutError("Генерация не завершилась вовремя.")
         return st["result"]
     def extract_answer_robust(self, driver, retries=3, delay=1.5):
         """ПЛАН Б: многоуровневое извлечение ответа.
@@ -2934,10 +3021,7 @@ class BaseSiteParser:
         _busy_start = time.time()
         _busy_logged = False
         while time.time() - _busy_start < 240.0:
-            try:
-                if not self.is_generating(driver):
-                    break
-            except Exception:
+            if not self.is_generating(driver):
                 break
             if not _busy_logged:
                 self._log("модель ещё дописывает предыдущий ответ — жду его конца перед отправкой нового сообщения.")
@@ -2946,7 +3030,7 @@ class BaseSiteParser:
                 raise ParserCancelled("остановлено пользователем")
             time.sleep(0.5)
         else:
-            self._log("предыдущий ответ пишется дольше 240 с — отправляю новое сообщение как есть.")
+            raise TimeoutError("Предыдущий ответ не завершился за 240 с; новое сообщение не отправлено.")
         if _busy_logged:
             time.sleep(1.5)  # даём странице дописать DOM до конца
         # v88.7: ожидание поля вынесено в _wait_for_input (до 45 с + диагностика)
@@ -2981,23 +3065,25 @@ class BaseSiteParser:
                         inserted = True
                         _mismatch_val = None
                         break
-                    try:
-                        _att_now = self.count_composer_attachments(driver)
-                    except Exception:
-                        _att_now = None
-                    if (_att_base is not None and _att_now is not None
-                            and _att_now > _att_base):
-                        # v105: раньше флаг здесь НЕ выставлялся — только в
-                        # insert_input_paste_like. Из-за этого контрольная сверка
-                        # перед отправкой (ниже) видела «поле не совпало с
-                        # промптом» — а совпасть оно и не могло, текст уехал в
-                        # файл — и пыталась вставить промпт ЗАНОВО, рискуя
-                        # создать ВТОРОЕ вложение.
-                        self._insert_became_attachment = True
-                        self._log("вставка преобразована сайтом во вложение (.txt) — "
-                                  "отправляю как вложение, без повторных вставок (v104.4)")
-                        inserted = True
-                        break
+                # Late file conversion can leave the composer completely empty.
+                try:
+                    _att_now = self.count_composer_attachments(driver)
+                except Exception:
+                    _att_now = None
+                if (_att_base is not None and _att_now is not None
+                        and _att_now > _att_base):
+                    # v105: раньше флаг здесь НЕ выставлялся — только в
+                    # insert_input_paste_like. Из-за этого контрольная сверка
+                    # перед отправкой (ниже) видела «поле не совпало с
+                    # промптом» — а совпасть оно и не могло, текст уехал в
+                    # файл — и пыталась вставить промпт ЗАНОВО, рискуя
+                    # создать ВТОРОЕ вложение.
+                    self._insert_became_attachment = True
+                    self._log("вставка преобразована сайтом во вложение (.txt) — "
+                              "отправляю как вложение, без повторных вставок (v104.4)")
+                    inserted = True
+                    break
+                if (_val or "").strip():
                     _mismatch_val = _val
                     self._log("проверка вставки: текст в поле НЕ совпал с отправляемым "
                               "(в поле %d симв., должно быть %d) — вставляю заново (v88.4)."
@@ -3005,7 +3091,6 @@ class BaseSiteParser:
             except (JavascriptException, StaleElementReferenceException):
                 el = self.find_input(driver)
             time.sleep(0.3)
-        _as_is = False
         if not inserted and (_mismatch_val or "").strip():
             if self._field_text_too_short(_mismatch_val, prompt):
                 # v104.8: в поле явно НЕ наш текст (обрезок недоехавшей вставки
@@ -3024,24 +3109,15 @@ class BaseSiteParser:
                     self._log("финальная вставка не удалась: %s" % _e_fin)
                 if not inserted:
                     _val_fin = self._read_input_text(driver, el)
-                    if ((_val_fin or "").strip()
-                            and not self._field_text_too_short(_val_fin, prompt)):
-                        self._log("после финальной вставки длина сопоставима — "
-                                  "отправляю как есть (v104.8).")
-                        inserted = True
-                        _as_is = True
-                    else:
-                        self._log("«как есть» НЕ отправляю: в поле обрезок/чужой текст "
-                                  "(%d симв. вместо %d; v104.8)."
-                                  % (len(_val_fin or u""), len(prompt or u"")))
+                    self._log("текст после финальной вставки не совпал с prompt — "
+                              "отправку блокирую (%d симв. вместо %d)."
+                              % (len(_val_fin or u""), len(prompt or u"")))
             else:
-                # v88.4: поле непустое, длина сопоставима, но текст так и не совпал:
-                # некоторые поля меняют отображение текста (разметка) — не роняем
-                # отправку, но предупреждаем в логе.
+                # Сопоставимая длина не доказывает равенство: это может быть
+                # старый prompt или его обрезок. Единственное допустимое
+                # несовпадение — подтверждённое attachment выше.
                 self._log("текст в поле так и не совпал с отправляемым после всех попыток — "
-                          "отправляю как есть (возможно, поле меняет отображение текста; v88.4).")
-                inserted = True
-                _as_is = True
+                          "отправку блокирую.")
         if not inserted:
             raise Exception("Не удалось вставить текст в поле ввода (%s)." % self.LOG_TAG)
         # v105: сайт превратил вставку во вложение (kimi: >4000 байт уезжает в
@@ -3058,7 +3134,7 @@ class BaseSiteParser:
         # v104.8: контрольная сверка ПЕРЕД самой отправкой: медленная вставка
         # могла «доехать» и подменить содержимое поля уже ПОСЛЕ проверки
         # (репорт 24.07: qwen), либо текст изменило живое зеркало ввода.
-        if not _as_is and not getattr(self, "_insert_became_attachment", False):
+        if not getattr(self, "_insert_became_attachment", False):
             _val_pre = self._read_input_text(driver, el)
             if not self._insert_text_matches(_val_pre, prompt):
                 self._log("поле изменилось после проверки (поздняя вставка?) — "
@@ -3072,21 +3148,36 @@ class BaseSiteParser:
                 except Exception as _e_re:
                     self._log("восстановление текста перед отправкой не удалось: %s" % _e_re)
                 _val_pre = self._read_input_text(driver, el)
-                if self._field_text_too_short(_val_pre, prompt):
+                if not self._insert_text_matches(_val_pre, prompt):
                     raise Exception("Поле ввода подменилось перед отправкой, восстановить "
                                     "текст не удалось (%s)." % self.LOG_TAG)
         self.before_submit(driver, el)
+        if not getattr(self, "_insert_became_attachment", False):
+            el = self.find_input(driver) or el
+            if not self._insert_text_matches(self._read_input_text(driver, el), prompt):
+                raise Exception("Поле ввода изменилось перед submit (%s)." % self.LOG_TAG)
         # v51: снимок ПОСЛЕДНЕГО ответа модели ДО отправки — для анти-дубля
         # (защита от возврата СТАРОГО сообщения вместо нового ответа).
         _pre = self.extract_answer_snapshot(driver) or {}  # v88.3: быстрый снимок, без ожидания докачки
         _pre_sig = ((_pre.get("text") or "") + "\x00" + (_pre.get("actionRaw") or ""))
         initial_count = self.count_answers(driver)
         try:
+            if cancel_cb is not None and cancel_cb():
+                raise ParserCancelled("остановлено пользователем")
             self.submit(driver, el)
         except StaleElementReferenceException:
             el = self.find_input(driver)
-            if el:
-                self.submit(driver, el)
+            if not el:
+                raise Exception("Поле ввода исчезло перед повтором submit (%s)."
+                                % self.LOG_TAG)
+            if (not getattr(self, "_insert_became_attachment", False)
+                    and not self._insert_text_matches(
+                        self._read_input_text(driver, el), prompt)):
+                raise Exception("Поле ввода подменилось перед повтором submit (%s)."
+                                % self.LOG_TAG)
+            if cancel_cb is not None and cancel_cb():
+                raise ParserCancelled("остановлено пользователем")
+            self.submit(driver, el)
         self.after_submit(driver, el)
         sent = self.confirm_sent(driver, el)
         # Сообщение могло не уйти из-за временного глюка сайта (особенно на больших сообщениях/вложениях) —
@@ -3102,6 +3193,20 @@ class BaseSiteParser:
             try:
                 el = self.find_input(driver) or el
                 self.before_submit(driver, el)
+                if cancel_cb is not None and cancel_cb():
+                    raise ParserCancelled("остановлено пользователем")
+                # Acceptance may arrive during the delay or preparation. Keep
+                # the first submit's request baseline instead of overwriting it.
+                sent = self.confirm_sent(driver, el)
+                if sent:
+                    break
+                if (not getattr(self, "_insert_became_attachment", False)
+                        and not self._insert_text_matches(
+                            self._read_input_text(driver, el), prompt)):
+                    raise Exception("Поле ввода изменилось перед повторным submit (%s)."
+                                    % self.LOG_TAG)
+                if cancel_cb is not None and cancel_cb():
+                    raise ParserCancelled("остановлено пользователем")
                 self.submit(driver, el)
                 self.after_submit(driver, el)
             except (JavascriptException, StaleElementReferenceException) as e:
@@ -3131,6 +3236,8 @@ class BaseSiteParser:
             except TimeoutError:
                 if _regen_used < self.REGENERATE_RETRIES:
                     _cnt_before_regen = self.count_answers(driver)
+                    if cancel_cb is not None and cancel_cb():
+                        raise ParserCancelled("остановлено пользователем")
                     if self.try_regenerate(driver):
                         _regen_used += 1
                         initial_count = _cnt_before_regen
@@ -3159,6 +3266,8 @@ class BaseSiteParser:
                 not ((result.get("text") or "").strip()) and result.get("actionRaw") is None)
             if _still_empty and _regen_used < self.REGENERATE_RETRIES:
                 _cnt_before_regen = self.count_answers(driver)
+                if cancel_cb is not None and cancel_cb():
+                    raise ParserCancelled("остановлено пользователем")
                 if self.try_regenerate(driver):
                     _regen_used += 1
                     initial_count = _cnt_before_regen

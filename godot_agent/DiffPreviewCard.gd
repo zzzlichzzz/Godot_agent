@@ -293,6 +293,15 @@ func mark_applied() -> void:
 	actions_box.visible = false
 
 
+func mark_preview_only() -> void:
+	# Multi-file transactions have one shared confirmation. This card only
+	# shows evidence and must not look like the change was already applied.
+	_lock_actions()
+	actions_box.visible = false
+	title_label.visible = true
+	title_label.text = "Предпросмотр"
+
+
 # --- сворачивание ---
 
 func _on_header_gui_input(event: InputEvent) -> void:

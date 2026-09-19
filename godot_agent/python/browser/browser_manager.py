@@ -30,12 +30,14 @@ def _wait_for_debug_port(port=9222, timeout=15.0):
     вместо слепого sleep(3), который может не хватить на медленной машине
     или, наоборот, зря тратить время."""
     start = time.time()
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     while time.time() - start < timeout:
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.5):
                 pass
             # Порт открыт, но убедимся что HTTP-эндпоинт CDP тоже отвечает
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=0.5)
+            with opener.open(f"http://127.0.0.1:{port}/json/version", timeout=0.5):
+                pass
             return True
         except Exception:
             time.sleep(0.3)

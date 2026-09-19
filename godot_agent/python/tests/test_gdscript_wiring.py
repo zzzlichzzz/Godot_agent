@@ -132,6 +132,7 @@ check(u"все обработчики из .connect() объявлены в св
 # --- 4) сигналы стартового экрана и их подключения в панели ---
 start = read(_os0.path.join(ADDON, "agent_start_screen.gd"))
 panel = read(_os0.path.join(ADDON, "agent_panel.gd"))
+diff_card = read(_os0.path.join(ADDON, "DiffPreviewCard.gd"))
 declared = set(re.findall(r"^signal\s+([A-Za-z0-9_]+)", start, re.MULTILINE))
 emitted = set(re.findall(r"([A-Za-z0-9_]+)\.emit\(", start))
 check(u"сигналы стартового экрана объявлены", len(declared) >= 12, sorted(declared))
@@ -268,7 +269,43 @@ check(u"панель не спрашивает has_method у загруженн�
 check(u"панель берёт токен у узла ServerLink",
       "_link.project_token()" in panel)
 
-# --- 8) русский текст из .tscn обязан переписываться из словаря ---
+check(u"chat request привязан к открытому chat id",
+      '"chat_id": _current_chat_id' in panel)
+check(u"поле ввода очищается централизованно и возвращает фокус",
+      "func _clear_chat_input" in panel
+      and 'call_deferred("grab_focus")' in panel
+      and "_restore_chat_draft()" in panel)
+check(u"повтор после site mismatch привязан к chat generation",
+      "_site_resend_envelope" in panel
+      and "_chat_navigation_generation" in panel
+      and "_resend_after_open" not in panel)
+check(u"черновики разделены между чатами",
+      "_chat_drafts" in panel and "func _switch_chat_draft" in panel)
+check(u"ошибка сохранения transcript видна пользователю",
+      "transcript_warning" in panel)
+response_pos = link.find("chats_response.emit(kind, json, extra)")
+drain_pos = link.find('call_deferred("_drain_queue")', response_pos)
+check(u"очередь навигации запускается после передачи ответа панели",
+      response_pos >= 0 and drain_pos > response_pos)
+check(u"HTTP-ошибка навигации передаётся панели без автозапуска сервера",
+      "response_code != 200" in link
+      and "chats_response.emit(kind, failure, extra)" in link)
+
+# --- 8) Контекст живого редактора передаётся только как read-only снимок ---
+context_path = _os0.path.join(ADDON, "agent_editor_context.gd")
+check(u"сборщик контекста редактора существует", _os0.path.isfile(context_path))
+context_src = read(context_path) if _os0.path.isfile(context_path) else ""
+check(u"снимок имеет версию схемы", "SCHEMA_VERSION" in context_src)
+send_chat = re.search(r"func _send_chat_raw\(.*?(?=\nfunc )", panel, re.DOTALL)
+send_chat_src = send_chat.group(0) if send_chat else ""
+check(u"снимок прикрепляется к /chat", 'body["editor_context"]' in send_chat_src)
+mutating_context_calls = [call for call in (
+    "ResourceSaver.save", "set_setting(", "open_scene_from_path(",
+    "edit_script(", "FileAccess.WRITE") if call in context_src]
+check(u"сборщик контекста не изменяет проект", not mutating_context_calls,
+      mutating_context_calls)
+
+# --- 9) русский текст из .tscn обязан переписываться из словаря ---
 #
 # РЕАЛЬНАЯ ПОЛОМКА, из-за которой эта проверка написана. Надписи карточек лежат
 # в .tscn по-русски — так их видно в редакторе сцен, и это удобно. Но значение из
@@ -324,7 +361,7 @@ check(u"русский текст из .tscn переписывается из �
 check(u"проверка нашла надписи, которые надо переписывать", checked_pairs >= 8,
       checked_pairs)
 
-# --- 9) Несколько ключей на провайдера ---
+# --- 10) Несколько ключей на провайдера ---
 #
 # Квота бесплатных тарифов считается НА КЛЮЧ, поэтому второй аккаунт того же
 # сервиса — рабочий способ продолжить работу. Панель обязана уметь ДОПИСАТЬ
@@ -351,6 +388,176 @@ for _fn in ("_api_build_key_row", "_api_key_state_text",
 # своих догадок про сброс суточной квоты ни сервер, ни панель не делают.
 check(u"срок повтора показывается только при until > 0",
       re.search(r"until\s*>\s*0", start) is not None)
+
+check("rename plural diffs use read-only cards",
+      'json.get("pending_action_diffs")' in panel and "add_readonly_diff" in panel
+      and "mark_preview_only" in diff_card)
+check("rename confirmation blocks dirty scripts",
+      "_dirty_open_scripts(targets)" in panel)
+check("rename result reloads every changed path",
+      'json.get("changed_paths")' in panel and "for changed_path in changed_paths" in panel)
+scene_executor = read(_os0.path.join(ADDON, "agent_scene_executor.gd"))
+plugin = read(_os0.path.join(ADDON, "plugin_universal.gd"))
+check("plugin injects EditorPlugin into panel", "set_editor_plugin" in plugin)
+check("scene executor uses PackedScene API",
+      "PackedScene.GEN_EDIT_STATE_INSTANCE" in scene_executor
+      and "packed.pack(root)" in scene_executor and "ResourceSaver.save" in scene_executor)
+check("scene execution matches confirmed preview",
+      "semantic_hash" in scene_executor and "preview_mismatch" in scene_executor
+      and "_pending_scene_semantic_hash" in panel)
+check("scene executor owns structural operations",
+      all(name in scene_executor for name in ("_add_node", "_set_node_property",
+                                               "_attach_script", "_connect_signal",
+                                               "_reparent_node")))
+check("scene executor avoids textual scene writes and UndoRedo",
+      "FileAccess.WRITE" not in scene_executor and "UndoRedo" not in scene_executor)
+check("scene executor refuses open scenes without guessing dirty state",
+      'return _fail("scene_open"' in scene_executor
+      and "get_unsaved_scenes" not in scene_executor
+      and "is_scene_unsaved" not in scene_executor)
+check("scene executor creates typed scenes through PackedScene temp save",
+      "_create_detached" in scene_executor
+      and "ClassDB.instantiate" in scene_executor
+      and '"create_scene"' in scene_executor
+      and ".agent-create-" in scene_executor
+      and '"staged_hash"' in scene_executor
+      and '"target_written"' in scene_executor
+      and "DirAccess.rename_absolute" not in scene_executor)
+check("panel sends trusted Godot executable for engine validation",
+      "OS.get_executable_path()" in panel and '"godot_executable"' in panel)
+check("panel coordinates scene prepare execute finalize",
+      all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
+                                     "_send_scene_result", "_pending_scene_semantic_hash",
+                                     "_pending_scene_finalize_body", "scene_finalize")))
+check("panel stops retrying terminal scene finalize failures",
+      'if response_code in [400, 403, 409, 410, 413]:' in panel
+      and '_pending_scene_finalize_body = {}' in panel)
+settings_executor = read(_os0.path.join(ADDON, "agent_project_settings_executor.gd"))
+check("project settings executor uses Godot APIs",
+      "ProjectSettings.set_setting" in settings_executor
+      and "ProjectSettings.save" in settings_executor
+      and "add_autoload_singleton" in settings_executor
+      and "InputEventKey.new" in settings_executor)
+check("project settings executor plans idempotent operations",
+      "effective_operations" in settings_executor
+      and "autoload_conflict" in settings_executor
+      and "текущие deadzone и события сохранены" in settings_executor
+      and '"apply": false' in settings_executor
+      and "_apply(effective_operations)" in settings_executor)
+check("project settings executor avoids textual writes and UndoRedo",
+      "FileAccess.WRITE" not in settings_executor and "UndoRedo" not in settings_executor)
+check("new executors avoid invalid static hashing and void return checks",
+      all("HashingContext.hash(" not in src for src in
+          (scene_executor, settings_executor))
+      and not re.search(r"var\s+\w+\s*:?=\s*_plugin\.(?:add|remove)_autoload_singleton", settings_executor))
+reserved_locals = []
+for path in GD_FILES:
+    text = read(path)
+    for match in re.finditer(r"\bvar\s+(class_name)\b", text):
+        reserved_locals.append((_os0.path.basename(path), match.group(1)))
+check("зарезервированное class_name не используется как local variable",
+      not reserved_locals, reserved_locals)
+panel_script_paths = re.findall(
+    r"var\s+\w+_path\s*([^\n=]*?)=\s*get_script\(\)\.resource_path", panel)
+check("пути от get_script resource_path имеют явный String type",
+      panel_script_paths and all(": String" in prefix for prefix in panel_script_paths),
+      panel_script_paths)
+check("panel coordinates project settings transaction",
+      all(name in panel for name in ("_prepare_project_settings_action",
+                                     "_execute_project_settings_action",
+                                     "project_settings_finalize",
+                                     "_pending_project_settings_semantic_hash",
+                                       "agent_project_settings_executor.gd")))
+check("panel retains settings finalize until a terminal result",
+      all(name in panel for name in ("_pending_project_settings_finalize_body",
+                                     "func _send_pending_project_settings_finalize",
+                                     "func _schedule_project_settings_finalize_retry"))
+      and "_send_pending_project_settings_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
+check("file operations never close user scenes automatically",
+      'call("close_scene")' not in panel and "func _close_scenes_before_write" not in panel
+       and "_open_pending_scene_paths()" in panel)
+dirty_helper = panel[panel.find("func _dirty_open_scripts"):panel.find("func _sync_open_script_with_disk")]
+check("dirty script safety does not call unavailable resource accessor",
+      "editor.get_edited_resource(" not in dirty_helper
+      and "get_open_scripts()" in dirty_helper and "get_open_script_editors()" in dirty_helper
+      and "get_saved_version()" in dirty_helper)
+autoreload_helper = panel[panel.find("func _ensure_script_autoreload_setting"):panel.find("func _force_reload_open_script")]
+check("plugin does not silently change script autoreload preference",
+      "set_setting(" not in autoreload_helper)
+for finalize_kind in ("resource_finalize", "project_settings_finalize"):
+    failure_branch = panel[panel.rfind('if kind == "%s":' % finalize_kind):]
+    check("terminal %s is not retried forever" % finalize_kind,
+          'if response_code in [400, 403, 409, 410, 413]:' in failure_branch.split("\n\t\tif kind ==", 1)[0])
+resource_executor = read(_os0.path.join(ADDON, "agent_resource_executor.gd"))
+check("resource executor avoids invalid static hashing",
+      "HashingContext.hash(" not in resource_executor)
+check("resource executor uses detached Godot resource APIs",
+      "ResourceLoader.load" in resource_executor and "ResourceSaver.save" in resource_executor
+      and "ResourceLoader.CACHE_MODE_IGNORE" in resource_executor)
+check("resource executor supports specialized editors",
+      all(name in resource_executor for name in ("_animation_add_value_track",
+                                                  "_sprite_frames_add_animation",
+                                                  "_theme_set_item",
+                                                  "_tileset_add_atlas_source")))
+check("resource executor tracks imports previews and semantic state",
+      "dependency_fingerprint" in resource_executor and "semantic_hash" in resource_executor
+       and "queue_resource_preview" in resource_executor and "check_for_invalidation" in resource_executor)
+check("resource executor validates staged save and preserves recovery evidence",
+      "temporary_semantic_mismatch" in resource_executor
+      and "DirAccess.rename_absolute" in resource_executor
+      and "saved_semantic_mismatch" in resource_executor
+      and "canonical_path" in resource_executor)
+check("resource executor avoids textual writes and UndoRedo",
+      "FileAccess.WRITE" not in resource_executor and "UndoRedo" not in resource_executor)
+check("panel coordinates resource transaction",
+      all(name in panel for name in ("_prepare_resource_action", "_execute_resource_action",
+                                     "resource_finalize", "_pending_resource_semantic_hash",
+                                      "agent_resource_executor.gd")))
+check("panel retries retained resource finalize envelope",
+      "_pending_resource_finalize_body" in panel
+      and "_schedule_resource_finalize_retry" in panel
+      and "not _pending_resource_finalize_body.is_empty()" in panel[panel.find("func _has_pending_action"):]
+      and "_send_pending_resource_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
+check("panel explicitly dispatches all editor transaction kinds",
+      all(value in panel for value in ('editor_action_kind == "scene"',
+                                       'editor_action_kind == "project_settings"',
+                                       'editor_action_kind == "resource"')))
+runtime_debugger = read(_os0.path.join(ADDON, "agent_runtime_debugger.gd"))
+runtime_bridge = read(_os0.path.join(ADDON, "agent_runtime_bridge.gd"))
+check("runtime error assertion uses only current check errors",
+      '_errors_since(int(_check.get("error_cursor", 0))).is_empty()' in runtime_bridge)
+check("plugin registers and removes runtime debugger",
+      "add_debugger_plugin" in plugin and "remove_debugger_plugin" in plugin
+      and "set_runtime_debugger" in plugin)
+check("runtime debugger uses public capture protocol",
+      "extends EditorDebuggerPlugin" in runtime_debugger
+      and "_has_capture" in runtime_debugger and "_capture" in runtime_debugger
+      and 'NAMESPACE + ":inspect"' in runtime_debugger
+      and "session.is_active()" in runtime_debugger
+      and '"result_token"' not in runtime_debugger)
+check("runtime bridge is debug-only and read-only",
+      "OS.is_debug_build()" in runtime_bridge and "EngineDebugger.is_active()" in runtime_bridge
+      and "register_message_capture" in runtime_bridge
+      and all(name not in runtime_bridge for name in ("set_property", "queue_free(", "change_scene_to", "UndoRedo")))
+check("panel sends compact runtime status and handles bounded result",
+      '"runtime_status": _runtime_status' in panel
+      and "_start_runtime_inspect" in panel and "RUNTIME_RESULT_URL" in panel
+      and "_pending_runtime_request" in panel)
+check("automatic runtime log setup is read-only",
+      "ProjectSettings.save()" not in panel[panel.find("func _ensure_file_logging_enabled"):panel.find("func _start_progress_poll")])
+check("runtime debugger supports deterministic checks",
+      'NAMESPACE + ":run_check"' in runtime_debugger
+      and "check_completed" in runtime_debugger and "run_check_v1" in runtime_debugger)
+check("runtime bridge executes bounded InputMap checks",
+      "InputEventAction.new" in runtime_bridge and "InputMap.has_action" in runtime_bridge
+      and "_run_check_steps" in runtime_bridge and "_release_inputs" in runtime_bridge
+      and "_error_sequence" in runtime_bridge and "MAX_CHECK_RESULT_BYTES" in runtime_bridge
+      and all(value not in runtime_bridge for value in ("InputEventKey.new", "InputEventMouseButton.new")))
+check("panel refuses unprovable runtime ownership without starting or stopping games",
+       "EditorInterface.play_custom_scene" not in panel and "EditorInterface.stop_playing_scene" not in panel
+       and "RUNTIME_CHECK_RESULT_URL" in panel and '"bridge_unavailable"' in panel
+       and "_pending_runtime_check_result_body" in panel
+       and "func _exit_tree" in panel)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

@@ -883,19 +883,19 @@ check("DeepSeek наследует менеджер парсинга",
       and _dsp.PARSER.WINDOW_URL_MATCH == "chat.deepseek.com")
 check("наследники не дублируют общий конвейер",
       "send_message_and_get_response" not in _aip.AiStudioParser.__dict__
-      and "send_message_and_get_response" not in _dsp.DeepSeekParser.__dict__
+       and "super" in _dsp.DeepSeekParser.send_message_and_get_response.__code__.co_names
       and "wait_for_new_answer" not in _aip.AiStudioParser.__dict__
       and "extract_answer" in _dsp.DeepSeekParser.__dict__)
 
-# v32: гарантированная отправка в DeepSeek + замер времени ответа сервера
-check("DeepSeek: синтетический Enter (JS_DISPATCH_ENTER)",
-      "keydown" in _dsp.JS_DISPATCH_ENTER and "keyCode: 13" in _dsp.JS_DISPATCH_ENTER)
-check("DeepSeek: клик по кнопке отправки pointer-событиями",
-      "PointerEvent" in _dsp.JS_CLICK_SEND
-      and "ds-button--disabled" in _dsp.JS_CLICK_SEND)
-check("DeepSeek: ступенчатая проверка, что сообщение ушло",
-      "_input_leftover" in _dsp.DeepSeekParser.__dict__
-      and "after_submit" in _dsp.DeepSeekParser.__dict__)
+# Ambiguous delivery is not permission to submit the same prompt again.
+check("DeepSeek: нет синтетической повторной отправки",
+       not hasattr(_dsp, "JS_DISPATCH_ENTER") and not hasattr(_dsp, "JS_CLICK_SEND"))
+check("DeepSeek: неоднозначная доставка не вызывает повтор",
+       _dsp.PARSER.SEND_RETRIES == 0)
+check("DeepSeek: только чтение при подтверждении отправки",
+       "_input_leftover" in _dsp.DeepSeekParser.__dict__
+       and "confirm_sent" in _dsp.DeepSeekParser.__dict__
+       and "after_submit" not in _dsp.DeepSeekParser.__dict__)
 _gd_link32 = open(os.path.join(_here, "..", "agent_server_link.gd"), encoding="utf-8").read()
 check("панель: замер времени ответа сервера после запуска exe",
       "Сервер ответил через" in _gd_link32)
