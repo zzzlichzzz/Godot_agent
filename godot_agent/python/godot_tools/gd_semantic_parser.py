@@ -134,6 +134,28 @@ def _declaration(kind, token, owner, path, extra=None):
     return item
 
 
+def _check_export_annotation(tokens, pos):
+    idx = pos - 1
+    while idx >= 0 and tokens[idx]["kind"] == "newline":
+        idx -= 1
+    if idx >= 0 and tokens[idx]["value"] == ")":
+        depth = 1
+        idx -= 1
+        while idx >= 0 and depth > 0:
+            if tokens[idx]["value"] == ")":
+                depth += 1
+            elif tokens[idx]["value"] == "(":
+                depth -= 1
+            idx -= 1
+    if idx >= 1:
+        ident = tokens[idx]
+        at = tokens[idx - 1]
+        if at["value"] == "@" and ident["kind"] == "identifier":
+            if ident["value"].startswith("export"):
+                return True, ident["value"]
+    return False, None
+
+
 def parse(text, path=""):
     """Parse bounded semantic facts; unsupported syntax remains token facts."""
     tokens = tokenize(text)
@@ -185,6 +207,11 @@ def parse(text, path=""):
             prev = tokens[pos - 1]
             if prev["kind"] == "identifier" and prev["value"] in _MODIFIERS:
                 extra["static"] = True
+        elif decl_kind == "variable":
+            is_export, export_type = _check_export_annotation(tokens, pos)
+            if is_export:
+                extra["is_export"] = True
+                extra["export_annotation"] = export_type
         declaration = _declaration(decl_kind, name_token, owner, path, extra)
         declarations.append(declaration)
         declaration_positions.add(name_pos)
@@ -192,6 +219,31 @@ def parse(text, path=""):
         if decl_kind in ("class", "function"):
             scopes.append({"owner": declaration["id"], "indent": indent,
                            "kind": decl_kind})
+        if decl_kind == "function":
+            paren_start = None
+            for p in range(name_pos + 1, len(tokens)):
+                if tokens[p]["value"] == "(":
+                    paren_start = p
+                    break
+                if tokens[p]["kind"] == "newline":
+                    break
+            if paren_start is not None:
+                depth = 1
+                p = paren_start + 1
+                while p < len(tokens) and depth > 0:
+                    tok = tokens[p]
+                    if tok["value"] == "(":
+                        depth += 1
+                    elif tok["value"] == ")":
+                        depth -= 1
+                    elif depth == 1 and tok["kind"] == "identifier":
+                        prev_tok = tokens[p - 1] if p > 0 else None
+                        if prev_tok and prev_tok["value"] in ("(", ","):
+                            param_decl = _declaration("parameter", tok, declaration["id"], path)
+                            declarations.append(param_decl)
+                            declaration_positions.add(p)
+                            token_owners[p] = declaration["id"]
+                    p += 1
 
     references = []
     for pos, token in enumerate(tokens):

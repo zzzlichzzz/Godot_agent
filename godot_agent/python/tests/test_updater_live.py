@@ -210,7 +210,7 @@ def main():
 
             # Копируем agent_updater.gd и исходный plugin.cfg (0.7.0)
             shutil.copyfile(addon_dir / "agent_updater.gd", copied / "agent_updater.gd")
-            shutil.copyfile(addon_dir / "plugin.cfg", copied / "plugin.cfg")
+            (copied / "plugin.cfg").write_text('[plugin]\nname="Godot Agent"\nversion="0.7.0"\nscript="plugin_universal.gd"\n', encoding="utf-8")
 
             # Создаем runner скрипт и project.godot
             runner_code = RUNNER_GDSCRIPT.replace("{PORT}", str(mock_port))
