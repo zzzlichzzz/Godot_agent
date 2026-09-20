@@ -972,10 +972,10 @@ def browser_status():
 
 @chats_bp.route('/chats/list', methods=['POST'])
 def chats_list():
-    busy = _busy_error()
-    if busy:
-        return busy
     data = request.json or {}
+    if S.exchange_active() and data.get("project_root") and S.STATE.get("project_root") \
+            and data["project_root"] != S.STATE["project_root"]:
+        return jsonify({"error": "Сервер сейчас обрабатывает запрос другого проекта."}), 409
     S._apply_session_context(data)
     base = S._chats_dir()
     if not base:

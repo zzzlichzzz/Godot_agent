@@ -477,9 +477,9 @@ check("panel retains settings finalize until a terminal result",
                                      "func _send_pending_project_settings_finalize",
                                      "func _schedule_project_settings_finalize_retry"))
       and "_send_pending_project_settings_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
-check("file operations never close user scenes automatically",
-      'call("close_scene")' not in panel and "func _close_scenes_before_write" not in panel
-       and "_open_pending_scene_paths()" in panel)
+check("file operations close open target scenes before write and reopen them",
+      'call("close_scene")' in panel and "func _close_scenes_before_write" in panel
+      and "_open_pending_scene_paths()" in panel and "_reopen_scenes_after_write()" in panel)
 dirty_helper = panel[panel.find("func _dirty_open_scripts"):panel.find("func _sync_open_script_with_disk")]
 check("dirty script safety does not call unavailable resource accessor",
       "editor.get_edited_resource(" not in dirty_helper

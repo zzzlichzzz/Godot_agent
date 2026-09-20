@@ -1,0 +1,1 @@
+# Prevent Godot editor from scanning, indexing, and compiling Python backend, tests, and build artifacts.

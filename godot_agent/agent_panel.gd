@@ -232,6 +232,21 @@ var _minilich_repos_edit: LineEdit = null
 var _minilich_github_btn: Button = null
 var _minilich_github_label: Label = null
 
+# Подсистема проверки и установки обновлений
+var _updater = null
+var _update_badge: Button = null
+var _update_dialog: AcceptDialog = null
+var _update_check_btn: Button = null
+var _update_check_status_label: Label = null
+var _update_dialog_version_label: Label = null
+var _update_dialog_changelog: RichTextLabel = null
+var _update_dialog_progress: ProgressBar = null
+var _update_dialog_status: Label = null
+var _update_dialog_btn_auto: Button = null
+var _update_dialog_btn_github: Button = null
+var _update_dialog_btn_restart: Button = null
+var _pending_update_info: Dictionary = {}
+
 
 func set_editor_plugin(plugin: EditorPlugin) -> void:
 	_editor_plugin = plugin
@@ -682,6 +697,16 @@ func _ready() -> void:
 			_bar_btn_settings.text = "⚙"
 			_bar_btn_settings.pressed.connect(_on_settings_pressed)
 			bar_old.add_child(_bar_btn_settings)
+		if bar_old.has_node("UpdateBadge"):
+			_update_badge = bar_old.get_node("UpdateBadge") as Button
+			if not _update_badge.pressed.is_connected(_on_update_badge_pressed):
+				_update_badge.pressed.connect(_on_update_badge_pressed)
+		else:
+			_update_badge = Button.new()
+			_update_badge.name = "UpdateBadge"
+			_update_badge.visible = false
+			_update_badge.pressed.connect(_on_update_badge_pressed)
+			bar_old.add_child(_update_badge)
 		_apply_chatbar_texts()
 	else:
 		var bar := HBoxContainer.new()
@@ -714,9 +739,35 @@ func _ready() -> void:
 		_bar_btn_settings.text = "⚙"
 		_bar_btn_settings.pressed.connect(_on_settings_pressed)
 		bar.add_child(_bar_btn_settings)
+		_update_badge = Button.new()
+		_update_badge.name = "UpdateBadge"
+		_update_badge.visible = false
+		_update_badge.pressed.connect(_on_update_badge_pressed)
+		bar.add_child(_update_badge)
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
+	if _updater == null:
+		if has_node("AgentUpdater"):
+			_updater = get_node("AgentUpdater")
+		else:
+			var updater_script = load(String(get_script().resource_path).get_base_dir() + "/agent_updater.gd")
+			if updater_script:
+				_updater = updater_script.new()
+				_updater.name = "AgentUpdater"
+				add_child(_updater)
+		if _updater:
+			if not _updater.update_available.is_connected(_on_updater_available):
+				_updater.update_available.connect(_on_updater_available)
+			if not _updater.update_progress.is_connected(_on_updater_progress):
+				_updater.update_progress.connect(_on_updater_progress)
+			if not _updater.update_completed.is_connected(_on_updater_completed):
+				_updater.update_completed.connect(_on_updater_completed)
+			if not _updater.update_error.is_connected(_on_updater_error):
+				_updater.update_error.connect(_on_updater_error)
+			if not _updater.check_completed.is_connected(_on_updater_check_completed):
+				_updater.check_completed.connect(_on_updater_check_completed)
+	call_deferred("_check_updates_startup")
 	# Фоновое авто-обновление списка чатов при открытии панели — БЕЗ автозапуска
 	# сервера: если сервер ещё не поднят, просто ждём, пока пользователь сам
 	# нажмёт «новый чат»/«загрузить чат» (иначе при каждом открытии Godot
@@ -1181,10 +1232,7 @@ func _send_confirm_request(approved: bool) -> void:
 			_set_ui_busy(false)
 		return
 	if approved and _last_pending_action_type not in ["edit_scene", "create_scene", "rename_node", "reparent_node", "delete_node", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
-		var open_targets := _open_pending_scene_paths()
-		if not open_targets.is_empty():
-			_view.add_warning("Сохраните и закройте целевые сцены перед файловой операцией: " + ", ".join(open_targets))
-			return
+		_close_scenes_before_write()
 	_set_pending_action(false)
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
@@ -2545,6 +2593,35 @@ func _open_pending_scene_paths() -> PackedStringArray:
 	return result
 
 
+func _close_scenes_before_write() -> void:
+	# v49: перед одобренной записью закрываем открытые целевые сцены,
+	# предварительно сохранив их, чтобы не потерять пользовательские изменения.
+	# После применения правок они открываются заново уже в новом виде.
+	_scenes_to_reopen = PackedStringArray()
+	var ei: Object = EditorInterface
+	if not ei.has_method("close_scene"):
+		return  # старый Godot без close_scene: остаётся авто-перечитывание (v46)
+	if ei.has_method("save_all_scenes"):
+		ei.call("save_all_scenes")
+	elif ei.has_method("save_scene"):
+		ei.call("save_scene")
+	var open_targets := _open_pending_scene_paths()
+	for raw in [_last_pending_action_path, _last_pending_action_dest]:
+		var sp := str(raw)
+		if sp == "" or not (sp.ends_with(".tscn") or sp.ends_with(".scn")):
+			continue
+		if not EditorInterface.get_open_scenes().has(sp) and not open_targets.has(sp):
+			continue
+		EditorInterface.open_scene_from_path(sp)  # делаем вкладку сцены активной
+		if int(ei.call("close_scene")) == OK and not _scenes_to_reopen.has(sp):
+			_scenes_to_reopen.append(sp)
+	for sp in open_targets:
+		if not _scenes_to_reopen.has(sp):
+			EditorInterface.open_scene_from_path(sp)
+			if int(ei.call("close_scene")) == OK:
+				_scenes_to_reopen.append(sp)
+
+
 func _reopen_scenes_after_write() -> void:
 	# v49: открываем обратно сцены, закрытые перед записью. Если действие
 	# не выполнилось или файл переехал/удалён — просто пропускаем.
@@ -2801,6 +2878,9 @@ func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> voi
 				_start_screen.show_sites()
 		return
 	if json.has("error"):
+		if kind == "list":
+			# Фоновое обновление списка чатов во время выполнения задачи не должно спамить ошибкой
+			return
 		var message := str(json.get("error", _t("srv_no_response")))
 		_log_error(message)
 		_notify(message, "error")
@@ -3120,6 +3200,8 @@ func _apply_chatbar_texts() -> void:
 		_bar_btn_home.tooltip_text = _t("tip_menu")
 	if _bar_btn_settings:
 		_bar_btn_settings.tooltip_text = _t("tip_settings")
+	if _update_badge and not _pending_update_info.is_empty():
+		_update_badge.tooltip_text = _t("update_badge_text") % _pending_update_info.get("version", "")
 
 
 func _on_language_changed() -> void:
@@ -3562,6 +3644,22 @@ func _on_settings_pressed() -> void:
 			advanced_box.get_parent().remove_child(advanced_box)
 			box.add_child(advanced_box)
 			advanced_box.visible = true
+		# Раздел обновления плагина
+		box.add_child(HSeparator.new())
+		_update_check_btn = Button.new()
+		_update_check_btn.text = _t("update_check_now_btn")
+		_update_check_btn.tooltip_text = _t("update_check_now_tip")
+		_update_check_btn.pressed.connect(_on_check_updates_pressed)
+		if T:
+			T.style_button(_update_check_btn, "neutral", false)
+			_update_check_btn.icon = T.first_icon(["Reload", "Loop", "ActionCopy"])
+		box.add_child(_update_check_btn)
+		_update_check_status_label = Label.new()
+		_update_check_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_update_check_status_label.custom_minimum_size = Vector2(360, 0)
+		if T:
+			_update_check_status_label.add_theme_color_override("font_color", T.color("dim"))
+		box.add_child(_update_check_status_label)
 		_settings_dialog.add_child(wrap)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
@@ -3577,11 +3675,197 @@ func _on_settings_pressed() -> void:
 		_minilich_github_label.text = ""
 	if _settings_adv_header:
 		_settings_adv_header.text = _t("advanced_show") + ":"
+	if _update_check_btn:
+		_update_check_btn.text = _t("update_check_now_btn")
+		_update_check_btn.tooltip_text = _t("update_check_now_tip")
+	if _update_check_status_label:
+		var cur_v: String = _updater.get_current_version() if _updater else "0.7.0"
+		_update_check_status_label.text = _t("update_current_version") % cur_v
 	_minilich_status_label.text = _t("minilich_loading")
 	_settings_dialog.popup_centered()
 	# Статус запрашиваем БЕЗ автозапуска сервера — просто открытие настроек
 	# не должно поднимать сервер.
 	_request_chats("minilich_status", {}, false)
+
+
+# ---------------------------------------------------------------------------
+# Подсистема проверки и установки обновлений
+# ---------------------------------------------------------------------------
+
+func _check_updates_startup() -> void:
+	if _updater:
+		_updater.check_for_updates(false)
+
+
+func _open_update_dialog(info: Dictionary) -> void:
+	var T = _T()
+	if _update_dialog == null:
+		_update_dialog = AcceptDialog.new()
+		_update_dialog.name = "UpdateDialog"
+		_update_dialog.custom_minimum_size = Vector2(460, 340)
+		var wrap := PanelContainer.new()
+		if T:
+			wrap.add_theme_stylebox_override("panel", T.panel_style("agent"))
+		var box := VBoxContainer.new()
+		box.add_theme_constant_override("separation", 8)
+		wrap.add_child(box)
+
+		_update_dialog_version_label = Label.new()
+		_update_dialog_version_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if T:
+			_update_dialog_version_label.add_theme_color_override("font_color", T.color("accent"))
+		box.add_child(_update_dialog_version_label)
+
+		var changelog_hdr := Label.new()
+		changelog_hdr.text = _t("update_changelog")
+		box.add_child(changelog_hdr)
+
+		_update_dialog_changelog = RichTextLabel.new()
+		_update_dialog_changelog.custom_minimum_size = Vector2(420, 160)
+		_update_dialog_changelog.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_update_dialog_changelog.bbcode_enabled = true
+		_update_dialog_changelog.scroll_following = false
+		_update_dialog_changelog.selection_enabled = true
+		box.add_child(_update_dialog_changelog)
+
+		_update_dialog_progress = ProgressBar.new()
+		_update_dialog_progress.visible = false
+		_update_dialog_progress.min_value = 0
+		_update_dialog_progress.max_value = 100
+		box.add_child(_update_dialog_progress)
+
+		_update_dialog_status = Label.new()
+		_update_dialog_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if T:
+			_update_dialog_status.add_theme_color_override("font_color", T.color("dim"))
+		box.add_child(_update_dialog_status)
+
+		var btn_box := HBoxContainer.new()
+		btn_box.add_theme_constant_override("separation", 8)
+		_update_dialog_btn_auto = Button.new()
+		_update_dialog_btn_auto.text = _t("update_btn_auto")
+		_update_dialog_btn_auto.pressed.connect(_on_update_auto_pressed)
+		if T:
+			T.style_button(_update_dialog_btn_auto, "accent", false)
+		btn_box.add_child(_update_dialog_btn_auto)
+
+		_update_dialog_btn_github = Button.new()
+		_update_dialog_btn_github.text = _t("update_btn_github")
+		_update_dialog_btn_github.pressed.connect(_on_update_github_pressed)
+		if T:
+			T.style_button(_update_dialog_btn_github, "neutral", false)
+		btn_box.add_child(_update_dialog_btn_github)
+
+		_update_dialog_btn_restart = Button.new()
+		_update_dialog_btn_restart.text = _t("update_restart_btn")
+		_update_dialog_btn_restart.visible = false
+		_update_dialog_btn_restart.pressed.connect(_on_update_restart_pressed)
+		if T:
+			T.style_button(_update_dialog_btn_restart, "accent", false)
+		btn_box.add_child(_update_dialog_btn_restart)
+
+		box.add_child(btn_box)
+
+		_update_dialog.add_child(wrap)
+		add_child(_update_dialog)
+
+	_update_dialog.title = _t("update_dialog_title")
+	var cur_v: String = _updater.get_current_version() if _updater else "0.7.0"
+	var new_v: String = info.get("version", "")
+	_update_dialog_version_label.text = (_t("update_current_version") % cur_v) + "  →  " + (_t("update_new_version") % new_v)
+	_update_dialog_changelog.text = info.get("body", "")
+	if _update_dialog_progress:
+		_update_dialog_progress.visible = false
+		_update_dialog_progress.value = 0
+	if _update_dialog_status:
+		_update_dialog_status.text = ""
+	if _update_dialog_btn_auto:
+		_update_dialog_btn_auto.visible = true
+	if _update_dialog_btn_restart:
+		_update_dialog_btn_restart.visible = false
+	_update_dialog.popup_centered()
+
+
+func _on_updater_available(info: Dictionary) -> void:
+	_pending_update_info = info
+	if _update_badge:
+		_update_badge.text = "⚡ v" + info.get("version", "")
+		_update_badge.tooltip_text = _t("update_badge_text") % info.get("version", "")
+		var T = _T()
+		if T:
+			T.style_button(_update_badge, "accent", false)
+		_update_badge.visible = true
+
+
+func _on_updater_progress(phase: String, current: int, total: int) -> void:
+	if _update_dialog_progress:
+		_update_dialog_progress.visible = true
+		_update_dialog_progress.max_value = total
+		_update_dialog_progress.value = current
+	if _update_dialog_status:
+		if phase == "downloading":
+			_update_dialog_status.text = _t("update_status_downloading") % current
+		elif phase == "extracting":
+			_update_dialog_status.text = _t("update_status_extracting")
+
+
+func _on_updater_completed(_restart_needed: bool) -> void:
+	if _update_dialog_progress:
+		_update_dialog_progress.visible = false
+	if _update_dialog_status:
+		_update_dialog_status.text = _t("update_status_ready_restart")
+	if _update_dialog_btn_auto:
+		_update_dialog_btn_auto.visible = false
+	if _update_dialog_btn_restart:
+		_update_dialog_btn_restart.visible = true
+	if _update_badge:
+		_update_badge.visible = false
+	_notify(_t("update_status_ready_restart"), "success")
+
+
+func _on_updater_error(msg: String) -> void:
+	if _update_dialog_progress:
+		_update_dialog_progress.visible = false
+	if _update_dialog_status:
+		_update_dialog_status.text = _t("update_error") % msg
+	if _update_check_status_label:
+		_update_check_status_label.text = _t("update_error") % msg
+	_notify(_t("update_error") % msg, "error")
+
+
+func _on_updater_check_completed(has_update: bool, info: Dictionary) -> void:
+	if _update_check_status_label:
+		if has_update:
+			_update_check_status_label.text = _t("update_badge_text") % info.get("version", "")
+		else:
+			var cur_v: String = _updater.get_current_version() if _updater else "0.7.0"
+			_update_check_status_label.text = _t("update_status_latest") % cur_v
+
+
+func _on_update_badge_pressed() -> void:
+	_open_update_dialog(_pending_update_info)
+
+
+func _on_check_updates_pressed() -> void:
+	if _update_check_status_label:
+		_update_check_status_label.text = _t("update_status_checking")
+	if _updater:
+		_updater.check_for_updates(true)
+
+
+func _on_update_auto_pressed() -> void:
+	if _updater:
+		_updater.start_update()
+
+
+func _on_update_github_pressed() -> void:
+	if _updater:
+		_updater.open_github_release()
+
+
+func _on_update_restart_pressed() -> void:
+	if _updater:
+		_updater.restart_editor()
 
 
 func _on_train_mode_toggled(pressed: bool) -> void:
