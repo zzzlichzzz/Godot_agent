@@ -50,7 +50,7 @@ def main():
         for source in addon.iterdir():
             if source.suffix in (".gd", ".tscn"):
                 shutil.copyfile(source, copied / source.name)
-        shutil.copyfile(Path(__file__).parent / "fixtures" / "runtime_ownership_live.gd",
+        shutil.copyfile(Path(__file__).parent / "fixtures" / "runtime_ownership_live.gd_fixture",
                         root / "runtime_ownership_live.gd")
         (root / "screenshot_probe.gd").write_text(probe, encoding="utf-8")
         (root / "project.godot").write_text(

@@ -27,7 +27,7 @@ test_browser_send_acceptance test_aistudio_send_acceptance
 test_browser_target_binding test_v88_11_live_input test_v105_spoof_per_site
 test_v88_16_paste_fix test_v88_12_net_confirm test_v88_7_input_wait
 test_v88_8_net_first test_rate_limit_sleep test_v87_1_kimi_cdp
-test_v88_0_aistudio test_v105_net_answer_ready test_arena_parser test_v88_13_multi_action
+test_v88_0_aistudio test_v105_net_answer_ready test_arena_parser test_v88_13_multi_action test_updater
 """.split()
 
 
@@ -39,7 +39,8 @@ def main():
     python_root = Path(__file__).resolve().parent.parent
     suites = list(SUITES)
     live = ["test_godot_live", "test_godot_executor_live", "test_runtime_ownership_live",
-            "test_headless_validator_live", "test_file_refactor_live", "test_node_refactor_live"]
+            "test_headless_validator_live", "test_file_refactor_live", "test_node_refactor_live",
+            "test_updater_live"]
     if args.godot:
         suites.extend(live)
     failures = []
