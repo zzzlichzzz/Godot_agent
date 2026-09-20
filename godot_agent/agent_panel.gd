@@ -2171,7 +2171,11 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_safe_rename_status_label.text = _t("safe_rename_preview_found") % [ref_count, file_count, aff_count]
 			var diffs = prep.get("diffs", [])
 			if diffs is Array and not diffs.is_empty() and _view:
-				_view.add_system("Предпросмотр безопасного переименования: %s -> %s" % [prep.get("old_path"), prep.get("new_path")])
+				var head_msg := "Предпросмотр безопасного переименования: %s -> %s" % [prep.get("old_path"), prep.get("new_path")]
+				var comp_scr := str(prep.get("companion_script", ""))
+				if comp_scr != "":
+					head_msg += "\n(Прикреплённый скрипт сцены: %s)" % comp_scr
+				_view.add_system(head_msg)
 				for d in diffs:
 					if d is Dictionary:
 						_view.add_readonly_diff(str(d.get("path", "")), d)
@@ -2650,29 +2654,27 @@ func _force_reload_open_script() -> void:
 
 func _dirty_open_scripts(target_paths: PackedStringArray) -> PackedStringArray:
 	var affected := PackedStringArray()
-	if target_paths.is_empty():
-		return affected
-	var wanted := {}
-	for path in target_paths:
-		wanted[path.to_lower()] = true
 	var script_editor := EditorInterface.get_script_editor()
 	if not script_editor:
 		return affected
-	for script in script_editor.get_open_scripts():
-		if script and wanted.has(str(script.resource_path).to_lower()):
-			affected.append(str(script.resource_path))
-	if affected.is_empty():
-		return affected
-	# Public ScriptEditorBase has no get_edited_resource(). Do not assume that
-	# two editor arrays share an order: require all open buffers to be clean.
-	var editors := script_editor.get_open_script_editors()
-	if editors.is_empty():
-		return affected
-	for editor in editors:
-		var code_edit := editor.get_base_editor() as CodeEdit
-		if code_edit == null or code_edit.get_version() != code_edit.get_saved_version():
-			return affected
-	return PackedStringArray()
+	var wanted := {}
+	for path in target_paths:
+		if path != "":
+			wanted[path.to_lower()] = true
+	var open_scripts := script_editor.get_open_scripts()
+	var open_editors := script_editor.get_open_script_editors()
+	for i in range(min(open_scripts.size(), open_editors.size())):
+		var scr := open_scripts[i]
+		var ed := open_editors[i]
+		if not scr or not ed:
+			continue
+		var path_str := str(scr.resource_path)
+		if wanted.is_empty() or wanted.has(path_str.to_lower()):
+			var code_edit := ed.get_base_editor() as CodeEdit
+			if code_edit and code_edit.get_version() != code_edit.get_saved_version():
+				if not affected.has(path_str):
+					affected.append(path_str)
+	return affected
 
 
 func _sync_open_script_with_disk(target_path: String) -> void:
@@ -2683,47 +2685,48 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 	var script_editor := EditorInterface.get_script_editor()
 	if not script_editor:
 		return
-	# Ищем среди уже открытых вкладок нужный путь.
-	# Если вкладка не открыта — трогать нечего, файл на диске и так актуален.
-	var target_script: Script = null
-	for scr in script_editor.get_open_scripts():
-		if scr and scr.resource_path == target_path:
-			target_script = scr
-			break
-	if target_script == null:
-		return
-	# Читаем текст напрямую с диска через FileAccess, полностью в обход
-	# ResourceLoader/GDScriptCache — именно там была причина отката на старый текст.
+
 	var file := FileAccess.open(target_path, FileAccess.READ)
 	if not file:
 		push_warning("Не удалось открыть файл для чтения: " + target_path)
 		return
 	var real_text := file.get_as_text()
 	file.close()
-	# Запоминаем текущую активную вкладку, чтобы вернуться к ней после обновления.
-	var previous_script := script_editor.get_current_script()
-	EditorInterface.edit_script(target_script, -1, 0, false)
-	var current_editor := script_editor.get_current_editor()
-	if current_editor:
-		var base_editor: Control = current_editor.get_base_editor()
-		var code_edit := base_editor as CodeEdit
-		if code_edit:
-			# Защита от потери работы пользователя: если в открытой вкладке
-			# ЕСТЬ несохранённые ручные правки — НЕ перетираем их автоматически.
-			var has_unsaved_edits := code_edit.get_version() != code_edit.get_saved_version()
-			if has_unsaved_edits:
-				push_warning("Вкладка '%s' содержит несохранённые правки — авто-обновление пропущено, чтобы не потерять их." % target_path)
-			elif code_edit.text != real_text:
-				var caret_line := code_edit.get_caret_line()
-				var caret_col := code_edit.get_caret_column()
-				code_edit.text = real_text
-				code_edit.set_caret_line(min(caret_line, max(0, code_edit.get_line_count() - 1)))
-				code_edit.set_caret_column(caret_col)
-				# Помечаем текущее состояние как "сохранённое", чтобы не было лишнего "*".
-				code_edit.tag_saved_version()
-				print("Вкладка скрипта синхронизирована с диском: ", target_path)
-	if previous_script and previous_script != target_script:
-		EditorInterface.edit_script(previous_script, -1, 0, false)
+
+	var open_scripts := script_editor.get_open_scripts()
+	var open_editors := script_editor.get_open_script_editors()
+	var target_script: Script = null
+	var target_code_edit: CodeEdit = null
+
+	for i in range(open_scripts.size()):
+		var scr := open_scripts[i]
+		if scr and scr.resource_path == target_path:
+			target_script = scr
+			if i < open_editors.size():
+				var editor_base = open_editors[i]
+				if editor_base:
+					target_code_edit = editor_base.get_base_editor() as CodeEdit
+			break
+
+	if target_code_edit:
+		var has_unsaved_edits := target_code_edit.get_version() != target_code_edit.get_saved_version()
+		if has_unsaved_edits:
+			push_warning("Вкладка '%s' содержит несохранённые правки — авто-обновление пропущено, чтобы не потерять их." % target_path)
+		elif target_code_edit.text != real_text:
+			var caret_line := target_code_edit.get_caret_line()
+			var caret_col := target_code_edit.get_caret_column()
+			target_code_edit.text = real_text
+			target_code_edit.set_caret_line(min(caret_line, max(0, target_code_edit.get_line_count() - 1)))
+			target_code_edit.set_caret_column(caret_col)
+			target_code_edit.tag_saved_version()
+			print("Вкладка скрипта синхронизирована с диском: ", target_path)
+
+	if target_script:
+		target_script.reload(true)
+	elif ResourceLoader.has_cached(target_path):
+		var res = ResourceLoader.load(target_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+		if res is Script:
+			res.reload(true)
 
 
 # ---------------------------------------------------------------------------
@@ -4117,7 +4120,8 @@ func _on_safe_rename_apply() -> void:
 		for p in _safe_rename_prepared["affected_paths"]:
 			if not targets.has(str(p)):
 				targets.append(str(p))
-	var dirty := _dirty_open_scripts(PackedStringArray(targets))
+	var check_targets := PackedStringArray(targets) if _safe_rename_prepared.has("affected_paths") else PackedStringArray()
+	var dirty := _dirty_open_scripts(check_targets)
 	if not dirty.is_empty():
 		_safe_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
 		return
