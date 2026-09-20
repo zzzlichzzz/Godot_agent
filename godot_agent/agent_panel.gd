@@ -4268,7 +4268,7 @@ func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool 
 		req.queue_free()
 		var json_str := body_bytes.get_string_from_utf8()
 		if result != HTTPRequest.RESULT_SUCCESS:
-			push_warning("[Godot Agent] Ошибка сетевого запроса автосинхронизации (result=%d). Сервер агента запущен?" % result)
+			push_warning("[Godot Agent] Внимание: файл '%s' переименован/перемещён, но сервер агента недоступен (не запущен). Ссылки в коде и сценах не обновлены! Запустите godot_agent_server.exe." % clean_old)
 			return
 		if response_code != 200:
 			push_warning("[Godot Agent] Сервер вернул ошибку синхронизации (код %d): %s" % [response_code, json_str])
