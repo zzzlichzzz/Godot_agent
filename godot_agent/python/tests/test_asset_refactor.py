@@ -360,8 +360,15 @@ class AssetRefactorTests(unittest.TestCase):
         """When a directory is moved externally, sync_references_after_external_move updates references across files."""
         items_dir = self.root / "items"
         items_dir.mkdir(parents=True, exist_ok=True)
+        sword_gd = items_dir / "sword.gd"
+        sword_gd.write_text('extends Node2D\n', encoding="utf-8")
         sword_scene = items_dir / "sword.tscn"
-        sword_scene.write_text('[gd_scene format=3]\n[node name="Sword" type="Node2D"]\n', encoding="utf-8")
+        sword_scene.write_text(
+            '[gd_scene load_steps=2 format=3]\n'
+            '[ext_resource type="Script" path="res://items/sword.gd" id="1_abc"]\n'
+            '[node name="Sword" type="Node2D"]\n',
+            encoding="utf-8"
+        )
 
         spawner_gd = self.root / "scripts" / "spawner.gd"
         spawner_gd.write_text(
@@ -381,13 +388,67 @@ class AssetRefactorTests(unittest.TestCase):
             is_directory=True
         )
         self.assertTrue(res.get("ok"))
-        self.assertEqual(res.get("reference_count"), 1)
+        self.assertEqual(res.get("reference_count"), 2)
         self.assertIn("res://scripts/spawner.gd", res.get("changed_paths", []))
+        self.assertIn("res://loot/sword.tscn", res.get("changed_paths", []))
 
         spawner_text = spawner_gd.read_text(encoding="utf-8")
         self.assertIn('preload("res://loot/sword.tscn")', spawner_text)
 
+        loot_sword_tscn = (loot_dir / "sword.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://loot/sword.gd"', loot_sword_tscn)
+
+    def test_sync_references_after_external_script_rename(self):
+        """When an enemy script is renamed externally, references in scenes are updated."""
+        scripts_dir = self.root / "scripts" / "enemies"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        goblin_gd = scripts_dir / "goblin.gd"
+        goblin_gd.write_text('extends CharacterBody2D\n', encoding="utf-8")
+
+        scenes_dir = self.root / "scenes" / "enemies"
+        scenes_dir.mkdir(parents=True, exist_ok=True)
+        enemy_tscn = scenes_dir / "enemy.tscn"
+        enemy_tscn.write_text(
+            '[gd_scene format=3]\n'
+            '[ext_resource type="Script" path="res://scripts/enemies/goblin.gd" id="1_abc"]\n',
+            encoding="utf-8"
+        )
+
+        rat_gd = scripts_dir / "rat.gd"
+        goblin_gd.rename(rat_gd)
+
+        res = file_refactor.sync_references_after_external_move(
+            str(self.root),
+            "res://scripts/enemies/goblin.gd",
+            "res://scripts/enemies/rat.gd"
+        )
+        self.assertTrue(res.get("ok"))
+        self.assertEqual(res.get("reference_count"), 1)
+        self.assertIn("res://scenes/enemies/enemy.tscn", res.get("changed_paths", []))
+
+        updated_tscn = enemy_tscn.read_text(encoding="utf-8")
+        self.assertIn('path="res://scripts/enemies/rat.gd"', updated_tscn)
+
+    def test_sync_references_zero_references_returns_clean_result(self):
+        """Renaming a file with no project references returns ok=True and empty changed_paths."""
+        misc_dir = self.root / "misc"
+        misc_dir.mkdir(parents=True, exist_ok=True)
+        old_file = misc_dir / "temp1.txt"
+        new_file = misc_dir / "temp2.txt"
+        old_file.write_text('hello\n', encoding="utf-8")
+        old_file.rename(new_file)
+
+        res = file_refactor.sync_references_after_external_move(
+            str(self.root),
+            "res://misc/temp1.txt",
+            "res://misc/temp2.txt"
+        )
+        self.assertTrue(res.get("ok"))
+        self.assertEqual(res.get("reference_count"), 0)
+        self.assertEqual(res.get("changed_paths"), [])
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -856,7 +856,7 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 abs_file = os.path.join(root, filename)
                 rel_file = os.path.relpath(abs_file, root_path).replace("\\", "/")
                 godot_file = "res://" + rel_file
-                if godot_file.startswith(old_prefix) or godot_file.startswith(new_prefix):
+                if godot_file.startswith(old_prefix):
                     continue
                 try:
                     raw, text, bom = _read_file_text(abs_file)
@@ -896,6 +896,7 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 if ref["path"].lower().endswith(".gd"):
                     lint_errors = gd_lint.lint_gdscript(after_text)
                     if lint_errors:
+                        print("[sync_references_after_external_move] Lint error in %s, skipping: %s" % (ref["path"], lint_errors[0]))
                         continue
                 after_bytes = (b"\xef\xbb\xbf" if ref["bom"] else b"") + after_text.encode("utf-8")
                 files_to_modify.append({

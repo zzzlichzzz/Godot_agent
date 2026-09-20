@@ -47,15 +47,24 @@ func _enter_tree() -> void:
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
 	add_tool_menu_item(_lt("safe_rename_title", "Безопасное переименование файла..."), _on_safe_rename_menu_pressed)
 	add_tool_menu_item(_lt("safe_node_rename_title", "Безопасное переименование узла..."), _on_safe_node_rename_menu_pressed)
-	var fs_dock: FileSystemDock = EditorInterface.get_file_system_dock()
-	if fs_dock:
-		if not fs_dock.files_moved.is_connected(_on_fs_files_moved):
-			fs_dock.files_moved.connect(_on_fs_files_moved)
-		if not fs_dock.folder_moved.is_connected(_on_fs_folder_moved):
-			fs_dock.folder_moved.connect(_on_fs_folder_moved)
+	_ensure_fs_dock_connected()
 	# Делаем вкладку агента первой и активной (отложенно: док должен
 	# успеть попасть в TabContainer редактора).
 	call_deferred("_promote_dock_tab")
+
+
+func _ensure_fs_dock_connected() -> void:
+	var fs_dock: FileSystemDock = EditorInterface.get_file_system_dock()
+	if fs_dock:
+		var connected_any := false
+		if not fs_dock.files_moved.is_connected(_on_fs_files_moved):
+			fs_dock.files_moved.connect(_on_fs_files_moved)
+			connected_any = true
+		if not fs_dock.folder_moved.is_connected(_on_fs_folder_moved):
+			fs_dock.folder_moved.connect(_on_fs_folder_moved)
+			connected_any = true
+		if connected_any:
+			print("[Godot Agent] Перехват событий FileSystemDock подключен (автосинхронизация ссылок активна при запущенном сервере).")
 
 
 func _exit_tree() -> void:
@@ -78,13 +87,19 @@ func _exit_tree() -> void:
 
 
 func _on_fs_files_moved(old_file: String, new_file: String) -> void:
+	print("[Godot Agent] Событие FileSystem (перемещение файла): '%s' -> '%s'" % [old_file, new_file])
 	if _dock and _dock.has_method("handle_filesystem_move"):
 		_dock.call("handle_filesystem_move", old_file, new_file, false)
+	else:
+		push_warning("[Godot Agent] Панель агента не готова для обработки перемещения файла.")
 
 
 func _on_fs_folder_moved(old_folder: String, new_folder: String) -> void:
+	print("[Godot Agent] Событие FileSystem (перемещение папки): '%s' -> '%s'" % [old_folder, new_folder])
 	if _dock and _dock.has_method("handle_filesystem_move"):
 		_dock.call("handle_filesystem_move", old_folder, new_folder, true)
+	else:
+		push_warning("[Godot Agent] Панель агента не готова для обработки перемещения папки.")
 
 
 func _on_safe_rename_menu_pressed() -> void:
@@ -108,14 +123,17 @@ func _promote_dock_tab() -> void:
 	# Редактор восстанавливает сохранённую раскладку доков УЖЕ ПОСЛЕ
 	# включения плагинов и может вернуть вкладку на старое место.
 	# Поэтому в течение ~4 секунд несколько раз передвигаем её на первое
-	# место (позиция закрепится в раскладке после первого сохранения).
+	# место (позиция закрепится в раскладке после первого сохранения),
+	# а также гарантируем подключение сигналов FileSystemDock.
 	for i in range(8):
+		_ensure_fs_dock_connected()
 		_do_promote_once()
 		if get_tree() == null:
 			return
 		await get_tree().create_timer(0.5).timeout
 		if _dock == null:
 			return
+	_ensure_fs_dock_connected()
 	_do_promote_once()
 
 
