@@ -2184,9 +2184,10 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "safe_rename_apply":
 			if bool(json.get("ok", false)):
-				EditorInterface.get_resource_filesystem().scan()
 				var old_p := str(json.get("old_path", ""))
 				var new_p := str(json.get("new_path", ""))
+				_sync_resource_uid(old_p, new_p)
+				EditorInterface.get_resource_filesystem().scan()
 				var ref_cnt := int(json.get("reference_count", 0))
 				var file_cnt := int(json.get("file_count", 0))
 				var changed_paths = json.get("changed_paths", [])
@@ -2196,9 +2197,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 						_auto_reload_changed_scene(str(cp))
 				_close_ghost_script_tab(old_p)
 				if FileAccess.file_exists(new_p) and new_p.ends_with(".gd"):
-					var scr = load(new_p)
+					var scr = ResourceLoader.load(new_p, "", ResourceLoader.CACHE_MODE_REPLACE)
 					if scr is Script:
+						scr.reload(true)
 						EditorInterface.edit_script(scr, -1, 0, false)
+				_remap_scenes_to_reopen(old_p, new_p)
+				_reopen_scenes_after_write()
 				var msg := _t("safe_rename_success") % [old_p, new_p, ref_cnt, file_cnt]
 				if _view:
 					_view.add_agent_message(msg, str(json.get("entry_id", "")))
@@ -2634,6 +2638,64 @@ func _reopen_scenes_after_write() -> void:
 		if FileAccess.file_exists(str(sp)):
 			EditorInterface.open_scene_from_path(str(sp))
 	_scenes_to_reopen = PackedStringArray()
+
+
+func _close_target_scenes_before_write(extra_targets: PackedStringArray) -> void:
+	_scenes_to_reopen = PackedStringArray()
+	var ei: Object = EditorInterface
+	if not ei.has_method("close_scene"):
+		return
+	if ei.has_method("save_all_scenes"):
+		ei.call("save_all_scenes")
+	elif ei.has_method("save_scene"):
+		ei.call("save_scene")
+	var open_scenes := EditorInterface.get_open_scenes()
+	for raw in extra_targets:
+		var sp := str(raw)
+		if sp == "" or not (sp.ends_with(".tscn") or sp.ends_with(".scn")):
+			continue
+		for opened in open_scenes:
+			if str(opened).to_lower() == sp.to_lower() and not _scenes_to_reopen.has(str(opened)):
+				EditorInterface.open_scene_from_path(str(opened))
+				if int(ei.call("close_scene")) == OK:
+					_scenes_to_reopen.append(str(opened))
+
+
+func _remap_scenes_to_reopen(old_path: String, new_path: String) -> void:
+	for i in range(_scenes_to_reopen.size()):
+		if _scenes_to_reopen[i].to_lower() == old_path.to_lower():
+			_scenes_to_reopen[i] = new_path
+
+
+func _sync_resource_uid(old_path: String, new_path: String) -> void:
+	if new_path.is_empty():
+		return
+	var uid_path := new_path + ".uid"
+	var uid_str := ""
+	if FileAccess.file_exists(uid_path):
+		uid_str = FileAccess.get_file_as_string(uid_path).strip_edges()
+	elif FileAccess.file_exists(new_path):
+		var f := FileAccess.open(new_path, FileAccess.READ)
+		if f:
+			var first_line := f.get_line()
+			f.close()
+			var idx := first_line.find('uid="uid://')
+			if idx != -1:
+				var end_idx := first_line.find('"', idx + 5)
+				if end_idx != -1:
+					uid_str = first_line.substr(idx + 5, end_idx - (idx + 5))
+	if uid_str.begins_with("uid://"):
+		var id := ResourceUID.text_to_id(uid_str)
+		if id != ResourceUID.INVALID_ID:
+			if ResourceUID.has_id(id):
+				ResourceUID.set_id(id, new_path)
+			else:
+				ResourceUID.add_id(id, new_path)
+	var efs := EditorInterface.get_resource_filesystem()
+	if efs:
+		if efs.has_method("update_file"):
+			efs.call("update_file", new_path)
+		efs.scan()
 
 
 func _ensure_script_autoreload_setting() -> void:
@@ -3572,8 +3634,13 @@ func _after_ghost_close() -> void:
 
 func _on_settings_pressed() -> void:
 	var T = _T()
+	if _safe_rename_dialog and _safe_rename_dialog.visible:
+		_safe_rename_dialog.hide()
+	if _safe_node_rename_dialog and _safe_node_rename_dialog.visible:
+		_safe_node_rename_dialog.hide()
 	if _settings_dialog == null:
 		_settings_dialog = AcceptDialog.new()
+		_settings_dialog.exclusive = false
 		# v60: без TabContainer — с одной вкладкой он давал два одинаковых
 		# заголовка (таб + внутренняя надпись) и лишнюю стрелку вкладок сверху.
 		# Простой список: заголовок + подпись «ниже — экспериментальные настройки» + сами настройки.
@@ -3705,6 +3772,7 @@ func _open_update_dialog(info: Dictionary) -> void:
 	var T = _T()
 	if _update_dialog == null:
 		_update_dialog = AcceptDialog.new()
+		_update_dialog.exclusive = false
 		_update_dialog.name = "UpdateDialog"
 		_update_dialog.custom_minimum_size = Vector2(460, 340)
 		var wrap := PanelContainer.new()
@@ -3948,13 +4016,31 @@ func _on_safe_rename_pressed() -> void:
 
 func open_safe_rename(prefill_path: String = "") -> void:
 	_ensure_safe_rename_dialog()
+	if _settings_dialog and _settings_dialog.visible:
+		_settings_dialog.hide()
+	if _update_dialog and _update_dialog.visible:
+		_update_dialog.hide()
 	var initial_path := prefill_path
 	if initial_path.is_empty():
-		var se := EditorInterface.get_script_editor()
-		if se and se.get_current_script():
-			initial_path = se.get_current_script().resource_path
-		elif EditorInterface.get_edited_scene_root():
-			initial_path = EditorInterface.get_edited_scene_root().scene_file_path
+		# 1. Приоритет: файл или папка, выделенная в доке FileSystem
+		var selected := EditorInterface.get_selected_paths()
+		if not selected.is_empty() and (FileAccess.file_exists(selected[0]) or DirAccess.dir_exists_absolute(selected[0])):
+			initial_path = selected[0]
+		else:
+			# 2. Если пользователь редактирует скрипт в видимом редакторе скриптов
+			var se := EditorInterface.get_script_editor()
+			if se and se.is_visible_in_tree() and se.get_current_script():
+				initial_path = se.get_current_script().resource_path
+			# 3. Если открыта 2D или 3D сцена (главная сцена в редакторе)
+			elif EditorInterface.get_edited_scene_root() and not EditorInterface.get_edited_scene_root().scene_file_path.is_empty():
+				initial_path = EditorInterface.get_edited_scene_root().scene_file_path
+			# 4. Фоновый открытый скрипт
+			elif se and se.get_current_script():
+				initial_path = se.get_current_script().resource_path
+			else:
+				var cur := EditorInterface.get_current_path()
+				if not cur.is_empty() and cur != "res://" and (FileAccess.file_exists(cur) or DirAccess.dir_exists_absolute(cur)):
+					initial_path = cur
 	if initial_path != "" and initial_path.begins_with("res://"):
 		_safe_rename_old_edit.text = initial_path
 		_safe_rename_new_edit.text = initial_path
@@ -3971,6 +4057,7 @@ func _ensure_safe_rename_dialog() -> void:
 		return
 	var T = _T()
 	_safe_rename_dialog = ConfirmationDialog.new()
+	_safe_rename_dialog.exclusive = false
 	_safe_rename_dialog.title = _t("safe_rename_title")
 	_safe_rename_dialog.get_ok_button().text = _t("safe_rename_apply")
 	_safe_rename_dialog.get_cancel_button().text = _t("back")
@@ -4057,6 +4144,7 @@ func _ensure_safe_rename_dialog() -> void:
 func _on_safe_rename_browse() -> void:
 	if _safe_rename_file_dialog == null:
 		_safe_rename_file_dialog = FileDialog.new()
+		_safe_rename_file_dialog.exclusive = false
 		_safe_rename_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_safe_rename_file_dialog.access = FileDialog.ACCESS_RESOURCES
 		_safe_rename_file_dialog.filters = PackedStringArray([
@@ -4121,11 +4209,12 @@ func _on_safe_rename_apply() -> void:
 		for p in _safe_rename_prepared["affected_paths"]:
 			if not targets.has(str(p)):
 				targets.append(str(p))
-	var check_targets := PackedStringArray(targets) if _safe_rename_prepared.has("affected_paths") else PackedStringArray()
+	var check_targets := PackedStringArray(targets) if _safe_rename_prepared.has("affected_paths") else PackedStringArray(targets)
 	var dirty := _dirty_open_scripts(check_targets)
 	if not dirty.is_empty():
 		_safe_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
 		return
+	_close_target_scenes_before_write(check_targets)
 	_safe_rename_status_label.text = "Применение переименования..."
 	var body = {
 		"old_path": old_p,
@@ -4170,6 +4259,7 @@ func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool 
 		var resp: Dictionary = p.data
 		if not bool(resp.get("ok", false)):
 			return
+		_sync_resource_uid(old_path, new_path)
 		var ref_cnt := int(resp.get("reference_count", 0))
 		var changed_paths = resp.get("changed_paths", [])
 		if changed_paths is Array and not changed_paths.is_empty():
@@ -4178,6 +4268,10 @@ func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool 
 				_sync_open_script_with_disk(str(cp))
 				_auto_reload_changed_scene(str(cp))
 			_close_ghost_script_tab(old_path)
+			if FileAccess.file_exists(new_path) and new_path.ends_with(".gd"):
+				var scr = ResourceLoader.load(new_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+				if scr is Script:
+					scr.reload(true)
 			var file_cnt := int(resp.get("file_count", 0))
 			var entry_id := str(resp.get("entry_id", ""))
 			var msg := _t("safe_post_move_sync_success") % [old_path, new_path, ref_cnt, file_cnt]
@@ -4196,6 +4290,10 @@ func _on_safe_node_rename_pressed() -> void:
 
 func open_safe_node_rename(prefill_scene: String = "", prefill_node: String = "") -> void:
 	_ensure_safe_node_rename_dialog()
+	if _settings_dialog and _settings_dialog.visible:
+		_settings_dialog.hide()
+	if _update_dialog and _update_dialog.visible:
+		_update_dialog.hide()
 	var initial_scene := prefill_scene
 	var initial_node := prefill_node
 	var initial_new_name := prefill_node
@@ -4232,6 +4330,7 @@ func _ensure_safe_node_rename_dialog() -> void:
 		return
 	var T = _T()
 	_safe_node_rename_dialog = ConfirmationDialog.new()
+	_safe_node_rename_dialog.exclusive = false
 	_safe_node_rename_dialog.title = _t("safe_node_rename_title")
 	_safe_node_rename_dialog.get_ok_button().text = _t("safe_node_rename_apply")
 	_safe_node_rename_dialog.get_cancel_button().text = _t("back")
@@ -4329,6 +4428,7 @@ func _ensure_safe_node_rename_dialog() -> void:
 func _on_safe_node_rename_scene_browse() -> void:
 	if _safe_node_rename_scene_dialog == null:
 		_safe_node_rename_scene_dialog = FileDialog.new()
+		_safe_node_rename_scene_dialog.exclusive = false
 		_safe_node_rename_scene_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_safe_node_rename_scene_dialog.access = FileDialog.ACCESS_RESOURCES
 		_safe_node_rename_scene_dialog.filters = PackedStringArray([
