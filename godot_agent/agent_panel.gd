@@ -45,6 +45,7 @@ const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
 const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
 const REFACTOR_FILE_PREVIEW_URL = "http://" + HOST + "/project/refactor/file/preview"
 const REFACTOR_FILE_APPLY_URL = "http://" + HOST + "/project/refactor/file/apply"
+const REFACTOR_FILE_POST_MOVE_SYNC_URL = "http://" + HOST + "/project/refactor/file/post_move_sync"
 const REFACTOR_NODE_PREVIEW_URL = "http://" + HOST + "/scene/refactor/node/preview"
 const REFACTOR_NODE_APPLY_URL = "http://" + HOST + "/scene/refactor/node/apply"
 
@@ -2171,7 +2172,11 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_safe_rename_status_label.text = _t("safe_rename_preview_found") % [ref_count, file_count, aff_count]
 			var diffs = prep.get("diffs", [])
 			if diffs is Array and not diffs.is_empty() and _view:
-				_view.add_system("Предпросмотр безопасного переименования: %s -> %s" % [prep.get("old_path"), prep.get("new_path")])
+				var head_msg := "Предпросмотр безопасного переименования: %s -> %s" % [prep.get("old_path"), prep.get("new_path")]
+				var comp_scr := str(prep.get("companion_script", ""))
+				if comp_scr != "":
+					head_msg += "\n(Прикреплённый скрипт сцены: %s)" % comp_scr
+				_view.add_system(head_msg)
 				for d in diffs:
 					if d is Dictionary:
 						_view.add_readonly_diff(str(d.get("path", "")), d)
@@ -2179,9 +2184,10 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "safe_rename_apply":
 			if bool(json.get("ok", false)):
-				EditorInterface.get_resource_filesystem().scan()
 				var old_p := str(json.get("old_path", ""))
 				var new_p := str(json.get("new_path", ""))
+				_sync_resource_uid(old_p, new_p)
+				EditorInterface.get_resource_filesystem().scan()
 				var ref_cnt := int(json.get("reference_count", 0))
 				var file_cnt := int(json.get("file_count", 0))
 				var changed_paths = json.get("changed_paths", [])
@@ -2191,9 +2197,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 						_auto_reload_changed_scene(str(cp))
 				_close_ghost_script_tab(old_p)
 				if FileAccess.file_exists(new_p) and new_p.ends_with(".gd"):
-					var scr = load(new_p)
+					var scr = ResourceLoader.load(new_p, "", ResourceLoader.CACHE_MODE_REPLACE)
 					if scr is Script:
+						scr.reload(true)
 						EditorInterface.edit_script(scr, -1, 0, false)
+				_remap_scenes_to_reopen(old_p, new_p)
+				_reopen_scenes_after_write()
 				var msg := _t("safe_rename_success") % [old_p, new_p, ref_cnt, file_cnt]
 				if _view:
 					_view.add_agent_message(msg, str(json.get("entry_id", "")))
@@ -2631,6 +2640,64 @@ func _reopen_scenes_after_write() -> void:
 	_scenes_to_reopen = PackedStringArray()
 
 
+func _close_target_scenes_before_write(extra_targets: PackedStringArray) -> void:
+	_scenes_to_reopen = PackedStringArray()
+	var ei: Object = EditorInterface
+	if not ei.has_method("close_scene"):
+		return
+	if ei.has_method("save_all_scenes"):
+		ei.call("save_all_scenes")
+	elif ei.has_method("save_scene"):
+		ei.call("save_scene")
+	var open_scenes := EditorInterface.get_open_scenes()
+	for raw in extra_targets:
+		var sp := str(raw)
+		if sp == "" or not (sp.ends_with(".tscn") or sp.ends_with(".scn")):
+			continue
+		for opened in open_scenes:
+			if str(opened).to_lower() == sp.to_lower() and not _scenes_to_reopen.has(str(opened)):
+				EditorInterface.open_scene_from_path(str(opened))
+				if int(ei.call("close_scene")) == OK:
+					_scenes_to_reopen.append(str(opened))
+
+
+func _remap_scenes_to_reopen(old_path: String, new_path: String) -> void:
+	for i in range(_scenes_to_reopen.size()):
+		if _scenes_to_reopen[i].to_lower() == old_path.to_lower():
+			_scenes_to_reopen[i] = new_path
+
+
+func _sync_resource_uid(old_path: String, new_path: String) -> void:
+	if new_path.is_empty():
+		return
+	var uid_path := new_path + ".uid"
+	var uid_str := ""
+	if FileAccess.file_exists(uid_path):
+		uid_str = FileAccess.get_file_as_string(uid_path).strip_edges()
+	elif FileAccess.file_exists(new_path):
+		var f := FileAccess.open(new_path, FileAccess.READ)
+		if f:
+			var first_line := f.get_line()
+			f.close()
+			var idx := first_line.find('uid="uid://')
+			if idx != -1:
+				var end_idx := first_line.find('"', idx + 5)
+				if end_idx != -1:
+					uid_str = first_line.substr(idx + 5, end_idx - (idx + 5))
+	if uid_str.begins_with("uid://"):
+		var id := ResourceUID.text_to_id(uid_str)
+		if id != ResourceUID.INVALID_ID:
+			if ResourceUID.has_id(id):
+				ResourceUID.set_id(id, new_path)
+			else:
+				ResourceUID.add_id(id, new_path)
+	var efs := EditorInterface.get_resource_filesystem()
+	if efs:
+		if efs.has_method("update_file"):
+			efs.call("update_file", new_path)
+		efs.scan()
+
+
 func _ensure_script_autoreload_setting() -> void:
 	# Editor preferences belong to the user, not to the plugin.
 	var es = EditorInterface.get_editor_settings()
@@ -2650,29 +2717,27 @@ func _force_reload_open_script() -> void:
 
 func _dirty_open_scripts(target_paths: PackedStringArray) -> PackedStringArray:
 	var affected := PackedStringArray()
-	if target_paths.is_empty():
-		return affected
-	var wanted := {}
-	for path in target_paths:
-		wanted[path.to_lower()] = true
 	var script_editor := EditorInterface.get_script_editor()
 	if not script_editor:
 		return affected
-	for script in script_editor.get_open_scripts():
-		if script and wanted.has(str(script.resource_path).to_lower()):
-			affected.append(str(script.resource_path))
-	if affected.is_empty():
-		return affected
-	# Public ScriptEditorBase has no get_edited_resource(). Do not assume that
-	# two editor arrays share an order: require all open buffers to be clean.
-	var editors := script_editor.get_open_script_editors()
-	if editors.is_empty():
-		return affected
-	for editor in editors:
-		var code_edit := editor.get_base_editor() as CodeEdit
-		if code_edit == null or code_edit.get_version() != code_edit.get_saved_version():
-			return affected
-	return PackedStringArray()
+	var wanted := {}
+	for path in target_paths:
+		if path != "":
+			wanted[path.to_lower()] = true
+	var open_scripts := script_editor.get_open_scripts()
+	var open_editors := script_editor.get_open_script_editors()
+	for i in range(min(open_scripts.size(), open_editors.size())):
+		var scr := open_scripts[i]
+		var ed := open_editors[i]
+		if not scr or not ed:
+			continue
+		var path_str := str(scr.resource_path)
+		if wanted.is_empty() or wanted.has(path_str.to_lower()):
+			var code_edit := ed.get_base_editor() as CodeEdit
+			if code_edit and code_edit.get_version() != code_edit.get_saved_version():
+				if not affected.has(path_str):
+					affected.append(path_str)
+	return affected
 
 
 func _sync_open_script_with_disk(target_path: String) -> void:
@@ -2683,47 +2748,48 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 	var script_editor := EditorInterface.get_script_editor()
 	if not script_editor:
 		return
-	# Ищем среди уже открытых вкладок нужный путь.
-	# Если вкладка не открыта — трогать нечего, файл на диске и так актуален.
-	var target_script: Script = null
-	for scr in script_editor.get_open_scripts():
-		if scr and scr.resource_path == target_path:
-			target_script = scr
-			break
-	if target_script == null:
-		return
-	# Читаем текст напрямую с диска через FileAccess, полностью в обход
-	# ResourceLoader/GDScriptCache — именно там была причина отката на старый текст.
+
 	var file := FileAccess.open(target_path, FileAccess.READ)
 	if not file:
 		push_warning("Не удалось открыть файл для чтения: " + target_path)
 		return
 	var real_text := file.get_as_text()
 	file.close()
-	# Запоминаем текущую активную вкладку, чтобы вернуться к ней после обновления.
-	var previous_script := script_editor.get_current_script()
-	EditorInterface.edit_script(target_script, -1, 0, false)
-	var current_editor := script_editor.get_current_editor()
-	if current_editor:
-		var base_editor: Control = current_editor.get_base_editor()
-		var code_edit := base_editor as CodeEdit
-		if code_edit:
-			# Защита от потери работы пользователя: если в открытой вкладке
-			# ЕСТЬ несохранённые ручные правки — НЕ перетираем их автоматически.
-			var has_unsaved_edits := code_edit.get_version() != code_edit.get_saved_version()
-			if has_unsaved_edits:
-				push_warning("Вкладка '%s' содержит несохранённые правки — авто-обновление пропущено, чтобы не потерять их." % target_path)
-			elif code_edit.text != real_text:
-				var caret_line := code_edit.get_caret_line()
-				var caret_col := code_edit.get_caret_column()
-				code_edit.text = real_text
-				code_edit.set_caret_line(min(caret_line, max(0, code_edit.get_line_count() - 1)))
-				code_edit.set_caret_column(caret_col)
-				# Помечаем текущее состояние как "сохранённое", чтобы не было лишнего "*".
-				code_edit.tag_saved_version()
-				print("Вкладка скрипта синхронизирована с диском: ", target_path)
-	if previous_script and previous_script != target_script:
-		EditorInterface.edit_script(previous_script, -1, 0, false)
+
+	var open_scripts := script_editor.get_open_scripts()
+	var open_editors := script_editor.get_open_script_editors()
+	var target_script: Script = null
+	var target_code_edit: CodeEdit = null
+
+	for i in range(open_scripts.size()):
+		var scr := open_scripts[i]
+		if scr and scr.resource_path == target_path:
+			target_script = scr
+			if i < open_editors.size():
+				var editor_base = open_editors[i]
+				if editor_base:
+					target_code_edit = editor_base.get_base_editor() as CodeEdit
+			break
+
+	if target_code_edit:
+		var has_unsaved_edits := target_code_edit.get_version() != target_code_edit.get_saved_version()
+		if has_unsaved_edits:
+			push_warning("Вкладка '%s' содержит несохранённые правки — авто-обновление пропущено, чтобы не потерять их." % target_path)
+		elif target_code_edit.text != real_text:
+			var caret_line := target_code_edit.get_caret_line()
+			var caret_col := target_code_edit.get_caret_column()
+			target_code_edit.text = real_text
+			target_code_edit.set_caret_line(min(caret_line, max(0, target_code_edit.get_line_count() - 1)))
+			target_code_edit.set_caret_column(caret_col)
+			target_code_edit.tag_saved_version()
+			print("Вкладка скрипта синхронизирована с диском: ", target_path)
+
+	if target_script:
+		target_script.reload(true)
+	elif ResourceLoader.has_cached(target_path):
+		var res = ResourceLoader.load(target_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+		if res is Script:
+			res.reload(true)
 
 
 # ---------------------------------------------------------------------------
@@ -3568,8 +3634,13 @@ func _after_ghost_close() -> void:
 
 func _on_settings_pressed() -> void:
 	var T = _T()
+	if _safe_rename_dialog and _safe_rename_dialog.visible:
+		_safe_rename_dialog.hide()
+	if _safe_node_rename_dialog and _safe_node_rename_dialog.visible:
+		_safe_node_rename_dialog.hide()
 	if _settings_dialog == null:
 		_settings_dialog = AcceptDialog.new()
+		_settings_dialog.exclusive = false
 		# v60: без TabContainer — с одной вкладкой он давал два одинаковых
 		# заголовка (таб + внутренняя надпись) и лишнюю стрелку вкладок сверху.
 		# Простой список: заголовок + подпись «ниже — экспериментальные настройки» + сами настройки.
@@ -3701,6 +3772,7 @@ func _open_update_dialog(info: Dictionary) -> void:
 	var T = _T()
 	if _update_dialog == null:
 		_update_dialog = AcceptDialog.new()
+		_update_dialog.exclusive = false
 		_update_dialog.name = "UpdateDialog"
 		_update_dialog.custom_minimum_size = Vector2(460, 340)
 		var wrap := PanelContainer.new()
@@ -3944,13 +4016,31 @@ func _on_safe_rename_pressed() -> void:
 
 func open_safe_rename(prefill_path: String = "") -> void:
 	_ensure_safe_rename_dialog()
+	if _settings_dialog and _settings_dialog.visible:
+		_settings_dialog.hide()
+	if _update_dialog and _update_dialog.visible:
+		_update_dialog.hide()
 	var initial_path := prefill_path
 	if initial_path.is_empty():
-		var se := EditorInterface.get_script_editor()
-		if se and se.get_current_script():
-			initial_path = se.get_current_script().resource_path
-		elif EditorInterface.get_edited_scene_root():
-			initial_path = EditorInterface.get_edited_scene_root().scene_file_path
+		# 1. Приоритет: файл или папка, выделенная в доке FileSystem
+		var selected := EditorInterface.get_selected_paths()
+		if not selected.is_empty() and (FileAccess.file_exists(selected[0]) or DirAccess.dir_exists_absolute(selected[0])):
+			initial_path = selected[0]
+		else:
+			# 2. Если пользователь редактирует скрипт в видимом редакторе скриптов
+			var se := EditorInterface.get_script_editor()
+			if se and se.is_visible_in_tree() and se.get_current_script():
+				initial_path = se.get_current_script().resource_path
+			# 3. Если открыта 2D или 3D сцена (главная сцена в редакторе)
+			elif EditorInterface.get_edited_scene_root() and not EditorInterface.get_edited_scene_root().scene_file_path.is_empty():
+				initial_path = EditorInterface.get_edited_scene_root().scene_file_path
+			# 4. Фоновый открытый скрипт
+			elif se and se.get_current_script():
+				initial_path = se.get_current_script().resource_path
+			else:
+				var cur := EditorInterface.get_current_path()
+				if not cur.is_empty() and cur != "res://" and (FileAccess.file_exists(cur) or DirAccess.dir_exists_absolute(cur)):
+					initial_path = cur
 	if initial_path != "" and initial_path.begins_with("res://"):
 		_safe_rename_old_edit.text = initial_path
 		_safe_rename_new_edit.text = initial_path
@@ -3967,6 +4057,7 @@ func _ensure_safe_rename_dialog() -> void:
 		return
 	var T = _T()
 	_safe_rename_dialog = ConfirmationDialog.new()
+	_safe_rename_dialog.exclusive = false
 	_safe_rename_dialog.title = _t("safe_rename_title")
 	_safe_rename_dialog.get_ok_button().text = _t("safe_rename_apply")
 	_safe_rename_dialog.get_cancel_button().text = _t("back")
@@ -4053,6 +4144,7 @@ func _ensure_safe_rename_dialog() -> void:
 func _on_safe_rename_browse() -> void:
 	if _safe_rename_file_dialog == null:
 		_safe_rename_file_dialog = FileDialog.new()
+		_safe_rename_file_dialog.exclusive = false
 		_safe_rename_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_safe_rename_file_dialog.access = FileDialog.ACCESS_RESOURCES
 		_safe_rename_file_dialog.filters = PackedStringArray([
@@ -4117,10 +4209,12 @@ func _on_safe_rename_apply() -> void:
 		for p in _safe_rename_prepared["affected_paths"]:
 			if not targets.has(str(p)):
 				targets.append(str(p))
-	var dirty := _dirty_open_scripts(PackedStringArray(targets))
+	var check_targets := PackedStringArray(targets) if _safe_rename_prepared.has("affected_paths") else PackedStringArray(targets)
+	var dirty := _dirty_open_scripts(check_targets)
 	if not dirty.is_empty():
 		_safe_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
 		return
+	_close_target_scenes_before_write(check_targets)
 	_safe_rename_status_label.text = "Применение переименования..."
 	var body = {
 		"old_path": old_p,
@@ -4140,23 +4234,91 @@ func _on_safe_rename_apply() -> void:
 		_safe_rename_status_label.text = "Ошибка отправки запроса на переименование."
 
 
+func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
+	if old_path.is_empty() or new_path.is_empty() or old_path == new_path:
+		return
+	var body = {
+		"old_path": old_path,
+		"new_path": new_path,
+		"is_directory": is_folder,
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+	}
+	var req := HTTPRequest.new()
+	add_child(req)
+	req.set_http_proxy("", 0)
+	req.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		req.queue_free()
+		if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+			return
+		var json_str := body_bytes.get_string_from_utf8()
+		var p := JSON.new()
+		if p.parse(json_str) != OK or not (p.data is Dictionary):
+			return
+		var resp: Dictionary = p.data
+		if not bool(resp.get("ok", false)):
+			return
+		_sync_resource_uid(old_path, new_path)
+		var ref_cnt := int(resp.get("reference_count", 0))
+		var changed_paths = resp.get("changed_paths", [])
+		if changed_paths is Array and not changed_paths.is_empty():
+			EditorInterface.get_resource_filesystem().scan()
+			for cp in changed_paths:
+				_sync_open_script_with_disk(str(cp))
+				_auto_reload_changed_scene(str(cp))
+			_close_ghost_script_tab(old_path)
+			if FileAccess.file_exists(new_path) and new_path.ends_with(".gd"):
+				var scr = ResourceLoader.load(new_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+				if scr is Script:
+					scr.reload(true)
+			var file_cnt := int(resp.get("file_count", 0))
+			var entry_id := str(resp.get("entry_id", ""))
+			var msg := _t("safe_post_move_sync_success") % [old_path, new_path, ref_cnt, file_cnt]
+			if _view:
+				_view.add_agent_message(msg, entry_id)
+			print("[Godot Agent] ", msg)
+	)
+	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		req.queue_free()
+
+
 func _on_safe_node_rename_pressed() -> void:
 	open_safe_node_rename()
 
 
 func open_safe_node_rename(prefill_scene: String = "", prefill_node: String = "") -> void:
 	_ensure_safe_node_rename_dialog()
+	if _settings_dialog and _settings_dialog.visible:
+		_settings_dialog.hide()
+	if _update_dialog and _update_dialog.visible:
+		_update_dialog.hide()
 	var initial_scene := prefill_scene
+	var initial_node := prefill_node
+	var initial_new_name := prefill_node
+	var edited_root = EditorInterface.get_edited_scene_root()
 	if initial_scene.is_empty():
-		var edited_root = EditorInterface.get_edited_scene_root()
 		if edited_root and not edited_root.scene_file_path.is_empty():
 			initial_scene = edited_root.scene_file_path
+	if initial_node.is_empty():
+		var selection := EditorInterface.get_selection()
+		if selection:
+			var selected_nodes := selection.get_selected_nodes()
+			if not selected_nodes.is_empty() and is_instance_valid(selected_nodes[0]):
+				var node := selected_nodes[0] as Node
+				if edited_root and (node == edited_root or edited_root.is_ancestor_of(node)):
+					if node == edited_root:
+						initial_node = "."
+					else:
+						initial_node = str(edited_root.get_path_to(node))
+					initial_new_name = str(node.name)
 	if _safe_node_rename_scene_edit:
 		_safe_node_rename_scene_edit.text = initial_scene
 	if _safe_node_rename_node_edit:
-		_safe_node_rename_node_edit.text = prefill_node
+		_safe_node_rename_node_edit.text = initial_node
 	if _safe_node_rename_new_edit:
-		_safe_node_rename_new_edit.text = prefill_node
+		_safe_node_rename_new_edit.text = initial_new_name
 	if _safe_node_rename_status_label:
 		_safe_node_rename_status_label.text = ""
 	_safe_node_rename_prepared = {}
@@ -4168,6 +4330,7 @@ func _ensure_safe_node_rename_dialog() -> void:
 		return
 	var T = _T()
 	_safe_node_rename_dialog = ConfirmationDialog.new()
+	_safe_node_rename_dialog.exclusive = false
 	_safe_node_rename_dialog.title = _t("safe_node_rename_title")
 	_safe_node_rename_dialog.get_ok_button().text = _t("safe_node_rename_apply")
 	_safe_node_rename_dialog.get_cancel_button().text = _t("back")
@@ -4265,6 +4428,7 @@ func _ensure_safe_node_rename_dialog() -> void:
 func _on_safe_node_rename_scene_browse() -> void:
 	if _safe_node_rename_scene_dialog == null:
 		_safe_node_rename_scene_dialog = FileDialog.new()
+		_safe_node_rename_scene_dialog.exclusive = false
 		_safe_node_rename_scene_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_safe_node_rename_scene_dialog.access = FileDialog.ACCESS_RESOURCES
 		_safe_node_rename_scene_dialog.filters = PackedStringArray([
@@ -4327,7 +4491,8 @@ func _on_safe_node_rename_apply() -> void:
 		for p in _safe_node_rename_prepared["affected_paths"]:
 			if not targets.has(str(p)):
 				targets.append(str(p))
-	var dirty := _dirty_open_scripts(PackedStringArray(targets))
+	var check_targets := PackedStringArray(targets) if _safe_node_rename_prepared.has("affected_paths") else PackedStringArray()
+	var dirty := _dirty_open_scripts(check_targets)
 	if not dirty.is_empty():
 		_safe_node_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
 		return

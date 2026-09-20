@@ -62,13 +62,13 @@ def _read_file_text(abs_path):
     return raw, text, bom
 
 
-def find_file_references(project_root, old_godot_path, allow_addons=False):
+def find_file_references(project_root, old_godot_path, allow_addons=False, skip_source_check=False):
     """Find all files in project referencing old_godot_path.
     Returns list of dicts: {"path", "absolute", "occurrences", "rel_replaced"}.
     """
     old_godot_path = _normalize_godot_path(old_godot_path)
     abs_old = _resolve_safe_path(project_root, old_godot_path)
-    if not os.path.isfile(abs_old):
+    if not skip_source_check and not os.path.isfile(abs_old):
         raise FileNotFoundError("Исходный файл не найден: %s" % old_godot_path)
 
     old_rel = old_godot_path[6:]
@@ -500,6 +500,11 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     internal_changes = 0
     old_dir = os.path.dirname(old_path[6:])
     new_dir = os.path.dirname(new_path[6:])
+    companion_script = None
+    if old_path.lower().endswith(".tscn"):
+        script_match = re.search(r'\[ext_resource\s+[^\]]*type="Script"[^\]]*path="([^"]+)"', source_text)
+        if script_match:
+            companion_script = script_match.group(1)
 
     if old_dir != new_dir and old_path.lower().endswith(".gd"):
         mod_text, internal_changes = update_internal_relative_paths(
@@ -590,6 +595,12 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
             "is_companion": True,
         })
 
+    abs_old_uid = abs_old + ".uid"
+    abs_new_uid = abs_new + ".uid"
+    new_uid_path = new_path + ".uid"
+    if os.path.isfile(abs_old_uid) and os.path.exists(abs_new_uid):
+        raise FileExistsError("Целевой файл .uid уже существует: %s" % new_uid_path)
+
     if update_references:
         references = find_file_references(project_root, old_path, allow_addons=allow_addons)
         exact_pattern = re.compile(
@@ -635,6 +646,7 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
         "action": "rename_file",
         "old_path": old_path,
         "new_path": new_path,
+        "companion_script": companion_script,
         "update_references": update_references,
         "files": files_to_modify,
         "reference_count": total_refs,
@@ -800,3 +812,179 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
             "reference_count": prepared.get("reference_count", 0),
             "file_count": len(files),
         }
+
+
+def sync_references_after_external_move(project_root, old_path, new_path,
+                                        is_directory=False, allow_addons=False,
+                                        chat_id=None, chat_title=None):
+    """Synchronizes references across project after a file or directory was moved externally (e.g. by FileSystemDock).
+    Atomically updates string references in .gd, .tscn, .tres, project.godot,
+    checks companion .import/.uid, and records changes in history_manager.
+    """
+    old_path = _normalize_godot_path(old_path)
+    new_path = _normalize_godot_path(new_path)
+    if old_path == new_path:
+        return {
+            "ok": True,
+            "entry_id": None,
+            "old_path": old_path,
+            "new_path": new_path,
+            "is_directory": is_directory,
+            "reference_count": 0,
+            "file_count": 0,
+            "changed_paths": [],
+        }
+
+    files_to_modify = []
+    total_refs = 0
+    abs_old = _resolve_safe_path(project_root, old_path)
+    abs_new = _resolve_safe_path(project_root, new_path)
+
+    # 1. If directory
+    if is_directory or (not os.path.isfile(abs_new) and os.path.isdir(abs_new)):
+        old_prefix = old_path.rstrip("/") + "/"
+        new_prefix = new_path.rstrip("/") + "/"
+        dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_prefix) + r'([^"\'\s,\]]+)(?=["\'\s,\]])')
+
+        root_path = os.path.abspath(project_root)
+        for root, dirs, files in os.walk(root_path):
+            dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+            for filename in files:
+                ext = os.path.splitext(filename)[1].lower()
+                if ext not in (".gd", ".tscn", ".tres", ".gdshader", ".gdshaderinc") and filename != "project.godot":
+                    continue
+                abs_file = os.path.join(root, filename)
+                rel_file = os.path.relpath(abs_file, root_path).replace("\\", "/")
+                godot_file = "res://" + rel_file
+                if godot_file.startswith(old_prefix) or godot_file.startswith(new_prefix):
+                    continue
+                try:
+                    raw, text, bom = _read_file_text(abs_file)
+                except Exception:
+                    continue
+
+                mod_text, count = dir_pat.subn(new_prefix + r'\1', text)
+                if count > 0:
+                    after_bytes = (b"\xef\xbb\xbf" if bom else b"") + mod_text.encode("utf-8")
+                    files_to_modify.append({
+                        "action": "patch_file",
+                        "path": godot_file,
+                        "absolute": abs_file,
+                        "before_hash": _sha256(raw),
+                        "before_bytes": raw,
+                        "after_bytes": after_bytes,
+                        "occurrences": count,
+                    })
+                    total_refs += count
+    else:
+        # 2. Single file
+        references = find_file_references(project_root, old_path, allow_addons=allow_addons, skip_source_check=True)
+        exact_pattern = re.compile(
+            r'(?<=["\'\*])' + re.escape(old_path) + r'(?=["\'\s,\]])'
+        )
+        for ref in references:
+            before_text = ref["text"]
+            after_text = before_text
+
+            if ref.get("rel_matches"):
+                for start, end, _cand in sorted(ref["rel_matches"], key=lambda x: x[0], reverse=True):
+                    after_text = after_text[:start] + new_path + after_text[end:]
+
+            after_text = exact_pattern.sub(new_path, after_text)
+
+            if after_text != before_text:
+                if ref["path"].lower().endswith(".gd"):
+                    lint_errors = gd_lint.lint_gdscript(after_text)
+                    if lint_errors:
+                        continue
+                after_bytes = (b"\xef\xbb\xbf" if ref["bom"] else b"") + after_text.encode("utf-8")
+                files_to_modify.append({
+                    "action": "patch_file",
+                    "path": ref["path"],
+                    "absolute": ref["absolute"],
+                    "before_hash": _sha256(ref["raw"]),
+                    "before_bytes": ref["raw"],
+                    "after_bytes": after_bytes,
+                    "occurrences": ref["occurrences"],
+                })
+                total_refs += ref["occurrences"]
+
+        # Check companion .import
+        abs_old_import = abs_old + ".import"
+        abs_new_import = abs_new + ".import"
+        if os.path.isfile(abs_old_import) and not os.path.exists(abs_new_import):
+            imp_raw, imp_text, imp_bom = _read_file_text(abs_old_import)
+            mod_imp_text = re.sub(
+                r'(\bsource_file\s*=\s*["\'])' + re.escape(old_path) + r'(["\'])',
+                r'\g<1>' + new_path + r'\2',
+                imp_text
+            )
+            files_to_modify.append({
+                "action": "move_file",
+                "path": old_path + ".import",
+                "dest": new_path + ".import",
+                "absolute": abs_old_import,
+                "dest_absolute": abs_new_import,
+                "before_hash": _sha256(imp_raw),
+                "before_bytes": imp_raw,
+                "after_bytes": (b"\xef\xbb\xbf" if imp_bom else b"") + mod_imp_text.encode("utf-8") if mod_imp_text != imp_text else imp_raw,
+                "occurrences": 1 if mod_imp_text != imp_text else 0,
+            })
+        elif os.path.isfile(abs_new_import):
+            imp_raw, imp_text, imp_bom = _read_file_text(abs_new_import)
+            mod_imp_text = re.sub(
+                r'(\bsource_file\s*=\s*["\'])' + re.escape(old_path) + r'(["\'])',
+                r'\g<1>' + new_path + r'\2',
+                imp_text
+            )
+            if mod_imp_text != imp_text:
+                files_to_modify.append({
+                    "action": "patch_file",
+                    "path": new_path + ".import",
+                    "absolute": abs_new_import,
+                    "before_hash": _sha256(imp_raw),
+                    "before_bytes": imp_raw,
+                    "after_bytes": (b"\xef\xbb\xbf" if imp_bom else b"") + mod_imp_text.encode("utf-8"),
+                    "occurrences": 1,
+                })
+
+        # Check companion .uid
+        abs_old_uid = abs_old + ".uid"
+        abs_new_uid = abs_new + ".uid"
+        if os.path.isfile(abs_old_uid) and not os.path.exists(abs_new_uid):
+            uid_raw, _, _ = _read_file_text(abs_old_uid)
+            files_to_modify.append({
+                "action": "move_file",
+                "path": old_path + ".uid",
+                "dest": new_path + ".uid",
+                "absolute": abs_old_uid,
+                "dest_absolute": abs_new_uid,
+                "before_hash": _sha256(uid_raw),
+                "before_bytes": uid_raw,
+                "after_bytes": uid_raw,
+                "occurrences": 0,
+            })
+
+    if not files_to_modify:
+        return {
+            "ok": True,
+            "entry_id": None,
+            "old_path": old_path,
+            "new_path": new_path,
+            "is_directory": is_directory,
+            "reference_count": 0,
+            "file_count": 0,
+            "changed_paths": [],
+        }
+
+    prepared = {
+        "files": files_to_modify,
+        "old_path": old_path,
+        "new_path": new_path,
+        "is_directory": is_directory,
+        "reference_count": total_refs,
+    }
+    result = apply_prepared_file_rename(project_root, prepared, chat_id=chat_id, chat_title=chat_title)
+    result["ok"] = True
+    return result
+
