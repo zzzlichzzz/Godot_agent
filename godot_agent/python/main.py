@@ -1,5 +1,6 @@
 import _bootstrap  # noqa: F401  # v104-restructure: пути к parsers/, browser/, godot_tools/, server/
 import os
+import threading
 import time
 import traceback
 from flask import Flask, request, jsonify
@@ -4138,6 +4139,17 @@ def chat_stop():
     server_state.request_cancel()
     print("--> Запрошена остановка обработки (шла обработка: %s)." % busy)
     return jsonify({"ok": True, "was_busy": busy})
+
+
+@app.route('/server/shutdown', methods=['POST'])
+def server_shutdown():
+    """Завершить работу локального сервера (для обновления плагина)."""
+    def _do_exit():
+        time.sleep(0.3)
+        os._exit(0)
+
+    threading.Thread(target=_do_exit, daemon=True).start()
+    return jsonify({"ok": True, "message": "Server shutting down"})
 
 
 @app.route('/dashboard', methods=['GET'])
