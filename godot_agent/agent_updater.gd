@@ -27,6 +27,7 @@ var releases_url: String = DEFAULT_API_URL
 var _check_http: HTTPRequest = null
 var _download_http: HTTPRequest = null
 var _progress_timer: Timer = null
+var _is_force_check: bool = false
 var _is_checking: bool = false
 var _is_updating: bool = false
 var _latest_release_info: Dictionary = {}
@@ -102,6 +103,7 @@ func get_current_version() -> String:
 func check_for_updates(force: bool = false) -> void:
 	if _is_checking:
 		return
+	_is_force_check = force
 	_ensure_nodes()
 	if not force:
 		if FileAccess.file_exists(CACHE_FILE):
@@ -131,21 +133,43 @@ func check_for_updates(force: bool = false) -> void:
 	var err := _check_http.request(releases_url, headers, HTTPClient.METHOD_GET)
 	if err != OK:
 		_is_checking = false
-		update_error.emit("Failed to send update check request: " + str(err))
+		if _is_force_check:
+			update_error.emit("Failed to send update check request: " + str(err))
 		check_completed.emit(false, {})
 
 
 func _on_check_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_is_checking = false
 	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
-		update_error.emit("Update check failed (HTTP " + str(response_code) + ")")
+		if _is_force_check:
+			var err_detail := ""
+			if result != HTTPRequest.RESULT_SUCCESS:
+				match result:
+					HTTPRequest.RESULT_CANT_RESOLVE:
+						err_detail = "Не удалось разрешить адрес сервера (DNS)"
+					HTTPRequest.RESULT_CANT_CONNECT:
+						err_detail = "Не удалось подключиться к серверу (нет связи)"
+					HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
+						err_detail = "Ошибка TLS/SSL сертификата"
+					HTTPRequest.RESULT_TIMEOUT:
+						err_detail = "Превышено время ожидания ответа"
+					_:
+						err_detail = "Сетевая ошибка (код %d)" % result
+			elif response_code == 404:
+				err_detail = "Релизы не найдены на GitHub (HTTP 404)"
+			elif response_code == 403:
+				err_detail = "Превышен лимит запросов к GitHub API (HTTP 403)"
+			else:
+				err_detail = "HTTP %d" % response_code
+			update_error.emit(err_detail)
 		check_completed.emit(false, {})
 		return
 
 	var text := body.get_string_from_utf8()
 	var json = JSON.parse_string(text)
 	if not (json is Dictionary):
-		update_error.emit("Invalid JSON from release server")
+		if _is_force_check:
+			update_error.emit("Некорректный ответ от сервера релизов (JSON)")
 		check_completed.emit(false, {})
 		return
 
