@@ -3806,9 +3806,11 @@ def refactor_file_post_move_sync():
     old_path = data.get("old_path")
     new_path = data.get("new_path") or data.get("dest")
     is_directory = bool(data.get("is_directory", False))
-    project_root = STATE.get("project_root")
+    project_root = STATE.get("project_root") or data.get("project_root")
+    if project_root and not STATE.get("project_root"):
+        STATE["project_root"] = project_root
     if not project_root:
-        return jsonify({"error": "Проект не синхронизирован."}), 400
+        return jsonify({"ok": False, "error": "Проект не синхронизирован: project_root не указан."}), 400
     try:
         result = file_refactor.sync_references_after_external_move(
             project_root, old_path, new_path,
@@ -3825,11 +3827,13 @@ def refactor_file_post_move_sync():
             for changed_path in changed_paths:
                 _remember_file(project_root, changed_path)
                 _touch_file_read(changed_path)
-            _forget_file(result["old_path"])
+            _forget_file(result.get("old_path", old_path))
             _refresh_fs_snapshot(project_root)
+        result["ok"] = True
         return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e)}), 400
 
 
 

@@ -896,6 +896,7 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 if ref["path"].lower().endswith(".gd"):
                     lint_errors = gd_lint.lint_gdscript(after_text)
                     if lint_errors:
+                        print("[sync_references_after_external_move] Lint error in %s, skipping: %s" % (ref["path"], lint_errors[0]))
                         continue
                 after_bytes = (b"\xef\xbb\xbf" if ref["bom"] else b"") + after_text.encode("utf-8")
                 files_to_modify.append({

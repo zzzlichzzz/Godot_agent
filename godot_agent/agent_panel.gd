@@ -251,6 +251,8 @@ var _pending_update_info: Dictionary = {}
 
 func set_editor_plugin(plugin: EditorPlugin) -> void:
 	_editor_plugin = plugin
+	if plugin and plugin.has_method("_ensure_fs_dock_connected"):
+		plugin.call("_ensure_fs_dock_connected")
 	var executor_path: String = get_script().resource_path.get_base_dir() + "/agent_scene_executor.gd"
 	if FileAccess.file_exists(executor_path):
 		var executor_script = load(executor_path)
@@ -525,6 +527,8 @@ func _apply_panel_theme() -> void:
 
 func _ready() -> void:
 	_ensure_script_autoreload_setting()
+	if _editor_plugin and _editor_plugin.has_method("_ensure_fs_dock_connected"):
+		_editor_plugin.call("_ensure_fs_dock_connected")
 	# ChatLog остаётся в дереве (его прячет agent_chat_view.setup), но больше
 	# ничего в него не пишется: все сообщения идут карточками через _view.
 	chat_log.selection_enabled = true
@@ -4235,31 +4239,51 @@ func _on_safe_rename_apply() -> void:
 
 
 func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
-	if old_path.is_empty() or new_path.is_empty() or old_path == new_path:
+	var clean_old := old_path.strip_edges().replace("\\", "/")
+	var clean_new := new_path.strip_edges().replace("\\", "/")
+	if not clean_old.begins_with("res://") and not clean_old.begins_with("user://"):
+		clean_old = "res://" + clean_old.trim_prefix("/")
+	if not clean_new.begins_with("res://") and not clean_new.begins_with("user://"):
+		clean_new = "res://" + clean_new.trim_prefix("/")
+	if clean_old.is_empty() or clean_new.is_empty() or clean_old == clean_new:
 		return
+
+	print("[Godot Agent] Перемещение/переименование в FileSystem: %s -> %s (папка=%s)" % [clean_old, clean_new, str(is_folder)])
 	var body = {
-		"old_path": old_path,
-		"new_path": new_path,
+		"old_path": clean_old,
+		"new_path": clean_new,
 		"is_directory": is_folder,
 		"project_root": ProjectSettings.globalize_path("res://"),
 		"user_data_dir": OS.get_user_data_dir(),
 		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 	}
 	var req := HTTPRequest.new()
-	add_child(req)
+	var parent_node: Node = self if is_inside_tree() else EditorInterface.get_base_control()
+	if parent_node == null:
+		push_error("[Godot Agent] Не удалось найти узел дерева для HTTPRequest синхронизации.")
+		return
+	parent_node.add_child(req)
 	req.set_http_proxy("", 0)
 	req.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 		req.queue_free()
-		if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-			return
 		var json_str := body_bytes.get_string_from_utf8()
+		if result != HTTPRequest.RESULT_SUCCESS:
+			push_warning("[Godot Agent] Ошибка сетевого запроса автосинхронизации (result=%d). Сервер агента запущен?" % result)
+			return
+		if response_code != 200:
+			push_warning("[Godot Agent] Сервер вернул ошибку синхронизации (код %d): %s" % [response_code, json_str])
+			return
 		var p := JSON.new()
 		if p.parse(json_str) != OK or not (p.data is Dictionary):
+			push_warning("[Godot Agent] Некорректный JSON-ответ сервера при автосинхронизации: %s" % json_str)
 			return
 		var resp: Dictionary = p.data
 		if not bool(resp.get("ok", false)):
+			var err_msg := str(resp.get("error", "Неизвестная ошибка синхронизации"))
+			push_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
 			return
-		_sync_resource_uid(old_path, new_path)
+
+		_sync_resource_uid(clean_old, clean_new)
 		var ref_cnt := int(resp.get("reference_count", 0))
 		var changed_paths = resp.get("changed_paths", [])
 		if changed_paths is Array and not changed_paths.is_empty():
@@ -4267,20 +4291,23 @@ func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool 
 			for cp in changed_paths:
 				_sync_open_script_with_disk(str(cp))
 				_auto_reload_changed_scene(str(cp))
-			_close_ghost_script_tab(old_path)
-			if FileAccess.file_exists(new_path) and new_path.ends_with(".gd"):
-				var scr = ResourceLoader.load(new_path, "", ResourceLoader.CACHE_MODE_REPLACE)
+			_close_ghost_script_tab(clean_old)
+			if FileAccess.file_exists(clean_new) and clean_new.ends_with(".gd"):
+				var scr = ResourceLoader.load(clean_new, "", ResourceLoader.CACHE_MODE_REPLACE)
 				if scr is Script:
 					scr.reload(true)
 			var file_cnt := int(resp.get("file_count", 0))
 			var entry_id := str(resp.get("entry_id", ""))
-			var msg := _t("safe_post_move_sync_success") % [old_path, new_path, ref_cnt, file_cnt]
+			var msg := _t("safe_post_move_sync_success") % [clean_old, clean_new, ref_cnt, file_cnt]
 			if _view:
 				_view.add_agent_message(msg, entry_id)
 			print("[Godot Agent] ", msg)
+		else:
+			print("[Godot Agent] Переименование '%s' -> '%s' зафиксировано: ссылок в других файлах проекта не обнаружено." % [clean_old, clean_new])
 	)
 	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
+		push_warning("[Godot Agent] Не удалось отправить HTTP-запрос post_move_sync, код ошибки: %d" % err)
 		req.queue_free()
 
 
