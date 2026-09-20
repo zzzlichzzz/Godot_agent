@@ -500,6 +500,11 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     internal_changes = 0
     old_dir = os.path.dirname(old_path[6:])
     new_dir = os.path.dirname(new_path[6:])
+    companion_script = None
+    if old_path.lower().endswith(".tscn"):
+        script_match = re.search(r'\[ext_resource\s+[^\]]*type="Script"[^\]]*path="([^"]+)"', source_text)
+        if script_match:
+            companion_script = script_match.group(1)
 
     if old_dir != new_dir and old_path.lower().endswith(".gd"):
         mod_text, internal_changes = update_internal_relative_paths(
@@ -635,6 +640,7 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
         "action": "rename_file",
         "old_path": old_path,
         "new_path": new_path,
+        "companion_script": companion_script,
         "update_references": update_references,
         "files": files_to_modify,
         "reference_count": total_refs,
