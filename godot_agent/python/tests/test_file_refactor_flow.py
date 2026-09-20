@@ -142,7 +142,38 @@ class FileRefactorFlowTests(unittest.TestCase):
         self.assertTrue((combat_dir / "sword.gd").exists())
         self.assertFalse((self.root / "src" / "battle").exists())
 
+    def test_post_move_sync_flow(self):
+        # 1. Simulate external file rename on disk (e.g. by Godot FileSystem dock)
+        hero_target = self.root / "src" / "hero.gd"
+        self.target.rename(hero_target)
+
+        # 2. Call /project/refactor/file/post_move_sync via Flask client
+        resp = self.client.post("/project/refactor/file/post_move_sync", json={
+            "old_path": "res://src/player.gd",
+            "new_path": "res://src/hero.gd",
+            "is_directory": False,
+            "project_root": str(self.root)
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data.get("ok"))
+        self.assertEqual(data.get("reference_count"), 2)
+        self.assertIn("res://src/main.gd", data.get("changed_paths", []))
+        self.assertIn("res://project.godot", data.get("changed_paths", []))
+
+        # Check references in files on disk
+        self.assertIn('preload("res://src/hero.gd")', self.main_gd.read_text(encoding="utf-8"))
+        self.assertIn('Player="*res://src/hero.gd"', (self.root / "project.godot").read_text(encoding="utf-8"))
+
+        # 3. Test rollback
+        resp_rb = self.client.post("/chat/rollback", json={})
+        self.assertEqual(resp_rb.status_code, 200)
+        rb_data = resp_rb.get_json()
+        self.assertTrue(rb_data["success"])
+        self.assertIn('preload("res://src/player.gd")', self.main_gd.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
