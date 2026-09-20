@@ -89,7 +89,7 @@ def find_file_references(project_root, old_godot_path, allow_addons=False):
 
         for filename in files:
             ext = os.path.splitext(filename)[1].lower()
-            if ext not in (".gd", ".tscn", ".tres") and filename != "project.godot":
+            if ext not in (".gd", ".tscn", ".tres", ".gdshader", ".gdshaderinc") and filename != "project.godot":
                 continue
 
             abs_file = os.path.join(root, filename)
@@ -229,19 +229,23 @@ def prepare_directory_relocation(project_root, old_path, new_path,
         raise FileRefactorError("Изменение res://addons требует явного запроса пользователя")
 
     moved_files_map = {}
+    import_files_map = {}
     for root, dirs, filenames in os.walk(abs_old):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
         for fn in filenames:
             ext = os.path.splitext(fn)[1].lower()
-            if ext in (".import", ".uid"):
+            if ext == ".uid":
                 continue
             f_abs = os.path.join(root, fn)
             rel_in_old = os.path.relpath(f_abs, abs_old).replace("\\", "/")
             f_old_godot = old_path.rstrip("/") + "/" + rel_in_old
             f_new_godot = new_path.rstrip("/") + "/" + rel_in_old
-            moved_files_map[f_old_godot] = f_new_godot
+            if ext == ".import":
+                import_files_map[f_old_godot] = f_new_godot
+            else:
+                moved_files_map[f_old_godot] = f_new_godot
 
-    if not moved_files_map:
+    if not moved_files_map and not import_files_map:
         raise FileRefactorError("Папка %s не содержит подходящих файлов для перемещения" % old_path)
 
     files_to_modify = []
@@ -325,7 +329,48 @@ def prepare_directory_relocation(project_root, old_path, new_path,
         })
         total_refs += internal_changes
 
-    # 2. External reference updates across project
+    # 2. Process companion .import files
+    for imp_old, imp_new in sorted(import_files_map.items()):
+        imp_abs_old = _resolve_safe_path(project_root, imp_old)
+        imp_abs_new = _resolve_safe_path(project_root, imp_new)
+        imp_raw, imp_text, imp_bom = _read_file_text(imp_abs_old)
+        imp_hash = _sha256(imp_raw)
+
+        # Corresponding asset paths (strip .import)
+        asset_old = imp_old[:-7] if imp_old.endswith(".import") else imp_old
+        asset_new = imp_new[:-7] if imp_new.endswith(".import") else imp_new
+
+        mod_imp_text = re.sub(
+            r'(\bsource_file\s*=\s*["\'])' + re.escape(asset_old) + r'(["\'])',
+            r'\g<1>' + asset_new + r'\2',
+            imp_text
+        )
+        if mod_imp_text != imp_text:
+            imp_after_bytes = (b"\xef\xbb\xbf" if imp_bom else b"") + mod_imp_text.encode("utf-8")
+        else:
+            imp_after_bytes = imp_raw
+
+        imp_diff = build_diff_preview(imp_text, mod_imp_text)
+        imp_diff["action"] = "move_file"
+        imp_diff["path"] = imp_old
+        imp_diff["dest"] = imp_new
+        imp_diff["lines"].insert(0, {"type": "info", "text": "Файл импорта (.import) перемещён в %s" % imp_new})
+
+        files_to_modify.append({
+            "action": "move_file",
+            "path": imp_old,
+            "dest": imp_new,
+            "absolute": imp_abs_old,
+            "dest_absolute": imp_abs_new,
+            "before_hash": imp_hash,
+            "before_bytes": imp_raw,
+            "after_bytes": imp_after_bytes,
+            "diff": imp_diff,
+            "occurrences": 1 if mod_imp_text != imp_text else 0,
+            "is_companion": True,
+        })
+
+    # 3. External reference updates across project
     if update_references:
         external_refs = {}
         for f_old, f_new in moved_files_map.items():
@@ -432,6 +477,22 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     if os.path.normcase(abs_old) == os.path.normcase(os.path.realpath(os.path.join(project_root, "project.godot"))):
         raise FileRefactorError("Нельзя переименовывать project.godot")
 
+    if old_path.lower().endswith(".import"):
+        asset_path = old_path[:-7]
+        if os.path.isfile(_resolve_safe_path(project_root, asset_path)):
+            raise FileRefactorError(
+                "Не следует переименовывать файл .import напрямую. Переименуйте сам ассет (%s), и его .import обновится автоматически."
+                % asset_path
+            )
+
+    if old_path.lower().endswith(".uid"):
+        source_file = old_path[:-4]
+        if os.path.isfile(_resolve_safe_path(project_root, source_file)):
+            raise FileRefactorError(
+                "Не следует переименовывать файл .uid напрямую. Переименуйте сам файл (%s), и его .uid обновится автоматически."
+                % source_file
+            )
+
     source_raw, source_text, source_bom = _read_file_text(abs_old)
     source_hash = _sha256(source_raw)
 
@@ -486,6 +547,48 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     }]
 
     total_refs = internal_changes
+
+    # Companion .import file support
+    abs_old_import = abs_old + ".import"
+    abs_new_import = abs_new + ".import"
+    old_import_path = old_path + ".import"
+    new_import_path = new_path + ".import"
+
+    if os.path.isfile(abs_old_import):
+        if os.path.exists(abs_new_import):
+            raise FileExistsError("Целевой файл .import уже существует: %s" % new_import_path)
+
+        imp_raw, imp_text, imp_bom = _read_file_text(abs_old_import)
+        imp_hash = _sha256(imp_raw)
+        mod_imp_text = re.sub(
+            r'(\bsource_file\s*=\s*["\'])' + re.escape(old_path) + r'(["\'])',
+            r'\g<1>' + new_path + r'\2',
+            imp_text
+        )
+        if mod_imp_text != imp_text:
+            imp_after_bytes = (b"\xef\xbb\xbf" if imp_bom else b"") + mod_imp_text.encode("utf-8")
+        else:
+            imp_after_bytes = imp_raw
+
+        imp_diff = build_diff_preview(imp_text, mod_imp_text)
+        imp_diff["action"] = "move_file"
+        imp_diff["path"] = old_import_path
+        imp_diff["dest"] = new_import_path
+        imp_diff["lines"].insert(0, {"type": "info", "text": "Файл импорта (.import) перемещён в %s" % new_import_path})
+
+        files_to_modify.append({
+            "action": "move_file",
+            "path": old_import_path,
+            "dest": new_import_path,
+            "absolute": abs_old_import,
+            "dest_absolute": abs_new_import,
+            "before_hash": imp_hash,
+            "before_bytes": imp_raw,
+            "after_bytes": imp_after_bytes,
+            "diff": imp_diff,
+            "occurrences": 1 if mod_imp_text != imp_text else 0,
+            "is_companion": True,
+        })
 
     if update_references:
         references = find_file_references(project_root, old_path, allow_addons=allow_addons)
