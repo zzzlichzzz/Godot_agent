@@ -64,7 +64,7 @@ func _ensure_fs_dock_connected() -> void:
 			fs_dock.folder_moved.connect(_on_fs_folder_moved)
 			connected_any = true
 		if connected_any:
-			print("[Godot Agent] Подключено к FileSystemDock (автоматическая синхронизация ссылок активна).")
+			print("[Godot Agent] Перехват событий FileSystemDock подключен (автосинхронизация ссылок активна при запущенном сервере).")
 
 
 func _exit_tree() -> void:
