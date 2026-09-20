@@ -3812,11 +3812,13 @@ def refactor_file_post_move_sync():
     if not project_root:
         return jsonify({"ok": False, "error": "Проект не синхронизирован: project_root не указан."}), 400
     try:
+        chat_id, chat_title = _current_chat_info()
         result = file_refactor.sync_references_after_external_move(
             project_root, old_path, new_path,
             is_directory=is_directory,
             allow_addons=bool(STATE.get("addon_intent")),
-            *_current_chat_info()
+            chat_id=chat_id,
+            chat_title=chat_title
         )
         changed_paths = result.get("changed_paths", [])
         if changed_paths:
