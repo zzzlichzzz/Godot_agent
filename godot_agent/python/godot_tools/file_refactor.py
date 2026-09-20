@@ -595,6 +595,12 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
             "is_companion": True,
         })
 
+    abs_old_uid = abs_old + ".uid"
+    abs_new_uid = abs_new + ".uid"
+    new_uid_path = new_path + ".uid"
+    if os.path.isfile(abs_old_uid) and os.path.exists(abs_new_uid):
+        raise FileExistsError("Целевой файл .uid уже существует: %s" % new_uid_path)
+
     if update_references:
         references = find_file_references(project_root, old_path, allow_addons=allow_addons)
         exact_pattern = re.compile(
