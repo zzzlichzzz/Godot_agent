@@ -676,6 +676,21 @@ def summarize_changes_since(project_root, since_ts, exclude_chat_id=None,
             "сначала перечитай их через read_file." % "\n".join(lines))
 
 
+def _clean_empty_dirs(start_dir, stop_root):
+    """Remove empty parent directories up to (but excluding) stop_root."""
+    try:
+        cur = os.path.abspath(start_dir)
+        root = os.path.abspath(stop_root)
+        while cur and cur != root and os.path.commonpath([cur, root]) == root:
+            if not os.listdir(cur):
+                os.rmdir(cur)
+                cur = os.path.dirname(cur)
+            else:
+                break
+    except (OSError, ValueError):
+        pass
+
+
 def _revert_entry_on_disk(project_root, entry, force=False):
     """Общая логика отката ОДНОЙ записи журнала НА ДИСКЕ. Не трогает
     сам журнал/снапшоты — только применяет изменения к файлам. Используется
@@ -707,8 +722,10 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                         current[item["path"]] = (True, handle.read())
                 if item.get("before_present", True):
                     snapshot = os.path.join(_history_dir(project_root), item["snapshot"])
+                    parent_dir = os.path.dirname(absolute)
+                    os.makedirs(parent_dir, exist_ok=True)
                     descriptor, temp_path = tempfile.mkstemp(
-                        prefix=".agent_rollback_", dir=os.path.dirname(absolute))
+                        prefix=".agent_rollback_", dir=parent_dir)
                     with os.fdopen(descriptor, "wb") as handle:
                         with open(snapshot, "rb") as source:
                             shutil.copyfileobj(source, handle)
@@ -721,6 +738,7 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                     os.replace(temps.pop(item["path"]), absolute)
                 elif os.path.exists(absolute):
                     os.remove(absolute)
+                    _clean_empty_dirs(os.path.dirname(absolute), project_root)
                 restored.append(item["path"])
         except Exception as exc:
             for path in restored:
@@ -730,9 +748,12 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                     if not was_present:
                         if os.path.exists(absolute):
                             os.remove(absolute)
+                            _clean_empty_dirs(os.path.dirname(absolute), project_root)
                     else:
+                        parent_dir = os.path.dirname(absolute)
+                        os.makedirs(parent_dir, exist_ok=True)
                         descriptor, temp_path = tempfile.mkstemp(
-                            prefix=".agent_rollback_restore_", dir=os.path.dirname(absolute))
+                            prefix=".agent_rollback_restore_", dir=parent_dir)
                         with os.fdopen(descriptor, "wb") as handle:
                             handle.write(old_bytes)
                             handle.flush()

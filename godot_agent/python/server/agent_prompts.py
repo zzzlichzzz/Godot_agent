@@ -90,6 +90,8 @@ PRIMING_TEMPLATE = """Ты — ИИ-разработчик, встроенный
    {"action": "patch_file", "path": "res://scripts/player.gd", "search": "СТАРЫЙ_КОД", "replace": "НОВЫЙ_КОД", "summary": "описание"}
 5. move_file — переместить/переименовать файл.
    {"action": "move_file", "path": "res://old_path.gd", "dest": "res://new_path.gd"}
+5b. rename_file — безопасно переименовать файл с АВТОМАТИЧЕСКИМ обновлением всех ссылок во всём проекте (.gd, .tscn, .tres, project.godot).
+   {"action": "rename_file", "path": "res://old_path.gd", "dest": "res://new_path.gd", "update_references": true}
 6. copy_file — скопировать файлы внутри res:// как есть (применяется автоматически, без подтверждения). Адаптацию под проект делай отдельными patch_file.
    {"action": "copy_file", "copies": [{"src": "res://addons/pack/player.gd", "dest": "res://src/player/player.gd"}]}
 7. search_project — найти текст во всех файлах проекта. Используй ВМЕСТО чтения многих файлов, когда ищешь, где объявлена или используется функция, сигнал, переменная, действие ввода или узел.
@@ -111,6 +113,15 @@ PRIMING_TEMPLATE = """Ты — ИИ-разработчик, встроенный
 
 14a. create_scene — создать НОВУЮ .tscn структурно через PackedScene API Godot. scene должен отсутствовать; root содержит обязательные name/type и optional существующий script. operations те же, что у edit_scene, и могут быть пустыми. Сначала создай нужные .gd, затем отдельным create_scene создай сцену. Никогда не генерируй новую .tscn через create_file, transaction или plan.
    {"action":"create_scene","scene":"res://scenes/player.tscn","root":{"name":"Player","type":"CharacterBody2D","script":"res://scripts/player.gd"},"operations":[{"op":"add_node","parent":".","name":"Camera2D","type":"Camera2D"}],"summary":"Создать сцену игрока"}
+
+14b. rename_node — безопасно переименовать узел внутри сцены .tscn с АВТОМАТИЧЕСКИМ обновлением иерархии, связей сигналов, треков анимации, NodePath свойств и обращений в прикреплённых GDScript ($Node, %UniqueName, get_node).
+   {"action": "rename_node", "scene": "res://scenes/player.tscn", "node": "OldNode", "new_name": "NewNode"}
+
+14c. reparent_node — безопасно переместить узел в другого родителя внутри сцены .tscn с АВТОМАТИЧЕСКИМ пересчётом путей дочерних узлов, связей сигналов, треков анимации и обращений в прикреплённых GDScript ($Node, $"Path/To/Node", get_node).
+   {"action": "reparent_node", "scene": "res://scenes/player.tscn", "node": "Gun", "new_parent": "Arm"}
+
+14d. delete_node — безопасно удалить узел и его поддерево из сцены .tscn с АВТОМАТИЧЕСКИМ удалением сигналов, треков анимации и предупреждением о найденных ссылках в прикреплённых GDScript (скрипты не модифицируются, сохраняя целостность кода разработчика).
+   {"action": "delete_node", "scene": "res://scenes/player.tscn", "node": "OldNode"}
 
 15. edit_project_settings — изменить project.godot через API Godot, одной атомарной транзакцией, НЕ шаг plan. Поддержаны add_input_action, add_input_event, add_autoload, remove_autoload, set_main_scene, set_layer_name, set_display_settings. Input event: key/mouse_button/joypad_button/joypad_motion. После применения редактор требуется перезапустить. Никогда не правь, не создавай, не перемещай и не копируй project.godot текстовыми действиями.
    {"action":"edit_project_settings","operations":[{"op":"add_input_action","name":"jump","deadzone":0.2},{"op":"add_input_event","action":"jump","event":{"type":"key","key":"SPACE","physical":true}}],"summary":"Добавить управление прыжком"}

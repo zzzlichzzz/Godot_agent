@@ -167,6 +167,7 @@ imports:
  &#8226;   <a href="#encodings.uu_codec">encodings.uu_codec</a>
  &#8226;   <a href="#encodings.zlib_codec">encodings.zlib_codec</a>
  &#8226;   <a href="#enum">enum</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#flask">flask</a>
  &#8226;   <a href="#functools">functools</a>
  &#8226;   <a href="#gather_context">gather_context</a>
@@ -195,6 +196,7 @@ imports:
  &#8226;   <a href="#minilich.ml_tokenizer">minilich.ml_tokenizer</a>
  &#8226;   <a href="#minilich.ml_train">minilich.ml_train</a>
  &#8226;   <a href="#model_cache">model_cache</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#numpy">numpy</a>
  &#8226;   <a href="#numpy.__config__">numpy.__config__</a>
@@ -4453,8 +4455,11 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#agent_prompts">agent_prompts</a>
+ &#8226;   <a href="#functools">functools</a>
  &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
 
   </div>
@@ -6489,6 +6494,7 @@ imported by:
 imports:
     <a href="#api_keys">api_keys</a>
  &#8226;   <a href="#gzip">gzip</a>
+ &#8226;   <a href="#io">io</a>
  &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#openai_compat">openai_compat</a>
  &#8226;   <a href="#os">os</a>
@@ -7247,11 +7253,13 @@ imports:
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#model_cache">model_cache</a>
  &#8226;   <a href="#openai_compat">openai_compat</a>
+ &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#providers">providers</a>
  &#8226;   <a href="#server_state">server_state</a>
  &#8226;   <a href="#sites">sites</a>
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
+ &#8226;   <a href="#uuid">uuid</a>
 
   </div>
   <div class="import">
@@ -7269,6 +7277,8 @@ imported by:
 imports:
     <a href="#json">json</a>
  &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
  &#8226;   <a href="#uuid">uuid</a>
@@ -9520,7 +9530,6 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#parser_base">parser_base</a>
- &#8226;   <a href="#selenium.common.exceptions">selenium.common.exceptions</a>
  &#8226;   <a href="#selenium.webdriver.common.keys">selenium.webdriver.common.keys</a>
  &#8226;   <a href="#time">time</a>
 
@@ -13000,6 +13009,33 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="file_refactor"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/file_refactor.py" type="text/plain"><tt>file_refactor</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
+ &#8226;   <a href="#librarian">librarian</a>
+ &#8226;   <a href="#minilich">minilich</a>
+ &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="fileinput"></a>
   <a target="code" href="///C:/Users/Lich/AppData/Local/Python/pythoncore-3.14-64/Lib/fileinput.py" type="text/plain"><tt>fileinput</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -13867,6 +13903,7 @@ imported by:
  &#8226;   <a href="#_py_warnings">_py_warnings</a>
  &#8226;   <a href="#_pyrepl.simple_interact">_pyrepl.simple_interact</a>
  &#8226;   <a href="#_pyrepl.utils">_pyrepl.utils</a>
+ &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#asyncio.format_helpers">asyncio.format_helpers</a>
  &#8226;   <a href="#asyncio.runners">asyncio.runners</a>
  &#8226;   <a href="#asyncio.selector_events">asyncio.selector_events</a>
@@ -13901,6 +13938,7 @@ imported by:
  &#8226;   <a href="#fnmatch">fnmatch</a>
  &#8226;   <a href="#fractions">fractions</a>
  &#8226;   <a href="#glob">glob</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#importlib.metadata._adapters">importlib.metadata._adapters</a>
  &#8226;   <a href="#importlib.metadata._functools">importlib.metadata._functools</a>
@@ -14166,8 +14204,10 @@ imports:
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
  &#8226;   <a href="#transaction_actions">transaction_actions</a>
 
@@ -14693,6 +14733,7 @@ imported by:
     <a href="#PyInstaller.building.utils">PyInstaller.building.utils</a>
  &#8226;   <a href="#PyInstaller.utils.osx">PyInstaller.utils.osx</a>
  &#8226;   <a href="#agent_prompts">agent_prompts</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#flask.sessions">flask.sessions</a>
  &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
@@ -14702,6 +14743,7 @@ imported by:
  &#8226;   <a href="#jinja2.loaders">jinja2.loaders</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
  &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#numpy.random.tests.test_generator_mt19937">numpy.random.tests.test_generator_mt19937</a>
  &#8226;   <a href="#numpy.random.tests.test_random">numpy.random.tests.test_random</a>
  &#8226;   <a href="#numpy.random.tests.test_randomstate">numpy.random.tests.test_randomstate</a>
@@ -14777,12 +14819,14 @@ imported by:
   <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/history_manager.py" type="text/plain"><tt>history_manager</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
-    <a href="#hashlib">hashlib</a>
+    <a href="#functools">functools</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
  &#8226;   <a href="#json">json</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#shutil">shutil</a>
  &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#uuid">uuid</a>
 
@@ -14790,9 +14834,11 @@ imports:
   <div class="import">
 imported by:
     <a href="#chat_routes">chat_routes</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#gd_api_cache">gd_api_cache</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#server_state">server_state</a>
  &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
  &#8226;   <a href="#transaction_actions">transaction_actions</a>
@@ -14818,6 +14864,7 @@ imported by:
     <a href="#itsdangerous.signer">itsdangerous.signer</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
  &#8226;   <a href="#secrets">secrets</a>
+ &#8226;   <a href="#server_auth">server_auth</a>
  &#8226;   <a href="#server_state">server_state</a>
  &#8226;   <a href="#trio._dtls">trio._dtls</a>
  &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
@@ -15918,6 +15965,7 @@ imported by:
  &#8226;   <a href="#asyncio.unix_events">asyncio.unix_events</a>
  &#8226;   <a href="#base64">base64</a>
  &#8226;   <a href="#bz2">bz2</a>
+ &#8226;   <a href="#catalog">catalog</a>
  &#8226;   <a href="#cffi.ffiplatform">cffi.ffiplatform</a>
  &#8226;   <a href="#cffi.recompiler">cffi.recompiler</a>
  &#8226;   <a href="#cffi.verifier">cffi.verifier</a>
@@ -17764,7 +17812,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#gather_context">gather_context</a>
+    <a href="#file_refactor">file_refactor</a>
+ &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#main.py">main.py</a>
 
   </div>
@@ -18196,7 +18245,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#librarian">librarian</a>
+    <a href="#file_refactor">file_refactor</a>
+ &#8226;   <a href="#librarian">librarian</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#minilich">minilich</a>
  &#8226;   <a href="#minilich.ml_data">minilich.ml_data</a>
@@ -18206,6 +18256,7 @@ imported by:
  &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
  &#8226;   <a href="#minilich.ml_tokenizer">minilich.ml_tokenizer</a>
  &#8226;   <a href="#minilich.ml_train">minilich.ml_train</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
 
   </div>
@@ -18326,8 +18377,10 @@ imports:
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#librarian">librarian</a>
  &#8226;   <a href="#minilich">minilich</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#symbol_refactor">symbol_refactor</a>
 
   </div>
@@ -19332,6 +19385,31 @@ imports:
   <div class="import">
 imported by:
     <a href="#ftplib">ftplib</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="node_refactor"></a>
+  <a target="code" href="///D:/vajno/Godot/%D1%82%D0%B5%D1%81%D1%82-%D0%BF%D0%BB%D0%B0%D0%B3%D0%B8%D0%BD%D0%B0-%D0%B8%D0%B8/addons/Godot_agent/godot_agent/python/godot_tools/node_refactor.py" type="text/plain"><tt>node_refactor</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#gd_lint">gd_lint</a>
+ &#8226;   <a href="#hashlib">hashlib</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
+ &#8226;   <a href="#minilich">minilich</a>
+ &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
+ &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
+ &#8226;   <a href="#re">re</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
+ &#8226;   <a href="#threading">threading</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#main.py">main.py</a>
 
   </div>
 
@@ -29676,6 +29754,7 @@ imported by:
  &#8226;   <a href="#cffi.vengine_gen">cffi.vengine_gen</a>
  &#8226;   <a href="#cffi.verifier">cffi.verifier</a>
  &#8226;   <a href="#charset_normalizer.api">charset_normalizer.api</a>
+ &#8226;   <a href="#chat_routes">chat_routes</a>
  &#8226;   <a href="#chat_store">chat_store</a>
  &#8226;   <a href="#click._compat">click._compat</a>
  &#8226;   <a href="#click._termui_impl">click._termui_impl</a>
@@ -29698,6 +29777,7 @@ imported by:
  &#8226;   <a href="#doh">doh</a>
  &#8226;   <a href="#dotenv.main">dotenv.main</a>
  &#8226;   <a href="#email.utils">email.utils</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#fileinput">fileinput</a>
  &#8226;   <a href="#flask.app">flask.app</a>
  &#8226;   <a href="#flask.blueprints">flask.blueprints</a>
@@ -29765,6 +29845,7 @@ imported by:
  &#8226;   <a href="#multiprocessing.spawn">multiprocessing.spawn</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
  &#8226;   <a href="#netrc">netrc</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#numpy">numpy</a>
  &#8226;   <a href="#numpy._core">numpy._core</a>
@@ -30871,6 +30952,7 @@ imported by:
  &#8226;   <a href="#mimetypes">mimetypes</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#setuptools._vendor.importlib_metadata">setuptools._vendor.importlib_metadata</a>
  &#8226;   <a href="#setuptools._vendor.zipp">setuptools._vendor.zipp</a>
  &#8226;   <a href="#setuptools.archive_util">setuptools.archive_util</a>
@@ -30949,20 +31031,24 @@ imports:
     <a href="#difflib">difflib</a>
  &#8226;   <a href="#hashlib">hashlib</a>
  &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#posixpath">posixpath</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#shutil">shutil</a>
+ &#8226;   <a href="#tempfile">tempfile</a>
  &#8226;   <a href="#text_sanitize">text_sanitize</a>
 
   </div>
   <div class="import">
 imported by:
     <a href="#answer_judge">answer_judge</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#gather_context">gather_context</a>
  &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#librarian">librarian</a>
  &#8226;   <a href="#log_reader">log_reader</a>
  &#8226;   <a href="#main.py">main.py</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#project_settings_actions">project_settings_actions</a>
  &#8226;   <a href="#resource_actions">resource_actions</a>
  &#8226;   <a href="#runtime_checks">runtime_checks</a>
@@ -31557,6 +31643,7 @@ imported by:
  &#8226;   <a href="#email.quoprimime">email.quoprimime</a>
  &#8226;   <a href="#email.utils">email.utils</a>
  &#8226;   <a href="#encodings.idna">encodings.idna</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#flask.cli">flask.cli</a>
  &#8226;   <a href="#fnmatch">fnmatch</a>
  &#8226;   <a href="#fractions">fractions</a>
@@ -31604,6 +31691,7 @@ imported by:
  &#8226;   <a href="#minilich.ml_github">minilich.ml_github</a>
  &#8226;   <a href="#minilich.ml_project_index">minilich.ml_project_index</a>
  &#8226;   <a href="#minilich.ml_train">minilich.ml_train</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#numpy._core._internal">numpy._core._internal</a>
  &#8226;   <a href="#numpy._typing._add_docstring">numpy._typing._add_docstring</a>
@@ -32180,7 +32268,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#ai_parser">ai_parser</a>
- &#8226;   <a href="#deepseek_parser">deepseek_parser</a>
  &#8226;   <a href="#main.py">main.py</a>
  &#8226;   <a href="#parser_base">parser_base</a>
  &#8226;   <a href="#selenium.common">selenium.common</a>
@@ -35126,8 +35213,10 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#flask">flask</a>
+ &#8226;   <a href="#hmac">hmac</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#threading">threading</a>
+ &#8226;   <a href="#werkzeug.exceptions">werkzeug.exceptions</a>
 
   </div>
   <div class="import">
@@ -39010,6 +39099,7 @@ imported by:
  &#8226;   <a href="#click.shell_completion">click.shell_completion</a>
  &#8226;   <a href="#click.testing">click.testing</a>
  &#8226;   <a href="#ctypes.util">ctypes.util</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#http.server">http.server</a>
@@ -40335,10 +40425,13 @@ imports:
 imported by:
     <a href="#PyInstaller.utils.osx">PyInstaller.utils.osx</a>
  &#8226;   <a href="#_pyrepl.pager">_pyrepl.pager</a>
+ &#8226;   <a href="#api_history">api_history</a>
+ &#8226;   <a href="#chat_store">chat_store</a>
  &#8226;   <a href="#click._termui_impl">click._termui_impl</a>
  &#8226;   <a href="#click.testing">click.testing</a>
  &#8226;   <a href="#ctypes.util">ctypes.util</a>
  &#8226;   <a href="#dotenv.main">dotenv.main</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
  &#8226;   <a href="#godot_headless_validation">godot_headless_validation</a>
  &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#importlib.resources._common">importlib.resources._common</a>
@@ -40346,6 +40439,7 @@ imported by:
  &#8226;   <a href="#multiprocessing.heap">multiprocessing.heap</a>
  &#8226;   <a href="#multiprocessing.synchronize">multiprocessing.synchronize</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#numpy.conftest">numpy.conftest</a>
  &#8226;   <a href="#numpy.f2py.diagnose">numpy.f2py.diagnose</a>
  &#8226;   <a href="#numpy.f2py.f2py2e">numpy.f2py.f2py2e</a>
@@ -40355,6 +40449,7 @@ imported by:
  &#8226;   <a href="#numpy.lib.tests.test_loadtxt">numpy.lib.tests.test_loadtxt</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
  &#8226;   <a href="#pdb">pdb</a>
+ &#8226;   <a href="#project_tools">project_tools</a>
  &#8226;   <a href="#selenium.webdriver.firefox.firefox_profile">selenium.webdriver.firefox.firefox_profile</a>
  &#8226;   <a href="#selenium.webdriver.remote.webdriver">selenium.webdriver.remote.webdriver</a>
  &#8226;   <a href="#setuptools._core_metadata">setuptools._core_metadata</a>
@@ -40494,6 +40589,7 @@ imported by:
  &#8226;   <a href="#_threading_local">_threading_local</a>
  &#8226;   <a href="#ai_parser">ai_parser</a>
  &#8226;   <a href="#anthropic_compat">anthropic_compat</a>
+ &#8226;   <a href="#api_history">api_history</a>
  &#8226;   <a href="#arena_parser">arena_parser</a>
  &#8226;   <a href="#asyncio.base_events">asyncio.base_events</a>
  &#8226;   <a href="#asyncio.events">asyncio.events</a>
@@ -40505,6 +40601,7 @@ imported by:
  &#8226;   <a href="#bdb">bdb</a>
  &#8226;   <a href="#cdp_ws">cdp_ws</a>
  &#8226;   <a href="#chat_routes">chat_routes</a>
+ &#8226;   <a href="#chat_store">chat_store</a>
  &#8226;   <a href="#click.globals">click.globals</a>
  &#8226;   <a href="#concurrent.futures._base">concurrent.futures._base</a>
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
@@ -40512,6 +40609,8 @@ imported by:
  &#8226;   <a href="#concurrent.interpreters">concurrent.interpreters</a>
  &#8226;   <a href="#dashboard">dashboard</a>
  &#8226;   <a href="#doh">doh</a>
+ &#8226;   <a href="#file_refactor">file_refactor</a>
+ &#8226;   <a href="#history_manager">history_manager</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#importlib.util">importlib.util</a>
  &#8226;   <a href="#jinja2.utils">jinja2.utils</a>
@@ -40534,6 +40633,7 @@ imported by:
  &#8226;   <a href="#multiprocessing.synchronize">multiprocessing.synchronize</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
  &#8226;   <a href="#net_monitor">net_monitor</a>
+ &#8226;   <a href="#node_refactor">node_refactor</a>
  &#8226;   <a href="#numpy.fft.tests.test_pocketfft">numpy.fft.tests.test_pocketfft</a>
  &#8226;   <a href="#numpy.lib.tests.test_io">numpy.lib.tests.test_io</a>
  &#8226;   <a href="#numpy.linalg.tests.test_linalg">numpy.linalg.tests.test_linalg</a>
@@ -45498,7 +45598,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#chat_store">chat_store</a>
+    <a href="#chat_routes">chat_routes</a>
+ &#8226;   <a href="#chat_store">chat_store</a>
  &#8226;   <a href="#click.types">click.types</a>
  &#8226;   <a href="#flask.json.provider">flask.json.provider</a>
  &#8226;   <a href="#flask.json.tag">flask.json.tag</a>
@@ -46784,6 +46885,7 @@ imported by:
  &#8226;   <a href="#flask.sansio.app">flask.sansio.app</a>
  &#8226;   <a href="#flask.sansio.scaffold">flask.sansio.scaffold</a>
  &#8226;   <a href="#flask.wrappers">flask.wrappers</a>
+ &#8226;   <a href="#server_auth">server_auth</a>
  &#8226;   <a href="#werkzeug">werkzeug</a>
  &#8226;   <a href="#werkzeug.datastructures.headers">werkzeug.datastructures.headers</a>
  &#8226;   <a href="#werkzeug.datastructures.structures">werkzeug.datastructures.structures</a>

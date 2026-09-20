@@ -45,12 +45,16 @@ func _enter_tree() -> void:
 	_dock = _build_panel(panel_script_path)
 	_dock.name = _lt("dock_title", "ИИ Агент")
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
+	add_tool_menu_item(_lt("safe_rename_title", "Безопасное переименование файла..."), _on_safe_rename_menu_pressed)
+	add_tool_menu_item(_lt("safe_node_rename_title", "Безопасное переименование узла..."), _on_safe_node_rename_menu_pressed)
 	# Делаем вкладку агента первой и активной (отложенно: док должен
 	# успеть попасть в TabContainer редактора).
 	call_deferred("_promote_dock_tab")
 
 
 func _exit_tree() -> void:
+	remove_tool_menu_item(_lt("safe_rename_title", "Безопасное переименование файла..."))
+	remove_tool_menu_item(_lt("safe_node_rename_title", "Безопасное переименование узла..."))
 	if _runtime_debugger:
 		_runtime_debugger.cancel_pending("session_stopped")
 		remove_debugger_plugin(_runtime_debugger)
@@ -59,6 +63,16 @@ func _exit_tree() -> void:
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
 		_dock = null
+
+
+func _on_safe_rename_menu_pressed() -> void:
+	if _dock and _dock.has_method("open_safe_rename"):
+		_dock.call("open_safe_rename")
+
+
+func _on_safe_node_rename_menu_pressed() -> void:
+	if _dock and _dock.has_method("open_safe_node_rename"):
+		_dock.call("open_safe_node_rename")
 
 
 func _lt(key: String, fallback: String) -> String:
