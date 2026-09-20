@@ -360,8 +360,15 @@ class AssetRefactorTests(unittest.TestCase):
         """When a directory is moved externally, sync_references_after_external_move updates references across files."""
         items_dir = self.root / "items"
         items_dir.mkdir(parents=True, exist_ok=True)
+        sword_gd = items_dir / "sword.gd"
+        sword_gd.write_text('extends Node2D\n', encoding="utf-8")
         sword_scene = items_dir / "sword.tscn"
-        sword_scene.write_text('[gd_scene format=3]\n[node name="Sword" type="Node2D"]\n', encoding="utf-8")
+        sword_scene.write_text(
+            '[gd_scene load_steps=2 format=3]\n'
+            '[ext_resource type="Script" path="res://items/sword.gd" id="1_abc"]\n'
+            '[node name="Sword" type="Node2D"]\n',
+            encoding="utf-8"
+        )
 
         spawner_gd = self.root / "scripts" / "spawner.gd"
         spawner_gd.write_text(
@@ -381,11 +388,15 @@ class AssetRefactorTests(unittest.TestCase):
             is_directory=True
         )
         self.assertTrue(res.get("ok"))
-        self.assertEqual(res.get("reference_count"), 1)
+        self.assertEqual(res.get("reference_count"), 2)
         self.assertIn("res://scripts/spawner.gd", res.get("changed_paths", []))
+        self.assertIn("res://loot/sword.tscn", res.get("changed_paths", []))
 
         spawner_text = spawner_gd.read_text(encoding="utf-8")
         self.assertIn('preload("res://loot/sword.tscn")', spawner_text)
+
+        loot_sword_tscn = (loot_dir / "sword.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://loot/sword.gd"', loot_sword_tscn)
 
     def test_sync_references_after_external_script_rename(self):
         """When an enemy script is renamed externally, references in scenes are updated."""

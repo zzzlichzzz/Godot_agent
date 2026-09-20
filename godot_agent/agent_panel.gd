@@ -127,6 +127,9 @@ var _ghost_prev_script: Script = null
 # а флаг означает, что текущее подтверждение — это отправка отчёта модели.
 var _log_errors_button: Button = null
 var _api_export_button: Button = null
+const SAFE_RENAME_SETTING_FILE := "user://godot_agent_safe_rename.txt"
+var _safe_rename_enabled: bool = true
+var _safe_rename_check: CheckBox = null
 var _safe_rename_button: Button = null
 var _safe_rename_dialog: ConfirmationDialog = null
 var _safe_rename_old_edit: LineEdit = null
@@ -217,7 +220,11 @@ var _api_chat_site: String = ""
 var _chat_model_pick_wanted: bool = false
 var _suppress_chat_select: bool = false
 
-# v57: экспериментальные настройки (mini-lich) — кнопка ⛙ в панели чатов.
+# ---------------------------------------------------------------------------
+# Экспериментальные настройки (MiniLich) — заготовка нейросети для Godot.
+# Это то, что осталось от старой версии, скрыто из UI. НЕ УДАЛЯТЬ: на этом
+# завязаны внутренние механизмы и серверные запросы, оставить на будущее!
+# ---------------------------------------------------------------------------
 var _bar_btn_settings: Button = null
 var _settings_dialog: AcceptDialog = null
 var _settings_exp_header: Label = null
@@ -587,11 +594,13 @@ func _ready() -> void:
 	if advanced_box and _safe_rename_button == null:
 		_safe_rename_button = Button.new()
 		_safe_rename_button.text = _t("safe_rename_btn")
+		_safe_rename_button.visible = false  # Функция вынесена в чекбокс настроек, ручной диалог доступен через Project -> Tools
 		advanced_box.add_child(_safe_rename_button)
 		_safe_rename_button.pressed.connect(_on_safe_rename_pressed)
 	if advanced_box and _safe_node_rename_button == null:
 		_safe_node_rename_button = Button.new()
 		_safe_node_rename_button.text = _t("safe_node_rename_btn")
+		_safe_node_rename_button.visible = false  # Функция вынесена в чекбокс настроек, ручной диалог доступен через Project -> Tools
 		advanced_box.add_child(_safe_node_rename_button)
 		_safe_node_rename_button.pressed.connect(_on_safe_node_rename_pressed)
 	call_deferred("_check_api_cache_freshness")
@@ -619,8 +628,9 @@ func _ready() -> void:
 		_progress_http.timeout = 4.0
 		add_child(_progress_http)
 		_progress_http.request_completed.connect(_on_progress_response)
-	# v88.11: живой ввод — зеркалирование текста в браузер по мере набора
-	_live_enabled = _load_live_input_setting()
+	# v88.11: живой ввод — зеркалирование текста в браузер по мере набора.
+	# Всегда активен по стандарту для анонимности в чатах браузера.
+	_live_enabled = true
 	if _live_timer == null:
 		_live_timer = Timer.new()
 		_live_timer.wait_time = 0.35
@@ -639,9 +649,11 @@ func _ready() -> void:
 		_live_toggle = CheckBox.new()
 		_live_toggle.text = _t("live_input_toggle")
 		_live_toggle.tooltip_text = _t("live_input_tip")
-		_live_toggle.button_pressed = _live_enabled
+		_live_toggle.button_pressed = true
+		_live_toggle.visible = false  # Функция всегда активна по стандарту, переключатель скрыт для анонимности
 		advanced_box.add_child(_live_toggle)
 		_live_toggle.toggled.connect(_on_live_input_toggled)
+	_safe_rename_enabled = _load_safe_rename_setting()
 	if has_node("ChatView"):
 		_view = get_node("ChatView")
 	else:
@@ -1116,16 +1128,32 @@ func _on_live_input_toggled(pressed: bool) -> void:
 
 
 func _load_live_input_setting() -> bool:
-	if not FileAccess.file_exists(LIVE_INPUT_SETTING_FILE):
+	return true  # живой ввод всегда активен по стандарту для анонимности в браузере
+
+
+func _save_live_input_setting(enabled: bool) -> void:
+	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string("1" if enabled else "0")
+
+
+func _on_safe_rename_toggled(pressed: bool) -> void:
+	_safe_rename_enabled = pressed
+	_save_safe_rename_setting(pressed)
+
+
+func _load_safe_rename_setting() -> bool:
+	if not FileAccess.file_exists(SAFE_RENAME_SETTING_FILE):
 		return true  # по умолчанию включено
-	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.READ)
+	var f = FileAccess.open(SAFE_RENAME_SETTING_FILE, FileAccess.READ)
 	if f == null:
 		return true
 	return f.get_as_text().strip_edges() != "0"
 
 
-func _save_live_input_setting(enabled: bool) -> void:
-	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.WRITE)
+func _save_safe_rename_setting(enabled: bool) -> void:
+	var f = FileAccess.open(SAFE_RENAME_SETTING_FILE, FileAccess.WRITE)
 	if f == null:
 		return
 	f.store_string("1" if enabled else "0")
@@ -3296,6 +3324,9 @@ func _on_language_changed() -> void:
 		_log_errors_button.text = _t("log_errors")
 	if _api_export_button:
 		_api_export_button.text = _t("api_export_btn")
+	if _safe_rename_check:
+		_safe_rename_check.text = _t("safe_rename_toggle")
+		_safe_rename_check.tooltip_text = _t("safe_rename_tip")
 	if _safe_rename_button:
 		_safe_rename_button.text = _t("safe_rename_btn")
 	if _safe_node_rename_button:
@@ -3632,8 +3663,8 @@ func _after_ghost_close() -> void:
 	_ghost_prev_script = null
 	_ghost_close_path = ""
 # ---------------------------------------------------------------------------
-# v57: экспериментальные настройки — mini-lich (локальная нейросеть-помощник).
-# Галочка по умолчанию выключена; состояние хранит сервер (settings.json проекта).
+# Окно настроек агента: безопасное переименование, инструменты и обновления.
+# Экспериментальные настройки MiniLich скрыты (заготовка на будущее).
 # ---------------------------------------------------------------------------
 
 func _on_settings_pressed() -> void:
@@ -3645,71 +3676,77 @@ func _on_settings_pressed() -> void:
 	if _settings_dialog == null:
 		_settings_dialog = AcceptDialog.new()
 		_settings_dialog.exclusive = false
-		# v60: без TabContainer — с одной вкладкой он давал два одинаковых
-		# заголовка (таб + внутренняя надпись) и лишнюю стрелку вкладок сверху.
-		# Простой список: заголовок + подпись «ниже — экспериментальные настройки» + сами настройки.
-		# Содержимое обёрнуто в панель со стилем аддона, чтобы окно выглядело
-		# так же, как карточки чата, а не как голый диалог Godot.
+		# Содержимое обёрнуто в панель со стилем аддона
 		var wrap := PanelContainer.new()
 		if T:
 			wrap.add_theme_stylebox_override("panel", T.panel_style("agent"))
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 6)
 		wrap.add_child(box)
+
+		# Основная настройка: безопасное переименование файлов и узлов прямо в редакторе Godot
+		_safe_rename_check = CheckBox.new()
+		_safe_rename_check.button_pressed = _safe_rename_enabled
+		_safe_rename_check.toggled.connect(_on_safe_rename_toggled)
+		box.add_child(_safe_rename_check)
+
+		# ---------------------------------------------------------------------------
+		# Экспериментальные настройки (MiniLich) — заготовка нейросети для Godot.
+		# Это то, что осталось от старой версии, скрыто из интерфейса настроек.
+		# НЕ УДАЛЯТЬ: на этом завязаны внутренние механизмы и обработчики, оставить на будущее!
+		# ---------------------------------------------------------------------------
+		var exp_box := VBoxContainer.new()
+		exp_box.visible = false
+		box.add_child(exp_box)
+
 		_settings_exp_header = Label.new()
 		_settings_exp_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_settings_exp_header.custom_minimum_size = Vector2(360, 0)
 		if T:
 			_settings_exp_header.add_theme_color_override("font_color", T.color("accent"))
-		box.add_child(_settings_exp_header)
-		box.add_child(HSeparator.new())
+		exp_box.add_child(_settings_exp_header)
+		exp_box.add_child(HSeparator.new())
 		_minilich_check = CheckBox.new()
 		_minilich_check.button_pressed = false
 		_minilich_check.toggled.connect(_on_minilich_toggled)
-		box.add_child(_minilich_check)
+		exp_box.add_child(_minilich_check)
 		_minilich_status_label = Label.new()
 		_minilich_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_status_label.custom_minimum_size = Vector2(360, 0)
 		if T:
 			_minilich_status_label.add_theme_color_override("font_color", T.color("dim"))
-		box.add_child(_minilich_status_label)
+		exp_box.add_child(_minilich_status_label)
 		_minilich_train_check = CheckBox.new()
 		_minilich_train_check.button_pressed = false
 		_minilich_train_check.toggled.connect(_on_train_mode_toggled)
-		box.add_child(_minilich_train_check)
+		exp_box.add_child(_minilich_train_check)
 		_minilich_train_warn = Label.new()
 		_minilich_train_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_train_warn.custom_minimum_size = Vector2(360, 0)
-		# Цвет предупреждения — из темы редактора вместо захардкоженного.
 		if T:
 			_minilich_train_warn.add_theme_color_override("font_color", T.color("warning"))
 		_minilich_train_warn.visible = false
-		box.add_child(_minilich_train_warn)
-		box.add_child(HSeparator.new())
+		exp_box.add_child(_minilich_train_warn)
+		exp_box.add_child(HSeparator.new())
 		_minilich_repos_edit = LineEdit.new()
 		_minilich_repos_edit.custom_minimum_size = Vector2(360, 0)
 		if T:
 			T.style_input(_minilich_repos_edit)
-		box.add_child(_minilich_repos_edit)
+		exp_box.add_child(_minilich_repos_edit)
 		_minilich_github_btn = Button.new()
 		_minilich_github_btn.pressed.connect(_on_github_fetch_pressed)
 		if T:
 			T.style_button(_minilich_github_btn, "accent", false)
 			_minilich_github_btn.icon = T.first_icon(["ExternalLink", "Load"])
-		box.add_child(_minilich_github_btn)
+		exp_box.add_child(_minilich_github_btn)
 		_minilich_github_label = Label.new()
 		_minilich_github_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_minilich_github_label.custom_minimum_size = Vector2(360, 0)
 		if T:
 			_minilich_github_label.add_theme_color_override("font_color", T.color("dim"))
-		box.add_child(_minilich_github_label)
-		# Раздел редких инструментов. Раньше он открывался кнопкой
-		# «⚙️ Дополнительно» прямо под полем ввода — то место занял выбор
-		# нейросети для чата (он нужен в каждом сообщении, а эти инструменты —
-		# раз в месяц). Узел ПЕРЕНОСИМ целиком, а не пересобираем: его кнопки уже
-		# созданы и подключены в _ready (переинициализация, ошибки запуска,
-		# справочник API, живой ввод, остановка плана), и вторая копия развела бы
-		# два набора обработчиков на одни и те же действия.
+		exp_box.add_child(_minilich_github_label)
+
+		# Раздел редких инструментов (advanced_box)
 		if advanced_box and advanced_box.get_parent():
 			box.add_child(HSeparator.new())
 			_settings_adv_header = Label.new()
@@ -3719,6 +3756,7 @@ func _on_settings_pressed() -> void:
 			advanced_box.get_parent().remove_child(advanced_box)
 			box.add_child(advanced_box)
 			advanced_box.visible = true
+
 		# Раздел обновления плагина
 		box.add_child(HSeparator.new())
 		_update_check_btn = Button.new()
@@ -3738,6 +3776,16 @@ func _on_settings_pressed() -> void:
 		_settings_dialog.add_child(wrap)
 		add_child(_settings_dialog)
 	_settings_dialog.title = _t("settings_title")
+	if _safe_rename_check:
+		_safe_rename_check.text = _t("safe_rename_toggle")
+		_safe_rename_check.tooltip_text = _t("safe_rename_tip")
+		_safe_rename_check.button_pressed = _safe_rename_enabled
+	if _safe_rename_button:
+		_safe_rename_button.visible = false
+	if _safe_node_rename_button:
+		_safe_node_rename_button.visible = false
+	if _live_toggle:
+		_live_toggle.visible = false
 	_settings_exp_header.text = _t("experimental_hdr") + ":"
 	_minilich_check.text = _t("minilich_toggle")
 	_minilich_train_check.text = _t("train_mode_toggle")
@@ -4239,6 +4287,8 @@ func _on_safe_rename_apply() -> void:
 
 
 func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
+	if not _safe_rename_enabled:
+		return
 	var clean_old := old_path.strip_edges().replace("\\", "/")
 	var clean_new := new_path.strip_edges().replace("\\", "/")
 	if not clean_old.begins_with("res://") and not clean_old.begins_with("user://"):
