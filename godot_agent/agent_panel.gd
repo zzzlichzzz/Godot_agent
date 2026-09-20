@@ -45,6 +45,7 @@ const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
 const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
 const REFACTOR_FILE_PREVIEW_URL = "http://" + HOST + "/project/refactor/file/preview"
 const REFACTOR_FILE_APPLY_URL = "http://" + HOST + "/project/refactor/file/apply"
+const REFACTOR_FILE_POST_MOVE_SYNC_URL = "http://" + HOST + "/project/refactor/file/post_move_sync"
 const REFACTOR_NODE_PREVIEW_URL = "http://" + HOST + "/scene/refactor/node/preview"
 const REFACTOR_NODE_APPLY_URL = "http://" + HOST + "/scene/refactor/node/apply"
 
@@ -4142,6 +4143,51 @@ func _on_safe_rename_apply() -> void:
 	if err != OK:
 		_set_ui_busy(false)
 		_safe_rename_status_label.text = "Ошибка отправки запроса на переименование."
+
+
+func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
+	if old_path.is_empty() or new_path.is_empty() or old_path == new_path:
+		return
+	var body = {
+		"old_path": old_path,
+		"new_path": new_path,
+		"is_directory": is_folder,
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+	}
+	var req := HTTPRequest.new()
+	add_child(req)
+	req.set_http_proxy("", 0)
+	req.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
+		req.queue_free()
+		if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+			return
+		var json_str := body_bytes.get_string_from_utf8()
+		var p := JSON.new()
+		if p.parse(json_str) != OK or not (p.data is Dictionary):
+			return
+		var resp: Dictionary = p.data
+		if not bool(resp.get("ok", false)):
+			return
+		var ref_cnt := int(resp.get("reference_count", 0))
+		var changed_paths = resp.get("changed_paths", [])
+		if changed_paths is Array and not changed_paths.is_empty():
+			EditorInterface.get_resource_filesystem().scan()
+			for cp in changed_paths:
+				_sync_open_script_with_disk(str(cp))
+				_auto_reload_changed_scene(str(cp))
+			_close_ghost_script_tab(old_path)
+			var file_cnt := int(resp.get("file_count", 0))
+			var entry_id := str(resp.get("entry_id", ""))
+			var msg := _t("safe_post_move_sync_success") % [old_path, new_path, ref_cnt, file_cnt]
+			if _view:
+				_view.add_agent_message(msg, entry_id)
+			print("[Godot Agent] ", msg)
+	)
+	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		req.queue_free()
 
 
 func _on_safe_node_rename_pressed() -> void:

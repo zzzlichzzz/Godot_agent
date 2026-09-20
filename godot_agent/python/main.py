@@ -3799,6 +3799,40 @@ def refactor_file_apply():
         return jsonify({"error": str(e)}), 400
 
 
+@app.route('/project/refactor/file/post_move_sync', methods=['POST'])
+def refactor_file_post_move_sync():
+    data = request.json or {}
+    _apply_session_context(data)
+    old_path = data.get("old_path")
+    new_path = data.get("new_path") or data.get("dest")
+    is_directory = bool(data.get("is_directory", False))
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        result = file_refactor.sync_references_after_external_move(
+            project_root, old_path, new_path,
+            is_directory=is_directory,
+            allow_addons=bool(STATE.get("addon_intent")),
+            *_current_chat_info()
+        )
+        changed_paths = result.get("changed_paths", [])
+        if changed_paths:
+            try:
+                librarian.note_files_changed(project_root, changed_paths)
+            except Exception:
+                pass
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _forget_file(result["old_path"])
+            _refresh_fs_snapshot(project_root)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+
 @app.route('/scene/refactor/node/preview', methods=['POST'])
 def refactor_node_preview():
     data = request.json or {}

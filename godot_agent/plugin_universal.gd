@@ -47,12 +47,24 @@ func _enter_tree() -> void:
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
 	add_tool_menu_item(_lt("safe_rename_title", "Безопасное переименование файла..."), _on_safe_rename_menu_pressed)
 	add_tool_menu_item(_lt("safe_node_rename_title", "Безопасное переименование узла..."), _on_safe_node_rename_menu_pressed)
+	var fs_dock: FileSystemDock = EditorInterface.get_file_system_dock()
+	if fs_dock:
+		if not fs_dock.files_moved.is_connected(_on_fs_files_moved):
+			fs_dock.files_moved.connect(_on_fs_files_moved)
+		if not fs_dock.folder_moved.is_connected(_on_fs_folder_moved):
+			fs_dock.folder_moved.connect(_on_fs_folder_moved)
 	# Делаем вкладку агента первой и активной (отложенно: док должен
 	# успеть попасть в TabContainer редактора).
 	call_deferred("_promote_dock_tab")
 
 
 func _exit_tree() -> void:
+	var fs_dock: FileSystemDock = EditorInterface.get_file_system_dock()
+	if fs_dock:
+		if fs_dock.files_moved.is_connected(_on_fs_files_moved):
+			fs_dock.files_moved.disconnect(_on_fs_files_moved)
+		if fs_dock.folder_moved.is_connected(_on_fs_folder_moved):
+			fs_dock.folder_moved.disconnect(_on_fs_folder_moved)
 	remove_tool_menu_item(_lt("safe_rename_title", "Безопасное переименование файла..."))
 	remove_tool_menu_item(_lt("safe_node_rename_title", "Безопасное переименование узла..."))
 	if _runtime_debugger:
@@ -63,6 +75,16 @@ func _exit_tree() -> void:
 		remove_control_from_docks(_dock)
 		_dock.queue_free()
 		_dock = null
+
+
+func _on_fs_files_moved(old_file: String, new_file: String) -> void:
+	if _dock and _dock.has_method("handle_filesystem_move"):
+		_dock.call("handle_filesystem_move", old_file, new_file, false)
+
+
+func _on_fs_folder_moved(old_folder: String, new_folder: String) -> void:
+	if _dock and _dock.has_method("handle_filesystem_move"):
+		_dock.call("handle_filesystem_move", old_folder, new_folder, true)
 
 
 func _on_safe_rename_menu_pressed() -> void:

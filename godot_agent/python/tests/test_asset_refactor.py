@@ -308,6 +308,86 @@ class AssetRefactorTests(unittest.TestCase):
             )
         self.assertIn("Целевой файл .import уже существует", str(ctx.exception))
 
+    def test_sync_references_after_external_move_updates_code_and_supports_rollback(self):
+        """When Godot's FileSystemDock renames an enemy scene on disk, sync_references_after_external_move updates references in scripts and supports rollback."""
+        enemies_dir = self.root / "scenes" / "enemies"
+        enemies_dir.mkdir(parents=True, exist_ok=True)
+        goblin_scene = enemies_dir / "goblin.tscn"
+        goblin_scene.write_text('[gd_scene format=3]\n[node name="Goblin" type="CharacterBody2D"]\n', encoding="utf-8")
+
+        data_reg = self.root / "scripts" / "data_registry.gd"
+        data_reg.write_text(
+            'extends RefCounted\n\n'
+            'const ENEMIES = {\n'
+            '    "goblin": {\n'
+            '        "name": "Гоблин",\n'
+            '        "scene": "res://scenes/enemies/goblin.tscn"\n'
+            '    }\n'
+            '}\n',
+            encoding="utf-8"
+        )
+
+        # Simulate Godot's external rename on disk
+        rat_scene = enemies_dir / "rat.tscn"
+        goblin_scene.rename(rat_scene)
+        self.assertTrue(rat_scene.exists())
+        self.assertFalse(goblin_scene.exists())
+
+        # Call post-move sync
+        res = file_refactor.sync_references_after_external_move(
+            str(self.root),
+            "res://scenes/enemies/goblin.tscn",
+            "res://scenes/enemies/rat.tscn"
+        )
+        self.assertTrue(res.get("ok"))
+        self.assertEqual(res.get("reference_count"), 1)
+        self.assertIn("res://scripts/data_registry.gd", res.get("changed_paths", []))
+
+        # Verify data_registry.gd updated with rat.tscn
+        reg_text = data_reg.read_text(encoding="utf-8")
+        self.assertIn('"scene": "res://scenes/enemies/rat.tscn"', reg_text)
+        self.assertNotIn('goblin.tscn', reg_text)
+
+        # Test rollback
+        ok, msg, needs_force, paths, diff = history_manager.rollback_last(str(self.root))
+        self.assertTrue(ok, msg)
+
+        # References in code restored to goblin.tscn
+        restored_reg_text = data_reg.read_text(encoding="utf-8")
+        self.assertIn('"scene": "res://scenes/enemies/goblin.tscn"', restored_reg_text)
+
+    def test_sync_references_after_external_directory_move(self):
+        """When a directory is moved externally, sync_references_after_external_move updates references across files."""
+        items_dir = self.root / "items"
+        items_dir.mkdir(parents=True, exist_ok=True)
+        sword_scene = items_dir / "sword.tscn"
+        sword_scene.write_text('[gd_scene format=3]\n[node name="Sword" type="Node2D"]\n', encoding="utf-8")
+
+        spawner_gd = self.root / "scripts" / "spawner.gd"
+        spawner_gd.write_text(
+            'extends Node\n'
+            'var item = preload("res://items/sword.tscn")\n',
+            encoding="utf-8"
+        )
+
+        # Move directory externally on disk
+        loot_dir = self.root / "loot"
+        items_dir.rename(loot_dir)
+
+        res = file_refactor.sync_references_after_external_move(
+            str(self.root),
+            "res://items",
+            "res://loot",
+            is_directory=True
+        )
+        self.assertTrue(res.get("ok"))
+        self.assertEqual(res.get("reference_count"), 1)
+        self.assertIn("res://scripts/spawner.gd", res.get("changed_paths", []))
+
+        spawner_text = spawner_gd.read_text(encoding="utf-8")
+        self.assertIn('preload("res://loot/sword.tscn")', spawner_text)
+
 
 if __name__ == "__main__":
     unittest.main()
+
