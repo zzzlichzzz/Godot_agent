@@ -4151,16 +4151,30 @@ func _on_safe_node_rename_pressed() -> void:
 func open_safe_node_rename(prefill_scene: String = "", prefill_node: String = "") -> void:
 	_ensure_safe_node_rename_dialog()
 	var initial_scene := prefill_scene
+	var initial_node := prefill_node
+	var initial_new_name := prefill_node
+	var edited_root = EditorInterface.get_edited_scene_root()
 	if initial_scene.is_empty():
-		var edited_root = EditorInterface.get_edited_scene_root()
 		if edited_root and not edited_root.scene_file_path.is_empty():
 			initial_scene = edited_root.scene_file_path
+	if initial_node.is_empty():
+		var selection := EditorInterface.get_selection()
+		if selection:
+			var selected_nodes := selection.get_selected_nodes()
+			if not selected_nodes.is_empty() and is_instance_valid(selected_nodes[0]):
+				var node := selected_nodes[0] as Node
+				if edited_root and (node == edited_root or edited_root.is_ancestor_of(node)):
+					if node == edited_root:
+						initial_node = "."
+					else:
+						initial_node = str(edited_root.get_path_to(node))
+					initial_new_name = str(node.name)
 	if _safe_node_rename_scene_edit:
 		_safe_node_rename_scene_edit.text = initial_scene
 	if _safe_node_rename_node_edit:
-		_safe_node_rename_node_edit.text = prefill_node
+		_safe_node_rename_node_edit.text = initial_node
 	if _safe_node_rename_new_edit:
-		_safe_node_rename_new_edit.text = prefill_node
+		_safe_node_rename_new_edit.text = initial_new_name
 	if _safe_node_rename_status_label:
 		_safe_node_rename_status_label.text = ""
 	_safe_node_rename_prepared = {}
@@ -4331,7 +4345,8 @@ func _on_safe_node_rename_apply() -> void:
 		for p in _safe_node_rename_prepared["affected_paths"]:
 			if not targets.has(str(p)):
 				targets.append(str(p))
-	var dirty := _dirty_open_scripts(PackedStringArray(targets))
+	var check_targets := PackedStringArray(targets) if _safe_node_rename_prepared.has("affected_paths") else PackedStringArray()
+	var dirty := _dirty_open_scripts(check_targets)
 	if not dirty.is_empty():
 		_safe_node_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
 		return
