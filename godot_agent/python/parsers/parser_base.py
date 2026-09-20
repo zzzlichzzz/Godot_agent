@@ -1317,7 +1317,8 @@ def _resolve_content_refs(obj, raw):
     return obj, missing
 
 
-_KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file",
+_KNOWN_ACTIONS = {u"plan", u"create_file", u"patch_file", u"move_file", u"rename_file",
+                  u"rename_node", u"reparent_node", u"delete_node",
                   u"read_file", u"read_files", u"read_function", u"copy_file",
                   u"ask_librarian", u"gather_context", u"rename_symbol", u"edit_scene", u"create_scene",
                   u"edit_project_settings", u"edit_resource", u"transaction", u"project_command",
@@ -1331,7 +1332,11 @@ _ACTION_SYNONYMS = {
     u"modify_file": u"patch_file", u"update_file": u"patch_file",
     u"patchfile": u"patch_file", u"edit": u"patch_file",
     u"move": u"move_file", u"rename": u"move_file",
-    u"rename_file": u"move_file", u"movefile": u"move_file",
+    u"rename_file": u"rename_file", u"refactor_file": u"rename_file",
+    u"safe_rename": u"rename_file", u"renamefile": u"rename_file", u"movefile": u"move_file",
+    u"rename_node": u"rename_node", u"refactor_node": u"rename_node", u"renamenode": u"rename_node",
+    u"reparent_node": u"reparent_node", u"reparentnode": u"reparent_node", u"move_node": u"reparent_node", u"movenode": u"reparent_node",
+    u"delete_node": u"delete_node", u"deletenode": u"delete_node", u"remove_node": u"delete_node", u"removenode": u"delete_node",
     u"renamesymbol": u"rename_symbol", u"refactor_symbol": u"rename_symbol",
     u"editscene": u"edit_scene", u"scene_edit": u"edit_scene",
     u"createscene": u"create_scene", u"scene_create": u"create_scene",
@@ -1423,7 +1428,7 @@ def _coerce_one_action(d, fixes, prefix):
               and ps == [d[u"path"]]):
             d.pop(u"paths", None)
             fixes.append(prefix + u"лишний paths совпадает с path")
-    if act == u"move_file":
+    if act in (u"move_file", u"rename_file"):
         aliases = [(syn, d.get(syn)) for syn in _DEST_SYNONYMS
                    if isinstance(d.get(syn), str) and d.get(syn)]
         values = {value for _syn, value in aliases}
@@ -1437,6 +1442,27 @@ def _coerce_one_action(d, fixes, prefix):
             for syn, _value in aliases:
                 d.pop(syn, None)
             fixes.append(prefix + u"лишний alias назначения совпадает с dest")
+    if act == u"rename_node":
+        if not d.get(u"node_path") and d.get(u"node"):
+            d[u"node_path"] = d.pop(u"node")
+            fixes.append(prefix + u"node -> node_path")
+        if not d.get(u"new_name") and d.get(u"name"):
+            d[u"new_name"] = d.pop(u"name")
+            fixes.append(prefix + u"name -> new_name")
+    if act == u"reparent_node":
+        if not d.get(u"node_path") and d.get(u"node"):
+            d[u"node_path"] = d.pop(u"node")
+            fixes.append(prefix + u"node -> node_path")
+        if not d.get(u"new_parent") and d.get(u"parent"):
+            d[u"new_parent"] = d.pop(u"parent")
+            fixes.append(prefix + u"parent -> new_parent")
+    if act == u"delete_node":
+        if not d.get(u"node_path") and d.get(u"node"):
+            d[u"node_path"] = d.pop(u"node")
+            fixes.append(prefix + u"node -> node_path")
+        if not d.get(u"cleanup_code") and d.get(u"cleanup"):
+            d[u"cleanup_code"] = d.pop(u"cleanup")
+            fixes.append(prefix + u"cleanup -> cleanup_code")
     for field in _TEXT_LIST_FIELDS:
         v = d.get(field)
         if (isinstance(v, list) and v

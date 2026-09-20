@@ -8,7 +8,7 @@ import sys
 
 SUITES = """
 test_editor_context test_gather_context test_semantic_index
-test_rename_symbol test_rename_symbol_flow test_scene_actions test_scene_action_flow
+test_rename_symbol test_rename_symbol_flow test_file_refactor test_file_refactor_flow test_node_refactor test_node_refactor_flow test_client_refactor_flow test_scene_actions test_scene_action_flow
 test_project_settings_actions test_project_settings_flow test_godot_headless_validation
 test_transaction_actions test_transaction_flow test_high_level_actions test_high_level_flow
 test_resource_actions test_resource_action_flow test_runtime_debug test_runtime_debug_flow
@@ -39,7 +39,7 @@ def main():
     python_root = Path(__file__).resolve().parent.parent
     suites = list(SUITES)
     live = ["test_godot_live", "test_godot_executor_live", "test_runtime_ownership_live",
-            "test_headless_validator_live"]
+            "test_headless_validator_live", "test_file_refactor_live", "test_node_refactor_live"]
     if args.godot:
         suites.extend(live)
     failures = []

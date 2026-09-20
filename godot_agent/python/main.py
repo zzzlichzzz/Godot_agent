@@ -43,6 +43,8 @@ import runtime_debug
 import runtime_checks
 import gather_context
 import symbol_refactor
+import file_refactor
+import node_refactor
 import scene_actions
 import project_settings_actions
 import resource_actions
@@ -485,6 +487,26 @@ def _describe_action(action):
         return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
             int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
+    if act == "rename_file":
+        return "Агент хочет безопасно переименовать файл %s в %s (%d обновлений ссылок)" % (
+            action.get("path", ""), action.get("dest", ""), int(action.get("reference_count") or 0))
+    if act == "rename_node":
+        return "Агент хочет безопасно переименовать узел %s в %s в сцене %s (%d обновлений)" % (
+            action.get("node_path") or action.get("node", ""),
+            action.get("new_name", ""),
+            action.get("scene", ""),
+            int(action.get("reference_count") or 0))
+    if act == "reparent_node":
+        return "Агент хочет переместить узел %s в %s в сцене %s (%d обновлений)" % (
+            action.get("node_path") or action.get("node", ""),
+            action.get("new_parent", ""),
+            action.get("scene", ""),
+            int(action.get("reference_count") or 0))
+    if act == "delete_node":
+        return "Агент хочет безопасно удалить узел %s из сцены %s (%d обновлений)" % (
+            action.get("node_path") or action.get("node", ""),
+            action.get("scene", ""),
+            int(action.get("reference_count") or 0))
     if act in ("edit_scene", "create_scene"):
         verb = "создать" if act == "create_scene" else "структурно изменить"
         return "Агент хочет %s сцену %s (%d операций)" % (
@@ -1195,6 +1217,147 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                         "pending_action_code": None,
                         "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
                          "pending_action_diffs": diffs})
+    if action and action.get("action") == "rename_file":
+        try:
+            prepared = file_refactor.prepare_file_rename(
+                project_root, action.get("path"), action.get("dest") or action.get("new_path"),
+                update_references=bool(action.get("update_references", True)),
+                allow_addons=bool(STATE.get("addon_intent")))
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_file_refactor"] = None
+            followup = ("[Система]: rename_file отклонён: %s. "
+                        "Исправь пути или проверь существование файлов." % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(action)
+        public["dest"] = prepared["new_path"]
+        public["reference_count"] = prepared["reference_count"]
+        public["file_count"] = len(prepared["files"])
+        public["affected_paths"] = prepared["affected_paths"]
+        public["is_directory"] = prepared.get("is_directory", False)
+        STATE["pending_file_refactor"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
+                        "pending_action_diffs": diffs})
+    if action and action.get("action") == "rename_node":
+        try:
+            prepared = node_refactor.prepare_node_rename(
+                project_root,
+                action.get("scene"),
+                action.get("node_path") or action.get("node"),
+                action.get("new_name") or action.get("name"),
+                allow_addons=bool(STATE.get("addon_intent"))
+            )
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_node_refactor"] = None
+            followup = ("[Система]: rename_node отклонён: %s. "
+                        "Исправь имя узла или путь к сцене." % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(action)
+        public["scene"] = prepared["scene_res"]
+        public["node_path"] = prepared["target_node_path"]
+        public["new_name"] = prepared["new_name"]
+        public["reference_count"] = prepared["reference_count"]
+        public["file_count"] = len(prepared["files"])
+        public["affected_paths"] = prepared["affected_paths"]
+        STATE["pending_node_refactor"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
+                        "pending_action_diffs": diffs})
+    if action and action.get("action") == "reparent_node":
+        try:
+            prepared = node_refactor.prepare_node_reparent(
+                project_root,
+                action.get("scene"),
+                action.get("node_path") or action.get("node"),
+                action.get("new_parent") or action.get("parent"),
+                allow_addons=bool(STATE.get("addon_intent"))
+            )
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_node_refactor"] = None
+            followup = ("[Система]: reparent_node отклонён: %s. "
+                        "Исправь имя узла, нового родителя или путь к сцене." % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(action)
+        public["scene"] = prepared["scene_res"]
+        public["node_path"] = prepared["target_node_path"]
+        public["new_parent"] = prepared["new_parent"]
+        public["reference_count"] = prepared["reference_count"]
+        public["file_count"] = len(prepared["files"])
+        public["affected_paths"] = prepared["affected_paths"]
+        STATE["pending_node_refactor"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
+                        "pending_action_diffs": diffs})
+    if action and action.get("action") == "delete_node":
+        try:
+            prepared = node_refactor.prepare_node_deletion(
+                project_root,
+                action.get("scene"),
+                action.get("node_path") or action.get("node"),
+                cleanup_code=bool(action.get("cleanup_code", True)),
+                allow_addons=bool(STATE.get("addon_intent"))
+            )
+        except Exception as exc:
+            STATE["pending_action"] = None
+            STATE["pending_node_refactor"] = None
+            followup = ("[Система]: delete_node отклонён: %s. "
+                        "Исправь имя узла или путь к сцене." % exc)
+            if not allow_followup or depth >= 2:
+                return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                                "pending_action": None})
+            text2, action2 = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text2, action2, project_root, depth + 1)
+        public = dict(action)
+        public["scene"] = prepared["scene_res"]
+        public["node_path"] = prepared["target_node_path"]
+        public["deleted_nodes"] = prepared["deleted_nodes"]
+        public["reference_count"] = prepared["reference_count"]
+        public["file_count"] = len(prepared["files"])
+        public["affected_paths"] = prepared["affected_paths"]
+        public["warnings"] = prepared.get("warnings", [])
+        STATE["pending_node_refactor"] = prepared
+        STATE["pending_action"] = public
+        _remember("agent", text)
+        _sync_chat_after_reply()
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({"answer": text, "pending_action": public,
+                        "pending_action_description": _describe_action(public),
+                        "pending_action_code": None,
+                        "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
+                        "pending_action_diffs": diffs})
     if action and action.get("action") in ("edit_scene", "create_scene"):
         try:
             prepared = scene_actions.prepare(
@@ -2449,6 +2612,99 @@ def confirm_action():
                 "history_entry_id": result["entry_id"],
             })
 
+        if act_type == "rename_file":
+            prepared = STATE.get("pending_file_refactor")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция переименования файла утрачена."}), 409
+            print("--> rename_file %s -> %s. Применяем %d файл(ов)..." % (
+                prepared.get("old_path"), prepared.get("new_path"),
+                len(prepared.get("files") or [])))
+            try:
+                result = file_refactor.apply_prepared_file_rename(
+                    project_root, prepared, *_current_chat_info())
+            except file_refactor.StaleFileRefactorError as exc:
+                STATE["pending_action"] = None
+                STATE["pending_file_refactor"] = None
+                return jsonify({"error": str(exc)}), 409
+            except Exception as exc:
+                STATE["pending_action"] = None
+                STATE["pending_file_refactor"] = None
+                return jsonify({"error": "Ошибка применения rename_file: %s" % exc}), 500
+            STATE["pending_action"] = None
+            STATE["pending_file_refactor"] = None
+            changed_paths = result["changed_paths"]
+            try:
+                librarian.note_files_changed(project_root, changed_paths, deleted=[result["old_path"]])
+            except Exception:
+                pass
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _forget_file(result["old_path"])
+            _refresh_fs_snapshot(project_root)
+            return jsonify({
+                "answer": "[Система]: Файл %s успешно переименован в %s (обновлено ссылок: %d в %d файлах)." % (
+                    result["old_path"], result["new_path"],
+                    result["reference_count"], result["file_count"]),
+                "pending_action": None, "changed_paths": changed_paths,
+                "history_entry_id": result["entry_id"],
+            })
+
+        if act_type in ("rename_node", "reparent_node", "delete_node"):
+            prepared = STATE.get("pending_node_refactor")
+            if not isinstance(prepared, dict):
+                STATE["pending_action"] = None
+                return jsonify({"error": "Подготовленная транзакция рефакторинга узла утрачена."}), 409
+            print("--> %s %s в %s. Применяем %d файл(ов)..." % (
+                act_type, prepared.get("target_node_path"),
+                prepared.get("scene_res"), len(prepared.get("files") or [])))
+            try:
+                result = node_refactor.apply_prepared_node_refactor(
+                    project_root, prepared, *_current_chat_info())
+            except node_refactor.StaleNodeRefactorError as exc:
+                STATE["pending_action"] = None
+                STATE["pending_node_refactor"] = None
+                return jsonify({"error": str(exc)}), 409
+            except Exception as exc:
+                STATE["pending_action"] = None
+                STATE["pending_node_refactor"] = None
+                return jsonify({"error": "Ошибка применения %s: %s" % (act_type, exc)}), 500
+            STATE["pending_action"] = None
+            STATE["pending_node_refactor"] = None
+            changed_paths = result["changed_paths"]
+            try:
+                librarian.note_files_changed(project_root, changed_paths)
+            except Exception:
+                pass
+            for changed_path in changed_paths:
+                _remember_file(project_root, changed_path)
+                _touch_file_read(changed_path)
+            _refresh_fs_snapshot(project_root)
+            if act_type == "reparent_node":
+                msg = "[Система]: Узел %s успешно перемещён в %s в сцене %s (обновлено ссылок: %d в %d файлах)." % (
+                    result["target_node_path"], result.get("new_parent"), result["scene_res"],
+                    result["reference_count"], result["file_count"])
+            elif act_type == "delete_node":
+                msg = "[Система]: Узел %s успешно удалён из сцены %s (%d обновлений в .tscn)." % (
+                    result["target_node_path"], result["scene_res"],
+                    result["reference_count"])
+                warnings = prepared.get("warnings") or []
+                if warnings:
+                    msg += "\n\nВнимание! В прикреплённых скриптах найдены ссылки на удалённый узел (скрипты не изменялись, чтобы не нарушить отступы и логику):\n"
+                    msg += "\n".join("- %s:%d: %s" % (w["file"], w["line"], w["code"]) for w in warnings[:5])
+                    if len(warnings) > 5:
+                        msg += "\n- ... и ещё %d мест(а)" % (len(warnings) - 5)
+            else:
+                msg = "[Система]: Узел %s успешно переименован в %s в сцене %s (обновлено ссылок: %d в %d файлах)." % (
+                    result["target_node_path"], result["new_name"], result["scene_res"],
+                    result["reference_count"], result["file_count"])
+            return jsonify({
+                "answer": msg,
+                "pending_action": None, "changed_paths": changed_paths,
+                "history_entry_id": result["entry_id"],
+            })
+
         if act_type == "transaction":
             prepared = STATE.get("pending_transaction")
             if not isinstance(prepared, dict):
@@ -3461,6 +3717,307 @@ def update_api_cache():
         return jsonify({"error": str(e)}), 500
     print("--> API cache updated: %d classes (Godot %s)" % (count, godot_version))
     return jsonify({"classes_count": count, "godot_version": godot_version})
+
+
+@app.route('/project/refactor/file/preview', methods=['POST'])
+def refactor_file_preview():
+    data = request.json or {}
+    _apply_session_context(data)
+    old_path = data.get("old_path")
+    new_path = data.get("new_path") or data.get("dest")
+    update_refs = bool(data.get("update_references", True))
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = file_refactor.prepare_file_rename(
+            project_root, old_path, new_path,
+            update_references=update_refs,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({
+            "ok": True,
+            "prepared": {
+                "old_path": prepared["old_path"],
+                "new_path": prepared["new_path"],
+                "is_directory": prepared.get("is_directory", False),
+                "moved_files": prepared.get("moved_files", {}),
+                "reference_count": prepared["reference_count"],
+                "file_count": len(prepared["files"]),
+                "affected_paths": prepared["affected_paths"],
+                "diffs": diffs,
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/project/refactor/file/apply', methods=['POST'])
+def refactor_file_apply():
+    data = request.json or {}
+    _apply_session_context(data)
+    old_path = data.get("old_path")
+    new_path = data.get("new_path") or data.get("dest")
+    update_refs = bool(data.get("update_references", True))
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = file_refactor.prepare_file_rename(
+            project_root, old_path, new_path,
+            update_references=update_refs,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        result = file_refactor.apply_prepared_file_rename(
+            project_root, prepared, *_current_chat_info()
+        )
+        changed_paths = result["changed_paths"]
+        try:
+            librarian.note_files_changed(project_root, changed_paths, deleted=[result["old_path"]])
+        except Exception:
+            pass
+        for changed_path in changed_paths:
+            _remember_file(project_root, changed_path)
+            _touch_file_read(changed_path)
+        _forget_file(result["old_path"])
+        _refresh_fs_snapshot(project_root)
+        return jsonify({
+            "ok": True,
+            "entry_id": result["entry_id"],
+            "old_path": result["old_path"],
+            "new_path": result["new_path"],
+            "changed_paths": result["changed_paths"],
+            "reference_count": result["reference_count"],
+            "file_count": result["file_count"],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/scene/refactor/node/preview', methods=['POST'])
+def refactor_node_preview():
+    data = request.json or {}
+    _apply_session_context(data)
+    scene = data.get("scene")
+    node_path = data.get("node_path") or data.get("node")
+    new_name = data.get("new_name") or data.get("name")
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = node_refactor.prepare_node_rename(
+            project_root, scene, node_path, new_name,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({
+            "ok": True,
+            "prepared": {
+                "scene": prepared["scene_res"],
+                "node_path": prepared["target_node_path"],
+                "new_name": prepared["new_name"],
+                "reference_count": prepared["reference_count"],
+                "file_count": len(prepared["files"]),
+                "affected_paths": prepared["affected_paths"],
+                "diffs": diffs,
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/scene/refactor/node/apply', methods=['POST'])
+def refactor_node_apply():
+    data = request.json or {}
+    _apply_session_context(data)
+    scene = data.get("scene")
+    node_path = data.get("node_path") or data.get("node")
+    new_name = data.get("new_name") or data.get("name")
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = node_refactor.prepare_node_rename(
+            project_root, scene, node_path, new_name,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        result = node_refactor.apply_prepared_node_rename(
+            project_root, prepared, *_current_chat_info()
+        )
+        changed_paths = result["changed_paths"]
+        try:
+            librarian.note_files_changed(project_root, changed_paths)
+        except Exception:
+            pass
+        for changed_path in changed_paths:
+            _remember_file(project_root, changed_path)
+            _touch_file_read(changed_path)
+        _refresh_fs_snapshot(project_root)
+        return jsonify({
+            "ok": True,
+            "entry_id": result["entry_id"],
+            "scene": result["scene_res"],
+            "node_path": result["target_node_path"],
+            "new_name": result["new_name"],
+            "changed_paths": result["changed_paths"],
+            "reference_count": result["reference_count"],
+            "file_count": result["file_count"],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/scene/refactor/node/reparent/preview', methods=['POST'])
+def refactor_node_reparent_preview():
+    data = request.json or {}
+    _apply_session_context(data)
+    scene = data.get("scene")
+    node_path = data.get("node_path") or data.get("node")
+    new_parent = data.get("new_parent") or data.get("parent")
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = node_refactor.prepare_node_reparent(
+            project_root, scene, node_path, new_parent,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({
+            "ok": True,
+            "prepared": {
+                "scene": prepared["scene_res"],
+                "node_path": prepared["target_node_path"],
+                "new_parent": prepared["new_parent"],
+                "new_path": prepared["new_path"],
+                "reference_count": prepared["reference_count"],
+                "file_count": len(prepared["files"]),
+                "affected_paths": prepared["affected_paths"],
+                "diffs": diffs,
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/scene/refactor/node/reparent/apply', methods=['POST'])
+def refactor_node_reparent_apply():
+    data = request.json or {}
+    _apply_session_context(data)
+    scene = data.get("scene")
+    node_path = data.get("node_path") or data.get("node")
+    new_parent = data.get("new_parent") or data.get("parent")
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = node_refactor.prepare_node_reparent(
+            project_root, scene, node_path, new_parent,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        result = node_refactor.apply_prepared_node_refactor(
+            project_root, prepared, *_current_chat_info()
+        )
+        changed_paths = result["changed_paths"]
+        try:
+            librarian.note_files_changed(project_root, changed_paths)
+        except Exception:
+            pass
+        for changed_path in changed_paths:
+            _remember_file(project_root, changed_path)
+            _touch_file_read(changed_path)
+        _refresh_fs_snapshot(project_root)
+        return jsonify({
+            "ok": True,
+            "entry_id": result["entry_id"],
+            "scene": result["scene_res"],
+            "node_path": result["target_node_path"],
+            "new_parent": result["new_parent"],
+            "new_path": result["new_path"],
+            "changed_paths": result["changed_paths"],
+            "reference_count": result["reference_count"],
+            "file_count": result["file_count"],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/scene/refactor/node/delete/preview', methods=['POST'])
+def refactor_node_delete_preview():
+    data = request.json or {}
+    _apply_session_context(data)
+    scene = data.get("scene")
+    node_path = data.get("node_path") or data.get("node")
+    cleanup_code = bool(data.get("cleanup_code", True))
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = node_refactor.prepare_node_deletion(
+            project_root, scene, node_path,
+            cleanup_code=cleanup_code,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        diffs = [item["diff"] for item in prepared["files"]]
+        return jsonify({
+            "ok": True,
+            "prepared": {
+                "scene": prepared["scene_res"],
+                "node_path": prepared["target_node_path"],
+                "deleted_nodes": prepared["deleted_nodes"],
+                "reference_count": prepared["reference_count"],
+                "file_count": len(prepared["files"]),
+                "affected_paths": prepared["affected_paths"],
+                "diffs": diffs,
+                "warnings": prepared.get("warnings", []),
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/scene/refactor/node/delete/apply', methods=['POST'])
+def refactor_node_delete_apply():
+    data = request.json or {}
+    _apply_session_context(data)
+    scene = data.get("scene")
+    node_path = data.get("node_path") or data.get("node")
+    cleanup_code = bool(data.get("cleanup_code", True))
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    try:
+        prepared = node_refactor.prepare_node_deletion(
+            project_root, scene, node_path,
+            cleanup_code=cleanup_code,
+            allow_addons=bool(STATE.get("addon_intent"))
+        )
+        result = node_refactor.apply_prepared_node_refactor(
+            project_root, prepared, *_current_chat_info()
+        )
+        changed_paths = result["changed_paths"]
+        try:
+            librarian.note_files_changed(project_root, changed_paths)
+        except Exception:
+            pass
+        for changed_path in changed_paths:
+            _remember_file(project_root, changed_path)
+            _touch_file_read(changed_path)
+        _refresh_fs_snapshot(project_root)
+        return jsonify({
+            "ok": True,
+            "entry_id": result["entry_id"],
+            "scene": result["scene_res"],
+            "node_path": result["target_node_path"],
+            "deleted_nodes": result["deleted_nodes"],
+            "changed_paths": result["changed_paths"],
+            "reference_count": result["reference_count"],
+            "file_count": result["file_count"],
+            "warnings": prepared.get("warnings", []),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @app.route('/project/check_log', methods=['POST'])

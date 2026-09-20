@@ -32,7 +32,7 @@ func _initialize() -> void:
 
 func run() -> void:
 	var version := Engine.get_version_info()
-	check(version.major == 4 and version.minor == 6 and version.patch == 1, "Requires audited Godot 4.6.1")
+	check(version.major == 4 and version.minor == 6 and version.patch in [1, 2, 3], "Requires audited Godot 4.6.1-4.6.3")
 	print("AUDITED ENGINE ", version)
 	for api in ["EditorInterface", "EditorDebuggerSession", "EditorDebuggerPlugin"]:
 		var methods: Array = []

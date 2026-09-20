@@ -43,6 +43,10 @@ const PLAN_STOP_URL = "http://" + HOST + "/chat/plan/stop"
 const CHAT_STOP_URL = "http://" + HOST + "/chat/stop"
 const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
 const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
+const REFACTOR_FILE_PREVIEW_URL = "http://" + HOST + "/project/refactor/file/preview"
+const REFACTOR_FILE_APPLY_URL = "http://" + HOST + "/project/refactor/file/apply"
+const REFACTOR_NODE_PREVIEW_URL = "http://" + HOST + "/scene/refactor/node/preview"
+const REFACTOR_NODE_APPLY_URL = "http://" + HOST + "/scene/refactor/node/apply"
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -122,6 +126,24 @@ var _ghost_prev_script: Script = null
 # а флаг означает, что текущее подтверждение — это отправка отчёта модели.
 var _log_errors_button: Button = null
 var _api_export_button: Button = null
+var _safe_rename_button: Button = null
+var _safe_rename_dialog: ConfirmationDialog = null
+var _safe_rename_old_edit: LineEdit = null
+var _safe_rename_new_edit: LineEdit = null
+var _safe_rename_refs_check: CheckBox = null
+var _safe_rename_addons_check: CheckBox = null
+var _safe_rename_status_label: Label = null
+var _safe_rename_file_dialog: FileDialog = null
+var _safe_rename_prepared: Dictionary = {}
+var _safe_node_rename_button: Button = null
+var _safe_node_rename_dialog: ConfirmationDialog = null
+var _safe_node_rename_scene_edit: LineEdit = null
+var _safe_node_rename_node_edit: LineEdit = null
+var _safe_node_rename_new_edit: LineEdit = null
+var _safe_node_rename_addons_check: CheckBox = null
+var _safe_node_rename_status_label: Label = null
+var _safe_node_rename_scene_dialog: FileDialog = null
+var _safe_node_rename_prepared: Dictionary = {}
 var _pending_log_send: bool = false
 
 # Автопроверка актуальности кэша API при старте панели: сервер (с браузером внутри) может подняться не сразу, поэтому при неудаче повторяем с нарастающей задержкой, а не молча сдаёмся после первой неудачи.
@@ -461,6 +483,12 @@ func _apply_panel_theme() -> void:
 	if _api_export_button:
 		T.style_button(_api_export_button, "neutral")
 		_api_export_button.icon = T.first_icon(["Script", "File"])
+	if _safe_rename_button:
+		T.style_button(_safe_rename_button, "neutral")
+		_safe_rename_button.icon = T.first_icon(["Rename", "Edit", "ActionCopy"])
+	if _safe_node_rename_button:
+		T.style_button(_safe_node_rename_button, "neutral")
+		_safe_node_rename_button.icon = T.first_icon(["Rename", "Edit", "Node"])
 	if _plan_stop_button:
 		T.style_button(_plan_stop_button, "error")
 		_plan_stop_button.icon = T.first_icon(["Stop", "Pause"])
@@ -536,6 +564,16 @@ func _ready() -> void:
 		_api_export_button.text = _t("api_export_btn")
 		advanced_box.add_child(_api_export_button)
 		_api_export_button.pressed.connect(_on_export_api_pressed)
+	if advanced_box and _safe_rename_button == null:
+		_safe_rename_button = Button.new()
+		_safe_rename_button.text = _t("safe_rename_btn")
+		advanced_box.add_child(_safe_rename_button)
+		_safe_rename_button.pressed.connect(_on_safe_rename_pressed)
+	if advanced_box and _safe_node_rename_button == null:
+		_safe_node_rename_button = Button.new()
+		_safe_node_rename_button.text = _t("safe_node_rename_btn")
+		advanced_box.add_child(_safe_node_rename_button)
+		_safe_node_rename_button.pressed.connect(_on_safe_node_rename_pressed)
 	call_deferred("_check_api_cache_freshness")
 	_ensure_file_logging_enabled()
 	if _play_watch_timer == null:
@@ -1115,7 +1153,7 @@ func _on_reject_pressed() -> void:
 
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
-	if approved and _last_pending_action_type in ["rename_symbol", "transaction", "create_file", "patch_file", "move_file"]:
+	if approved and _last_pending_action_type in ["rename_symbol", "rename_file", "rename_node", "reparent_node", "delete_node", "transaction", "create_file", "patch_file", "move_file"]:
 		var targets := _last_pending_action_paths.duplicate()
 		for path in [_last_pending_action_path, _last_pending_action_dest]:
 			if not str(path).is_empty() and not targets.has(str(path)):
@@ -1142,7 +1180,7 @@ func _send_confirm_request(approved: bool) -> void:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
 		return
-	if approved and _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
+	if approved and _last_pending_action_type not in ["edit_scene", "create_scene", "rename_node", "reparent_node", "delete_node", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
 		var open_targets := _open_pending_scene_paths()
 		if not open_targets.is_empty():
 			_view.add_warning("Сохраните и закройте целевые сцены перед файловой операцией: " + ", ".join(open_targets))
@@ -2075,6 +2113,93 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			await get_tree().process_frame
 			return
 
+		if kind == "safe_rename_preview":
+			var prep = json.get("prepared", {})
+			_safe_rename_prepared = prep
+			var ref_count := int(prep.get("reference_count", 0))
+			var file_count := int(prep.get("file_count", 0))
+			var aff_count := (prep.get("affected_paths", []) as Array).size()
+			if _safe_rename_status_label:
+				_safe_rename_status_label.text = _t("safe_rename_preview_found") % [ref_count, file_count, aff_count]
+			var diffs = prep.get("diffs", [])
+			if diffs is Array and not diffs.is_empty() and _view:
+				_view.add_system("Предпросмотр безопасного переименования: %s -> %s" % [prep.get("old_path"), prep.get("new_path")])
+				for d in diffs:
+					if d is Dictionary:
+						_view.add_readonly_diff(str(d.get("path", "")), d)
+			return
+
+		if kind == "safe_rename_apply":
+			if bool(json.get("ok", false)):
+				EditorInterface.get_resource_filesystem().scan()
+				var old_p := str(json.get("old_path", ""))
+				var new_p := str(json.get("new_path", ""))
+				var ref_cnt := int(json.get("reference_count", 0))
+				var file_cnt := int(json.get("file_count", 0))
+				var changed_paths = json.get("changed_paths", [])
+				if changed_paths is Array:
+					for cp in changed_paths:
+						_sync_open_script_with_disk(str(cp))
+						_auto_reload_changed_scene(str(cp))
+				_close_ghost_script_tab(old_p)
+				if FileAccess.file_exists(new_p) and new_p.ends_with(".gd"):
+					var scr = load(new_p)
+					if scr is Script:
+						EditorInterface.edit_script(scr, -1, 0, false)
+				var msg := _t("safe_rename_success") % [old_p, new_p, ref_cnt, file_cnt]
+				if _view:
+					_view.add_agent_message(msg, str(json.get("entry_id", "")))
+				if _safe_rename_dialog:
+					_safe_rename_dialog.hide()
+				_maybe_prompt_project_reload(json)
+			else:
+				var err_msg := str(json.get("error", "Ошибка применения переименования"))
+				if _safe_rename_status_label:
+					_safe_rename_status_label.text = err_msg
+				_log_error(err_msg)
+			return
+
+		if kind == "safe_node_rename_preview":
+			var prep = json.get("prepared", {})
+			_safe_node_rename_prepared = prep
+			var ref_count := int(prep.get("reference_count", 0))
+			var file_count := int(prep.get("file_count", 0))
+			var aff_count := (prep.get("affected_paths", []) as Array).size()
+			if _safe_node_rename_status_label:
+				_safe_node_rename_status_label.text = _t("safe_node_rename_preview_found") % [ref_count, file_count, aff_count]
+			var diffs = prep.get("diffs", [])
+			if diffs is Array and not diffs.is_empty() and _view:
+				_view.add_system("Предпросмотр безопасного переименования узла: %s -> %s в %s" % [prep.get("node_path"), prep.get("new_name"), prep.get("scene")])
+				for d in diffs:
+					if d is Dictionary:
+						_view.add_readonly_diff(str(d.get("path", "")), d)
+			return
+
+		if kind == "safe_node_rename_apply":
+			if bool(json.get("ok", false)):
+				EditorInterface.get_resource_filesystem().scan()
+				var scene_p := str(json.get("scene", ""))
+				var old_p := str(json.get("node_path", ""))
+				var new_p := str(json.get("new_name", ""))
+				var ref_cnt := int(json.get("reference_count", 0))
+				var file_cnt := int(json.get("file_count", 0))
+				var changed_paths = json.get("changed_paths", [])
+				if changed_paths is Array:
+					for cp in changed_paths:
+						_sync_open_script_with_disk(str(cp))
+						_auto_reload_changed_scene(str(cp))
+				var msg := _t("safe_node_rename_success") % [old_p, new_p, scene_p, ref_cnt, file_cnt]
+				if _view:
+					_view.add_agent_message(msg, str(json.get("entry_id", "")))
+				if _safe_node_rename_dialog:
+					_safe_node_rename_dialog.hide()
+			else:
+				var err_msg := str(json.get("error", "Ошибка применения переименования узла"))
+				if _safe_node_rename_status_label:
+					_safe_node_rename_status_label.text = err_msg
+				_log_error(err_msg)
+			return
+
 		# После подтверждённого WRITE-действия — синхронизируем открытую вкладку.
 		# При пакетном чтении файлов _last_pending_action_type пуст — ничего не трогаем.
 		if kind == "confirm" and _last_pending_action_type != "":
@@ -2142,11 +2267,16 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			var diff_data: Dictionary = pdiff if pdiff is Dictionary else {}
 			_last_pending_action_type = str(pending.get("action", ""))
 			_last_pending_action_path = str(pending.get("path", ""))
+			if _last_pending_action_path.is_empty():
+				_last_pending_action_path = str(pending.get("scene", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
 			_last_pending_action_paths = PackedStringArray()
 			var raw_paths = pending.get("paths", [])
-			if raw_paths is Array:
+			if raw_paths is Array and not raw_paths.is_empty():
 				for raw_path in raw_paths:
+					_last_pending_action_paths.append(str(raw_path))
+			elif pending.has("affected_paths"):
+				for raw_path in pending.get("affected_paths", []):
 					_last_pending_action_paths.append(str(raw_path))
 			_set_pending_action(true, str(description))
 			_guard_confirm_buttons()
@@ -2288,8 +2418,18 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		if kind == "api_cache_status":
 			_schedule_api_cache_check_retry()
 			return
+		if kind in ["safe_rename_preview", "safe_rename_apply", "safe_node_rename_preview", "safe_node_rename_apply"]:
+			var sr_err := str(json.get("error", "Ошибка операции переименования")) if json is Dictionary else ("Ошибка HTTP " + str(response_code))
+			if kind.begins_with("safe_node_rename_"):
+				if _safe_node_rename_status_label:
+					_safe_node_rename_status_label.text = sr_err
+			else:
+				if _safe_rename_status_label:
+					_safe_rename_status_label.text = sr_err
+			_log_error(sr_err)
+			return
 		if kind == "confirm":
-			if _last_pending_action_type not in ["edit_scene", "create_scene", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
+			if _last_pending_action_type not in ["edit_scene", "create_scene", "rename_node", "reparent_node", "delete_node", "edit_project_settings", "edit_resource", "inspect_runtime", "run_check"]:
 				_reopen_scenes_after_write()  # v49: действие не выполнено — вернуть закрытые сцены
 		var err_msg = _t("srv_no_reply")
 		if json and json.has("error") and json["error"] != null:
@@ -3004,6 +3144,10 @@ func _on_language_changed() -> void:
 		_log_errors_button.text = _t("log_errors")
 	if _api_export_button:
 		_api_export_button.text = _t("api_export_btn")
+	if _safe_rename_button:
+		_safe_rename_button.text = _t("safe_rename_btn")
+	if _safe_node_rename_button:
+		_safe_node_rename_button.text = _t("safe_node_rename_btn")
 	_apply_chatbar_texts()
 	# Обновляем заголовок вкладки дока.
 	var tabs := get_parent() as TabContainer
@@ -3504,3 +3648,419 @@ func _minilich_status_text(json: Dictionary) -> String:
 		loss_s = "%.3f" % float(loss)
 	var active_s := _t("ml_yes") if bool(json.get("training_active", false)) else _t("ml_no")
 	return _t("minilich_status_fmt") % [int(json.get("examples", 0)), int(json.get("train_step", 0)), loss_s, "%.1f" % mb, active_s]
+
+
+# ---------------------------------------------------------------------------
+# Безопасное переименование файла с обновлением ссылок в проекте.
+# ---------------------------------------------------------------------------
+
+func _on_safe_rename_pressed() -> void:
+	open_safe_rename()
+
+
+func open_safe_rename(prefill_path: String = "") -> void:
+	_ensure_safe_rename_dialog()
+	var initial_path := prefill_path
+	if initial_path.is_empty():
+		var se := EditorInterface.get_script_editor()
+		if se and se.get_current_script():
+			initial_path = se.get_current_script().resource_path
+		elif EditorInterface.get_edited_scene_root():
+			initial_path = EditorInterface.get_edited_scene_root().scene_file_path
+	if initial_path != "" and initial_path.begins_with("res://"):
+		_safe_rename_old_edit.text = initial_path
+		_safe_rename_new_edit.text = initial_path
+	else:
+		_safe_rename_old_edit.text = ""
+		_safe_rename_new_edit.text = ""
+	_safe_rename_status_label.text = ""
+	_safe_rename_prepared = {}
+	_safe_rename_dialog.popup_centered(Vector2(600, 320))
+
+
+func _ensure_safe_rename_dialog() -> void:
+	if _safe_rename_dialog != null:
+		return
+	var T = _T()
+	_safe_rename_dialog = ConfirmationDialog.new()
+	_safe_rename_dialog.title = _t("safe_rename_title")
+	_safe_rename_dialog.get_ok_button().text = _t("safe_rename_apply")
+	_safe_rename_dialog.get_cancel_button().text = _t("back")
+	_safe_rename_dialog.add_button(_t("safe_rename_preview"), true, "preview")
+	_safe_rename_dialog.custom_action.connect(func(action: String):
+		if action == "preview":
+			_on_safe_rename_preview()
+	)
+	_safe_rename_dialog.confirmed.connect(_on_safe_rename_apply)
+
+	var wrap := PanelContainer.new()
+	if T:
+		wrap.add_theme_stylebox_override("panel", T.panel_style("agent"))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	wrap.add_child(box)
+
+	var desc_lbl := Label.new()
+	desc_lbl.text = _t("safe_rename_desc")
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.custom_minimum_size = Vector2(560, 0)
+	if T:
+		desc_lbl.add_theme_color_override("font_color", T.color("dim"))
+	box.add_child(desc_lbl)
+	box.add_child(HSeparator.new())
+
+	# Old path row
+	var old_row := HBoxContainer.new()
+	var old_lbl := Label.new()
+	old_lbl.text = _t("safe_rename_old")
+	old_lbl.custom_minimum_size = Vector2(130, 0)
+	old_row.add_child(old_lbl)
+	_safe_rename_old_edit = LineEdit.new()
+	_safe_rename_old_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_safe_rename_old_edit.placeholder_text = "res://scripts/my_script.gd"
+	if T:
+		T.style_input(_safe_rename_old_edit)
+	old_row.add_child(_safe_rename_old_edit)
+	var browse_btn := Button.new()
+	browse_btn.text = _t("safe_rename_browse")
+	if T:
+		T.style_button(browse_btn, "neutral")
+	browse_btn.pressed.connect(_on_safe_rename_browse)
+	old_row.add_child(browse_btn)
+	box.add_child(old_row)
+
+	# New path row
+	var new_row := HBoxContainer.new()
+	var new_lbl := Label.new()
+	new_lbl.text = _t("safe_rename_new")
+	new_lbl.custom_minimum_size = Vector2(130, 0)
+	new_row.add_child(new_lbl)
+	_safe_rename_new_edit = LineEdit.new()
+	_safe_rename_new_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_safe_rename_new_edit.placeholder_text = "res://scripts/new_script.gd"
+	if T:
+		T.style_input(_safe_rename_new_edit)
+	new_row.add_child(_safe_rename_new_edit)
+	box.add_child(new_row)
+
+	# Options
+	_safe_rename_refs_check = CheckBox.new()
+	_safe_rename_refs_check.text = _t("safe_rename_refs")
+	_safe_rename_refs_check.button_pressed = true
+	box.add_child(_safe_rename_refs_check)
+
+	_safe_rename_addons_check = CheckBox.new()
+	_safe_rename_addons_check.text = _t("safe_rename_addons")
+	_safe_rename_addons_check.button_pressed = false
+	box.add_child(_safe_rename_addons_check)
+
+	# Status label
+	_safe_rename_status_label = Label.new()
+	_safe_rename_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_safe_rename_status_label.custom_minimum_size = Vector2(560, 0)
+	if T:
+		_safe_rename_status_label.add_theme_color_override("font_color", T.color("accent"))
+	box.add_child(_safe_rename_status_label)
+
+	_safe_rename_dialog.add_child(wrap)
+	add_child(_safe_rename_dialog)
+
+
+func _on_safe_rename_browse() -> void:
+	if _safe_rename_file_dialog == null:
+		_safe_rename_file_dialog = FileDialog.new()
+		_safe_rename_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_safe_rename_file_dialog.access = FileDialog.ACCESS_RESOURCES
+		_safe_rename_file_dialog.filters = PackedStringArray([
+			"*.gd ; GDScript Files",
+			"*.tscn ; Godot Scenes",
+			"*.tres ; Godot Resources",
+			"* ; All Files"
+		])
+		_safe_rename_file_dialog.file_selected.connect(func(path: String):
+			if _safe_rename_old_edit:
+				_safe_rename_old_edit.text = path
+			if _safe_rename_new_edit and _safe_rename_new_edit.text.is_empty():
+				_safe_rename_new_edit.text = path
+		)
+		add_child(_safe_rename_file_dialog)
+	_safe_rename_file_dialog.popup_centered_ratio(0.7)
+
+
+func _on_safe_rename_preview() -> void:
+	if _is_network_busy: return
+	if _safe_rename_old_edit == null or _safe_rename_new_edit == null: return
+	var old_p := _safe_rename_old_edit.text.strip_edges()
+	var new_p := _safe_rename_new_edit.text.strip_edges()
+	if old_p.is_empty() or new_p.is_empty():
+		_safe_rename_status_label.text = _t("safe_rename_no_paths")
+		return
+	if old_p == new_p:
+		_safe_rename_status_label.text = "Старый и новый пути совпадают."
+		return
+	_safe_rename_status_label.text = "Анализ ссылок..."
+	var body = {
+		"old_path": old_p,
+		"new_path": new_p,
+		"update_references": _safe_rename_refs_check.button_pressed if _safe_rename_refs_check else true,
+		"allow_addons": _safe_rename_addons_check.button_pressed if _safe_rename_addons_check else false,
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+	}
+	_pending_request_kind = "safe_rename_preview"
+	_set_ui_busy(true)
+	http_request.set_http_proxy("", 0)
+	var err = http_request.request(REFACTOR_FILE_PREVIEW_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_safe_rename_status_label.text = "Ошибка сетевого запроса."
+
+
+func _on_safe_rename_apply() -> void:
+	if _is_network_busy: return
+	if _safe_rename_old_edit == null or _safe_rename_new_edit == null: return
+	var old_p := _safe_rename_old_edit.text.strip_edges()
+	var new_p := _safe_rename_new_edit.text.strip_edges()
+	if old_p.is_empty() or new_p.is_empty():
+		_safe_rename_status_label.text = _t("safe_rename_no_paths")
+		return
+	if old_p == new_p:
+		_safe_rename_status_label.text = "Старый и новый пути совпадают."
+		return
+	var targets: Array[String] = [old_p, new_p]
+	if _safe_rename_prepared.has("affected_paths"):
+		for p in _safe_rename_prepared["affected_paths"]:
+			if not targets.has(str(p)):
+				targets.append(str(p))
+	var dirty := _dirty_open_scripts(PackedStringArray(targets))
+	if not dirty.is_empty():
+		_safe_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
+		return
+	_safe_rename_status_label.text = "Применение переименования..."
+	var body = {
+		"old_path": old_p,
+		"new_path": new_p,
+		"update_references": _safe_rename_refs_check.button_pressed if _safe_rename_refs_check else true,
+		"allow_addons": _safe_rename_addons_check.button_pressed if _safe_rename_addons_check else false,
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+	}
+	_pending_request_kind = "safe_rename_apply"
+	_set_ui_busy(true)
+	http_request.set_http_proxy("", 0)
+	var err = http_request.request(REFACTOR_FILE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_safe_rename_status_label.text = "Ошибка отправки запроса на переименование."
+
+
+func _on_safe_node_rename_pressed() -> void:
+	open_safe_node_rename()
+
+
+func open_safe_node_rename(prefill_scene: String = "", prefill_node: String = "") -> void:
+	_ensure_safe_node_rename_dialog()
+	var initial_scene := prefill_scene
+	if initial_scene.is_empty():
+		var edited_root = EditorInterface.get_edited_scene_root()
+		if edited_root and not edited_root.scene_file_path.is_empty():
+			initial_scene = edited_root.scene_file_path
+	if _safe_node_rename_scene_edit:
+		_safe_node_rename_scene_edit.text = initial_scene
+	if _safe_node_rename_node_edit:
+		_safe_node_rename_node_edit.text = prefill_node
+	if _safe_node_rename_new_edit:
+		_safe_node_rename_new_edit.text = prefill_node
+	if _safe_node_rename_status_label:
+		_safe_node_rename_status_label.text = ""
+	_safe_node_rename_prepared = {}
+	_safe_node_rename_dialog.popup_centered(Vector2(600, 360))
+
+
+func _ensure_safe_node_rename_dialog() -> void:
+	if _safe_node_rename_dialog != null:
+		return
+	var T = _T()
+	_safe_node_rename_dialog = ConfirmationDialog.new()
+	_safe_node_rename_dialog.title = _t("safe_node_rename_title")
+	_safe_node_rename_dialog.get_ok_button().text = _t("safe_node_rename_apply")
+	_safe_node_rename_dialog.get_cancel_button().text = _t("back")
+	_safe_node_rename_dialog.add_button(_t("safe_node_rename_preview"), true, "preview")
+	_safe_node_rename_dialog.custom_action.connect(func(action: String):
+		if action == "preview":
+			_on_safe_node_rename_preview()
+	)
+	_safe_node_rename_dialog.confirmed.connect(_on_safe_node_rename_apply)
+
+	var wrap := MarginContainer.new()
+	wrap.add_theme_constant_override("margin_left", 12)
+	wrap.add_theme_constant_override("margin_top", 12)
+	wrap.add_theme_constant_override("margin_right", 12)
+	wrap.add_theme_constant_override("margin_bottom", 12)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	wrap.add_child(box)
+
+	var desc_lbl := Label.new()
+	desc_lbl.text = _t("safe_node_rename_desc")
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.custom_minimum_size = Vector2(560, 0)
+	if T:
+		desc_lbl.add_theme_color_override("font_color", T.color("muted"))
+	box.add_child(desc_lbl)
+
+	# Scene path row
+	var scene_row := HBoxContainer.new()
+	var scene_lbl := Label.new()
+	scene_lbl.text = _t("safe_node_rename_scene")
+	scene_lbl.custom_minimum_size = Vector2(140, 0)
+	scene_row.add_child(scene_lbl)
+	_safe_node_rename_scene_edit = LineEdit.new()
+	_safe_node_rename_scene_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_safe_node_rename_scene_edit.placeholder_text = "res://scenes/player.tscn"
+	if T:
+		T.style_input(_safe_node_rename_scene_edit)
+	scene_row.add_child(_safe_node_rename_scene_edit)
+	var browse_btn := Button.new()
+	browse_btn.text = _t("safe_node_rename_browse")
+	if T:
+		T.style_button(browse_btn, "neutral")
+	browse_btn.pressed.connect(_on_safe_node_rename_scene_browse)
+	scene_row.add_child(browse_btn)
+	box.add_child(scene_row)
+
+	# Target node row
+	var node_row := HBoxContainer.new()
+	var node_lbl := Label.new()
+	node_lbl.text = _t("safe_node_rename_node")
+	node_lbl.custom_minimum_size = Vector2(140, 0)
+	node_row.add_child(node_lbl)
+	_safe_node_rename_node_edit = LineEdit.new()
+	_safe_node_rename_node_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_safe_node_rename_node_edit.placeholder_text = "Gun"
+	if T:
+		T.style_input(_safe_node_rename_node_edit)
+	node_row.add_child(_safe_node_rename_node_edit)
+	box.add_child(node_row)
+
+	# New name row
+	var new_row := HBoxContainer.new()
+	var new_lbl := Label.new()
+	new_lbl.text = _t("safe_node_rename_new")
+	new_lbl.custom_minimum_size = Vector2(140, 0)
+	new_row.add_child(new_lbl)
+	_safe_node_rename_new_edit = LineEdit.new()
+	_safe_node_rename_new_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_safe_node_rename_new_edit.placeholder_text = "Weapon"
+	if T:
+		T.style_input(_safe_node_rename_new_edit)
+	new_row.add_child(_safe_node_rename_new_edit)
+	box.add_child(new_row)
+
+	# Options
+	_safe_node_rename_addons_check = CheckBox.new()
+	_safe_node_rename_addons_check.text = _t("safe_node_rename_addons")
+	_safe_node_rename_addons_check.button_pressed = false
+	box.add_child(_safe_node_rename_addons_check)
+
+	# Status label
+	_safe_node_rename_status_label = Label.new()
+	_safe_node_rename_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_safe_node_rename_status_label.custom_minimum_size = Vector2(560, 0)
+	if T:
+		_safe_node_rename_status_label.add_theme_color_override("font_color", T.color("accent"))
+	box.add_child(_safe_node_rename_status_label)
+
+	_safe_node_rename_dialog.add_child(wrap)
+	add_child(_safe_node_rename_dialog)
+
+
+func _on_safe_node_rename_scene_browse() -> void:
+	if _safe_node_rename_scene_dialog == null:
+		_safe_node_rename_scene_dialog = FileDialog.new()
+		_safe_node_rename_scene_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+		_safe_node_rename_scene_dialog.access = FileDialog.ACCESS_RESOURCES
+		_safe_node_rename_scene_dialog.filters = PackedStringArray([
+			"*.tscn ; Godot Scenes",
+			"* ; All Files"
+		])
+		_safe_node_rename_scene_dialog.file_selected.connect(func(path: String):
+			if _safe_node_rename_scene_edit:
+				_safe_node_rename_scene_edit.text = path
+		)
+		add_child(_safe_node_rename_scene_dialog)
+	_safe_node_rename_scene_dialog.popup_centered_ratio(0.7)
+
+
+func _on_safe_node_rename_preview() -> void:
+	if _is_network_busy: return
+	if _safe_node_rename_scene_edit == null or _safe_node_rename_node_edit == null or _safe_node_rename_new_edit == null: return
+	var scene_p := _safe_node_rename_scene_edit.text.strip_edges()
+	var node_p := _safe_node_rename_node_edit.text.strip_edges()
+	var new_n := _safe_node_rename_new_edit.text.strip_edges()
+	if scene_p.is_empty() or node_p.is_empty() or new_n.is_empty():
+		_safe_node_rename_status_label.text = _t("safe_node_rename_no_paths")
+		return
+	if node_p == new_n:
+		_safe_node_rename_status_label.text = "Старое и новое имя совпадают."
+		return
+	_safe_node_rename_status_label.text = "Анализ ссылок узла..."
+	var body = {
+		"scene": scene_p,
+		"node_path": node_p,
+		"new_name": new_n,
+		"allow_addons": _safe_node_rename_addons_check.button_pressed if _safe_node_rename_addons_check else false,
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+	}
+	_pending_request_kind = "safe_node_rename_preview"
+	_set_ui_busy(true)
+	http_request.set_http_proxy("", 0)
+	var err = http_request.request(REFACTOR_NODE_PREVIEW_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_safe_node_rename_status_label.text = "Ошибка сетевого запроса."
+
+
+func _on_safe_node_rename_apply() -> void:
+	if _is_network_busy: return
+	if _safe_node_rename_scene_edit == null or _safe_node_rename_node_edit == null or _safe_node_rename_new_edit == null: return
+	var scene_p := _safe_node_rename_scene_edit.text.strip_edges()
+	var node_p := _safe_node_rename_node_edit.text.strip_edges()
+	var new_n := _safe_node_rename_new_edit.text.strip_edges()
+	if scene_p.is_empty() or node_p.is_empty() or new_n.is_empty():
+		_safe_node_rename_status_label.text = _t("safe_node_rename_no_paths")
+		return
+	if node_p == new_n:
+		_safe_node_rename_status_label.text = "Старое и новое имя совпадают."
+		return
+	var targets: Array[String] = [scene_p]
+	if _safe_node_rename_prepared.has("affected_paths"):
+		for p in _safe_node_rename_prepared["affected_paths"]:
+			if not targets.has(str(p)):
+				targets.append(str(p))
+	var dirty := _dirty_open_scripts(PackedStringArray(targets))
+	if not dirty.is_empty():
+		_safe_node_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
+		return
+	_safe_node_rename_status_label.text = "Применение переименования узла..."
+	var body = {
+		"scene": scene_p,
+		"node_path": node_p,
+		"new_name": new_n,
+		"allow_addons": _safe_node_rename_addons_check.button_pressed if _safe_node_rename_addons_check else false,
+		"project_root": ProjectSettings.globalize_path("res://"),
+		"user_data_dir": OS.get_user_data_dir(),
+		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
+	}
+	_pending_request_kind = "safe_node_rename_apply"
+	_set_ui_busy(true)
+	http_request.set_http_proxy("", 0)
+	var err = http_request.request(REFACTOR_NODE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_set_ui_busy(false)
+		_safe_node_rename_status_label.text = "Ошибка отправки запроса на переименование узла."

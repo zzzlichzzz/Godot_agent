@@ -394,6 +394,10 @@ check("rename plural diffs use read-only cards",
       and "mark_preview_only" in diff_card)
 check("rename confirmation blocks dirty scripts",
       "_dirty_open_scripts(targets)" in panel)
+check("node refactor actions are included in dirty scripts check",
+      '["rename_symbol", "rename_file", "rename_node", "reparent_node", "delete_node"' in panel)
+check("node refactor actions are exempt from closing open scenes",
+      '["edit_scene", "create_scene", "rename_node", "reparent_node", "delete_node"' in panel)
 check("rename result reloads every changed path",
       'json.get("changed_paths")' in panel and "for changed_path in changed_paths" in panel)
 scene_executor = read(_os0.path.join(ADDON, "agent_scene_executor.gd"))
