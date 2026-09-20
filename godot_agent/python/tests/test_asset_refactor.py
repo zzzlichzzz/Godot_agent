@@ -373,6 +373,8 @@ class AssetRefactorTests(unittest.TestCase):
         spawner_gd = self.root / "scripts" / "spawner.gd"
         spawner_gd.write_text(
             'extends Node\n'
+            'const ITEMS_STORAGE = "res://items"\n'
+            'const ITEMS_PATH = "res://items/"\n'
             'var item = preload("res://items/sword.tscn")\n',
             encoding="utf-8"
         )
@@ -388,11 +390,13 @@ class AssetRefactorTests(unittest.TestCase):
             is_directory=True
         )
         self.assertTrue(res.get("ok"))
-        self.assertEqual(res.get("reference_count"), 2)
+        self.assertEqual(res.get("reference_count"), 4)
         self.assertIn("res://scripts/spawner.gd", res.get("changed_paths", []))
         self.assertIn("res://loot/sword.tscn", res.get("changed_paths", []))
 
         spawner_text = spawner_gd.read_text(encoding="utf-8")
+        self.assertIn('const ITEMS_STORAGE = "res://loot"', spawner_text)
+        self.assertIn('const ITEMS_PATH = "res://loot/"', spawner_text)
         self.assertIn('preload("res://loot/sword.tscn")', spawner_text)
 
         loot_sword_tscn = (loot_dir / "sword.tscn").read_text(encoding="utf-8")
@@ -446,6 +450,196 @@ class AssetRefactorTests(unittest.TestCase):
         self.assertTrue(res.get("ok"))
         self.assertEqual(res.get("reference_count"), 0)
         self.assertEqual(res.get("changed_paths"), [])
+
+    def test_synthetic_folder_as_storage_repository_with_similar_names_and_rollback(self):
+        """Synthetic test: Directory relocation where folder is used as a repository/storage
+        with dynamic paths, DirAccess, multiple files, sibling folders with similar prefixes,
+        and full history rollback.
+        """
+        enemies_dir = self.root / "enemies"
+        enemies_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Goblin scene & script inside enemies
+        (enemies_dir / "goblin.gd").write_text(
+            'extends CharacterBody2D\n'
+            'const ORC_PREFAB = preload("res://enemies/orc.tscn")\n'
+            'func get_type():\n'
+            '    return "goblin"\n',
+            encoding="utf-8"
+        )
+        (enemies_dir / "goblin.tscn").write_text(
+            '[gd_scene load_steps=2 format=3]\n'
+            '[ext_resource type="Script" path="res://enemies/goblin.gd" id="1_gob"]\n'
+            '[node name="Goblin" type="CharacterBody2D"]\n'
+            'script = ExtResource("1_gob")\n',
+            encoding="utf-8"
+        )
+
+        # 2. Orc scene & script inside enemies
+        (enemies_dir / "orc.gd").write_text(
+            'extends CharacterBody2D\n'
+            'func get_type():\n'
+            '    return "orc"\n',
+            encoding="utf-8"
+        )
+        (enemies_dir / "orc.tscn").write_text(
+            '[gd_scene load_steps=2 format=3]\n'
+            '[ext_resource type="Script" path="res://enemies/orc.gd" id="1_orc"]\n'
+            '[node name="Orc" type="CharacterBody2D"]\n'
+            'script = ExtResource("1_orc")\n',
+            encoding="utf-8"
+        )
+
+        # 3. Sibling folder with similar prefix: res://enemies_bosses (MUST NOT BE TOUCHED!)
+        bosses_dir = self.root / "enemies_bosses"
+        bosses_dir.mkdir(parents=True, exist_ok=True)
+        (bosses_dir / "dragon.gd").write_text('extends CharacterBody2D\n', encoding="utf-8")
+        (bosses_dir / "dragon.tscn").write_text(
+            '[gd_scene load_steps=2 format=3]\n'
+            '[ext_resource type="Script" path="res://enemies_bosses/dragon.gd" id="1_drag"]\n'
+            '[node name="Dragon" type="CharacterBody2D"]\n'
+            'script = ExtResource("1_drag")\n',
+            encoding="utf-8"
+        )
+
+        # 4. Spawner GDScript acting as repository consumer
+        spawner_gd = self.root / "scripts" / "spawner.gd"
+        spawner_orig_text = (
+            'extends Node\n\n'
+            'const ENEMIES_DIR = "res://enemies"\n'
+            'const ENEMIES_PATH = "res://enemies/"\n'
+            'const BOSS_SCENE = preload("res://enemies_bosses/dragon.tscn")\n\n'
+            'func spawn_random(enemy_name: String):\n'
+            '    var dir = DirAccess.open("res://enemies")\n'
+            '    var scene = load("res://enemies/" + enemy_name + ".tscn")\n'
+            '    return scene.instantiate()\n'
+        )
+        spawner_gd.write_text(spawner_orig_text, encoding="utf-8")
+
+        # 5. Prepare and execute relocation: res://enemies -> res://entities/enemies
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://enemies", "res://entities/enemies", update_references=True
+        )
+        self.assertTrue(prep.get("is_directory"))
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertTrue(res.get("file_count") > 0)
+
+        # --- VERIFY RELOCATION ---
+        # Old folder removed, new folder exists with all assets
+        self.assertFalse((self.root / "enemies").exists())
+        self.assertTrue((self.root / "entities" / "enemies" / "goblin.tscn").exists())
+        self.assertTrue((self.root / "entities" / "enemies" / "goblin.gd").exists())
+        self.assertTrue((self.root / "entities" / "enemies" / "orc.tscn").exists())
+        self.assertTrue((self.root / "entities" / "enemies" / "orc.gd").exists())
+
+        # Internal references inside moved scenes and scripts
+        new_goblin_tscn = (self.root / "entities" / "enemies" / "goblin.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://entities/enemies/goblin.gd"', new_goblin_tscn)
+
+        new_goblin_gd = (self.root / "entities" / "enemies" / "goblin.gd").read_text(encoding="utf-8")
+        self.assertIn('preload("res://entities/enemies/orc.tscn")', new_goblin_gd)
+
+        # External script (storage paths + preload)
+        new_spawner_text = spawner_gd.read_text(encoding="utf-8")
+        self.assertIn('const ENEMIES_DIR = "res://entities/enemies"', new_spawner_text)
+        self.assertIn('const ENEMIES_PATH = "res://entities/enemies/"', new_spawner_text)
+        self.assertIn('DirAccess.open("res://entities/enemies")', new_spawner_text)
+        self.assertIn('load("res://entities/enemies/" + enemy_name + ".tscn")', new_spawner_text)
+        # Sibling res://enemies_bosses MUST NOT be modified!
+        self.assertIn('preload("res://enemies_bosses/dragon.tscn")', new_spawner_text)
+
+        # Sibling folder files MUST NOT be modified!
+        boss_dragon_tscn = (bosses_dir / "dragon.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://enemies_bosses/dragon.gd"', boss_dragon_tscn)
+
+        # --- ROLLBACK VERIFICATION ---
+        ok, msg, _, _, _ = history_manager.rollback_last(str(self.root))
+        self.assertTrue(ok, msg)
+
+        # Old folder restored, new folder removed
+        self.assertTrue((self.root / "enemies" / "goblin.tscn").exists())
+        self.assertTrue((self.root / "enemies" / "goblin.gd").exists())
+        self.assertTrue((self.root / "enemies" / "orc.tscn").exists())
+        self.assertTrue((self.root / "enemies" / "orc.gd").exists())
+        self.assertFalse((self.root / "entities" / "enemies").exists())
+
+        # Restored contents match exact original
+        self.assertEqual(spawner_gd.read_text(encoding="utf-8"), spawner_orig_text)
+        restored_goblin_tscn = (self.root / "enemies" / "goblin.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://enemies/goblin.gd"', restored_goblin_tscn)
+
+    def test_synthetic_external_folder_move_storage_sync_and_rollback(self):
+        """Synthetic test: Simulating Godot editor drag-and-drop moving a folder containing
+        assets and dynamic storage folder references, followed by reference synchronization and rollback.
+        """
+        import shutil
+
+        enemies_dir = self.root / "enemies"
+        enemies_dir.mkdir(parents=True, exist_ok=True)
+
+        (enemies_dir / "slime.gd").write_text('extends CharacterBody2D\n', encoding="utf-8")
+        (enemies_dir / "slime.tscn").write_text(
+            '[gd_scene load_steps=2 format=3]\n'
+            '[ext_resource type="Script" path="res://enemies/slime.gd" id="1_sli"]\n'
+            '[node name="Slime" type="CharacterBody2D"]\n',
+            encoding="utf-8"
+        )
+
+        # Sibling folder to guard against prefix matching bugs
+        bosses_dir = self.root / "enemies_elite"
+        bosses_dir.mkdir(parents=True, exist_ok=True)
+        (bosses_dir / "golem.tscn").write_text('[gd_scene format=3]\n', encoding="utf-8")
+
+        game_mgr = self.root / "scripts" / "game_mgr.gd"
+        game_mgr_orig = (
+            'extends Node\n\n'
+            'const REPO = "res://enemies"\n'
+            'const REPO_SLASH = "res://enemies/"\n'
+            'const ELITE = preload("res://enemies_elite/golem.tscn")\n\n'
+            'func load_monster(m_name: String):\n'
+            '    var d = DirAccess.open("res://enemies")\n'
+            '    return load("res://enemies/" + m_name + ".tscn")\n'
+        )
+        game_mgr.write_text(game_mgr_orig, encoding="utf-8")
+
+        # Simulate Godot editor drag & drop: folder moved on disk from res://enemies to res://actors/monsters
+        dest_dir = self.root / "actors" / "monsters"
+        dest_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(enemies_dir), str(dest_dir))
+
+        # Safe rename handler runs sync_references_after_external_move
+        res = file_refactor.sync_references_after_external_move(
+            str(self.root),
+            "res://enemies",
+            "res://actors/monsters",
+            is_directory=True
+        )
+        self.assertTrue(res.get("ok"))
+        self.assertEqual(res.get("reference_count"), 5)  # REPO, REPO_SLASH, DirAccess, load, slime.tscn script path
+        self.assertIn("res://scripts/game_mgr.gd", res.get("changed_paths", []))
+        self.assertIn("res://actors/monsters/slime.tscn", res.get("changed_paths", []))
+
+        # Check updated script
+        updated_mgr = game_mgr.read_text(encoding="utf-8")
+        self.assertIn('const REPO = "res://actors/monsters"', updated_mgr)
+        self.assertIn('const REPO_SLASH = "res://actors/monsters/"', updated_mgr)
+        self.assertIn('DirAccess.open("res://actors/monsters")', updated_mgr)
+        self.assertIn('return load("res://actors/monsters/" + m_name + ".tscn")', updated_mgr)
+        # Sibling elite golem must remain untouched
+        self.assertIn('const ELITE = preload("res://enemies_elite/golem.tscn")', updated_mgr)
+
+        # Check internal scene inside moved directory
+        updated_slime_tscn = (dest_dir / "slime.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://actors/monsters/slime.gd"', updated_slime_tscn)
+
+        # Rollback synchronized code references
+        ok, msg, _, _, _ = history_manager.rollback_last(str(self.root))
+        self.assertTrue(ok, msg)
+
+        # game_mgr.gd restored to res://enemies
+        self.assertEqual(game_mgr.read_text(encoding="utf-8"), game_mgr_orig)
+        # slime.tscn restored to res://enemies
+        self.assertIn('path="res://enemies/slime.gd"', (dest_dir / "slime.tscn").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

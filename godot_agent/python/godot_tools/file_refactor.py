@@ -251,6 +251,13 @@ def prepare_directory_relocation(project_root, old_path, new_path,
     files_to_modify = []
     total_refs = 0
 
+    old_prefix = old_path.rstrip("/") + "/"
+    new_prefix = new_path.rstrip("/") + "/"
+    old_no_slash = old_path.rstrip("/")
+    new_no_slash = new_path.rstrip("/")
+    dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_prefix) + r'([^"\'\s,\]]*)(?=["\'\s,\]])')
+    exact_dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_no_slash) + r'(?=["\'\s,\]])')
+
     # 1. Process each moved file
     for f_old, f_new in sorted(moved_files_map.items()):
         f_abs_old = _resolve_safe_path(project_root, f_old)
@@ -265,6 +272,9 @@ def prepare_directory_relocation(project_root, old_path, new_path,
             mod_text, internal_changes = update_internal_relative_paths(
                 source_text, f_old, f_new, project_root, moved_files_map=moved_files_map
             )
+            mod_text, c1 = dir_pat.subn(new_prefix + r'\1', mod_text)
+            mod_text, c2 = exact_dir_pat.subn(new_no_slash, mod_text)
+            internal_changes += (c1 + c2)
             if internal_changes > 0:
                 lint_errors = gd_lint.lint_gdscript(mod_text)
                 if lint_errors:
@@ -292,14 +302,16 @@ def prepare_directory_relocation(project_root, old_path, new_path,
                 pat = re.compile(r'(?<=["\'\*])' + re.escape(old_target) + r'(?=["\'\s,\]])')
                 mod_text, c = pat.subn(new_target, mod_text)
                 tscn_changes += c
-            if tscn_changes > 0:
+            mod_text, c1 = dir_pat.subn(new_prefix + r'\1', mod_text)
+            mod_text, c2 = exact_dir_pat.subn(new_no_slash, mod_text)
+            internal_changes = tscn_changes + c1 + c2
+            if internal_changes > 0:
                 after_bytes = (b"\xef\xbb\xbf" if source_bom else b"") + mod_text.encode("utf-8")
                 move_diff = build_diff_preview(source_text, mod_text)
                 move_diff["action"] = "move_file"
                 move_diff["path"] = f_old
                 move_diff["dest"] = f_new
-                move_diff["lines"].insert(0, {"type": "info", "text": "Файл перемещён в %s (обновлено ссылок: %d)" % (f_new, tscn_changes)})
-                internal_changes = tscn_changes
+                move_diff["lines"].insert(0, {"type": "info", "text": "Файл перемещён в %s (обновлено ссылок: %d)" % (f_new, internal_changes)})
             else:
                 move_diff = {
                     "path": f_old,
@@ -392,6 +404,33 @@ def prepare_directory_relocation(project_root, old_path, new_path,
                 if r.get("rel_matches"):
                     external_refs[r["path"]]["replacements"].append(("rel", r["rel_matches"], f_new, len(r["rel_matches"])))
 
+        # Also search project files for directory path references (e.g. res://enemies or res://enemies/)
+        root_path = os.path.abspath(project_root)
+        for root, dirs, files in os.walk(root_path):
+            dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+            for filename in files:
+                ext = os.path.splitext(filename)[1].lower()
+                if ext not in (".gd", ".tscn", ".tres", ".gdshader", ".gdshaderinc") and filename != "project.godot":
+                    continue
+                abs_f = os.path.join(root, filename)
+                godot_file = "res://" + os.path.relpath(abs_f, root_path).replace("\\", "/")
+                if godot_file in moved_files_map or godot_file.startswith(old_prefix):
+                    continue
+                if godot_file not in external_refs:
+                    try:
+                        raw, text, bom = _read_file_text(abs_f)
+                    except Exception:
+                        continue
+                    if dir_pat.search(text) or exact_dir_pat.search(text):
+                        external_refs[godot_file] = {
+                            "path": godot_file,
+                            "absolute": abs_f,
+                            "raw": raw,
+                            "text": text,
+                            "bom": bom,
+                            "replacements": [],
+                        }
+
         for path, data in external_refs.items():
             before_text = data["text"]
             after_text = before_text
@@ -407,6 +446,10 @@ def prepare_directory_relocation(project_root, old_path, new_path,
                 if kind == "exact":
                     after_text, c = pat.subn(f_new, after_text)
                     file_occurrences += c
+
+            after_text, c1 = dir_pat.subn(new_prefix + r'\1', after_text)
+            after_text, c2 = exact_dir_pat.subn(new_no_slash, after_text)
+            file_occurrences += (c1 + c2)
 
             if after_text != before_text:
                 if path.lower().endswith(".gd"):
@@ -844,7 +887,10 @@ def sync_references_after_external_move(project_root, old_path, new_path,
     if is_directory or (not os.path.isfile(abs_new) and os.path.isdir(abs_new)):
         old_prefix = old_path.rstrip("/") + "/"
         new_prefix = new_path.rstrip("/") + "/"
-        dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_prefix) + r'([^"\'\s,\]]+)(?=["\'\s,\]])')
+        old_no_slash = old_path.rstrip("/")
+        new_no_slash = new_path.rstrip("/")
+        dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_prefix) + r'([^"\'\s,\]]*)(?=["\'\s,\]])')
+        exact_dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_no_slash) + r'(?=["\'\s,\]])')
 
         root_path = os.path.abspath(project_root)
         for root, dirs, files in os.walk(root_path):
@@ -863,7 +909,9 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 except Exception:
                     continue
 
-                mod_text, count = dir_pat.subn(new_prefix + r'\1', text)
+                mod_text, count1 = dir_pat.subn(new_prefix + r'\1', text)
+                mod_text, count2 = exact_dir_pat.subn(new_no_slash, mod_text)
+                count = count1 + count2
                 if count > 0:
                     after_bytes = (b"\xef\xbb\xbf" if bom else b"") + mod_text.encode("utf-8")
                     files_to_modify.append({
