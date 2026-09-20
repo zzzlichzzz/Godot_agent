@@ -15,7 +15,7 @@ from minilich import ml_project_index
 from project_tools import _resolve_safe_path, build_diff_preview, is_addon_path
 
 
-KINDS = {"class_name", "function", "signal"}
+KINDS = {"class_name", "function", "signal", "variable"}
 _IDENTIFIER = re.compile(r"^[^\W\d]\w*$", re.U)
 _KEYWORDS = {
     "and", "as", "assert", "await", "break", "breakpoint", "class",
@@ -82,7 +82,7 @@ def _validate_action(action):
     old_name = str(action.get("old_name") or "").strip()
     new_name = str(action.get("new_name") or "").strip()
     if kind not in KINDS:
-        raise RenameError("kind должен быть class_name, function или signal")
+        raise RenameError("kind должен быть class_name, function, signal или variable")
     for label, name in (("old_name", old_name), ("new_name", new_name)):
         if not _IDENTIFIER.match(name) or name in _KEYWORDS:
             raise RenameError("%s не является допустимым идентификатором GDScript" % label)
@@ -174,12 +174,169 @@ def _owner_belongs_to_script(owner, declarations):
 
 def _owner_shadows_name(owner, name, declarations):
     return any(item.get("owner") == owner and item.get("name") == name
-               and item.get("kind") in ("variable", "constant")
+               and item.get("kind") in ("variable", "constant", "parameter")
                for item in declarations)
 
 
+def _get_script_parent(text, file_path):
+    """Return (parent_path, parent_class) for a script's extends clause."""
+    tokens = gd_semantic_parser.tokenize(text)
+    for i, t in enumerate(tokens):
+        if t.get("value") == "extends" and i + 1 < len(tokens):
+            nxt = tokens[i + 1]
+            if nxt.get("kind") == "string":
+                val = _exact_string_value(nxt.get("value", ""))
+                if val.startswith("res://"):
+                    return val, None
+                base_dir = os.path.dirname(file_path)
+                norm = os.path.normpath(os.path.join(base_dir, val)).replace("\\", "/")
+                return norm, None
+            elif nxt.get("kind") == "identifier":
+                return None, nxt.get("value")
+    return None, None
+
+
+def _find_subclasses(project_root, target_path, target_class, snapshot):
+    """Find all GDScript files in the project that inherit from target_path or target_class."""
+    parent_map = {}
+    class_map = {}
+    for entry in snapshot["files"]:
+        path = "res://" + entry["path"]
+        if not path.endswith(".gd"):
+            continue
+        cls_name = _class_name_for_file(entry["semantic"])
+        if cls_name:
+            class_map[path] = cls_name
+        try:
+            _abs, _raw, text, _bom = _read_source(project_root, path)
+            p_path, p_cls = _get_script_parent(text, path)
+            if p_path or p_cls:
+                parent_map[path] = (p_path, p_cls)
+        except Exception:
+            continue
+
+    subclasses = set()
+    queue = [target_path]
+    target_classes = {target_class} if target_class else set()
+
+    while queue:
+        curr = queue.pop(0)
+        curr_cls = class_map.get(curr)
+        if curr_cls:
+            target_classes.add(curr_cls)
+        for child_path, (p_path, p_cls) in parent_map.items():
+            if child_path in subclasses or child_path == target_path:
+                continue
+            is_child = False
+            if p_path and p_path == curr:
+                is_child = True
+            elif p_cls and p_cls in target_classes:
+                is_child = True
+            if is_child:
+                subclasses.add(child_path)
+                queue.append(child_path)
+
+    return subclasses
+
+
+def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_name, allow_addons=False):
+    """Find all .tscn and .tres files referencing affected_scripts and update old_name property."""
+    scene_edits = []
+    if not affected_scripts:
+        return scene_edits
+
+    for root, dirs, files in os.walk(project_root):
+        if not allow_addons and ("addons" in dirs):
+            dirs.remove("addons")
+        for d in list(dirs):
+            if d in {".git", ".godot", ".import", ".agent_history", "__pycache__", "build", "dist"}:
+                dirs.remove(d)
+        for name in files:
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in (".tscn", ".tres"):
+                continue
+            abs_path = os.path.join(root, name)
+            rel_path = "res://" + os.path.relpath(abs_path, project_root).replace("\\", "/")
+            if not allow_addons and is_addon_path(rel_path, project_root):
+                continue
+            try:
+                with open(abs_path, "rb") as handle:
+                    raw = handle.read()
+                bom = raw.startswith(b"\xef\xbb\xbf")
+                text = raw.decode("utf-8-sig")
+            except Exception:
+                continue
+
+            matching_ids = set()
+            for script_path in affected_scripts:
+                pattern1 = re.compile(
+                    r'\[ext_resource\s+[^\]]*path=["\']' + re.escape(script_path) + r'["\'][^\]]*id=["\']?([^"\'\]\s]+)["\']?[^\]]*\]'
+                )
+                for m in pattern1.finditer(text):
+                    matching_ids.add(m.group(1))
+
+                pattern2 = re.compile(
+                    r'\[ext_resource\s+[^\]]*id=["\']?([^"\'\]\s]+)["\']?[^\]]*path=["\']' + re.escape(script_path) + r'["\'][^\]]*\]'
+                )
+                for m in pattern2.finditer(text):
+                    matching_ids.add(m.group(1))
+
+            if not matching_ids:
+                continue
+
+            section_re = re.compile(r'(^\[(?:node|sub_resource|resource)[^\]]*\])(.*?)(?=(?:^\[|\Z))', re.M | re.S)
+            file_changed = False
+            total_occurrences = 0
+
+            new_text_parts = []
+            last_end = 0
+            for sec_match in section_re.finditer(text):
+                header = sec_match.group(1)
+                body = sec_match.group(2)
+                sec_start = sec_match.start()
+                sec_end = sec_match.end()
+
+                has_script = False
+                for mid in matching_ids:
+                    if re.search(r'script\s*=\s*ExtResource\(["\']?' + re.escape(mid) + r'["\']?\)', body):
+                        has_script = True
+                        break
+
+                if not has_script:
+                    continue
+
+                prop_re = re.compile(r'^([ \t]*)' + re.escape(old_name) + r'([ \t]*=.*)$', re.M)
+                new_body, count = prop_re.subn(r'\g<1>' + new_name + r'\g<2>', body)
+                if count > 0:
+                    file_changed = True
+                    total_occurrences += count
+                    new_text_parts.append(text[last_end:sec_start])
+                    new_text_parts.append(header + new_body)
+                    last_end = sec_end
+
+            if file_changed:
+                new_text_parts.append(text[last_end:])
+                after = "".join(new_text_parts)
+                encoded = ((b"\xef\xbb\xbf" if bom else b"") + after.encode("utf-8"))
+                diff = build_diff_preview(text, after)
+                diff["path"] = rel_path
+                diff["action"] = "rename_symbol"
+                scene_edits.append({
+                    "path": rel_path,
+                    "absolute": abs_path,
+                    "before_hash": _sha256(raw),
+                    "before_bytes": raw,
+                    "after_bytes": encoded,
+                    "diff": diff,
+                    "occurrences": total_occurrences,
+                })
+
+    return scene_edits
+
+
 def _reference_is_safe(kind, fact, text, tokens, target_path, path,
-                       target_class, typed, declarations, target_static=False):
+                       target_class, typed, declarations, target_static=False,
+                       subclasses=None, all_target_classes=None):
     prev2, prev, nxt = _token_neighbors(tokens, fact.get("start"))
     prev_value = prev.get("value") if prev else None
     prev2_value = prev2.get("value") if prev2 else None
@@ -191,12 +348,20 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
         return fact.get("context") == "type" or (next_value == "." and not shadowed)
 
     same_script = path == target_path
+    is_subclass = bool(subclasses and path in subclasses)
+    hierarchy = same_script or is_subclass
+
     if prev_value == ".":
         receiver = prev2_value
-        return ((same_script and receiver == "self" and in_script)
-                or (target_class and typed.get(receiver) == target_class)
-                or (kind == "function" and target_static
-                    and target_class and receiver == target_class))
+        if hierarchy and receiver == "self" and in_script:
+            return True
+        if all_target_classes and typed.get(receiver) in all_target_classes:
+            return True
+        if target_class and typed.get(receiver) == target_class:
+            return True
+        if kind == "function" and target_static and target_class and receiver == target_class:
+            return True
+        return False
 
     if kind == "function":
         return (same_script and in_script and not shadowed
@@ -204,16 +369,26 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
     if kind == "signal":
         return (same_script and in_script and not shadowed
                 and (next_value == "." or prev_value == "await"))
+    if kind == "variable":
+        return (hierarchy and in_script and not shadowed
+                and fact.get("context") != "member")
     return False
 
 
-def _collision(declarations, declaration, kind, new_name):
+def _collision(declarations, declaration, kind, new_name, subclasses=None):
+    affected_paths = {declaration.get("path")}
+    if subclasses:
+        affected_paths.update(subclasses)
     for item in declarations:
         if item.get("name") != new_name:
             continue
-        if kind == "class_name" or (
-                item.get("path") == declaration.get("path")
-                and item.get("owner") == declaration.get("owner")):
+        if kind == "class_name":
+            return item
+        if kind == "variable":
+            if item.get("path") in affected_paths and item.get("owner") == declaration.get("owner"):
+                return item
+        elif (item.get("path") == declaration.get("path")
+              and item.get("owner") == declaration.get("owner")):
             return item
     return None
 
@@ -247,7 +422,25 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
     declaration = candidates[0]
     if kind in ("function", "signal") and declaration.get("owner") != "script":
         raise RenameError("Переименование членов вложенных классов пока не поддерживается безопасно")
-    collided = _collision(declarations, declaration, kind, new_name)
+    if kind == "variable" and declaration.get("owner") != "script":
+        raise RenameError("Переименование локальных переменных внутри функций пока не поддерживается безопасно")
+
+    target_entry = next(entry for entry in snapshot["files"]
+                        if "res://" + entry["path"] == target_path)
+    target_class = _class_name_for_file(target_entry["semantic"])
+    subclasses = set()
+    all_target_classes = {target_class} if target_class else set()
+
+    if kind == "variable":
+        subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+        for sc in subclasses:
+            sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
+            if sc_entry:
+                sc_cls = _class_name_for_file(sc_entry["semantic"])
+                if sc_cls:
+                    all_target_classes.add(sc_cls)
+
+    collided = _collision(declarations, declaration, kind, new_name, subclasses=subclasses)
     if collided:
         raise RenameError("Новое имя уже объявлено в том же пространстве: %s:%s"
                           % (collided.get("path"), collided.get("line")))
@@ -263,10 +456,15 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
         if len(duplicates) != 1:
             raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
 
-    target_entry = next(entry for entry in snapshot["files"]
-                        if "res://" + entry["path"] == target_path)
-    target_class = _class_name_for_file(target_entry["semantic"])
     edits_by_path = {target_path: [(declaration["start"], declaration["end"])]}
+    if kind == "variable":
+        for sc in subclasses:
+            sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
+            if sc_entry:
+                for item in sc_entry["semantic"].get("declarations", []):
+                    if item.get("kind") == "variable" and item.get("name") == old_name and item.get("owner") == "script":
+                        edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
+
     ambiguities = []
 
     for entry in snapshot["files"]:
@@ -288,8 +486,13 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
             if _reference_is_safe(kind, fact, text, tokens, target_path, path,
                                   target_class, typed,
                                   entry["semantic"].get("declarations", []),
-                                  bool(declaration.get("static"))):
+                                  bool(declaration.get("static")),
+                                  subclasses=subclasses,
+                                  all_target_classes=all_target_classes):
                 edits_by_path.setdefault(path, []).append((fact["start"], fact["end"]))
+            elif kind == "variable" and fact.get("context") != "member" and _owner_shadows_name(
+                    fact.get("owner"), fact.get("name"), entry["semantic"].get("declarations", [])):
+                continue
             else:
                 ambiguities.append("%s:%s:%s" % (path, fact.get("line"), fact.get("column")))
         for fact in entry["semantic"].get("strings", []):
@@ -326,6 +529,10 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
                       "before_hash": _sha256(raw), "before_bytes": raw,
                       "after_bytes": encoded, "diff": diff,
                       "occurrences": len(ranges)})
+    if kind == "variable":
+        scene_edits = _collect_scene_property_edits(
+            project_root, {target_path} | subclasses, old_name, new_name, allow_addons=allow_addons)
+        files.extend(scene_edits)
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,
         "declaration": action.get("declaration"), "files": files,
