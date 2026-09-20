@@ -75,27 +75,29 @@ echo.
 
 echo [0/3] Проверка запущенных процессов сервера...
 taskkill /F /IM godot_agent_server.exe >nul 2>&1
-timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 3 >nul
 
 rem Если папка dist\godot_agent_server существует, пробуем очистить её до запуска PyInstaller.
 rem Если файлы всё ещё заблокированы (например, открытым Godot), выводим понятную подсказку.
-if exist "dist\godot_agent_server" (
-    rmdir /S /Q "dist\godot_agent_server" >nul 2>&1
-    if exist "dist\godot_agent_server" (
-        echo [WARNING] Папка dist\godot_agent_server заблокирована другим процессом.
-        echo Повторная попытка принудительного закрытия...
-        taskkill /F /IM godot_agent_server.exe >nul 2>&1
-        timeout /t 2 /nobreak >nul
-        rmdir /S /Q "dist\godot_agent_server" >nul 2>&1
-        if exist "dist\godot_agent_server" (
-            echo.
-            echo [ERROR] Не удалось удалить старую сборку в dist\godot_agent_server (Отказано в доступе).
-            echo Причина: файлы сервера заблокированы запущенным Godot или процессом godot_agent_server.exe.
-            echo Решение: закройте Godot, завершите процесс godot_agent_server.exe в Диспетчере задач и повторите запуск батника.
-            goto END
-        )
-    )
-)
+if not exist "dist\godot_agent_server" goto CLEAN_DONE
+
+rmdir /S /Q "dist\godot_agent_server" >nul 2>&1
+if not exist "dist\godot_agent_server" goto CLEAN_DONE
+
+echo [WARNING] Папка dist\godot_agent_server заблокирована другим процессом.
+echo Повторная попытка принудительного закрытия...
+taskkill /F /IM godot_agent_server.exe >nul 2>&1
+ping 127.0.0.1 -n 3 >nul
+rmdir /S /Q "dist\godot_agent_server" >nul 2>&1
+if not exist "dist\godot_agent_server" goto CLEAN_DONE
+
+echo.
+echo [ERROR] Не удалось удалить старую сборку в dist\godot_agent_server (Отказано в доступе).
+echo Причина: файлы сервера заблокированы запущенным Godot или процессом godot_agent_server.exe.
+echo Решение: закройте Godot, завершите процесс godot_agent_server.exe в Диспетчере задач и повторите запуск батника.
+goto END
+
+:CLEAN_DONE
 
 echo [1/3] Установка PyInstaller...
 %PYCMD% -m pip install pyinstaller numpy
