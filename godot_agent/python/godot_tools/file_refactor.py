@@ -856,7 +856,7 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 abs_file = os.path.join(root, filename)
                 rel_file = os.path.relpath(abs_file, root_path).replace("\\", "/")
                 godot_file = "res://" + rel_file
-                if godot_file.startswith(old_prefix) or godot_file.startswith(new_prefix):
+                if godot_file.startswith(old_prefix):
                     continue
                 try:
                     raw, text, bom = _read_file_text(abs_file)
