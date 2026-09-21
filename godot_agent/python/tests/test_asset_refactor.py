@@ -632,14 +632,16 @@ class AssetRefactorTests(unittest.TestCase):
         updated_slime_tscn = (dest_dir / "slime.tscn").read_text(encoding="utf-8")
         self.assertIn('path="res://actors/monsters/slime.gd"', updated_slime_tscn)
 
-        # Rollback synchronized code references
+        # Rollback synchronized code references AND the moved tree itself (audit 1.1)
         ok, msg, _, _, _ = history_manager.rollback_last(str(self.root))
         self.assertTrue(ok, msg)
 
         # game_mgr.gd restored to res://enemies
         self.assertEqual(game_mgr.read_text(encoding="utf-8"), game_mgr_orig)
-        # slime.tscn restored to res://enemies
-        self.assertIn('path="res://enemies/slime.gd"', (dest_dir / "slime.tscn").read_text(encoding="utf-8"))
+        # slime.tscn moved back with the tree and restored to res://enemies
+        self.assertFalse(dest_dir.exists())
+        restored_slime = (self.root / "enemies" / "slime.tscn").read_text(encoding="utf-8")
+        self.assertIn('path="res://enemies/slime.gd"', restored_slime)
 
 
 if __name__ == "__main__":
