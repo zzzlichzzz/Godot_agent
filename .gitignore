@@ -26,7 +26,11 @@ godot_agent/python/verify_out.txt
 godot_agent/временно/
 .agents/
 .freebuff/
+minilich_brain/
+**/minilich_brain/
+*.npz
 
 # Local workspace custom ignore
 godot_agent/agent_panel.tscn
+
 
