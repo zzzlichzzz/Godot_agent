@@ -13,7 +13,8 @@ import history_manager
 import librarian
 import project_tools
 from minilich import ml_project_index
-from project_tools import _resolve_safe_path, build_diff_preview, is_addon_path
+from project_tools import (MoveRecoveryError, _resolve_safe_path,
+                           build_diff_preview, is_addon_path)
 
 
 _LOCKS = {}
@@ -738,7 +739,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     }
 
 
-def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=None):
+def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=None,
+                               chain_id=None):
     """Atomically applies prepared file rename/relocation and reference updates.
     Records change in history_manager and supports single-click rollback.
     """
@@ -825,7 +827,8 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
 
         entry_id = history_manager.record_batch_change(
             project_root, "rename_file", batch_paths,
-            chat_id=chat_id, chat_title=chat_title, states=states
+            chat_id=chat_id, chat_title=chat_title, states=states,
+            chain_id=chain_id
         )
 
         temps = []
@@ -889,6 +892,12 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
             # 5. Commit change to history
             history_manager.commit_change(project_root, entry_id)
 
+        except MoveRecoveryError as exc:
+            # Files may be half-moved and need manual recovery: keep the journal
+            # entry as an uncommitted reservation instead of aborting it.
+            exc.journal_entry_id = entry_id
+            raise
+
         except Exception as exc:
             # Abort and roll back
             for dst, src in reversed(moved_items):
@@ -949,7 +958,22 @@ def sync_references_after_external_move(project_root, old_path, new_path,
     refreshes relative imports inside moved files, fixes companion .import
     files, and records everything in history_manager — including a rollback
     anchor that moves the file/directory BACK to old_path (audit 1.1).
+
+    The whole scan+apply runs under the project lock: Godot fires files_moved
+    per file and the panel posts them in parallel — scanning before taking the
+    lock made the second request fail with StaleFileRefactorError (audit 1.4).
     """
+    with _project_lock(project_root):
+        return _sync_references_after_external_move_impl(
+            project_root, old_path, new_path,
+            is_directory=is_directory, allow_addons=allow_addons,
+            chat_id=chat_id, chat_title=chat_title)
+
+
+def _sync_references_after_external_move_impl(project_root, old_path, new_path,
+                                              is_directory=False, allow_addons=False,
+                                              chat_id=None, chat_title=None):
+    """Lock-held implementation of sync_references_after_external_move."""
     old_path = _normalize_godot_path(old_path)
     new_path = _normalize_godot_path(new_path)
     if old_path == new_path:

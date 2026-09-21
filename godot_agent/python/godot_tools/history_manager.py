@@ -269,7 +269,7 @@ def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=
 
 @_journal_transaction
 def record_batch_change(project_root, action_type, paths, chat_id=None, chat_title=None,
-                        states=None):
+                        states=None, chain_id=None):
     """Create one journal entry and one before-snapshot per affected file."""
     journal = _load_journal(project_root)
     unique_paths = [str(path) for path in paths if path]
@@ -284,6 +284,8 @@ def record_batch_change(project_root, action_type, paths, chat_id=None, chat_tit
     if chat_id:
         entry["chat_id"] = chat_id
         entry["chat_title"] = chat_title or ""
+    if chain_id:
+        entry["chain_id"] = chain_id
     hist = _history_dir(project_root)
     try:
         state_by_path = {item["path"]: item for item in (states or [])}

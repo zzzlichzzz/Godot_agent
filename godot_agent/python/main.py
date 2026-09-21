@@ -739,6 +739,38 @@ def _apply_write_step(action, project_root, chain_id=None, validation=None):
         except Exception as exc:
             return {"ok": False, "message": str(exc),
                     "changed_path": None, "changed_block": None}
+    if act_type == "move_file":
+        # v106 (audit 2.5): перемещение силами агента обязано обновлять ссылки,
+        # companion-файлы (.uid/.import) и проходить линтер — как безопасное
+        # переименование. Иначе каждый move_file из чата оставлял битые ссылки.
+        try:
+            prepared = file_refactor.prepare_file_rename(
+                project_root, path, dest,
+                update_references=True,
+                allow_addons=STATE.get("addon_intent"))
+            refactor = file_refactor.apply_prepared_file_rename(
+                project_root, prepared, *_current_chat_info(), chain_id=chain_id)
+        except MoveRecoveryError as e:
+            return {"ok": False, "message": str(e), "changed_path": None,
+                    "changed_block": None, "recovery_required": True,
+                    "recovery_entry_id": getattr(e, "journal_entry_id", None)}
+        except Exception as e:
+            return {"ok": False, "message": str(e), "changed_path": None,
+                    "changed_block": None}
+        _refresh_fs_snapshot(project_root)
+        _forget_file(path)
+        _remember_file(project_root, dest)
+        try:
+            librarian.note_files_changed(
+                project_root, refactor.get("changed_paths", [dest]), deleted=[path])
+        except Exception:
+            pass
+        return {"ok": True,
+                "message": "Файл успешно перемещён в: %s (обновлено ссылок: %d)"
+                           % (dest, refactor.get("reference_count", 0)),
+                "changed_path": None, "changed_block": None,
+                "entry_id": refactor.get("entry_id")}
+
     entry_id = history.record_change(project_root, action, *_current_chat_info(), chain_id=chain_id)
     try:
         if act_type == "create_file":
