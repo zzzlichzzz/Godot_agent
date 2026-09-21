@@ -2699,30 +2699,30 @@ func _remap_scenes_to_reopen(old_path: String, new_path: String) -> void:
 			_scenes_to_reopen[i] = new_path
 
 
-func _sync_resource_uid(old_path: String, new_path: String) -> void:
+func _sync_resource_uid(_old_path: String, new_path: String) -> void:
+	# v106 (audit 3.1): штатный ResourceLoader.get_resource_uid() вместо ручного
+	# парсинга первой строки (UID текстур/звука лежит в .import-файле, бинарники
+	# построчно разбирать бессмысленно). Для папок обходим файлы рекурсивно.
 	if new_path.is_empty():
 		return
-	var uid_path := new_path + ".uid"
-	var uid_str := ""
-	if FileAccess.file_exists(uid_path):
-		uid_str = FileAccess.get_file_as_string(uid_path).strip_edges()
-	elif FileAccess.file_exists(new_path):
-		var f := FileAccess.open(new_path, FileAccess.READ)
-		if f:
-			var first_line := f.get_line()
-			f.close()
-			var idx := first_line.find('uid="uid://')
-			if idx != -1:
-				var end_idx := first_line.find('"', idx + 5)
-				if end_idx != -1:
-					uid_str = first_line.substr(idx + 5, end_idx - (idx + 5))
-	if uid_str.begins_with("uid://"):
-		var id := ResourceUID.text_to_id(uid_str)
-		if id != ResourceUID.INVALID_ID:
-			if ResourceUID.has_id(id):
-				ResourceUID.set_id(id, new_path)
+	var global_new := ProjectSettings.globalize_path(new_path)
+	if DirAccess.dir_exists_absolute(global_new):
+		var dir := DirAccess.open(global_new)
+		if dir:
+			dir.list_dir_begin()
+			var name := dir.get_next()
+			while name != "":
+				if not name.begins_with("."):
+					_sync_resource_uid("", new_path.trim_suffix("/") + "/" + name)
+				name = dir.get_next()
+			dir.list_dir_end()
+	else:
+		var uid := ResourceLoader.get_resource_uid(new_path)
+		if uid != ResourceUID.INVALID_ID:
+			if ResourceUID.has_id(uid):
+				ResourceUID.set_id(uid, new_path)
 			else:
-				ResourceUID.add_id(id, new_path)
+				ResourceUID.add_id(uid, new_path)
 	var efs := EditorInterface.get_resource_filesystem()
 	if efs:
 		if efs.has_method("update_file"):
@@ -3614,6 +3614,26 @@ func _on_link_hide_loading() -> void:
 		_start_screen.hide_loading()
 
 
+func _close_ghost_script_tabs_for_move(old_path: String, is_folder: bool) -> void:
+	# v106 (audit 3.2): после перемещения закрываем вкладки старых путей даже
+	# если внешних ссылок не нашлось (иначе Ctrl+S в «зомби»-вкладке воскресит
+	# старый файл). Для папок сравниваем по префиксу — внутри могли лежать
+	# открытые скрипты.
+	if old_path.is_empty():
+		return
+	var se := EditorInterface.get_script_editor()
+	if not se:
+		return
+	var prefix := old_path.trim_suffix("/") + "/"
+	for scr in se.get_open_scripts():
+		if scr == null:
+			continue
+		var path_str := str(scr.resource_path)
+		var matches := path_str.begins_with(prefix) if is_folder else path_str == old_path
+		if matches and not FileAccess.file_exists(path_str):
+			_close_ghost_script_tab(path_str)
+
+
 func _close_ghost_script_tab(target_path: String) -> void:
 	# Откат удалил файл с диска, но вкладка в редакторе скриптов осталась —
 	# сам Godot её не закрывает, а Ctrl+S в ней «воскресит» файл. Штатного API
@@ -4286,18 +4306,41 @@ func _on_safe_rename_apply() -> void:
 		_safe_rename_status_label.text = "Ошибка отправки запроса на переименование."
 
 
+# v106 (audit 1.4): последовательная очередь post_move_sync-запросов.
+var _fs_move_queue: Array = []
+var _fs_move_busy := false
+
+
 func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
 	if not _safe_rename_enabled:
 		return
 	var clean_old := old_path.strip_edges().replace("\\", "/")
 	var clean_new := new_path.strip_edges().replace("\\", "/")
+	# v106 (audit 4.3): localize_path корректно разворачивает и относительные,
+	# и абсолютные пути ОС (например D:/...) в res://-форму; старый
+	# старый ручной префикс порождал некорректный res://D:/...
 	if not clean_old.begins_with("res://") and not clean_old.begins_with("user://"):
-		clean_old = "res://" + clean_old.trim_prefix("/")
+		clean_old = ProjectSettings.localize_path(clean_old)
 	if not clean_new.begins_with("res://") and not clean_new.begins_with("user://"):
-		clean_new = "res://" + clean_new.trim_prefix("/")
+		clean_new = ProjectSettings.localize_path(clean_new)
 	if clean_old.is_empty() or clean_new.is_empty() or clean_old == clean_new:
 		return
 
+	# v106 (audit 1.4): Godot генерирует files_moved на каждый файл пакета
+	# drag-and-drop. Шлём запросы строго по очереди, а не шквалом параллельных.
+	_fs_move_queue.append({"old": clean_old, "new": clean_new, "folder": is_folder})
+	_process_fs_move_queue()
+
+
+func _process_fs_move_queue() -> void:
+	if _fs_move_busy or _fs_move_queue.is_empty():
+		return
+	_fs_move_busy = true
+	var item: Dictionary = _fs_move_queue.pop_front()
+	_send_post_move_sync(str(item.get("old", "")), str(item.get("new", "")), bool(item.get("folder", false)))
+
+
+func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool) -> void:
 	print("[Godot Agent] Перемещение/переименование в FileSystem: %s -> %s (папка=%s)" % [clean_old, clean_new, str(is_folder)])
 	var body = {
 		"old_path": clean_old,
@@ -4311,11 +4354,16 @@ func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool 
 	var parent_node: Node = self if is_inside_tree() else EditorInterface.get_base_control()
 	if parent_node == null:
 		push_error("[Godot Agent] Не удалось найти узел дерева для HTTPRequest синхронизации.")
+		_fs_move_busy = false
+		call_deferred("_process_fs_move_queue")
 		return
 	parent_node.add_child(req)
 	req.set_http_proxy("", 0)
 	req.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
 		req.queue_free()
+		# Запрос завершён — можно отправлять следующий из очереди (audit 1.4).
+		_fs_move_busy = false
+		call_deferred("_process_fs_move_queue")
 		var json_str := body_bytes.get_string_from_utf8()
 		if result != HTTPRequest.RESULT_SUCCESS:
 			push_warning("[Godot Agent] Внимание: файл '%s' переименован/перемещён, но сервер агента недоступен (не запущен). Ссылки в коде и сценах не обновлены! Запустите godot_agent_server.exe." % clean_old)
@@ -4336,28 +4384,34 @@ func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool 
 		_sync_resource_uid(clean_old, clean_new)
 		var ref_cnt := int(resp.get("reference_count", 0))
 		var changed_paths = resp.get("changed_paths", [])
-		if changed_paths is Array and not changed_paths.is_empty():
-			EditorInterface.get_resource_filesystem().scan()
+		EditorInterface.get_resource_filesystem().scan()
+		if changed_paths is Array:
 			for cp in changed_paths:
 				_sync_open_script_with_disk(str(cp))
 				_auto_reload_changed_scene(str(cp))
-			_close_ghost_script_tab(clean_old)
-			if FileAccess.file_exists(clean_new) and clean_new.ends_with(".gd"):
-				var scr = ResourceLoader.load(clean_new, "", ResourceLoader.CACHE_MODE_REPLACE)
-				if scr is Script:
-					scr.reload(true)
-			var file_cnt := int(resp.get("file_count", 0))
-			var entry_id := str(resp.get("entry_id", ""))
-			var msg := _t("safe_post_move_sync_success") % [clean_old, clean_new, ref_cnt, file_cnt]
-			if _view:
-				_view.add_agent_message(msg, entry_id)
-			print("[Godot Agent] ", msg)
-		else:
-			print("[Godot Agent] Переименование '%s' -> '%s' зафиксировано: ссылок в других файлах проекта не обнаружено." % [clean_old, clean_new])
+			# v106 (audit 3.4): project.godot обновлён на диске, но редактор держит
+			# старые значения в памяти — честно предупреждаем, ничего не перезаписывая.
+			if changed_paths.has("res://project.godot"):
+				push_warning("[Godot Agent] Обновлён project.godot (например автозагрузка или главная сцена). Перезапустите редактор, чтобы F5 использовал новые настройки, — память редактора их не перечитывает.")
+		# v106 (audit 3.2): закрываем «зомби»-вкладки старых путей даже если
+		# ссылок не нашлось; для папок — все скрипты внутри по префиксу.
+		_close_ghost_script_tabs_for_move(clean_old, is_folder)
+		if FileAccess.file_exists(clean_new) and clean_new.ends_with(".gd"):
+			var scr = ResourceLoader.load(clean_new, "", ResourceLoader.CACHE_MODE_REPLACE)
+			if scr is Script:
+				scr.reload(true)
+		var file_cnt := int(resp.get("file_count", 0))
+		var entry_id := str(resp.get("entry_id", ""))
+		var msg := _t("safe_post_move_sync_success") % [clean_old, clean_new, ref_cnt, file_cnt]
+		if _view:
+			_view.add_agent_message(msg, entry_id)
+		print("[Godot Agent] ", msg)
 	)
 	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		push_warning("[Godot Agent] Не удалось отправить HTTP-запрос post_move_sync, код ошибки: %d" % err)
+		_fs_move_busy = false
+		call_deferred("_process_fs_move_queue")
 		req.queue_free()
 
 
