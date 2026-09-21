@@ -1,11 +1,36 @@
-/godot_agent/python/__pycache__
+# Godot
+.godot/
+*.translation
+
+# Python cache & bytecode
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller intermediate build workspace (temporary compilation cache)
+build/
+**/build/
+*.spec.bak
+
+# Windows shortcuts & temporary test dumps
+*.lnk
+godot_agent/python/pc.txt
+godot_agent/python/r.txt
+godot_agent/python/sc.txt
+godot_agent/python/t87.txt
+godot_agent/python/tab.txt
+godot_agent/python/verify_out.txt
+
+# Temporary local directories
+временно/
+godot_agent/временно/
+.agents/
+.freebuff/
+minilich_brain/
+**/minilich_brain/
+*.npz
+
+# Local workspace custom ignore
 godot_agent/agent_panel.tscn
-/godot_agent/python/server/__pycache__
-*.pyc
-*.pyc
-/godot_agent/python/godot_tools/__pycache__
-/.freebuff
-временно/file.txt
-/временно
-/godot_agent/временно
-/.agents
+
+
