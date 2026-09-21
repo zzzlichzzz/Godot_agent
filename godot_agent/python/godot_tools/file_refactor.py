@@ -51,6 +51,26 @@ def _normalize_godot_path(path):
     return "res://" + rel
 
 
+def _is_case_only_rename(old_godot_path, new_godot_path, abs_old=None, abs_new=None):
+    """True when the rename changes only the letter case (case-insensitive FS).
+
+    Compares the requested res:// paths: os.path.realpath collapses the on-disk
+    casing on Windows, so absolute paths alone cannot detect this.
+    """
+    def _norm(p):
+        return str(p or "").replace(chr(92), "/").removeprefix("res://").strip("/")
+    old_rel = _norm(old_godot_path)
+    new_rel = _norm(new_godot_path)
+    if not old_rel or old_rel == new_rel or old_rel.lower() != new_rel.lower():
+        return False
+    if abs_old and abs_new:
+        try:
+            return os.path.samefile(abs_old, abs_new)
+        except OSError:
+            return False
+    return True
+
+
 def _read_file_text(abs_path):
     with open(abs_path, "rb") as handle:
         raw = handle.read()
@@ -221,6 +241,19 @@ def prepare_directory_relocation(project_root, old_path, new_path,
 
     if not os.path.isdir(abs_old):
         raise FileNotFoundError("Исходная папка не найдена: %s" % old_path)
+
+    # Never move a directory into itself or its own subdirectory: the final
+    # cleanup of the old tree would wipe the freshly moved files.
+    old_dir_norm = os.path.normcase(os.path.abspath(abs_old))
+    new_dir_norm = os.path.normcase(os.path.abspath(abs_new))
+    try:
+        nested = os.path.commonpath((old_dir_norm, new_dir_norm)) == old_dir_norm
+    except ValueError:
+        nested = False
+    if nested:
+        raise FileRefactorError(
+            "Нельзя переместить папку внутрь самой себя: %s -> %s" % (old_path, new_path)
+        )
 
     if os.path.exists(abs_new):
         raise FileExistsError("Целевая папка уже существует: %s" % new_path)
@@ -511,7 +544,7 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     if not os.path.isfile(abs_old):
         raise FileNotFoundError("Исходный файл не найден: %s" % old_path)
 
-    if os.path.exists(abs_new):
+    if os.path.exists(abs_new) and not _is_case_only_rename(old_path, new_path, abs_old, abs_new):
         raise FileExistsError("Целевой файл уже существует: %s" % new_path)
 
     if not allow_addons and (is_addon_path(old_path, project_root) or is_addon_path(new_path, project_root)):
@@ -603,7 +636,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     new_import_path = new_path + ".import"
 
     if os.path.isfile(abs_old_import):
-        if os.path.exists(abs_new_import):
+        if os.path.exists(abs_new_import) and not _is_case_only_rename(
+                old_import_path, new_import_path, abs_old_import, abs_new_import):
             raise FileExistsError("Целевой файл .import уже существует: %s" % new_import_path)
 
         imp_raw, imp_text, imp_bom = _read_file_text(abs_old_import)
@@ -641,7 +675,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     abs_old_uid = abs_old + ".uid"
     abs_new_uid = abs_new + ".uid"
     new_uid_path = new_path + ".uid"
-    if os.path.isfile(abs_old_uid) and os.path.exists(abs_new_uid):
+    if os.path.isfile(abs_old_uid) and os.path.exists(abs_new_uid) and not _is_case_only_rename(
+            old_path + ".uid", new_path + ".uid", abs_old_uid, abs_new_uid):
         raise FileExistsError("Целевой файл .uid уже существует: %s" % new_uid_path)
 
     if update_references:
@@ -718,7 +753,8 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 with open(item["absolute"], "rb") as h:
                     if _sha256(h.read()) != item["before_hash"]:
                         raise StaleFileRefactorError("Исходный файл изменился: %s" % item["path"])
-                if os.path.exists(item["dest_absolute"]):
+                if os.path.exists(item["dest_absolute"]) and not _is_case_only_rename(
+                        item["path"], item["dest"], item["absolute"], item["dest_absolute"]):
                     raise FileExistsError("Целевой файл уже появился: %s" % item["dest"])
             elif item.get("action") == "patch_file":
                 if not os.path.isfile(item["absolute"]):
@@ -737,15 +773,27 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 dst_path = item["dest"]
                 src_abs = item["absolute"]
                 has_uid = os.path.isfile(src_abs + ".uid")
+                case_only = _is_case_only_rename(src_path, dst_path, src_abs, item["dest_absolute"])
 
-                states.append({"path": src_path, "before_bytes": b"", "after_bytes": None})
-                states.append({"path": dst_path, "before_bytes": None, "after_bytes": b""})
-                batch_paths.extend([src_path, dst_path])
+                if case_only:
+                    # Same physical file on a case-insensitive FS: record a single
+                    # entry with a rename marker instead of delete+create states.
+                    states.append({"path": src_path, "before_bytes": b"", "after_bytes": b"",
+                                   "case_only_dest": dst_path})
+                    batch_paths.append(src_path)
+                    if has_uid:
+                        states.append({"path": src_path + ".uid", "before_bytes": b"", "after_bytes": b"",
+                                       "case_only_dest": dst_path + ".uid"})
+                        batch_paths.append(src_path + ".uid")
+                else:
+                    states.append({"path": src_path, "before_bytes": b"", "after_bytes": None})
+                    states.append({"path": dst_path, "before_bytes": None, "after_bytes": b""})
+                    batch_paths.extend([src_path, dst_path])
 
-                if has_uid:
-                    states.append({"path": src_path + ".uid", "before_bytes": b"", "after_bytes": None})
-                    states.append({"path": dst_path + ".uid", "before_bytes": None, "after_bytes": b""})
-                    batch_paths.extend([src_path + ".uid", dst_path + ".uid"])
+                    if has_uid:
+                        states.append({"path": src_path + ".uid", "before_bytes": b"", "after_bytes": None})
+                        states.append({"path": dst_path + ".uid", "before_bytes": None, "after_bytes": b""})
+                        batch_paths.extend([src_path + ".uid", dst_path + ".uid"])
 
             elif item.get("action") == "patch_file":
                 states.append({
@@ -794,13 +842,31 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                             h.flush()
                             os.fsync(h.fileno())
 
-            # If directory move, clean up empty old directory
+            # If directory move, clean up the old directory tree.
             if is_directory:
                 abs_old_dir = _resolve_safe_path(project_root, old_path)
+                abs_new_dir = _resolve_safe_path(project_root, new_path)
+                # Never delete the directory we just moved files into.
                 try:
-                    shutil.rmtree(abs_old_dir)
-                except OSError:
-                    pass
+                    nested_cleanup = os.path.commonpath((
+                        os.path.normcase(os.path.abspath(abs_old_dir)),
+                        os.path.normcase(os.path.abspath(abs_new_dir)),
+                    )) == os.path.normcase(os.path.abspath(abs_old_dir))
+                except ValueError:
+                    nested_cleanup = False
+                if not nested_cleanup:
+                    # Remove only directories left empty by the move; files
+                    # outside the relocation map must survive (no data loss).
+                    for root_d, subdirs, _files in os.walk(abs_old_dir, topdown=False):
+                        for sub in subdirs:
+                            try:
+                                os.rmdir(os.path.join(root_d, sub))
+                            except OSError:
+                                pass
+                    try:
+                        os.rmdir(abs_old_dir)
+                    except OSError:
+                        pass
 
             # 5. Commit change to history
             history_manager.commit_change(project_root, entry_id)
