@@ -87,6 +87,11 @@ check("прямая отправка из handle_filesystem_move удалена"
 check("busy-флаг снимается по завершении запроса",
       "_fs_move_busy = false" in func_src(panel, "_send_post_move_sync"))
 
+# --- audit 3.3: предупреждение о несохранённых правках ----------------------
+check("предупреждение о несохранённых правках в обновлённых файлах",
+      "_dirty_open_scripts(PackedStringArray(changed_paths))" in panel
+      and "несохранёнными правками" in panel)
+
 # --- audit 3.4: предупреждение о project.godot -------------------------------
 check("предупреждение о нечитаемом в памяти project.godot",
       "project.godot" in panel[panel.find("func _send_post_move_sync"):

@@ -4389,6 +4389,15 @@ func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool)
 			for cp in changed_paths:
 				_sync_open_script_with_disk(str(cp))
 				_auto_reload_changed_scene(str(cp))
+			# v106 (audit 3.3): файл уже обновлён на диске сервером, но если он
+			# открыт с несохранёнными правками — вкладка держит старую версию, и
+			# Ctrl+S вернёт битые пути. Честно предупреждаем пользователя.
+			var dirty_paths := _dirty_open_scripts(PackedStringArray(changed_paths))
+			if not dirty_paths.is_empty():
+				var dirty_msg := "[Godot Agent] Файлы обновлены на диске, но открыты с несохранёнными правками: %s. Сохранение из редактора (Ctrl+S) вернёт старые пути — закройте вкладку без сохранения или перенесите правки вручную." % ", ".join(dirty_paths)
+				push_warning(dirty_msg)
+				if _view:
+					_view.add_agent_message("⚠ " + dirty_msg)
 			# v106 (audit 3.4): project.godot обновлён на диске, но редактор держит
 			# старые значения в памяти — честно предупреждаем, ничего не перезаписывая.
 			if changed_paths.has("res://project.godot"):
