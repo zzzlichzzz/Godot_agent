@@ -1,0 +1,59 @@
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/introduction/key_concepts_overview.html#signals">Signals</a></li>
+
+<li class="toctree-l2"><a class="reference internal" href="../getting_started/step_by_step/signals.html">Using signals</a><ul>
+
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/step_by_step/signals.html#scene-setup">Scene setup</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/step_by_step/signals.html#connecting-a-signal-in-the-editor">Connecting a signal in the editor</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/step_by_step/signals.html#connecting-a-signal-via-code">Connecting a signal via code</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/step_by_step/signals.html#complete-script">Complete script</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/step_by_step/signals.html#custom-signals">Custom signals</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../getting_started/step_by_step/signals.html#summary">Summary</a></li>
+
+<li class="toctree-l2"><a class="reference internal" href="../tutorials/troubleshooting.html#the-godot-editor-s-macos-dock-icon-gets-duplicated-every-time-it-is-manually-moved">The Godot editor's macOS dock icon gets duplicated every time it is manually moved</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/migrating/upgrading_to_godot_4.html#manually-renaming-methods-properties-signals-and-constants">Manually renaming methods, properties, signals and constants</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../tutorials/migrating/upgrading_to_godot_4.html#list-of-automatically-renamed-methods-properties-signals-and-constants">List of automatically renamed methods, properties, signals and constants</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/animation/playing_videos.html#signal-handling">Signal Handling</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/networking/webrtc.html#local-signaling-example">Local signaling example</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/networking/webrtc.html#remote-signaling-with-websocket">Remote signaling with WebSocket</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/gdscript/gdscript_basics.html#signals">Signals</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/c_sharp/diagnostics/GD0202.html">GD0202: The parameter of the delegate signature of the signal is not supported</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/c_sharp/diagnostics/GD0203.html">GD0203: The delegate signature of the signal must return void</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/c_sharp/c_sharp_signals.html">C# signals</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/cpp/gdextension_cpp_example.html#signals">Signals</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/how_to_read_the_godot_api.html#signals">Signals</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/cross_language_scripting.html#connecting-to-signals">Connecting to signals</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="../tutorials/scripting/instancing_with_signals.html">Instancing with signals</a><ul>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/scripting/instancing_with_signals.html#shooting-example">Shooting example</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../tutorials/xr/a_better_xr_start_script.html#signals-for-our-script">Signals for our script</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../engine_details/architecture/object_class.html#signals">Signals</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../engine_details/architecture/unit_testing.html#testing-signals">Testing signals</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../engine_details/engine_api/gdextension/gdextension_c_example.html#registering-and-emitting-a-signal">Registering and emitting a signal</a></li>
+
+<li class="toctree-l4"><a class="reference internal" href="../community/asset_store/faq.html#i-can-t-find-an-addon-i-download-before-when-this-was-the-asset-library-was-everything-old-removed">I can't find an addon I download before when this was the Asset Library, was everything old removed?</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="class_node.html#signals">Signals</a></li>
+
+<li class="toctree-l3"><a class="reference internal" href="class_acceptdialog.html#signals">Signals</a></li>
