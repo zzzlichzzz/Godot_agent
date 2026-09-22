@@ -206,22 +206,18 @@ class MoveSafety(unittest.TestCase):
         self.assertEqual(self.uid.read_bytes(), self.uid_bytes)
         self.assertFalse(self.dest_uid.exists())
 
-    def test_cross_device_failure_has_no_overwriting_fallback(self):
-        link = os.link
-        for failpoint in (self.source, self.uid):
-            with self.subTest(failpoint=failpoint):
-                def cross_device(source, target):
-                    if Path(source) == failpoint:
-                        raise OSError(errno.EXDEV, "different mount")
-                    return link(source, target)
+    def test_cross_device_failure_falls_back_to_exclusive_copy(self):
+        # EXDEV means "no hardlinks across volumes": the move must still
+        # succeed via the fail-if-exists copy fallback (audit 4.2).
+        def cross_device(source, target):
+            raise OSError(errno.EXDEV, "different mount")
 
-                with patch.object(project_tools.os, "link", side_effect=cross_device):
-                    with self.assertRaises(OSError) as caught:
-                        self.move()
-                self.assertEqual(caught.exception.errno, errno.EXDEV)
-                self.assert_original_pair()
-                self.assertFalse(self.dest.exists())
-                self.assertFalse(self.dest_uid.exists())
+        with patch.object(project_tools.os, "link", side_effect=cross_device):
+            self.assertIsNone(self.move())
+        self.assertFalse(self.source.exists())
+        self.assertFalse(self.uid.exists())
+        self.assertEqual(self.dest.read_bytes(), self.main_bytes)
+        self.assertEqual(self.dest_uid.read_bytes(), self.uid_bytes)
 
     def test_same_file_and_overlapping_sidecar_paths_are_rejected(self):
         for dest in ("res://Player.gd", "res://./Player.gd", "res://Player.gd.uid"):
@@ -231,10 +227,15 @@ class MoveSafety(unittest.TestCase):
                 self.assert_original_pair()
 
     @unittest.skipUnless(os.name == "nt", "Windows normcase identities")
-    def test_windows_case_alias_is_rejected(self):
-        with self.assertRaises(FileExistsError):
-            self.move("res://PLAYER.GD")
-        self.assert_original_pair()
+    def test_windows_case_alias_performs_case_only_rename(self):
+        # player.gd -> Player.gd is a legitimate rename, not an alias
+        # collision (audit 4.1).
+        self.assertIsNone(self.move("res://PLAYER.GD"))
+        names = os.listdir(self.root)
+        self.assertIn("PLAYER.GD", names)
+        self.assertNotIn("Player.gd", names)
+        self.assertEqual((self.root / "PLAYER.GD").read_bytes(), self.main_bytes)
+        self.assertEqual((self.root / "PLAYER.GD.uid").read_bytes(), self.uid_bytes)
 
     def test_hardlink_alias_is_rejected(self):
         self.dest.parent.mkdir()

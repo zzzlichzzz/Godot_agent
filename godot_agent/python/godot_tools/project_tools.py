@@ -1,3 +1,4 @@
+import errno
 import os
 import shutil
 import tempfile
@@ -206,33 +207,30 @@ def _atomic_write_text(abs_path, content):
             pass
 
 
-def move_project_file(project_root, source_godot_path, dest_godot_path):
-    """Move a file and its UID without clobbering; restore on ordinary I/O failure."""
-    abs_source = _resolve_safe_path(project_root, source_godot_path)
-    abs_dest = _resolve_safe_path(project_root, dest_godot_path)
-    source_uid = _resolve_safe_path(project_root, abs_source + ".uid")
-    dest_uid = _resolve_safe_path(project_root, abs_dest + ".uid")
-    if not os.path.isfile(abs_source):
-        raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
-    identities = {os.path.normcase(p) for p in (abs_source, abs_dest, source_uid, dest_uid)}
-    if len(identities) != 4:
-        raise FileExistsError("Source, destination and UID paths must not alias each other")
-    # Check the requested slots too: realpath can hide a dangling symlink.
-    requested_dest = os.path.join(project_root, dest_godot_path.removeprefix("res://"))
-    for target in (requested_dest, requested_dest + ".uid", abs_dest, abs_dest + ".uid"):
-        if os.path.lexists(target):
-            raise FileExistsError(f"Destination already exists: {target}")
-    pairs = [(abs_source, abs_dest)]
-    if os.path.lexists(abs_source + ".uid"):
-        if os.path.islink(abs_source + ".uid") or not os.path.isfile(source_uid):
-            raise ValueError("Source UID must be a regular file, not a symlink or directory")
-        pairs.append((source_uid, dest_uid))
-    os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
+_LINK_FALLBACK_ERRNOS = frozenset({
+    errno.EXDEV,   # cross-device link
+    errno.EPERM,   # hardlinks unsupported (FAT32/exFAT)
+    errno.EACCES,  # hardlinks denied by filesystem/policy
+    errno.ENOSYS,  # not implemented on this filesystem
+    errno.EINVAL,  # CPython mapping of WinError 1/50/87
+})
+_LINK_FALLBACK_WINERRORS = frozenset({1, 50, 87})  # INVALID_FUNCTION / NOT_SUPPORTED / INVALID_PARAMETER
+
+
+def _hardlinks_unavailable(exc):
+    """True when os.link failed because hardlinks themselves are unavailable."""
+    if exc.errno in _LINK_FALLBACK_ERRNOS:
+        return True
+    return getattr(exc, "winerror", None) in _LINK_FALLBACK_WINERRORS
+
+
+def _move_via_hardlinks(pairs):
+    """Move each (source, target) via link+unlink; restore originals on failure."""
     linked = []
     try:
         for source, target in pairs:
             identity = os.stat(source)
-            # link is fail-if-exists, unlike POSIX rename/shutil.move. No EXDEV fallback.
+            # link is fail-if-exists, unlike POSIX rename/shutil.move.
             os.link(source, target)
             linked.append([source, target, identity, False])
             os.unlink(source)
@@ -254,6 +252,131 @@ def move_project_file(project_root, source_godot_path, dest_godot_path):
                 f"Files retained for manual recovery; inspect {pairs!r}"
             ) from recovery_error
         raise
+
+
+def _move_via_copy(pairs):
+    """Fail-if-exists move for filesystems without hardlinks (EXDEV, FAT32/exFAT).
+
+    Targets are created with O_EXCL, so an existing destination is never
+    overwritten; sources are unlinked only after every copy succeeded.
+    """
+    copied = []
+    try:
+        for source, target in pairs:
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+            try:
+                with os.fdopen(fd, "wb") as out:
+                    with open(source, "rb") as inp:
+                        shutil.copyfileobj(inp, out)
+                    out.flush()
+                    os.fsync(out.fileno())
+            except BaseException:
+                try:
+                    os.unlink(target)
+                except OSError:
+                    pass
+                raise
+            try:
+                shutil.copystat(source, target)
+            except OSError:
+                pass
+            copied.append((source, target))
+        for source, _target in copied:
+            os.unlink(source)
+    except BaseException:
+        recovery_errors = []
+        for source, target in reversed(copied):
+            try:
+                if os.path.exists(source):
+                    # Source intact: drop only our own copy.
+                    os.unlink(target)
+                elif os.path.isfile(target):
+                    shutil.copy2(target, source)
+                    os.unlink(target)
+            except OSError as rec_err:
+                recovery_errors.append(rec_err)
+        if recovery_errors:
+            raise MoveRecoveryError(
+                f"Move fallback recovery failed: {recovery_errors[0]}. "
+                f"Files retained for manual recovery; inspect {pairs!r}"
+            ) from recovery_errors[0]
+        raise
+
+
+def _move_case_only(abs_source, abs_dest):
+    """Rename a file (and its .uid sidecar) changing only the letter case.
+
+    Hardlink-based moves cannot express this on case-insensitive filesystems:
+    source and destination are the same file there. abs_dest must preserve the
+    caller-requested letter case (realpath would collapse it to the on-disk one).
+    """
+    pairs = [(abs_source, abs_dest)]
+    src_uid = abs_source + ".uid"
+    if os.path.lexists(src_uid):
+        if os.path.islink(src_uid) or not os.path.isfile(src_uid):
+            raise ValueError("Source UID must be a regular file, not a symlink or directory")
+        pairs.append((src_uid, abs_dest + ".uid"))
+    for src, dst in pairs:
+        if os.path.lexists(dst):
+            try:
+                same = os.path.samefile(src, dst)
+            except OSError:
+                same = False
+            if not same:
+                raise FileExistsError(f"Destination already exists: {dst}")
+    done = []
+    try:
+        for src, dst in pairs:
+            os.rename(src, dst)
+            done.append((src, dst))
+    except OSError:
+        for src, dst in reversed(done):
+            try:
+                os.rename(dst, src)
+            except OSError:
+                pass
+        raise
+
+
+def move_project_file(project_root, source_godot_path, dest_godot_path):
+    """Move a file and its UID without clobbering; restore on ordinary I/O failure."""
+    abs_source = _resolve_safe_path(project_root, source_godot_path)
+    abs_dest = _resolve_safe_path(project_root, dest_godot_path)
+    source_uid = _resolve_safe_path(project_root, abs_source + ".uid")
+    dest_uid = _resolve_safe_path(project_root, abs_dest + ".uid")
+    if not os.path.isfile(abs_source):
+        raise FileNotFoundError(f"Исходный файл не найден: {source_godot_path}")
+    src_rel = source_godot_path.removeprefix("res://").replace("\\", "/").strip("/")
+    dst_rel = dest_godot_path.removeprefix("res://").replace("\\", "/").strip("/")
+    if src_rel != dst_rel and src_rel.lower() == dst_rel.lower() and os.path.lexists(abs_dest):
+        # Case-only rename on a case-insensitive filesystem (Windows):
+        # realpath collapsed both paths to the on-disk casing, so rebuild
+        # the destination preserving the requested letter case.
+        abs_dest_requested = os.path.join(os.path.realpath(project_root), *dst_rel.split("/"))
+        _move_case_only(abs_source, abs_dest_requested)
+        return
+    identities = {os.path.normcase(p) for p in (abs_source, abs_dest, source_uid, dest_uid)}
+    if len(identities) != 4:
+        raise FileExistsError("Source, destination and UID paths must not alias each other")
+    # Check the requested slots too: realpath can hide a dangling symlink.
+    requested_dest = os.path.join(project_root, dest_godot_path.removeprefix("res://"))
+    for target in (requested_dest, requested_dest + ".uid", abs_dest, abs_dest + ".uid"):
+        if os.path.lexists(target):
+            raise FileExistsError(f"Destination already exists: {target}")
+    pairs = [(abs_source, abs_dest)]
+    if os.path.lexists(abs_source + ".uid"):
+        if os.path.islink(abs_source + ".uid") or not os.path.isfile(source_uid):
+            raise ValueError("Source UID must be a regular file, not a symlink or directory")
+        pairs.append((source_uid, dest_uid))
+    os.makedirs(os.path.dirname(abs_dest), exist_ok=True)
+    try:
+        _move_via_hardlinks(pairs)
+    except OSError as move_error:
+        if not _hardlinks_unavailable(move_error):
+            raise
+        # Hardlinks unavailable (EXDEV / FAT32 / exFAT): originals were already
+        # restored by _move_via_hardlinks; fall back to exclusive-create copies.
+        _move_via_copy(pairs)
 
 
 def copy_project_file(project_root, source_godot_path, dest_godot_path):

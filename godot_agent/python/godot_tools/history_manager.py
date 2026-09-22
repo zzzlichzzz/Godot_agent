@@ -269,7 +269,7 @@ def record_change(project_root, action, chat_id=None, chat_title=None, chain_id=
 
 @_journal_transaction
 def record_batch_change(project_root, action_type, paths, chat_id=None, chat_title=None,
-                        states=None):
+                        states=None, chain_id=None):
     """Create one journal entry and one before-snapshot per affected file."""
     journal = _load_journal(project_root)
     unique_paths = [str(path) for path in paths if path]
@@ -284,6 +284,8 @@ def record_batch_change(project_root, action_type, paths, chat_id=None, chat_tit
     if chat_id:
         entry["chat_id"] = chat_id
         entry["chat_title"] = chat_title or ""
+    if chain_id:
+        entry["chain_id"] = chain_id
     hist = _history_dir(project_root)
     try:
         state_by_path = {item["path"]: item for item in (states or [])}
@@ -296,6 +298,11 @@ def record_batch_change(project_root, action_type, paths, chat_id=None, chat_tit
                 raise FileNotFoundError(path)
             item = {"path": path, "before_present": before_present,
                     "after_present": after_present}
+            if state and state.get("case_only_dest"):
+                item["case_only_dest"] = state["case_only_dest"]
+            if state and state.get("external_move_dest"):
+                item["external_move_dest"] = state["external_move_dest"]
+                item["external_move_is_dir"] = bool(state.get("external_move_is_dir"))
             if before_present:
                 snap_rel = os.path.join("snapshots", "%s_%d_before" % (entry["id"], index))
                 shutil.copy2(absolute, os.path.join(hist, snap_rel))
@@ -463,6 +470,13 @@ def last_committed_info(project_root):
     if not committed:
         return None
     return _entry_public_info(committed[-1], committed)
+
+
+def _requested_case_path(project_root, godot_path):
+    """Absolute path preserving the caller's letter case (realpath would
+    collapse it to the on-disk casing on Windows)."""
+    rel = str(godot_path or "").removeprefix("res://").replace(chr(92), "/").strip("/")
+    return os.path.join(os.path.realpath(project_root), *rel.split("/"))
 
 
 def _path_identity(project_root, path):
@@ -720,7 +734,7 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                 if os.path.isfile(absolute):
                     with open(absolute, "rb") as handle:
                         current[item["path"]] = (True, handle.read())
-                if item.get("before_present", True):
+                if item.get("before_present", True) and not item.get("case_only_dest"):
                     snapshot = os.path.join(_history_dir(project_root), item["snapshot"])
                     parent_dir = os.path.dirname(absolute)
                     os.makedirs(parent_dir, exist_ok=True)
@@ -734,6 +748,31 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                     temps[item["path"]] = temp_path
             for item in files:
                 absolute = _resolve_safe_path(project_root, item["path"])
+                move_back = item.get("external_move_dest")
+                if move_back:
+                    # External move (FileSystemDock): rollback moves the file
+                    # or directory back to its pre-move location (audit 1.1).
+                    dst_abs = _requested_case_path(project_root, move_back)
+                    src_abs = _requested_case_path(project_root, item["path"])
+                    os.makedirs(os.path.dirname(src_abs), exist_ok=True)
+                    os.rename(dst_abs, src_abs)
+                    if not item.get("external_move_is_dir"):
+                        for side in (".uid", ".import"):
+                            try:
+                                if os.path.isfile(dst_abs + side):
+                                    os.rename(dst_abs + side, src_abs + side)
+                            except OSError:
+                                pass
+                    restored.append(item["path"])
+                    continue
+                case_dest = item.get("case_only_dest")
+                if case_dest:
+                    # Case-only rename: same physical file — restore the old
+                    # letter casing by renaming back (content is unchanged).
+                    os.rename(_requested_case_path(project_root, case_dest),
+                              _requested_case_path(project_root, item["path"]))
+                    restored.append(item["path"])
+                    continue
                 if item.get("before_present", True):
                     os.replace(temps.pop(item["path"]), absolute)
                 elif os.path.exists(absolute):

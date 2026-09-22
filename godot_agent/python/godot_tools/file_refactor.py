@@ -13,7 +13,8 @@ import history_manager
 import librarian
 import project_tools
 from minilich import ml_project_index
-from project_tools import _resolve_safe_path, build_diff_preview, is_addon_path
+from project_tools import (MoveRecoveryError, _resolve_safe_path,
+                           build_diff_preview, is_addon_path)
 
 
 _LOCKS = {}
@@ -49,6 +50,26 @@ def _normalize_godot_path(path):
     if not rel or any(part in ("", ".", "..") for part in rel.split("/")):
         raise FileRefactorError("Некорректный путь: %s" % path)
     return "res://" + rel
+
+
+def _is_case_only_rename(old_godot_path, new_godot_path, abs_old=None, abs_new=None):
+    """True when the rename changes only the letter case (case-insensitive FS).
+
+    Compares the requested res:// paths: os.path.realpath collapses the on-disk
+    casing on Windows, so absolute paths alone cannot detect this.
+    """
+    def _norm(p):
+        return str(p or "").replace(chr(92), "/").removeprefix("res://").strip("/")
+    old_rel = _norm(old_godot_path)
+    new_rel = _norm(new_godot_path)
+    if not old_rel or old_rel == new_rel or old_rel.lower() != new_rel.lower():
+        return False
+    if abs_old and abs_new:
+        try:
+            return os.path.samefile(abs_old, abs_new)
+        except OSError:
+            return False
+    return True
 
 
 def _read_file_text(abs_path):
@@ -221,6 +242,19 @@ def prepare_directory_relocation(project_root, old_path, new_path,
 
     if not os.path.isdir(abs_old):
         raise FileNotFoundError("Исходная папка не найдена: %s" % old_path)
+
+    # Never move a directory into itself or its own subdirectory: the final
+    # cleanup of the old tree would wipe the freshly moved files.
+    old_dir_norm = os.path.normcase(os.path.abspath(abs_old))
+    new_dir_norm = os.path.normcase(os.path.abspath(abs_new))
+    try:
+        nested = os.path.commonpath((old_dir_norm, new_dir_norm)) == old_dir_norm
+    except ValueError:
+        nested = False
+    if nested:
+        raise FileRefactorError(
+            "Нельзя переместить папку внутрь самой себя: %s -> %s" % (old_path, new_path)
+        )
 
     if os.path.exists(abs_new):
         raise FileExistsError("Целевая папка уже существует: %s" % new_path)
@@ -436,11 +470,17 @@ def prepare_directory_relocation(project_root, old_path, new_path,
             after_text = before_text
             file_occurrences = 0
 
+            # Apply ALL relative replacements in one globally offset-sorted
+            # pass: per-item sorting breaks offsets when a replacement changes
+            # the string length before another item's match (audit 2.4).
+            rel_ops = []
             for kind, item, f_new, count in data["replacements"]:
                 if kind == "rel":
-                    for start, end, _cand in sorted(item, key=lambda x: x[0], reverse=True):
-                        after_text = after_text[:start] + f_new + after_text[end:]
+                    for start, end, _cand in item:
+                        rel_ops.append((start, end, f_new))
                     file_occurrences += count
+            for start, end, f_new in sorted(rel_ops, key=lambda op: op[0], reverse=True):
+                after_text = after_text[:start] + f_new + after_text[end:]
 
             for kind, pat, f_new, count in data["replacements"]:
                 if kind == "exact":
@@ -511,7 +551,7 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     if not os.path.isfile(abs_old):
         raise FileNotFoundError("Исходный файл не найден: %s" % old_path)
 
-    if os.path.exists(abs_new):
+    if os.path.exists(abs_new) and not _is_case_only_rename(old_path, new_path, abs_old, abs_new):
         raise FileExistsError("Целевой файл уже существует: %s" % new_path)
 
     if not allow_addons and (is_addon_path(old_path, project_root) or is_addon_path(new_path, project_root)):
@@ -603,7 +643,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     new_import_path = new_path + ".import"
 
     if os.path.isfile(abs_old_import):
-        if os.path.exists(abs_new_import):
+        if os.path.exists(abs_new_import) and not _is_case_only_rename(
+                old_import_path, new_import_path, abs_old_import, abs_new_import):
             raise FileExistsError("Целевой файл .import уже существует: %s" % new_import_path)
 
         imp_raw, imp_text, imp_bom = _read_file_text(abs_old_import)
@@ -641,7 +682,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     abs_old_uid = abs_old + ".uid"
     abs_new_uid = abs_new + ".uid"
     new_uid_path = new_path + ".uid"
-    if os.path.isfile(abs_old_uid) and os.path.exists(abs_new_uid):
+    if os.path.isfile(abs_old_uid) and os.path.exists(abs_new_uid) and not _is_case_only_rename(
+            old_path + ".uid", new_path + ".uid", abs_old_uid, abs_new_uid):
         raise FileExistsError("Целевой файл .uid уже существует: %s" % new_uid_path)
 
     if update_references:
@@ -697,7 +739,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     }
 
 
-def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=None):
+def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=None,
+                               chain_id=None):
     """Atomically applies prepared file rename/relocation and reference updates.
     Records change in history_manager and supports single-click rollback.
     """
@@ -718,7 +761,8 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 with open(item["absolute"], "rb") as h:
                     if _sha256(h.read()) != item["before_hash"]:
                         raise StaleFileRefactorError("Исходный файл изменился: %s" % item["path"])
-                if os.path.exists(item["dest_absolute"]):
+                if os.path.exists(item["dest_absolute"]) and not _is_case_only_rename(
+                        item["path"], item["dest"], item["absolute"], item["dest_absolute"]):
                     raise FileExistsError("Целевой файл уже появился: %s" % item["dest"])
             elif item.get("action") == "patch_file":
                 if not os.path.isfile(item["absolute"]):
@@ -737,15 +781,39 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 dst_path = item["dest"]
                 src_abs = item["absolute"]
                 has_uid = os.path.isfile(src_abs + ".uid")
+                case_only = _is_case_only_rename(src_path, dst_path, src_abs, item["dest_absolute"])
 
-                states.append({"path": src_path, "before_bytes": b"", "after_bytes": None})
-                states.append({"path": dst_path, "before_bytes": None, "after_bytes": b""})
-                batch_paths.extend([src_path, dst_path])
+                if case_only:
+                    # Same physical file on a case-insensitive FS: record a single
+                    # entry with a rename marker instead of delete+create states.
+                    states.append({"path": src_path, "before_bytes": b"", "after_bytes": b"",
+                                   "case_only_dest": dst_path})
+                    batch_paths.append(src_path)
+                    if has_uid:
+                        states.append({"path": src_path + ".uid", "before_bytes": b"", "after_bytes": b"",
+                                       "case_only_dest": dst_path + ".uid"})
+                        batch_paths.append(src_path + ".uid")
+                else:
+                    states.append({"path": src_path, "before_bytes": b"", "after_bytes": None})
+                    states.append({"path": dst_path, "before_bytes": None, "after_bytes": b""})
+                    batch_paths.extend([src_path, dst_path])
 
-                if has_uid:
-                    states.append({"path": src_path + ".uid", "before_bytes": b"", "after_bytes": None})
-                    states.append({"path": dst_path + ".uid", "before_bytes": None, "after_bytes": b""})
-                    batch_paths.extend([src_path + ".uid", dst_path + ".uid"])
+                    if has_uid:
+                        states.append({"path": src_path + ".uid", "before_bytes": b"", "after_bytes": None})
+                        states.append({"path": dst_path + ".uid", "before_bytes": None, "after_bytes": b""})
+                        batch_paths.extend([src_path + ".uid", dst_path + ".uid"])
+
+            elif item.get("action") == "external_move_record":
+                # The move already happened outside (FileSystemDock); only
+                # journal a rollback anchor - nothing to execute on disk.
+                states.append({
+                    "path": item["path"],
+                    "before_bytes": None,
+                    "after_bytes": None,
+                    "external_move_dest": item["dest"],
+                    "external_move_is_dir": bool(item.get("is_directory")),
+                })
+                batch_paths.append(item["path"])
 
             elif item.get("action") == "patch_file":
                 states.append({
@@ -759,7 +827,8 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
 
         entry_id = history_manager.record_batch_change(
             project_root, "rename_file", batch_paths,
-            chat_id=chat_id, chat_title=chat_title, states=states
+            chat_id=chat_id, chat_title=chat_title, states=states,
+            chain_id=chain_id
         )
 
         temps = []
@@ -794,16 +863,40 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                             h.flush()
                             os.fsync(h.fileno())
 
-            # If directory move, clean up empty old directory
+            # If directory move, clean up the old directory tree.
             if is_directory:
                 abs_old_dir = _resolve_safe_path(project_root, old_path)
+                abs_new_dir = _resolve_safe_path(project_root, new_path)
+                # Never delete the directory we just moved files into.
                 try:
-                    shutil.rmtree(abs_old_dir)
-                except OSError:
-                    pass
+                    nested_cleanup = os.path.commonpath((
+                        os.path.normcase(os.path.abspath(abs_old_dir)),
+                        os.path.normcase(os.path.abspath(abs_new_dir)),
+                    )) == os.path.normcase(os.path.abspath(abs_old_dir))
+                except ValueError:
+                    nested_cleanup = False
+                if not nested_cleanup:
+                    # Remove only directories left empty by the move; files
+                    # outside the relocation map must survive (no data loss).
+                    for root_d, subdirs, _files in os.walk(abs_old_dir, topdown=False):
+                        for sub in subdirs:
+                            try:
+                                os.rmdir(os.path.join(root_d, sub))
+                            except OSError:
+                                pass
+                    try:
+                        os.rmdir(abs_old_dir)
+                    except OSError:
+                        pass
 
             # 5. Commit change to history
             history_manager.commit_change(project_root, entry_id)
+
+        except MoveRecoveryError as exc:
+            # Files may be half-moved and need manual recovery: keep the journal
+            # entry as an uncommitted reservation instead of aborting it.
+            exc.journal_entry_id = entry_id
+            raise
 
         except Exception as exc:
             # Abort and roll back
@@ -862,8 +955,25 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                                         chat_id=None, chat_title=None):
     """Synchronizes references across project after a file or directory was moved externally (e.g. by FileSystemDock).
     Atomically updates string references in .gd, .tscn, .tres, project.godot,
-    checks companion .import/.uid, and records changes in history_manager.
+    refreshes relative imports inside moved files, fixes companion .import
+    files, and records everything in history_manager — including a rollback
+    anchor that moves the file/directory BACK to old_path (audit 1.1).
+
+    The whole scan+apply runs under the project lock: Godot fires files_moved
+    per file and the panel posts them in parallel — scanning before taking the
+    lock made the second request fail with StaleFileRefactorError (audit 1.4).
     """
+    with _project_lock(project_root):
+        return _sync_references_after_external_move_impl(
+            project_root, old_path, new_path,
+            is_directory=is_directory, allow_addons=allow_addons,
+            chat_id=chat_id, chat_title=chat_title)
+
+
+def _sync_references_after_external_move_impl(project_root, old_path, new_path,
+                                              is_directory=False, allow_addons=False,
+                                              chat_id=None, chat_title=None):
+    """Lock-held implementation of sync_references_after_external_move."""
     old_path = _normalize_godot_path(old_path)
     new_path = _normalize_godot_path(new_path)
     if old_path == new_path:
@@ -882,15 +992,26 @@ def sync_references_after_external_move(project_root, old_path, new_path,
     total_refs = 0
     abs_old = _resolve_safe_path(project_root, old_path)
     abs_new = _resolve_safe_path(project_root, new_path)
+    dir_mode = bool(is_directory) or (not os.path.isfile(abs_new) and os.path.isdir(abs_new))
 
     # 1. If directory
-    if is_directory or (not os.path.isfile(abs_new) and os.path.isdir(abs_new)):
+    if dir_mode:
         old_prefix = old_path.rstrip("/") + "/"
         new_prefix = new_path.rstrip("/") + "/"
         old_no_slash = old_path.rstrip("/")
         new_no_slash = new_path.rstrip("/")
         dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_prefix) + r'([^"\'\s,\]]*)(?=["\'\s,\]])')
         exact_dir_pat = re.compile(r'(?<=["\'\*])' + re.escape(old_no_slash) + r'(?=["\'\s,\]])')
+
+        # Map every file of the moved tree (it already sits at the new
+        # location) — needed to fix relative imports inside the tree (2.1).
+        moved_map = {}
+        if os.path.isdir(abs_new):
+            for root, dirs, filenames in os.walk(abs_new):
+                dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+                for fn in filenames:
+                    rel = os.path.relpath(os.path.join(root, fn), abs_new).replace("\\", "/")
+                    moved_map[old_prefix + rel] = new_prefix + rel
 
         root_path = os.path.abspath(project_root)
         for root, dirs, files in os.walk(root_path):
@@ -909,10 +1030,26 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 except Exception:
                     continue
 
-                mod_text, count1 = dir_pat.subn(new_prefix + r'\1', text)
+                mod_text = text
+                internal_changes = 0
+                if ext == ".gd" and godot_file.startswith(new_prefix):
+                    # The file itself was moved: its relative imports may point
+                    # outside the tree and broke when the depth changed (2.1).
+                    f_old = old_prefix + godot_file[len(new_prefix):]
+                    mod_text, internal_changes = update_internal_relative_paths(
+                        mod_text, f_old, godot_file, project_root,
+                        moved_files_map=moved_map)
+                mod_text, count1 = dir_pat.subn(new_prefix + r"\1", mod_text)
                 mod_text, count2 = exact_dir_pat.subn(new_no_slash, mod_text)
-                count = count1 + count2
+                count = count1 + count2 + internal_changes
                 if count > 0:
+                    # Guard every touched GDScript with the linter (2.3).
+                    if ext == ".gd":
+                        lint_errors = gd_lint.lint_gdscript(mod_text)
+                        if lint_errors:
+                            print("[sync_references_after_external_move] Lint error in %s, skipping: %s"
+                                  % (godot_file, lint_errors[0]))
+                            continue
                     after_bytes = (b"\xef\xbb\xbf" if bom else b"") + mod_text.encode("utf-8")
                     files_to_modify.append({
                         "action": "patch_file",
@@ -924,6 +1061,34 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                         "occurrences": count,
                     })
                     total_refs += count
+
+        # Companion .import files inside the moved tree still reference the
+        # old location in source_file= (2.2).
+        if os.path.isdir(abs_new):
+            imp_pat = re.compile(r"(\bsource_file\s*=\s*[\"'])" + re.escape(old_prefix))
+            for root, dirs, filenames in os.walk(abs_new):
+                dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+                for fn in filenames:
+                    if not fn.lower().endswith(".import"):
+                        continue
+                    abs_imp = os.path.join(root, fn)
+                    rel_imp = os.path.relpath(abs_imp, root_path).replace("\\", "/")
+                    try:
+                        imp_raw, imp_text, imp_bom = _read_file_text(abs_imp)
+                    except Exception:
+                        continue
+                    mod_imp_text, imp_count = imp_pat.subn(r"\g<1>" + new_prefix, imp_text)
+                    if imp_count > 0:
+                        files_to_modify.append({
+                            "action": "patch_file",
+                            "path": "res://" + rel_imp,
+                            "absolute": abs_imp,
+                            "before_hash": _sha256(imp_raw),
+                            "before_bytes": imp_raw,
+                            "after_bytes": (b"\xef\xbb\xbf" if imp_bom else b"") + mod_imp_text.encode("utf-8"),
+                            "occurrences": imp_count,
+                        })
+                        total_refs += imp_count
     else:
         # 2. Single file
         references = find_file_references(project_root, old_path, allow_addons=allow_addons, skip_source_check=True)
@@ -957,6 +1122,29 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                     "occurrences": ref["occurrences"],
                 })
                 total_refs += ref["occurrences"]
+
+        # The moved file itself may contain relative imports that broke when
+        # its directory depth changed (2.1).
+        if os.path.isfile(abs_new) and new_path.lower().endswith(".gd"):
+            mv_raw, mv_text, mv_bom = _read_file_text(abs_new)
+            mod_mv_text, internal_changes = update_internal_relative_paths(
+                mv_text, old_path, new_path, project_root)
+            if internal_changes > 0:
+                lint_errors = gd_lint.lint_gdscript(mod_mv_text)
+                if lint_errors:
+                    print("[sync_references_after_external_move] Lint error in %s, skipping: %s"
+                          % (new_path, lint_errors[0]))
+                else:
+                    files_to_modify.append({
+                        "action": "patch_file",
+                        "path": new_path,
+                        "absolute": abs_new,
+                        "before_hash": _sha256(mv_raw),
+                        "before_bytes": mv_raw,
+                        "after_bytes": (b"\xef\xbb\xbf" if mv_bom else b"") + mod_mv_text.encode("utf-8"),
+                        "occurrences": internal_changes,
+                    })
+                    total_refs += internal_changes
 
         # Check companion .import
         abs_old_import = abs_old + ".import"
@@ -1014,6 +1202,19 @@ def sync_references_after_external_move(project_root, old_path, new_path,
                 "occurrences": 0,
             })
 
+    # Rollback anchor: the move itself happened outside our transaction log
+    # (FileSystemDock), so nothing may execute it again — but the journal needs
+    # a record that lets rollback move the file/directory back (1.1).
+    if os.path.lexists(abs_new):
+        files_to_modify.append({
+            "action": "external_move_record",
+            "path": old_path,
+            "dest": new_path,
+            "absolute": abs_old,
+            "dest_absolute": abs_new,
+            "is_directory": dir_mode,
+        })
+
     if not files_to_modify:
         return {
             "ok": True,
@@ -1030,7 +1231,7 @@ def sync_references_after_external_move(project_root, old_path, new_path,
         "files": files_to_modify,
         "old_path": old_path,
         "new_path": new_path,
-        "is_directory": is_directory,
+        "is_directory": dir_mode,
         "reference_count": total_refs,
     }
     result = apply_prepared_file_rename(project_root, prepared, chat_id=chat_id, chat_title=chat_title)
