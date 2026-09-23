@@ -243,6 +243,12 @@ def prepare_directory_relocation(project_root, old_path, new_path,
     if not os.path.isdir(abs_old):
         raise FileNotFoundError("Исходная папка не найдена: %s" % old_path)
 
+    # Case-only rename (res://chars -> res://Chars) on a case-insensitive FS
+    # targets the SAME directory: realpath collapses both paths to the on-disk
+    # casing, so the guards below would see the source itself. It is neither
+    # self-nesting nor a destination conflict.
+    case_only = _is_case_only_rename(old_path, new_path, abs_old, abs_new)
+
     # Never move a directory into itself or its own subdirectory: the final
     # cleanup of the old tree would wipe the freshly moved files.
     old_dir_norm = os.path.normcase(os.path.abspath(abs_old))
@@ -251,12 +257,12 @@ def prepare_directory_relocation(project_root, old_path, new_path,
         nested = os.path.commonpath((old_dir_norm, new_dir_norm)) == old_dir_norm
     except ValueError:
         nested = False
-    if nested:
+    if nested and not case_only:
         raise FileRefactorError(
             "Нельзя переместить папку внутрь самой себя: %s -> %s" % (old_path, new_path)
         )
 
-    if os.path.exists(abs_new):
+    if os.path.exists(abs_new) and not case_only:
         raise FileExistsError("Целевая папка уже существует: %s" % new_path)
 
     if not allow_addons and (is_addon_path(old_path, project_root) or is_addon_path(new_path, project_root)):
@@ -752,6 +758,23 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
     new_path = prepared["new_path"]
     is_directory = bool(prepared.get("is_directory", False))
 
+    # Case-only directory rename (res://chars -> res://Chars): on a
+    # case-insensitive FS both paths are the same directory entry, so the
+    # per-file moves below cannot express the rename — the directory entry
+    # itself must be renamed once, and the files only get content updates.
+    dir_case_only = False
+    abs_old_dir = abs_new_dir = requested_new_dir = None
+    if is_directory:
+        abs_old_dir = _resolve_safe_path(project_root, old_path)
+        abs_new_dir = _resolve_safe_path(project_root, new_path)
+        dir_case_only = _is_case_only_rename(old_path, new_path, abs_old_dir, abs_new_dir)
+        if dir_case_only:
+            # realpath collapses letter case; rebuild the destination with the
+            # caller-requested casing (same approach as move_project_file).
+            new_dir_rel = new_path.removeprefix("res://").replace("\\", "/").strip("/")
+            requested_new_dir = os.path.join(os.path.realpath(project_root),
+                                             *new_dir_rel.split("/"))
+
     with _project_lock(project_root):
         # 1. Freshness check
         for item in files:
@@ -783,7 +806,15 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 has_uid = os.path.isfile(src_abs + ".uid")
                 case_only = _is_case_only_rename(src_path, dst_path, src_abs, item["dest_absolute"])
 
-                if case_only:
+                if dir_case_only:
+                    # Directory case-only rename: the file stays in place (same
+                    # physical entry — the directory-entry rename below covers
+                    # the res:// casing, .uid companions included). Record a
+                    # plain content state so rollback restores the bytes.
+                    states.append({"path": src_path, "before_bytes": item["before_bytes"],
+                                   "after_bytes": item["after_bytes"]})
+                    batch_paths.append(src_path)
+                elif case_only:
                     # Same physical file on a case-insensitive FS: record a single
                     # entry with a rename marker instead of delete+create states.
                     states.append({"path": src_path, "before_bytes": b"", "after_bytes": b"",
@@ -823,6 +854,15 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 })
                 batch_paths.append(item["path"])
 
+        if dir_case_only:
+            # Journal the directory-entry rename itself: rollback restores the
+            # old letter casing via the case_only_dest marker (file contents
+            # are covered by the content states above). before/after are None
+            # so no snapshot is taken of a directory.
+            states.append({"path": old_path, "before_bytes": None, "after_bytes": None,
+                           "case_only_dest": new_path})
+            batch_paths.append(old_path)
+
         batch_paths = list(dict.fromkeys(batch_paths))
 
         entry_id = history_manager.record_batch_change(
@@ -834,6 +874,7 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
         temps = []
         replaced = []
         moved_items = []
+        dir_case_renamed = False
 
         try:
             # 3. Write patch files using safe temp replacement
@@ -855,6 +896,17 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
             # 4. Move target files + uid, and write updated content if after_bytes differs
             for item in files:
                 if item.get("action") == "move_file":
+                    if dir_case_only:
+                        # Same physical file (and .uid companion): nothing to
+                        # move — the single directory rename below fixes the
+                        # casing. Only the content may change (internal refs,
+                        # .import source_file).
+                        if item.get("after_bytes") is not None and item.get("after_bytes") != item.get("before_bytes"):
+                            with open(item["absolute"], "wb") as h:
+                                h.write(item["after_bytes"])
+                                h.flush()
+                                os.fsync(h.fileno())
+                        continue
                     project_tools.move_project_file(project_root, item["path"], item["dest"])
                     moved_items.append((item["dest"], item["path"]))
                     if item.get("after_bytes") is not None and item.get("after_bytes") != item.get("before_bytes"):
@@ -865,6 +917,11 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
 
             # If directory move, clean up the old directory tree.
             if is_directory:
+                if dir_case_only:
+                    # The actual case-only rename of the directory entry:
+                    # per-file moves cannot express it on a case-insensitive FS.
+                    os.rename(abs_old_dir, requested_new_dir)
+                    dir_case_renamed = True
                 abs_old_dir = _resolve_safe_path(project_root, old_path)
                 abs_new_dir = _resolve_safe_path(project_root, new_path)
                 # Never delete the directory we just moved files into.
@@ -900,6 +957,11 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
 
         except Exception as exc:
             # Abort and roll back
+            if dir_case_renamed:
+                try:
+                    os.rename(requested_new_dir, abs_old_dir)
+                except OSError:
+                    pass
             for dst, src in reversed(moved_items):
                 try:
                     project_tools.move_project_file(project_root, dst, src)
@@ -908,6 +970,15 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
 
             for item in files:
                 if item.get("action") == "patch_file" and item.get("before_bytes") is not None:
+                    try:
+                        with open(item["absolute"], "wb") as h:
+                            h.write(item["before_bytes"])
+                    except Exception:
+                        pass
+                elif dir_case_only and item.get("action") == "move_file" \
+                        and item.get("after_bytes") != item.get("before_bytes"):
+                    # Content was rewritten in place (case-only dir rename):
+                    # restore the original bytes.
                     try:
                         with open(item["absolute"], "wb") as h:
                             h.write(item["before_bytes"])

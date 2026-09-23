@@ -178,6 +178,76 @@ class CaseOnlyRenameWindows(_ProjectFixture):
                       self.main_gd.read_text(encoding="utf-8"))
 
 
+@unittest.skipUnless(os.name == "nt", "case-only directory rename needs a case-insensitive FS")
+class DirectoryCaseOnlyRenameWindows(_ProjectFixture):
+    """Case-only directory rename (res://chars -> res://Chars) must work.
+
+    Pre-fix, realpath collapses both paths to the on-disk casing on Windows, so
+    the self-nesting guard fired ('Нельзя переместить папку внутрь самой себя')
+    and the destination-exists guard saw the source directory itself.
+    """
+
+    def test_prepare_case_only_dir_rename_does_not_raise(self):
+        prep = file_refactor.prepare_file_rename(str(self.root), "res://chars", "res://Chars")
+        self.assertTrue(prep.get("is_directory"))
+
+    def test_apply_renames_directory_entry_and_preserves_everything(self):
+        res = self.move_dir("res://chars", "res://Chars")
+        self.assertTrue(res.get("entry_id"))
+        names = os.listdir(self.root)
+        self.assertIn("Chars", names)
+        self.assertNotIn("chars", names)
+        renamed = self.root / "Chars"
+        self.assertEqual((renamed / "hero.gd").read_text(encoding="utf-8"),
+                         "extends Node\nclass_name Hero\n")
+        self.assertEqual((renamed / "hero.gd.uid").read_text(encoding="utf-8"), "uid://hero123\n")
+        self.assertEqual((renamed / "enemies" / "goblin.gd").read_text(encoding="utf-8"),
+                         "extends Node\n")
+        self.assertEqual((renamed / "enemies" / "goblin.gd.uid").read_text(encoding="utf-8"),
+                         "uid://goblin456\n")
+        self.assertTrue((renamed / "tex.png").exists())
+        self.assertTrue((renamed / "tex.png.import").exists())
+
+    def test_case_only_dir_rename_updates_references_and_import(self):
+        self.move_dir("res://chars", "res://Chars")
+        main_text = self.main_gd.read_text(encoding="utf-8")
+        self.assertIn('preload("res://Chars/hero.gd")', main_text)
+        self.assertIn('load("res://Chars/tex.png")', main_text)
+        self.assertNotIn("res://chars/", main_text)
+        imp_text = (self.root / "Chars" / "tex.png.import").read_text(encoding="utf-8")
+        self.assertIn('source_file="res://Chars/tex.png"', imp_text)
+        self.assertNotIn("res://chars/tex.png", imp_text)
+
+    def test_case_only_dir_rename_rollback_restores_casing(self):
+        res = self.move_dir("res://chars", "res://Chars")
+        self.assertIn("Chars", os.listdir(self.root))
+
+        import history_manager
+        ok, message, _needs_force, _paths, _diff = history_manager.rollback_entry(
+            str(self.root), res["entry_id"]
+        )
+        self.assertTrue(ok, message)
+        names = os.listdir(self.root)
+        self.assertIn("chars", names)
+        self.assertNotIn("Chars", names)
+        self.assertEqual((self.chars / "hero.gd").read_text(encoding="utf-8"),
+                         "extends Node\nclass_name Hero\n")
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_self_nesting_guard_still_works_with_different_case(self):
+        # The case-only bypass must not reopen the self-nesting hole.
+        with self.assertRaises(file_refactor.FileRefactorError):
+            self.move_dir("res://chars", "res://CHARS/heroes")
+        self.assertTrue(self.hero.exists())
+
+    def test_existing_other_directory_conflict_still_raises(self):
+        (self.root / "heroes").mkdir()
+        with self.assertRaises(FileExistsError):
+            self.move_dir("res://chars", "res://Heroes")
+        self.assertTrue(self.hero.exists())
+
+
 class HardlinkFallback(_ProjectFixture):
     """Audit 4.2: os.link is unavailable on FAT32/exFAT and across volumes."""
 
