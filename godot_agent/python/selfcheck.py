@@ -2312,30 +2312,40 @@ check("21.18 v63: /minilich/status и /minilich/set печатают training_ac
       'training_active=%s' in _src23main and
       _src23main.count('training_active=%s') >= 2)
 
-# 21.19 v64: enabled=True переживает рестарт сервера (диск), а фоновой поток
-# обучения — нет. Статус теперь должен сам воскрешать тренировку,
-# если она включена, но ещё не активна в текущем процессе.
+# 21.19 v64→v106: enabled=True переживает рестарт сервера (диск), а фоновой
+# поток обучения — нет. ИСТОРИЯ: v64 статус сам «воскрешал» тренировку, но v106
+# выяснилось, что это включает обучение из ЧИТАЮЩИХ эндпоинтов — открытие
+# настроек (POST /minilich/status; кнопка «Обновить справочник API» живёт в том
+# же диалоге) и страница дашборда (GET /dashboard/data) молча стартовали
+# обучение. Новый контракт: status() — чистое чтение, обучение запускает только
+# явный /minilich/set(enabled=true). Проверка ниже это и закрепляет.
 try:
     import tempfile as _tf64
     import shutil as _sh64
     import minilich as _ml64
     _root64 = tempfile.mkdtemp(prefix="ml64_")
+    _started64 = []
+    _orig_start64 = _ml64.start_training
+    _ml64.start_training = lambda *a, **k: (_started64.append(1), False)[1]
     try:
         _ml64.set_enabled(_root64, True)
         _st64a = _ml64.status(_root64, None)
-        import time as _time64
-        _time64.sleep(0.2)
         _st64b = _ml64.status(_root64, None)
-        check("21.19 v64: enabled=True без тумблера сам воскрешает тренировку",
-              _st64a.get("enabled") is True and _st64b.get("training_active") is True)
+        _st64c = _ml64.status(_root64, None)
+        check("21.19 v106: status-опрос НЕ воскрешает обучение (настройки/дашборд не включают тренировку)",
+              _st64a.get("enabled") is True and _st64b.get("training_active") is False
+              and len(_started64) == 0,
+              "status вызвал start_training %d раз" % len(_started64))
     finally:
-        _ml64.stop_training()
+        _ml64.start_training = _orig_start64
         _sh64.rmtree(_root64, ignore_errors=True)
 except Exception as _e64:
-    check("21.19 v64: enabled=True без тумблера сам воскрешает тренировку", True, "numpy/minilich недоступен в этом окружении (%s) — проверка проигнорирована" % _e64)
+    check("21.19 v106: status-опрос НЕ воскрешает обучение (настройки/дашборд не включают тренировку)",
+          True, "numpy/minilich недоступен в этом окружении (%s) — проверка проигнорирована" % _e64)
 
-# 21.20 v64: main.py должен передавать addon_dir в minilich.status(), иначе синтетика
-# при авто-воскрешении обучения останется беднее, чем могла бы быть.
+# 21.20 v64: main.py должен передавать addon_dir в minilich.status(), иначе
+# «мозг» (датасет/чекпоинты) ищется не в папке аддона и статус показывает
+# беднее, чем есть.
 check("21.20 v64: main.py передаёт addon_dir в minilich.status()",
       _src23main.count('minilich.status(root, STATE.get("addon_dir"))') >= 2)
 
