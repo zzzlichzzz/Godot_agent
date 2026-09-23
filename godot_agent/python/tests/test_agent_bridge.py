@@ -116,6 +116,22 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertIn("[Librarian]", out)
         self.assertNotIn("Traceback", out + err)
 
+    def test_ask_footer_is_bridge_not_server(self):
+        # Хвост Библиотекаря советует серверные read_function/patch_file —
+        # через мост их нет; мост обязан подменить подсказку на свою.
+        rc, out, err = run_bridge(self.base + ["ask", "player damage"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("Next (bridge):", out)
+        self.assertNotIn("read_function", out)
+
+    def test_ask_nothing_relevant_exit2_not_error(self):
+        # «По запросу ничего не нашлось» — это ОТВЕТ (rc 2), а не успех
+        # (иначе модель решит, что данные получены) и не сбой (rc 3).
+        rc, out, err = run_bridge(self.base + ["ask", "zzqxx_no_such_thing_zz"])
+        self.assertEqual(rc, 2, err)
+        self.assertIn("not-found", err)
+        self.assertNotIn("Traceback", out + err)
+
     # --- paths preview ------------------------------------------------------
 
     def test_paths_preview_exit0_counts_references(self):

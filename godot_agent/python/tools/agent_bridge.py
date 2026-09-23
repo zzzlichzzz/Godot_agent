@@ -263,6 +263,16 @@ def cmd_api(opts, args):
     return _finish(RC_OK, "class %s from API cache" % class_name)
 
 
+# FOOTER Библиотекаря советует read_function/patch_file — это инструменты
+# СЕРВЕРНОГО агента; через мост их нет, и внешняя нейросеть, послушавшись
+# подсказки, получила бы rc 4. Заменяем хвост на честный мостовой.
+_BRIDGE_FOOTER = ("Next (bridge): read function bodies with your own file tools "
+                  "at the 1-based lines above — precise function-reading and "
+                  "file-patching actions exist only in the editor panel agent, "
+                  "NOT in this bridge. Explore: ask with other English terms; "
+                  "verify signatures: api <Class>.")
+
+
 def cmd_ask(opts, args):
     """Компактная справка Библиотекаря о проекте (индекс строится на лету)."""
     if not args:
@@ -272,7 +282,19 @@ def cmd_ask(opts, args):
         return _finish(RC_ERROR, "project.godot not found (use --root)")
     import librarian
     text = librarian.answer(root, " ".join(args), addon_dir=_addon_arg(opts))
+    text = text.replace(librarian.FOOTER, _BRIDGE_FOOTER)
+    # В ветке «nothing matches» Библиотекарь тоже называет серверные
+    # действия — переводим на реальные эквиваленты моста.
+    text = text.replace("search_project", "search")
+    text = text.replace("list_files", "your own file listing")
     _out(text)
+    # Тот же критерий наполненности, что у самого Библиотекаря (has_content):
+    # если данных нет — это «по запросу ничего не нашлось» (ОТВЕТ, rc 2),
+    # а не успех и не сбой. Модель по rc 2 поймёт: не долбить тем же запросом.
+    has_content = any(str(ln).startswith(("- ", "  ", "res://"))
+                      for ln in text.splitlines())
+    if not has_content:
+        return _finish(RC_NOT_FOUND, "nothing relevant found")
     return _finish(RC_OK, "librarian answer")
 
 
