@@ -197,3 +197,20 @@ def collect_members(project_root, class_name, addon_dir=None):
         props.update(info.get("properties") or [])
         signals.update(info.get("signals") or [])
     return methods, props, signals
+
+
+def collect_signatures(project_root, class_name, addon_dir=None):
+    """Объединённые сигнатуры методов (имя -> "name(arg: T = d) -> R")
+    по той же цепочке наследования, что и collect_members.
+
+    Появились в кэше позже арности: для кэша старого формата (или класса без
+    "signatures") вернёт {} — потребитель обязан деградировать до арности,
+    а не падать. Нестроковые записи (битый кэш) пропускаем."""
+    chain = resolve_chain(project_root, class_name, 30, addon_dir)
+    sigs = {}
+    for c in chain:
+        info = get_class(project_root, c, addon_dir=addon_dir) or {}
+        for name, sig in (info.get("signatures") or {}).items():
+            if isinstance(name, str) and isinstance(sig, str):
+                sigs.setdefault(name, sig)
+    return sigs

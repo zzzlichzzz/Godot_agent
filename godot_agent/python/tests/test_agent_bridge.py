@@ -40,6 +40,30 @@ def run_bridge(argv):
     return rc, out.getvalue(), err.getvalue()
 
 
+# Кэш НОВОГО формата: рядом с арностью лежат полные сигнатуры методов
+# (их собирает экспортёр ClassDB из agent_api_export.gd).
+_SIG_CLASSES = {
+    "Object": {"inherits": "", "methods": {"free": [0, 0]}, "properties": [], "signals": []},
+    "PhysicsBody2D": {
+        "inherits": "Object",
+        "methods": {"get_collision_layer": [0, 0]},
+        "signatures": {"get_collision_layer": "get_collision_layer() -> int"},
+        "properties": [],
+        "signals": [],
+    },
+    "CharacterBody2D": {
+        "inherits": "PhysicsBody2D",
+        "methods": {"move_and_slide": [0, 0], "take_hit": [1, 2]},
+        "signatures": {
+            "move_and_slide": "move_and_slide() -> bool",
+            "take_hit": "take_hit(amount: int, crit: bool = false) -> void",
+        },
+        "properties": ["velocity"],
+        "signals": [],
+    },
+}
+
+
 class AgentBridgeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="bridge_test_")
@@ -131,6 +155,37 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertEqual(rc, 2, err)
         self.assertIn("not-found", err)
         self.assertNotIn("Traceback", out + err)
+
+    # --- полные сигнатуры методов в `api` (кэш нового формата) ---
+
+    def test_api_full_signatures_when_cache_has_them(self):
+        # Внешней модели нужны ИМЕНА/типы аргументов и дефолты, а не только
+        # «0..0»: без сигнатур она галлюцинирует параметры.
+        gd_api_cache.save_cache(self.root, _SIG_CLASSES, godot_version="4.6.3")
+        rc, out, err = run_bridge(self.base + ["api", "CharacterBody2D"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("move_and_slide() -> bool", out)
+        self.assertIn("take_hit(amount: int, crit: bool = false) -> void", out)
+        # унаследованный метод тоже печатается с сигнатурой
+        self.assertIn("get_collision_layer() -> int", out)
+        self.assertNotIn("take_hit(1..2)", out)
+
+    def test_api_arity_only_cache_keeps_working(self):
+        # Старый кэш (без signatures) — поведение прежнее, ничего не ломаем.
+        classes = {
+            "Object": {"inherits": "", "methods": {"free": [0, 0]}, "properties": [], "signals": []},
+            "PhysicsBody2D": {"inherits": "Object", "methods": {"get_collision_layer": [0, 0]},
+                              "properties": [], "signals": []},
+            "CharacterBody2D": {"inherits": "PhysicsBody2D",
+                                "methods": {"move_and_slide": [0, 0], "take_hit": [1, 2]},
+                                "properties": ["velocity"], "signals": []},
+        }
+        gd_api_cache.save_cache(self.root, classes, godot_version="4.6.3")
+        rc, out, err = run_bridge(self.base + ["api", "CharacterBody2D"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("move_and_slide()", out)
+        self.assertIn("take_hit(1..2)", out)
+        self.assertNotIn("amount: int", out)  # принтер не выдумывает сигнатуры
 
     # --- paths preview ------------------------------------------------------
 

@@ -562,6 +562,11 @@ check("panel refuses unprovable runtime ownership without starting or stopping g
        and "RUNTIME_CHECK_RESULT_URL" in panel and '"bridge_unavailable"' in panel
        and "_pending_runtime_check_result_body" in panel
        and "func _exit_tree" in panel)
+api_exporter = read(_os0.path.join(ADDON, "agent_api_export.gd"))
+check("api exporter emits full method signatures next to arity",
+      '"signatures"' in api_exporter
+      and "type_string(" in api_exporter
+      and "var_to_str(" in api_exporter)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

@@ -256,8 +256,20 @@ def cmd_api(opts, args):
             return "%s(%d..%d)" % (name, lo, hi) if hi else "%s()" % name
         except Exception:
             return name
-    _out("methods (%d): %s" % (len(methods),
-         " ".join(sorted(_fmt_method(n, a) for n, a in methods.items()))))
+    # Полные сигнатуры (новый формат кэша) печатаем по одной на строку —
+    # это и есть защита от выдуманных параметров; старый кэш без signatures
+    # деградирует до прежней компактной строки арности.
+    try:
+        sigs = gd_api_cache.collect_signatures(root, class_name, addon)
+    except Exception:
+        sigs = {}
+    if sigs:
+        _out("methods (%d):" % len(methods))
+        for n in sorted(methods):
+            _out("  %s" % (sigs.get(n) or _fmt_method(n, methods[n])))
+    else:
+        _out("methods (%d): %s" % (len(methods),
+             " ".join(sorted(_fmt_method(n, a) for n, a in methods.items()))))
     _out("properties (%d): %s" % (len(props), " ".join(sorted(props))))
     _out("signals (%d): %s" % (len(signals), " ".join(sorted(signals))))
     return _finish(RC_OK, "class %s from API cache" % class_name)
