@@ -309,6 +309,93 @@ class HardlinkFallback(_ProjectFixture):
         self.assertFalse((self.root / "moved" / "Hero.gd.uid").exists())
 
 
+@unittest.skipUnless(os.name == "nt", "case-only dir component rename needs a case-insensitive FS")
+class CaseOnlyDirComponentRenameWindows(_ProjectFixture):
+    """Свежий аудит, п.3: res://chars/hero.gd -> res://Chars/hero.gd — имя
+    файла не меняется, регистр меняется у КАТАЛОГА. _move_case_only
+    переименовывал только листовой компонент: на диске оставался "chars",
+    а ссылки и журнал записывали запрошенный "Chars" — рассинхрон,
+    который всплывает при экспорте на case-sensitive ФС."""
+
+    def test_move_project_file_fixes_directory_casing(self):
+        project_tools.move_project_file(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+        names = os.listdir(self.root)
+        self.assertIn("Chars", names)
+        self.assertNotIn("chars", names)
+        renamed = self.root / "Chars"
+        self.assertEqual((renamed / "hero.gd").read_text(encoding="utf-8"),
+                         "extends Node\nclass_name Hero\n")
+        self.assertEqual((renamed / "hero.gd.uid").read_text(encoding="utf-8"),
+                         "uid://hero123\n")
+        # Соседнее содержимое каталога переехало вместе с ним и не потеряно.
+        self.assertTrue((renamed / "enemies" / "goblin.gd").exists())
+
+    def test_move_project_file_fixes_nested_directory_casing(self):
+        project_tools.move_project_file(
+            str(self.root), "res://chars/enemies/goblin.gd",
+            "res://Chars/Enemies/goblin.gd")
+        self.assertIn("Chars", os.listdir(self.root))
+        chars = self.root / "Chars"
+        self.assertIn("Enemies", os.listdir(chars))
+        self.assertNotIn("enemies", os.listdir(chars))
+        self.assertEqual((chars / "Enemies" / "goblin.gd").read_text(encoding="utf-8"),
+                         "extends Node\n")
+        # Братский файл не пострадал, его каталоги тоже в новом регистре.
+        self.assertTrue((chars / "hero.gd").exists())
+        self.assertTrue((chars / "Enemies" / "goblin.gd.uid").exists())
+
+    def test_prepare_apply_dir_component_case_updates_references_and_disk(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertTrue(res.get("entry_id"))
+        self.assertIn("Chars", os.listdir(self.root))
+        self.assertNotIn("chars", os.listdir(self.root))
+        self.assertIn('preload("res://Chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_dir_component_case_rollback_restores_old_casing(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertIn("Chars", os.listdir(self.root))
+
+        import history_manager
+        ok, message, _nf, _paths, _diff = history_manager.rollback_entry(
+            str(self.root), res["entry_id"])
+        self.assertTrue(ok, message)
+        self.assertIn("chars", os.listdir(self.root))
+        self.assertNotIn("Chars", os.listdir(self.root))
+        self.assertIn("hero.gd", os.listdir(self.root / "chars"))
+        self.assertIn("hero.gd.uid", os.listdir(self.root / "chars"))
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_dir_rename_fixes_parent_directory_casing(self):
+        # res://chars/enemies -> res://Chars/Enemies: меняется регистр двух
+        # компонентов; старый код переименовывал только листовой каталог,
+        # оставляя родительский в прежнем регистре.
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertTrue(res.get("entry_id"))
+        chars = self.root / "Chars"
+        self.assertIn("Chars", os.listdir(self.root))
+        self.assertIn("Enemies", os.listdir(chars))
+        self.assertTrue((chars / "Enemies" / "goblin.gd").exists())
+
+        import history_manager
+        ok, message, _nf, _paths, _diff = history_manager.rollback_entry(
+            str(self.root), res["entry_id"])
+        self.assertTrue(ok, message)
+        self.assertIn("chars", os.listdir(self.root))
+        self.assertNotIn("Chars", os.listdir(self.root))
+        self.assertIn("enemies", os.listdir(self.root / "chars"))
+        self.assertNotIn("Enemies", os.listdir(self.root / "chars"))
+        self.assertTrue((self.root / "chars" / "enemies" / "goblin.gd").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
 

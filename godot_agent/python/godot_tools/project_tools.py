@@ -338,6 +338,48 @@ def _move_case_only(abs_source, abs_dest):
         raise
 
 
+
+def fix_case_only_dir_casing(project_root, src_rel, dst_rel):
+    """Rename DIRECTORY components of a case-only rename to the requested casing.
+
+    On a case-insensitive filesystem ``os.rename(src, dst)`` where only
+    directory letters differ is a no-op for those directories: the leaf rename
+    resolves the old on-disk casing and the requested one is silently dropped
+    (fresh move/rename audit, item 3). Walk the directory components top-down
+    and rename each one whose on-disk name differs from the requested one only
+    by letter case. Returns the absolute parent directory of the leaf with the
+    requested casing applied. Already-renamed directories are restored if a
+    later component fails.
+    """
+    src_dirs = src_rel.split("/")[:-1]
+    dst_dirs = dst_rel.split("/")[:-1]
+    if len(src_dirs) != len(dst_dirs):
+        raise ValueError("Case-only rename must keep the path depth: %s -> %s"
+                         % (src_rel, dst_rel))
+    current = os.path.realpath(project_root)
+    renamed = []
+    try:
+        for src_part, dst_part in zip(src_dirs, dst_dirs):
+            old_dir = os.path.join(current, src_part)
+            if src_part == dst_part:
+                current = old_dir
+                continue
+            if not os.path.isdir(old_dir):
+                raise FileNotFoundError(f"Каталог не найден: {old_dir}")
+            new_dir = os.path.join(current, dst_part)
+            os.rename(old_dir, new_dir)
+            renamed.append((old_dir, new_dir))
+            current = new_dir
+    except OSError:
+        for old_dir, new_dir in reversed(renamed):
+            try:
+                os.rename(new_dir, old_dir)
+            except OSError:
+                pass
+        raise
+    return current
+
+
 def move_project_file(project_root, source_godot_path, dest_godot_path):
     """Move a file and its UID without clobbering; restore on ordinary I/O failure."""
     abs_source = _resolve_safe_path(project_root, source_godot_path)
@@ -351,8 +393,12 @@ def move_project_file(project_root, source_godot_path, dest_godot_path):
     if src_rel != dst_rel and src_rel.lower() == dst_rel.lower() and os.path.lexists(abs_dest):
         # Case-only rename on a case-insensitive filesystem (Windows):
         # realpath collapsed both paths to the on-disk casing, so rebuild
-        # the destination preserving the requested letter case.
-        abs_dest_requested = os.path.join(os.path.realpath(project_root), *dst_rel.split("/"))
+        # the destination preserving the requested letter case. Directory
+        # components with changed casing must be renamed explicitly --
+        # otherwise the leaf rename alone silently keeps the old dir casing
+        # while references/journal record the requested one (fresh audit, item 3).
+        dest_parent = fix_case_only_dir_casing(project_root, src_rel, dst_rel)
+        abs_dest_requested = os.path.join(dest_parent, dst_rel.split("/")[-1])
         _move_case_only(abs_source, abs_dest_requested)
         return
     identities = {os.path.normcase(p) for p in (abs_source, abs_dest, source_uid, dest_uid)}

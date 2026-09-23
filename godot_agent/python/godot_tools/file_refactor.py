@@ -920,7 +920,16 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                 if dir_case_only:
                     # The actual case-only rename of the directory entry:
                     # per-file moves cannot express it on a case-insensitive FS.
-                    os.rename(abs_old_dir, requested_new_dir)
+                    # Parent components with changed casing must be renamed
+                    # explicitly too (fresh audit, item 3): os.rename alone
+                    # would fix only the leaf and keep e.g. "chars" on disk
+                    # for res://chars/enemies -> res://Chars/Enemies.
+                    case_old_rel = old_path.removeprefix("res://").strip("/")
+                    case_new_rel = new_path.removeprefix("res://").strip("/")
+                    case_new_parent = project_tools.fix_case_only_dir_casing(
+                        project_root, case_old_rel, case_new_rel)
+                    os.rename(abs_old_dir,
+                              os.path.join(case_new_parent, case_new_rel.split("/")[-1]))
                     dir_case_renamed = True
                 abs_old_dir = _resolve_safe_path(project_root, old_path)
                 abs_new_dir = _resolve_safe_path(project_root, new_path)
