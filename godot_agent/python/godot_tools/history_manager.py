@@ -8,7 +8,7 @@ import tempfile
 import threading
 from functools import wraps
 
-from project_tools import _resolve_safe_path
+from project_tools import _resolve_safe_path, begin_case_only_dir_casing
 
 # ---------------------------------------------------------------------------
 # Журнал изменений агента (многоуровневый откат вместо одноразового .bak).
@@ -768,9 +768,24 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                 case_dest = item.get("case_only_dest")
                 if case_dest:
                     # Case-only rename: same physical file — restore the old
-                    # letter casing by renaming back (content is unchanged).
-                    os.rename(_requested_case_path(project_root, case_dest),
-                              _requested_case_path(project_root, item["path"]))
+                    # letter casing, INCLUDING changed directory components
+                    # (fresh audit, item 3): a bare leaf rename would leave
+                    # the parent directories in the new casing.
+                    dest_rel = str(case_dest).removeprefix("res://").replace(chr(92), "/").strip("/")
+                    orig_rel = str(item["path"]).removeprefix("res://").replace(chr(92), "/").strip("/")
+                    case_tx = begin_case_only_dir_casing(project_root, dest_rel, orig_rel)
+                    src_leaf = os.path.join(case_tx.new_parent, dest_rel.split("/")[-1])
+                    dst_leaf = os.path.join(case_tx.new_parent, orig_rel.split("/")[-1])
+                    try:
+                        if src_leaf != dst_leaf:
+                            case_tx.rename(src_leaf, dst_leaf)
+                        case_tx.commit()
+                    except Exception:
+                        try:
+                            case_tx.rollback()
+                        except Exception:
+                            pass
+                        raise
                     restored.append(item["path"])
                     continue
                 if item.get("before_present", True):

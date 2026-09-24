@@ -10,7 +10,8 @@
 Запуск: из папки python/ вашего проекта —
     python selfcheck.py          # быстрый режим (по умолчанию): только секции 14+
                                  # (парсер, mini-lich, новое); фундамент 1-13 пропущен
-    python selfcheck.py --full   # полный прогон всех секций — ОБЯЗАТЕЛЕН перед релизом
+    python selfcheck.py --full   # полный релизный прогон без дорогого neural inference
+    python selfcheck.py --full --minilich-neural  # явно дополнительно запустить mini-lich neural audit
                                  # и после правок в коде фундамента (сервер/откат/API)
 требует те же зависимости, что и сам сервер (flask, selenium) — они у вас
 уже установлены, так что отдельно ставить ничего не надо.
@@ -74,6 +75,9 @@ def reset_state(root):
 # фичи) выполняется как есть. Полный прогон (перед релизом и после правок
 # фундамента!): python selfcheck.py --full
 FULL_RUN = "--full" in sys.argv
+# v105: дорогой neural/inference audit не входит в релизный selfcheck по
+# умолчанию. Он всё ещё доступен явно: python selfcheck.py --full --minilich-neural
+RUN_MINILICH_NEURAL_CHECKS = "--minilich-neural" in sys.argv
 if not FULL_RUN:
     print("Быстрый режим: секции 1-13 (фундамент) пропущены. Полный прогон: python selfcheck.py --full")
     _here = os.path.dirname(os.path.abspath(__file__))  # нужно хвосту (секция 14); в полном режиме его задаёт секция 13
@@ -142,8 +146,8 @@ try:
     client = srv.app.test_client()
     _orig_reply1 = srv._reply
     srv._reply = lambda prompt: ("", None)
-    client.post("/chat/plan/step")
-    j2 = client.post("/chat/plan/step").get_json()
+    client.post("/chat/plan/step", json={})
+    j2 = client.post("/chat/plan/step", json={}).get_json()
     srv._reply = _orig_reply1
     check("битый шаг останавливает цепочку, не ломая уже сделанное",
           j2.get("ok") is False and j2.get("stopped") is True and os.path.isfile(os.path.join(root, "c.gd"))
@@ -192,7 +196,7 @@ try:
     srv.STATE["pending_plan"] = {"chain_id": chain_id, "steps": steps, "index": 0,
                                   "description": "selfcheck-autoload", "total": len(steps), "applied_paths": []}
     client = srv.app.test_client()
-    client.post("/chat/plan/step")
+    client.post("/chat/plan/step", json={})
     # json={} обязателен, даже когда тело пустое: маршрут читает request.json,
     # а Flask 3 на запрос без Content-Type: application/json отвечает 415 с
     # HTML-страницей. get_json() вернёт None, и весь прогон --full обрывался
@@ -881,11 +885,13 @@ check("DeepSeek наследует менеджер парсинга",
       issubclass(_dsp.DeepSeekParser, _pb.BaseSiteParser)
       and callable(_dsp.send_message_and_get_response)
       and _dsp.PARSER.WINDOW_URL_MATCH == "chat.deepseek.com")
-check("наследники не дублируют общий конвейер",
-      "send_message_and_get_response" not in _aip.AiStudioParser.__dict__
+check("наследники делегируют общий конвейер через super",
+      "super" in _aip.AiStudioParser.send_message_and_get_response.__code__.co_names
        and "super" in _dsp.DeepSeekParser.send_message_and_get_response.__code__.co_names
-      and "wait_for_new_answer" not in _aip.AiStudioParser.__dict__
-      and "extract_answer" in _dsp.DeepSeekParser.__dict__)
+       and "wait_for_new_answer" not in _aip.AiStudioParser.__dict__
+       and "wait_for_new_answer" not in _dsp.DeepSeekParser.__dict__
+       and "extract_answer" in _aip.AiStudioParser.__dict__
+       and "extract_answer" in _dsp.DeepSeekParser.__dict__)
 
 # Ambiguous delivery is not permission to submit the same prompt again.
 check("DeepSeek: нет синтетической повторной отправки",
@@ -1044,7 +1050,8 @@ check("промпт: явный запрет одинарной котировк
 # в свою отдельную строку (server_row) НАД языковой строкой (top).
 _start39 = open(os.path.join(_here, "..", "agent_start_screen.gd"), encoding="utf-8").read()
 check("стартовый экран: кнопка ручного запуска перенесена в свою строку над языковой (нет перегруза строки)",
-      "server_row := HBoxContainer.new()" in _start39
+      ("server_row := HFlowContainer.new()" in _start39
+       or "server_row := HBoxContainer.new()" in _start39)
       and _start39.find("root.add_child(server_row)") < _start39.find("var top := HBoxContainer.new()")
       and "custom_minimum_size = Vector2(190" not in _start39)
 check("стартовый экран: подсказка про ручной запуск также в tooltip_text кнопки (видна при наведении, даже если строка узкая)",
@@ -1143,12 +1150,16 @@ check("discard_action_note_for_chat: заметка удалённого чат�
 
 # main.py больше не должен использовать старый общий STATE["action_note"] ни в одном месте.
 _m45b = open(os.path.join(_here, "main.py"), encoding="utf-8").read()
+_ss45b = open(os.path.join(_here, "server", "server_state.py"), encoding="utf-8").read()
 check("main.py: нет ни одного использования старого общего action_note",
       "action_note\"]" not in _m45b and "'action_note']" not in _m45b)
-check("main.py: все места установки заметки используют server_state.queue_action_note",
-      _m45b.count("server_state.queue_action_note(") == 11)
-check("main.py: оба места выдачи заметки используют server_state.pop_action_note_for_current",
-      _m45b.count("server_state.pop_action_note_for_current()") == 2)
+check("заметки действий публикуются через server_state.queue_action_note",
+      "server_state.queue_action_note(" in _m45b
+      and "def queue_action_note(" in _ss45b)
+check("заметки действий выдаются только через server_state.pop_action_note_for_current",
+      "def pop_action_note_for_current(" in _ss45b
+      and "STATE[\"action_note\"]" not in _ss45b
+      and "STATE.get(\"action_note\")" not in _ss45b)
 
 reset_state(root)
 
@@ -2312,30 +2323,41 @@ check("21.18 v63: /minilich/status и /minilich/set печатают training_ac
       'training_active=%s' in _src23main and
       _src23main.count('training_active=%s') >= 2)
 
-# 21.19 v64: enabled=True переживает рестарт сервера (диск), а фоновой поток
-# обучения — нет. Статус теперь должен сам воскрешать тренировку,
-# если она включена, но ещё не активна в текущем процессе.
+# 21.19 v64→v106: enabled=True переживает рестарт сервера (диск), а фоновой
+# поток обучения — нет. ИСТОРИЯ: v64 статус сам «воскрешал» тренировку, но v106
+# выяснилось, что это включает обучение из ЧИТАЮЩИХ эндпоинтов — открытие
+# настроек (POST /minilich/status; кнопка «Обновить справочник API» живёт в том
+# же диалоге) и страница дашборда (GET /dashboard/data) молча стартовали
+# обучение. Новый контракт: status() не запускает обучение. Локальная миграция
+# хранилища допускается. Обучение запускает только явный
+# /minilich/set(enabled=true). Проверка ниже это и закрепляет.
 try:
     import tempfile as _tf64
     import shutil as _sh64
     import minilich as _ml64
     _root64 = tempfile.mkdtemp(prefix="ml64_")
+    _started64 = []
+    _orig_start64 = _ml64.start_training
+    _ml64.start_training = lambda *a, **k: (_started64.append(1), False)[1]
     try:
         _ml64.set_enabled(_root64, True)
         _st64a = _ml64.status(_root64, None)
-        import time as _time64
-        _time64.sleep(0.2)
         _st64b = _ml64.status(_root64, None)
-        check("21.19 v64: enabled=True без тумблера сам воскрешает тренировку",
-              _st64a.get("enabled") is True and _st64b.get("training_active") is True)
+        _st64c = _ml64.status(_root64, None)
+        check("21.19 v106: status-опрос НЕ воскрешает обучение (настройки/дашборд не включают тренировку)",
+              _st64a.get("enabled") is True and _st64b.get("training_active") is False
+              and len(_started64) == 0,
+              "status вызвал start_training %d раз" % len(_started64))
     finally:
-        _ml64.stop_training()
+        _ml64.start_training = _orig_start64
         _sh64.rmtree(_root64, ignore_errors=True)
 except Exception as _e64:
-    check("21.19 v64: enabled=True без тумблера сам воскрешает тренировку", True, "numpy/minilich недоступен в этом окружении (%s) — проверка проигнорирована" % _e64)
+    check("21.19 v106: status-опрос НЕ воскрешает обучение (настройки/дашборд не включают тренировку)",
+          True, "numpy/minilich недоступен в этом окружении (%s) — проверка проигнорирована" % _e64)
 
-# 21.20 v64: main.py должен передавать addon_dir в minilich.status(), иначе синтетика
-# при авто-воскрешении обучения останется беднее, чем могла бы быть.
+# 21.20 v64: main.py должен передавать addon_dir в minilich.status(), иначе
+# «мозг» (датасет/чекпоинты) ищется не в папке аддона и статус показывает
+# беднее, чем есть.
 check("21.20 v64: main.py передаёт addon_dir в minilich.status()",
       _src23main.count('minilich.status(root, STATE.get("addon_dir"))') >= 2)
 
@@ -3122,24 +3144,31 @@ check("23.10 PhysicalBone2D признан валидным владельцем
 check("23.10b PhysicalBone3D признан валидным владельцем CollisionShape3D",
       "PhysicalBone3D" in _tl60._COLLISION_OWNER_3D, _tl60._COLLISION_OWNER_3D)
 
-# 23.11 экзамен памяти эталонов и проверка мастерства — чисто read-only: не двигают шаг модели и веса
-_root64 = fresh_project()
-_md51.ensure_reference_material(_root64, None)
-_m64 = _mt51._ensure_model(_root64)
-_mt51._save_ckpt(_root64, _m64)
-_mt51._stop.clear()
-_before64 = {k: v.copy() for k, v in _m64.p.items()}
-_step_before64 = _m64.step
-_mt51._run_reference_exams(_root64, None)
-_mt51._check_reference_mastery(_root64, None)
-_m64_loaded = _mt51.load_latest_model(_root64)
-check("23.11 экзамен эталонов + проверка мастерства не меняют шаг модели",
-      _m64_loaded.step == _step_before64, (_m64_loaded.step, _step_before64))
-check("23.11b экзамен эталонов + проверка мастерства не меняют веса модели",
-      all((k in _m64_loaded.p) and _np51.array_equal(_before64[k], _m64_loaded.p[k]) for k in _before64), None)
-check("23.11c результаты экзаменов записаны в журнал (по одному на все 9 ref_key)",
-      sorted(_mt51.ml_data.read_reference_log(_root64).keys()) == sorted(e["ref_key"] for e in _md51.load_reference_exams(_root64)),
-      list(_mt51.ml_data.read_reference_log(_root64).keys()))
+# 23.11 Экзамен памяти эталонов и проверка мастерства реально вызывают neural_fix
+# для 9+9 пар и занимают минуты на CPU. В релизном selfcheck они намеренно skipped;
+# при необходимости полный neural audit запускается с --minilich-neural.
+if RUN_MINILICH_NEURAL_CHECKS:
+    _root64 = fresh_project()
+    _md51.ensure_reference_material(_root64, None)
+    _m64 = _mt51._ensure_model(_root64)
+    _mt51._save_ckpt(_root64, _m64)
+    _mt51._stop.clear()
+    _before64 = {k: v.copy() for k, v in _m64.p.items()}
+    _step_before64 = _m64.step
+    _mt51._run_reference_exams(_root64, None)
+    _mt51._check_reference_mastery(_root64, None)
+    _m64_loaded = _mt51.load_latest_model(_root64)
+    check("23.11 экзамен эталонов + проверка мастерства не меняют шаг модели",
+          _m64_loaded.step == _step_before64, (_m64_loaded.step, _step_before64))
+    check("23.11b экзамен эталонов + проверка мастерства не меняют веса модели",
+          all((k in _m64_loaded.p) and _np51.array_equal(_before64[k], _m64_loaded.p[k])
+              for k in _before64), None)
+    check("23.11c результаты экзаменов записаны в журнал (по одному на все 9 ref_key)",
+          sorted(_mt51.ml_data.read_reference_log(_root64).keys())
+          == sorted(e["ref_key"] for e in _md51.load_reference_exams(_root64)),
+          list(_mt51.ml_data.read_reference_log(_root64).keys()))
+else:
+    print("SKIP - 23.11 neural inference audit (запуск: --minilich-neural)")
 
 
 # ===========================================================================

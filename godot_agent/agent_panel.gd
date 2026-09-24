@@ -4366,19 +4366,32 @@ func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool)
 		call_deferred("_process_fs_move_queue")
 		var json_str := body_bytes.get_string_from_utf8()
 		if result != HTTPRequest.RESULT_SUCCESS:
-			push_warning("[Godot Agent] Внимание: файл '%s' переименован/перемещён, но сервер агента недоступен (не запущен). Ссылки в коде и сценах не обновлены! Запустите godot_agent_server.exe." % clean_old)
+			var down_msg := "[Godot Agent] Внимание: файл '%s' переименован/перемещён, но сервер агента недоступен (не запущен). Ссылки в коде и сценах не обновлены! Запустите godot_agent_server.exe." % clean_old
+			push_warning(down_msg)
+			# Предупреждение должно быть видно прямо в чате, а не только
+			# в консоли редактора — иначе пользователь не узнает о рассинхроне.
+			if _view:
+				_view.add_warning(down_msg)
 			return
 		if response_code != 200:
-			push_warning("[Godot Agent] Сервер вернул ошибку синхронизации (код %d): %s" % [response_code, json_str])
+			var code_msg := "[Godot Agent] Сервер вернул ошибку синхронизации (код %d): %s" % [response_code, json_str]
+			push_warning(code_msg)
+			if _view:
+				_view.add_warning(code_msg)
 			return
 		var p := JSON.new()
 		if p.parse(json_str) != OK or not (p.data is Dictionary):
-			push_warning("[Godot Agent] Некорректный JSON-ответ сервера при автосинхронизации: %s" % json_str)
+			var json_msg := "[Godot Agent] Некорректный JSON-ответ сервера при автосинхронизации: %s" % json_str
+			push_warning(json_msg)
+			if _view:
+				_view.add_warning(json_msg)
 			return
 		var resp: Dictionary = p.data
 		if not bool(resp.get("ok", false)):
 			var err_msg := str(resp.get("error", "Неизвестная ошибка синхронизации"))
 			push_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
+			if _view:
+				_view.add_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
 			return
 
 		_sync_resource_uid(clean_old, clean_new)
@@ -4389,6 +4402,15 @@ func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool)
 			for cp in changed_paths:
 				_sync_open_script_with_disk(str(cp))
 				_auto_reload_changed_scene(str(cp))
+			# v106 (audit 3.3): файл уже обновлён на диске сервером, но если он
+			# открыт с несохранёнными правками — вкладка держит старую версию, и
+			# Ctrl+S вернёт битые пути. Честно предупреждаем пользователя.
+			var dirty_paths := _dirty_open_scripts(PackedStringArray(changed_paths))
+			if not dirty_paths.is_empty():
+				var dirty_msg := "[Godot Agent] Файлы обновлены на диске, но открыты с несохранёнными правками: %s. Сохранение из редактора (Ctrl+S) вернёт старые пути — закройте вкладку без сохранения или перенесите правки вручную." % ", ".join(dirty_paths)
+				push_warning(dirty_msg)
+				if _view:
+					_view.add_agent_message("⚠ " + dirty_msg)
 			# v106 (audit 3.4): project.godot обновлён на диске, но редактор держит
 			# старые значения в памяти — честно предупреждаем, ничего не перезаписывая.
 			if changed_paths.has("res://project.godot"):
@@ -4409,7 +4431,10 @@ func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool)
 	)
 	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
-		push_warning("[Godot Agent] Не удалось отправить HTTP-запрос post_move_sync, код ошибки: %d" % err)
+		var send_msg := "[Godot Agent] Не удалось отправить HTTP-запрос post_move_sync, код ошибки: %d" % err
+		push_warning(send_msg)
+		if _view:
+			_view.add_warning(send_msg)
 		_fs_move_busy = false
 		call_deferred("_process_fs_move_queue")
 		req.queue_free()

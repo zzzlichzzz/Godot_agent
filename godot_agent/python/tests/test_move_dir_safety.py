@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pa
 import _bootstrap  # noqa: E402,F401
 import file_refactor
 import project_tools
+import history_manager
+
 
 
 class _ProjectFixture(unittest.TestCase):
@@ -178,6 +180,168 @@ class CaseOnlyRenameWindows(_ProjectFixture):
                       self.main_gd.read_text(encoding="utf-8"))
 
 
+@unittest.skipUnless(os.name == "nt", "case-only directory rename needs a case-insensitive FS")
+class DirectoryCaseOnlyRenameWindows(_ProjectFixture):
+    """Case-only directory rename (res://chars -> res://Chars) must work.
+
+    Pre-fix, realpath collapses both paths to the on-disk casing on Windows, so
+    the self-nesting guard fired ('Нельзя переместить папку внутрь самой себя')
+    and the destination-exists guard saw the source directory itself.
+    """
+
+    def test_prepare_case_only_dir_rename_does_not_raise(self):
+        prep = file_refactor.prepare_file_rename(str(self.root), "res://chars", "res://Chars")
+        self.assertTrue(prep.get("is_directory"))
+
+    def test_apply_renames_directory_entry_and_preserves_everything(self):
+        res = self.move_dir("res://chars", "res://Chars")
+        self.assertTrue(res.get("entry_id"))
+        names = os.listdir(self.root)
+        self.assertIn("Chars", names)
+        self.assertNotIn("chars", names)
+        renamed = self.root / "Chars"
+        self.assertEqual((renamed / "hero.gd").read_text(encoding="utf-8"),
+                         "extends Node\nclass_name Hero\n")
+        self.assertEqual((renamed / "hero.gd.uid").read_text(encoding="utf-8"), "uid://hero123\n")
+        self.assertEqual((renamed / "enemies" / "goblin.gd").read_text(encoding="utf-8"),
+                         "extends Node\n")
+        self.assertEqual((renamed / "enemies" / "goblin.gd.uid").read_text(encoding="utf-8"),
+                         "uid://goblin456\n")
+        self.assertTrue((renamed / "tex.png").exists())
+        self.assertTrue((renamed / "tex.png.import").exists())
+
+    def test_case_only_dir_rename_updates_references_and_import(self):
+        self.move_dir("res://chars", "res://Chars")
+        main_text = self.main_gd.read_text(encoding="utf-8")
+        self.assertIn('preload("res://Chars/hero.gd")', main_text)
+        self.assertIn('load("res://Chars/tex.png")', main_text)
+        self.assertNotIn("res://chars/", main_text)
+        imp_text = (self.root / "Chars" / "tex.png.import").read_text(encoding="utf-8")
+        self.assertIn('source_file="res://Chars/tex.png"', imp_text)
+        self.assertNotIn("res://chars/tex.png", imp_text)
+
+    def test_leaf_rename_failure_restores_parent_casing_and_all_content(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        real_rename = os.rename
+        failure = OSError("injected final directory leaf rename failure")
+
+        def fail_leaf(old_path, new_path):
+            old_name = os.path.basename(old_path)
+            new_name = os.path.basename(new_path)
+            if old_name == "enemies" and new_name == "Enemies":
+                raise failure
+            return real_rename(old_path, new_path)
+
+        with patch.object(project_tools.os, "rename", side_effect=fail_leaf):
+            with self.assertRaises(OSError) as caught:
+                file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertIs(caught.exception, failure)
+        root_names = os.listdir(self.root)
+        self.assertIn("chars", root_names)
+        self.assertNotIn("Chars", root_names)
+        chars_names = os.listdir(self.chars)
+        self.assertIn("enemies", chars_names)
+        self.assertNotIn("Enemies", chars_names)
+        self.assertEqual(self.goblin.read_bytes(), b"extends Node\r\n")
+        self.assertEqual(self.goblin_uid.read_bytes(), b"uid://goblin456\r\n")
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_commit_failure_rolls_back_casing_content_and_reservation(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        failure = OSError("injected history commit failure")
+        with patch.object(file_refactor.history_manager, "commit_change",
+                          side_effect=failure):
+            with self.assertRaises(OSError) as caught:
+                file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertIs(caught.exception, failure)
+        root_names = os.listdir(self.root)
+        self.assertIn("chars", root_names)
+        self.assertNotIn("Chars", root_names)
+        self.assertIn("enemies", os.listdir(self.chars))
+        self.assertNotIn("Enemies", os.listdir(self.chars))
+        self.assertTrue(self.hero.exists())
+        self.assertTrue(self.hero_uid.exists())
+        self.assertTrue(self.goblin.exists())
+        self.assertTrue(self.goblin_uid.exists())
+        self.assertTrue(self.tex_import.exists())
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+        self.assertIn('source_file="res://chars/tex.png"',
+                      self.tex_import.read_text(encoding="utf-8"))
+        self.assertEqual(history_manager._load_journal(str(self.root)), [])
+        self.assertEqual(list((Path(history_manager.get_storage_dir(str(self.root)))
+                               / "snapshots").iterdir()), [])
+
+    def test_failed_case_rollback_preserves_reservation_snapshots_and_data(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        real_rename = os.rename
+        rollback_failure = OSError("injected case rollback failure")
+
+        def fail_inverse_leaf(old_path, new_path):
+            if os.path.basename(old_path) == "Enemies" \
+                    and os.path.basename(new_path) == "enemies":
+                raise rollback_failure
+            return real_rename(old_path, new_path)
+
+        with patch.object(project_tools.os, "rename", side_effect=fail_inverse_leaf), \
+                patch.object(file_refactor.history_manager, "commit_change",
+                             side_effect=OSError("injected commit failure")):
+            with self.assertRaises(project_tools.MoveRecoveryError) as caught:
+                file_refactor.apply_prepared_file_rename(str(self.root), prep)
+
+        error = caught.exception
+        self.assertTrue(getattr(error, "journal_entry_id", ""))
+        self.assertIn(str(self.root), str(error))
+        self.assertIn("chars", str(error))
+        self.assertIn("enemies", str(error))
+        entries = history_manager._load_journal(str(self.root))
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["id"], error.journal_entry_id)
+        self.assertFalse(entries[0]["committed"])
+        snapshots = list((Path(history_manager.get_storage_dir(str(self.root)))
+                          / "snapshots").iterdir())
+        self.assertTrue(snapshots)
+        new_chars = self.root / "Chars"
+        self.assertTrue((new_chars / "Enemies" / "goblin.gd").exists())
+        self.assertTrue((new_chars / "Enemies" / "goblin.gd.uid").exists())
+        self.assertTrue((new_chars / "hero.gd").exists())
+        self.assertTrue((new_chars / "tex.png.import").exists())
+
+
+    def test_case_only_dir_rename_rollback_restores_casing(self):
+        res = self.move_dir("res://chars", "res://Chars")
+        self.assertIn("Chars", os.listdir(self.root))
+
+        import history_manager
+        ok, message, _needs_force, _paths, _diff = history_manager.rollback_entry(
+            str(self.root), res["entry_id"]
+        )
+        self.assertTrue(ok, message)
+        names = os.listdir(self.root)
+        self.assertIn("chars", names)
+        self.assertNotIn("Chars", names)
+        self.assertEqual((self.chars / "hero.gd").read_text(encoding="utf-8"),
+                         "extends Node\nclass_name Hero\n")
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_self_nesting_guard_still_works_with_different_case(self):
+        # The case-only bypass must not reopen the self-nesting hole.
+        with self.assertRaises(file_refactor.FileRefactorError):
+            self.move_dir("res://chars", "res://CHARS/heroes")
+        self.assertTrue(self.hero.exists())
+
+    def test_existing_other_directory_conflict_still_raises(self):
+        (self.root / "heroes").mkdir()
+        with self.assertRaises(FileExistsError):
+            self.move_dir("res://chars", "res://Heroes")
+        self.assertTrue(self.hero.exists())
+
+
 class HardlinkFallback(_ProjectFixture):
     """Audit 4.2: os.link is unavailable on FAT32/exFAT and across volumes."""
 
@@ -237,6 +401,93 @@ class HardlinkFallback(_ProjectFixture):
         self.assertEqual(self.hero.read_text(encoding="utf-8"), "extends Node\nclass_name Hero\n")
         self.assertFalse((self.root / "moved" / "Hero.gd").exists())
         self.assertFalse((self.root / "moved" / "Hero.gd.uid").exists())
+
+
+@unittest.skipUnless(os.name == "nt", "case-only dir component rename needs a case-insensitive FS")
+class CaseOnlyDirComponentRenameWindows(_ProjectFixture):
+    """Свежий аудит, п.3: res://chars/hero.gd -> res://Chars/hero.gd — имя
+    файла не меняется, регистр меняется у КАТАЛОГА. _move_case_only
+    переименовывал только листовой компонент: на диске оставался "chars",
+    а ссылки и журнал записывали запрошенный "Chars" — рассинхрон,
+    который всплывает при экспорте на case-sensitive ФС."""
+
+    def test_move_project_file_fixes_directory_casing(self):
+        project_tools.move_project_file(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+        names = os.listdir(self.root)
+        self.assertIn("Chars", names)
+        self.assertNotIn("chars", names)
+        renamed = self.root / "Chars"
+        self.assertEqual((renamed / "hero.gd").read_text(encoding="utf-8"),
+                         "extends Node\nclass_name Hero\n")
+        self.assertEqual((renamed / "hero.gd.uid").read_text(encoding="utf-8"),
+                         "uid://hero123\n")
+        # Соседнее содержимое каталога переехало вместе с ним и не потеряно.
+        self.assertTrue((renamed / "enemies" / "goblin.gd").exists())
+
+    def test_move_project_file_fixes_nested_directory_casing(self):
+        project_tools.move_project_file(
+            str(self.root), "res://chars/enemies/goblin.gd",
+            "res://Chars/Enemies/goblin.gd")
+        self.assertIn("Chars", os.listdir(self.root))
+        chars = self.root / "Chars"
+        self.assertIn("Enemies", os.listdir(chars))
+        self.assertNotIn("enemies", os.listdir(chars))
+        self.assertEqual((chars / "Enemies" / "goblin.gd").read_text(encoding="utf-8"),
+                         "extends Node\n")
+        # Братский файл не пострадал, его каталоги тоже в новом регистре.
+        self.assertTrue((chars / "hero.gd").exists())
+        self.assertTrue((chars / "Enemies" / "goblin.gd.uid").exists())
+
+    def test_prepare_apply_dir_component_case_updates_references_and_disk(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertTrue(res.get("entry_id"))
+        self.assertIn("Chars", os.listdir(self.root))
+        self.assertNotIn("chars", os.listdir(self.root))
+        self.assertIn('preload("res://Chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_dir_component_case_rollback_restores_old_casing(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertIn("Chars", os.listdir(self.root))
+
+        import history_manager
+        ok, message, _nf, _paths, _diff = history_manager.rollback_entry(
+            str(self.root), res["entry_id"])
+        self.assertTrue(ok, message)
+        self.assertIn("chars", os.listdir(self.root))
+        self.assertNotIn("Chars", os.listdir(self.root))
+        self.assertIn("hero.gd", os.listdir(self.root / "chars"))
+        self.assertIn("hero.gd.uid", os.listdir(self.root / "chars"))
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_dir_rename_fixes_parent_directory_casing(self):
+        # res://chars/enemies -> res://Chars/Enemies: меняется регистр двух
+        # компонентов; старый код переименовывал только листовой каталог,
+        # оставляя родительский в прежнем регистре.
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        res = file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertTrue(res.get("entry_id"))
+        chars = self.root / "Chars"
+        self.assertIn("Chars", os.listdir(self.root))
+        self.assertIn("Enemies", os.listdir(chars))
+        self.assertTrue((chars / "Enemies" / "goblin.gd").exists())
+
+        import history_manager
+        ok, message, _nf, _paths, _diff = history_manager.rollback_entry(
+            str(self.root), res["entry_id"])
+        self.assertTrue(ok, message)
+        self.assertIn("chars", os.listdir(self.root))
+        self.assertNotIn("Chars", os.listdir(self.root))
+        self.assertIn("enemies", os.listdir(self.root / "chars"))
+        self.assertNotIn("Enemies", os.listdir(self.root / "chars"))
+        self.assertTrue((self.root / "chars" / "enemies" / "goblin.gd").exists())
 
 
 if __name__ == "__main__":

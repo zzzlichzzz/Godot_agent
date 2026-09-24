@@ -19,16 +19,22 @@ import _bootstrap  # noqa: E402,F401
 """
 import glob
 import re
-import sys
+import unittest
+
 
 results = []
+failures = []
+EXPECTED_CHECK_COUNT = 101
 
 
 def check(name, cond, detail=None):
-    print("%s -> %s" % (name, "OK" if cond else "FAIL"))
-    if not cond and detail:
+    passed = bool(cond)
+    print("%s -> %s" % (name, "OK" if passed else "FAIL"))
+    if not passed and detail:
         print("     %s" % (detail,))
-    results.append(bool(cond))
+    results.append(passed)
+    if not passed:
+        failures.append((name, detail))
 
 
 ADDON = _os0.path.abspath(_os0.path.join(
@@ -562,7 +568,23 @@ check("panel refuses unprovable runtime ownership without starting or stopping g
        and "RUNTIME_CHECK_RESULT_URL" in panel and '"bridge_unavailable"' in panel
        and "_pending_runtime_check_result_body" in panel
        and "func _exit_tree" in panel)
+api_exporter = read(_os0.path.join(ADDON, "agent_api_export.gd"))
+check("api exporter emits full method signatures next to arity",
+      '"signatures"' in api_exporter
+      and "type_string(" in api_exporter
+      and "var_to_str(" in api_exporter)
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))
-sys.exit(0 if n_ok == len(results) else 1)
+
+
+class GDScriptWiringTests(unittest.TestCase):
+    """Expose all static wiring checks to the normal unittest runner."""
+
+    def test_all_gdscript_wiring_checks_pass(self):
+        self.assertEqual(EXPECTED_CHECK_COUNT, len(results))
+        self.assertEqual([], failures)
+
+
+if __name__ == "__main__":
+    unittest.main()
