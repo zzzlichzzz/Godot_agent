@@ -12,8 +12,10 @@ enabled=True и неактивном потоке сам звал start_training
 хотя секция mini-lich в UI скрыта (exp_box.visible = false) и пользователь
 даже не видит галочку, которая это разрешает.
 
-Контракт после фикса: status() — ЧИСТОЕ чтение. Запуск обучения остаётся
-только явным действием (POST /minilich/set с enabled=true).
+Контракт после фикса: status() не запускает обучение. Он читает состояние
+mini-lich и может инициализировать или мигрировать локальное хранилище.
+Запуск обучения остаётся только явным действием (POST /minilich/set с
+enabled=true).
 """
 import json
 import os
@@ -56,8 +58,8 @@ class _Fixture(unittest.TestCase):
             json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
-class StatusIsReadOnly(_Fixture):
-    """Статус — чтение, а не скрытый пульт управления обучением."""
+class StatusDoesNotStartTraining(_Fixture):
+    """Статус не запускает и не перезапускает фоновое обучение."""
 
     def test_status_poll_does_not_start_training(self):
         if not _NUMPY_OK:

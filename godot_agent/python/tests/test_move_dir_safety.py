@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pa
 import _bootstrap  # noqa: E402,F401
 import file_refactor
 import project_tools
+import history_manager
+
 
 
 class _ProjectFixture(unittest.TestCase):
@@ -217,6 +219,98 @@ class DirectoryCaseOnlyRenameWindows(_ProjectFixture):
         imp_text = (self.root / "Chars" / "tex.png.import").read_text(encoding="utf-8")
         self.assertIn('source_file="res://Chars/tex.png"', imp_text)
         self.assertNotIn("res://chars/tex.png", imp_text)
+
+    def test_leaf_rename_failure_restores_parent_casing_and_all_content(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        real_rename = os.rename
+        failure = OSError("injected final directory leaf rename failure")
+
+        def fail_leaf(old_path, new_path):
+            old_name = os.path.basename(old_path)
+            new_name = os.path.basename(new_path)
+            if old_name == "enemies" and new_name == "Enemies":
+                raise failure
+            return real_rename(old_path, new_path)
+
+        with patch.object(project_tools.os, "rename", side_effect=fail_leaf):
+            with self.assertRaises(OSError) as caught:
+                file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertIs(caught.exception, failure)
+        root_names = os.listdir(self.root)
+        self.assertIn("chars", root_names)
+        self.assertNotIn("Chars", root_names)
+        chars_names = os.listdir(self.chars)
+        self.assertIn("enemies", chars_names)
+        self.assertNotIn("Enemies", chars_names)
+        self.assertEqual(self.goblin.read_bytes(), b"extends Node\r\n")
+        self.assertEqual(self.goblin_uid.read_bytes(), b"uid://goblin456\r\n")
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+
+    def test_commit_failure_rolls_back_casing_content_and_reservation(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        failure = OSError("injected history commit failure")
+        with patch.object(file_refactor.history_manager, "commit_change",
+                          side_effect=failure):
+            with self.assertRaises(OSError) as caught:
+                file_refactor.apply_prepared_file_rename(str(self.root), prep)
+        self.assertIs(caught.exception, failure)
+        root_names = os.listdir(self.root)
+        self.assertIn("chars", root_names)
+        self.assertNotIn("Chars", root_names)
+        self.assertIn("enemies", os.listdir(self.chars))
+        self.assertNotIn("Enemies", os.listdir(self.chars))
+        self.assertTrue(self.hero.exists())
+        self.assertTrue(self.hero_uid.exists())
+        self.assertTrue(self.goblin.exists())
+        self.assertTrue(self.goblin_uid.exists())
+        self.assertTrue(self.tex_import.exists())
+        self.assertIn('preload("res://chars/hero.gd")',
+                      self.main_gd.read_text(encoding="utf-8"))
+        self.assertIn('source_file="res://chars/tex.png"',
+                      self.tex_import.read_text(encoding="utf-8"))
+        self.assertEqual(history_manager._load_journal(str(self.root)), [])
+        self.assertEqual(list((Path(history_manager.get_storage_dir(str(self.root)))
+                               / "snapshots").iterdir()), [])
+
+    def test_failed_case_rollback_preserves_reservation_snapshots_and_data(self):
+        prep = file_refactor.prepare_file_rename(
+            str(self.root), "res://chars/enemies", "res://Chars/Enemies")
+        real_rename = os.rename
+        rollback_failure = OSError("injected case rollback failure")
+
+        def fail_inverse_leaf(old_path, new_path):
+            if os.path.basename(old_path) == "Enemies" \
+                    and os.path.basename(new_path) == "enemies":
+                raise rollback_failure
+            return real_rename(old_path, new_path)
+
+        with patch.object(project_tools.os, "rename", side_effect=fail_inverse_leaf), \
+                patch.object(file_refactor.history_manager, "commit_change",
+                             side_effect=OSError("injected commit failure")):
+            with self.assertRaises(project_tools.MoveRecoveryError) as caught:
+                file_refactor.apply_prepared_file_rename(str(self.root), prep)
+
+        error = caught.exception
+        self.assertTrue(getattr(error, "journal_entry_id", ""))
+        self.assertIn(str(self.root), str(error))
+        self.assertIn("chars", str(error))
+        self.assertIn("enemies", str(error))
+        entries = history_manager._load_journal(str(self.root))
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["id"], error.journal_entry_id)
+        self.assertFalse(entries[0]["committed"])
+        snapshots = list((Path(history_manager.get_storage_dir(str(self.root)))
+                          / "snapshots").iterdir())
+        self.assertTrue(snapshots)
+        new_chars = self.root / "Chars"
+        self.assertTrue((new_chars / "Enemies" / "goblin.gd").exists())
+        self.assertTrue((new_chars / "Enemies" / "goblin.gd.uid").exists())
+        self.assertTrue((new_chars / "hero.gd").exists())
+        self.assertTrue((new_chars / "tex.png.import").exists())
+
 
     def test_case_only_dir_rename_rollback_restores_casing(self):
         res = self.move_dir("res://chars", "res://Chars")

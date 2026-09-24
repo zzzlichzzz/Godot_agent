@@ -17,23 +17,29 @@ import _bootstrap  # noqa: E402,F401
 до цепочки при адресном откате.
 """
 import shutil
-import sys
+import unittest
 import tempfile
 
 import history_manager as H
 
 results = []
+failures = []
+EXPECTED_CHECK_COUNT = 45
 
 
 def check(name, cond, detail=None):
-    print("%s -> %s" % (name, "OK" if cond else "FAIL"))
-    if not cond and detail is not None:
+    passed = bool(cond)
+    print("%s -> %s" % (name, "OK" if passed else "FAIL"))
+    if not passed and detail is not None:
         print("     %r" % (detail,))
-    results.append(bool(cond))
+    results.append(passed)
+    if not passed:
+        failures.append((name, detail))
 
 
 PROJ = tempfile.mkdtemp(prefix="agent_rb_proj_")
 STORE = tempfile.mkdtemp(prefix="agent_rb_store_")
+_PREVIOUS_STORAGE_OVERRIDE = H._STORAGE_OVERRIDE
 H.set_storage_dir(STORE)
 
 
@@ -241,6 +247,18 @@ check(u"оба файла пакета восстановлены",
 
 for d in (PROJ, STORE):
     shutil.rmtree(d, ignore_errors=True)
+H._STORAGE_OVERRIDE = _PREVIOUS_STORAGE_OVERRIDE
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))
-sys.exit(0 if n_ok == len(results) else 1)
+
+
+class RollbackByEntryTests(unittest.TestCase):
+    """Expose the script checks to unittest without terminating the runner."""
+
+    def test_all_rollback_by_entry_checks_pass(self):
+        self.assertEqual(EXPECTED_CHECK_COUNT, len(results))
+        self.assertEqual([], failures)
+
+
+if __name__ == "__main__":
+    unittest.main()

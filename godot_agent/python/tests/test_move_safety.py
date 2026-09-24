@@ -27,6 +27,21 @@ class MoveSafety(unittest.TestCase):
         self.source.write_bytes(self.main_bytes)
         self.uid.write_bytes(self.uid_bytes)
 
+    def _make_case_only_pair(self):
+        """Add a nested file pair whose parent directory needs new casing."""
+        source_dir = self.root / "chars"
+        source = source_dir / "hero.gd"
+        uid = source_dir / "hero.gd.uid"
+        source_dir.mkdir()
+        source.write_bytes(self.main_bytes)
+        uid.write_bytes(self.uid_bytes)
+        renamed_dir = self.root / "Chars"
+        return source_dir, source, uid, renamed_dir
+
+    def _move_case_only_pair(self):
+        return project_tools.move_project_file(
+            str(self.root), "res://chars/hero.gd", "res://Chars/hero.gd")
+
     def move(self, dest="res://moved/Hero.gd"):
         return project_tools.move_project_file(str(self.root), "res://Player.gd", dest)
 
@@ -236,6 +251,160 @@ class MoveSafety(unittest.TestCase):
         self.assertNotIn("Player.gd", names)
         self.assertEqual((self.root / "PLAYER.GD").read_bytes(), self.main_bytes)
         self.assertEqual((self.root / "PLAYER.GD.uid").read_bytes(), self.uid_bytes)
+
+    @unittest.skipUnless(os.name == "nt", "case-only filesystem aliases require Windows")
+    def test_case_only_file_failure_rolls_back_parent_directory_casing(self):
+        source_dir, source, uid, renamed_dir = self._make_case_only_pair()
+        failure = OSError("injected case-only file failure")
+
+        with patch.object(project_tools, "_move_case_only", side_effect=failure):
+            with self.assertRaises(OSError) as caught:
+                self._move_case_only_pair()
+
+        self.assertIs(caught.exception, failure)
+        names = os.listdir(self.root)
+        self.assertIn("chars", names)
+        self.assertNotIn("Chars", names)
+        self.assertEqual(source.read_bytes(), self.main_bytes)
+        self.assertEqual(uid.read_bytes(), self.uid_bytes)
+
+    @unittest.skipUnless(os.name == "nt", "case-only filesystem aliases require Windows")
+    def test_failed_parent_casing_rollback_reports_paths_and_retains_recovery_state(self):
+        source_dir, source, uid, renamed_dir = self._make_case_only_pair()
+        real_rename = os.rename
+        file_failure = OSError("injected case-only leaf failure")
+        rollback_failure = OSError("injected parent casing rollback failure")
+        attempts = {"parents": 0, "files": 0, "rollbacks": 0}
+
+        def injected_rename(old_path, new_path):
+            old_name = os.path.basename(old_path)
+            new_name = os.path.basename(new_path)
+            if old_name == "chars" and new_name == "Chars":
+                attempts["parents"] += 1
+                return real_rename(old_path, new_path)
+            if old_name.lower() == "hero.gd" and new_name.lower() == "hero.gd":
+                attempts["files"] += 1
+                raise file_failure
+            if old_name == "Chars" and new_name == "chars":
+                attempts["rollbacks"] += 1
+                raise rollback_failure
+            return real_rename(old_path, new_path)
+
+        import main
+        import history_manager as history
+
+        with patch.dict(main.STATE, {"project_root": str(self.root), "addon_intent": False}), \
+                patch.object(history, "_STORAGE_OVERRIDE", str(self.root / "history")), \
+                patch.object(main, "_current_chat_info", return_value=("test-chat", "test")), \
+                patch.object(project_tools.os, "rename", side_effect=injected_rename):
+            result = main._apply_write_step(
+                {"action": "move_file", "path": "res://chars/hero.gd",
+                 "dest": "res://Chars/hero.gd"},
+                str(self.root))
+            journal = history._load_journal(str(self.root))
+            history_root = history._history_dir(str(self.root))
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["recovery_required"])
+        self.assertEqual(attempts, {"parents": 1, "files": 1, "rollbacks": 1})
+        message = result["message"]
+        self.assertIn(str(renamed_dir).replace("\\", "\\\\"), message)
+        self.assertIn(str(source_dir).replace("\\", "\\\\"), message)
+        self.assertIn("case-only leaf failure", message)
+        self.assertIn("parent casing rollback failure", message)
+        self.assertTrue(renamed_dir.is_dir())
+        self.assertEqual((renamed_dir / "hero.gd").read_bytes(), self.main_bytes)
+        self.assertEqual((renamed_dir / "hero.gd.uid").read_bytes(), self.uid_bytes)
+        root_names = os.listdir(self.root)
+        self.assertIn("Chars", root_names)
+        self.assertNotIn("chars", root_names)
+
+        self.assertEqual(len(journal), 1)
+        self.assertFalse(journal[0].get("committed"))
+        self.assertTrue(result["recovery_entry_id"])
+        self.assertTrue(journal[0]["files"])
+        for item in journal[0]["files"]:
+            if item.get("snapshot"):
+                self.assertTrue(os.path.isfile(os.path.join(history_root, item["snapshot"])))
+
+    @unittest.skipUnless(os.name == "nt", "case-only filesystem aliases require Windows")
+    def test_successful_nested_case_only_rename_moves_file_and_uid(self):
+        _source_dir, _source, _uid, renamed_dir = self._make_case_only_pair()
+
+        self.assertIsNone(self._move_case_only_pair())
+
+        names = os.listdir(self.root)
+        self.assertIn("Chars", names)
+        self.assertNotIn("chars", names)
+        self.assertEqual((renamed_dir / "hero.gd").read_bytes(), self.main_bytes)
+        self.assertEqual((renamed_dir / "hero.gd.uid").read_bytes(), self.uid_bytes)
+
+    def test_case_only_file_rollback_failure_preserves_files_and_reports_paths(self):
+        source = self.source
+        dest = self.root / "PLAYER.GD"
+        uid = self.uid
+        real_rename = os.rename
+        transfer_failure = OSError("injected case-only UID failure")
+        recovery_failure = OSError("injected case-only file recovery failure")
+
+        def injected_rename(old_path, new_path):
+            old_name = os.path.basename(old_path)
+            new_name = os.path.basename(new_path)
+            if old_name == "Player.gd.uid":
+                raise transfer_failure
+            if old_name == "PLAYER.GD" and new_name == "Player.gd":
+                raise recovery_failure
+            return real_rename(old_path, new_path)
+
+        with patch.object(project_tools.os, "rename", side_effect=injected_rename):
+            with self.assertRaises(project_tools.MoveRecoveryError) as caught:
+                project_tools._move_case_only(str(source), str(dest))
+
+        message = str(caught.exception)
+        self.assertIn(str(dest).replace("\\", "\\\\"), message)
+        self.assertIn(str(source).replace("\\", "\\\\"), message)
+        self.assertIn("case-only file recovery failure", message)
+        self.assertIn("case-only UID failure", message)
+        self.assertEqual(dest.read_bytes(), self.main_bytes)
+        self.assertEqual(uid.read_bytes(), self.uid_bytes)
+        root_names = os.listdir(self.root)
+        self.assertIn("PLAYER.GD", root_names)
+        self.assertIn("Player.gd.uid", root_names)
+        self.assertNotIn("PLAYER.GD.uid", root_names)
+
+    def test_repeated_rollback_of_finished_transaction_is_idempotent(self):
+        nested = self.root / "chars" / "enemies"
+        nested.mkdir(parents=True)
+        (nested / "hero.gd").write_bytes(self.main_bytes)
+        transaction = project_tools.begin_case_only_dir_casing(
+            str(self.root), "chars/enemies/hero.gd", "Chars/Enemies/hero.gd")
+        real_rename = os.rename
+        calls = []
+
+        def counting_rename(old_path, new_path):
+            calls.append((os.path.basename(old_path), os.path.basename(new_path)))
+            return real_rename(old_path, new_path)
+
+        with patch.object(project_tools.os, "rename", side_effect=counting_rename):
+            transaction.rollback()
+            transaction.rollback()
+
+        self.assertEqual(transaction.state, "rolled_back")
+        self.assertEqual(calls, [("Enemies", "enemies"), ("Chars", "chars")])
+        self.assertIn("chars", os.listdir(self.root))
+        self.assertNotIn("Chars", os.listdir(self.root))
+        self.assertIn("enemies", os.listdir(self.root / "chars"))
+        self.assertNotIn("Enemies", os.listdir(self.root / "chars"))
+
+    def test_rollback_after_commit_is_safe_noop(self):
+        self._make_case_only_pair()
+        transaction = project_tools.begin_case_only_dir_casing(
+            str(self.root), "chars/hero.gd", "Chars/hero.gd")
+        transaction.commit()
+        with patch.object(project_tools.os, "rename", side_effect=AssertionError("must not rename")):
+            transaction.rollback()
+        self.assertEqual(transaction.state, "committed")
+        self.assertIn("Chars", os.listdir(self.root))
 
     def test_hardlink_alias_is_rejected(self):
         self.dest.parent.mkdir()

@@ -8,15 +8,19 @@
 работает напрямую с модулями плагина (без запущенного сервера), поэтому его
 ответы всегда соответствуют коду, который реально лежит в аддоне.
 
-КОМАНДЫ (все, кроме status, работают без сервера — read-only):
+КОМАНДЫ (engine/api/ask/search/paths preview работают без сервера):
   status                          сервер жив? привязан к нашему проекту?
   engine                          версия Godot и состояние кэша API
   api <ClassName>                 методы/свойства/сигналы класса с наследованием
   ask <запрос...>                 компактная справка о проекте (Библиотекарь)
-  search <текст...>               поиск подстроки по файлам проекта
+  search [--max N] <текст...>  поиск подстроки по файлам проекта
   paths preview <old> <new>       предпросмотр переименования/перемещения
                                   (НИЧЕГО не применяет; apply — только кнопкой
                                   в панели агента, там журнал и откат)
+
+ГРАНИЦА ЗАПИСИ: engine/api/ask/search/paths preview не изменяют исходные файлы
+проекта. ask может создавать локальный индекс и журнал в .agent_history.
+paths preview не изменяет файлы вообще.
 
 КОНТРАКТ КОДОВ ВОЗВРАТА (это важно для нейросети-потребителя):
   0  ok        — данные в stdout;
@@ -312,22 +316,32 @@ def cmd_ask(opts, args):
 
 def cmd_search(opts, args):
     """Поиск подстроки по проекту; addons/ исключаются, как в Библиотекаре."""
-    if not args:
+    max_results = 30
+    query_args = []
+    i = 0
+    while i < len(args):
+        if args[i] != "--max":
+            query_args.append(args[i])
+            i += 1
+            continue
+        if i + 1 >= len(args):
+            return _finish(RC_USAGE, "--max requires a value")
+        try:
+            max_results = int(args[i + 1])
+        except (TypeError, ValueError):
+            return _finish(RC_USAGE, "--max requires an integer")
+        if max_results <= 0:
+            return _finish(RC_USAGE, "--max must be positive")
+        i += 2
+    query = " ".join(query_args)
+    if not query.strip():
         return _finish(RC_USAGE, "search requires a query")
     root = _find_project_root(opts.get("root"))
     if not root:
         return _finish(RC_ERROR, "project.godot not found (use --root)")
     import project_tools
-    max_results = 30
-    if "--max" in args:
-        i = args.index("--max")
-        try:
-            max_results = int(args[i + 1])
-        except Exception:
-            return _finish(RC_USAGE, "--max requires an integer")
-        args = args[:i] + args[i + 2:]
     results, truncated = project_tools.search_project_text(
-        root, " ".join(args), max_results=max_results,
+        root, query, max_results=max_results,
         exclude_rel_prefixes=("addons/",))
     if not results:
         _out("no matches (addons/ excluded)")

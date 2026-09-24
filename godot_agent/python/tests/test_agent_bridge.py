@@ -132,6 +132,51 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertEqual(rc, 2, err)
         self.assertNotIn("Traceback", out + err)
 
+    def test_search_missing_max_is_usage(self):
+        rc, out, err = run_bridge(self.base + ["search", "--max"])
+        self.assertEqual(rc, 4, err)
+        self.assertIn("bridge: usage:", err)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_non_numeric_max_is_usage(self):
+        rc, out, err = run_bridge(self.base + ["search", "--max", "abc", "query"])
+        self.assertEqual(rc, 4, err)
+        self.assertIn("bridge: usage:", err)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_zero_max_is_usage(self):
+        rc, out, err = run_bridge(self.base + ["search", "--max", "0", "query"])
+        self.assertEqual(rc, 4, err)
+        self.assertIn("bridge: usage:", err)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_negative_max_is_usage(self):
+        rc, out, err = run_bridge(self.base + ["search", "--max", "-1", "query"])
+        self.assertEqual(rc, 4, err)
+        self.assertIn("bridge: usage:", err)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_max_without_query_is_usage(self):
+        rc, out, err = run_bridge(self.base + ["search", "--max", "10"])
+        self.assertEqual(rc, 4, err)
+        self.assertIn("bridge: usage:", err)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_valid_max_still_works(self):
+        for index in range(12):
+            Path(self.root, "src", "match_%02d.gd" % index).write_text(
+                "var bridge_limited_match = %d\n" % index, encoding="utf-8")
+
+        rc, out, err = run_bridge(
+            self.base + ["search", "--max", "10", "bridge_limited_match"])
+
+        self.assertEqual(rc, 0, err)
+        self.assertIn("bridge: ok", err)
+        self.assertIn("10 match groups", err)
+        self.assertEqual(out.count("\n---\n"), 10)
+        self.assertIn("results truncated at 10", out)
+        self.assertNotIn("Traceback", out + err)
+
     # --- ask (библиотекарь) -------------------------------------------------
 
     def test_ask_exit0_librarian_answer(self):
@@ -147,6 +192,31 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertEqual(rc, 0, err)
         self.assertIn("Next (bridge):", out)
         self.assertNotIn("read_function", out)
+
+    def test_ask_preserves_source_and_only_writes_agent_history(self):
+        root = Path(self.root)
+        before = {
+            path.relative_to(root).as_posix(): path.read_bytes()
+            for path in root.rglob("*") if path.is_file()
+        }
+
+        rc, out, err = run_bridge(self.base + ["ask", "player damage"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[Librarian]", out)
+
+        after = {
+            path.relative_to(root).as_posix(): path.read_bytes()
+            for path in root.rglob("*") if path.is_file()
+        }
+        is_history = lambda rel: rel == ".agent_history" or rel.startswith(".agent_history/")
+        source_before = {rel: data for rel, data in before.items() if not is_history(rel)}
+        source_after = {rel: data for rel, data in after.items() if not is_history(rel)}
+        self.assertEqual(source_after, source_before,
+                         "ask изменил исходные файлы или дерево проекта")
+        new_outside_history = sorted(
+            rel for rel in set(after) - set(before) if not is_history(rel))
+        self.assertEqual(new_outside_history, [],
+                         "ask создал файл вне разрешённого .agent_history")
 
     def test_ask_nothing_relevant_exit2_not_error(self):
         # «По запросу ничего не нашлось» — это ОТВЕТ (rc 2), а не успех

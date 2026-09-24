@@ -763,17 +763,11 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
     # per-file moves below cannot express the rename — the directory entry
     # itself must be renamed once, and the files only get content updates.
     dir_case_only = False
-    abs_old_dir = abs_new_dir = requested_new_dir = None
+    abs_old_dir = abs_new_dir = None
     if is_directory:
         abs_old_dir = _resolve_safe_path(project_root, old_path)
         abs_new_dir = _resolve_safe_path(project_root, new_path)
         dir_case_only = _is_case_only_rename(old_path, new_path, abs_old_dir, abs_new_dir)
-        if dir_case_only:
-            # realpath collapses letter case; rebuild the destination with the
-            # caller-requested casing (same approach as move_project_file).
-            new_dir_rel = new_path.removeprefix("res://").replace("\\", "/").strip("/")
-            requested_new_dir = os.path.join(os.path.realpath(project_root),
-                                             *new_dir_rel.split("/"))
 
     with _project_lock(project_root):
         # 1. Freshness check
@@ -872,11 +866,20 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
         )
 
         temps = []
-        replaced = []
+        content_writes = []
         moved_items = []
-        dir_case_renamed = False
+        case_tx = None
 
         try:
+            if dir_case_only:
+                # Keep the parent-casing transaction open until the journal
+                # commit succeeds. The directory leaf is added as the next
+                # tracked operation, so rollback is strictly newest-first.
+                case_old_rel = old_path.removeprefix("res://").strip("/")
+                case_new_rel = new_path.removeprefix("res://").strip("/")
+                case_tx = project_tools.begin_case_only_dir_casing(
+                    project_root, case_old_rel, case_new_rel)
+
             # 3. Write patch files using safe temp replacement
             for item in files:
                 if item.get("action") == "patch_file":
@@ -890,8 +893,11 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                     temps.append((temp_path, item["absolute"]))
 
             for temp_path, target_path in temps:
+                patch_item = next(item for item in files
+                                 if item.get("action") == "patch_file"
+                                 and item.get("absolute") == target_path)
+                content_writes.append((target_path, patch_item["before_bytes"]))
                 _replace_file(temp_path, target_path)
-                replaced.append((target_path, temp_path))
 
             # 4. Move target files + uid, and write updated content if after_bytes differs
             for item in files:
@@ -902,6 +908,7 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                         # casing. Only the content may change (internal refs,
                         # .import source_file).
                         if item.get("after_bytes") is not None and item.get("after_bytes") != item.get("before_bytes"):
+                            content_writes.append((item["absolute"], item["before_bytes"]))
                             with open(item["absolute"], "wb") as h:
                                 h.write(item["after_bytes"])
                                 h.flush()
@@ -910,6 +917,7 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                     project_tools.move_project_file(project_root, item["path"], item["dest"])
                     moved_items.append((item["dest"], item["path"]))
                     if item.get("after_bytes") is not None and item.get("after_bytes") != item.get("before_bytes"):
+                        content_writes.append((item["dest_absolute"], item["before_bytes"]))
                         with open(item["dest_absolute"], "wb") as h:
                             h.write(item["after_bytes"])
                             h.flush()
@@ -918,19 +926,13 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
             # If directory move, clean up the old directory tree.
             if is_directory:
                 if dir_case_only:
-                    # The actual case-only rename of the directory entry:
-                    # per-file moves cannot express it on a case-insensitive FS.
-                    # Parent components with changed casing must be renamed
-                    # explicitly too (fresh audit, item 3): os.rename alone
-                    # would fix only the leaf and keep e.g. "chars" on disk
-                    # for res://chars/enemies -> res://Chars/Enemies.
-                    case_old_rel = old_path.removeprefix("res://").strip("/")
-                    case_new_rel = new_path.removeprefix("res://").strip("/")
-                    case_new_parent = project_tools.fix_case_only_dir_casing(
-                        project_root, case_old_rel, case_new_rel)
-                    os.rename(abs_old_dir,
-                              os.path.join(case_new_parent, case_new_rel.split("/")[-1]))
-                    dir_case_renamed = True
+                    # The parent transaction deliberately excludes the leaf;
+                    # append the final case-only directory rename to it.
+                    old_leaf = case_old_rel.split("/")[-1]
+                    new_leaf = case_new_rel.split("/")[-1]
+                    case_tx.rename(
+                        os.path.join(case_tx.new_parent, old_leaf),
+                        os.path.join(case_tx.new_parent, new_leaf))
                 abs_old_dir = _resolve_safe_path(project_root, old_path)
                 abs_new_dir = _resolve_safe_path(project_root, new_path)
                 # Never delete the directory we just moved files into.
@@ -955,44 +957,63 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
                     except OSError:
                         pass
 
-            # 5. Commit change to history
+            # 5. Commit change to history, then finalize the casing
+            # transaction.  A commit failure must still be able to roll back
+            # both the leaf and all parent components.
             history_manager.commit_change(project_root, entry_id)
-
-        except MoveRecoveryError as exc:
-            # Files may be half-moved and need manual recovery: keep the journal
-            # entry as an uncommitted reservation instead of aborting it.
-            exc.journal_entry_id = entry_id
-            raise
+            if case_tx is not None:
+                case_tx.commit()
 
         except Exception as exc:
-            # Abort and roll back
-            if dir_case_renamed:
-                try:
-                    os.rename(requested_new_dir, abs_old_dir)
-                except OSError:
-                    pass
-            for dst, src in reversed(moved_items):
-                try:
-                    project_tools.move_project_file(project_root, dst, src)
-                except Exception:
-                    pass
+            # Compensation is itself fallible.  Only remove the reservation
+            # after every inverse filesystem/content operation succeeded.
+            recovery_errors = []
+            case_rollback_failed = False
+            if isinstance(exc, MoveRecoveryError):
+                # A lower-level move already reported that its own recovery
+                # could not restore the filesystem.  Keep the journal anchor.
+                recovery_errors.append(exc)
 
-            for item in files:
-                if item.get("action") == "patch_file" and item.get("before_bytes") is not None:
+            if case_tx is not None:
+                try:
+                    case_tx.rollback()
+                except Exception as recovery_error:
+                    recovery_errors.append(recovery_error)
+                    # Once the structural inverse failed, later content/file
+                    # compensations could write through an unknown alias and
+                    # destroy the evidence needed for manual recovery.
+                    case_rollback_failed = True
+
+            if not case_rollback_failed:
+                # Content writes happened after file moves, so restore them
+                # before moving files back. This is the inverse of the apply
+                # order and keeps every compensation step deterministic.
+                for target_path, before_bytes in reversed(content_writes):
                     try:
-                        with open(item["absolute"], "wb") as h:
-                            h.write(item["before_bytes"])
-                    except Exception:
-                        pass
-                elif dir_case_only and item.get("action") == "move_file" \
-                        and item.get("after_bytes") != item.get("before_bytes"):
-                    # Content was rewritten in place (case-only dir rename):
-                    # restore the original bytes.
+                        with open(target_path, "wb") as h:
+                            h.write(before_bytes)
+                            h.flush()
+                            os.fsync(h.fileno())
+                    except Exception as recovery_error:
+                        recovery_errors.append(recovery_error)
+
+                for dst, src in reversed(moved_items):
                     try:
-                        with open(item["absolute"], "wb") as h:
-                            h.write(item["before_bytes"])
-                    except Exception:
-                        pass
+                        project_tools.move_project_file(project_root, dst, src)
+                    except Exception as recovery_error:
+                        recovery_errors.append(recovery_error)
+
+            if recovery_errors:
+                recovery = MoveRecoveryError(
+                    "Не удалось полностью откатить переименование; исходная ошибка: %s; "
+                    "ошибки компенсации: %r; ручное восстановление требуется для путей "
+                    "%r -> %r; project_root=%s; файлы и snapshots сохранены; "
+                    "journal_entry_id=%s"
+                    % (exc, recovery_errors, old_path, new_path,
+                       os.path.abspath(project_root), entry_id)
+                )
+                recovery.journal_entry_id = entry_id
+                raise recovery from exc
 
             history_manager.abort_change(project_root, entry_id)
             raise

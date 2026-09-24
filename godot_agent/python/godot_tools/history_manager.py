@@ -8,7 +8,7 @@ import tempfile
 import threading
 from functools import wraps
 
-from project_tools import _resolve_safe_path, fix_case_only_dir_casing
+from project_tools import _resolve_safe_path, begin_case_only_dir_casing
 
 # ---------------------------------------------------------------------------
 # Журнал изменений агента (многоуровневый откат вместо одноразового .bak).
@@ -773,11 +773,19 @@ def _revert_entry_on_disk(project_root, entry, force=False):
                     # the parent directories in the new casing.
                     dest_rel = str(case_dest).removeprefix("res://").replace(chr(92), "/").strip("/")
                     orig_rel = str(item["path"]).removeprefix("res://").replace(chr(92), "/").strip("/")
-                    parent = fix_case_only_dir_casing(project_root, dest_rel, orig_rel)
-                    src_leaf = os.path.join(parent, dest_rel.split("/")[-1])
-                    dst_leaf = os.path.join(parent, orig_rel.split("/")[-1])
-                    if src_leaf != dst_leaf:
-                        os.rename(src_leaf, dst_leaf)
+                    case_tx = begin_case_only_dir_casing(project_root, dest_rel, orig_rel)
+                    src_leaf = os.path.join(case_tx.new_parent, dest_rel.split("/")[-1])
+                    dst_leaf = os.path.join(case_tx.new_parent, orig_rel.split("/")[-1])
+                    try:
+                        if src_leaf != dst_leaf:
+                            case_tx.rename(src_leaf, dst_leaf)
+                        case_tx.commit()
+                    except Exception:
+                        try:
+                            case_tx.rollback()
+                        except Exception:
+                            pass
+                        raise
                     restored.append(item["path"])
                     continue
                 if item.get("before_present", True):

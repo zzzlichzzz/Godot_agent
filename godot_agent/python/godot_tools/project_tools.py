@@ -26,6 +26,108 @@ class MoveRecoveryError(RuntimeError):
     """A move could not be restored; its reservation and files must be retained."""
 
 
+class CaseOnlyDirCasingTransaction:
+    """Track case-only parent-directory renames so they can be undone safely.
+
+    Renames are applied top-down while the transaction is created. ``renames``
+    contains only operations that actually completed, newest last. A transaction
+    is terminal after commit, rollback, or a failed rollback; terminal rollback
+    calls are deliberately no-ops so an injected recovery failure is not
+    accidentally retried or reported as a successful restoration.
+    """
+
+    def __init__(self, project_root, src_rel, dst_rel):
+        self.project_root = os.path.realpath(project_root)
+        self.source_components = str(src_rel).replace("\\", "/").strip("/").split("/")[:-1]
+        self.requested_components = str(dst_rel).replace("\\", "/").strip("/").split("/")[:-1]
+        if len(self.source_components) != len(self.requested_components):
+            raise ValueError("Case-only rename must keep the path depth: %s -> %s"
+                             % (src_rel, dst_rel))
+        self.current_parent = self.project_root
+        self.renames = []
+        self.state = "new"
+        self.rollback_succeeded = None
+        self.failed_renames = []
+        self._apply()
+
+    @property
+    def new_parent(self):
+        """Absolute parent path with the requested directory casing."""
+        return self.current_parent
+
+    def _apply(self):
+        try:
+            for source_part, requested_part in zip(
+                    self.source_components, self.requested_components):
+                old_path = os.path.join(self.current_parent, source_part)
+                if source_part == requested_part:
+                    self.current_parent = old_path
+                    continue
+                if not os.path.isdir(old_path):
+                    raise FileNotFoundError("Каталог не найден: %s" % old_path)
+                new_path = os.path.join(self.current_parent, requested_part)
+                os.rename(old_path, new_path)
+                self.renames.append((old_path, new_path))
+                self.current_parent = new_path
+        except BaseException as move_error:
+            try:
+                self.rollback()
+            except MoveRecoveryError as recovery_error:
+                raise MoveRecoveryError(
+                    "Case-only directory casing failed: %s; %s"
+                    % (move_error, recovery_error)
+                ) from recovery_error
+            raise
+
+    def rename(self, old_path, new_path):
+        """Apply and track one additional case-only directory rename."""
+        if self.state != "new":
+            raise RuntimeError("Case-only directory transaction is already finished")
+        os.rename(old_path, new_path)
+        self.renames.append((old_path, new_path))
+
+    def commit(self):
+        """Make the completed renames permanent; repeated calls are harmless."""
+        if self.state == "new":
+            self.state = "committed"
+
+    def rollback(self):
+        """Undo completed renames newest-first exactly once.
+
+        A failed leaf rollback is not followed by a parent rollback: nested
+        paths would then be moved underneath a casing different from the paths
+        stored in the recovery report. The failed pair and all its ancestors are
+        retained for honest manual recovery instead.
+        """
+        if self.state != "new":
+            return
+
+        while self.renames:
+            old_path, new_path = self.renames[-1]
+            try:
+                os.rename(new_path, old_path)
+            except OSError as recovery_error:
+                self.state = "rolled_back"
+                self.rollback_succeeded = False
+                self.failed_renames = list(self.renames)
+                raise MoveRecoveryError(
+                    "Case-only directory casing rollback failed: %s. "
+                    "Files and recovery snapshots retained for manual recovery; "
+                    "paths not restored: %r -> %r; inspect %r"
+                    % (recovery_error, new_path, old_path, self.failed_renames)
+                ) from recovery_error
+            self.renames.pop()
+            self.current_parent = old_path
+
+        self.state = "rolled_back"
+        self.rollback_succeeded = True
+
+
+def begin_case_only_dir_casing(project_root, src_rel, dst_rel):
+    """Rename parent components and return their rollback-capable transaction."""
+    return CaseOnlyDirCasingTransaction(project_root, src_rel, dst_rel)
+
+
 def _is_generated_sidecar(path):
     """Godot-managed sidecars are useful locally but only add model noise."""
     return str(path or '').replace('\\', '/').lower().endswith('.uid')
@@ -329,55 +431,36 @@ def _move_case_only(abs_source, abs_dest):
         for src, dst in pairs:
             os.rename(src, dst)
             done.append((src, dst))
-    except OSError:
+    except OSError as move_error:
+        recovery_errors = []
         for src, dst in reversed(done):
             try:
                 os.rename(dst, src)
-            except OSError:
-                pass
+            except OSError as recovery_error:
+                recovery_errors.append((dst, src, recovery_error))
+        if recovery_errors:
+            failed_pairs = [(current, original)
+                            for current, original, _error in recovery_errors]
+            raise MoveRecoveryError(
+                "Case-only file recovery failed: %s; original error: %s. "
+                "Files and recovery snapshots retained for manual recovery; "
+                "paths not restored: %r; inspect %r"
+                % (recovery_errors[0][2], move_error, failed_pairs, pairs)
+            ) from recovery_errors[0][2]
         raise
 
 
 
 def fix_case_only_dir_casing(project_root, src_rel, dst_rel):
-    """Rename DIRECTORY components of a case-only rename to the requested casing.
+    """Backward-compatible non-transactional parent-casing API.
 
-    On a case-insensitive filesystem ``os.rename(src, dst)`` where only
-    directory letters differ is a no-op for those directories: the leaf rename
-    resolves the old on-disk casing and the requested one is silently dropped
-    (fresh move/rename audit, item 3). Walk the directory components top-down
-    and rename each one whose on-disk name differs from the requested one only
-    by letter case. Returns the absolute parent directory of the leaf with the
-    requested casing applied. Already-renamed directories are restored if a
-    later component fails.
+    Prefer ``begin_case_only_dir_casing`` when a later operation must be able to
+    undo these directory renames. This legacy helper immediately commits after
+    the constructor has successfully applied all parent changes.
     """
-    src_dirs = src_rel.split("/")[:-1]
-    dst_dirs = dst_rel.split("/")[:-1]
-    if len(src_dirs) != len(dst_dirs):
-        raise ValueError("Case-only rename must keep the path depth: %s -> %s"
-                         % (src_rel, dst_rel))
-    current = os.path.realpath(project_root)
-    renamed = []
-    try:
-        for src_part, dst_part in zip(src_dirs, dst_dirs):
-            old_dir = os.path.join(current, src_part)
-            if src_part == dst_part:
-                current = old_dir
-                continue
-            if not os.path.isdir(old_dir):
-                raise FileNotFoundError(f"Каталог не найден: {old_dir}")
-            new_dir = os.path.join(current, dst_part)
-            os.rename(old_dir, new_dir)
-            renamed.append((old_dir, new_dir))
-            current = new_dir
-    except OSError:
-        for old_dir, new_dir in reversed(renamed):
-            try:
-                os.rename(new_dir, old_dir)
-            except OSError:
-                pass
-        raise
-    return current
+    transaction = begin_case_only_dir_casing(project_root, src_rel, dst_rel)
+    transaction.commit()
+    return transaction.new_parent
 
 
 def move_project_file(project_root, source_godot_path, dest_godot_path):
@@ -397,9 +480,21 @@ def move_project_file(project_root, source_godot_path, dest_godot_path):
         # components with changed casing must be renamed explicitly --
         # otherwise the leaf rename alone silently keeps the old dir casing
         # while references/journal record the requested one (fresh audit, item 3).
-        dest_parent = fix_case_only_dir_casing(project_root, src_rel, dst_rel)
-        abs_dest_requested = os.path.join(dest_parent, dst_rel.split("/")[-1])
-        _move_case_only(abs_source, abs_dest_requested)
+        transaction = begin_case_only_dir_casing(project_root, src_rel, dst_rel)
+        abs_dest_requested = os.path.join(
+            transaction.new_parent, dst_rel.split("/")[-1])
+        try:
+            _move_case_only(abs_source, abs_dest_requested)
+        except BaseException as move_error:
+            try:
+                transaction.rollback()
+            except MoveRecoveryError as recovery_error:
+                raise MoveRecoveryError(
+                    "Case-only move failed: %s; %s"
+                    % (move_error, recovery_error)
+                ) from recovery_error
+            raise
+        transaction.commit()
         return
     identities = {os.path.normcase(p) for p in (abs_source, abs_dest, source_uid, dest_uid)}
     if len(identities) != 4:

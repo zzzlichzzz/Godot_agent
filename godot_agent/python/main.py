@@ -3550,6 +3550,21 @@ def plan_step():
                 "[Система: весь план из %d шаг(ов) успешно выполнен. Файлы: %s]"
             ) % (plan["total"], ", ".join(plan["applied_paths"])))
         return jsonify(resp)
+    except godot_headless_validation.HeadlessValidationError as e:
+        # A malformed patch is a safe, terminal plan error: preserve already
+        # applied steps and return the same structured stopped contract as
+        # lint/self-heal exhaustion.  Do not turn it into a generic 500.
+        STATE["pending_plan"] = None
+        server_state.queue_action_note(
+            "[Система: выполнение плана остановлено на шаге %d из %d (%s): %s. "
+            "Уже выполненные шаги остались на диске.]"
+            % (idx + 1, plan["total"], step.get("path", ""), e))
+        return jsonify({
+            "ok": False, "stopped": True, "index": idx, "total": plan["total"],
+            "chain_id": plan["chain_id"], "error": str(e),
+            "message": "шаг %d из %d (%s) не прошёл проверку, выполнение остановлено"
+                       % (idx + 1, plan["total"], step.get("path", "")),
+        })
     except Exception as e:
         traceback.print_exc()
         STATE["pending_plan"] = None
