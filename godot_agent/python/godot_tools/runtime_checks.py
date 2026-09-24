@@ -6,7 +6,7 @@ import os
 import secrets
 import time
 
-from project_tools import _resolve_safe_path, is_addon_path
+from project_tools import _resolve_safe_path, can_write_project_path
 
 
 PROTOCOL = 1
@@ -92,23 +92,28 @@ def _expected(value):
     raise RuntimeCheckError("expected must be a bounded scalar or typed vector/color")
 
 
-def _scene_path(project_root, value, allow_addons):
+def _scene_path(project_root, value, allow_addons,
+                allow_self_edit=False, addon_dir=None):
     path = _text(value, "scene", 256).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(".tscn"):
         raise RuntimeCheckError("scene must be an existing res://*.tscn")
-    if not allow_addons and is_addon_path(path, project_root):
-        raise RuntimeCheckError("addon scenes require explicit addon intent")
+    if not can_write_project_path(
+            path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise RuntimeCheckError("addon scenes are blocked by the current access policy")
     absolute = _resolve_safe_path(project_root, path)
     if not os.path.isfile(absolute):
         raise RuntimeCheckError("scene not found: %s" % path)
     return path
 
 
-def normalize_action(project_root, action, allow_addons=False):
+def normalize_action(project_root, action, allow_addons=False,
+                     allow_self_edit=False, addon_dir=None):
     _exact(action, {"action", "scene", "steps", "timeout_ms", "screenshot", "reason"}, "run_check")
     if action.get("action") != "run_check":
         raise RuntimeCheckError("action must be run_check")
-    scene = _scene_path(project_root, action.get("scene"), allow_addons)
+    scene = _scene_path(project_root, action.get("scene"), allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     raw_steps = action.get("steps")
     if not isinstance(raw_steps, list) or not 1 <= len(raw_steps) <= MAX_STEPS:
         raise RuntimeCheckError("steps must contain 1..%d operations" % MAX_STEPS)

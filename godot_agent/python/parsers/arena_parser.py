@@ -671,6 +671,8 @@ class ArenaParser(BaseSiteParser):
             import server_state
             project_root = server_state.STATE.get("project_root")
             addon_dir = server_state.STATE.get("addon_dir")
+            allow_addons = server_state.STATE.get("allow_addons") is True
+            allow_self_edit = server_state.STATE.get("allow_self_edit") is True
         except Exception as e:
             self._log("Godot Judge недоступен: %s" % e)
             return None
@@ -678,8 +680,9 @@ class ArenaParser(BaseSiteParser):
             return None
         variants = mon.branch_variants()
         try:
-            return select_best_project_answer(project_root, variants,
-                                              addon_dir=addon_dir)
+            return select_best_project_answer(
+                project_root, variants, addon_dir=addon_dir,
+                allow_addons=allow_addons, allow_self_edit=allow_self_edit)
         except Exception as e:
             self._log("Godot Judge не смог оценить варианты: %s" % e)
             return None

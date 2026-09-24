@@ -14,7 +14,8 @@ import librarian
 import project_tools
 from minilich import ml_project_index
 from project_tools import (MoveRecoveryError, _resolve_safe_path,
-                           build_diff_preview, is_addon_path)
+                           build_diff_preview, can_reference_project_path,
+                           can_write_project_path)
 
 
 _LOCKS = {}
@@ -83,7 +84,9 @@ def _read_file_text(abs_path):
     return raw, text, bom
 
 
-def find_file_references(project_root, old_godot_path, allow_addons=False, skip_source_check=False):
+def find_file_references(project_root, old_godot_path, allow_addons=False,
+                         skip_source_check=False, allow_self_edit=False,
+                         addon_dir=None):
     """Find all files in project referencing old_godot_path.
     Returns list of dicts: {"path", "absolute", "occurrences", "rel_replaced"}.
     """
@@ -106,7 +109,9 @@ def find_file_references(project_root, old_godot_path, allow_addons=False, skip_
 
     for root, dirs, files in os.walk(root_path):
         # Exclude directories
-        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+        dirs[:] = [d for d in dirs
+                   if d not in _SKIP_DIRS
+                   or (d.casefold() == "addons" and (allow_addons or allow_self_edit))]
 
         for filename in files:
             ext = os.path.splitext(filename)[1].lower()
@@ -118,6 +123,10 @@ def find_file_references(project_root, old_godot_path, allow_addons=False, skip_
             godot_file = "res://" + rel_file
 
             if godot_file == old_godot_path:
+                continue
+            if not can_reference_project_path(
+                    godot_file, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                 continue
 
             try:
@@ -234,8 +243,29 @@ def update_internal_relative_paths(text, old_godot_path, new_godot_path, project
     return updated_text, changes
 
 
+def _assert_no_agent_tree_relocation(project_root, path, addon_dir):
+    """Reject any move that overlaps the server's trusted installation root."""
+    if not addon_dir:
+        return
+    try:
+        agent_dir = project_tools.validate_agent_addon_dir(project_root, addon_dir)
+        target = _resolve_safe_path(project_root, path)
+        agent_real = os.path.normcase(os.path.realpath(agent_dir))
+        target_real = os.path.normcase(os.path.realpath(target))
+        if (target_real == agent_real or target_real.startswith(agent_real + os.sep)
+                or agent_real.startswith(target_real + os.sep)):
+            raise FileRefactorError(
+                "Directory relocation protected by current access policy (overlaps Godot Agent): %s" % path)
+    except (OSError, TypeError, ValueError) as exc:
+        if isinstance(exc, FileRefactorError):
+            raise
+        # An unavailable/invalid trusted root is handled by the caller's
+        # per-file policy preflight; do not turn an ordinary alias into authority.
+
+
 def prepare_directory_relocation(project_root, old_path, new_path,
-                                 update_references=True, allow_addons=False):
+                                 update_references=True, allow_addons=False,
+                                 allow_self_edit=False, addon_dir=None):
     """Analyze and prepare an atomic directory relocation with reference updates."""
     abs_old = _resolve_safe_path(project_root, old_path)
     abs_new = _resolve_safe_path(project_root, new_path)
@@ -265,21 +295,37 @@ def prepare_directory_relocation(project_root, old_path, new_path,
     if os.path.exists(abs_new) and not case_only:
         raise FileExistsError("Целевая папка уже существует: %s" % new_path)
 
-    if not allow_addons and (is_addon_path(old_path, project_root) or is_addon_path(new_path, project_root)):
-        raise FileRefactorError("Изменение res://addons требует явного запроса пользователя")
+    for candidate_path in (old_path, new_path):
+        _assert_no_agent_tree_relocation(project_root, candidate_path, addon_dir)
+        if not can_write_project_path(
+                candidate_path, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            raise FileRefactorError(
+                "Путь защищён текущей политикой доступа: %s" % candidate_path)
 
     moved_files_map = {}
     import_files_map = {}
     for root, dirs, filenames in os.walk(abs_old):
-        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+        dirs[:] = [d for d in dirs
+                   if d not in _SKIP_DIRS
+                   or (d.casefold() == "addons" and (allow_addons or allow_self_edit))]
         for fn in filenames:
-            ext = os.path.splitext(fn)[1].lower()
-            if ext == ".uid":
-                continue
             f_abs = os.path.join(root, fn)
             rel_in_old = os.path.relpath(f_abs, abs_old).replace("\\", "/")
             f_old_godot = old_path.rstrip("/") + "/" + rel_in_old
             f_new_godot = new_path.rstrip("/") + "/" + rel_in_old
+            # Preflight every source and destination file before reading or
+            # preparing any write.  Never silently omit a protected file from
+            # a directory move.
+            for candidate in (f_old_godot, f_new_godot):
+                if not can_write_project_path(
+                        candidate, project_root, allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                    raise FileRefactorError(
+                        "Путь защищён текущей политикой доступа: %s" % candidate)
+            ext = os.path.splitext(fn)[1].lower()
+            if ext == ".uid":
+                continue
             if ext == ".import":
                 import_files_map[f_old_godot] = f_new_godot
             else:
@@ -426,7 +472,9 @@ def prepare_directory_relocation(project_root, old_path, new_path,
     if update_references:
         external_refs = {}
         for f_old, f_new in moved_files_map.items():
-            refs = find_file_references(project_root, f_old, allow_addons=allow_addons)
+            refs = find_file_references(
+                project_root, f_old, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
             for r in refs:
                 if r["path"] in moved_files_map:
                     continue
@@ -447,7 +495,9 @@ def prepare_directory_relocation(project_root, old_path, new_path,
         # Also search project files for directory path references (e.g. res://enemies or res://enemies/)
         root_path = os.path.abspath(project_root)
         for root, dirs, files in os.walk(root_path):
-            dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+            dirs[:] = [d for d in dirs
+                       if d not in _SKIP_DIRS
+                       or (d.casefold() == "addons" and (allow_addons or allow_self_edit))]
             for filename in files:
                 ext = os.path.splitext(filename)[1].lower()
                 if ext not in (".gd", ".tscn", ".tres", ".gdshader", ".gdshaderinc") and filename != "project.godot":
@@ -455,6 +505,10 @@ def prepare_directory_relocation(project_root, old_path, new_path,
                 abs_f = os.path.join(root, filename)
                 godot_file = "res://" + os.path.relpath(abs_f, root_path).replace("\\", "/")
                 if godot_file in moved_files_map or godot_file.startswith(old_prefix):
+                    continue
+                if not can_reference_project_path(
+                        godot_file, project_root, allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                     continue
                 if godot_file not in external_refs:
                     try:
@@ -535,7 +589,8 @@ def prepare_directory_relocation(project_root, old_path, new_path,
 
 
 def prepare_file_rename(project_root, old_godot_path, new_godot_path,
-                        update_references=True, allow_addons=False):
+                        update_references=True, allow_addons=False,
+                        allow_self_edit=False, addon_dir=None):
     """Analyze and prepare an atomic file or directory rename/move with reference updates.
     Returns a prepared transaction dictionary with diffs.
     """
@@ -551,7 +606,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     if os.path.isdir(abs_old):
         return prepare_directory_relocation(
             project_root, old_path, new_path,
-            update_references=update_references, allow_addons=allow_addons
+            update_references=update_references, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir
         )
 
     if not os.path.isfile(abs_old):
@@ -560,8 +616,12 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
     if os.path.exists(abs_new) and not _is_case_only_rename(old_path, new_path, abs_old, abs_new):
         raise FileExistsError("Целевой файл уже существует: %s" % new_path)
 
-    if not allow_addons and (is_addon_path(old_path, project_root) or is_addon_path(new_path, project_root)):
-        raise FileRefactorError("Изменение res://addons требует явного запроса пользователя")
+    for candidate_path in (old_path, new_path):
+        if not can_write_project_path(
+                candidate_path, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            raise FileRefactorError(
+                "Путь защищён текущей политикой доступа: %s" % candidate_path)
 
     if os.path.normcase(abs_old) == os.path.normcase(os.path.realpath(os.path.join(project_root, "project.godot"))):
         raise FileRefactorError("Нельзя переименовывать project.godot")
@@ -693,7 +753,9 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
         raise FileExistsError("Целевой файл .uid уже существует: %s" % new_uid_path)
 
     if update_references:
-        references = find_file_references(project_root, old_path, allow_addons=allow_addons)
+        references = find_file_references(
+            project_root, old_path, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         exact_pattern = re.compile(
             r'(?<=["\'\*])' + re.escape(old_path) + r'(?=["\'\s,\]])'
         )
@@ -746,7 +808,8 @@ def prepare_file_rename(project_root, old_godot_path, new_godot_path,
 
 
 def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=None,
-                               chain_id=None):
+                               chain_id=None, allow_addons=False,
+                               allow_self_edit=False, addon_dir=None):
     """Atomically applies prepared file rename/relocation and reference updates.
     Records change in history_manager and supports single-click rollback.
     """
@@ -765,13 +828,35 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
     dir_case_only = False
     abs_old_dir = abs_new_dir = None
     if is_directory:
+        _assert_no_agent_tree_relocation(project_root, old_path, addon_dir)
+        _assert_no_agent_tree_relocation(project_root, new_path, addon_dir)
         abs_old_dir = _resolve_safe_path(project_root, old_path)
         abs_new_dir = _resolve_safe_path(project_root, new_path)
         dir_case_only = _is_case_only_rename(old_path, new_path, abs_old_dir, abs_new_dir)
 
     with _project_lock(project_root):
-        # 1. Freshness check
+        # Freshness and policy checks happen together before the first write.
         for item in files:
+            policy_paths = [item.get("path") or ""]
+            if item.get("action") == "move_file":
+                policy_paths.append(item.get("dest") or "")
+            for candidate in policy_paths:
+                if not candidate:
+                    continue
+                if is_directory:
+                    _assert_no_agent_tree_relocation(
+                        project_root, candidate, addon_dir)
+                if item.get("action") == "move_file":
+                    allowed = can_write_project_path(
+                        candidate, project_root, allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
+                else:
+                    allowed = can_reference_project_path(
+                        candidate, project_root, allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
+                if not allowed:
+                    raise FileRefactorError(
+                        "Путь защищён текущей политикой доступа: %s" % candidate)
             if item.get("action") == "move_file":
                 if not os.path.isfile(item["absolute"]):
                     raise StaleFileRefactorError("Исходный файл больше не существует: %s" % item["path"])
@@ -1053,7 +1138,8 @@ def apply_prepared_file_rename(project_root, prepared, chat_id=None, chat_title=
 
 def sync_references_after_external_move(project_root, old_path, new_path,
                                         is_directory=False, allow_addons=False,
-                                        chat_id=None, chat_title=None):
+                                        chat_id=None, chat_title=None,
+                                        allow_self_edit=False, addon_dir=None):
     """Synchronizes references across project after a file or directory was moved externally (e.g. by FileSystemDock).
     Atomically updates string references in .gd, .tscn, .tres, project.godot,
     refreshes relative imports inside moved files, fixes companion .import
@@ -1068,12 +1154,14 @@ def sync_references_after_external_move(project_root, old_path, new_path,
         return _sync_references_after_external_move_impl(
             project_root, old_path, new_path,
             is_directory=is_directory, allow_addons=allow_addons,
-            chat_id=chat_id, chat_title=chat_title)
+            chat_id=chat_id, chat_title=chat_title,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
 
 
 def _sync_references_after_external_move_impl(project_root, old_path, new_path,
                                               is_directory=False, allow_addons=False,
-                                              chat_id=None, chat_title=None):
+                                              chat_id=None, chat_title=None,
+                                              allow_self_edit=False, addon_dir=None):
     """Lock-held implementation of sync_references_after_external_move."""
     old_path = _normalize_godot_path(old_path)
     new_path = _normalize_godot_path(new_path)
@@ -1088,6 +1176,13 @@ def _sync_references_after_external_move_impl(project_root, old_path, new_path,
             "file_count": 0,
             "changed_paths": [],
         }
+
+    for candidate_path in (old_path, new_path):
+        if not can_write_project_path(
+                candidate_path, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            raise FileRefactorError(
+                "Путь защищён текущей политикой доступа: %s" % candidate_path)
 
     files_to_modify = []
     total_refs = 0
@@ -1109,14 +1204,18 @@ def _sync_references_after_external_move_impl(project_root, old_path, new_path,
         moved_map = {}
         if os.path.isdir(abs_new):
             for root, dirs, filenames in os.walk(abs_new):
-                dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+                dirs[:] = [d for d in dirs
+                           if d not in _SKIP_DIRS
+                           or (d.casefold() == "addons" and (allow_addons or allow_self_edit))]
                 for fn in filenames:
                     rel = os.path.relpath(os.path.join(root, fn), abs_new).replace("\\", "/")
                     moved_map[old_prefix + rel] = new_prefix + rel
 
         root_path = os.path.abspath(project_root)
         for root, dirs, files in os.walk(root_path):
-            dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+            dirs[:] = [d for d in dirs
+                       if d not in _SKIP_DIRS
+                       or (d.casefold() == "addons" and (allow_addons or allow_self_edit))]
             for filename in files:
                 ext = os.path.splitext(filename)[1].lower()
                 if ext not in (".gd", ".tscn", ".tres", ".gdshader", ".gdshaderinc") and filename != "project.godot":
@@ -1125,6 +1224,10 @@ def _sync_references_after_external_move_impl(project_root, old_path, new_path,
                 rel_file = os.path.relpath(abs_file, root_path).replace("\\", "/")
                 godot_file = "res://" + rel_file
                 if godot_file.startswith(old_prefix):
+                    continue
+                if not can_reference_project_path(
+                        godot_file, project_root, allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                     continue
                 try:
                     raw, text, bom = _read_file_text(abs_file)
@@ -1168,12 +1271,19 @@ def _sync_references_after_external_move_impl(project_root, old_path, new_path,
         if os.path.isdir(abs_new):
             imp_pat = re.compile(r"(\bsource_file\s*=\s*[\"'])" + re.escape(old_prefix))
             for root, dirs, filenames in os.walk(abs_new):
-                dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and (allow_addons or d != "addons")]
+                dirs[:] = [d for d in dirs
+                           if d not in _SKIP_DIRS
+                           or (d.casefold() == "addons" and (allow_addons or allow_self_edit))]
                 for fn in filenames:
                     if not fn.lower().endswith(".import"):
                         continue
                     abs_imp = os.path.join(root, fn)
                     rel_imp = os.path.relpath(abs_imp, root_path).replace("\\", "/")
+                    if not can_write_project_path(
+                            "res://" + rel_imp, project_root,
+                            allow_addons=allow_addons,
+                            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                        continue
                     try:
                         imp_raw, imp_text, imp_bom = _read_file_text(abs_imp)
                     except Exception:
@@ -1192,7 +1302,10 @@ def _sync_references_after_external_move_impl(project_root, old_path, new_path,
                         total_refs += imp_count
     else:
         # 2. Single file
-        references = find_file_references(project_root, old_path, allow_addons=allow_addons, skip_source_check=True)
+        references = find_file_references(
+            project_root, old_path, allow_addons=allow_addons,
+            skip_source_check=True, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
         exact_pattern = re.compile(
             r'(?<=["\'\*])' + re.escape(old_path) + r'(?=["\'\s,\]])'
         )
@@ -1335,7 +1448,10 @@ def _sync_references_after_external_move_impl(project_root, old_path, new_path,
         "is_directory": dir_mode,
         "reference_count": total_refs,
     }
-    result = apply_prepared_file_rename(project_root, prepared, chat_id=chat_id, chat_title=chat_title)
+    result = apply_prepared_file_rename(
+        project_root, prepared, chat_id=chat_id, chat_title=chat_title,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
     result["ok"] = True
     return result
 

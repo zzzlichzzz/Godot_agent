@@ -44,6 +44,7 @@ class ApiRoutePersistenceTests(unittest.TestCase):
         self.metadata_before = self.metadata_path.read_bytes()
         self.config_before = Path(api_keys.config_path()).read_bytes()
         state = {"user_data_dir": self.base, "project_root": None,
+                 "allow_addons": False, "allow_self_edit": False,
                  "current_chat_id": self.cid, "current_site_id": "old site",
                  "is_primed": True, "progress": {"active": False},
                  "stale_notes": {self.cid: "keep stale note"}}

@@ -7,7 +7,7 @@ import os
 import re
 import uuid
 
-from project_tools import _resolve_safe_path, is_addon_path
+from project_tools import _resolve_safe_path, can_write_project_path
 from scene_actions import normalize_variant
 
 
@@ -55,12 +55,15 @@ def _number(value, field, minimum=None, maximum=None, positive=False):
     return result
 
 
-def _path(project_root, value, field, extensions=None, allow_addons=False):
+def _path(project_root, value, field, extensions=None, allow_addons=False,
+          allow_self_edit=False, addon_dir=None):
     path = _text(value, field).replace("\\", "/")
     if not path.startswith("res://"):
         raise ResourceActionError("%s должен быть res:// путём" % field)
-    if not allow_addons and is_addon_path(path, project_root):
-        raise ResourceActionError("Ресурсы аддонов разрешены только по явному запросу пользователя")
+    if not can_write_project_path(
+            path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise ResourceActionError("Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа")
     if extensions and not path.lower().endswith(tuple(extensions)):
         raise ResourceActionError("%s имеет неподдерживаемое расширение" % field)
     absolute = _resolve_safe_path(project_root, path)
@@ -81,13 +84,17 @@ def _target(value):
     return result
 
 
-def _tagged(project_root, value, allow_addons=False, depth=0, counter=None):
+def _tagged(project_root, value, allow_addons=False, depth=0, counter=None,
+            allow_self_edit=False, addon_dir=None):
     if not isinstance(value, dict):
         raise ResourceActionError("value должен быть tagged JSON-объектом")
     kind = value.get("type")
     if kind == "ResourcePath":
         _exact(value, ("type", "value"))
-        path, _absolute = _path(project_root, value["value"], "ResourcePath", allow_addons=allow_addons)
+        path, _absolute = _path(
+            project_root, value["value"], "ResourcePath",
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
         return {"type": kind, "value": path}
     if kind == "NewSubresource":
         _exact(value, ("type", "class"), ("properties",))
@@ -112,7 +119,8 @@ def _tagged(project_root, value, allow_addons=False, depth=0, counter=None):
                 raise ResourceActionError("Недопустимое или повторное свойство NewSubresource: %s" % prop)
             seen.add(prop)
             normalized.append({"property": prop,
-                               "value": _tagged(project_root, item["value"], allow_addons, depth + 1, counter)})
+                               "value": _tagged(project_root, item["value"], allow_addons, depth + 1, counter,
+                                               allow_self_edit=allow_self_edit, addon_dir=addon_dir)})
         return {"type": kind, "class": cls, "properties": normalized}
     try:
         return normalize_variant(value)
@@ -120,7 +128,9 @@ def _tagged(project_root, value, allow_addons=False, depth=0, counter=None):
         raise ResourceActionError(str(exc))
 
 
-def _normalize_operation(project_root, raw, allow_addons=False, subresource_counter=None):
+def _normalize_operation(project_root, raw, allow_addons=False,
+                         subresource_counter=None, allow_self_edit=False,
+                         addon_dir=None):
     if not isinstance(raw, dict):
         raise ResourceActionError("Каждая операция должна быть объектом")
     op = raw.get("op")
@@ -131,11 +141,14 @@ def _normalize_operation(project_root, raw, allow_addons=False, subresource_coun
             raise ResourceActionError("Недопустимое имя свойства")
         return {"op": op, "target": _target(raw["target"]), "property": prop,
                 "value": _tagged(project_root, raw["value"], allow_addons,
-                                  counter=subresource_counter)}
+                                  counter=subresource_counter,
+                                  allow_self_edit=allow_self_edit, addon_dir=addon_dir)}
     if op == "replace_reference":
         _exact(raw, ("op", "target", "old", "new", "expected_count"))
-        old, _ = _path(project_root, raw["old"], "old", allow_addons=allow_addons)
-        new, _ = _path(project_root, raw["new"], "new", allow_addons=allow_addons)
+        old, _ = _path(project_root, raw["old"], "old", allow_addons=allow_addons,
+                       allow_self_edit=allow_self_edit, addon_dir=addon_dir)
+        new, _ = _path(project_root, raw["new"], "new", allow_addons=allow_addons,
+                       allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         count = raw["expected_count"]
         if isinstance(count, bool) or not isinstance(count, int) or not (1 <= count <= 10000):
             raise ResourceActionError("expected_count должен быть целым числом 1..10000")
@@ -158,7 +171,8 @@ def _normalize_operation(project_root, raw, allow_addons=False, subresource_coun
             previous = timestamp
             normalized_keys.append({"time": timestamp,
                                     "value": _tagged(project_root, key["value"], allow_addons,
-                                                     counter=subresource_counter),
+                                                     counter=subresource_counter,
+                                                     allow_self_edit=allow_self_edit, addon_dir=addon_dir),
                                     "transition": _number(key.get("transition", 1.0), "transition", positive=True)})
         interpolation = raw.get("interpolation", "linear")
         update_mode = raw.get("update_mode", "continuous")
@@ -174,7 +188,8 @@ def _normalize_operation(project_root, raw, allow_addons=False, subresource_coun
         result = []
         for frame in frames:
             _exact(frame, ("texture",), ("duration",))
-            texture = _tagged(project_root, frame["texture"], allow_addons)
+            texture = _tagged(project_root, frame["texture"], allow_addons,
+                              allow_self_edit=allow_self_edit, addon_dir=addon_dir)
             if texture.get("type") != "ResourcePath":
                 raise ResourceActionError("texture кадра должен быть ResourcePath")
             result.append({"texture": texture,
@@ -192,7 +207,8 @@ def _normalize_operation(project_root, raw, allow_addons=False, subresource_coun
         if "overwrite" in raw and not isinstance(raw["overwrite"], bool):
             raise ResourceActionError("overwrite должен быть bool")
         tagged = _tagged(project_root, raw["value"], allow_addons,
-                         counter=subresource_counter)
+                         counter=subresource_counter,
+                         allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         if tagged.get("type") not in _THEME_VALUE_TYPES[data_type]:
             raise ResourceActionError("Тип value не подходит для Theme item %s" % data_type)
         return {"op": op, "data_type": data_type,
@@ -205,7 +221,8 @@ def _normalize_operation(project_root, raw, allow_addons=False, subresource_coun
         source_id = raw["source_id"]
         if isinstance(source_id, bool) or not isinstance(source_id, int) or source_id < 0:
             raise ResourceActionError("source_id должен быть неотрицательным целым")
-        texture = _tagged(project_root, raw["texture"], allow_addons)
+        texture = _tagged(project_root, raw["texture"], allow_addons,
+                          allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         if texture.get("type") != "ResourcePath":
             raise ResourceActionError("texture TileSet должен быть ResourcePath")
         size = raw["texture_region_size"]
@@ -229,20 +246,25 @@ def _normalize_operation(project_root, raw, allow_addons=False, subresource_coun
     raise ResourceActionError("Неизвестная операция ресурса: %s" % op)
 
 
-def normalize_action(project_root, action, allow_addons=False, require_exists=True):
+def normalize_action(project_root, action, allow_addons=False, require_exists=True,
+                     allow_self_edit=False, addon_dir=None):
     _exact(action, ("action", "resource", "operations"), ("wait_for_import", "summary"))
     if action.get("action") != "edit_resource":
         raise ResourceActionError("Ожидалось action=edit_resource")
     if require_exists:
-        resource, absolute = _path(project_root, action["resource"], "resource", (".tres",), allow_addons)
+        resource, absolute = _path(
+            project_root, action["resource"], "resource", (".tres",),
+            allow_addons, allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     else:
         raw_resource = action["resource"]
         if not isinstance(raw_resource, str) or not raw_resource.startswith("res://") or not raw_resource.lower().endswith(".tres"):
             raise ResourceActionError("resource должен быть путём res://*.tres")
         absolute = _resolve_safe_path(project_root, raw_resource)
         resource = "res://" + os.path.relpath(absolute, project_root).replace("\\", "/")
-        if not allow_addons and is_addon_path(resource, project_root):
-            raise ResourceActionError("Пути addons требуют явного намерения")
+        if not can_write_project_path(
+                resource, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            raise ResourceActionError("Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа")
     raw_operations = action["operations"]
     if not isinstance(raw_operations, list) or not (1 <= len(raw_operations) <= MAX_OPERATIONS):
         raise ResourceActionError("operations должен содержать от 1 до %d операций" % MAX_OPERATIONS)
@@ -251,13 +273,16 @@ def normalize_action(project_root, action, allow_addons=False, require_exists=Tr
         raise ResourceActionError("wait_for_import должен быть массивом до 32 путей")
     normalized_imports = []
     for item in imports:
-        path, _ = _path(project_root, item, "wait_for_import", allow_addons=allow_addons)
+        path, _ = _path(project_root, item, "wait_for_import",
+                        allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         if path not in normalized_imports:
             normalized_imports.append(path)
     subresource_counter = [0]
     normalized = {"action": "edit_resource", "resource": resource,
-                  "operations": [_normalize_operation(project_root, item, allow_addons,
-                                                       subresource_counter)
+                  "operations": [_normalize_operation(
+                      project_root, item, allow_addons, subresource_counter,
+                      allow_self_edit=allow_self_edit, addon_dir=addon_dir)
                                   for item in raw_operations]}
     for operation in normalized["operations"]:
         for dependency in _operation_dependencies(operation):
@@ -305,8 +330,11 @@ def file_sha256(absolute):
         return hashlib.sha256(handle.read()).hexdigest()
 
 
-def prepare(project_root, action, allow_addons=False):
-    normalized, absolute = normalize_action(project_root, action, allow_addons)
+def prepare(project_root, action, allow_addons=False,
+            allow_self_edit=False, addon_dir=None):
+    normalized, absolute = normalize_action(
+        project_root, action, allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     return {"action_id": uuid.uuid4().hex, "action": normalized,
             "resource": normalized["resource"], "target": normalized["resource"],
             "action_digest": canonical_digest(normalized),

@@ -12,7 +12,8 @@ from gd_lint import lint_gdscript
 from minilich.ml_project_index import search as librarian_search
 from parser_base import (answer_transfer_incomplete, parse_action_json,
                          score_answer_variant, split_net_text_and_action)
-from project_tools import _resolve_safe_path
+from project_tools import (_resolve_safe_path, can_read_project_path,
+                           can_write_project_path)
 from tscn_lint import is_scene_path, lint_and_fix_tscn
 import symbol_refactor
 import high_level_actions
@@ -36,37 +37,42 @@ def _finding(severity, category, message, path=None, step=None):
     return out
 
 
-def _judge_structural_action(project_root, action, addon_dir):
+def _judge_structural_action(project_root, action, addon_dir,
+                            allow_addons=False, allow_self_edit=False):
     act = action.get("action")
     try:
         if act == "rename_symbol":
             prepared = symbol_refactor.prepare_rename(
-                project_root, action, addon_dir=addon_dir)
+                project_root, action, allow_addons=allow_addons,
+                addon_dir=addon_dir, allow_self_edit=allow_self_edit)
             return 94, [], ["Safe rename resolves %d references in %d files" % (
                 prepared["reference_count"], len(prepared["files"]))]
         if act in ("edit_scene", "create_scene"):
             import scene_actions
             normalized, _absolute = scene_actions.normalize_action(
-                project_root, action, bool(addon_dir))
+                project_root, action, allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
             return 93, [], ["Structural scene action validates %d operations" %
                             len(normalized["operations"])]
         if act == "edit_project_settings":
             import project_settings_actions
             normalized, _absolute = project_settings_actions.normalize_action(
-                project_root, action, bool(addon_dir))
+                project_root, action, allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
             return 93, [], ["ProjectSettings edit validates %d operations" %
                             len(normalized["operations"])]
         if act == "edit_resource":
             import resource_actions
             normalized, _absolute = resource_actions.normalize_action(
-                project_root, action, bool(addon_dir))
+                project_root, action, allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
             return 93, [], ["Structural resource edit validates %d operations" %
                             len(normalized["operations"])]
         if act == "transaction":
             import transaction_actions
             prepared = transaction_actions.prepare(
-                project_root, action, allow_addons=bool(addon_dir),
-                addon_dir=addon_dir)
+                project_root, action, allow_addons=allow_addons,
+                addon_dir=addon_dir, allow_self_edit=allow_self_edit)
             if prepared.get("already_satisfied"):
                 return 96, [], ["Atomic transaction is already satisfied locally"]
             return 95, [], ["Atomic transaction validates %d operations in %d files" % (
@@ -114,14 +120,17 @@ def _validate_candidate(project_root, path, text, addon_dir, planned_paths):
     return findings
 
 
-def _judge_read_action(project_root, action):
+def _judge_read_action(project_root, action, addon_dir=None,
+                       allow_addons=False, allow_self_edit=False):
     findings = []
     evidence = []
     act = action.get("action")
     score = 55
     if act == "run_check":
         try:
-            normalized = runtime_checks.normalize_action(project_root, action)
+            normalized = runtime_checks.normalize_action(
+                project_root, action, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         except runtime_checks.RuntimeCheckError as exc:
             return 45, [_finding("blocking", "runtime_check", str(exc))], evidence
         return 94, [], ["One deterministic local game check validates %d bounded steps" %
@@ -188,6 +197,10 @@ def _judge_read_action(project_root, action):
         for path in paths:
             if not isinstance(path, str) or not path.startswith("res://"):
                 findings.append(_finding("blocking", "path", "invalid project path", path))
+            elif not can_read_project_path(
+                    path, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                findings.append(_finding("blocking", "policy", "path is blocked by access policy", path))
             elif _path_exists(project_root, path, {}):
                 existing += 1
                 evidence.append("Exact project file exists: %s" % path)
@@ -202,7 +215,10 @@ def _judge_read_action(project_root, action):
 
     if act == "list_scene":
         path = action.get("path")
-        if path and _path_exists(project_root, path, {}) and is_scene_path(path):
+        if path and can_read_project_path(
+                path, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir) \
+                and _path_exists(project_root, path, {}) and is_scene_path(path):
             score += 22
             evidence.append("Scene exists: %s" % path)
         else:
@@ -228,7 +244,8 @@ def _judge_read_action(project_root, action):
 
 
 def _apply_write_action(project_root, action, overlay, addon_dir,
-                        planned_paths, step=None):
+                        planned_paths, step=None, allow_addons=False,
+                        allow_self_edit=False):
     findings = []
     evidence = []
     act = action.get("action")
@@ -239,6 +256,10 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
         _resolve_safe_path(project_root, path)
     except Exception as exc:
         return [_finding("blocking", "path", str(exc), path, step)], evidence
+    if not can_write_project_path(
+            path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        return [_finding("blocking", "policy", "path is blocked by access policy", path, step)], evidence
 
     if act == "create_file":
         if path.lower().endswith(".tscn"):
@@ -281,6 +302,10 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
             findings.append(_finding("blocking", "schema",
                                      "move_file has invalid destination", path, step))
             return findings, evidence
+        if not can_write_project_path(
+                dest, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            return [_finding("blocking", "policy", "destination is blocked by access policy", dest, step)], evidence
         if path.lower().endswith(".tscn") or dest.lower().endswith(".tscn"):
             return [_finding("blocking", "scene", ".tscn paths must use create_scene/edit_scene", path, step)], evidence
         try:
@@ -307,7 +332,8 @@ def _apply_write_action(project_root, action, overlay, addon_dir,
     return findings, evidence
 
 
-def judge_answer(project_root, full_text, addon_dir=None):
+def judge_answer(project_root, full_text, addon_dir=None,
+                 allow_addons=False, allow_self_edit=False):
     """Return an explainable deterministic judgment for one model answer."""
     structural = score_answer_variant(full_text)
     prose, action_raw = split_net_text_and_action(full_text or "")
@@ -341,7 +367,8 @@ def judge_answer(project_root, full_text, addon_dir=None):
             score = 58
             if act in READ_ACTIONS or act == "run_check":
                 action_score, action_findings, action_evidence = _judge_read_action(
-                    project_root, action)
+                    project_root, action, addon_dir=addon_dir,
+                    allow_addons=allow_addons, allow_self_edit=allow_self_edit)
                 score = action_score
                 findings.extend(action_findings)
                 evidence.extend(action_evidence)
@@ -367,25 +394,30 @@ def judge_answer(project_root, full_text, addon_dir=None):
                             continue
                         fs, ev = _apply_write_action(
                             project_root, step_action, overlay, addon_dir,
-                            planned_paths, step=index)
+                            planned_paths, step=index,
+                            allow_addons=allow_addons,
+                            allow_self_edit=allow_self_edit)
                         findings.extend(fs)
                         evidence.extend(ev)
                     score = 88 - min(20, max(0, len(steps) - 1) * 2)
             elif act in ("rename_symbol", "edit_scene", "create_scene", "edit_project_settings", "edit_resource", "transaction"):
                 score, action_findings, action_evidence = _judge_structural_action(
-                    project_root, action, addon_dir)
+                    project_root, action, addon_dir,
+                    allow_addons=allow_addons, allow_self_edit=allow_self_edit)
                 findings.extend(action_findings)
                 evidence.extend(action_evidence)
             elif act == "project_command":
                 try:
                     compiled = high_level_actions.compile_action(
-                        project_root, action, allow_addons=bool(addon_dir))
+                        project_root, action, allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
                 except Exception as exc:
                     score = 45
                     findings.append(_finding("blocking", "project_command", str(exc)))
                 else:
                     score, action_findings, action_evidence = _judge_structural_action(
-                        project_root, compiled, addon_dir)
+                        project_root, compiled, addon_dir,
+                        allow_addons=allow_addons, allow_self_edit=allow_self_edit)
                     findings.extend(action_findings)
                     evidence.append("High-level %s deterministically compiles to %s" % (
                         action["command"]["type"], compiled["action"]))
@@ -413,12 +445,15 @@ def judge_answer(project_root, full_text, addon_dir=None):
     }
 
 
-def select_best_project_answer(project_root, variants, addon_dir=None):
+def select_best_project_answer(project_root, variants, addon_dir=None,
+                               allow_addons=False, allow_self_edit=False):
     """Return (key, text, judgment, all_judgments), preserving order on ties."""
     judged = []
     best = None
     for key, text in variants:
-        result = judge_answer(project_root, text, addon_dir=addon_dir)
+        result = judge_answer(
+            project_root, text, addon_dir=addon_dir,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit)
         judged.append((key, result))
         candidate = (key, text, result)
         if best is None or result["score"] > best[2]["score"]:

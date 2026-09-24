@@ -9,15 +9,9 @@ EXCLUDED_DIRS = {'.godot', '.import', '.git', '.venv', '__pycache__',
                  'node_modules', '.vs', '.vscode', '.agent_history',
                  # v77: мозг mini-lich (датасет+чекпоинты) меняется сам по себе постояннововремя обучения
                  # — это не внешнее изменение проекта, о котором нужно сообщать модели.
-                 'minilich_brain',
-                 # v104.3: папка самого плагина (внутри — python-сборка сервера:
-                 # build/, dist/_internal/ с numpy, selenium и т.п.) — служебная,
-                 # к игре не относится и раздувала мега-промпт десятками строк.
-                 # 'Godot_agent' — имя папки из дистрибутива (запасной вариант);
-                 # точное имя добавляется динамически из addon_dir при /init
-                 # (см. exclude_agent_addon_dirs).
-                 'Godot_agent'}
+                 'minilich_brain'}
 EXCLUDED_FILES = {'.DS_Store'}
+_POLICY_CONTROLLED_EXCLUDES = set()
 
 HISTORY_DIR_NAME = ".agent_history"
 
@@ -134,28 +128,19 @@ def _is_generated_sidecar(path):
 
 
 def exclude_agent_addon_dirs(addon_dir):
-    """v104.3: исключает папку САМОГО плагина из дерева проекта, сводки,
-    search_project и снапшота внешних изменений (все они фильтруют обход по
-    EXCLUDED_DIRS). Плагин обычно лежит как addons/<Обёртка>/<папка_аддона> —
-    исключаем и папку аддона, и обёртку. Явный read_file по пути внутри
-    аддона по-прежнему работает (_resolve_safe_path это не фильтрует)."""
-    try:
-        norm = os.path.normpath(str(addon_dir or "")).replace(os.sep, "/")
-    except Exception:
-        return
-    parts = [p for p in norm.split("/") if p]
-    if not parts:
-        return
-    if parts[-1] != "addons":
-        EXCLUDED_DIRS.add(parts[-1])
-    if "addons" in parts:
-        i = parts.index("addons")
-        if i + 1 < len(parts):
-            EXCLUDED_DIRS.add(parts[i + 1])
+    """Compatibility no-op: exclusion is canonical and request-scoped.
+
+    The current agent root is classified from ``addon_dir`` on every scan;
+    mutating a process-wide set of directory names would leak exclusions
+    between projects and is never used as an authorization boundary.
+    """
+    return None
 
 
 
-def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=None, subdir=None):
+def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=None,
+                       subdir=None, allow_addons=False, allow_self_edit=False,
+                       addon_dir=None):
     """Строит текстовое дерево файлов проекта (или ОДНОЙ его папки, если задан
     subdir — например "res://src/scripts/") для контекста ИИ."""
     project_root = os.path.abspath(project_root)
@@ -172,7 +157,16 @@ def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=No
     count = 0
     truncated = False
     for dirpath, dirnames, filenames in os.walk(base):
-        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if (d not in EXCLUDED_DIRS
+                or _excluded_dir_allowed_by_policy(
+                    d, dirpath, project_root, allow_addons,
+                    allow_self_edit, addon_dir))
+            and not d.startswith('.'))
+        _filter_project_scan_entries(
+            dirnames, filenames, dirpath, project_root,
+            allow_addons, allow_self_edit, addon_dir)
         rel = os.path.relpath(dirpath, base)
         depth = 0 if rel == '.' else rel.count(os.sep) + 1
         if depth > max_depth:
@@ -225,6 +219,323 @@ def is_addon_path(path, project_root=None):
         import posixpath
         value = posixpath.normpath(value.removeprefix("res://").lstrip("/"))
     return value.casefold() == "addons" or value.casefold().startswith("addons/")
+
+
+
+class _PathOutsideError(ValueError):
+    """Internal marker so classifiers can distinguish escapes from bad input."""
+
+
+def _resolved_project_path(project_root, godot_path):
+    """Return ``(root, absolute, canonical_res)`` for an in-project path.
+
+    This is the canonical identity primitive used by the access policy.  It
+    deliberately does not apply the history restriction; ``_resolve_safe_path``
+    keeps that historical behaviour while policy classifiers need to describe
+    the denied path instead of raising before they can classify it.
+    """
+    if not isinstance(godot_path, str) or not godot_path:
+        raise ValueError("Путь проекта должен быть непустой строкой")
+    if "\x00" in godot_path:
+        raise ValueError("Путь проекта содержит NUL")
+
+    project_root_abs = os.path.realpath(project_root)
+    rel = godot_path[len('res://'):] if godot_path.startswith('res://') else godot_path
+    abs_path = os.path.realpath(os.path.join(project_root_abs, rel))
+    root_identity = os.path.normcase(project_root_abs)
+    path_identity = os.path.normcase(abs_path)
+    if path_identity != root_identity and not path_identity.startswith(root_identity + os.sep):
+        raise _PathOutsideError(f"Путь вне проекта отклонен: {godot_path}")
+
+    rel_norm = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
+    canonical_res = "res://" if rel_norm == os.curdir else "res://" + rel_norm
+    return project_root_abs, abs_path, canonical_res
+
+
+def _validated_agent_addon_dir(project_root, addon_dir):
+    """Validate the plugin directory and derive its outer add-on wrapper.
+
+    ``addon_dir`` may point at the wrapper itself or at a nested directory
+    inside it.  The wrapper is always the first child below ``res://addons``;
+    hard-coded distribution names and string prefixes are therefore not part
+    of the policy.
+    """
+    if not isinstance(project_root, (str, bytes, os.PathLike)) or not project_root:
+        raise ValueError("Некорректный корень проекта")
+    if not isinstance(addon_dir, (str, bytes, os.PathLike)) or not addon_dir:
+        raise ValueError("Некорректный каталог аддона")
+    addon_text = os.fsdecode(addon_dir) if isinstance(addon_dir, bytes) else os.fspath(addon_dir)
+    if "\x00" in addon_text:
+        raise ValueError("Каталог аддона содержит NUL")
+    if not os.path.isabs(addon_text):
+        raise ValueError("Каталог аддона должен быть абсолютным")
+    if any(part in (os.curdir, os.pardir)
+           for part in addon_text.replace("\\", "/").split("/")):
+        raise ValueError("Каталог аддона не должен содержать . или ..")
+
+    root = os.path.realpath(project_root)
+    canonical_dir = os.path.realpath(addon_dir)
+    if not os.path.isdir(canonical_dir):
+        raise ValueError("Каталог аддона не найден")
+    rel = os.path.relpath(canonical_dir, root).replace(os.sep, "/")
+    parts = [part for part in rel.split("/") if part not in ("", os.curdir)]
+    if any(part == os.pardir for part in parts):
+        raise ValueError("Каталог аддона находится вне проекта")
+    if len(parts) < 2 or parts[0].casefold() != "addons":
+        raise ValueError("Каталог агента должен находиться внутри res://addons")
+    wrapper = os.path.realpath(os.path.join(root, *parts[:2]))
+    wrapper_rel = os.path.relpath(wrapper, root).replace(os.sep, "/")
+    wrapper_parts = [part for part in wrapper_rel.split("/") if part]
+    inside_root = os.path.normcase(wrapper).startswith(os.path.normcase(root) + os.sep)
+    if len(wrapper_parts) != 2 or wrapper_parts[0].casefold() != "addons" or not inside_root:
+        raise ValueError("Каталог агента находится вне проекта")
+    return root, canonical_dir, wrapper
+
+
+def validate_agent_addon_dir(project_root, addon_dir):
+    """Return the canonical absolute agent add-on directory or raise ValueError."""
+    return _validated_agent_addon_dir(project_root, addon_dir)[1]
+
+
+def is_agent_path(path, project_root, addon_dir=None):
+    """True when *path* resolves inside this installation's derived wrapper."""
+    if not addon_dir:
+        return False
+    try:
+        root, _agent_dir, wrapper = _validated_agent_addon_dir(project_root, addon_dir)
+        _resolved_root, absolute, _canonical = _resolved_project_path(project_root, path)
+    except (OSError, TypeError, ValueError):
+        return False
+    root_identity = os.path.normcase(root)
+    agent_identity = os.path.normcase(os.path.realpath(_agent_dir))
+    absolute_identity = os.path.normcase(absolute)
+    return (absolute_identity == agent_identity
+            or absolute_identity.startswith(agent_identity + os.sep))
+
+
+def classify_project_path(path, project_root, addon_dir=None):
+    """Classify a path by resolved, case-insensitive project identity.
+
+    The returned mapping is JSON-friendly and intentionally contains no
+    capability flags.  Access decisions are made separately by
+    ``can_read/write/reference_project_path`` so ``allow_addons`` and
+    ``allow_self_edit`` remain independent.
+    """
+    original = "" if path is None else str(path)
+    result = {
+        "path": original.replace("\\", "/"),
+        "absolute_path": "",
+        "kind": "invalid",
+        "in_project": False,
+        "is_addon": False,
+        "is_agent": False,
+        "is_history": False,
+        "is_project_settings": False,
+        "error": None,
+    }
+    try:
+        root, absolute, canonical = _resolved_project_path(project_root, path)
+    except _PathOutsideError as exc:
+        result.update(kind="outside", error=str(exc))
+        return result
+    except (OSError, TypeError, ValueError) as exc:
+        result.update(error=str(exc))
+        return result
+
+    rel = os.path.relpath(absolute, root).replace(os.sep, "/")
+    rel_folded = rel.casefold()
+    history_folded = HISTORY_DIR_NAME.casefold()
+    is_history = rel_folded == history_folded or rel_folded.startswith(history_folded + "/")
+    project_file = os.path.realpath(os.path.join(root, "project.godot"))
+    is_settings = os.path.normcase(absolute) == os.path.normcase(project_file)
+    is_addon = rel_folded == "addons" or rel_folded.startswith("addons/")
+
+    agent_error = None
+    is_agent = False
+    if addon_dir:
+        try:
+            _validated_agent_addon_dir(root, addon_dir)
+            is_agent = is_agent_path(canonical, root, addon_dir)
+        except (OSError, TypeError, ValueError) as exc:
+            agent_error = str(exc)
+
+    if is_history:
+        kind = "history"
+    elif is_settings:
+        kind = "project_settings"
+    elif is_agent:
+        kind = "agent"
+    elif is_addon:
+        kind = "addon"
+    else:
+        kind = "project"
+    result.update(
+        path=canonical,
+        absolute_path=absolute,
+        kind=kind,
+        in_project=True,
+        is_addon=is_addon,
+        is_agent=is_agent,
+        agent_root_valid=bool(addon_dir and agent_error is None),
+        is_history=is_history,
+        is_project_settings=is_settings,
+        error=agent_error,
+    )
+    return result
+
+
+
+
+def _path_access_allowed(classification, access, allow_addons, allow_self_edit):
+    if not classification.get("in_project") or classification.get("is_history"):
+        return False
+    if access == "write" and classification.get("is_project_settings"):
+        # project.godot has its own structural editor action and must never be
+        # overwritten through the generic text-write boundary.
+        return False
+    if classification.get("is_agent"):
+        # External-addon access never implies self-edit access.  This is the
+        # whole point of keeping the two capabilities independent.
+        return bool(allow_self_edit and classification.get("agent_root_valid"))
+    if classification.get("is_addon"):
+        # Without a valid server-derived current-agent root, no add-on can be
+        # safely distinguished from the protected installation.
+        return bool(allow_addons and classification.get("agent_root_valid"))
+    return True
+
+
+def can_read_project_path(path, project_root, allow_addons=False,
+                          allow_self_edit=False, addon_dir=None):
+    """Whether the current capability snapshot permits reading *path*."""
+    return _path_access_allowed(
+        classify_project_path(path, project_root, addon_dir),
+        "read", allow_addons, allow_self_edit)
+
+
+def can_write_project_path(path, project_root, allow_addons=False,
+                           allow_self_edit=False, addon_dir=None):
+    """Whether the current capability snapshot permits generic writing."""
+    return _path_access_allowed(
+        classify_project_path(path, project_root, addon_dir),
+        "write", allow_addons, allow_self_edit)
+
+
+def can_reference_project_path(path, project_root, allow_addons=False,
+                               allow_self_edit=False, addon_dir=None):
+    """Whether scanners/refactorers may consume *path* as project source."""
+    return _path_access_allowed(
+        classify_project_path(path, project_root, addon_dir),
+        "reference", allow_addons, allow_self_edit)
+
+
+def _scan_res_path(project_root, absolute_path):
+    """Return a scan candidate as ``res://...`` or None when lexically outside."""
+    root = os.path.realpath(project_root)
+    absolute = os.path.abspath(absolute_path)
+    rel = os.path.relpath(absolute, root).replace(os.sep, "/")
+    if rel == os.curdir:
+        return "res://"
+    if rel == os.pardir or rel.startswith(os.pardir + "/"):
+        return None
+    return "res://" + rel
+
+
+def _filter_project_scan_entries(dirnames, filenames, dirpath, project_root,
+                                 allow_addons, allow_self_edit, addon_dir,
+                                 access="read"):
+    """Drop excluded and physically out-of-policy entries before os.walk descends."""
+    kept_dirs = []
+    for name in dirnames:
+        candidate = _scan_res_path(project_root, os.path.join(dirpath, name))
+        if candidate is None:
+            continue
+        classification = classify_project_path(
+            candidate, project_root, addon_dir)
+        allowed = (can_read_project_path(candidate, project_root, allow_addons,
+                                        allow_self_edit, addon_dir)
+                   if access == "read" else
+                   can_write_project_path(candidate, project_root, allow_addons,
+                                          allow_self_edit, addon_dir))
+        if not allowed and allow_self_edit and classification.get("is_addon"):
+            # ``res://addons`` itself is not the agent path, but the walker must
+            # be allowed to descend through that neutral container to reach a
+            # renamed self wrapper.
+            try:
+                _root, agent_dir, _wrapper = _validated_agent_addon_dir(
+                    project_root, addon_dir)
+                parent = os.path.normcase(os.path.realpath(
+                    classification["absolute_path"]))
+                agent_identity = os.path.normcase(os.path.realpath(agent_dir))
+                allowed = agent_identity.startswith(parent + os.sep)
+            except (OSError, TypeError, ValueError):
+                allowed = False
+        if allowed:
+            kept_dirs.append(name)
+    dirnames[:] = sorted(kept_dirs)
+
+    kept_files = []
+    for name in filenames:
+        candidate = _scan_res_path(project_root, os.path.join(dirpath, name))
+        if candidate is None:
+            continue
+        allowed = (can_read_project_path(candidate, project_root, allow_addons,
+                                         allow_self_edit, addon_dir)
+                   if access == "read" else
+                   can_write_project_path(candidate, project_root, allow_addons,
+                                          allow_self_edit, addon_dir))
+        if allowed:
+            kept_files.append(name)
+    filenames[:] = sorted(kept_files)
+
+
+def _excluded_dir_allowed_by_policy(name, dirpath, project_root,
+                                    allow_addons, allow_self_edit, addon_dir):
+    """Let an enabled add-on/self policy override legacy noise exclusions."""
+    if name not in _POLICY_CONTROLLED_EXCLUDES:
+        return False
+    candidate = _scan_res_path(project_root, os.path.join(dirpath, name))
+    if candidate is None:
+        return False
+    classification = classify_project_path(candidate, project_root, addon_dir)
+    if not (classification.get("is_addon") or classification.get("is_agent")):
+        return False
+    return can_read_project_path(
+        candidate, project_root, allow_addons, allow_self_edit, addon_dir)
+
+
+def policy_snapshot(allow_addons=False, allow_self_edit=False, addon_dir=None):
+    """Return the exact JSON-safe policy state used for stale-request checks."""
+    return {
+        "allow_addons": bool(allow_addons),
+        "allow_self_edit": bool(allow_self_edit),
+        "addon_dir": str(addon_dir) if addon_dir else None,
+    }
+
+
+def _assert_project_path_access(path, project_root, access, allow_addons,
+                                allow_self_edit, addon_dir):
+    classification = classify_project_path(path, project_root, addon_dir)
+    if _path_access_allowed(classification, access, allow_addons, allow_self_edit):
+        return True
+    raise ValueError("Путь отклонён политикой доступа (%s): %s" % (access, path))
+
+
+def assert_can_read_project_path(path, project_root, allow_addons=False,
+                                 allow_self_edit=False, addon_dir=None):
+    return _assert_project_path_access(
+        path, project_root, "read", allow_addons, allow_self_edit, addon_dir)
+
+
+def assert_can_write_project_path(path, project_root, allow_addons=False,
+                                  allow_self_edit=False, addon_dir=None):
+    return _assert_project_path_access(
+        path, project_root, "write", allow_addons, allow_self_edit, addon_dir)
+
+
+def assert_can_reference_project_path(path, project_root, allow_addons=False,
+                                      allow_self_edit=False, addon_dir=None):
+    return _assert_project_path_access(
+        path, project_root, "reference", allow_addons, allow_self_edit, addon_dir)
 
 
 def read_project_file(project_root, godot_path, max_chars=50000):
@@ -539,7 +850,8 @@ SEARCH_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.json', '.txt',
 
 def search_project_text(project_root, query, max_results=30, context_lines=2,
                         exclude_rel_prefixes=None, case_insensitive=False,
-                        needles=None):
+                        needles=None, allow_addons=False, allow_self_edit=False,
+                        addon_dir=None):
     """Поиск текста по файлам проекта (аналог «Поиска по проекту» в Godot).
     Возвращает (список совпадений, был_ли_список_обрезан).
 
@@ -548,8 +860,9 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
     max_results. Нужно Библиотекарю: раньше он фильтровал аддоны ПОСЛЕ
     поиска, и файлы addons/ (обход идёт по алфавиту, addons почти всегда
     первая) выбирали всю квоту — слои FRAGMENTS/CALLERS/SIGNALS молча
-    пустели на любом проекте с установленными аддонами. По умолчанию
-    None — поведение для остальных вызывающих не меняется.
+    пустели на любом проекте с установленными аддонами. Теперь независимо от
+    этого фильтра capability-policy по умолчанию скрывает addons; явный
+    allow_addons открывает их, allow_self_edit — только текущий wrapper.
 
     case_insensitive (v105.10): сравнение без учёта регистра. Нужно
     Библиотекарю как фолбэк: MAP регистронезависим, а FRAGMENTS был
@@ -585,7 +898,16 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
     skip = tuple(p.replace('\\', '/').lstrip('/')
                  for p in (exclude_rel_prefixes or ()) if p)
     for dirpath, dirnames, filenames in os.walk(project_root_abs):
-        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if (d not in EXCLUDED_DIRS
+                or _excluded_dir_allowed_by_policy(
+                    d, dirpath, project_root_abs, allow_addons,
+                    allow_self_edit, addon_dir))
+            and not d.startswith('.'))
+        _filter_project_scan_entries(
+            dirnames, filenames, dirpath, project_root_abs,
+            allow_addons, allow_self_edit, addon_dir)
         for fname in sorted(filenames):
             ext = os.path.splitext(fname)[1].lower()
             if ext not in SEARCH_EXTS:
@@ -744,6 +1066,61 @@ def describe_scene(project_root, godot_path, max_chars=12000):
     return result
 
 
+def policy_read_project_file(project_root, godot_path, max_chars=50000,
+                              allow_addons=False, allow_self_edit=False,
+                              addon_dir=None):
+    """Policy-enforcing read boundary for new callers."""
+    assert_can_read_project_path(
+        godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    return read_project_file(project_root, godot_path, max_chars=max_chars)
+
+
+def policy_create_project_file(project_root, godot_path, content,
+                               allow_addons=False, allow_self_edit=False,
+                               addon_dir=None):
+    assert_can_write_project_path(
+        godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    return create_project_file(project_root, godot_path, content)
+
+
+def policy_patch_project_file(project_root, godot_path, search_code, replace_code,
+                              allow_addons=False, allow_self_edit=False,
+                              addon_dir=None):
+    assert_can_write_project_path(
+        godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    return patch_project_file(project_root, godot_path, search_code, replace_code)
+
+
+def policy_move_project_file(project_root, source_godot_path, dest_godot_path,
+                             allow_addons=False, allow_self_edit=False,
+                             addon_dir=None):
+    assert_can_write_project_path(
+        source_godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    assert_can_write_project_path(
+        dest_godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    return move_project_file(project_root, source_godot_path, dest_godot_path)
+
+
+def policy_copy_project_file(project_root, source_godot_path, dest_godot_path,
+                             allow_addons=False, allow_self_edit=False,
+                             addon_dir=None):
+    assert_can_read_project_path(
+        source_godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    assert_can_write_project_path(
+        dest_godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    return copy_project_file(project_root, source_godot_path, dest_godot_path)
+
+
+
+
+def policy_describe_scene(project_root, godot_path, max_chars=12000,
+                          allow_addons=False, allow_self_edit=False,
+                          addon_dir=None):
+    assert_can_read_project_path(
+        godot_path, project_root, allow_addons, allow_self_edit, addon_dir)
+    return describe_scene(project_root, godot_path, max_chars=max_chars)
+
+
 # ---------------------------------------------------------------------------
 # Умный контекст проекта: маленький проект — полное дерево, большой —
 # КОМПАКТНАЯ сводка по папкам (счётчики по расширениям), чтобы не сжигать
@@ -768,13 +1145,24 @@ STANDARD_ARCHITECTURE_DIRS = [
 ]
 
 
-def build_project_overview(project_root, only_exts=None, max_entries=None, compact_threshold=150):
+def build_project_overview(project_root, only_exts=None, max_entries=None,
+                           compact_threshold=150, allow_addons=False,
+                           allow_self_edit=False, addon_dir=None):
     """Умный контекст: если файлов мало — полное дерево (как раньше), если
     много — сводка по папкам. Возвращает (текст, is_compact)."""
     project_root = os.path.abspath(project_root)
     total = 0
     for dirpath, dirnames, filenames in os.walk(project_root):
-        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if (d not in EXCLUDED_DIRS
+                or _excluded_dir_allowed_by_policy(
+                    d, dirpath, project_root, allow_addons,
+                    allow_self_edit, addon_dir))
+            and not d.startswith('.'))
+        _filter_project_scan_entries(
+            dirnames, filenames, dirpath, project_root,
+            allow_addons, allow_self_edit, addon_dir)
         for f in filenames:
             if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
@@ -784,12 +1172,24 @@ def build_project_overview(project_root, only_exts=None, max_entries=None, compa
         if total > compact_threshold:
             break
     if total <= compact_threshold:
-        return build_project_tree(project_root, only_exts=only_exts, max_entries=max_entries), False
+        return build_project_tree(
+            project_root, only_exts=only_exts, max_entries=max_entries,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir), False
     # Компактная сводка: папки (до 3 уровней) и счётчики файлов по расширениям.
     per_dir = {}
     root_files = []
     for dirpath, dirnames, filenames in os.walk(project_root):
-        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if (d not in EXCLUDED_DIRS
+                or _excluded_dir_allowed_by_policy(
+                    d, dirpath, project_root, allow_addons,
+                    allow_self_edit, addon_dir))
+            and not d.startswith('.'))
+        _filter_project_scan_entries(
+            dirnames, filenames, dirpath, project_root,
+            allow_addons, allow_self_edit, addon_dir)
         rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
         for f in sorted(filenames):
             if f in EXCLUDED_FILES or _is_generated_sidecar(f):
@@ -935,15 +1335,31 @@ def ensure_standard_architecture(project_root):
     return created
 
 
-def describe_architecture(project_root, max_dirs=6):
+def describe_architecture(project_root, max_dirs=6, allow_addons=False,
+                          allow_self_edit=False, addon_dir=None):
     """Короткая сводка архитектуры проекта для модели: главная сцена,
     автозагрузки, где живут скрипты/сцены/ассеты (топ папок по числу файлов)."""
     project_root = os.path.abspath(project_root)
     main_scene, autoloads = _parse_project_godot(project_root)
+    if not can_read_project_path(
+            main_scene, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        main_scene = ""
+    autoloads = {name: path for name, path in autoloads.items() if can_read_project_path(
+        path, project_root, allow_addons=allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)}
     script_dirs, scene_dirs, asset_dirs = {}, {}, {}
     for dirpath, dirnames, filenames in os.walk(project_root):
-        dirnames[:] = [d for d in dirnames
-                       if d not in EXCLUDED_DIRS and not d.startswith('.') and d != 'addons']
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if (d not in EXCLUDED_DIRS
+                or _excluded_dir_allowed_by_policy(
+                    d, dirpath, project_root, allow_addons,
+                    allow_self_edit, addon_dir))
+            and not d.startswith('.'))
+        _filter_project_scan_entries(
+            dirnames, filenames, dirpath, project_root,
+            allow_addons, allow_self_edit, addon_dir)
         rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
         key = '(корень res://)' if rel == '.' else '/'.join(rel.split('/')[:2])
         for f in filenames:
@@ -994,7 +1410,8 @@ def _file_digest(abs_path, size):
     return h.hexdigest()
 
 
-def snapshot_files(project_root, prev=None):
+def snapshot_files(project_root, prev=None, allow_addons=False,
+                   allow_self_edit=False, addon_dir=None):
     """Отпечаток файлов проекта — для обнаружения изменений, сделанных ВНЕ
     агента (пользователь удалил/поменял файлы руками).
 
@@ -1008,7 +1425,16 @@ def snapshot_files(project_root, prev=None):
     prev = prev or {}
     snap = {}
     for dirpath, dirnames, filenames in os.walk(project_root):
-        dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS and not d.startswith('.'))
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if (d not in EXCLUDED_DIRS
+                or _excluded_dir_allowed_by_policy(
+                    d, dirpath, project_root, allow_addons,
+                    allow_self_edit, addon_dir))
+            and not d.startswith('.'))
+        _filter_project_scan_entries(
+            dirnames, filenames, dirpath, project_root,
+            allow_addons, allow_self_edit, addon_dir)
         for f in filenames:
             if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue

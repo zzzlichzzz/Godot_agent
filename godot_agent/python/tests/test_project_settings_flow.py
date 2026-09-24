@@ -62,6 +62,7 @@ try:
                   "pending_project_settings_action": {
                       "action": action, "action_id": "already-satisfied",
                       "action_digest": "a" * 64, "before_hash": project_settings_actions.file_sha256(project_file),
+                       "policy_snapshot": {"allow_addons": False, "allow_self_edit": False, "addon_dir": None},
                       "editor_semantic_hash": "e" * 64, "entry_id": no_op_entry_id,
                       "execution_token": "token", "state": "executing"}})
     no_op_body = {"action_id": "already-satisfied", "execution_token": "token",

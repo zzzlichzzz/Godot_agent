@@ -10,7 +10,8 @@ import gd_api_check
 import gd_lint
 import godot_headless_validation
 import history_manager
-from project_tools import _resolve_safe_path, build_diff_preview, sanitize_llm_text, is_addon_path
+from project_tools import (_resolve_safe_path, build_diff_preview,
+                           can_write_project_path, sanitize_llm_text)
 
 
 MAX_OPERATIONS = 30
@@ -59,15 +60,18 @@ def _read(path):
         return handle.read()
 
 
-def _canonical(project_root, value, allow_addons):
+def _canonical(project_root, value, allow_addons,
+               allow_self_edit=False, addon_dir=None):
     path = str(value or "").replace("\\", "/")
     if not path.startswith("res://") or path.lower() in ("res://", "res://project.godot"):
         raise TransactionError("Некорректный или запрещённый путь: %s" % path)
     rel = path[6:].strip("/")
     if not rel or any(part in ("", ".", "..") for part in rel.split("/")):
         raise TransactionError("Некорректный путь: %s" % path)
-    if not allow_addons and is_addon_path(path, project_root):
-        raise TransactionError("Изменение res://addons требует явного запроса пользователя")
+    if not can_write_project_path(
+            path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise TransactionError("Изменение res://addons требует явного запроса пользователя и разрешённой политики доступа: %s" % path)
     absolute = _resolve_safe_path(project_root, path)
     if os.path.normcase(absolute) == os.path.normcase(os.path.realpath(os.path.join(project_root, "project.godot"))):
         raise TransactionError("project.godot изменяется только через edit_project_settings")
@@ -80,7 +84,8 @@ def _exact(obj, allowed, label):
         raise TransactionError("%s содержит неизвестные поля: %s" % (label, ", ".join(unknown)))
 
 
-def normalize_action(project_root, action, allow_addons=False):
+def normalize_action(project_root, action, allow_addons=False,
+                     allow_self_edit=False, addon_dir=None):
     if not isinstance(action, dict) or action.get("action") != "transaction":
         raise TransactionError("Ожидалось action=transaction")
     _exact(action, ("action", "operations", "checks", "summary"), "transaction")
@@ -99,7 +104,9 @@ def normalize_action(project_root, action, allow_addons=False):
         else:
             allowed = ("action", "path", "summary", "dest")
         _exact(raw, allowed, "операция %d" % index)
-        item = {"action": kind, "path": _canonical(project_root, raw.get("path"), allow_addons)}
+        item = {"action": kind, "path": _canonical(
+            project_root, raw.get("path"), allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)}
         if item["path"].lower().endswith(".tscn"):
             raise TransactionError("Структурные сцены нельзя менять в transaction; используй create_scene/edit_scene")
         if raw.get("summary"):
@@ -114,7 +121,9 @@ def normalize_action(project_root, action, allow_addons=False):
             item["search"] = sanitize_llm_text(raw["search"].replace("\r\n", "\n")) or ""
             item["replace"] = sanitize_llm_text(raw["replace"].replace("\r\n", "\n")) or ""
         else:
-            item["dest"] = _canonical(project_root, raw.get("dest"), allow_addons)
+            item["dest"] = _canonical(
+                project_root, raw.get("dest"), allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
             if item["dest"].lower().endswith(".tscn"):
                 raise TransactionError("Структурные сцены нельзя перемещать в transaction")
             if item["dest"] == item["path"]:
@@ -129,7 +138,8 @@ def normalize_action(project_root, action, allow_addons=False):
             raise TransactionError("Проверка %d не является объектом" % index)
         _exact(raw, ("type", "path"), "проверка %d" % index)
         kind = raw.get("type")
-        path = _canonical(project_root, raw.get("path"), allow_addons)
+        path = _canonical(project_root, raw.get("path"), allow_addons,
+                         allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         if kind == "parse_script" and not path.lower().endswith(".gd"):
             raise TransactionError("parse_script принимает только .gd")
         if kind == "load_scene" and not path.lower().endswith(".tscn"):
@@ -169,8 +179,11 @@ def _validate_script(project_root, path, data, addon_dir):
         raise TransactionError("%s не прошёл локальную проверку: %s" % (path, "; ".join(str(x) for x in errors[:8])))
 
 
-def prepare(project_root, action, allow_addons=False, addon_dir=None):
-    normalized = normalize_action(project_root, action, allow_addons)
+def prepare(project_root, action, allow_addons=False, addon_dir=None,
+            allow_self_edit=False):
+    normalized = normalize_action(
+        project_root, action, allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     overlay = {}
     public_paths = []
     effective_operation_count = 0

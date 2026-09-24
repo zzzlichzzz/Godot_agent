@@ -135,7 +135,6 @@ var _safe_rename_dialog: ConfirmationDialog = null
 var _safe_rename_old_edit: LineEdit = null
 var _safe_rename_new_edit: LineEdit = null
 var _safe_rename_refs_check: CheckBox = null
-var _safe_rename_addons_check: CheckBox = null
 var _safe_rename_status_label: Label = null
 var _safe_rename_file_dialog: FileDialog = null
 var _safe_rename_prepared: Dictionary = {}
@@ -144,11 +143,23 @@ var _safe_node_rename_dialog: ConfirmationDialog = null
 var _safe_node_rename_scene_edit: LineEdit = null
 var _safe_node_rename_node_edit: LineEdit = null
 var _safe_node_rename_new_edit: LineEdit = null
-var _safe_node_rename_addons_check: CheckBox = null
 var _safe_node_rename_status_label: Label = null
 var _safe_node_rename_scene_dialog: FileDialog = null
 var _safe_node_rename_prepared: Dictionary = {}
 var _pending_log_send: bool = false
+# Explicit access policy for project/addon edits. allow_addons is durable;
+# allow_self_edit is ephemeral and resets to false on every panel load.
+const POLICY_SETTING_FILE := "user://godot_agent_policy.txt"
+var _allow_addons: bool = false
+var _allow_self_edit: bool = false
+var _allow_addons_check: CheckBox = null
+var _allow_self_edit_check: CheckBox = null
+var _policy_warning_label: Label = null
+var _policy_confirmation_dialog: ConfirmationDialog = null
+var _policy_confirmation_pending: String = ""
+var _policy_previous_allow_addons: bool = false
+var _policy_previous_allow_self_edit: bool = false
+
 
 # Автопроверка актуальности кэша API при старте панели: сервер (с браузером внутри) может подняться не сразу, поэтому при неудаче повторяем с нарастающей задержкой, а не молча сдаёмся после первой неудачи.
 var _api_cache_check_attempts: int = 0
@@ -342,7 +353,7 @@ func _send_runtime_result(status: String, snapshot) -> void:
 	}
 	_pending_request_kind = "runtime_result"
 	_set_ui_busy(true)
-	var err := http_request.request(RUNTIME_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err := http_request.request(RUNTIME_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error("Не удалось передать runtime snapshot серверу")
 		_pending_runtime_request = {}
@@ -405,7 +416,7 @@ func _send_pending_runtime_check_result() -> void:
 	_pending_request_kind = "runtime_check_result"
 	_set_ui_busy(true)
 	var error := http_request.request(RUNTIME_CHECK_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		JSON.stringify(_pending_runtime_check_result_body))
+		_policy_json(_pending_runtime_check_result_body))
 	if error != OK:
 		_set_ui_busy(false)
 		_log_error("Не удалось передать результат локальной игровой проверки серверу")
@@ -533,6 +544,7 @@ func _apply_panel_theme() -> void:
 
 
 func _ready() -> void:
+	_load_policy_settings()
 	_ensure_script_autoreload_setting()
 	if _editor_plugin and _editor_plugin.has_method("_ensure_fs_dock_connected"):
 		_editor_plugin.call("_ensure_fs_dock_connected")
@@ -1042,7 +1054,7 @@ func _on_stop_pressed() -> void:
 	var req := HTTPRequest.new()
 	add_child(req)
 	req.request_completed.connect(func(_r, _rc, _h, _b): req.queue_free())
-	var err = req.request(CHAT_STOP_URL, _json_headers(), HTTPClient.METHOD_POST, "{}")
+	var err = req.request(CHAT_STOP_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json({}))
 	if err != OK:
 		req.queue_free()
 		if _stop_button:
@@ -1103,9 +1115,9 @@ func _on_live_input_tick() -> void:
 		_live_dirty = false
 		return
 	_live_seq += 1
-	var body = {"text": txt, "seq": _live_seq}
+	var body = _policy_body({"text": txt, "seq": _live_seq})
 	_live_http.set_http_proxy("", 0)
-	var err = _live_http.request(LIVE_INPUT_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = _live_http.request(LIVE_INPUT_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		return  # сервер занят/недоступен — молча попробуем на следующем тике
 	_live_inflight = true
@@ -1159,17 +1171,118 @@ func _save_safe_rename_setting(enabled: bool) -> void:
 	f.store_string("1" if enabled else "0")
 
 
+func _load_policy_settings() -> void:
+	_allow_addons = false
+	if FileAccess.file_exists(POLICY_SETTING_FILE):
+		var p = FileAccess.open(POLICY_SETTING_FILE, FileAccess.READ)
+		if p:
+			_allow_addons = p.get_as_text().strip_edges() == "1"
+			p.close()
+	_allow_self_edit = false
+	if _policy_warning_label:
+		_policy_warning_label.visible = false
+
+
+func _save_allow_addons_policy() -> void:
+	var f := FileAccess.open(POLICY_SETTING_FILE, FileAccess.WRITE)
+	if f:
+		f.store_string("1" if _allow_addons else "0")
+		f.close()
+
+
+func _policy_body(extra: Dictionary = {}) -> Dictionary:
+	var body := extra.duplicate(true)
+	body["project_root"] = ProjectSettings.globalize_path("res://")
+	body["user_data_dir"] = OS.get_user_data_dir()
+	body["addon_dir"] = ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
+	body["allow_addons"] = _allow_addons
+	body["allow_self_edit"] = _allow_self_edit
+	return body
+
+
+func _policy_json(value) -> String:
+	var body: Dictionary = value if value is Dictionary else {}
+	return JSON.stringify(_policy_body(body))
+
+
+func _on_allow_addons_toggled(pressed: bool) -> void:
+	if not pressed:
+		_allow_addons = false
+		_save_allow_addons_policy()
+		return
+	_policy_previous_allow_addons = _allow_addons
+	_allow_addons = false
+	_request_policy_enable("allow_addons")
+
+
+func _on_allow_self_edit_toggled(pressed: bool) -> void:
+	if pressed:
+		_policy_previous_allow_self_edit = _allow_self_edit
+		_allow_self_edit = false
+		_request_policy_enable("allow_self_edit")
+	else:
+		_allow_self_edit = false
+	if _policy_warning_label:
+		_policy_warning_label.visible = _allow_self_edit
+
+
+func _request_policy_enable(kind: String) -> void:
+	if _policy_confirmation_dialog:
+		return
+	_policy_confirmation_pending = kind
+	_policy_confirmation_dialog = ConfirmationDialog.new()
+	_policy_confirmation_dialog.title = _t("policy_confirm_title")
+	_policy_confirmation_dialog.dialog_text = _t("policy_confirm_text")
+	_policy_confirmation_dialog.get_ok_button().text = _t("policy_confirm_yes")
+	_policy_confirmation_dialog.get_cancel_button().text = _t("policy_confirm_no")
+	_policy_confirmation_dialog.confirmed.connect(func() -> void:
+		if _policy_confirmation_pending == "allow_addons":
+			_allow_addons = true
+			_save_allow_addons_policy()
+		else:
+			_allow_self_edit = true
+		_policy_confirmation_pending = ""
+		if _allow_addons_check:
+			_allow_addons_check.set_pressed_no_signal(_allow_addons)
+		if _allow_self_edit_check:
+			_allow_self_edit_check.set_pressed_no_signal(_allow_self_edit)
+		if _policy_warning_label:
+			_policy_warning_label.visible = _allow_self_edit
+		_policy_confirmation_dialog.queue_free()
+		_policy_confirmation_dialog = null
+	)
+	_policy_confirmation_dialog.canceled.connect(func() -> void:
+		_policy_confirmation_pending = ""
+		_allow_addons = _policy_previous_allow_addons
+		_allow_self_edit = _policy_previous_allow_self_edit
+		if _allow_addons_check:
+			_allow_addons_check.set_pressed_no_signal(_allow_addons)
+		if _allow_self_edit_check:
+			_allow_self_edit_check.set_pressed_no_signal(_allow_self_edit)
+		if _policy_warning_label:
+			_policy_warning_label.visible = _allow_self_edit
+		_policy_confirmation_dialog.queue_free()
+		_policy_confirmation_dialog = null
+	)
+	add_child(_policy_confirmation_dialog)
+	_policy_confirmation_dialog.popup_centered()
+
+
 func _on_reinit_pressed() -> void:
 	if _is_network_busy: return
 	_view.add_system(_t("tree_refresh"))
 	_rollback_force_next = false
-	var project_root = ProjectSettings.globalize_path("res://")
+	var body := _policy_body({
+		"godot_version": Engine.get_version_info().get("string", ""),
+		"godot_executable": OS.get_executable_path(),
+		"runtime_status": _runtime_status,
+		"reinit": true,
+	})
 	var headers = _json_headers()
-	var body = {"project_root": project_root, "user_data_dir": OS.get_user_data_dir(), "addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()), "godot_version": Engine.get_version_info().get("string", ""), "godot_executable": OS.get_executable_path(), "runtime_status": _runtime_status, "reinit": true}
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "init"
 	_set_ui_busy(true)
-	http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 
 
 func _on_send_pressed() -> void:
@@ -1190,17 +1303,13 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	_pending_chat_prompt = prompt
 	if not ignore_mismatch or _pending_editor_context.is_empty():
 		_pending_editor_context = _capture_editor_context()
-	var project_root = ProjectSettings.globalize_path("res://")
-	var headers = _json_headers()
-	var body = {
+	var body := _policy_body({
 		"prompt": prompt,
 		"chat_id": _current_chat_id,
-		"project_root": project_root,
-		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 		"godot_executable": OS.get_executable_path(),
-		"runtime_status": _runtime_status
-	}
+		"runtime_status": _runtime_status,
+	})
+	var headers = _json_headers()
 	if not _pending_editor_context.is_empty():
 		body["editor_context"] = _pending_editor_context
 	if ignore_mismatch:
@@ -1208,7 +1317,7 @@ func _send_chat_raw(prompt: String, ignore_mismatch: bool) -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "chat"
 	_set_ui_busy(true)
-	var err = http_request.request(CHAT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(CHAT_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("err_send"))
 		_set_ui_busy(false)
@@ -1259,7 +1368,7 @@ func _send_confirm_request(approved: bool) -> void:
 		http_request.set_http_proxy("", 0)
 		_pending_request_kind = "chat"
 		_set_ui_busy(true)
-		var log_err = http_request.request(SEND_LOG_URL, log_headers, HTTPClient.METHOD_POST, JSON.stringify({}))
+		var log_err = http_request.request(SEND_LOG_URL, log_headers, HTTPClient.METHOD_POST, _policy_json({}))
 		if log_err != OK:
 			_log_error(_t("err_send_report"))
 			_set_ui_busy(false)
@@ -1270,7 +1379,7 @@ func _send_confirm_request(approved: bool) -> void:
 	var label = _t("approved_action") if approved else _t("rejected_action")
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
-	var body = {"approved": approved}
+	var body = _policy_body({"approved": approved})
 	if approved and _last_pending_action_type in ["edit_scene", "create_scene"]:
 		body["editor_semantic_hash"] = _pending_scene_semantic_hash
 	elif approved and _last_pending_action_type == "edit_project_settings":
@@ -1281,7 +1390,7 @@ func _send_confirm_request(approved: bool) -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "confirm"
 	_set_ui_busy(true)
-	var err = http_request.request(CONFIRM_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(CONFIRM_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("err_send_confirm"))
 		_set_ui_busy(false)
@@ -1314,7 +1423,7 @@ func _send_pending_scene_finalize() -> void:
 	_scene_finalize_retries += 1
 	var err := http_request.request(
 		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		JSON.stringify(_pending_scene_finalize_body))
+		_policy_json(_pending_scene_finalize_body))
 	if err != OK:
 		_set_ui_busy(false)
 		_schedule_scene_finalize_retry()
@@ -1402,7 +1511,7 @@ func _send_pending_project_settings_finalize() -> void:
 	_project_settings_finalize_retries += 1
 	var err := http_request.request(
 		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		JSON.stringify(_pending_project_settings_finalize_body))
+		_policy_json(_pending_project_settings_finalize_body))
 	if err != OK:
 		_set_ui_busy(false)
 		_schedule_project_settings_finalize_retry()
@@ -1471,7 +1580,7 @@ func _send_pending_resource_finalize() -> void:
 	_resource_finalize_retries += 1
 	var err := http_request.request(
 		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		JSON.stringify(_pending_resource_finalize_body))
+		_policy_json(_pending_resource_finalize_body))
 	if err != OK:
 		_set_ui_busy(false)
 		_schedule_resource_finalize_retry()
@@ -1511,7 +1620,7 @@ func _request_plan_step() -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "plan_step"
 	_set_ui_busy(true)
-	var err = http_request.request(PLAN_STEP_URL, headers, HTTPClient.METHOD_POST, "{}")
+	var err = http_request.request(PLAN_STEP_URL, headers, HTTPClient.METHOD_POST, _policy_json({}))
 	if err != OK:
 		_log_error(_t("err_plan_step"))
 		_set_ui_busy(false)
@@ -1551,7 +1660,7 @@ func _on_plan_stop_pressed() -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "plan_stop"
 	_set_ui_busy(true)
-	var err = http_request.request(PLAN_STOP_URL, headers, HTTPClient.METHOD_POST, "{}")
+	var err = http_request.request(PLAN_STOP_URL, headers, HTTPClient.METHOD_POST, _policy_json({}))
 	if err != OK:
 		_log_error(_t("err_plan_step"))
 		_set_ui_busy(false)
@@ -1647,7 +1756,7 @@ func _send_plan_rollback_chain_request(force: bool) -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "plan_rollback_chain"
 	_set_ui_busy(true)
-	var err = http_request.request(PLAN_ROLLBACK_CHAIN_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(PLAN_ROLLBACK_CHAIN_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("err_rollback"))
 		_set_ui_busy(false)
@@ -1722,7 +1831,7 @@ func _on_rollback_pressed(entry_id: String = "") -> void:
 	var body := {}
 	if entry_id != "":
 		body["entry_id"] = entry_id
-	var err = http_request.request(ROLLBACK_PREVIEW_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(ROLLBACK_PREVIEW_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("err_rollback"))
 		_set_ui_busy(false)
@@ -1737,7 +1846,7 @@ func _send_rollback_request(force: bool) -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "rollback"
 	_set_ui_busy(true)
-	var err = http_request.request(ROLLBACK_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(ROLLBACK_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("err_rollback"))
 		_set_ui_busy(false)
@@ -1793,7 +1902,7 @@ func _on_check_log_pressed() -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "check_log"
 	_set_ui_busy(true)
-	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("err_log_req"))
 		_set_ui_busy(false)
@@ -1812,7 +1921,7 @@ func _check_api_cache_freshness() -> void:
 	}
 	_pending_request_kind = "api_cache_status"
 	_set_ui_busy(true)
-	var err = http_request.request(API_CACHE_STATUS_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(API_CACHE_STATUS_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
 		_schedule_api_cache_check_retry()
@@ -1856,7 +1965,7 @@ func _export_api_to_server(silent: bool) -> void:
 	}
 	_pending_request_kind = "api_export"
 	_set_ui_busy(true)
-	var err = http_request.request(API_EXPORT_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(API_EXPORT_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_log_error(_t("api_export_err"))
 		_set_ui_busy(false)
@@ -2870,7 +2979,7 @@ func _auto_check_log() -> void:
 	http_request.set_http_proxy("", 0)
 	_pending_request_kind = "check_log"
 	_set_ui_busy(true)
-	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(CHECK_LOG_URL, headers, HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
 		_auto_check = false
@@ -2930,7 +3039,7 @@ func _request_chats(kind: String, extra: Dictionary, allow_autostart: bool = tru
 	if _is_network_busy and kind != "list" and kind != "sites" and kind != "status" and kind != "minilich_status" and kind != "minilich_set" and kind != "minilich_github" and not kind.begins_with("api_"):
 		_log_error(_t("wait_current"))
 		return
-	_link.request(kind, extra, allow_autostart)
+	_link.request(kind, _policy_body(extra), allow_autostart)
 
 
 func _on_chats_payload(kind: String, json: Dictionary, extra: Dictionary) -> void:
@@ -3710,6 +3819,31 @@ func _on_settings_pressed() -> void:
 		_safe_rename_check.toggled.connect(_on_safe_rename_toggled)
 		box.add_child(_safe_rename_check)
 
+		var policy_group := VBoxContainer.new()
+		policy_group.name = "AccessPolicyGroup"
+		var policy_header := Label.new()
+		policy_header.text = _t("policy_group")
+		policy_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		policy_group.add_child(policy_header)
+		_allow_addons_check = CheckBox.new()
+		_allow_addons_check.text = _t("policy_allow_addons")
+		_allow_addons_check.tooltip_text = _t("policy_allow_addons_tip")
+		_allow_addons_check.button_pressed = _allow_addons
+		_allow_addons_check.toggled.connect(_on_allow_addons_toggled)
+		policy_group.add_child(_allow_addons_check)
+		_allow_self_edit_check = CheckBox.new()
+		_allow_self_edit_check.text = _t("policy_allow_self_edit")
+		_allow_self_edit_check.tooltip_text = _t("policy_allow_self_edit_tip")
+		_allow_self_edit_check.button_pressed = false
+		_allow_self_edit_check.toggled.connect(_on_allow_self_edit_toggled)
+		policy_group.add_child(_allow_self_edit_check)
+		_policy_warning_label = Label.new()
+		_policy_warning_label.text = _t("policy_warning")
+		_policy_warning_label.tooltip_text = _t("policy_warning_tip")
+		_policy_warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		policy_group.add_child(_policy_warning_label)
+		box.add_child(policy_group)
+
 		# ---------------------------------------------------------------------------
 		# Экспериментальные настройки (MiniLich) — заготовка нейросети для Godot.
 		# Это то, что осталось от старой версии, скрыто из интерфейса настроек.
@@ -3800,6 +3934,18 @@ func _on_settings_pressed() -> void:
 		_safe_rename_check.text = _t("safe_rename_toggle")
 		_safe_rename_check.tooltip_text = _t("safe_rename_tip")
 		_safe_rename_check.button_pressed = _safe_rename_enabled
+	if _allow_addons_check:
+		_allow_addons_check.text = _t("policy_allow_addons")
+		_allow_addons_check.tooltip_text = _t("policy_allow_addons_tip")
+		_allow_addons_check.set_pressed_no_signal(_allow_addons)
+	if _allow_self_edit_check:
+		_allow_self_edit_check.text = _t("policy_allow_self_edit")
+		_allow_self_edit_check.tooltip_text = _t("policy_allow_self_edit_tip")
+		_allow_self_edit_check.set_pressed_no_signal(_allow_self_edit)
+	if _policy_warning_label:
+		_policy_warning_label.visible = _allow_self_edit
+		_policy_warning_label.text = _t("policy_warning")
+		_policy_warning_label.tooltip_text = _t("policy_warning_tip")
 	if _safe_rename_button:
 		_safe_rename_button.visible = false
 	if _safe_node_rename_button:
@@ -4196,11 +4342,6 @@ func _ensure_safe_rename_dialog() -> void:
 	_safe_rename_refs_check.button_pressed = true
 	box.add_child(_safe_rename_refs_check)
 
-	_safe_rename_addons_check = CheckBox.new()
-	_safe_rename_addons_check.text = _t("safe_rename_addons")
-	_safe_rename_addons_check.button_pressed = false
-	box.add_child(_safe_rename_addons_check)
-
 	# Status label
 	_safe_rename_status_label = Label.new()
 	_safe_rename_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -4247,19 +4388,15 @@ func _on_safe_rename_preview() -> void:
 		_safe_rename_status_label.text = "Старый и новый пути совпадают."
 		return
 	_safe_rename_status_label.text = "Анализ ссылок..."
-	var body = {
+	var body = _policy_body({
 		"old_path": old_p,
 		"new_path": new_p,
 		"update_references": _safe_rename_refs_check.button_pressed if _safe_rename_refs_check else true,
-		"allow_addons": _safe_rename_addons_check.button_pressed if _safe_rename_addons_check else false,
-		"project_root": ProjectSettings.globalize_path("res://"),
-		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
-	}
+	})
 	_pending_request_kind = "safe_rename_preview"
 	_set_ui_busy(true)
 	http_request.set_http_proxy("", 0)
-	var err = http_request.request(REFACTOR_FILE_PREVIEW_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(REFACTOR_FILE_PREVIEW_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
 		_safe_rename_status_label.text = "Ошибка сетевого запроса."
@@ -4288,19 +4425,15 @@ func _on_safe_rename_apply() -> void:
 		return
 	_close_target_scenes_before_write(check_targets)
 	_safe_rename_status_label.text = "Применение переименования..."
-	var body = {
+	var body = _policy_body({
 		"old_path": old_p,
 		"new_path": new_p,
 		"update_references": _safe_rename_refs_check.button_pressed if _safe_rename_refs_check else true,
-		"allow_addons": _safe_rename_addons_check.button_pressed if _safe_rename_addons_check else false,
-		"project_root": ProjectSettings.globalize_path("res://"),
-		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
-	}
+	})
 	_pending_request_kind = "safe_rename_apply"
 	_set_ui_busy(true)
 	http_request.set_http_proxy("", 0)
-	var err = http_request.request(REFACTOR_FILE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(REFACTOR_FILE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
 		_safe_rename_status_label.text = "Ошибка отправки запроса на переименование."
@@ -4429,7 +4562,7 @@ func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool)
 			_view.add_agent_message(msg, entry_id)
 		print("[Godot Agent] ", msg)
 	)
-	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		var send_msg := "[Godot Agent] Не удалось отправить HTTP-запрос post_move_sync, код ошибки: %d" % err
 		push_warning(send_msg)
@@ -4563,12 +4696,6 @@ func _ensure_safe_node_rename_dialog() -> void:
 	new_row.add_child(_safe_node_rename_new_edit)
 	box.add_child(new_row)
 
-	# Options
-	_safe_node_rename_addons_check = CheckBox.new()
-	_safe_node_rename_addons_check.text = _t("safe_node_rename_addons")
-	_safe_node_rename_addons_check.button_pressed = false
-	box.add_child(_safe_node_rename_addons_check)
-
 	# Status label
 	_safe_node_rename_status_label = Label.new()
 	_safe_node_rename_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -4612,19 +4739,15 @@ func _on_safe_node_rename_preview() -> void:
 		_safe_node_rename_status_label.text = "Старое и новое имя совпадают."
 		return
 	_safe_node_rename_status_label.text = "Анализ ссылок узла..."
-	var body = {
+	var body = _policy_body({
 		"scene": scene_p,
 		"node_path": node_p,
 		"new_name": new_n,
-		"allow_addons": _safe_node_rename_addons_check.button_pressed if _safe_node_rename_addons_check else false,
-		"project_root": ProjectSettings.globalize_path("res://"),
-		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
-	}
+	})
 	_pending_request_kind = "safe_node_rename_preview"
 	_set_ui_busy(true)
 	http_request.set_http_proxy("", 0)
-	var err = http_request.request(REFACTOR_NODE_PREVIEW_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(REFACTOR_NODE_PREVIEW_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
 		_safe_node_rename_status_label.text = "Ошибка сетевого запроса."
@@ -4653,19 +4776,15 @@ func _on_safe_node_rename_apply() -> void:
 		_safe_node_rename_status_label.text = "Сначала сохраните изменённые вкладки: " + ", ".join(dirty)
 		return
 	_safe_node_rename_status_label.text = "Применение переименования узла..."
-	var body = {
+	var body = _policy_body({
 		"scene": scene_p,
 		"node_path": node_p,
 		"new_name": new_n,
-		"allow_addons": _safe_node_rename_addons_check.button_pressed if _safe_node_rename_addons_check else false,
-		"project_root": ProjectSettings.globalize_path("res://"),
-		"user_data_dir": OS.get_user_data_dir(),
-		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
-	}
+	})
 	_pending_request_kind = "safe_node_rename_apply"
 	_set_ui_busy(true)
 	http_request.set_http_proxy("", 0)
-	var err = http_request.request(REFACTOR_NODE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	var err = http_request.request(REFACTOR_NODE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
 		_safe_node_rename_status_label.text = "Ошибка отправки запроса на переименование узла."

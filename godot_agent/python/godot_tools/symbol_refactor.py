@@ -12,7 +12,8 @@ import gd_lint
 import gd_semantic_parser
 import history_manager
 from minilich import ml_project_index
-from project_tools import _resolve_safe_path, build_diff_preview, is_addon_path
+from project_tools import (_resolve_safe_path, build_diff_preview,
+                           can_write_project_path)
 
 
 KINDS = {"class_name", "function", "signal", "variable"}
@@ -239,7 +240,9 @@ def _find_subclasses(project_root, target_path, target_class, snapshot):
     return subclasses
 
 
-def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_name, allow_addons=False):
+def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_name,
+                                  allow_addons=False, allow_self_edit=False,
+                                  addon_dir=None):
     """Find all .tscn and .tres files referencing affected_scripts and update old_name property."""
     scene_edits = []
     if not affected_scripts:
@@ -257,7 +260,9 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
                 continue
             abs_path = os.path.join(root, name)
             rel_path = "res://" + os.path.relpath(abs_path, project_root).replace("\\", "/")
-            if not allow_addons and is_addon_path(rel_path, project_root):
+            if not can_write_project_path(
+                    rel_path, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                 continue
             try:
                 with open(abs_path, "rb") as handle:
@@ -393,14 +398,55 @@ def _collision(declarations, declaration, kind, new_name, subclasses=None):
     return None
 
 
-def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
+def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
+                                 allow_self_edit, addon_dir):
+    """Extend the base index with only add-on files writable by this policy."""
+    known = {entry.get("path") for entry in snapshot.get("files", [])}
+    addons_root = os.path.join(os.path.realpath(project_root), "addons")
+    if not os.path.isdir(addons_root):
+        return snapshot
+    for current, dirs, files in os.walk(addons_root):
+        rel_dir = os.path.relpath(current, project_root).replace(os.sep, "/")
+        kept_dirs = []
+        for name in dirs:
+            if name in (".git", ".godot", ".import", "__pycache__", ".agent_history"):
+                continue
+            candidate = "res://" + name if rel_dir == "addons" else "res://" + rel_dir + "/" + name
+            if can_write_project_path(
+                    candidate.rstrip("/"), project_root,
+                    allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                kept_dirs.append(name)
+        dirs[:] = kept_dirs
+        for name in files:
+            if not name.endswith(".gd"):
+                continue
+            rel = os.path.relpath(os.path.join(current, name), project_root).replace(os.sep, "/")
+            if rel in known or not can_write_project_path(
+                    "res://" + rel, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                continue
+            entry = ml_project_index._build_semantic_entry(
+                os.path.realpath(project_root), rel)
+            if entry is not None:
+                snapshot["files"].append(entry)
+                known.add(rel)
+    return snapshot
+
+
+def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
+                   allow_self_edit=False):
     """Build a private all-file transaction without writing project files."""
     kind, old_name, new_name, target_path, line, column = _validate_action(action)
-    if not allow_addons and is_addon_path(target_path, project_root):
-        raise RenameError("Правки res://addons/ требуют явного запроса пользователя")
+    if not can_write_project_path(
+            target_path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise RenameError("Путь защищён текущей политикой доступа")
     _resolve_safe_path(project_root, target_path)
 
-    snapshot = ml_project_index.semantic_snapshot(project_root, refresh=True)
+    snapshot = _add_allowed_addon_semantics(
+        ml_project_index.semantic_snapshot(project_root, refresh=True),
+        project_root, allow_addons, allow_self_edit, addon_dir)
     if not snapshot.get("complete"):
         raise RenameError("Семантический индекс неполон; безопасное переименование невозможно")
     partial = ["res://" + entry["path"] for entry in snapshot["files"]
@@ -469,11 +515,9 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]
-        if not allow_addons and is_addon_path(path, project_root):
-            facts = [fact for fact in entry["semantic"].get("references", [])
-                     if fact.get("name") == old_name]
-            if facts:
-                ambiguities.append("%s:%s (ссылка внутри addons)" % (path, facts[0].get("line")))
+        if not can_write_project_path(
+                path, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
             continue
         _absolute, raw, text, _bom = _read_source(project_root, path)
         if entry.get("sha256") != _sha256(raw):
@@ -531,7 +575,9 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None):
                       "occurrences": len(ranges)})
     if kind == "variable":
         scene_edits = _collect_scene_property_edits(
-            project_root, {target_path} | subclasses, old_name, new_name, allow_addons=allow_addons)
+            project_root, {target_path} | subclasses, old_name, new_name,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
         files.extend(scene_edits)
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,

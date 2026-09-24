@@ -10,7 +10,7 @@ import threading
 import gd_lint
 import history_manager
 from minilich import ml_project_index
-from project_tools import _resolve_safe_path, build_diff_preview, is_addon_path
+from project_tools import _resolve_safe_path, build_diff_preview, can_write_project_path
 
 
 _LOCKS = {}
@@ -48,12 +48,15 @@ def _read_file_text(abs_path):
     return raw, text, bom
 
 
-def _normalize_scene_path(project_root, path, allow_addons=False):
+def _normalize_scene_path(project_root, path, allow_addons=False,
+                         allow_self_edit=False, addon_dir=None):
     p = str(path or "").strip().replace("\\", "/")
     if not p.startswith("res://") or not p.lower().endswith(".tscn"):
         raise NodeRefactorError("scene должен быть res:// путём к .tscn: %s" % path)
-    if not allow_addons and is_addon_path(p, project_root):
-        raise NodeRefactorError("Изменение сцен в addons/ требует явного запроса пользователя")
+    if not can_write_project_path(
+            p, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise NodeRefactorError("Сцена защищена текущей политикой доступа")
     abs_path = _resolve_safe_path(project_root, p)
     if not os.path.isfile(abs_path):
         raise FileNotFoundError("Файл сцены не найден: %s" % p)
@@ -220,9 +223,12 @@ def find_node_in_scene(nodes, target_spec):
 
 
 def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
-                        update_scripts=True, allow_addons=False):
+                        update_scripts=True, allow_addons=False,
+                        allow_self_edit=False, addon_dir=None):
     """Prepares atomic node rename with diffs for .tscn and all attached scripts."""
-    scene_path, abs_scene = _normalize_scene_path(project_root, scene_godot_path, allow_addons=allow_addons)
+    scene_path, abs_scene = _normalize_scene_path(
+        project_root, scene_godot_path, allow_addons=allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     new_name = _normalize_node_name(new_name)
 
     raw_scene, tscn_text, bom = _read_file_text(abs_scene)
@@ -376,7 +382,10 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
                     attached_scripts.setdefault(script_godot_path, []).append(n)
 
         for script_godot_path, script_nodes in attached_scripts.items():
-            if not allow_addons and is_addon_path(script_godot_path, project_root):
+            if not can_write_project_path(
+                    script_godot_path, project_root,
+                    allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                 continue
             abs_script = _resolve_safe_path(project_root, script_godot_path)
             if not os.path.isfile(abs_script):
@@ -489,11 +498,14 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
 
 
 def prepare_node_reparent(project_root, scene_godot_path, target_spec, new_parent_spec,
-                          update_scripts=True, allow_addons=False):
+                          update_scripts=True, allow_addons=False,
+                          allow_self_edit=False, addon_dir=None):
     """Prepares atomic node reparenting in a scene with automatic path recalculation
     in .tscn hierarchy, connections, animation tracks, and attached GDScripts.
     """
-    scene_path, abs_scene = _normalize_scene_path(project_root, scene_godot_path, allow_addons=allow_addons)
+    scene_path, abs_scene = _normalize_scene_path(
+        project_root, scene_godot_path, allow_addons=allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     raw_scene, tscn_text, bom = _read_file_text(abs_scene)
     ext_resources, nodes, connections, anim_tracks = parse_tscn_structure(tscn_text)
 
@@ -639,7 +651,10 @@ def prepare_node_reparent(project_root, scene_godot_path, target_spec, new_paren
             return p
 
         for script_godot_path, script_nodes in attached_scripts.items():
-            if not allow_addons and is_addon_path(script_godot_path, project_root):
+            if not can_write_project_path(
+                    script_godot_path, project_root,
+                    allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                 continue
             abs_script = _resolve_safe_path(project_root, script_godot_path)
             if not os.path.isfile(abs_script):
@@ -741,12 +756,15 @@ def prepare_node_reparent(project_root, scene_godot_path, target_spec, new_paren
 
 
 def prepare_node_deletion(project_root, scene_godot_path, target_spec,
-                          cleanup_code=True, allow_addons=False):
+                          cleanup_code=True, allow_addons=False,
+                          allow_self_edit=False, addon_dir=None):
     """Prepares atomic node and subtree deletion from a scene with automatic
     removal of signal connections, animation tracks, and safe commenting of
     references in attached GDScripts.
     """
-    scene_path, abs_scene = _normalize_scene_path(project_root, scene_godot_path, allow_addons=allow_addons)
+    scene_path, abs_scene = _normalize_scene_path(
+        project_root, scene_godot_path, allow_addons=allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     raw_scene, tscn_text, bom = _read_file_text(abs_scene)
     ext_resources, nodes, connections, anim_tracks = parse_tscn_structure(tscn_text)
 
@@ -842,7 +860,10 @@ def prepare_node_deletion(project_root, scene_godot_path, target_spec,
                     attached_scripts.setdefault(script_godot_path, []).append(n)
 
         for script_godot_path, script_nodes in attached_scripts.items():
-            if not allow_addons and is_addon_path(script_godot_path, project_root):
+            if not can_write_project_path(
+                    script_godot_path, project_root,
+                    allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
                 continue
             abs_script = _resolve_safe_path(project_root, script_godot_path)
             if not os.path.isfile(abs_script):

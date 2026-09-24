@@ -59,13 +59,13 @@ def fresh_project():
 
 
 def reset_state(root):
+    server_state.clear_pending_confirmations()
     srv.STATE["project_root"] = root
-    srv.STATE["pending_action"] = None
-    srv.STATE["pending_batch"] = None
-    srv.STATE["pending_plan"] = None
     srv.STATE["action_notes"] = {}
     srv.STATE["current_chat_id"] = None
     srv.STATE["addon_dir"] = None
+    srv.STATE["allow_addons"] = False
+    srv.STATE["allow_self_edit"] = False
 
 
 # --- Режимы прогона (v86.2) -----------------------------------------------
@@ -112,8 +112,9 @@ try:
         {"action": "create_file", "path": "res://b.gd", "content": "extends Node\nfunc b():\n\tpass\n"},
         {"action": "patch_file", "path": "res://a.gd", "search": "func a():\n\tpass", "replace": "func a():\n\tprint(1)"},
     ]
-    srv.STATE["pending_plan"] = {"chain_id": chain_id, "steps": steps, "index": 0,
-                                  "description": "selfcheck", "total": len(steps), "applied_paths": []}
+    srv.STATE["pending_plan"] = srv._stamp_policy(
+        {"chain_id": chain_id, "steps": steps, "index": 0,
+         "description": "selfcheck", "total": len(steps), "applied_paths": []})
     client = srv.app.test_client()
 
     j1 = client.post("/chat/plan/step").get_json()
@@ -141,8 +142,9 @@ try:
         {"action": "patch_file", "path": "res://c.gd", "search": "THIS_TEXT_DOES_NOT_EXIST", "replace": "x"},
         {"action": "create_file", "path": "res://d.gd", "content": "extends Node\n"},
     ]
-    srv.STATE["pending_plan"] = {"chain_id": chain_id, "steps": steps, "index": 0,
-                                  "description": "selfcheck-stop", "total": len(steps), "applied_paths": []}
+    srv.STATE["pending_plan"] = srv._stamp_policy(
+        {"chain_id": chain_id, "steps": steps, "index": 0,
+         "description": "selfcheck-stop", "total": len(steps), "applied_paths": []})
     client = srv.app.test_client()
     _orig_reply1 = srv._reply
     srv._reply = lambda prompt: ("", None)
@@ -193,8 +195,9 @@ try:
     steps = [
         {"action": "create_file", "path": "res://hud.gd", "content": "extends Node\n"},
     ]
-    srv.STATE["pending_plan"] = {"chain_id": chain_id, "steps": steps, "index": 0,
-                                  "description": "selfcheck-autoload", "total": len(steps), "applied_paths": []}
+    srv.STATE["pending_plan"] = srv._stamp_policy(
+        {"chain_id": chain_id, "steps": steps, "index": 0,
+         "description": "selfcheck-autoload", "total": len(steps), "applied_paths": []})
     client = srv.app.test_client()
     client.post("/chat/plan/step", json={})
     # json={} обязателен, даже когда тело пустое: маршрут читает request.json,
@@ -219,27 +222,25 @@ try:
     os.makedirs(os.path.join(root, "addons", "myaddon"), exist_ok=True)
     client = srv.app.test_client()
 
-    srv.STATE["addon_intent"] = False
+    srv.STATE["allow_addons"] = False
     res = srv._apply_write_step({"action": "create_file", "path": "res://addons/myaddon/plugin.gd", "content": ""}, root)
-    check("без упоминания аддона запись в addons/ блокируется",
+    check("без явного capability запись в addons/ блокируется",
           res.get("ok") is False and not os.path.isfile(os.path.join(root, "addons", "myaddon", "plugin.gd")), res)
 
-    srv.STATE["addon_intent"] = True
+    srv.STATE["allow_addons"] = True
     res2 = srv._apply_write_step({"action": "create_file", "path": "res://addons/myaddon/plugin.gd", "content": "extends Node\n"}, root)
-    check("с явным упоминанием аддона («addon» в сообщении) запись разрешена",
+    check("с allow_addons=true запись во внешний аддон разрешена",
           res2.get("ok") is True and os.path.isfile(os.path.join(root, "addons", "myaddon", "plugin.gd")), res2)
 
-    ok, err = srv._validate_plan_steps([{"action": "create_file", "path": "res://addons/myaddon/x.gd", "content": ""}]) if False else (None, None)
-    srv.STATE["addon_intent"] = False
+    srv.STATE["allow_addons"] = False
     ok, err = srv._validate_plan_steps([{"action": "create_file", "path": "res://addons/myaddon/x.gd", "content": ""}])
-    check("шаг через аддон без упоминания отвергается валидацией плана", ok is False, err)
+    check("шаг через внешний аддон без capability отвергается валидацией плана", ok is False, err)
 
-    srv.STATE["addon_intent"] = False
     batch = srv._start_read_batch({"paths": ["res://addons/myaddon/plugin.gd"]}, root)
-    check("чтение аддона без упоминания помечается как blocked, а не читается",
+    check("чтение внешнего аддона без capability помечается как blocked, а не читается",
           batch["files"][0]["status"] == "blocked", batch)
 finally:
-    srv.STATE["addon_intent"] = False
+    srv.STATE["allow_addons"] = False
     shutil.rmtree(root, ignore_errors=True)
 
 root = fresh_project()
@@ -253,8 +254,9 @@ try:
                        '[node name="Root" type="Node2D"]\n'
                        'script = ExtResource("res://nope.gd")\n')
     steps2 = [{"action": "create_file", "path": "res://broken_scene.tscn", "content": bad_scene_step}]
-    srv.STATE["pending_plan"] = {"chain_id": chain_id2, "steps": steps2, "index": 0,
-                                  "description": "selfcheck-500-regression", "total": len(steps2), "applied_paths": []}
+    srv.STATE["pending_plan"] = srv._stamp_policy(
+        {"chain_id": chain_id2, "steps": steps2, "index": 0,
+         "description": "selfcheck-500-regression", "total": len(steps2), "applied_paths": []})
     client2 = srv.app.test_client()
     _orig_reply2 = srv._reply
     srv._reply = lambda prompt: ("", None)

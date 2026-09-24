@@ -7,6 +7,7 @@
 """
 import os
 import json as _json
+import sys
 import threading
 import hmac
 import time
@@ -45,6 +46,8 @@ STATE = {
     "user_data_dir": None,       # user:// папка проекта (логи игры, хранилище истории)
     "addon_dir": None,            # папка аддона на диске (для вшитого справочника API)
     "godot_executable": None,      # trusted editor executable path from OS.get_executable_path()
+    "allow_addons": False,        # доступ к внешним res://addons, не к текущему плагину
+    "allow_self_edit": False,     # временный developer mode текущего плагина
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
     "editor_context": None,     # снимок только текущего хода для gather_context
     "runtime_status": None,
@@ -551,6 +554,8 @@ def clear_pending_confirmations():
     """Discard confirmations that belong to the chat being left."""
     STATE["pending_action"] = None
     STATE["pending_refactor"] = None
+    STATE["pending_file_refactor"] = None
+    STATE["pending_node_refactor"] = None
     STATE["pending_scene_action"] = None
     STATE["pending_project_settings_action"] = None
     STATE["pending_resource_action"] = None
@@ -649,16 +654,102 @@ def _clear_progress():
     STATE["progress"] = {"active": False}
 
 
-def _apply_session_context(data):
-    """Обновляет project_root и user_data_dir из запроса панели.
-    user_data_dir переключает хранение истории/снапшотов в user:// (вне
-    проекта) и один раз переносит туда старую .agent_history из проекта."""
-    if data.get("project_root"):
-        STATE["project_root"] = data["project_root"]
-    if data.get("addon_dir"):
-        STATE["addon_dir"] = data["addon_dir"]
-        # v104.3: папка плагина не должна попадать в дерево/сводку/поиск/снапшот
-        project_tools.exclude_agent_addon_dirs(data["addon_dir"])
+class SessionContextError(ValueError):
+    """Client metadata cannot establish the server's trusted add-on identity."""
+
+
+def _discover_trusted_agent_dir(project_root, module_path=None, executable=None,
+                                frozen=None):
+    """Derive the running add-on root without trusting a client path.
+
+    Source mode anchors at ``server_state.py``; frozen mode anchors at the
+    executable shipped inside the add-on's Python build.  Only the resulting
+    canonical path is considered; the client ``addon_dir`` is diagnostic only.
+    """
+    if not project_root:
+        return None
+    frozen = bool(getattr(sys, "frozen", False)) if frozen is None else bool(frozen)
+    try:
+        if frozen:
+            anchor = os.path.realpath(os.path.abspath(
+                executable or sys.executable))
+            # .../<addon>/python/dist/godot_agent_server/<executable>
+            dist_dir = os.path.dirname(anchor)
+            python_dir = os.path.dirname(os.path.dirname(dist_dir))
+            candidate = os.path.dirname(python_dir)
+        else:
+            anchor = os.path.realpath(os.path.abspath(
+                module_path or __file__))
+            # .../<addon>/python/server/server_state.py
+            server_dir = os.path.dirname(anchor)
+            python_dir = os.path.dirname(server_dir)
+            candidate = os.path.dirname(python_dir)
+        if not os.path.isdir(candidate):
+            return None
+        return project_tools.validate_agent_addon_dir(project_root, candidate)
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def _discover_trusted_agent_dir_for_project(project_root):
+    return _discover_trusted_agent_dir(project_root)
+
+
+def _apply_session_context(data, allow_rebind=False):
+    """Apply only server-derived session identity and explicit capabilities.
+
+    The client may send ``addon_dir`` for diagnostics, but it can never choose
+    the path classified as the current Godot Agent.  A mismatch is rejected
+    before any state mutation so a spoofed request cannot change policy.
+    """
+    data = data if isinstance(data, dict) else {}
+    # Continuation requests may omit the panel's diagnostic metadata.  Once a
+    # trusted session is already established, keep that immutable context;
+    # /init and requests carrying a new project root are revalidated below.
+    if "addon_dir" not in data and "project_root" not in data and STATE.get("addon_dir"):
+        return _policy_snapshot()
+    requested_root = data.get("project_root")
+    if (requested_root and STATE.get("project_root")
+            and not allow_rebind
+            and os.path.normcase(os.path.realpath(os.path.abspath(str(requested_root))))
+            != os.path.normcase(os.path.realpath(str(STATE["project_root"])))):
+        raise SessionContextError(
+            "Project root cannot be rebound outside /init")
+    requested_root = (os.path.realpath(os.path.abspath(str(requested_root)))
+                      if requested_root else STATE.get("project_root"))
+    trusted = _discover_trusted_agent_dir_for_project(requested_root)
+
+    if "addon_dir" in data:
+        supplied = data.get("addon_dir")
+        if trusted is None:
+            raise SessionContextError(
+                "Trusted Godot Agent root is unavailable; access to addons is disabled")
+        if not supplied:
+            raise SessionContextError(
+                "addon_dir is missing or null; access to addons is disabled")
+        try:
+            supplied = project_tools.validate_agent_addon_dir(requested_root, supplied)
+        except (OSError, TypeError, ValueError) as exc:
+            raise SessionContextError(
+                "Client addon_dir is invalid and cannot authorize access: %s" % exc) from exc
+        if os.path.normcase(os.path.realpath(supplied)) != os.path.normcase(
+                os.path.realpath(trusted)):
+            raise SessionContextError(
+                "Client addon_dir does not match the server's trusted Godot Agent root")
+
+    # Commit identity and capabilities only after all client metadata checks.
+    if requested_root:
+        STATE["project_root"] = requested_root
+    STATE["addon_dir"] = trusted
+    client_metadata_missing = "addon_dir" not in data and "project_root" in data
+    for key in ("allow_addons", "allow_self_edit"):
+        if key in data:
+            value = data.get(key)
+            STATE[key] = value if isinstance(value, bool) else False
+    if trusted is None or client_metadata_missing:
+        STATE["allow_addons"] = False
+        STATE["allow_self_edit"] = False
+
     executable = str(data.get("godot_executable") or "").strip()
     if executable and os.path.isfile(executable):
         STATE["godot_executable"] = os.path.abspath(executable)
@@ -669,6 +760,18 @@ def _apply_session_context(data):
         if history.migrate_from_project(STATE.get("project_root")):
             print("--> История изменений перенесена из проекта в:",
                   history.get_storage_dir(STATE.get("project_root")))
+    return _policy_snapshot()
+
+
+def _policy_snapshot():
+    return project_tools.policy_snapshot(
+        STATE.get("allow_addons") is True,
+        STATE.get("allow_self_edit") is True,
+        STATE.get("addon_dir"))
+
+
+def _policy_matches(snapshot):
+    return isinstance(snapshot, dict) and _policy_snapshot() == snapshot
 
 
 def chat_already_primed(current_prompt_hash=None):
