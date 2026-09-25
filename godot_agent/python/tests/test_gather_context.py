@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import tempfile
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 import _bootstrap  # noqa: E402,F401
@@ -138,6 +139,39 @@ def test_budget_and_no_mutation():
                 with open(path, "rb") as handle:
                     after[os.path.relpath(path, root)] = handle.read()
         assert before == after
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_policy_forbidden_explicit_symbol_is_masked():
+    root = _project()
+    try:
+        _write(root, "addons/other/secret.gd",
+               "extends Node\nfunc my_func():\n\tpass\n")
+        result = gather_context.gather(root, {
+            "action": "gather_context",
+            "symbols": ["res://addons/other/secret.gd::my_func"],
+            "editor": False, "active_scene": False, "dependencies": False,
+            "diagnostics": False, "project_settings": False,
+        }, allow_addons=False, allow_self_edit=False)
+        text = gather_context.format_result(result)
+        assert "symbol: forbidden by current access policy" in text
+        assert "addons/other" not in text
+        assert "secret.gd" not in text
+        assert "my_func" not in text
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_project_settings_go_through_policy_read_boundary():
+    root = _project()
+    try:
+        with patch.object(gather_context, "policy_read_project_file",
+                          wraps=gather_context.policy_read_project_file) as reader:
+            gather_context._project_settings(root, "player")
+        reader.assert_called_once_with(
+            root, "res://project.godot", max_chars=120000,
+            allow_addons=False, allow_self_edit=False, addon_dir=None)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

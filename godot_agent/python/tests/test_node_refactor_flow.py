@@ -13,6 +13,8 @@ import _bootstrap  # noqa: E402,F401
 import main
 import server_state as S
 import history_manager
+import node_refactor
+from unittest.mock import patch
 
 
 class NodeRefactorFlowTests(unittest.TestCase):
@@ -116,11 +118,18 @@ func _on_gun_ready():
         self.assertEqual(data["pending_action"]["new_name"], "Weapon")
         self.assertEqual(len(data["pending_action_diffs"]), 2)
 
-        # Confirm action
-        resp_conf = self.client.post("/chat/confirm_action", json={"approved": True})
+        # Confirm action: capability kwargs must reach the final apply boundary.
+        with patch.object(
+                node_refactor, "apply_prepared_node_refactor",
+                wraps=node_refactor.apply_prepared_node_refactor) as apply_mock:
+            resp_conf = self.client.post(
+                "/chat/confirm_action", json={"approved": True})
         self.assertEqual(resp_conf.status_code, 200)
         conf_data = resp_conf.get_json()
         self.assertIn("успешно переименован", conf_data["answer"])
+        self.assertEqual(apply_mock.call_args.kwargs["allow_addons"], False)
+        self.assertEqual(apply_mock.call_args.kwargs["allow_self_edit"], False)
+        self.assertIn("addon_dir", apply_mock.call_args.kwargs)
 
         # Verify on disk
         new_scene = self.scene_path.read_text(encoding="utf-8")
@@ -179,6 +188,44 @@ func _on_gun_ready():
 
         rb_scene = self.scene_path.read_text(encoding="utf-8")
         self.assertIn('[node name="Gun" type="Node2D" parent="."]', rb_scene)
+
+    def test_direct_reparent_and_delete_routes_pass_capability_kwargs(self):
+        current = self.scene_path.read_text(encoding="utf-8")
+        arm_node = '[node name="Arm" type="Node2D" parent="."]\n\n'
+        self.scene_path.write_text(
+            current.replace('[node name="Gun"', arm_node + '[node name="Gun"'),
+            encoding="utf-8")
+
+        preview = self.client.post("/scene/refactor/node/reparent/preview", json={
+            "scene": "res://scenes/player.tscn", "node_path": "Gun",
+            "new_parent": "Arm"})
+        self.assertEqual(preview.status_code, 200)
+        with patch.object(
+                node_refactor, "apply_prepared_node_refactor",
+                wraps=node_refactor.apply_prepared_node_refactor) as apply_mock:
+            applied = self.client.post("/scene/refactor/node/reparent/apply", json={
+                "scene": "res://scenes/player.tscn", "node_path": "Gun",
+                "new_parent": "Arm"})
+        self.assertEqual(applied.status_code, 200)
+        self.assertEqual(apply_mock.call_args.kwargs["allow_addons"], False)
+        self.assertEqual(apply_mock.call_args.kwargs["allow_self_edit"], False)
+        self.assertIn("addon_dir", apply_mock.call_args.kwargs)
+        self.client.post("/chat/rollback", json={})
+
+        preview = self.client.post("/scene/refactor/node/delete/preview", json={
+            "scene": "res://scenes/player.tscn", "node_path": "Gun",
+            "cleanup_code": True})
+        self.assertEqual(preview.status_code, 200)
+        with patch.object(
+                node_refactor, "apply_prepared_node_refactor",
+                wraps=node_refactor.apply_prepared_node_refactor) as apply_mock:
+            applied = self.client.post("/scene/refactor/node/delete/apply", json={
+                "scene": "res://scenes/player.tscn", "node_path": "Gun",
+                "cleanup_code": True})
+        self.assertEqual(applied.status_code, 200)
+        self.assertEqual(apply_mock.call_args.kwargs["allow_addons"], False)
+        self.assertEqual(apply_mock.call_args.kwargs["allow_self_edit"], False)
+        self.assertIn("addon_dir", apply_mock.call_args.kwargs)
 
     def test_delete_flow(self):
         # 1. Preview delete

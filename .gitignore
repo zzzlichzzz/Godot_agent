@@ -34,3 +34,17 @@ minilich_brain/
 godot_agent/agent_panel.tscn
 
 
+
+# Runtime "golden corpus": raw unparseable model replies dumped by
+# parser_base._save_corpus_sample(). The directory is derived from
+# sys.argv[0], so it lands next to whatever ran the server:
+# python/parser_corpus/ for source runs, dist/.../ for the frozen exe.
+# Diagnostics only - never a source file or a test fixture.
+parser_corpus/
+
+# Local MCP Alpha repro scripts (python/tests/repro_*.py). They are
+# standalone reproductions of past bridge bugs, not unittest cases, so
+# `unittest discover` never picks them up. Kept locally as living
+# documentation of what the audit reproduced; the same guarantees are
+# covered by test_agent_bridge.py, which IS tracked and run in CI.
+godot_agent/python/tests/repro_*.py

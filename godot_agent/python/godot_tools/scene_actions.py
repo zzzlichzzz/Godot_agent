@@ -11,7 +11,7 @@ import os
 import re
 import uuid
 
-from project_tools import _resolve_safe_path, is_addon_path
+from project_tools import _resolve_safe_path, can_write_project_path
 
 
 class SceneActionError(ValueError):
@@ -60,12 +60,15 @@ def normalize_node_path(value, field="node"):
     return path
 
 
-def _normalize_scene_path(project_root, value, allow_addons=False, must_exist=True):
+def _normalize_scene_path(project_root, value, allow_addons=False, must_exist=True,
+                          allow_self_edit=False, addon_dir=None):
     path = _text(value, "scene", 500).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(".tscn"):
         raise SceneActionError("scene должен быть res:// путём к текстовой .tscn")
-    if not allow_addons and is_addon_path(path, project_root):
-        raise SceneActionError("Сцены аддонов разрешены только по явному запросу пользователя")
+    if not can_write_project_path(
+            path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise SceneActionError("Сцены аддонов разрешены только по явному запросу и текущей политике доступа")
     absolute = _resolve_safe_path(project_root, path)
     if must_exist and not os.path.isfile(absolute):
         raise SceneActionError("Сцена не найдена: %s" % path)
@@ -74,12 +77,15 @@ def _normalize_scene_path(project_root, value, allow_addons=False, must_exist=Tr
     return path, absolute
 
 
-def _normalize_script(project_root, value, allow_addons=False):
+def _normalize_script(project_root, value, allow_addons=False,
+                      allow_self_edit=False, addon_dir=None):
     script = _text(value, "script", 500).replace("\\", "/")
     if not script.startswith("res://") or not script.lower().endswith(".gd"):
         raise SceneActionError("script должен быть res:// путём к .gd")
-    if not allow_addons and is_addon_path(script, project_root):
-        raise SceneActionError("Скрипты аддонов разрешены только по явному запросу пользователя")
+    if not can_write_project_path(
+            script, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise SceneActionError("Скрипт защищён текущей политикой доступа")
     if not os.path.isfile(_resolve_safe_path(project_root, script)):
         raise SceneActionError("Скрипт не найден: %s" % script)
     return script
@@ -200,7 +206,9 @@ def _validate_sequence(operations):
             moved_old.add(old)
 
 
-def normalize_action(project_root, action, allow_addons=False, require_target_state=True):
+def normalize_action(project_root, action, allow_addons=False,
+                     require_target_state=True, allow_self_edit=False,
+                     addon_dir=None):
     kind = action.get("action") if isinstance(action, dict) else None
     if kind not in ("edit_scene", "create_scene"):
         raise SceneActionError("Ожидалось action=edit_scene или action=create_scene")
@@ -210,7 +218,9 @@ def normalize_action(project_root, action, allow_addons=False, require_target_st
     must_exist = True if kind == "edit_scene" else False
     if not require_target_state:
         must_exist = None
-    scene, absolute = _normalize_scene_path(project_root, action["scene"], allow_addons, must_exist)
+    scene, absolute = _normalize_scene_path(
+        project_root, action["scene"], allow_addons, must_exist,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     raw_operations = action["operations"]
     minimum = 0 if kind == "create_scene" else 1
     if not isinstance(raw_operations, list) or not (minimum <= len(raw_operations) <= MAX_OPERATIONS):
@@ -219,7 +229,9 @@ def normalize_action(project_root, action, allow_addons=False, require_target_st
     for operation in operations:
         if operation["op"] != "attach_script":
             continue
-        operation["script"] = _normalize_script(project_root, operation["script"], allow_addons)
+        operation["script"] = _normalize_script(
+            project_root, operation["script"], allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     _validate_sequence(operations)
     normalized = {"action": kind, "scene": scene, "operations": operations}
     if kind == "create_scene":
@@ -232,7 +244,8 @@ def normalize_action(project_root, action, allow_addons=False, require_target_st
         normalized_root = {"name": name, "type": node_type}
         if root.get("script") is not None:
             normalized_root["script"] = _normalize_script(
-                project_root, root["script"], allow_addons)
+                project_root, root["script"], allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         normalized["root"] = normalized_root
     summary = action.get("summary")
     if summary is not None:
@@ -297,8 +310,11 @@ def discard_staged_scene(absolute, action_id):
             pass
 
 
-def prepare(project_root, action, allow_addons=False):
-    normalized, absolute = normalize_action(project_root, action, allow_addons)
+def prepare(project_root, action, allow_addons=False,
+            allow_self_edit=False, addon_dir=None):
+    normalized, absolute = normalize_action(
+        project_root, action, allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     return {
         "action_id": uuid.uuid4().hex,
         "action": normalized,

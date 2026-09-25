@@ -7,7 +7,7 @@ import os
 import re
 import uuid
 
-from project_tools import _resolve_safe_path, is_addon_path
+from project_tools import _resolve_safe_path, can_write_project_path
 
 
 class ProjectSettingsActionError(ValueError):
@@ -45,12 +45,15 @@ def _text(value, field, limit=240):
     return value
 
 
-def _project_path(project_root, value, field, extensions, allow_addons=False):
+def _project_path(project_root, value, field, extensions, allow_addons=False,
+                  allow_self_edit=False, addon_dir=None):
     path = _text(value, field, 500).replace("\\", "/")
     if not path.startswith("res://") or not path.lower().endswith(extensions):
         raise ProjectSettingsActionError("%s имеет неподдерживаемый res:// путь" % field)
-    if not allow_addons and is_addon_path(path, project_root):
-        raise ProjectSettingsActionError("Ресурсы аддонов разрешены только по явному запросу")
+    if not can_write_project_path(
+            path, project_root, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+        raise ProjectSettingsActionError("Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа")
     absolute = _resolve_safe_path(project_root, path)
     if not os.path.isfile(absolute):
         raise ProjectSettingsActionError("Ресурс не найден: %s" % path)
@@ -98,7 +101,8 @@ def _normalize_event(raw):
     raise ProjectSettingsActionError("Неподдерживаемый тип InputEvent: %s" % kind)
 
 
-def _normalize_operation(project_root, raw, allow_addons):
+def _normalize_operation(project_root, raw, allow_addons,
+                         allow_self_edit=False, addon_dir=None):
     if not isinstance(raw, dict):
         raise ProjectSettingsActionError("Каждая операция должна быть объектом")
     op = raw.get("op")
@@ -127,12 +131,14 @@ def _normalize_operation(project_root, raw, allow_addons):
         result = {"op": op, "name": name}
         if op == "add_autoload":
             result["path"] = _project_path(
-                project_root, raw["path"], "path", (".gd", ".tscn"), allow_addons)
+                project_root, raw["path"], "path", (".gd", ".tscn"), allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         return result
     if op == "set_main_scene":
         _exact_fields(raw, ("op", "scene"))
         return {"op": op, "scene": _project_path(
-            project_root, raw["scene"], "scene", (".tscn",), allow_addons)}
+            project_root, raw["scene"], "scene", (".tscn",), allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)}
     if op == "set_layer_name":
         _exact_fields(raw, ("op", "layer", "index", "name"))
         layer, index, name = raw["layer"], raw["index"], raw["name"]
@@ -196,14 +202,17 @@ def _validate_sequence(operations):
                 "Операция %d удаляет autoload, созданный той же транзакцией" % index)
 
 
-def normalize_action(project_root, action, allow_addons=False):
+def normalize_action(project_root, action, allow_addons=False,
+                     allow_self_edit=False, addon_dir=None):
     _exact_fields(action, ("action", "operations"), ("summary",))
     if action.get("action") != "edit_project_settings":
         raise ProjectSettingsActionError("Ожидалось action=edit_project_settings")
     operations = action["operations"]
     if not isinstance(operations, list) or not 1 <= len(operations) <= MAX_OPERATIONS:
         raise ProjectSettingsActionError("operations должен содержать от 1 до %d операций" % MAX_OPERATIONS)
-    normalized_ops = [_normalize_operation(project_root, item, allow_addons) for item in operations]
+    normalized_ops = [_normalize_operation(
+        project_root, item, allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir) for item in operations]
     _validate_sequence(normalized_ops)
     normalized = {"action": "edit_project_settings", "operations": normalized_ops}
     summary = action.get("summary")
@@ -226,8 +235,11 @@ def file_sha256(absolute):
         return hashlib.sha256(handle.read()).hexdigest()
 
 
-def prepare(project_root, action, allow_addons=False):
-    normalized, absolute = normalize_action(project_root, action, allow_addons)
+def prepare(project_root, action, allow_addons=False,
+            allow_self_edit=False, addon_dir=None):
+    normalized, absolute = normalize_action(
+        project_root, action, allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     return {"action_id": uuid.uuid4().hex, "action": normalized,
             "action_digest": canonical_digest(normalized),
             "before_hash": file_sha256(absolute), "state": "preview",

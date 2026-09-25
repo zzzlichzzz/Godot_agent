@@ -24,7 +24,7 @@ import unittest
 
 results = []
 failures = []
-EXPECTED_CHECK_COUNT = 101
+EXPECTED_CHECK_COUNT = 109
 
 
 def check(name, cond, detail=None):
@@ -435,6 +435,13 @@ check("scene executor creates typed scenes through PackedScene temp save",
       and "DirAccess.rename_absolute" not in scene_executor)
 check("panel sends trusted Godot executable for engine validation",
       "OS.get_executable_path()" in panel and '"godot_executable"' in panel)
+check("policy confirmation restores both internal capabilities on cancel",
+      all(name in panel for name in (
+          "_policy_previous_allow_addons", "_policy_previous_allow_self_edit",
+          "_allow_addons = _policy_previous_allow_addons",
+          "_allow_self_edit = _policy_previous_allow_self_edit"))
+      and "canceled.connect" in panel)
+
 check("panel coordinates scene prepare execute finalize",
       all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
                                      "_send_scene_result", "_pending_scene_semantic_hash",
@@ -573,6 +580,37 @@ check("api exporter emits full method signatures next to arity",
       '"signatures"' in api_exporter
       and "type_string(" in api_exporter
       and "var_to_str(" in api_exporter)
+
+check("panel policy defaults are safe and self-edit is ephemeral",
+      'var _allow_addons: bool = false' in panel
+      and 'var _allow_self_edit: bool = false' in panel
+      and '_allow_self_edit = false' in panel[panel.find("func _load_policy_settings"):panel.find("func _save_allow_addons_policy")])
+check("panel persists only allow_addons policy",
+      'POLICY_SETTING_FILE' in panel
+      and 'func _save_allow_addons_policy' in panel
+      and 'allow_self_edit' not in panel[panel.find("func _save_allow_addons_policy"):panel.find("func _policy_body")])
+check("panel policy confirmation is first-enable and cancel-safe",
+      'ConfirmationDialog.new()' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")]
+      and 'confirmed.connect' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")]
+      and 'canceled.connect' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")])
+check("policy confirmation stays attached above the settings window",
+      "_settings_dialog.add_child(_policy_confirmation_dialog)" in panel
+      and "func _restore_settings_window" in panel
+      and "_settings_dialog.move_to_front()" in panel
+      and "is_instance_valid(_policy_confirmation_dialog)" in panel)
+check("panel policy body carries all session policy fields",
+      all(token in panel[panel.find("func _policy_body"):panel.find("func _policy_json")]
+          for token in ('project_root', 'user_data_dir', 'addon_dir', 'allow_addons', 'allow_self_edit')))
+check("panel uses one policy body for chat and refactor requests",
+      '_policy_body({' in panel and '_policy_json(' in panel
+      and '_safe_rename_addons_check' not in panel
+      and '_safe_node_rename_addons_check' not in panel)
+check("policy strings are localized in both languages",
+      all(key in RU and key in EN for key in (
+          'policy_group', 'policy_allow_addons', 'policy_allow_addons_tip',
+          'policy_allow_self_edit', 'policy_allow_self_edit_tip',
+          'policy_warning', 'policy_warning_tip', 'policy_confirm_title',
+          'policy_confirm_text', 'policy_confirm_yes', 'policy_confirm_no')))
 
 n_ok = sum(1 for r in results if r)
 print("ИТОГО: %d/%d" % (n_ok, len(results)))

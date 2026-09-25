@@ -551,8 +551,13 @@ def test_addons_do_not_eat_search_quota():
     res, _tr = search_project_text(root, "take_damage", max_results=3,
                                    context_lines=0, exclude_rel_prefixes=("addons/",))
     assert res and all("addons/" not in r["path"] for r in res), res
-    # без фильтра поведение прежнее (остальные вызывающие не затронуты)
-    res_all, _tr2 = search_project_text(root, "take_damage", max_results=3, context_lines=0)
+    # С явным capability аддоны видны; без него — только обычный проект.
+    # Self-policy tests need the same server-derived root as production.
+    agent_dir = os.path.join(root, "addons", "Godot_agent", "godot_agent")
+    os.makedirs(agent_dir, exist_ok=True)
+    res_all, _tr2 = search_project_text(
+        root, "take_damage", max_results=3, context_lines=0,
+        allow_addons=True, addon_dir=agent_dir)
     assert any("addons/" in r["path"] for r in res_all), res_all
     print("OK: addons/ не съедают квоту поиска (FRAGMENTS жив)")
 

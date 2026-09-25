@@ -137,6 +137,16 @@ godot --headless --path <overlay> --language en --log-file <log> --script res://
 
 ## Проверки
 
+Все офлайн-команды ниже предполагают рабочий каталог `godot_agent/python`.
+Из корня аддона (`godot_agent`) переход выполняется явно:
+
+```powershell
+Push-Location python
+python -B -X utf8 -m unittest -v tests.test_access_policy_state
+python -B -X utf8 selfcheck.py
+Pop-Location
+```
+
 Полный офлайн-набор интеграционных тестов запускается из `godot_agent/python`:
 
 ```powershell

@@ -140,7 +140,8 @@ _COMPILERS = {
 }
 
 
-def compile_action(project_root, action, allow_addons=False):
+def compile_action(project_root, action, allow_addons=False,
+                    allow_self_edit=False, addon_dir=None):
     """Return one normalized primitive action without modifying the project."""
     _exact_fields(action, ("action", "command"), ("summary",))
     if action.get("action") != "project_command":
@@ -156,10 +157,12 @@ def compile_action(project_root, action, allow_addons=False):
         compiled = compiler(command, _summary(action))
         if compiled["action"] == "edit_scene":
             compiled, _absolute = scene_actions.normalize_action(
-                project_root, compiled, allow_addons)
+                project_root, compiled, allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         elif compiled["action"] == "edit_project_settings":
             compiled, _absolute = project_settings_actions.normalize_action(
-                project_root, compiled, allow_addons)
+                project_root, compiled, allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     except HighLevelActionError:
         raise
     except Exception as exc:

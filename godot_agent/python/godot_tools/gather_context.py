@@ -10,8 +10,10 @@ import gd_api_check
 import librarian
 import log_reader
 import tscn_lint
-from project_tools import (_resolve_safe_path, describe_scene, read_project_file,
-                           search_project_text, is_addon_path)
+from project_tools import (_resolve_safe_path, can_read_project_path,
+                           describe_scene, policy_read_project_file,
+                           read_project_file,
+                           search_project_text)
 
 
 DEFAULT_MAX_CHARS = 12000
@@ -66,13 +68,16 @@ def validate_request(action):
     return spec, ([] if selectors else ["gather_context has no context selectors"])
 
 
-def _allowed_path(project_root, path, allow_addons=False):
+def _allowed_path(project_root, path, allow_addons=False,
+                  allow_self_edit=False, addon_dir=None):
     if not isinstance(path, str) or not path.startswith("res://"):
         return ""
     try:
-        if not allow_addons and is_addon_path(path, project_root):
-            return ""
         _resolve_safe_path(project_root, path)
+        if not can_read_project_path(
+                path, project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            return ""
     except Exception:
         return ""
     return path
@@ -86,10 +91,12 @@ def _read_script(project_root, path):
         return ""
 
 
-def _candidate_scripts(project_root, function_name, allow_addons):
+def _candidate_scripts(project_root, function_name, allow_addons,
+                       allow_self_edit=False, addon_dir=None):
     rows, _truncated = search_project_text(
         project_root, "func " + function_name, max_results=30, context_lines=0,
-        exclude_rel_prefixes=None if allow_addons else ("addons/",))
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
     paths = []
     for row in rows:
         path = row.get("path", "")
@@ -100,18 +107,25 @@ def _candidate_scripts(project_root, function_name, allow_addons):
     return paths
 
 
-def _resolve_symbol(project_root, request, allow_addons=False):
+def _resolve_symbol(project_root, request, allow_addons=False,
+                    allow_self_edit=False, addon_dir=None):
     class_name = ""
     if "::" in request:
         path, function_name = request.rsplit("::", 1)
-        path = _allowed_path(project_root, path, allow_addons)
-        candidates = [path] if path and path.endswith(".gd") else []
+        path = _allowed_path(project_root, path, allow_addons,
+                             allow_self_edit, addon_dir)
+        if not path:
+            return {"request": request, "status": "forbidden",
+                    "candidates": []}
+        candidates = [path] if path.endswith(".gd") else []
     else:
         if "." in request:
             class_name, function_name = request.rsplit(".", 1)
         else:
             function_name = request
-        candidates = _candidate_scripts(project_root, function_name, allow_addons)
+        candidates = _candidate_scripts(
+            project_root, function_name, allow_addons,
+            allow_self_edit, addon_dir)
         if class_name:
             exact = []
             for path in candidates:
@@ -137,10 +151,13 @@ def _resolve_symbol(project_root, request, allow_addons=False):
             "end_line": item["end_line"], "snippet": snippet}
 
 
-def _project_settings(project_root, query):
+def _project_settings(project_root, query, allow_addons=False,
+                      allow_self_edit=False, addon_dir=None):
     try:
-        text, _truncated = read_project_file(
-            project_root, "res://project.godot", max_chars=120000)
+        text, _truncated = policy_read_project_file(
+            project_root, "res://project.godot", max_chars=120000,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
     except Exception:
         return []
     autoloads = []
@@ -152,7 +169,9 @@ def _project_settings(project_root, query):
             continue
         if in_autoload:
             match = _AUTOLOAD_RE.match(stripped)
-            if match:
+            if match and _allowed_path(
+                    project_root, match.group(2), allow_addons,
+                    allow_self_edit, addon_dir):
                 autoloads.append("%s -> %s" % (match.group(1), match.group(2)))
     actions = log_reader.list_input_actions(project_root) or []
     terms = {part.lower() for part in re.findall(r"[A-Za-z0-9_]+", query or "")}
@@ -226,12 +245,14 @@ def _diagnostics(project_root, paths, addon_dir, dirty_path):
     return lines[:12]
 
 
-def _references(project_root, paths, allow_addons):
+def _references(project_root, paths, allow_addons,
+                allow_self_edit=False, addon_dir=None):
     if not paths:
         return []
     rows, truncated = search_project_text(
         project_root, "", needles=paths[:6], max_results=5, context_lines=0,
-        exclude_rel_prefixes=None if allow_addons else ("addons/",))
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
     out = []
     source_set = set(paths)
     for row in rows:
@@ -248,7 +269,7 @@ def _references(project_root, paths, allow_addons):
 
 
 def gather(project_root, action, editor_snapshot=None, addon_dir=None,
-           allow_addons=False):
+           allow_addons=False, allow_self_edit=False):
     """Collect structured sections without changing project files."""
     spec, errors = validate_request(action)
     result = {"schema_version": 1, "spec": spec, "sections": [],
@@ -256,17 +277,30 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
     if errors:
         return result
     snapshot = editor_context.normalize_snapshot(editor_snapshot)
+    script_snapshot = snapshot.get("script") if isinstance(snapshot, dict) else None
+    if isinstance(script_snapshot, dict):
+        script_path = str(script_snapshot.get("path") or "")
+        if script_path and not _allowed_path(
+                project_root, script_path, allow_addons,
+                allow_self_edit, addon_dir):
+            snapshot["script"] = {}
     source_paths = []
     if spec["editor"] and snapshot:
         block, _stats = editor_context.format_snapshot(snapshot, max_chars=4500)
         if block:
             result["sections"].append(("EDITOR SNAPSHOT", block))
         script_path = ((snapshot.get("script") or {}).get("path") or "")
-        if _allowed_path(project_root, script_path, allow_addons):
+        if _allowed_path(project_root, script_path, allow_addons,
+                         allow_self_edit, addon_dir):
             source_paths.append(script_path)
 
     for symbol in spec["symbols"]:
-        item = _resolve_symbol(project_root, symbol, allow_addons)
+        item = _resolve_symbol(project_root, symbol, allow_addons,
+                              allow_self_edit, addon_dir)
+        if item["status"] == "forbidden":
+            result["omitted"].append(
+                "symbol: forbidden by current access policy")
+            continue
         if item["status"] != "found":
             result["omitted"].append("%s: %s%s" % (
                 symbol, item["status"],
@@ -280,7 +314,8 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
         result["sections"].append(("SYMBOL " + symbol, body))
 
     scene_path = ((snapshot.get("scene") or {}).get("active") or "")
-    scene_path = _allowed_path(project_root, scene_path, allow_addons)
+    scene_path = _allowed_path(project_root, scene_path, allow_addons,
+                              allow_self_edit, addon_dir)
     if spec["active_scene"] and scene_path and scene_path.endswith(".tscn"):
         try:
             result["sections"].append((
@@ -295,11 +330,14 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
         result["sections"].append((
             "PROJECT REFERENCE",
             librarian.answer(project_root, query, budget_chars=4000,
-                             addon_dir=addon_dir)))
+                             addon_dir=addon_dir,
+                             allow_addons=allow_addons,
+                             allow_self_edit=allow_self_edit)))
     source_paths = list(dict.fromkeys(source_paths))
     if spec["dependencies"]:
         dependency_paths = [path for path in source_paths if not path.endswith(".tscn")]
-        refs = _references(project_root, dependency_paths, allow_addons)
+        refs = _references(project_root, dependency_paths, allow_addons,
+                          allow_self_edit, addon_dir)
         if refs:
             result["sections"].append(("DEPENDENCIES (textual references)", "\n".join(refs)))
     if spec["diagnostics"]:
@@ -312,7 +350,9 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
     if api_blocks:
         result["sections"].append(("GODOT API", "\n\n".join(api_blocks)))
     if spec["project_settings"]:
-        settings = _project_settings(project_root, query)
+        settings = _project_settings(
+            project_root, query, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         if settings:
             result["sections"].append(("PROJECT SETTINGS", "\n".join(settings)))
     result["sources"] = source_paths

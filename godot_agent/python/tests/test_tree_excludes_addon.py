@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Дерево/сводка проекта не должны включать папку самого плагина
-(python-сборка сервера раздувала мега-промпт)."""
+"""Project scans use canonical policy identities, not mutable global names."""
 import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
 _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
 import _bootstrap  # noqa: E402,F401
@@ -23,43 +22,33 @@ def _make_project(root, wrapper="Godot_agent", inner="godot_agent"):
         f.write("extends Node\n")
 
 
-def test_static_exclusion_of_distributed_folder_name():
-    root = tempfile.mkdtemp()
-    _make_project(root)
-    tree = project_tools.build_project_tree(root, only_exts={".gd", ".tscn"})
-    assert "player.gd" in tree, tree
-    assert "Godot_agent" not in tree, tree
-    assert "dist" not in tree and "numpy" not in tree, tree
-    print("OK: дистрибутивная папка Godot_agent исключена статически")
-
-
-def test_dynamic_exclusion_via_addon_dir():
+def test_agent_name_is_never_added_to_global_exclusions():
     root = tempfile.mkdtemp()
     _make_project(root, wrapper="MyRenamedAgent", inner="agent_core")
     addon_dir = os.path.join(root, "addons", "MyRenamedAgent", "agent_core")
-    tree_before = project_tools.build_project_tree(root, only_exts={".gd"})
-    assert "MyRenamedAgent" in tree_before, tree_before
+    before = set(project_tools.EXCLUDED_DIRS)
     project_tools.exclude_agent_addon_dirs(addon_dir)
-    assert "MyRenamedAgent" in project_tools.EXCLUDED_DIRS
-    assert "agent_core" in project_tools.EXCLUDED_DIRS
-    tree = project_tools.build_project_tree(root, only_exts={".gd"})
-    assert "MyRenamedAgent" not in tree and "junk.gd" not in tree, tree
-    assert "player.gd" in tree, tree
-    print("OK: переименованный аддон исключается динамически по addon_dir")
+    assert set(project_tools.EXCLUDED_DIRS) == before
+    assert "MyRenamedAgent" not in project_tools.EXCLUDED_DIRS
+    assert "agent_core" not in project_tools.EXCLUDED_DIRS
+    print("OK: имена addons не становятся глобальной security boundary")
 
 
-def test_apply_session_context_registers_exclusion():
-    root = tempfile.mkdtemp()
-    _make_project(root, wrapper="AnotherWrap", inner="another_inner")
-    addon_dir = os.path.join(root, "addons", "AnotherWrap", "another_inner")
-    server_state._apply_session_context({"project_root": root, "addon_dir": addon_dir})
-    assert "AnotherWrap" in project_tools.EXCLUDED_DIRS
-    assert "another_inner" in project_tools.EXCLUDED_DIRS
-    print("OK: /init (_apply_session_context) регистрирует исключение")
+def test_project_scanner_uses_current_project_policy_identity():
+    root_a = tempfile.mkdtemp()
+    root_b = tempfile.mkdtemp()
+    _make_project(root_a, wrapper="SharedName", inner="agent_a")
+    _make_project(root_b, wrapper="SharedName", inner="agent_b")
+    addon_a = os.path.join(root_a, "addons", "SharedName", "agent_a")
+    addon_b = os.path.join(root_b, "addons", "SharedName", "agent_b")
+    project_tools.exclude_agent_addon_dirs(addon_a)
+    tree_b = project_tools.build_project_tree(
+        root_b, allow_addons=True, allow_self_edit=False, addon_dir=addon_b)
+    assert "SharedName" in tree_b and "junk.gd" not in tree_b, tree_b
+    print("OK: одинаковое имя wrapper в другом проекте не наследует exclusion")
 
 
 if __name__ == "__main__":
-    test_static_exclusion_of_distributed_folder_name()
-    test_dynamic_exclusion_via_addon_dir()
-    test_apply_session_context_registers_exclusion()
+    test_agent_name_is_never_added_to_global_exclusions()
+    test_project_scanner_uses_current_project_policy_identity()
     print("ВСЕ ТЕСТЫ ПРОШЛИ")

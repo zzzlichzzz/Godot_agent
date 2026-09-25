@@ -30,7 +30,7 @@ import time
 
 import gd_api_cache
 from minilich import ml_project_index
-from project_tools import describe_scene, read_project_file, search_project_text
+from project_tools import can_read_project_path, describe_scene, read_project_file, search_project_text
 
 CHAR_BUDGET = 8000    # жёсткий потолок ответа, символов
 MAP_LIMIT = 8         # слой 1: максимум файлов в карте
@@ -500,22 +500,28 @@ def _structure(project_root, hits):
     return out
 
 
-def _grep_token(project_root, tok, seen, out, frags_left, case_insensitive=False):
+def _grep_token(project_root, tok, seen, out, frags_left,
+                case_insensitive=False, allow_addons=False,
+                allow_self_edit=False, addon_dir=None):
     """Один дословный grep: складывает сниппеты в out, возвращает сколько добавил."""
     if frags_left <= 0:
         return 0
     try:
         # v105.12 (раунд 4, п.1): берём ПООЛ кандидатов, а не первые 3 по
         # порядку обхода — иначе выбирать будет не из чего.
-        results, _tr = search_project_text(project_root, tok, max_results=FRAG_POOL,
-                                           context_lines=1,
-                                           exclude_rel_prefixes=_SEARCH_EXCLUDE,
-                                           case_insensitive=case_insensitive)
+        results, _tr = search_project_text(
+            project_root, tok, max_results=FRAG_POOL, context_lines=1,
+            case_insensitive=case_insensitive,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
     except Exception:
         return 0
     cands = [r for r in results
              if (r.get("path"), r.get("line")) not in seen
-             and not _is_addon_rel(r.get("path", ""))]
+             and can_read_project_path(
+                 "res://" + str(r.get("path", "")), project_root,
+                 allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+                 addon_dir=addon_dir)]
     # Сначала код (.gd/.tscn), потом всё остальное; внутри ранга — стабильно по (path, line).
     cands.sort(key=lambda r: (_frag_rank(str(r.get("path", ""))),
                               str(r.get("path", "")), int(r.get("line") or 0)))
@@ -554,7 +560,8 @@ def _grep_token(project_root, tok, seen, out, frags_left, case_insensitive=False
     return added
 
 
-def _grep_patterns(project_root, patterns, max_results):
+def _grep_patterns(project_root, patterns, max_results,
+                    allow_addons=False, allow_self_edit=False, addon_dir=None):
     """v105.14 (п.2): ищет СРАЗУ все шаблоны слоя за ОДИН обход проекта
     и возвращает {шаблон: [результаты в порядке обхода]}.
 
@@ -570,10 +577,10 @@ def _grep_patterns(project_root, patterns, max_results):
     if not patterns:
         return by_needle
     try:
-        results, _tr = search_project_text(project_root, None, max_results=max_results,
-                                           context_lines=0,
-                                           exclude_rel_prefixes=_SEARCH_EXCLUDE,
-                                           needles=list(patterns))
+        results, _tr = search_project_text(
+            project_root, None, max_results=max_results, context_lines=0,
+            needles=list(patterns), allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     except Exception:
         return by_needle  # как и раньше: ошибка поиска — просто пустой слой
     for r in results:
@@ -581,7 +588,8 @@ def _grep_patterns(project_root, patterns, max_results):
     return by_needle
 
 
-def _fragments(project_root, query):
+def _fragments(project_root, query, allow_addons=False,
+                allow_self_edit=False, addon_dir=None):
     """Слой 3: дословные совпадения токенов запроса; если токен дословно не
     нашёлся — пробуем его геймдев-синонимы (патч 1), первый удачный."""
     seen, out, frags = set(), [], 0
@@ -597,8 +605,10 @@ def _fragments(project_root, query):
         # v105.11 (раунд 3, п.2): один регистронезависимый проход вместо связки
         # «строгий + фолбэк»: запрос «health» находит и var health, и HealthUp,
         # и стоит ровно один обход диска.
-        added = _grep_token(project_root, tok, seen, out, FRAGMENT_LIMIT - frags,
-                            case_insensitive=True)
+        added = _grep_token(
+            project_root, tok, seen, out, FRAGMENT_LIMIT - frags,
+            case_insensitive=True, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
         if added == 0 and syn_budget > 0:
             # v105.14 (п.1): честная доля вместо «кто первый — того и бюджет».
             # Было: первый же не нашедшийся токен выбирал весь остаток (до
@@ -613,8 +623,10 @@ def _fragments(project_root, query):
             share = max(1, syn_budget // max(1, len(toks) - i))
             share = min(share, _SYN_GREP_LIMIT, syn_budget)
             for syn in _synonyms(tok)[:share]:
-                added = _grep_token(project_root, syn, seen, out, FRAGMENT_LIMIT - frags,
-                                    case_insensitive=True)
+                added = _grep_token(
+                    project_root, syn, seen, out, FRAGMENT_LIMIT - frags,
+                    case_insensitive=True, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir)
                 syn_budget -= 1
                 if added:
                     break  # per-token break оставлен как был: первый удачный синоним
@@ -624,7 +636,8 @@ def _fragments(project_root, query):
     return out
 
 
-def _callers(project_root, query, hits):
+def _callers(project_root, query, hits, allow_addons=False,
+              allow_self_edit=False, addon_dir=None):
     """Слой 3.5 (патч 3): обратные ссылки — места вызова функций, чьё имя
     ТОЧНО совпало с токеном запроса (по символам func: из карты).
     Закрывает типовой вопрос «кто это дёргает?» без двух-трёх read_file.
@@ -666,7 +679,10 @@ def _callers(project_root, query, hits):
         callable_forms = (name + ".bind(", name + ".call")
         for pattern in direct + quoted + callable_forms:
             specs.append((name, pattern, pattern in quoted))
-    by_needle = _grep_patterns(project_root, [p for _n, p, _q in specs], max_results=10)
+    by_needle = _grep_patterns(
+        project_root, [p for _n, p, _q in specs], max_results=10,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
     def_res = {}
     for name, pattern, is_quoted in specs:
         def_re = def_res.get(name)
@@ -674,8 +690,11 @@ def _callers(project_root, query, hits):
             def_re = def_res[name] = re.compile(r"\bfunc\s+%s\s*[(]" % re.escape(name))
         for r in by_needle.get(pattern, []):
             snippet = str(r.get("snippet", "")).strip()
-            if _is_addon_rel(r.get("path", "")) or def_re.search(snippet):
-                continue  # определение — не вызов; аддоны не выдаём
+            if (not can_read_project_path(
+                    "res://" + str(r.get("path", "")), project_root,
+                    allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+                    addon_dir=addon_dir) or def_re.search(snippet)):
+                continue
             code = re.sub(r"^\d+:\s*", "", snippet)  # убрать префикс «N: » сниппета
             # Регрессия шага 6, найдена рецензентом: шаблоны "имя"/'имя'
             # ловили любое упоминание имени в тексте — комментарий,
@@ -731,17 +750,19 @@ def _log_query(project_root, record):
         pass
 
 
-def _autoloads(project_root):
+def _autoloads(project_root, allow_addons=False, allow_self_edit=False,
+               addon_dir=None):
     """Слой 1.5 (патч 4): секция [autoload] из project.godot — глобальные
     синглтоны, доступные из любого скрипта по имени.
     Простой построчный разбор ini-секции, без новых зависимостей.
     Возвращает [(имя, res://путь)]."""
     try:
-        content, _tr = read_project_file(project_root, "res://project.godot", max_chars=200000)
+        text, _truncated = read_project_file(
+            project_root, "res://project.godot", max_chars=200000)
     except Exception:
         return []
     out, in_section = [], False
-    for line in str(content).splitlines():
+    for line in str(text).splitlines():
         s = line.strip()
         if s.startswith("[") and s.endswith("]"):
             in_section = (s == "[autoload]")
@@ -749,16 +770,20 @@ def _autoloads(project_root):
         if in_section and "=" in s and not s.startswith(";"):
             name, _eq, val = s.partition("=")
             val = val.strip().strip('"').lstrip("*")  # звёздочка = «включено»
-            if name.strip() and val:
+            if (name.strip() and val and can_read_project_path(
+                    val, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir)):
                 out.append((name.strip(), val))
     return out[:AUTOLOAD_LIMIT]
 
 
-def _autoload_lines(project_root, query):
+def _autoload_lines(project_root, query, allow_addons=False,
+                    allow_self_edit=False, addon_dir=None):
     """Строки слоя AUTOLOADS. Показываем только если запрос задевает
     имя/путь автозагрузки или содержит ключевые слова (autoload/singleton/
     global) — чтобы не съедать бюджет каждого ответа без нужды."""
-    autos = _autoloads(project_root)
+    autos = _autoloads(project_root, allow_addons=allow_addons,
+                       allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     if not autos:
         return []
     low = {t.lower() for t in re.split(r"\W+", str(query or ""), flags=re.U) if t}
@@ -770,7 +795,8 @@ def _autoload_lines(project_root, query):
     return ["- %s -> %s" % (name, path) for name, path in autos]
 
 
-def _signal_wiring(project_root, query, hits):
+def _signal_wiring(project_root, query, hits, allow_addons=False,
+                   allow_self_edit=False, addon_dir=None):
     """Слой 3.6 (патч 4): карта сигналов, чьё имя ТОЧНО совпало с токеном
     запроса: связи [connection ...] в .tscn + подключения в коде (v105.9:
     «name.connect(…)» Godot 4 и «connect("name"…)» legacy) + места эмита в .gd.
@@ -826,10 +852,16 @@ def _signal_wiring(project_root, query, hits):
                                # поэтому ищем «.sig» и фильтруем по контексту ниже.
                                (".%s" % name, None)):
             specs.append((name, pattern, label))
-    by_needle = _grep_patterns(project_root, [p for _n, p, _l in specs], max_results=6)
+    by_needle = _grep_patterns(
+        project_root, [p for _n, p, _l in specs], max_results=6,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
     for name, pattern, label in specs:
         for r in by_needle.get(pattern, []):
-            if _is_addon_rel(r.get("path", "")):
+            if not can_read_project_path(
+                    "res://" + str(r.get("path", "")), project_root,
+                    allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+                    addon_dir=addon_dir):
                 continue
             code = re.sub(r"^\d+:\s*", "", str(r.get("snippet", "")).strip())
             if code.lstrip().startswith("#"):
@@ -897,7 +929,8 @@ def _godot_api(project_root, query, addon_dir=None):
     return out
 
 
-def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
+def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None,
+           allow_addons=False, allow_self_edit=False):
     """Главная функция Библиотекаря: компактная английская справка о проекте.
     Никогда не бросает наружу ничего, кроме понятного текста (ошибки слоёв
     глотаются послойно) — но вызывающий код всё равно оборачивает в try."""
@@ -921,7 +954,24 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
         hits = ml_project_index.search(project_root, q_expanded, limit=MAP_LIMIT * _RERANK_POOL)
     except Exception:
         hits = []
-    hits = [h for h in hits if not _is_addon_rel(h.get("path", ""))]
+    if allow_addons or allow_self_edit:
+        try:
+            direct_rows, _ = search_project_text(
+                project_root, q, max_results=MAP_LIMIT * 2, context_lines=0,
+                allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+                addon_dir=addon_dir)
+        except Exception:
+            direct_rows = []
+        known = {str(hit.get("path") or "") for hit in hits}
+        for row in direct_rows:
+            path = str(row.get("path") or "")
+            if path and path not in known:
+                hits.append({"path": path, "kind": "gd", "symbols": []})
+                known.add(path)
+    hits = [h for h in hits if can_read_project_path(
+        "res://" + str(h.get("path", "")), project_root,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)]
     # v105.10 (шаг 4): индекс отстаёт от диска, если файл удалили снаружи
     # (Git, Проводник, другая ветка) — до STALE_SEC агент видел призрака в MAP
     # и «read error» в STRUCTURE. Убираем из выдачи и сразу починим индекс,
@@ -968,7 +1018,9 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
             syms = ", ".join(h.get("symbols", [])[:10])
             lines.append("- res://%s%s" % (h["path"], (" — " + syms) if syms else ""))
     try:
-        auto_lines = _autoload_lines(project_root, q)
+        auto_lines = _autoload_lines(
+            project_root, q, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     except Exception:
         auto_lines = []  # патч 4 не должен убить ответ целиком
     if auto_lines:
@@ -984,21 +1036,27 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None):
         lines.append("STRUCTURE (declarations with line numbers):")
         lines += struct_lines
     try:
-        frag_lines = _fragments(project_root, q)
+        frag_lines = _fragments(
+            project_root, q, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     except Exception:
         frag_lines = []
     if frag_lines:
         lines.append("FRAGMENTS (verbatim matches):")
         lines += frag_lines
     try:
-        caller_lines = _callers(project_root, q, hits)
+        caller_lines = _callers(
+            project_root, q, hits, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     except Exception:
         caller_lines = []  # патч 3 не должен убить ответ целиком
     if caller_lines:
         lines.append("CALLERS (call sites of exactly matched functions, definition excluded):")
         lines += caller_lines
     try:
-        signal_lines = _signal_wiring(project_root, q, hits)
+        signal_lines = _signal_wiring(
+            project_root, q, hits, allow_addons=allow_addons,
+            allow_self_edit=allow_self_edit, addon_dir=addon_dir)
     except Exception:
         signal_lines = []  # патч 4 не должен убить ответ целиком
     if signal_lines:

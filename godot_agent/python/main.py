@@ -27,6 +27,8 @@ from project_tools import (
     describe_scene,
     clean_dangling_autoloads,
     _resolve_safe_path,
+    can_read_project_path,
+    can_write_project_path,
 )
 import re as _re
 import history_manager as history
@@ -77,12 +79,9 @@ from agent_prompts import (
 # и без read_file/search_project/list_files/list_scene (они не меняют диск и им нечего откатывать).
 PLAN_ALLOWED_ACTIONS = {"create_file", "patch_file", "move_file"}
 
-# Защита аддонов: модель не должна сама лезть в res://addons/... (читать,
-# создавать, патчить, перемещать, копировать) — только когда пользователь ЯВНО
-# попросил об этом в своём последнем сообщении (см. _ADDON_INTENT_RE / STATE["addon_intent"]).
-# Иначе модель регулярно предлагала действия над чужими аддонами "на автомате",
-# и пользователю приходилось отклонять их вручную каждый раз.
-_ADDON_INTENT_RE = _re.compile(r"\b(\u0430\u0434\u0434\u043e\u043d|addon|\u0430\u0434\u0434\u043e\u043d\u044b|addons)\b", _re.IGNORECASE)
+# Доступ к аддонам задаётся только панелью через явные capability-флаги.
+# Слова в промпте остаются только диагностическим UX-сигналом и никогда не
+# авторизуют чтение или запись.
 
 
 def _is_addon_path(path):
@@ -93,9 +92,65 @@ def _is_addon_path(path):
     return is_addon_path(path, STATE.get("project_root"))
 
 
+def _access_kwargs():
+    return {
+        "allow_addons": STATE.get("allow_addons") is True,
+        "allow_self_edit": STATE.get("allow_self_edit") is True,
+        "addon_dir": STATE.get("addon_dir"),
+    }
+
+
+def _can_write_path(path, project_root=None):
+    return can_write_project_path(
+        path, project_root or STATE.get("project_root"), **_access_kwargs())
+
+
+def _can_read_path(path, project_root=None):
+    return can_read_project_path(
+        path, project_root or STATE.get("project_root"), **_access_kwargs())
+
+
+def _stamp_policy(container):
+    if isinstance(container, dict):
+        container["policy_snapshot"] = server_state._policy_snapshot()
+    return container
+
+
+def _policy_error_response(container=None, status=409):
+    if isinstance(container, dict):
+        server_state.clear_pending_confirmations()
+    return jsonify({
+        "error": "Permission policy changed after preview. Prepare the action again.",
+        "code": "stale_policy",
+    }), status
+
+
+def _pending_policy_current(container):
+    snapshot = container.get("policy_snapshot") if isinstance(container, dict) else None
+    return snapshot is not None and server_state._policy_matches(snapshot)
+
+
+def _filter_editor_snapshot_policy(snapshot, project_root):
+    """Remove live code from paths hidden by the current access policy."""
+    clean = editor_context.normalize_snapshot(snapshot)
+    script = clean.get("script") if isinstance(clean, dict) else None
+    if isinstance(script, dict):
+        path = str(script.get("path") or "")
+        if path and not _can_read_path(path, project_root):
+            clean["script"] = {}
+    return editor_context.normalize_snapshot(clean)
+
+
 def _is_project_settings_path(path):
-    p = str(path or "").replace("\\", "/").strip().lower()
-    return p in ("project.godot", "res://project.godot")
+    if not path:
+        return False
+    try:
+        root = STATE.get("project_root")
+        target = _resolve_safe_path(root, path)
+        settings = os.path.realpath(os.path.join(root, "project.godot"))
+        return os.path.normcase(target) == os.path.normcase(settings)
+    except Exception:
+        return False
 
 
 def _is_text_scene_path(path):
@@ -104,10 +159,7 @@ def _is_text_scene_path(path):
 
 def _addon_blocked_message(path):
     return (
-        "Путь %s находится в папке аддона (res://addons/...). Правки аддонов разрешены ТОЛЬКО "
-        "когда пользователь явно попросил об этом в своём сообщении (словами \u00abаддон\u00bb/\u00abaddon\u00bb). "
-        "Если это действительно нужно — спроси пользователя напрямую, прежде чем предлагать действие "
-        "над файлами аддона; не запрашивай и не изменяй файлы аддона по своей инициативе." % path
+        "Путь %s закрыт текущей политикой доступа. Включи нужный флаг в настройках Godot Agent и повтори preview." % path
     )
 import live_input
 import rate_limit  # v104.12: детект 429/лимитов + спящий режим
@@ -149,6 +201,10 @@ app.register_blueprint(chats_bp)
 app.teardown_request(server_state.clear_turn_chat)
 app.teardown_request(server_state.clear_request_activity)
 
+@app.errorhandler(server_state.SessionContextError)
+def _session_context_error(exc):
+    return jsonify({"error": str(exc), "code": "invalid_session_context"}), 400
+
 # Bound and authenticate request bodies before any stateful admission hook.
 server_auth.install(app, jsonify, body_limits={
     "/init": 128 * 1024,
@@ -163,6 +219,11 @@ _CHAT_CONTINUATION_PATHS = {
     "/chat/rollback/preview", "/chat/rollback",
     "/chat/plan/step", "/chat/plan/stop",
     "/chat/plan/rollback_chain", "/project/send_log_errors",
+    "/project/refactor/file/preview", "/project/refactor/file/apply",
+    "/project/refactor/file/post_move_sync",
+    "/scene/refactor/node/preview", "/scene/refactor/node/apply",
+    "/scene/refactor/node/reparent/preview", "/scene/refactor/node/reparent/apply",
+    "/scene/refactor/node/delete/preview", "/scene/refactor/node/delete/apply",
 }
 
 
@@ -553,11 +614,9 @@ def _validate_plan_steps(steps, max_steps=None):
             return False, "шаг %d (%s) не содержит 'path'." % (i + 1, act)
         if _is_project_settings_path(step.get("path")) or _is_project_settings_path(step.get("dest")):
             return False, "шаг %d пытается править project.godot как текст. Используй edit_project_settings." % (i + 1)
-        if (not STATE.get("addon_intent")) and (_is_addon_path(step.get("path")) or _is_addon_path(step.get("dest"))):
-            return False, (
-                "шаг %d трогает файл аддона (res://addons/...), а пользователь это явно не запрашивал. "
-                "Не включай аддоны в план, если пользователь явно не попросил изменить аддон." % (i + 1)
-            )
+        if not _can_write_path(step.get("path")) or (
+                step.get("dest") and not _can_write_path(step.get("dest"))):
+            return False, "Шаг %d трогает путь, закрытый текущей политикой доступа." % (i + 1)
         if _is_text_scene_path(step.get("path")) or _is_text_scene_path(step.get("dest")):
             return False, "шаг %d пишет .tscn как текст. Используй create_scene/edit_scene." % (i + 1)
         if act == "create_file" and not isinstance(step.get("content"), str):
@@ -729,8 +788,10 @@ def _apply_write_step(action, project_root, chain_id=None, validation=None):
     if _is_text_scene_path(path) or _is_text_scene_path(dest):
         return {"ok": False, "message": ".tscn изменяются только через create_scene/edit_scene.",
                 "changed_path": None, "changed_block": None}
-    if (not STATE.get("addon_intent")) and (_is_addon_path(path) or _is_addon_path(dest)):
-        return {"ok": False, "message": _addon_blocked_message(path if _is_addon_path(path) else dest),
+    if not _can_write_path(path, project_root) or (
+            dest and not _can_write_path(dest, project_root)):
+        blocked = path if not _can_write_path(path, project_root) else dest
+        return {"ok": False, "message": _addon_blocked_message(blocked),
                 "changed_path": None, "changed_block": None}
     if validation is not None:
         try:
@@ -747,9 +808,10 @@ def _apply_write_step(action, project_root, chain_id=None, validation=None):
             prepared = file_refactor.prepare_file_rename(
                 project_root, path, dest,
                 update_references=True,
-                allow_addons=STATE.get("addon_intent"))
+                **_access_kwargs())
             refactor = file_refactor.apply_prepared_file_rename(
-                project_root, prepared, *_current_chat_info(), chain_id=chain_id)
+                project_root, prepared, *_current_chat_info(), chain_id=chain_id,
+                **_access_kwargs())
         except MoveRecoveryError as e:
             return {"ok": False, "message": str(e), "changed_path": None,
                     "changed_block": None, "recovery_required": True,
@@ -845,10 +907,7 @@ def _start_read_batch(action, project_root):
         if not p or p in seen:
             continue
         seen.add(p)
-        if _is_addon_path(p) and not STATE.get("addon_intent"):
-            # Модель не должна САМА запрашивать файлы аддона без явной просьбы
-            # пользователя в этом сообщении — отмечаем "blocked" и не спрашиваем
-            # пользователя вообще (см. _addon_blocked_message в _finish_read_batch).
+        if not _can_read_path(p, project_root):
             files.append({"path": p, "status": "blocked"})
             continue
         status = "pending"
@@ -861,7 +920,7 @@ def _start_read_batch(action, project_root):
         if names is not None:  # v48: read_function — список запрошенных функций
             rec["names"] = [str(n).strip() for n in names if str(n).strip()][:10]
         files.append(rec)
-    return {"files": files, "reason": action.get("reason", "")}
+    return _stamp_policy({"files": files, "reason": action.get("reason", "")})
 
 
 def _next_batch_confirmation():
@@ -980,6 +1039,27 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             action.pop("content_part", None)
             action.pop("content_parts_total", None)
             action.pop("content_total_lines", None)
+    policy_blocked = None
+    policy_actions = {
+        "create_file", "patch_file", "move_file", "copy_file", "rename_file",
+        "rename_node", "reparent_node", "delete_node", "edit_scene",
+        "create_scene", "edit_project_settings", "edit_resource",
+        "transaction", "project_command",
+    }
+    if isinstance(action, dict) and action.get("action") in policy_actions:
+        for field in ("path", "dest", "scene", "resource"):
+            candidate = action.get(field)
+            if candidate and not _can_write_path(candidate, project_root):
+                policy_blocked = candidate
+                break
+    if policy_blocked:
+        followup = "[Система]: Действие отклонено текущей политикой доступа: %s" % policy_blocked
+        STATE["pending_action"] = None
+        if not allow_followup or depth >= 2:
+            return jsonify({"answer": (text + "\n\n" + followup).strip(),
+                            "pending_action": None})
+        text2, action2 = _reply_with_self_heal(followup, project_root)
+        return _package_model_reply(text2, action2, project_root, depth + 1)
     if not allow_followup and action and action.get("action") in ("create_file", "patch_file"):
         problems = _lint_action_code(action, project_root)
         if problems:
@@ -1005,8 +1085,8 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         query = str(action.get("query") or action.get("q") or "").strip()
         print("--> ask_librarian: «%s»" % query)
         try:
-            followup = librarian.answer(project_root, query,
-                                        addon_dir=STATE.get("addon_dir"))
+            followup = librarian.answer(
+                project_root, query, **_access_kwargs())
         except Exception as e:
             followup = ("[Librarian]: internal error: %s. Fall back to search_project / "
                         "list_files / read_file." % e)
@@ -1030,7 +1110,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             STATE["pending_action"] = None
             return jsonify({"answer": (text + "\n\n[Система]: inspect_runtime отклонён: %s" % exc).strip(),
                             "pending_action": None})
-        STATE["pending_action"] = normalized
+        STATE["pending_action"] = _stamp_policy(normalized)
         _remember("agent", text)
         _sync_chat_after_reply()
         return jsonify({"answer": text, "pending_action": normalized,
@@ -1039,7 +1119,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
     if action and action.get("action") == "run_check":
         try:
             normalized = runtime_checks.normalize_action(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+                project_root, action, **_access_kwargs())
             if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
                 raise runtime_checks.RuntimeCheckError(
                     "only one inspect_runtime or run_check action is allowed per user turn")
@@ -1047,7 +1127,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             STATE["pending_action"] = None
             return jsonify({"answer": (text + "\n\n[Система]: run_check отклонён: %s" % exc).strip(),
                             "pending_action": None})
-        STATE["pending_action"] = normalized
+        STATE["pending_action"] = _stamp_policy(normalized)
         _remember("agent", text)
         _sync_chat_after_reply()
         return jsonify({"answer": text, "pending_action": normalized,
@@ -1077,8 +1157,9 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             if _is_text_scene_path(s) or _is_text_scene_path(d):
                 results.append("✗ %s -> %s: сцены создаются и изменяются только через create_scene/edit_scene" % (s, d))
                 continue
-            if (not STATE.get("addon_intent")) and (_is_addon_path(s) or _is_addon_path(d)):
-                results.append("\u2717 %s -> %s: %s" % (s, d, _addon_blocked_message(s if _is_addon_path(s) else d)))
+            if not _can_read_path(s, project_root) or not _can_write_path(d, project_root):
+                blocked = s if not _can_read_path(s, project_root) else d
+                results.append("\u2717 %s -> %s: %s" % (s, d, _addon_blocked_message(blocked)))
                 continue
             synthetic = {"action": "create_file", "path": d}
             entry_id = history.record_change(project_root, synthetic, *_current_chat_info())
@@ -1109,7 +1190,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
     if action and action.get("action") == "project_command":
         try:
             compiled = high_level_actions.compile_action(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+                project_root, action, **_access_kwargs())
         except Exception as exc:
             followup = ("[Система]: project_command отклонена локальным компилятором: %s. "
                         "Исправь схему команды; не заменяй её небезопасными текстовыми правками." % exc)
@@ -1141,14 +1222,14 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             text2, act2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, act2, project_root, depth + 1)
         chain_id = history.new_chain_id()
-        pending_plan = {
+        pending_plan = _stamp_policy({
             "chain_id": chain_id,
             "steps": steps,
             "index": 0,
             "description": plan_description,
             "total": len(steps),
             "applied_paths": [],
-        }
+        })
         STATE["pending_plan"] = pending_plan
         synthetic = {"action": "plan", "description": plan_description,
                      "steps": steps, "total": len(steps)}
@@ -1165,8 +1246,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         receipt = None
         try:
             prepared = transaction_actions.prepare(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")),
-                addon_dir=STATE.get("addon_dir"))
+                project_root, action, **_access_kwargs())
             if prepared["batch"] is not None:
                 receipt = godot_headless_validation.validate_batch(
                     project_root, prepared["batch"], executable=STATE.get("godot_executable"))
@@ -1199,6 +1279,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = transaction_actions.public_prepared(prepared)
         STATE["pending_transaction"] = prepared
         STATE["pending_action"] = public
@@ -1211,8 +1292,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
     if action and action.get("action") == "rename_symbol":
         try:
             prepared = symbol_refactor.prepare_rename(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")),
-                addon_dir=STATE.get("addon_dir"))
+                project_root, action, **_access_kwargs())
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_refactor"] = None
@@ -1237,6 +1317,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                 return _package_model_reply(text2, action2, project_root, depth + 1)
             return jsonify({"answer": (text + "\n\n" + engine_error).strip(),
                             "pending_action": None})
+        _stamp_policy(prepared)
         prepared["validation"] = {"batch": batch, "receipt": receipt}
         public = dict(action)
         public.update(symbol_refactor.public_prepared(prepared))
@@ -1255,7 +1336,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             prepared = file_refactor.prepare_file_rename(
                 project_root, action.get("path"), action.get("dest") or action.get("new_path"),
                 update_references=bool(action.get("update_references", True)),
-                allow_addons=bool(STATE.get("addon_intent")))
+                **_access_kwargs())
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_file_refactor"] = None
@@ -1266,6 +1347,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(action)
         public["dest"] = prepared["new_path"]
         public["reference_count"] = prepared["reference_count"]
@@ -1291,7 +1373,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                 action.get("scene"),
                 action.get("node_path") or action.get("node"),
                 action.get("new_name") or action.get("name"),
-                allow_addons=bool(STATE.get("addon_intent"))
+                **_access_kwargs()
             )
         except Exception as exc:
             STATE["pending_action"] = None
@@ -1303,6 +1385,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(action)
         public["scene"] = prepared["scene_res"]
         public["node_path"] = prepared["target_node_path"]
@@ -1327,7 +1410,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                 action.get("scene"),
                 action.get("node_path") or action.get("node"),
                 action.get("new_parent") or action.get("parent"),
-                allow_addons=bool(STATE.get("addon_intent"))
+                **_access_kwargs()
             )
         except Exception as exc:
             STATE["pending_action"] = None
@@ -1339,6 +1422,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(action)
         public["scene"] = prepared["scene_res"]
         public["node_path"] = prepared["target_node_path"]
@@ -1363,7 +1447,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                 action.get("scene"),
                 action.get("node_path") or action.get("node"),
                 cleanup_code=bool(action.get("cleanup_code", True)),
-                allow_addons=bool(STATE.get("addon_intent"))
+                **_access_kwargs()
             )
         except Exception as exc:
             STATE["pending_action"] = None
@@ -1375,6 +1459,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(action)
         public["scene"] = prepared["scene_res"]
         public["node_path"] = prepared["target_node_path"]
@@ -1396,7 +1481,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
     if action and action.get("action") in ("edit_scene", "create_scene"):
         try:
             prepared = scene_actions.prepare(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+                project_root, action, **_access_kwargs())
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_scene_action"] = None
@@ -1408,6 +1493,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(prepared["action"])
         public.update(scene_actions.public_prepared(prepared))
         STATE["pending_scene_action"] = prepared
@@ -1421,7 +1507,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
     if action and action.get("action") == "edit_project_settings":
         try:
             prepared = project_settings_actions.prepare(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+                project_root, action, **_access_kwargs())
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_project_settings_action"] = None
@@ -1433,6 +1519,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(prepared["action"])
         public.update(project_settings_actions.public_prepared(prepared))
         STATE["pending_project_settings_action"] = prepared
@@ -1446,7 +1533,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
     if action and action.get("action") == "edit_resource":
         try:
             prepared = resource_actions.prepare(
-                project_root, action, allow_addons=bool(STATE.get("addon_intent")))
+                project_root, action, **_access_kwargs())
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_resource_action"] = None
@@ -1458,6 +1545,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                                 "pending_action": None})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
+        _stamp_policy(prepared)
         public = dict(prepared["action"])
         public.update(resource_actions.public_prepared(prepared))
         STATE["pending_resource_action"] = prepared
@@ -1506,7 +1594,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                 "виден во вкладке AI Studio. Можно написать модели: 'повтори последний ответ'.")
     _remember("agent", text)
     _sync_chat_after_reply()
-    STATE["pending_action"] = action
+    STATE["pending_action"] = _stamp_policy(action)
     # Чистый код для красивого предпросмотра в панели (без JSON-обёртки).
     code_preview = None
     if isinstance(action, dict):
@@ -2121,7 +2209,8 @@ def _refresh_fs_snapshot(project_root):
         return
     try:
         # v88.5: prev — чтобы не перехэшировать файлы, чьи mtime+size не менялись
-        STATE["fs_snapshot"] = snapshot_files(project_root, prev=STATE.get("fs_snapshot"))
+        STATE["fs_snapshot"] = snapshot_files(
+            project_root, prev=STATE.get("fs_snapshot"), **_access_kwargs())
         STATE["fs_snapshot_root"] = project_root
     except Exception:
         pass
@@ -2226,7 +2315,8 @@ def _build_priming_context(project_root):
     if created:
         print("--> Проект пуст: создана стандартная архитектура (%d папок)" % len(created))
     try:
-        arch = describe_architecture(project_root)
+        arch = describe_architecture(
+            project_root, **_access_kwargs())
     except Exception:
         arch = ""
     if created:
@@ -2237,9 +2327,10 @@ def _build_priming_context(project_root):
                 + (("\n" + arch) if arch.strip() else ""))
     if not arch.strip():
         arch = "(явной архитектуры не обнаружено — ориентируйся на структуру ниже и не разводи хаос в корне)"
-    tree, compact = build_project_overview(project_root, only_exts=CODE_EXTS,
-                                           max_entries=PRIME_TREE_MAX_ENTRIES,
-                                           compact_threshold=PRIME_COMPACT_THRESHOLD)
+    tree, compact = build_project_overview(
+        project_root, only_exts=CODE_EXTS,
+        max_entries=PRIME_TREE_MAX_ENTRIES,
+        compact_threshold=PRIME_COMPACT_THRESHOLD, **_access_kwargs())
     if compact:
         print("--> Проект большой: в мега-промпт идёт компактная сводка по папкам вместо полного дерева")
     _refresh_fs_snapshot(project_root)  # созданные папки — не «внешние» изменения
@@ -2279,20 +2370,23 @@ def init_session():
         return jsonify({"error": "Сначала завершите или отклоните ожидающую операцию.",
                         "code": "pending_operation"}), 409
     data = request.json or {}
-    STATE["project_root"] = data.get('project_root')
+    previous_root = STATE.get("project_root")
     # v87.9: точная версия движка для мега-промпта (плагин шлёт её в /init).
     _gv = str(data.get("godot_version") or "").strip()
     if _gv:
         STATE["godot_version"] = _gv
-    _apply_session_context(data)
-    STATE["pending_action"] = None
-    STATE["pending_refactor"] = None
-    STATE["pending_scene_action"] = None
-    STATE["pending_project_settings_action"] = None
-    STATE["pending_resource_action"] = None
-    STATE["pending_validation"] = None
-    STATE["pending_transaction"] = None
-    STATE["pending_batch"] = None
+    try:
+        _apply_session_context(data, allow_rebind=True)
+    except server_state.SessionContextError as exc:
+        return jsonify({"error": str(exc), "code": "invalid_session_context"}), 400
+    if STATE.get("project_root") != previous_root:
+        STATE["file_cache"] = None
+        STATE["fs_snapshot"] = None
+        STATE["fs_snapshot_root"] = None
+        STATE["stale_notes"] = {}
+        STATE["battle_choice_summary"] = None
+        STATE["api_system_cache"] = None
+    server_state.clear_pending_confirmations()
     STATE["action_notes"] = {}  # v45: словарь chat_id -> заметка, а не одна общая строка
     STATE["pending_log_report"] = None
     STATE["editor_context"] = None
@@ -2344,8 +2438,8 @@ def chat():
         if not base or chat_store.find_chat(base, requested_chat_id) is None:
             return jsonify({"error": "Чат для отправки сообщения не найден.",
                             "code": "chat_not_found"}), 404
-    STATE["editor_context"] = editor_context.normalize_snapshot(
-        data.get("editor_context"))
+    STATE["editor_context"] = _filter_editor_snapshot_policy(
+        data.get("editor_context"), STATE.get("project_root"))
     reset_runtime_turn(runtime_debug.normalize_status(data.get("runtime_status")), increment=True)
     STATE["pending_log_report"] = None  # новое сообщение отменяет неотправленный отчёт
     STATE["battle_choice_summary"] = None
@@ -2359,10 +2453,6 @@ def chat():
     # будет несколько (самоисцеление, дочитывание файлов, шаги плана), и без
     # общего потолка флапающий провайдер запирал бы редактор на часы.
     _reset_retry_budget()
-    # Каждое НОВОЕ сообщение пользователя заново решает, разрешены ли в этом ходе действия над
-    # аддонами (res://addons/...) — только когда он сам упомянул аддон/addon в тексте. Сбрасывается и
-    # задаётся заново на каждое такое сообщение, а не один раз, чтобы доступ к аддонам не застревал навсегда.
-    STATE["addon_intent"] = bool(_ADDON_INTENT_RE.search(prompt or ""))
     current_root = STATE.get("project_root")
     ensured_chat = _ensure_current_chat(prompt)
     if not turn_chat_id and ensured_chat is not None:
@@ -2507,12 +2597,15 @@ def chat():
 @app.route('/chat/confirm_action', methods=['POST'])
 def confirm_action():
     data = request.json or {}
+    _apply_session_context(data)
     approved = data.get('approved', False)
     project_root = STATE.get("project_root")
 
     # --- Ветка 0: план (целая цепочка действий) ---
-    if STATE.get("pending_plan") is not None:
-        plan = STATE["pending_plan"]
+    plan = STATE.get("pending_plan")
+    if plan is not None:
+        if approved and not _pending_policy_current(plan):
+            return _policy_error_response(plan)
         if not approved:
             print(f"--> План из {plan['total']} шаг(ов) ОТКЛОНён пользователем.")
             STATE["pending_plan"] = None
@@ -2528,6 +2621,8 @@ def confirm_action():
 
     # --- Ветка 1: пачка файлов на чтение ---
     if STATE.get("pending_batch") is not None:
+        if approved and not _pending_policy_current(STATE["pending_batch"]):
+            return _policy_error_response(STATE["pending_batch"])
         try:
             conf = _next_batch_confirmation()
             if conf is None:
@@ -2557,6 +2652,17 @@ def confirm_action():
     action = STATE.get("pending_action")
     if action is None:
         return jsonify({"error": "Нет ожидающего подтверждения действия."}), 400
+    if approved:
+        prepared = (STATE.get("pending_refactor")
+                    or STATE.get("pending_file_refactor")
+                    or STATE.get("pending_node_refactor")
+                    or STATE.get("pending_transaction")
+                    or STATE.get("pending_scene_action")
+                    or STATE.get("pending_project_settings_action")
+                    or STATE.get("pending_resource_action"))
+        policy_container = prepared if isinstance(prepared, dict) else action
+        if not _pending_policy_current(policy_container):
+            return _policy_error_response(policy_container)
 
     act_type = action.get("action")
     path = action.get("path", "")
@@ -2580,8 +2686,10 @@ def confirm_action():
                 STATE["pending_action"] = None
                 return jsonify({"error": "Runtime snapshot уже запрашивался в этом ходе."}), 409
             try:
+                runtime_action = {key: value for key, value in action.items()
+                                  if key != "policy_snapshot"}
                 pending = runtime_debug.create_request(
-                    action, STATE.get("runtime_status"), STATE.get("current_chat_id"),
+                    runtime_action, STATE.get("runtime_status"), STATE.get("current_chat_id"),
                     STATE.get("runtime_turn_id"))
                 pending["project_root"] = STATE.get("project_root")
             except runtime_debug.RuntimeDebugError as exc:
@@ -2598,8 +2706,10 @@ def confirm_action():
             if int(STATE.get("runtime_inspections_this_turn") or 0) >= 1:
                 STATE["pending_action"] = None
                 return jsonify({"error": "Runtime action уже выполнялся в этом ходе."}), 409
+            runtime_action = {key: value for key, value in action.items()
+                              if key != "policy_snapshot"}
             pending = runtime_checks.create_request(
-                action, STATE.get("current_chat_id"), STATE.get("runtime_turn_id"), project_root,
+                runtime_action, STATE.get("current_chat_id"), STATE.get("runtime_turn_id"), project_root,
                 STATE.get("user_data_dir"))
             STATE["pending_runtime_check"] = pending
             STATE["runtime_inspections_this_turn"] = 1
@@ -2657,7 +2767,7 @@ def confirm_action():
                 len(prepared.get("files") or [])))
             try:
                 result = file_refactor.apply_prepared_file_rename(
-                    project_root, prepared, *_current_chat_info())
+                    project_root, prepared, *_current_chat_info(), **_access_kwargs())
             except file_refactor.StaleFileRefactorError as exc:
                 STATE["pending_action"] = None
                 STATE["pending_file_refactor"] = None
@@ -2696,7 +2806,8 @@ def confirm_action():
                 prepared.get("scene_res"), len(prepared.get("files") or [])))
             try:
                 result = node_refactor.apply_prepared_node_refactor(
-                    project_root, prepared, *_current_chat_info())
+                    project_root, prepared, *_current_chat_info(),
+                    **_access_kwargs())
             except node_refactor.StaleNodeRefactorError as exc:
                 STATE["pending_action"] = None
                 STATE["pending_node_refactor"] = None
@@ -2773,7 +2884,7 @@ def confirm_action():
                 STATE["pending_action"] = None
                 return jsonify({"error": "Подготовленная транзакция сцены утрачена."}), 409
             _normalized, absolute = scene_actions.normalize_action(
-                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+                project_root, prepared["action"], **_access_kwargs())
             if act_type == "edit_scene" and scene_actions.file_sha256(absolute) != prepared["before_hash"]:
                 STATE["pending_action"] = None
                 STATE["pending_scene_action"] = None
@@ -2814,7 +2925,7 @@ def confirm_action():
                 STATE["pending_action"] = None
                 return jsonify({"error": "Подготовленная транзакция настроек проекта утрачена."}), 409
             _normalized, absolute = project_settings_actions.normalize_action(
-                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+                project_root, prepared["action"], **_access_kwargs())
             if project_settings_actions.file_sha256(absolute) != prepared["before_hash"]:
                 STATE["pending_action"] = None
                 STATE["pending_project_settings_action"] = None
@@ -2846,7 +2957,7 @@ def confirm_action():
                 STATE["pending_action"] = None
                 return jsonify({"error": "Подготовленная транзакция ресурса утрачена."}), 409
             _normalized, absolute = resource_actions.normalize_action(
-                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+                project_root, prepared["action"], **_access_kwargs())
             if resource_actions.file_sha256(absolute) != prepared["before_hash"]:
                 STATE["pending_action"] = None
                 STATE["pending_resource_action"] = None
@@ -2903,7 +3014,8 @@ def confirm_action():
                 followup = "[Система]: search_project пришёл с ПУСТЫМ 'query' — поиск не выполнен. Пришли действие заново с непустым query."
             else:
                 print(f"--> Поиск по проекту: {query!r}")
-                results, truncated = search_project_text(project_root, query)
+                results, truncated = search_project_text(
+                    project_root, query, **_access_kwargs())
                 followup = _format_search_results(query, results, truncated)
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
@@ -2914,8 +3026,7 @@ def confirm_action():
             result = gather_context.gather(
                 project_root, action,
                 editor_snapshot=STATE.get("editor_context"),
-                addon_dir=STATE.get("addon_dir"),
-                allow_addons=bool(STATE.get("addon_intent")))
+                **_access_kwargs())
             followup = gather_context.format_result(result)
             print("--> Контекст собран, отправляем одним сообщением (%d симв.)" % len(followup))
             text, new_action = _reply_with_self_heal(followup, project_root)
@@ -2927,16 +3038,21 @@ def confirm_action():
             if sub.rstrip("/") in ("", "res:"):
                 sub = ""  # res:// — это корень проекта: отдаём полную структуру, а не ошибку
             fence = "`" * 3
-            if sub:
-                print(f"--> Отправка дерева папки {sub}...")
+            if sub and not _can_read_path(sub, project_root):
+                followup = "[Система]: list_files закрыт текущей политикой доступа: %s" % sub
+            elif sub:
+                print("--> Отправка дерева папки %s..." % sub)
                 try:
-                    tree = build_project_tree(project_root, subdir=sub)
+                    tree = build_project_tree(
+                        project_root, subdir=sub, **_access_kwargs())
                     followup = "[Система]: АКТУАЛЬНОЕ дерево папки %s:\n%s\n%s\n%s" % (sub, fence, tree, fence)
                 except Exception as e:
                     followup = "[Система]: list_files не выполнен: %s Проверь \"dir\" — это должна быть существующая папка res://." % e
             else:
                 print("--> Отправка свежей структуры проекта...")
-                tree, compact = build_project_overview(project_root, compact_threshold=PRIME_COMPACT_THRESHOLD)
+                tree, compact = build_project_overview(
+                    project_root, compact_threshold=PRIME_COMPACT_THRESHOLD,
+                    **_access_kwargs())
                 head = ("АКТУАЛЬНАЯ структура проекта (проект большой — это СВОДКА по папкам; дерево конкретной папки: list_files с \"dir\")"
                         if compact else "АКТУАЛЬНОЕ дерево файлов проекта")
                 followup = "[Система]: %s:\n%s\n%s\n%s" % (head, fence, tree, fence)
@@ -2948,6 +3064,8 @@ def confirm_action():
             print(f"--> Структура сцены {path}...")
             fence = "`" * 3
             try:
+                if not _can_read_path(path, project_root):
+                    raise ValueError("Сцена закрыта текущей политикой доступа")
                 summary = describe_scene(project_root, path)
                 followup = ("[Система]: Структура сцены %s:\n%s\n%s\n%s\n"
                             "Это СВОДКА, а не содержимое файла: для patch_file по этой сцене сначала прочитай файл через read_file.") % (path, fence, summary, fence)
@@ -2981,6 +3099,7 @@ def confirm_action():
 def editor_action_result():
     """Finalize one Godot-executed scene, settings, or resource transaction."""
     data = request.json or {}
+    _apply_session_context(data)
     identity = (str(data.get("action_id") or ""), str(data.get("execution_token") or ""))
     cached = _EDITOR_ACTION_RESULTS.get(identity)
     if cached is not None:
@@ -3010,20 +3129,40 @@ def editor_action_result():
     staged_hash = str(data.get("staged_hash") or "") if is_create_scene else ""
     hash_field = "project_hash" if is_settings else ("resource_hash" if is_resource else "scene_hash")
     reported_hash = str(data.get(hash_field) or "")
+    if not _pending_policy_current(prepared):
+        # The editor may already have written the target. Restore the reserved
+        # snapshot before discarding state; otherwise a policy toggle would
+        # strand both the modified file and its rollback anchor.
+        restored, message, paths = history.restore_reserved_change(
+            project_root, entry_id, current_hash=reported_hash or None,
+            remove_created=bool(success and is_create_scene))
+        if not restored:
+            return jsonify({
+                "error": "Permission policy changed and recovery failed: " + message,
+                "code": "stale_policy", "restored": False,
+                "history_entry_id": entry_id,
+            }), 409
+        STATE[pending_key] = None
+        return jsonify({
+            "error": "Permission policy changed after preview; the editor write was restored.",
+            "code": "stale_policy", "restored": True,
+            "changed_paths": paths,
+            "history_entry_id": None,
+        }), 409
     try:
         actions_module = (project_settings_actions if is_settings else
                           (resource_actions if is_resource else scene_actions))
         if is_resource:
             _normalized, absolute = actions_module.normalize_action(
-                project_root, prepared["action"], bool(STATE.get("addon_intent")),
+                project_root, prepared["action"], **_access_kwargs(),
                 require_exists=False)
         elif pending_key == "pending_scene_action":
             _normalized, absolute = actions_module.normalize_action(
-                project_root, prepared["action"], bool(STATE.get("addon_intent")),
+                project_root, prepared["action"], **_access_kwargs(),
                 require_target_state=False)
         else:
             _normalized, absolute = actions_module.normalize_action(
-                project_root, prepared["action"], bool(STATE.get("addon_intent")))
+                project_root, prepared["action"], **_access_kwargs())
         try:
             actual_hash = actions_module.file_sha256(absolute)
         except (OSError, FileNotFoundError):
@@ -3144,6 +3283,7 @@ def runtime_inspect_result():
     identity, error = _runtime_result_identity(data)
     if error:
         return error
+    _apply_session_context(data)
     cached = _RUNTIME_RESULTS.get(identity)
     if cached is not None:
         return jsonify(cached[0]), cached[1]
@@ -3187,6 +3327,7 @@ def runtime_inspect_result():
 @app.route('/chat/runtime_check/bind', methods=['POST'])
 def runtime_check_bind():
     data = request.json or {}
+    _apply_session_context(data)
     pending, error = bind_runtime_check(data)
     if error == "token":
         return jsonify({"error": "Неверный runtime check token."}), 403
@@ -3205,6 +3346,7 @@ def runtime_check_result():
     identity, error = _runtime_result_identity(data)
     if error:
         return error
+    _apply_session_context(data)
     cached = _RUNTIME_RESULTS.get(identity)
     if cached is not None:
         return jsonify(cached[0]), cached[1]
@@ -3445,9 +3587,13 @@ def _self_heal_plan_step_action(step, error_msg, idx, total):
 
 @app.route('/chat/plan/step', methods=['POST'])
 def plan_step():
+    data = request.get_json(silent=True) or {}
+    _apply_session_context(data)
     plan = STATE.get("pending_plan")
     if plan is None:
         return jsonify({"error": "Нет активного плана."}), 400
+    if not _pending_policy_current(plan):
+        return _policy_error_response(plan)
     project_root = STATE.get("project_root")
     idx = plan["index"]
     if idx >= plan["total"]:
@@ -3728,12 +3874,13 @@ def librarian_query():
     """v105: та же справка Библиотекаря, но для панели Godot и отладки:
     можно посмотреть, что именно увидит модель по данному запросу."""
     data = request.json or {}
+    _apply_session_context(data)
     root = data.get("project_root") or STATE.get("project_root")
     if not root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
     try:
-        answer_text = librarian.answer(root, str(data.get("query") or ""),
-                                       addon_dir=STATE.get("addon_dir"))
+        answer_text = librarian.answer(
+            root, str(data.get("query") or ""), **_access_kwargs())
         return jsonify({"success": True, "answer": answer_text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -3782,9 +3929,9 @@ def refactor_file_preview():
     try:
         prepared = file_refactor.prepare_file_rename(
             project_root, old_path, new_path,
-            update_references=update_refs,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
+            update_references=update_refs, **_access_kwargs())
+        _stamp_policy(prepared)
+        STATE["pending_file_refactor"] = prepared
         diffs = [item["diff"] for item in prepared["files"]]
         return jsonify({
             "ok": True,
@@ -3814,16 +3961,16 @@ def refactor_file_apply():
     project_root = STATE.get("project_root")
     if not project_root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
+    prepared = STATE.get("pending_file_refactor")
+    if not isinstance(prepared, dict) or prepared.get("old_path") != old_path or prepared.get("new_path") != new_path:
+        return jsonify({"error": "Сначала выполните предпросмотр переименования."}), 409
+    if not _pending_policy_current(prepared):
+        return _policy_error_response(prepared)
     try:
-        prepared = file_refactor.prepare_file_rename(
-            project_root, old_path, new_path,
-            update_references=update_refs,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
         result = file_refactor.apply_prepared_file_rename(
-            project_root, prepared, *_current_chat_info()
-        )
+            project_root, prepared, *_current_chat_info(), **_access_kwargs())
         changed_paths = result["changed_paths"]
+        STATE["pending_file_refactor"] = None
         try:
             librarian.note_files_changed(project_root, changed_paths, deleted=[result["old_path"]])
         except Exception:
@@ -3862,11 +4009,8 @@ def refactor_file_post_move_sync():
         chat_id, chat_title = _current_chat_info()
         result = file_refactor.sync_references_after_external_move(
             project_root, old_path, new_path,
-            is_directory=is_directory,
-            allow_addons=bool(STATE.get("addon_intent")),
-            chat_id=chat_id,
-            chat_title=chat_title
-        )
+            is_directory=is_directory, chat_id=chat_id,
+            chat_title=chat_title, **_access_kwargs())
         changed_paths = result.get("changed_paths", [])
         if changed_paths:
             try:
@@ -3899,8 +4043,9 @@ def refactor_node_preview():
     try:
         prepared = node_refactor.prepare_node_rename(
             project_root, scene, node_path, new_name,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
+            **_access_kwargs())
+        _stamp_policy(prepared)
+        STATE["pending_node_refactor"] = prepared
         diffs = [item["diff"] for item in prepared["files"]]
         return jsonify({
             "ok": True,
@@ -3928,15 +4073,19 @@ def refactor_node_apply():
     project_root = STATE.get("project_root")
     if not project_root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
+    prepared = STATE.get("pending_node_refactor")
+    if (not isinstance(prepared, dict) or prepared.get("scene") != scene
+            or prepared.get("target_node_path") != node_path
+            or prepared.get("new_name") != new_name):
+        return jsonify({"error": "Сначала выполните предпросмотр переименования узла."}), 409
+    if not _pending_policy_current(prepared):
+        return _policy_error_response(prepared)
     try:
-        prepared = node_refactor.prepare_node_rename(
-            project_root, scene, node_path, new_name,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
         result = node_refactor.apply_prepared_node_rename(
-            project_root, prepared, *_current_chat_info()
+            project_root, prepared, *_current_chat_info(), **_access_kwargs()
         )
         changed_paths = result["changed_paths"]
+        STATE["pending_node_refactor"] = None
         try:
             librarian.note_files_changed(project_root, changed_paths)
         except Exception:
@@ -3972,8 +4121,9 @@ def refactor_node_reparent_preview():
     try:
         prepared = node_refactor.prepare_node_reparent(
             project_root, scene, node_path, new_parent,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
+            **_access_kwargs())
+        _stamp_policy(prepared)
+        STATE["pending_node_refactor"] = prepared
         diffs = [item["diff"] for item in prepared["files"]]
         return jsonify({
             "ok": True,
@@ -4002,15 +4152,19 @@ def refactor_node_reparent_apply():
     project_root = STATE.get("project_root")
     if not project_root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
+    prepared = STATE.get("pending_node_refactor")
+    if (not isinstance(prepared, dict) or prepared.get("scene") != scene
+            or prepared.get("target_node_path") != node_path
+            or prepared.get("new_parent") != new_parent):
+        return jsonify({"error": "Сначала выполните предпросмотр перемещения узла."}), 409
+    if not _pending_policy_current(prepared):
+        return _policy_error_response(prepared)
     try:
-        prepared = node_refactor.prepare_node_reparent(
-            project_root, scene, node_path, new_parent,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
         result = node_refactor.apply_prepared_node_refactor(
-            project_root, prepared, *_current_chat_info()
+            project_root, prepared, *_current_chat_info(), **_access_kwargs()
         )
         changed_paths = result["changed_paths"]
+        STATE["pending_node_refactor"] = None
         try:
             librarian.note_files_changed(project_root, changed_paths)
         except Exception:
@@ -4047,9 +4201,9 @@ def refactor_node_delete_preview():
     try:
         prepared = node_refactor.prepare_node_deletion(
             project_root, scene, node_path,
-            cleanup_code=cleanup_code,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
+            cleanup_code=cleanup_code, **_access_kwargs())
+        _stamp_policy(prepared)
+        STATE["pending_node_refactor"] = prepared
         diffs = [item["diff"] for item in prepared["files"]]
         return jsonify({
             "ok": True,
@@ -4078,16 +4232,19 @@ def refactor_node_delete_apply():
     project_root = STATE.get("project_root")
     if not project_root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
+    prepared = STATE.get("pending_node_refactor")
+    if (not isinstance(prepared, dict) or prepared.get("scene") != scene
+            or prepared.get("target_node_path") != node_path
+            or prepared.get("action") != "delete_node"):
+        return jsonify({"error": "Сначала выполните предпросмотр удаления узла."}), 409
+    if not _pending_policy_current(prepared):
+        return _policy_error_response(prepared)
     try:
-        prepared = node_refactor.prepare_node_deletion(
-            project_root, scene, node_path,
-            cleanup_code=cleanup_code,
-            allow_addons=bool(STATE.get("addon_intent"))
-        )
         result = node_refactor.apply_prepared_node_refactor(
-            project_root, prepared, *_current_chat_info()
+            project_root, prepared, *_current_chat_info(), **_access_kwargs()
         )
         changed_paths = result["changed_paths"]
+        STATE["pending_node_refactor"] = None
         try:
             librarian.note_files_changed(project_root, changed_paths)
         except Exception:
