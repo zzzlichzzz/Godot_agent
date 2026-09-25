@@ -16,11 +16,21 @@ import gd_api_cache
 
 MAX_PROBLEMS = 6
 
-_EXTENDS_RE = re.compile(r'(?m)^\s*extends\s+([A-Za-z_]\w*)\b')
-_FUNC_DEF_RE = re.compile(r'(?m)^\s*(?:static\s+)?func\s+(\w+)\s*\(')
-_FIELD_DEF_RE = re.compile(r'(?m)^\s*(?:@\w+(?:\([^)\n]*\))?\s*)*(?:static\s+)?(?:var|const)\s+(\w+)')
-_SIGNAL_DEF_RE = re.compile(r'(?m)^\s*signal\s+(\w+)')
-_ENUM_BLOCK_RE = re.compile(r'(?ms)^\s*enum\s+\w*\s*\{([^}]*)\}')
+# Все регулярки объявлений используют `[^\S\n]*` (пробелы/табы, но НЕ перевод
+# строки) вместо `\s*`. Причина не косметическая: в маскированном тексте
+# комментарии становятся пробелами, и `(?m)^\s*` на каждой позиции `^`
+# съедал межстрочные переводы строк, а затем откатывался — квадратичное
+# поведение O(n^2). На файле в 200 КБ это уже ~6.7 с на один проход, на
+# мегабайтных файлах `check` зависал практически навсегда. Семантика при
+# этом не меняется: объявление GDScript всегда начинается в своей строке.
+_EXTENDS_RE = re.compile(r'(?m)^[^\S\n]*extends[^\S\n]+([A-Za-z_]\w*)\b')
+_FUNC_DEF_RE = re.compile(r'(?m)^[^\S\n]*(?:static[^\S\n]+)?func[^\S\n]+(\w+)[^\S\n]*\(')
+_FIELD_DEF_RE = re.compile(r'(?m)^[^\S\n]*(?:@\w+(?:\([^)\n]*\))?[^\S\n]*)*'
+                           r'(?:static[^\S\n]+)?(?:var|const)[^\S\n]+(\w+)')
+_SIGNAL_DEF_RE = re.compile(r'(?m)^[^\S\n]*signal[^\S\n]+(\w+)')
+# enum — единственное место, где перевод строки внутри блока значим
+# (`enum {\n  A,\n  B\n}`), поэтому здесь \s внутри скобок остаётся.
+_ENUM_BLOCK_RE = re.compile(r'(?ms)^[^\S\n]*enum\s+\w*\s*\{([^}]*)\}')
 _SELF_CALL_RE = re.compile(r'\b(self|super)\.(\w+)\s*(\()?')
 _CONNECT_SELF_RE = re.compile(r'\bself\.connect\(\s*["\'](\w+)["\']')
 _CONNECT_BARE_RE = re.compile(r'(?<![.\w])connect\(\s*["\'](\w+)["\']')

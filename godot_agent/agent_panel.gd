@@ -1227,10 +1227,15 @@ func _on_allow_self_edit_toggled(pressed: bool) -> void:
 
 
 func _request_policy_enable(kind: String) -> void:
-	if _policy_confirmation_dialog:
+	if is_instance_valid(_policy_confirmation_dialog):
 		return
+	# Если окно настроек закрыло дочерний диалог, ссылка могла устареть.
+	_policy_confirmation_dialog = null
 	_policy_confirmation_pending = kind
 	_policy_confirmation_dialog = ConfirmationDialog.new()
+	_policy_confirmation_dialog.name = "AccessPolicyConfirmation"
+	_policy_confirmation_dialog.transient = true
+	_policy_confirmation_dialog.exclusive = true
 	_policy_confirmation_dialog.title = _t("policy_confirm_title")
 	_policy_confirmation_dialog.dialog_text = _t("policy_confirm_text")
 	_policy_confirmation_dialog.get_ok_button().text = _t("policy_confirm_yes")
@@ -1248,8 +1253,7 @@ func _request_policy_enable(kind: String) -> void:
 			_allow_self_edit_check.set_pressed_no_signal(_allow_self_edit)
 		if _policy_warning_label:
 			_policy_warning_label.visible = _allow_self_edit
-		_policy_confirmation_dialog.queue_free()
-		_policy_confirmation_dialog = null
+		_close_policy_confirmation()
 	)
 	_policy_confirmation_dialog.canceled.connect(func() -> void:
 		_policy_confirmation_pending = ""
@@ -1261,11 +1265,27 @@ func _request_policy_enable(kind: String) -> void:
 			_allow_self_edit_check.set_pressed_no_signal(_allow_self_edit)
 		if _policy_warning_label:
 			_policy_warning_label.visible = _allow_self_edit
-		_policy_confirmation_dialog.queue_free()
-		_policy_confirmation_dialog = null
+		_close_policy_confirmation()
 	)
-	add_child(_policy_confirmation_dialog)
+	# Подтверждение принадлежит окну настроек. После его закрытия Godot
+	# возвращает верхний нативный статус родительскому окну, а не соседнему окну
+	# редактора, поэтому настройки больше не исчезают за слоем Godot.
+	_settings_dialog.add_child(_policy_confirmation_dialog)
 	_policy_confirmation_dialog.popup_centered()
+
+
+func _close_policy_confirmation() -> void:
+	var dialog := _policy_confirmation_dialog
+	_policy_confirmation_dialog = null
+	if not is_instance_valid(dialog):
+		return
+	dialog.tree_exited.connect(_restore_settings_window, CONNECT_ONE_SHOT)
+	dialog.queue_free()
+
+
+func _restore_settings_window() -> void:
+	if is_instance_valid(_settings_dialog) and _settings_dialog.visible:
+		_settings_dialog.move_to_front()
 
 
 func _on_reinit_pressed() -> void:

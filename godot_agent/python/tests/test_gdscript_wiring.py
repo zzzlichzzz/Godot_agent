@@ -24,7 +24,7 @@ import unittest
 
 results = []
 failures = []
-EXPECTED_CHECK_COUNT = 108
+EXPECTED_CHECK_COUNT = 109
 
 
 def check(name, cond, detail=None):
@@ -593,6 +593,11 @@ check("panel policy confirmation is first-enable and cancel-safe",
       'ConfirmationDialog.new()' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")]
       and 'confirmed.connect' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")]
       and 'canceled.connect' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")])
+check("policy confirmation stays attached above the settings window",
+      "_settings_dialog.add_child(_policy_confirmation_dialog)" in panel
+      and "func _restore_settings_window" in panel
+      and "_settings_dialog.move_to_front()" in panel
+      and "is_instance_valid(_policy_confirmation_dialog)" in panel)
 check("panel policy body carries all session policy fields",
       all(token in panel[panel.find("func _policy_body"):panel.find("func _policy_json")]
           for token in ('project_root', 'user_data_dir', 'addon_dir', 'allow_addons', 'allow_self_edit')))
