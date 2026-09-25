@@ -12,6 +12,7 @@ import _bootstrap  # noqa: E402,F401
 import main
 import server_state
 import file_refactor
+import node_refactor
 import symbol_refactor
 from server_state import STATE
 
@@ -158,6 +159,97 @@ class AccessPolicyFlowTests(unittest.TestCase):
                 allow_self_edit=False, addon_dir=self.addon_dir)
         self.assertTrue(os.path.isfile(source))
         self.assertFalse(os.path.exists(os.path.join(self.addon_dir, "moved.gd")))
+
+    def test_direct_node_refactor_apply_rechecks_write_policy(self):
+        scene = os.path.join(self.addon_dir, "protected.tscn")
+        with open(scene, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write('[gd_scene format=3]\n\n[node name="N" type="Node"]\n')
+        protected_res = "res://addons/Godot_agent/godot_agent/protected.tscn"
+        prepared = {
+            "action": "rename_node", "scene": protected_res,
+            "files": [{
+                "action": "patch_file", "path": protected_res,
+                "absolute": scene, "before_hash": node_refactor._sha256(
+                    b'[gd_scene format=3]\n\n[node name="N" type="Node"]\n'),
+                "before_bytes": b'[gd_scene format=3]\n\n[node name="N" type="Node"]\n',
+                "after_bytes": b'[gd_scene format=3]\n\n[node name="M" type="Node"]\n',
+                "diff": {}, "occurrences": 1,
+            }],
+        }
+        STATE.update(allow_addons=True, allow_self_edit=False)
+        with self.assertRaises(node_refactor.NodeRefactorError):
+            node_refactor.apply_prepared_node_refactor(
+                self.root, prepared, allow_addons=True,
+                allow_self_edit=False, addon_dir=self.addon_dir)
+        with open(scene, encoding="utf-8") as handle:
+            self.assertIn('[node name="N" type="Node"]', handle.read())
+
+    def test_direct_node_refactor_apply_rejects_mismatched_absolute_path(self):
+        target = os.path.join(self.root, "src", "game.gd")
+        outside = os.path.join(self.addon_dir, "outside.gd")
+        with open(outside, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write("PROTECTED\n")
+        prepared = {
+            "action": "rename_node", "scene": "res://src/game.gd",
+            "files": [{
+                "action": "patch_file", "path": "res://src/game.gd",
+                "absolute": outside, "before_hash": node_refactor._sha256(
+                    b"PROTECTED\n"), "before_bytes": b"PROTECTED\n",
+                "after_bytes": b"CHANGED\n", "diff": {}, "occurrences": 1,
+            }],
+        }
+        with self.assertRaises(node_refactor.NodeRefactorError):
+            node_refactor.apply_prepared_node_refactor(self.root, prepared)
+        with open(outside, encoding="utf-8") as handle:
+            self.assertEqual(handle.read(), "PROTECTED\n")
+        self.assertTrue(os.path.isfile(target))
+
+    def test_gather_context_confirm_flow_passes_policy_kwargs_once(self):
+        action = {
+            "action": "gather_context", "query": "game",
+            "editor": False, "active_scene": False, "dependencies": False,
+            "diagnostics": False, "project_settings": False,
+        }
+        with main.app.test_request_context("/chat", method="POST", json={}):
+            prepared = main._package_model_reply(
+                "Собираю контекст.", action, self.root)
+        self.assertEqual(
+            prepared.get_json()["pending_action"]["action"], "gather_context")
+
+        prompts = []
+
+        def capture_followup(prompt, _root, *_args, **_kwargs):
+            prompts.append(prompt)
+            return "Контекст принят.", None
+
+        client = main.app.test_client()
+        with patch.object(main.gather_context, "gather",
+                          wraps=main.gather_context.gather) as gather_mock, \
+                patch.object(main, "_reply_with_self_heal",
+                             side_effect=capture_followup):
+            confirmed = client.post(
+                "/chat/confirm_action", json={"approved": True})
+
+        self.assertEqual(confirmed.status_code, 200, confirmed.get_json())
+        self.assertEqual(confirmed.get_json()["answer"], "Контекст принят.")
+        gather_mock.assert_called_once()
+        self.assertEqual(
+            gather_mock.call_args.kwargs["addon_dir"], self.addon_dir)
+        self.assertIn("[Gather context v1", prompts[0])
+
+    def test_librarian_dispatch_does_not_duplicate_addon_dir(self):
+        action = {"action": "ask_librarian", "query": "game"}
+        with main.app.test_request_context("/chat", method="POST", json={}):
+            response = main._package_model_reply(
+                "Нужна справка.", action, self.root, allow_followup=False)
+        body = response.get_json()
+        self.assertNotIn("internal error", body["answer"])
+        self.assertIn("[Librarian]", body["answer"])
+
+        response = main.app.test_client().post(
+            "/librarian/query", json={"query": "game"})
+        self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertTrue(response.get_json()["success"])
 
     def test_init_discards_file_node_and_plan_previews(self):
         pending = {

@@ -924,7 +924,9 @@ def prepare_node_deletion(project_root, scene_godot_path, target_spec,
     }
 
 
-def apply_prepared_node_refactor(project_root, prepared, chat_id=None, chat_title=None):
+def apply_prepared_node_refactor(project_root, prepared, chat_id=None,
+                                 chat_title=None, allow_addons=False,
+                                 allow_self_edit=False, addon_dir=None):
     """Atomically applies prepared node refactoring (rename, reparent, delete)
     to .tscn and scripts with rollback support.
     """
@@ -936,7 +938,27 @@ def apply_prepared_node_refactor(project_root, prepared, chat_id=None, chat_titl
     action_type = prepared.get("action", "rename_node")
 
     with _project_lock(project_root):
-        # 1. Freshness check
+        # Freshness and policy checks happen together before the first write.
+        policy_paths = [scene_path]
+        policy_paths.extend(item.get("path") or "" for item in files)
+        for candidate in policy_paths:
+            if not candidate:
+                raise NodeRefactorError(
+                    "Подготовленная транзакция содержит пустой путь")
+            if not can_write_project_path(
+                    candidate, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                raise NodeRefactorError(
+                    "Путь защищён текущей политикой доступа: %s" % candidate)
+        for item in files:
+            expected_absolute = _resolve_safe_path(project_root, item["path"])
+            supplied_absolute = os.path.realpath(item.get("absolute") or "")
+            if os.path.normcase(supplied_absolute) != os.path.normcase(
+                expected_absolute):
+                raise NodeRefactorError(
+                    "Абсолютный путь не соответствует res://-пути: %s" %
+                    item["path"])
+
         for item in files:
             if not os.path.isfile(item["absolute"]):
                 raise StaleNodeRefactorError("Файл удалён: %s" % item["path"])

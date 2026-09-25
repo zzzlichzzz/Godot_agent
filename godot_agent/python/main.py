@@ -1086,8 +1086,7 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         print("--> ask_librarian: «%s»" % query)
         try:
             followup = librarian.answer(
-                project_root, query, addon_dir=STATE.get("addon_dir"),
-                **_access_kwargs())
+                project_root, query, **_access_kwargs())
         except Exception as e:
             followup = ("[Librarian]: internal error: %s. Fall back to search_project / "
                         "list_files / read_file." % e)
@@ -2807,7 +2806,8 @@ def confirm_action():
                 prepared.get("scene_res"), len(prepared.get("files") or [])))
             try:
                 result = node_refactor.apply_prepared_node_refactor(
-                    project_root, prepared, *_current_chat_info())
+                    project_root, prepared, *_current_chat_info(),
+                    **_access_kwargs())
             except node_refactor.StaleNodeRefactorError as exc:
                 STATE["pending_action"] = None
                 STATE["pending_node_refactor"] = None
@@ -3026,7 +3026,6 @@ def confirm_action():
             result = gather_context.gather(
                 project_root, action,
                 editor_snapshot=STATE.get("editor_context"),
-                addon_dir=STATE.get("addon_dir"),
                 **_access_kwargs())
             followup = gather_context.format_result(result)
             print("--> Контекст собран, отправляем одним сообщением (%d симв.)" % len(followup))
@@ -3881,8 +3880,7 @@ def librarian_query():
         return jsonify({"error": "Проект не синхронизирован."}), 400
     try:
         answer_text = librarian.answer(
-            root, str(data.get("query") or ""),
-            addon_dir=STATE.get("addon_dir"), **_access_kwargs())
+            root, str(data.get("query") or ""), **_access_kwargs())
         return jsonify({"success": True, "answer": answer_text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -4084,7 +4082,7 @@ def refactor_node_apply():
         return _policy_error_response(prepared)
     try:
         result = node_refactor.apply_prepared_node_rename(
-            project_root, prepared, *_current_chat_info()
+            project_root, prepared, *_current_chat_info(), **_access_kwargs()
         )
         changed_paths = result["changed_paths"]
         STATE["pending_node_refactor"] = None
@@ -4163,7 +4161,7 @@ def refactor_node_reparent_apply():
         return _policy_error_response(prepared)
     try:
         result = node_refactor.apply_prepared_node_refactor(
-            project_root, prepared, *_current_chat_info()
+            project_root, prepared, *_current_chat_info(), **_access_kwargs()
         )
         changed_paths = result["changed_paths"]
         STATE["pending_node_refactor"] = None
@@ -4243,7 +4241,7 @@ def refactor_node_delete_apply():
         return _policy_error_response(prepared)
     try:
         result = node_refactor.apply_prepared_node_refactor(
-            project_root, prepared, *_current_chat_info()
+            project_root, prepared, *_current_chat_info(), **_access_kwargs()
         )
         changed_paths = result["changed_paths"]
         STATE["pending_node_refactor"] = None

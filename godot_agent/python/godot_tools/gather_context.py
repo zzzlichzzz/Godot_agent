@@ -11,7 +11,8 @@ import librarian
 import log_reader
 import tscn_lint
 from project_tools import (_resolve_safe_path, can_read_project_path,
-                           describe_scene, read_project_file,
+                           describe_scene, policy_read_project_file,
+                           read_project_file,
                            search_project_text)
 
 
@@ -113,7 +114,10 @@ def _resolve_symbol(project_root, request, allow_addons=False,
         path, function_name = request.rsplit("::", 1)
         path = _allowed_path(project_root, path, allow_addons,
                              allow_self_edit, addon_dir)
-        candidates = [path] if path and path.endswith(".gd") else []
+        if not path:
+            return {"request": request, "status": "forbidden",
+                    "candidates": []}
+        candidates = [path] if path.endswith(".gd") else []
     else:
         if "." in request:
             class_name, function_name = request.rsplit(".", 1)
@@ -150,8 +154,10 @@ def _resolve_symbol(project_root, request, allow_addons=False,
 def _project_settings(project_root, query, allow_addons=False,
                       allow_self_edit=False, addon_dir=None):
     try:
-        text, _truncated = read_project_file(
-            project_root, "res://project.godot", max_chars=120000)
+        text, _truncated = policy_read_project_file(
+            project_root, "res://project.godot", max_chars=120000,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
     except Exception:
         return []
     autoloads = []
@@ -291,6 +297,10 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
     for symbol in spec["symbols"]:
         item = _resolve_symbol(project_root, symbol, allow_addons,
                               allow_self_edit, addon_dir)
+        if item["status"] == "forbidden":
+            result["omitted"].append(
+                "symbol: forbidden by current access policy")
+            continue
         if item["status"] != "found":
             result["omitted"].append("%s: %s%s" % (
                 symbol, item["status"],
