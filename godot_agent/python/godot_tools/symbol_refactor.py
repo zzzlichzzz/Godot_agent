@@ -675,6 +675,64 @@ def _unwritable_subclass_overrides(project_root, target_path, target_class, snap
     return found
 
 
+_DYNAMIC_STRING_CALLS = {
+    # Ключ — имя метода Godot, который работает со строковым именем члена.
+    # Строка рядом с таким вызовом означает реальную ссылку, которую мы не
+    # можем доказать статически, — молчать о ней нельзя.
+    "instantiate": "ClassDB.instantiate",
+    "set": "set() по имени",
+    "get": "get() по имени",
+    "has_signal": "has_signal()",
+    "has_method": "has_method()",
+    "emit_signal": "emit_signal()",
+    "is_connected": "is_connected()",
+    "call": "call() по имени",
+    "call_deferred": "call_deferred() по имени",
+    "connect": "connect() по имени",
+    "disconnect": "disconnect() по имени",
+    "get_signal": "get_signal()",
+    "tr": "tr() по имени",
+    "translate": "translate() по имени",
+    "to_upper": "to_upper()",
+    "to_lower": "to_lower()",
+    "capitalize": "capitalize()",
+}
+
+
+def _classify_string_reference(text, tokens, start, end):
+    """Определяет, является ли строковый литерал ссылкой на символ.
+
+    Возвращает описание dynamic-ссылки или None, если это обычный текст
+    (лог, сообщение об ошибке, подпись). Ключевой факт: БЛИЖАЙШИЙ ИДЕНТИФИКАТОР
+    СЛЕВА от строки. У print("Player") слева print, у ClassDB.instantiate(
+    "Player") — instantiate, и только второе означает обращение к API по имени.
+    """
+    pos = None
+    for index, token in enumerate(tokens):
+        if token.get("start") == start and token.get("kind") == "string":
+            pos = index
+            break
+    if pos is None:
+        return None
+    # Между именем вызова и строкой стоит открывающая скобка: set("X", 5),
+    # поэтому смотрим на токен через одну позицию назад.
+    previous = tokens[pos - 1] if pos else None
+    if previous is not None and previous["value"] == "(":
+        previous = tokens[pos - 2] if pos >= 2 else None
+    if previous is None:
+        return None
+    if previous["value"] == ".":
+        owner = tokens[pos - 2] if pos >= 2 else None
+        if owner is None or owner["value"] not in ("ClassDB", "Node", "Object"):
+            return None
+        method = _DYNAMIC_STRING_CALLS.get(previous["value"])
+        return method or "%s() по имени" % previous["value"]
+    method = _DYNAMIC_STRING_CALLS.get(previous["value"])
+    if method:
+        return method
+    return None
+
+
 def _assert_hierarchy_renamed(kind, old_name, new_name, hierarchy_paths,
                              covered, declarations):
     """Страховка от молчаливой потери полиморфизма.
@@ -848,6 +906,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                 edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
 
     ambiguities = []
+    dynamic_references = []
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]
@@ -876,8 +935,20 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
             else:
                 ambiguities.append("%s:%s:%s" % (path, fact.get("line"), fact.get("column")))
         for fact in entry["semantic"].get("strings", []):
-            if _exact_string_value(str(fact.get("value") or "")) == old_name:
-                ambiguities.append("%s:%s (строковая/dynamic ссылка)" % (path, fact.get("line")))
+            if _exact_string_value(str(fact.get("value") or "")) != old_name:
+                continue
+            # Строка с именем символа — не всегда ссылка. print("Player") —
+            # это текст, а ClassDB.instantiate("Player") — обращение к API по
+            # имени, которое мы не можем доказать статически. Раньше оба случая
+            # давали одинаковый отказ, хотя свойства в .tscn переписываются
+            # без вопросов. Теперь обычный текст не мешает, а настоящая
+            # dynamic-ссылка попадает в отчёт для ручной проверки.
+            reason = _classify_string_reference(
+                text, tokens, fact.get("start"), fact.get("end"))
+            if reason:
+                dynamic_references.append(
+                    "%s:%s — %s(\"%s\"); проверьте вручную"
+                    % (path, fact.get("line"), reason, old_name))
     if ambiguities:
         raise RenameError("Есть неоднозначные ссылки; переименование остановлено: %s"
                           % ", ".join(ambiguities[:8]))
@@ -943,6 +1014,9 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,
         "declaration": action.get("declaration"), "files": files,
+        # Динамические ссылки не блокируют переименование, но обязаны быть
+        # видны пользователю ДО записи — иначе риск остаётся незамеченным.
+        "dynamic_references": dynamic_references,
         "reference_count": sum(item["occurrences"] for item in files) - 1,
     }
 
@@ -954,6 +1028,7 @@ def public_prepared(prepared):
         "paths": [item["path"] for item in prepared["files"]],
         "file_count": len(prepared["files"]),
         "reference_count": prepared["reference_count"],
+        "dynamic_references": list(prepared.get("dynamic_references") or []),
     }
 
 

@@ -1326,9 +1326,12 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         _remember("agent", text)
         _sync_chat_after_reply()
         diffs = symbol_refactor.prepared_diffs(prepared)
+        # dynamic_references дублируем отдельным полем: риск должен быть виден
+        # панели ДО подтверждения, а не только внутри pending_action.
         return jsonify({"answer": text, "pending_action": public,
                         "pending_action_description": _describe_action(public),
                         "pending_action_code": None,
+                        "dynamic_references": public.get("dynamic_references") or [],
                         "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
                          "pending_action_diffs": diffs})
     if action and action.get("action") == "rename_file":

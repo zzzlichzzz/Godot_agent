@@ -236,9 +236,15 @@ func take_damage(amount: int) -> int:
 \treturn amount
 """)
         self._reindex()
-        with self.assertRaises(symbol_refactor.RenameError) as ctx:
-            symbol_refactor.prepare_rename(self.root, self._action())
-        self.assertIn("строковая", str(ctx.exception))
+        # Этап 2.2: строка в присваивании — обычный текст, а не ссылка на
+        # метод. Раньше она убивала переименование, хотя print("Player")
+        # и ClassDB.instantiate("Player") — разные вещи.
+        prepared = symbol_refactor.prepare_rename(self.root, self._action())
+        self.assertFalse(prepared.get("dynamic_references"))
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        enemy = self._read("src/enemy.gd")
+        self.assertIn('var label = "take_damage"', enemy)
+        self.assertIn("func apply_damage(amount: int) -> int:", enemy)
 
     # --- Аудит 1.1: тень ПАРАМЕТРА внутри подкласса перекрывает метод ---
     def test_subclass_parameter_shadowing_is_refused(self):

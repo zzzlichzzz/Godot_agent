@@ -118,11 +118,16 @@ func run(target):
 \ttarget.call("take_damage", 1)
 ''')
         ml_project_index.build_index(root)
-        try:
-            symbol_refactor.prepare_rename(root, _action())
-            assert False, "dynamic string must block"
-        except symbol_refactor.RenameError as exc:
-            assert "строк" in str(exc) or "неоднознач" in str(exc)
+        # Этап 2.2: подтверждённая dynamic-ссылка больше не убивает транзакцию,
+        # но обязана быть видна в отчёте — иначе риск остался бы незамеченным.
+        prepared = symbol_refactor.prepare_rename(root, _action())
+        notes = prepared.get("dynamic_references") or []
+        # Отчёт собран до записи: сам вызов по строке мы не переписываем
+        # (имя там — данные, а не код), но риск обязан быть виден.
+        assert any("call" in str(note) for note in notes), notes
+        assert any("reflect.gd" in str(note) for note in notes), notes
+        public = symbol_refactor.public_prepared(prepared)
+        assert public["dynamic_references"] == notes
 
         _write(root, "src/reflect.gd", '''extends Node
 func run(target):
