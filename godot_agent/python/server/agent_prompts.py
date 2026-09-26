@@ -109,6 +109,7 @@ PRIMING_TEMPLATE = """Ты — ИИ-разработчик, встроенный
    {"action": "rename_symbol", "kind": "function", "declaration": "res://scripts/player.gd:42", "old_name": "take_damage", "new_name": "apply_damage", "mode": "strict"}
    {"action": "rename_symbol", "kind": "const", "declaration": "res://scripts/unit.gd:4", "old_name": "MAX_HP", "new_name": "MAX_HEALTH"}
    {"action": "rename_symbol", "kind": "enum_member", "declaration": "res://scripts/unit.gd:6", "old_name": "IDLE", "new_name": "IDLING"}
+   rename_file (только для class_name, по умолчанию false): одной транзакцией переименовать сам .gd под новое имя класса (snake_case) вместе с его .uid — вместо двух отдельных действий, между которыми проект остаётся в промежуточном состоянии. Ставь true, только если имя файла совпадает с именем класса: перенос ломает preload() и пути в сценах, если файл назван иначе.
    {"action": "rename_symbol", "kind": "function", "declaration": "res://scripts/player.gd:42", "old_name": "take_damage", "new_name": "apply_damage"}
    {"action": "rename_symbol", "kind": "variable", "declaration": "res://scripts/player.gd:10", "old_name": "speed", "new_name": "move_speed"}
 

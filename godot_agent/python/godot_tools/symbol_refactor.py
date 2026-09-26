@@ -162,6 +162,45 @@ def _parse_locator(value):
     return match.group(1), line, column
 
 
+def _move_with_uid(project_root, file_rename, moved):
+    """Переносит .gd вместе с его .uid, записывая шаг для отката.
+
+    .uid Godot генерирует рядом со скриптом и связывает ресурс по имени файла,
+    поэтому оставить старый .uid значит потерять связь сцен с переименованным
+    скриптом. Переносим оба файла и только потом считаем шаг выполненным —
+    так частичного переноса при сбое не остаётся.
+    """
+    source = _resolve_safe_path(project_root, file_rename["from"])
+    dest = _resolve_safe_path(project_root, file_rename["to"])
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    step = {"source_absolute": source, "dest_absolute": dest}
+    _replace_file(source, dest)
+    # Шаг отката регистрируем СРАЗУ после переноса .gd, до переноса .uid:
+    # иначе сбой на .uid оставил бы скрипт на новом месте без шанса
+    # вернуть его обратно.
+    moved.append(step)
+    if os.path.isfile(source + ".uid"):
+        _replace_file(source + ".uid", dest + ".uid")
+        step["dest_uid"] = dest + ".uid"
+        step["source_uid"] = source + ".uid"
+
+
+def _plan_file_rename(project_root, target_path, new_name, addon_dir):
+    """План переноса .gd под новое имя класса (вместе с .uid)."""
+    directory = target_path.rsplit("/", 1)[0]
+    new_path = "%s/%s.gd" % (directory, scene_deps.to_snake(new_name))
+    if new_path == target_path:
+        return None
+    if not can_write_project_path(
+            new_path, project_root, addon_dir=addon_dir):
+        raise RenameError("Новое имя файла защищено текущей политикой доступа: %s"
+                          % new_path)
+    absolute = _resolve_safe_path(project_root, new_path)
+    if os.path.exists(absolute):
+        raise RenameError("Файл с новым именем уже существует: %s" % new_path)
+    return {"from": target_path, "to": new_path}
+
+
 def _validate_action(action):
     if not isinstance(action, dict):
         raise RenameError("rename_symbol должен быть объектом")
@@ -176,12 +215,18 @@ def _validate_action(action):
     if old_name == new_name:
         raise RenameError("Новое имя совпадает со старым")
     path, line, column = _parse_locator(action.get("declaration"))
+    # rename_file: переименовать ли сам .gd вместе с class_name. По умолчанию
+    # НЕТ: имя файла может не совпадать с классом (hero.gd с class_name Unit),
+    # и молчаливый перенос ломал бы preload() и пути в сценах.
+    rename_file = bool(action.get("rename_file"))
+    if rename_file and kind != "class_name":
+        raise RenameError("rename_file применим только к class_name")
     # Режим отказа: strict по умолчанию. Неизвестное значение молчать не
     # должно — иначе опечатка в действии незаметно ослабит проверки.
     mode = str(action.get("mode") or "strict").strip().lower()
     if mode not in MODES:
         raise RenameError("mode должен быть %s" % " или ".join(MODES))
-    return kind, old_name, new_name, path, line, column, mode
+    return (kind, old_name, new_name, path, line, column, mode, rename_file)
 
 
 def _token_neighbors(tokens, start):
@@ -991,7 +1036,7 @@ def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
 def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                    allow_self_edit=False):
     """Build a private all-file transaction without writing project files."""
-    kind, old_name, new_name, target_path, line, column, mode = _validate_action(action)
+    kind, old_name, new_name, target_path, line, column, mode, rename_file = _validate_action(action)
     if not can_write_project_path(
             target_path, project_root, allow_addons=allow_addons,
             allow_self_edit=allow_self_edit, addon_dir=addon_dir):
@@ -1314,9 +1359,25 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
             allow_addons=allow_addons, allow_self_edit=allow_self_edit,
             addon_dir=addon_dir)
     files.extend(connection_edits)
+    # Содержимое, имя файла и .uid едут ОДНОЙ транзакцией: пока класс
+    # переименован, а файл нет, проект находится в промежуточном состоянии.
+    file_rename = None
+    if rename_file:
+        file_rename = _plan_file_rename(
+            project_root, target_path, new_name, addon_dir)
+        if file_rename:
+            # Diff строим вручную: build_diff_preview возвращает None на
+            # одинаковых текстах, а здесь изменение — это сам перенос пути.
+            diff = {"path": file_rename["from"], "action": "rename_symbol",
+                    "dest": file_rename["to"],
+                    "lines": [{"type": "info",
+                               "text": "Файл переименован в %s (вместе с .uid)"
+                                       % file_rename["to"]}]}
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,
         "declaration": action.get("declaration"), "files": files,
+        "file_rename": file_rename,
+        "file_rename_diff": diff if file_rename else None,
         # Динамические ссылки не блокируют переименование, но обязаны быть
         # видны пользователю ДО записи — иначе риск остаётся незамеченным.
         "dynamic_references": dynamic_references,
@@ -1338,11 +1399,17 @@ def public_prepared(prepared):
         "warnings": list(prepared.get("warnings") or []),
         "unverified_references": list(prepared.get("unverified_references") or []),
         "mode": prepared.get("mode", "strict"),
+        "file_rename": prepared.get("file_rename"),
     }
 
 
 def prepared_diffs(prepared):
-    return [item["diff"] for item in prepared.get("files", [])]
+    diffs = [item["diff"] for item in prepared.get("files", [])]
+    # Перенос файла показываем в том же диффе: пользователь должен увидеть
+    # итог транзакции, а не только изменённое содержимое.
+    if prepared.get("file_rename_diff"):
+        diffs.append(prepared["file_rename_diff"])
+    return diffs
 
 
 def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None):
@@ -1355,11 +1422,37 @@ def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None)
             with open(item["absolute"], "rb") as handle:
                 if _sha256(handle.read()) != item["before_hash"]:
                     raise StaleRenameError("Файл изменился после предпросмотра: %s" % item["path"])
+        # Новый путь файла тоже попадает в журнал: на момент записи его ещё
+        # нет, поэтому откат удалит его, а старый путь восстановит из
+        # снапшота. Вместе это даёт возврат и содержимого, и имени файла.
+        file_rename = prepared.get("file_rename")
+        history_paths = [item["path"] for item in files]
+        states = None
+        if file_rename:
+            # Новый путь и новый .uid в журнале НЕ существуют на момент
+            # записи (before_present = False) — откат их удалит. Старые пути
+            # восстановятся из снапшотов. Вместе это возвращает и содержимое,
+            # и имя файла, и .uid одной кнопкой отката.
+            history_paths.append(file_rename["to"])
+            states = [{"path": file_rename["to"], "before_bytes": None,
+                       "after_bytes": b""}]
+            source_uid = _resolve_safe_path(project_root, file_rename["from"]) + ".uid"
+            if os.path.isfile(source_uid):
+                with open(source_uid, "rb") as handle:
+                    uid_bytes = handle.read()
+                history_paths.append(file_rename["from"] + ".uid")
+                history_paths.append(file_rename["to"] + ".uid")
+                states.append({"path": file_rename["from"] + ".uid",
+                               "before_bytes": uid_bytes,
+                               "after_bytes": uid_bytes})
+                states.append({"path": file_rename["to"] + ".uid",
+                               "before_bytes": None, "after_bytes": b""})
         entry_id = history_manager.record_batch_change(
-            project_root, "rename_symbol", [item["path"] for item in files],
-            chat_id=chat_id, chat_title=chat_title)
+            project_root, "rename_symbol", history_paths,
+            chat_id=chat_id, chat_title=chat_title, states=states)
         replaced = []
         temps = []
+        moved = []
         try:
             for item in files:
                 directory = os.path.dirname(item["absolute"])
@@ -1373,8 +1466,19 @@ def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None)
             for item in files:
                 _replace_file(item["temp_path"], item["absolute"])
                 replaced.append(item)
+            if file_rename:
+                _move_with_uid(project_root, file_rename, moved)
             history_manager.commit_change(project_root, entry_id)
         except Exception:
+            # Откат в обратном порядке: сначала возвращаем перенесённые файлы
+            # на старые места, затем — прежнее содержимое.
+            for entry in reversed(moved):
+                try:
+                    _replace_file(entry["dest_absolute"], entry["source_absolute"])
+                    if entry.get("dest_uid") and os.path.isfile(entry["dest_uid"]):
+                        _replace_file(entry["dest_uid"], entry["source_uid"])
+                except OSError:
+                    pass
             for item in reversed(replaced):
                 with open(item["absolute"], "wb") as handle:
                     handle.write(item["before_bytes"])
@@ -1388,6 +1492,10 @@ def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None)
                 except OSError:
                     pass
         paths = [item["path"] for item in files]
+        if file_rename:
+            # Старый путь исчез, новый появился: индекс обновляем по обоим.
+            paths = [file_rename["to"] if path == file_rename["from"] else path
+                     for path in paths]
         ml_project_index.update_entries(project_root, changed_rels=paths)
         return {"entry_id": entry_id, "changed_paths": paths,
                 "file_count": len(paths), "reference_count": prepared["reference_count"]}
