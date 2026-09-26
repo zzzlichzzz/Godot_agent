@@ -369,10 +369,16 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
         return False
 
     if kind == "function":
-        return (same_script and in_script and not shadowed
+        # Иерархия, а не только сам скрипт: override в подклассе и его
+        # self-вызовы — те же носители имени. Локальная тень (параметр,
+        # локальная переменная) по-прежнему отсекается проверкой shadowed.
+        return (hierarchy and in_script and not shadowed
                 and fact.get("context") == "call")
     if kind == "signal":
-        return (same_script and in_script and not shadowed
+        # То же для сигнала: emit/await в подклассе относятся к сигналу
+        # базового класса, если подкласс не перекрыл его своим объявлением
+        # (такое перекрытие отсекается проверкой выше).
+        return (hierarchy and in_script and not shadowed
                 and (next_value == "." or prev_value == "await"))
     if kind == "variable":
         return (hierarchy and in_script and not shadowed
@@ -396,6 +402,74 @@ def _collision(declarations, declaration, kind, new_name, subclasses=None):
               and item.get("owner") == declaration.get("owner")):
             return item
     return None
+
+
+def _unwritable_subclass_overrides(project_root, target_path, target_class, snapshot,
+                                  kind, old_name, allow_addons=False,
+                                  allow_self_edit=False, addon_dir=None):
+    """Ищет override старого имени в .gd, которые мы НЕ имеем права переписать.
+
+    Семантический индекс по умолчанию не заходит в addons (см. SKIP_DIRS), а
+    политика доступа может запрещать запись в отдельные файлы. Такой подкласс
+    для нас невидим: базовый метод переименуется, а override останется со
+    старым именем — Godot получит вызов несуществующего метода. Молчать об
+    этом нельзя, поэтому такой случай честно блокирует переименование.
+    """
+    known = {"res://" + entry.get("path") for entry in snapshot.get("files", [])}
+    found = []
+    for root, dirs, files in os.walk(project_root):
+        dirs[:] = [d for d in dirs if d not in (".git", ".godot", ".import",
+                                               "__pycache__", ".agent_history")]
+        for name in files:
+            if not name.endswith(".gd"):
+                continue
+            absolute = os.path.join(root, name)
+            rel = "res://" + os.path.relpath(absolute, project_root).replace("\\", "/")
+            if rel in known:
+                continue
+            if can_write_project_path(
+                    rel, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                continue
+            try:
+                with open(absolute, "rb") as handle:
+                    text = handle.read().decode("utf-8-sig")
+            except Exception:
+                continue
+            if len(text) > _MAX_SOURCE_CHARS:
+                continue
+            parent_path, parent_class = _get_script_parent(text, rel)
+            if parent_path != target_path and (not target_class
+                                               or parent_class != target_class):
+                continue
+            semantic = gd_semantic_parser.parse(text, rel)
+            for item in semantic.get("declarations", []):
+                if (item.get("kind") == kind and item.get("name") == old_name
+                        and item.get("owner") == "script"):
+                    found.append((rel, item.get("line")))
+    return found
+
+
+def _assert_hierarchy_renamed(kind, old_name, new_name, hierarchy_paths,
+                             covered, declarations):
+    """Страховка от молчаливой потери полиморфизма.
+
+    Если в иерархии осталось объявление старого имени, наши правки его не
+    покрывают (значит, мы его потеряли или не заметили) — операция обязана
+    быть отклонена, а не рапортовать успех с битым проектом.
+    covered — множество троек (путь, start, end) уже запланированных правок.
+    """
+    for item in declarations:
+        if item.get("kind") != kind or item.get("name") != old_name:
+            continue
+        if item.get("path") not in hierarchy_paths:
+            continue
+        key = (item.get("path"), item.get("start"), item.get("end"))
+        if key not in covered:
+            raise RenameError(
+                "После переименования в иерархии осталось объявление %s: %s:%s; "
+                "переименование остановлено"
+                % (old_name, item.get("path"), item.get("line")))
 
 
 def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
@@ -477,7 +551,11 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     subclasses = set()
     all_target_classes = {target_class} if target_class else set()
 
-    if kind == "variable":
+    # Иерархия нужна для ЛЮБОГО вида членов, а не только для переменных.
+    # Раньше subclasses строились только при kind == "variable": вызовы в
+    # подклассах обновлялись, а сами объявления-override оставались со старым
+    # именем — проект получал вызов несуществующего метода при рапорте «успешно».
+    if kind in ("function", "signal", "variable"):
         subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
         for sc in subclasses:
             sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
@@ -485,6 +563,21 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                 sc_cls = _class_name_for_file(sc_entry["semantic"])
                 if sc_cls:
                     all_target_classes.add(sc_cls)
+
+    # Собственное одноимённое объявление ДРУГОГО вида в подклассе перекрывает
+    # метод/сигнал базового класса: self.take_damage в таком подклассе — уже не
+    # метод. Молча переименовывать ссылку здесь нельзя — это разные сущности.
+    for sc in sorted(subclasses):
+        sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
+        if not sc_entry:
+            continue
+        for item in sc_entry["semantic"].get("declarations", []):
+            if (item.get("owner") == "script" and item.get("name") == old_name
+                    and item.get("kind") != kind):
+                raise RenameError(
+                    "В подклассе %s есть собственное объявление %s (%s), перекрывающее "
+                    "переименовываемое; переименование остановлено"
+                    % (sc, old_name, item.get("kind")))
 
     collided = _collision(declarations, declaration, kind, new_name, subclasses=subclasses)
     if collided:
@@ -503,13 +596,18 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
             raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
 
     edits_by_path = {target_path: [(declaration["start"], declaration["end"])]}
-    if kind == "variable":
-        for sc in subclasses:
-            sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
-            if sc_entry:
-                for item in sc_entry["semantic"].get("declarations", []):
-                    if item.get("kind") == "variable" and item.get("name") == old_name and item.get("owner") == "script":
-                        edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
+    # Объявления-override в подклассах — такие же носители имени, как и сам
+    # скрипт: пока они не переименованы, полиморфизм теряется (вызов уходит
+    # в несуществующий метод базового класса), поэтому берём их всеми видами,
+    # а не только для переменных.
+    for sc in sorted(subclasses):
+        sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
+        if not sc_entry:
+            continue
+        for item in sc_entry["semantic"].get("declarations", []):
+            if (item.get("kind") == kind and item.get("name") == old_name
+                    and item.get("owner") == "script"):
+                edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
 
     ambiguities = []
 
@@ -545,6 +643,24 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     if ambiguities:
         raise RenameError("Есть неоднозначные ссылки; переименование остановлено: %s"
                           % ", ".join(ambiguities[:8]))
+    # Ссылочная правка могла пройти, а объявление-override — нет; проверяем
+    # итог по всему плану, а не по одному пути.
+    _assert_hierarchy_renamed(
+        kind, old_name, new_name, {target_path} | subclasses,
+        {(path, start, end) for path, spans in edits_by_path.items()
+         for start, end in spans}, declarations)
+    # Подклассы вне зоны нашей записи (addons и прочие защищённые .gd) в
+    # семантический индекс не попадают — их override мы не обновим, а базу
+    # переименуем. Это ровно тот случай, где «успех» ломает проект.
+    blocked = _unwritable_subclass_overrides(
+        project_root, target_path, target_class, snapshot, kind, old_name,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
+    if blocked:
+        raise RenameError(
+            "Вне зоны записи есть подкласс с переопределением %s: %s:%s; "
+            "переименование остановлено"
+            % (old_name, blocked[0][0], blocked[0][1]))
 
     files = []
     for path in sorted(edits_by_path):
