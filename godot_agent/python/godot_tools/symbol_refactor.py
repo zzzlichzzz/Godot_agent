@@ -642,6 +642,12 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
     next_value = nxt.get("value") if nxt else None
 
     shadowed = _owner_shadows_name(fact.get("owner"), fact.get("name"), declarations)
+    if kind == "variable" and root_owner not in (None, "script"):
+        # У локальной переменной объявление и все ссылки принадлежат ОДНОМУ
+        # scope — функции, поэтому проверка тени нашла бы само объявление.
+        # Область и так ограничена функцией, а дубль имени в ней мы уже
+        # отсекли проверкой уникальности объявления.
+        shadowed = False
     # Принадлежность скрипту считаем с учётом вложенных классов: их члены
     # переименовываются (Этап 3.3), значит и ссылки внутри них — наши.
     in_script = _owner_in_script(fact.get("owner"), declarations)
@@ -649,10 +655,12 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
     # принадлежащие этому классу: одноимённый член внешнего скрипта — другая
     # сущность, и трогать его нельзя.
     in_root = _owner_within(fact.get("owner"), root_owner, root_declarations or [])
-    if kind in ("function", "signal") and root_owner is not None:
+    if root_owner is not None and kind in ("function", "signal", "variable",
+                                           "const", "enum"):
         # Член САМОГО скрипта: ссылка должна быть в scope скрипта, а не внутри
         # вложенного класса — вложенный класс не наследует внешний скрипт.
-        # Член вложенного класса: наоборот, только ссылки ВНУТРИ него.
+        # Член вложенного класса или локальная переменная функции: наоборот,
+        # только ссылки ВНУТРИ своего scope.
         if root_owner == "script":
             if not _owner_belongs_to_script(fact.get("owner"), declarations):
                 return False
@@ -925,8 +933,11 @@ def _assert_hierarchy_renamed(kind, old_name, new_name, hierarchy_paths,
             continue
         if item.get("path") not in hierarchy_paths:
             continue
-        if kind == "enum_member" and item.get("owner") != owner:
-            continue
+        # Локальная переменная (owner — функция, не скрипт) и members enum:
+        # одноимённые сущности в других scope — другая история.
+        if owner is not None and owner != "script" and item.get("owner") != owner:
+            if kind in ("variable", "enum_member"):
+                continue
         # Член вложенного класса (owner передан и это не "script"):
         # одноимённый член внешнего скрипта — другая сущность, и его
         # нетронутость не означает потерю полиморфизма.
@@ -1032,7 +1043,14 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                 "Члены вложенных классов переименовываются только для классов "
                 "верхнего уровня скрипта")
     if kind == "variable" and declaration.get("owner") != "script":
-        raise RenameError("Переименование локальных переменных внутри функций пока не поддерживается безопасно")
+        # Локальная переменная живёт ровно в своей функции: её объявление и
+        # все обращения принадлежат одному scope. Переименование затрагивает
+        # только этот scope — одноимённые локальные переменные в других
+        # функциях и одноимённые члены скрипта остаются нетронутыми.
+        if not _owner_belongs_to_script(declaration.get("owner"), declarations):
+            raise RenameError(
+                "Локальные переменные переименовываются только внутри функций "
+                "верхнего уровня скрипта")
     if kind in ("const", "enum") and declaration.get("owner") != "script":
         # Константа и enum живут на верхнем уровне скрипта. Объявление внутри
         # функции или вложенного класса — это уже другая сущность, и
@@ -1275,7 +1293,10 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                       "before_hash": _sha256(raw), "before_bytes": raw,
                       "after_bytes": encoded, "diff": diff,
                       "occurrences": len(ranges)})
-    if kind == "variable":
+    if kind == "variable" and declaration.get("owner") == "script":
+        # Только ЧЛЕНЫ скрипта бывают свойствами сцены. Локальная переменная
+        # функции в .tscn не записывается, и её имя там может совпадать с
+        # совершенно чужым свойством другого скрипта.
         scene_edits = _collect_scene_property_edits(
             project_root, {target_path} | subclasses, old_name, new_name,
             allow_addons=allow_addons, allow_self_edit=allow_self_edit,
