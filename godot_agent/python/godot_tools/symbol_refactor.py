@@ -7,6 +7,7 @@ import re
 import tempfile
 import threading
 
+import gd_api_cache
 import gd_api_check
 import gd_lint
 import gd_semantic_parser
@@ -587,6 +588,47 @@ def _collision(declarations, declaration, kind, new_name, subclasses=None):
     return None
 
 
+def _project_global_names(project_root):
+    """Имена, занятые на уровне проекта: autoload и действия ввода.
+
+    Autoload — это глобальный синглтон, доступный из любого скрипта по имени,
+    а действие ввода — ключ секции [input]. Переименование class_name/члена в
+    такое имя перекрывает глобальное значение, и проект падает в движке.
+    """
+    autoloads, actions = set(), set()
+    try:
+        absolute = _resolve_safe_path(project_root, "res://project.godot")
+        with open(absolute, "rb") as handle:
+            text = handle.read().decode("utf-8-sig", errors="replace")
+    except Exception:
+        return autoloads, actions
+    section = ""
+    for line in text.replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped[1:-1].strip()
+            continue
+        if "=" not in stripped or stripped.startswith(";") or stripped.startswith("#"):
+            continue
+        key, _sep, _value = stripped.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        if section == "autoload":
+            autoloads.add(key)
+        elif section == "input":
+            actions.add(key)
+    return autoloads, actions
+
+
+def _engine_class_name(project_root, name, addon_dir=None):
+    """True, если имя занято классом движка в кэше ClassDB этого проекта."""
+    try:
+        return gd_api_cache.get_class(project_root, name, addon_dir=addon_dir) is not None
+    except Exception:
+        return False
+
+
 def _unwritable_subclass_overrides(project_root, target_path, target_class, snapshot,
                                   kind, old_name, allow_addons=False,
                                   allow_self_edit=False, addon_dir=None):
@@ -761,6 +803,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                     "В подклассе %s есть собственное объявление %s (%s), перекрывающее "
                     "переименовываемое; переименование остановлено"
                     % (sc, old_name, item.get("kind")))
+
+    # Коллизии уровня проекта и движка. _collision смотрит только объявления
+    # в .gd, поэтому Hero -> Sprite2D (класс движка) и Hero -> GameState
+    # (autoload) проходили, а проект падал в редакторе.
+    if _engine_class_name(project_root, new_name, addon_dir=addon_dir):
+        raise RenameError("Новое имя %s занято классом движка Godot" % new_name)
+    autoloads, input_actions = _project_global_names(project_root)
+    if new_name in autoloads:
+        raise RenameError("Новое имя %s совпадает с autoload этого проекта"
+                          % new_name)
+    if new_name in input_actions:
+        raise RenameError("Новое имя %s совпадает с действием ввода InputMap"
+                          % new_name)
 
     collided = _collision(declarations, declaration, kind, new_name, subclasses=subclasses)
     if collided:
