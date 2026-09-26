@@ -18,7 +18,18 @@ from project_tools import (_resolve_safe_path, build_diff_preview,
                            can_write_project_path)
 
 
-KINDS = {"class_name", "function", "signal", "variable"}
+KINDS = {"class_name", "function", "signal", "variable", "const", "enum"}
+# Вид, которым оперирует rename_symbol, -> вид объявления в парсере.
+# Имена не совпадают исторически: парсер называет константу "constant",
+# а публичный action говорит "const" (так его понимает модель).
+_KIND_TO_DECL = {"const": "constant", "enum": "enum"}
+# Обратное отображение для проверок вида объявления.
+_DECL_TO_KIND = {value: key for key, value in _KIND_TO_DECL.items()}
+
+
+def _decl_kind(kind):
+    """Вид объявления в парсере для публичного kind (или сам kind)."""
+    return _KIND_TO_DECL.get(kind, kind)
 # Режимы гранулярности отказа (Этап 2.4). strict — поведение по умолчанию,
 # полностью консервативное. probable сознательно снимает блокировку с
 # НЕПРОВЕРЕННЫХ ссылок, но оставляет все жёсткие проверки на месте.
@@ -91,7 +102,7 @@ def _validate_action(action):
     old_name = str(action.get("old_name") or "").strip()
     new_name = str(action.get("new_name") or "").strip()
     if kind not in KINDS:
-        raise RenameError("kind должен быть class_name, function, signal или variable")
+        raise RenameError("kind должен быть %s" % ", ".join(sorted(KINDS)))
     for label, name in (("old_name", old_name), ("new_name", new_name)):
         if not _IDENTIFIER.match(name) or name in _KEYWORDS:
             raise RenameError("%s не является допустимым идентификатором GDScript" % label)
@@ -559,6 +570,11 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
             return True
         if target_class and typed.get(receiver) == target_class:
             return True
+        # Обращение через ИМЯ КЛАССА: Unit.MAX_HP. Здесь receiver — не
+        # переменная, поэтому typed его не содержит, но имя класса мы знаем
+        # точно, и ссылка однозначна.
+        if target_class and receiver == target_class and not shadowed:
+            return True
         if kind == "function" and target_static and target_class and receiver == target_class:
             return True
         return False
@@ -576,6 +592,12 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
         return (hierarchy and in_script and not shadowed
                 and (next_value == "." or prev_value == "await"))
     if kind == "variable":
+        return (hierarchy and in_script and not shadowed
+                and fact.get("context") != "member")
+    if kind in ("const", "enum"):
+        # Константа адресуется либо через класс (Unit.MAX_HP), либо прямо
+        # внутри своего скрипта. Через точку мы уже дошли сюда только если
+        # ресивер — наш класс; локальная тень отсекается проверкой shadowed.
         return (hierarchy and in_script and not shadowed
                 and fact.get("context") != "member")
     return False
@@ -609,7 +631,7 @@ def _collision(declarations, declaration, kind, new_name, subclasses=None):
                 return item
             clashed = clashed or item
             continue
-        if kind == "variable":
+        if kind in ("variable", "const", "enum"):
             if item.get("path") in affected_paths and item.get("owner") == declaration.get("owner"):
                 return item
         elif (item.get("path") == declaration.get("path")
@@ -628,7 +650,7 @@ def _is_real_conflict(collided, declaration, kind, subclasses=None):
     """
     if collided.get("kind") == "class_name":
         return True
-    if kind in ("variable", "class_name"):
+    if kind in ("variable", "const", "class_name"):
         affected = {declaration.get("path")} | set(subclasses or ())
         return collided.get("path") in affected
     return collided.get("path") == declaration.get("path")
@@ -864,7 +886,8 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
             declarations.append(dict(item, path=path, sha256=entry.get("sha256")))
     candidates = [item for item in declarations
                   if item.get("path") == target_path and item.get("line") == line
-                  and item.get("kind") == kind and item.get("name") == old_name
+                  and item.get("kind") == _decl_kind(kind)
+                  and item.get("name") == old_name
                   and (column is None or item.get("column") == column)]
     if len(candidates) != 1:
         raise RenameError("По declaration найдено объявлений: %d, ожидалось ровно одно" % len(candidates))
@@ -873,6 +896,11 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         raise RenameError("Переименование членов вложенных классов пока не поддерживается безопасно")
     if kind == "variable" and declaration.get("owner") != "script":
         raise RenameError("Переименование локальных переменных внутри функций пока не поддерживается безопасно")
+    if kind in ("const", "enum") and declaration.get("owner") != "script":
+        # Константа и enum живут на верхнем уровне скрипта. Объявление внутри
+        # функции или вложенного класса — это уже другая сущность, и
+        # переименование «наружу» сломало бы её использование.
+        raise RenameError("Константы и enum переименовываются только на верхнем уровне скрипта")
 
     target_entry = next(entry for entry in snapshot["files"]
                         if "res://" + entry["path"] == target_path)
@@ -889,7 +917,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     # ломает код наследника — такой случай обязан быть отказом, а не «просто
     # совпадением имени в чужом файле».
     subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
-    if kind in ("function", "signal", "variable", "class_name"):
+    if kind in ("function", "signal", "variable", "class_name", "const", "enum"):
         for sc in subclasses:
             sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
             if sc_entry:
@@ -945,8 +973,11 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         if len(duplicates) != 1:
             raise RenameError("class_name неоднозначен: найдено объявлений %d" % len(duplicates))
     else:
+        # Проверяем вид объявления в терминах парсера: публичный "const"
+        # разбирается как "constant" (иначе поиск не нашёл бы ничего).
         duplicates = [item for item in declarations
-                      if item.get("path") == target_path and item.get("kind") == kind
+                      if item.get("path") == target_path
+                      and item.get("kind") == _decl_kind(kind)
                       and item.get("name") == old_name]
         if len(duplicates) != 1:
             raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
@@ -961,7 +992,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         if not sc_entry:
             continue
         for item in sc_entry["semantic"].get("declarations", []):
-            if (item.get("kind") == kind and item.get("name") == old_name
+            if (item.get("kind") == _decl_kind(kind) and item.get("name") == old_name
                     and item.get("owner") == "script"):
                 edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
 
@@ -990,8 +1021,11 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                                   subclasses=subclasses,
                                   all_target_classes=all_target_classes):
                 edits_by_path.setdefault(path, []).append((fact["start"], fact["end"]))
-            elif kind == "variable" and fact.get("context") != "member" and _owner_shadows_name(
+            elif kind in ("variable", "const", "enum") and fact.get("context") != "member" and _owner_shadows_name(
                     fact.get("owner"), fact.get("name"), entry["semantic"].get("declarations", [])):
+                # Локальная тень: локальная переменная/константа с тем же
+                # именем перекрывает нашу ссылку. Это НЕ неоднозначность,
+                # а доказанно другая сущность — молча её пропускаем.
                 continue
             else:
                 ambiguities.append("%s:%s:%s" % (path, fact.get("line"), fact.get("column")))
