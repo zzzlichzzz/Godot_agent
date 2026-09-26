@@ -515,6 +515,29 @@ def _reply_once(prompt):
     return text, action
 
 
+def _with_exclude(action, excluded):
+    """Кладёт снятые галочки (res://путь:строка[:колонка]) в действие."""
+    result = dict(action)
+    result["exclude"] = ["%s:%s" % tuple(str(item).split(":")[:2])
+                        for item in excluded]
+    return result
+
+
+def _usage_checklist(analysis, limit=300):
+    """Список мест с галочками для панели: id места + координаты + уверенность.
+
+    id устойчив (путь:строка:колонка), поэтому панель может снять галочку и
+    вернуть эти id в confirm_action как exclude.
+    """
+    checklist = []
+    for place in analysis.get("usages", [])[:limit]:
+        item = dict(place)
+        item["id"] = "%s:%s:%s" % (place["path"], place["line"], place["column"])
+        item["checked"] = place.get("confidence") != "dynamic"
+        checklist.append(item)
+    return checklist
+
+
 def _format_analysis(analysis):
     """Предпросмотр переименования: места, риски и подсказка про exclude."""
     lines = ["[Система]: предпросмотр %s -> %s: изменится %d файл(ов), "
@@ -1361,8 +1384,17 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
             followup = ("[Система]: rename_symbol отклонён (%s): %s. %s"
                         % (getattr(exc, "code", "error"), exc, hint))
             if not allow_followup or depth >= 2:
+                # Отдаём места структурированно, а не только текстом ошибки:
+                # панель покажет их списком с галочками (Этап 4.3).
+                suggested = []
+                try:
+                    suggested = _usage_checklist(symbol_refactor.analyze_rename(
+                        project_root, action, **_access_kwargs()))
+                except Exception:
+                    suggested = []
                 return jsonify({"answer": (text + "\n\n" + followup).strip(),
-                                "pending_action": None})
+                                "pending_action": None,
+                                "suggested_usages": suggested})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
         batch = godot_headless_validation.batch_from_rename(project_root, prepared)
@@ -1380,6 +1412,9 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                             "pending_action": None})
         _stamp_policy(prepared)
         prepared["validation"] = {"batch": batch, "receipt": receipt}
+        # Исходное действие сохраняем: при подтверждении с exclude (снятые
+        # галочки) план пересобирается из него, а не из прежних правок.
+        prepared["source_action"] = dict(action)
         public = dict(action)
         public.update(symbol_refactor.public_prepared(prepared))
         STATE["pending_refactor"] = prepared
@@ -1387,11 +1422,16 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         _remember("agent", text)
         _sync_chat_after_reply()
         diffs = symbol_refactor.prepared_diffs(prepared)
-        # dynamic_references дублируем отдельным полем: риск должен быть виден
-        # панели ДО подтверждения, а не только внутри pending_action.
+        # Список мест с галочками вместо текстовой ошибки (Этап 4.3): панель
+        # показывает его ДО подтверждения и может снять галочки — снятые
+        # приходят в confirm_action как exclude. dynamic_references дублируем
+        # отдельным полем: риск должен быть виден ДО подтверждения.
+        checklist = _usage_checklist(symbol_refactor.analyze_rename(
+            project_root, action, **_access_kwargs()))
         return jsonify({"answer": text, "pending_action": public,
                         "pending_action_description": _describe_action(public),
                         "pending_action_code": None,
+                        "pending_action_usages": checklist,
                         "dynamic_references": public.get("dynamic_references") or [],
                         "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
                          "pending_action_diffs": diffs})
@@ -2787,6 +2827,33 @@ def confirm_action():
             if not isinstance(prepared, dict):
                 STATE["pending_action"] = None
                 return jsonify({"error": "Подготовленная транзакция переименования утрачена."}), 409
+            # Галочки, снятые в списке мест (Этап 4.3): план пересобирается с
+            # учётом exclude, поэтому применяется ровно то, что осталось
+            # отмеченным, а не весь прежний набор.
+            excluded = [str(item) for item in (data or {}).get("exclude", [])
+                        if str(item).strip()]
+            if excluded:
+                try:
+                    prepared = symbol_refactor.prepare_rename(
+                        project_root, _with_exclude(
+                            dict(prepared.get("source_action") or {}), excluded),
+                        **_access_kwargs())
+                except Exception as exc:
+                    STATE["pending_action"] = None
+                    STATE["pending_refactor"] = None
+                    return jsonify({"error": "Не удалось применить выбор мест: %s" % exc}), 409
+                # Пересобранный план снова получает policy-метку и собственную
+                # валидацию: иначе проверка политики на confirm отклонила бы
+                # его как устаревший, а рецепт валидатора остался бы от старого
+                # плана — то есть проверял бы уже не то, что применится.
+                _stamp_policy(prepared)
+                rebuilt_batch = godot_headless_validation.batch_from_rename(
+                    project_root, prepared)
+                prepared["validation"] = {
+                    "batch": rebuilt_batch,
+                    "receipt": godot_headless_validation.validate_batch(
+                        project_root, rebuilt_batch,
+                        executable=STATE.get("godot_executable"))}
             print("--> rename_symbol %s -> %s. Применяем %d файл(ов)..." % (
                 prepared.get("old_name"), prepared.get("new_name"),
                 len(prepared.get("files") or [])))
@@ -2813,10 +2880,19 @@ def confirm_action():
                 _remember_file(project_root, changed_path)
                 _touch_file_read(changed_path)
             _refresh_fs_snapshot(project_root)
+            # Снятые галочки показываем в ответе: пользователь должен видеть,
+            # что эти места остались со старым именем — иначе «переименовано»
+            # врёт ему в лицо.
+            answer = ("[Система]: Символ %s безопасно переименован в %s "
+                      "(%d файл(ов), %d ссылок)." % (
+                          prepared["old_name"], prepared["new_name"],
+                          result["file_count"], result["reference_count"]))
+            skipped = prepared.get("skipped_usages") or []
+            if skipped:
+                answer += " БЕЗ галочки остались: %s" % "; ".join(skipped[:10])
             return jsonify({
-                "answer": "[Система]: Символ %s безопасно переименован в %s (%d файл(ов), %d ссылок)." % (
-                    prepared["old_name"], prepared["new_name"], result["file_count"],
-                    result["reference_count"]),
+                "answer": answer,
+                "skipped_usages": skipped,
                 "pending_action": None, "changed_paths": changed_paths,
                 "history_entry_id": result["entry_id"],
             })

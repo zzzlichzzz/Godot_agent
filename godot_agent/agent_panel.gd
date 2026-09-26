@@ -56,6 +56,10 @@ var _is_network_busy: bool = false
 # строкой ввода одновременно с карточкой в чате. Теперь состояние живёт в
 # переменной, а сама панель не показывается никогда (см. _set_pending_action).
 var _pending_action_active: bool = false
+# Список мест переименования с галочками (Этап 4.3). Пуст, если действие не
+# связано с переименованием или список не пришёл.
+var _pending_rename_usages: Array = []
+var _rename_excluded: Dictionary = {}
 
 # Plan-режим (цепочка действий): активен, когда пользователь подтвердил план
 # и панель сама выполняет шаги через PLAN_STEP_URL по одному.
@@ -860,6 +864,12 @@ func _ready() -> void:
 
 
 func _set_pending_action(active: bool, description: String = "") -> void:
+	# Список мест живёт только пока ждём подтверждения: после ответа он больше
+	# не нужен, а оставить его — значит показать старые галочки в следующем
+	# действии.
+	if not active:
+		_pending_rename_usages = []
+		_rename_excluded = {}
 	# Единая точка вкл/выкл состояния «ждём ответа на подтверждение».
 	# Саму панель не показываем — её роль выполняет карточка в чате.
 	_pending_action_active = active
@@ -2488,6 +2498,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if _last_pending_action_path.is_empty():
 				_last_pending_action_path = str(pending.get("scene", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
+			# Список мест с галочками (Этап 4.3): показываем в карточке ДО
+			# подтверждения, чтобы снятые места были видны пользователю.
+			_pending_rename_usages = []
+			var raw_usages = json.get("pending_action_usages", json.get("suggested_usages", []))
+			if raw_usages is Array:
+				_pending_rename_usages = raw_usages
 			_last_pending_action_paths = PackedStringArray()
 			var raw_paths = pending.get("paths", [])
 			if raw_paths is Array and not raw_paths.is_empty():
@@ -4083,7 +4099,9 @@ func _open_update_dialog(info: Dictionary) -> void:
 	var cur_v: String = _updater.get_current_version() if _updater else "0.7.0"
 	var new_v: String = info.get("version", "")
 	_update_dialog_version_label.text = (_t("update_current_version") % cur_v) + "  →  " + (_t("update_new_version") % new_v)
-	_update_dialog_changelog.text = info.get("body", "")
+	# notes - уже переведённый в BBCode текст. body оставлен запасным
+	# вариантом: старый кэш user:// мог быть записан до появления notes.
+	_update_dialog_changelog.text = String(info.get("notes", info.get("body", "")))
 	if _update_dialog_progress:
 		_update_dialog_progress.visible = false
 		_update_dialog_progress.value = 0
