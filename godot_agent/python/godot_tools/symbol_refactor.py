@@ -241,6 +241,59 @@ def _find_subclasses(project_root, target_path, target_class, snapshot):
     return subclasses
 
 
+def _section_node_path(header):
+    """Путь узла по заголовку секции .tscn (или пустая строка)."""
+    attrs = dict(re.findall(r'([\w]+)="([^"]*)"', header))
+    name = attrs.get("name", "")
+    parent = attrs.get("parent")
+    if parent is None:
+        return "."
+    if parent == ".":
+        return name
+    return parent + "/" + name
+
+
+def _scene_script_owners(project_root, scene_res, cache, seen=None):
+    """Множество res://путей скриптов, узлы с которыми встречаются в сцене.
+
+    Учитывает и ПРЯМОЕ указание script = ExtResource(...), и ИНСТАНЦИРОВАНИЕ
+    (node ... instance = ExtResource("...tscn")): у инстанцированной сцены
+    свой скрипт в ext_resource родителя отсутствует, но переопределения
+    свойств в родителе относятся именно к нему.
+    """
+    seen = seen if seen is not None else set()
+    if scene_res in seen:
+        return set()
+    seen.add(scene_res)
+    if scene_res in cache:
+        return cache[scene_res]
+    try:
+        abs_path = _resolve_safe_path(project_root, scene_res)
+        with open(abs_path, "rb") as handle:
+            text = handle.read().decode("utf-8-sig")
+    except Exception:
+        cache[scene_res] = set()
+        return set()
+    try:
+        ext, nodes, _connections = scene_deps.parse_scene(text)
+    except Exception:
+        cache[scene_res] = set()
+        return set()
+    owners = set()
+    for key, info in ext.items():
+        if info.get("type") == "Script" and info.get("path"):
+            owners.add(info["path"])
+    for node in nodes:
+        instance_id = node.get("instance_id")
+        if not instance_id:
+            continue
+        target = ext.get(instance_id, {}).get("path")
+        if target and target.lower().endswith(".tscn"):
+            owners |= _scene_script_owners(project_root, target, cache, seen)
+    cache[scene_res] = owners
+    return owners
+
+
 def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_name,
                                   allow_addons=False, allow_self_edit=False,
                                   addon_dir=None):
@@ -248,6 +301,9 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
     scene_edits = []
     if not affected_scripts:
         return scene_edits
+    # Кэш «сцена -> скрипты её узлов» на весь проход: одна и та же сцена
+    # инстанцируется из многих мест, перечитывать её каждый раз незачем.
+    scene_owner_cache = {}
 
     for root, dirs, files in os.walk(project_root):
         if not allow_addons and ("addons" in dirs):
@@ -287,8 +343,28 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
                 for m in pattern2.finditer(text):
                     matching_ids.add(m.group(1))
 
-            if not matching_ids:
-                continue
+            # Раньше здесь стоял ранний выход «нет matching_ids — пропускаем
+            # файл». Он и был причиной потери: у инстанцирующей сцены в
+            # ext_resource нет нашего скрипта, и файл уходил целиком,
+            # вместе с переопределениями свойств.
+            # Секции с нашим скриптом и секции, которые ИНСТАНЦИРУЮТ сцену с
+            # нашим скриптом: у инстанцированной сцены в ext_resource родителя
+            # скрипта нет, поэтому раньше такие переопределения терялись молча.
+            instanced_paths = set()
+            scene_nodes = []
+            if rel_path.lower().endswith(".tscn"):
+                try:
+                    scene_ext, scene_nodes, _c = scene_deps.parse_scene(text)
+                except Exception:
+                    scene_ext, scene_nodes = {}, []
+                wanted_instance_ids = {
+                    key for key, info in scene_ext.items()
+                    if (info.get("type") == "PackedScene" and info.get("path")
+                        and _scene_script_owners(
+                            project_root, info["path"], scene_owner_cache)
+                        & affected_scripts)}
+                instanced_paths = {node.get("path") for node in scene_nodes
+                                   if node.get("instance_id") in wanted_instance_ids}
 
             section_re = re.compile(r'(^\[(?:node|sub_resource|resource)[^\]]*\])(.*?)(?=(?:^\[|\Z))', re.M | re.S)
             file_changed = False
@@ -307,6 +383,10 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
                     if re.search(r'script\s*=\s*ExtResource\(["\']?' + re.escape(mid) + r'["\']?\)', body):
                         has_script = True
                         break
+                if not has_script and _section_node_path(header) in instanced_paths:
+                    # Переопределение свойства внутри инстанцированного узла:
+                    # ключ свойства принадлежит скрипту ИНСТАНЦИРУЕМОЙ сцены.
+                    has_script = True
 
                 if not has_script:
                     continue

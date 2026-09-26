@@ -108,6 +108,15 @@ def _parse_attrs(head):
     return res
 
 
+def _attr_id(raw):
+    """Голый идентификатор ресурса из ExtResource("1_x") либо None."""
+    if not raw:
+        return None
+    match = re.match(r'^\s*(?:ExtResource|SubResource)\(\s*["\']?([^"\')]+)["\']?\s*\)\s*$',
+                     str(raw))
+    return match.group(1) if match else None
+
+
 def parse_scene(text):
     """Разбирает .tscn: ext-ресурсы, узлы (с вычисленным путём от корня и
     привязанным скриптом) и [connection]-секции."""
@@ -138,6 +147,11 @@ def parse_scene(text):
                 "parent": parent,
                 "path": path,
                 "script_id": None,
+                # instance нужен потребителям, которые идут по цепочке
+                # инстанцирования (свойства переопределения в родителе).
+                # В заголовке лежит полный вызов ExtResource("1_x") — храним
+                # ГОЛЫЙ id, иначе сопоставление с ext_resource не сойдётся.
+                "instance_id": _attr_id(a.get("instance")),
             }
             nodes.append(cur_node)
         elif stripped.startswith("[connection") and stripped.endswith("]"):
