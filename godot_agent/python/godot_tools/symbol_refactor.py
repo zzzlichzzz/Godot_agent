@@ -1068,6 +1068,13 @@ _USAGE_KINDS = {"class_name", "function", "signal", "variable", "const",
                 "enum", "enum_member"}
 
 
+def _usage_excluded(excluded, path, line):
+    """Место снято пользователем? Формат: res://path.gd:строка (колонка необязательна)."""
+    if not excluded:
+        return False
+    return ("%s:%s" % (path, line)) in excluded or (path in excluded)
+
+
 def _usage_query(action):
     """Разбор запроса поиска: нового имени может не быть (нужен только поиск)."""
     if not isinstance(action, dict):
@@ -1194,6 +1201,38 @@ def find_references(project_root, action, allow_addons=False, addon_dir=None,
             "proven_count": sum(1 for i in usages if i["confidence"] == "proven"),
             "probable_count": sum(1 for i in usages if i["confidence"] == "probable"),
             "dynamic_count": sum(1 for i in usages if i["confidence"] == "dynamic")}
+
+
+def analyze_rename(project_root, action, allow_addons=False, addon_dir=None,
+                   allow_self_edit=False):
+    """Read-only предпросмотр переименования: что и где изменится.
+
+    Анализ отделён от записи, поэтому пользователь может сначала посмотреть
+    места и риски (Этап 4.2), снять галочки с мест (exclude) и только потом
+    применить. Ничего не пишет.
+    """
+    result = find_references(project_root, action, allow_addons=allow_addons,
+                             addon_dir=addon_dir, allow_self_edit=allow_self_edit)
+    target_path, line, _column = _parse_locator(action.get("declaration"))
+    affected_paths = sorted({place["path"] for place in result["usages"]
+                             if place["confidence"] == "proven"})
+    risks = []
+    for place in result["usages"]:
+        if place["confidence"] == "proven":
+            continue
+        risks.append("%s:%s [%s, %s]%s"
+                     % (place["path"], place["line"], place["link"],
+                        place["confidence"],
+                        (" — %s" % place["note"]) if place.get("note") else ""))
+    return {"action": "analyze_rename", "kind": result["kind"],
+            "old_name": result["old_name"], "new_name": result["new_name"],
+            "declaration": action.get("declaration"),
+            "usages": result["usages"], "affected_paths": affected_paths,
+            "risks": risks, "by_link": result["by_link"],
+            "proven_count": result["proven_count"],
+            "probable_count": result["probable_count"],
+            "dynamic_count": result["dynamic_count"],
+            "declaration_path": target_path, "declaration_line": line}
 
 
 def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
@@ -1384,6 +1423,14 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     ambiguities = []
     dynamic_references = []
     unverified_references = []
+    skipped_usages = []
+    # Частичное применение: пользователь мог снять галочки с мест в
+    # предпросмотре. Такие места не меняются, но попадают в отчёт, иначе
+    # «переименовано» враньёт пользователю в лицо.
+    excluded = set()
+    for item in (action.get("exclude") or []):
+        if isinstance(item, str) and item.strip():
+            excluded.add(item.strip())
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]
@@ -1398,6 +1445,13 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         typed = _typed_receivers(text)
         for fact in entry["semantic"].get("references", []):
             if fact.get("name") != old_name:
+                continue
+            if _usage_excluded(excluded, path, fact.get("line")):
+                # Место снято пользователем (галочка снята в предпросмотре):
+                # не переименовываем, но честно показываем, что осталось.
+                skipped_usages.append(
+                    "%s:%s:%s — снято пользователем, имя не переименовано"
+                    % (path, fact.get("line"), fact.get("column")))
                 continue
             if _reference_is_safe(kind, fact, text, tokens, target_path, path,
                                   target_class, typed,
@@ -1546,6 +1600,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         "dynamic_references": dynamic_references,
         "warnings": warnings,
         "unverified_references": unverified_references,
+        "skipped_usages": skipped_usages,
         "mode": mode,
         "reference_count": sum(item["occurrences"] for item in files) - 1,
     }
@@ -1561,6 +1616,7 @@ def public_prepared(prepared):
         "dynamic_references": list(prepared.get("dynamic_references") or []),
         "warnings": list(prepared.get("warnings") or []),
         "unverified_references": list(prepared.get("unverified_references") or []),
+        "skipped_usages": list(prepared.get("skipped_usages") or []),
         "mode": prepared.get("mode", "strict"),
         "file_rename": prepared.get("file_rename"),
     }

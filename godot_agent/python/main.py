@@ -515,6 +515,26 @@ def _reply_once(prompt):
     return text, action
 
 
+def _format_analysis(analysis):
+    """Предпросмотр переименования: места, риски и подсказка про exclude."""
+    lines = ["[Система]: предпросмотр %s -> %s: изменится %d файл(ов), "
+             "мест %d (доказано %d, вероятно %d, динамика %d)."
+             % (analysis["old_name"], analysis["new_name"],
+                len(analysis["affected_paths"]), len(analysis["usages"]),
+                analysis["proven_count"], analysis["probable_count"],
+                analysis["dynamic_count"])]
+    for place in analysis["usages"][:200]:
+        lines.append("%s:%s:%s [%s, %s]"
+                     % (place["path"], place["line"], place["column"],
+                        place["link"], place["confidence"]))
+    if analysis["risks"]:
+        lines.append("Риски (не блокируют, но проверь вручную):")
+        lines.extend("  " + risk for risk in analysis["risks"][:40])
+    lines.append("Чтобы применить только часть мест, передай exclude со "
+                 "строками res://путь.gd:строка (снятые галочки попадут в отчёт).")
+    return "\n".join(lines)
+
+
 def _format_usages(result):
     """Человекочитаемый список мест использования для модели."""
     lines = ["[Система]: использования %s (kind=%s): доказано %d, вероятно %d, "
@@ -3076,6 +3096,22 @@ def confirm_action():
                 followup = ("[Система]: find_symbol_usages не выполнен: %s" % exc)
             else:
                 followup = _format_usages(result)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "analyze_rename":
+            # Предпросмотр переименования: показываем места и риски, ничего
+            # не пишем и подтверждения не просим. Пользователь по возвращённым
+            # местам может снять галочки (exclude) и уже потом применить.
+            STATE["pending_action"] = None
+            try:
+                analysis = symbol_refactor.analyze_rename(
+                    project_root, action, **_access_kwargs())
+            except Exception as exc:
+                followup = ("[Система]: analyze_rename не выполнен (%s): %s"
+                            % (getattr(exc, "code", "error"), exc))
+            else:
+                followup = _format_analysis(analysis)
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 
