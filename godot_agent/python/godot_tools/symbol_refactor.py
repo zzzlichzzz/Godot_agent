@@ -35,19 +35,20 @@ _DECL_KINDS = {"class_name", "class", "function", "signal", "variable",
 def _owner_is_top_level(owner, declarations):
     """Owner принадлежит верхнему уровню скрипта.
 
-    Цепочка поднимается до самого скрипта, поэтому вложенный класс внутри
-    вложенного (class Deep внутри class Outer) тоже считается верхним
-    уровнем — его имя стабильно и переименовываемо текстом.
+    Критерий: по цепочке объявлений до самого скрипта не встречается ФУНКЦИЯ.
+    Класс внутри функции — локальная сущность времени выполнения, её имя
+    переименовать текстом нельзя. А вот класс в классе (Deep внутри Outer) —
+    верхнего уровня, цепочка идёт через объявления kind == "class".
     """
     by_id = {item.get("id"): item for item in declarations}
     current = owner
     seen = set()
-    while current and current != "script" and current not in seen:
+    while current and current not in seen and current != "script":
         seen.add(current)
         declaration = by_id.get(current)
         if not declaration:
             return False
-        if declaration.get("kind") not in ("class", "function", "enum"):
+        if declaration.get("kind") == "function":
             return False
         current = declaration.get("owner")
     return current == "script"
@@ -117,7 +118,35 @@ _replace_file = os.replace
 
 
 class RenameError(ValueError):
-    pass
+    """Отказ переименования с машинным кодом причины (Этап 4.4).
+
+    Код нужен и человеку, и модели: по тексту нельзя однозначно понять,
+    что делать дальше — исправить locator, выбрать другое имя или признать,
+    что случай не поддерживается. Подклассы ничего не меняют в поведении:
+    перехват RenameError работает как раньше.
+    """
+
+    code = "unsafe"
+
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        if code:
+            self.code = code
+
+
+class LocatorError(RenameError):
+    """Указан неверный locator: строки/имени объявления нет. Чини locator."""
+    code = "locator"
+
+
+class UnsafeRenameError(RenameError):
+    """Переименование опасно: конфликт имён или недоказанная ссылка."""
+    code = "unsafe"
+
+
+class UnsupportedRenameError(RenameError):
+    """Случай честно не поддерживается (вид, имя, scope)."""
+    code = "unsupported"
 
 
 class StaleRenameError(RuntimeError):
@@ -137,7 +166,7 @@ def _sha256(data):
 def _read_source(project_root, path):
     absolute = _resolve_safe_path(project_root, path)
     if not os.path.isfile(absolute):
-        raise RenameError("Файл объявления не найден: %s" % path)
+        raise LocatorError("Файл объявления не найден: %s" % path)
     with open(absolute, "rb") as handle:
         raw = handle.read()
     bom = raw.startswith(b"\xef\xbb\xbf")
@@ -154,11 +183,11 @@ def _parse_locator(value):
     raw = str(value or "").strip().replace("\\", "/")
     match = re.match(r"^(res://.+\.gd):(\d+)(?::(\d+))?$", raw)
     if not match:
-        raise RenameError("declaration должен иметь вид res://path.gd:line[:column]")
+        raise LocatorError("declaration должен иметь вид res://path.gd:line[:column]")
     line = int(match.group(2))
     column = int(match.group(3)) if match.group(3) else None
     if line < 1 or (column is not None and column < 1):
-        raise RenameError("Строка и колонка declaration должны быть положительными")
+        raise LocatorError("Строка и колонка declaration должны быть положительными")
     return match.group(1), line, column
 
 
@@ -197,7 +226,7 @@ def _plan_file_rename(project_root, target_path, new_name, addon_dir):
                           % new_path)
     absolute = _resolve_safe_path(project_root, new_path)
     if os.path.exists(absolute):
-        raise RenameError("Файл с новым именем уже существует: %s" % new_path)
+        raise UnsafeRenameError("Файл с новым именем уже существует: %s" % new_path)
     return {"from": target_path, "to": new_path}
 
 
@@ -208,24 +237,26 @@ def _validate_action(action):
     old_name = str(action.get("old_name") or "").strip()
     new_name = str(action.get("new_name") or "").strip()
     if kind not in KINDS:
-        raise RenameError("kind должен быть %s" % ", ".join(sorted(KINDS)))
+        raise UnsupportedRenameError(
+            "kind должен быть %s" % ", ".join(sorted(KINDS)))
     for label, name in (("old_name", old_name), ("new_name", new_name)):
         if not _IDENTIFIER.match(name) or name in _KEYWORDS:
-            raise RenameError("%s не является допустимым идентификатором GDScript" % label)
+            raise UnsupportedRenameError(
+                "%s не является допустимым идентификатором GDScript" % label)
     if old_name == new_name:
-        raise RenameError("Новое имя совпадает со старым")
+        raise UnsupportedRenameError("Новое имя совпадает со старым")
     path, line, column = _parse_locator(action.get("declaration"))
     # rename_file: переименовать ли сам .gd вместе с class_name. По умолчанию
     # НЕТ: имя файла может не совпадать с классом (hero.gd с class_name Unit),
     # и молчаливый перенос ломал бы preload() и пути в сценах.
     rename_file = bool(action.get("rename_file"))
     if rename_file and kind != "class_name":
-        raise RenameError("rename_file применим только к class_name")
+        raise UnsupportedRenameError("rename_file применим только к class_name")
     # Режим отказа: strict по умолчанию. Неизвестное значение молчать не
     # должно — иначе опечатка в действии незаметно ослабит проверки.
     mode = str(action.get("mode") or "strict").strip().lower()
     if mode not in MODES:
-        raise RenameError("mode должен быть %s" % " или ".join(MODES))
+        raise UnsupportedRenameError("mode должен быть %s" % " или ".join(MODES))
     return (kind, old_name, new_name, path, line, column, mode, rename_file)
 
 
@@ -1067,7 +1098,7 @@ def _locate_declaration(declarations, kind, old_name, path, line, column):
                         if item.get("path") == path
                         and item.get("kind") in _DECL_KINDS
                         and item.get("name")})
-    raise RenameError(
+    raise LocatorError(
         "В %s:%d нет объявления вида %s с именем %s. Объявления этого "
         "скрипта: %s. Возьми точную строку объявления из gather_context "
         "или read_function."
@@ -1203,7 +1234,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                             if item.get("path") == target_path
                             and item.get("kind") in _DECL_KINDS
                             and item.get("name")})
-        raise RenameError(
+        raise LocatorError(
             "В %s:%d нет объявления вида %s с именем %s. Объявления этого "
             "скрипта: %s. Возьми точную строку объявления из gather_context "
             "или read_function."
@@ -1216,7 +1247,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         # локальная сущность времени выполнения, её имя нельзя переименовать
         # безопасным текстовым способом.
         if not _owner_is_top_level(declaration.get("owner"), declarations):
-            raise RenameError(
+            raise UnsupportedRenameError(
                 "Члены вложенных классов переименовываются только для классов "
                 "верхнего уровня скрипта")
     if kind == "variable" and declaration.get("owner") != "script":
@@ -1225,19 +1256,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         # только этот scope — одноимённые локальные переменные в других
         # функциях и одноимённые члены скрипта остаются нетронутыми.
         if not _owner_belongs_to_script(declaration.get("owner"), declarations):
-            raise RenameError(
+            raise UnsupportedRenameError(
                 "Локальные переменные переименовываются только внутри функций "
                 "верхнего уровня скрипта")
     if kind in ("const", "enum") and declaration.get("owner") != "script":
         # Константа и enum живут на верхнем уровне скрипта. Объявление внутри
         # функции или вложенного класса — это уже другая сущность, и
         # переименование «наружу» сломало бы её использование.
-        raise RenameError("Константы и enum переименовываются только на верхнем уровне скрипта")
+        raise UnsupportedRenameError("Константы и enum переименовываются только на верхнем уровне скрипта")
     if kind == "enum_member" and not _owner_is_top_level(
             declaration.get("owner"), declarations):
         # Member анонимного enum принадлежит скрипту, а member именованного —
         # самому enum. В обоих случаях enum должен быть верхнего уровня.
-        raise RenameError("Members enum переименовываются только в enum верхнего уровня")
+        raise UnsupportedRenameError("Members enum переименовываются только в enum верхнего уровня")
     # Имя enum, которому принадлежит member: через него идёт обращение
     # State.IDLE, и без него такая ссылка выглядела бы неоднозначной.
     target_enum_name = None
@@ -1288,19 +1319,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     # в .gd, поэтому Hero -> Sprite2D (класс движка) и Hero -> GameState
     # (autoload) проходили, а проект падал в редакторе.
     if _engine_class_name(project_root, new_name, addon_dir=addon_dir):
-        raise RenameError("Новое имя %s занято классом движка Godot" % new_name)
+        raise UnsafeRenameError("Новое имя %s занято классом движка Godot" % new_name)
     autoloads, input_actions = _project_global_names(project_root)
     if new_name in autoloads:
-        raise RenameError("Новое имя %s совпадает с autoload этого проекта"
+        raise UnsafeRenameError("Новое имя %s совпадает с autoload этого проекта"
                           % new_name)
     if new_name in input_actions:
-        raise RenameError("Новое имя %s совпадает с действием ввода InputMap"
+        raise UnsafeRenameError("Новое имя %s совпадает с действием ввода InputMap"
                           % new_name)
 
     collided = _collision(declarations, declaration, kind, new_name, subclasses=subclasses)
     warnings = []
     if collided and _is_real_conflict(collided, declaration, kind, subclasses):
-        raise RenameError("Новое имя уже объявлено в том же пространстве: %s:%s"
+        raise UnsafeRenameError("Новое имя уже объявлено в том же пространстве: %s:%s"
                           % (collided.get("path"), collided.get("line")))
     if collided:
         # Простое совпадение имени в постороннем файле: локальная переменная
@@ -1315,7 +1346,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         duplicates = [item for item in declarations
                       if item.get("kind") == kind and item.get("name") == old_name]
         if len(duplicates) != 1:
-            raise RenameError("class_name неоднозначен: найдено объявлений %d" % len(duplicates))
+            raise LocatorError("class_name неоднозначен: найдено объявлений %d" % len(duplicates))
     else:
         # Проверяем вид объявления в терминах парсера: публичный "const"
         # разбирается как "constant" (иначе поиск не нашёл бы ничего).
@@ -1334,7 +1365,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                       and (declaration.get("owner") == "script"
                            or item.get("owner") == declaration.get("owner"))]
         if len(duplicates) != 1:
-            raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
+            raise LocatorError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
 
     edits_by_path = {target_path: [(declaration["start"], declaration["end"])]}
     # Объявления-override в подклассах — такие же носители имени, как и сам
@@ -1414,7 +1445,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                     "%s:%s — %s(\"%s\"); проверьте вручную"
                     % (path, fact.get("line"), reason, old_name))
     if ambiguities and mode == "strict":
-        raise RenameError("Есть неоднозначные ссылки; переименование остановлено: %s"
+        raise UnsafeRenameError("Есть неоднозначные ссылки; переименование остановлено: %s"
                           % ", ".join(ambiguities[:8]))
     if ambiguities:
         # probable: пользователь осознанно принял риск. Ссылки не трогаем —
@@ -1548,7 +1579,7 @@ def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None)
     """Apply all files or restore every replaced file on a caught failure."""
     files = prepared.get("files") or []
     if not files:
-        raise RenameError("Подготовленная транзакция не содержит файлов")
+        raise UnsafeRenameError("Подготовленная транзакция не содержит файлов")
     with _project_lock(project_root):
         for item in files:
             with open(item["absolute"], "rb") as handle:

@@ -1326,9 +1326,20 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_refactor"] = None
-            followup = ("[Система]: rename_symbol отклонён безопасным локальным анализом: %s. "
-                        "Не заменяй имя слепыми patch_file; исправь locator/имя или объясни "
-                        "пользователю найденную неоднозначность." % exc)
+            # Код отказа (Этап 4.4) подсказывает модели, что делать дальше:
+            # починить locator, выбрать другое имя или сменить подход.
+            hint = {
+                "locator": "Уточни declaration: возьми точную строку объявления "
+                           "из gather_context или read_function (или сначала "
+                           "вызови find_symbol_usages).",
+                "unsafe": "Переименование опасно: выбери другое новое имя либо "
+                          "исправь конфликт вручную. Частичное применение "
+                          "возможно с mode=probable, но проверь отчёт о рисках.",
+                "unsupported": "Этот случай не поддерживается: выбери другой вид "
+                               "символа или переименуй вручную.",
+            }.get(getattr(exc, "code", ""), "Уточни параметры и попробуй снова.")
+            followup = ("[Система]: rename_symbol отклонён (%s): %s. %s"
+                        % (getattr(exc, "code", "error"), exc, hint))
             if not allow_followup or depth >= 2:
                 return jsonify({"answer": (text + "\n\n" + followup).strip(),
                                 "pending_action": None})
