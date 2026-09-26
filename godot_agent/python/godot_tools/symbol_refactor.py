@@ -33,13 +33,65 @@ _DECL_KINDS = {"class_name", "class", "function", "signal", "variable",
 
 
 def _owner_is_top_level(owner, declarations):
-    """Owner принадлежит верхнему уровню скрипта (он сам скрипт или enum в нём)."""
-    if owner == "script":
-        return True
-    for item in declarations:
-        if item.get("id") == owner:
-            return item.get("owner") == "script"
+    """Owner принадлежит верхнему уровню скрипта.
+
+    Цепочка поднимается до самого скрипта, поэтому вложенный класс внутри
+    вложенного (class Deep внутри class Outer) тоже считается верхним
+    уровнем — его имя стабильно и переименовываемо текстом.
+    """
+    by_id = {item.get("id"): item for item in declarations}
+    current = owner
+    seen = set()
+    while current and current != "script" and current not in seen:
+        seen.add(current)
+        declaration = by_id.get(current)
+        if not declaration:
+            return False
+        if declaration.get("kind") not in ("class", "function", "enum"):
+            return False
+        current = declaration.get("owner")
+    return current == "script"
+
+
+def _owner_within(owner, root, declarations):
+    """Владелец ссылки находится внутри root (сам root — это объявление класса).
+
+    Нужно, чтобы переименование члена вложенного класса трогало только его
+    собственные ссылки: одноимённый член ВНЕШНЕГО скрипта — другая
+    сущность, и её переименование сломало бы внешний код.
+    """
+    if root is None:
+        return owner == "script"
+    current = owner
+    for _ in range(64):
+        if current == root:
+            return True
+        parent = next((item.get("owner") for item in declarations
+                       if item.get("id") == current), None)
+        if parent is None or parent == current:
+            return False
+        current = parent
     return False
+
+
+def _owner_is_script_scope(declaration, declarations):
+    """Объявление принадлежит самому скрипту, а не вложенному классу."""
+    return declaration.get("owner") == "script"
+
+
+def _reference_in_other_scope(fact, declaration, kind, declarations):
+    """Ссылка принадлежит scope, отличному от scope нашего объявления.
+
+    Вложенный класс в Godot НЕ наследует внешний скрипт, поэтому член с тем
+    же именем во вложенном классе (или снаружи, если мы переименовываем
+    член вложенного) — другая сущность, а не ссылка на наш символ.
+    """
+    if kind not in ("function", "signal", "variable", "const", "enum"):
+        return False
+    owner = declaration.get("owner")
+    if owner == "script":
+        return not _owner_belongs_to_script(fact.get("owner"), declarations)
+    return not _owner_within(fact.get("owner"), owner, declarations)
 
 
 def _decl_kind(kind):
@@ -183,6 +235,25 @@ def _typed_receivers(text):
                     cursor += 2
             cursor += 1
     return result
+
+
+def _owner_in_script(owner, declarations):
+    """Ссылка принадлежит этому же скрипту, включая вложенные классы.
+
+    Отличается от _owner_belongs_to_script, который намеренно обрывается на
+    вложенном классе: он был нужен, когда переименование членов вложенных
+    классов вообще не поддерживалось.
+    """
+    by_id = {item.get("id"): item for item in declarations}
+    current = owner
+    seen = set()
+    while current and current != "script" and current not in seen:
+        seen.add(current)
+        declaration = by_id.get(current)
+        if not declaration:
+            return False
+        current = declaration.get("owner")
+    return current == "script"
 
 
 def _exact_string_value(raw):
@@ -563,14 +634,30 @@ def _collect_scene_connection_edits(project_root, affected_scripts, kind,
 def _reference_is_safe(kind, fact, text, tokens, target_path, path,
                        target_class, typed, declarations, target_static=False,
                        subclasses=None, all_target_classes=None,
-                       target_enum_name=None):
+                       target_enum_name=None, root_owner=None,
+                       root_declarations=None):
     prev2, prev, nxt = _token_neighbors(tokens, fact.get("start"))
     prev_value = prev.get("value") if prev else None
     prev2_value = prev2.get("value") if prev2 else None
     next_value = nxt.get("value") if nxt else None
 
     shadowed = _owner_shadows_name(fact.get("owner"), fact.get("name"), declarations)
-    in_script = _owner_belongs_to_script(fact.get("owner"), declarations)
+    # Принадлежность скрипту считаем с учётом вложенных классов: их члены
+    # переименовываются (Этап 3.3), значит и ссылки внутри них — наши.
+    in_script = _owner_in_script(fact.get("owner"), declarations)
+    # Переименование члена вложенного класса затрагивает ТОЛЬКО ссылки,
+    # принадлежащие этому классу: одноимённый член внешнего скрипта — другая
+    # сущность, и трогать его нельзя.
+    in_root = _owner_within(fact.get("owner"), root_owner, root_declarations or [])
+    if kind in ("function", "signal") and root_owner is not None:
+        # Член САМОГО скрипта: ссылка должна быть в scope скрипта, а не внутри
+        # вложенного класса — вложенный класс не наследует внешний скрипт.
+        # Член вложенного класса: наоборот, только ссылки ВНУТРИ него.
+        if root_owner == "script":
+            if not _owner_belongs_to_script(fact.get("owner"), declarations):
+                return False
+        elif not in_root:
+            return False
     if kind == "class_name":
         return fact.get("context") == "type" or (next_value == "." and not shadowed)
 
@@ -840,6 +927,12 @@ def _assert_hierarchy_renamed(kind, old_name, new_name, hierarchy_paths,
             continue
         if kind == "enum_member" and item.get("owner") != owner:
             continue
+        # Член вложенного класса (owner передан и это не "script"):
+        # одноимённый член внешнего скрипта — другая сущность, и его
+        # нетронутость не означает потерю полиморфизма.
+        if (kind in ("function", "signal") and owner is not None
+                and owner != "script" and item.get("owner") == "script"):
+            continue
         key = (item.get("path"), item.get("start"), item.get("end"))
         if key not in covered:
             raise RenameError(
@@ -930,7 +1023,14 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                ", ".join(available[:12]) or "нет"))
     declaration = candidates[0]
     if kind in ("function", "signal") and declaration.get("owner") != "script":
-        raise RenameError("Переименование членов вложенных классов пока не поддерживается безопасно")
+        # Член вложенного класса допустим, но только если сам класс вложен
+        # на верхнем уровне скрипта. Класс, объявленный внутри функции, —
+        # локальная сущность времени выполнения, её имя нельзя переименовать
+        # безопасным текстовым способом.
+        if not _owner_is_top_level(declaration.get("owner"), declarations):
+            raise RenameError(
+                "Члены вложенных классов переименовываются только для классов "
+                "верхнего уровня скрипта")
     if kind == "variable" and declaration.get("owner") != "script":
         raise RenameError("Переименование локальных переменных внутри функций пока не поддерживается безопасно")
     if kind in ("const", "enum") and declaration.get("owner") != "script":
@@ -1032,6 +1132,11 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                       # пространства имён: IDLE в State и IDLE в Mode
                       # не должны считаться одним и тем же объявлением.
                       and (kind != "enum_member"
+                           or item.get("owner") == declaration.get("owner"))
+                      # Член вложенного класса ищется ТОЛЬКО внутри него:
+                      # одноимённый метод внешнего скрипта — другая
+                      # сущность, и её переименование было бы поломкой.
+                      and (declaration.get("owner") == "script"
                            or item.get("owner") == declaration.get("owner"))]
         if len(duplicates) != 1:
             raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
@@ -1074,8 +1179,22 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                                   bool(declaration.get("static")),
                                   subclasses=subclasses,
                                   all_target_classes=all_target_classes,
-                                  target_enum_name=target_enum_name):
+                                  target_enum_name=target_enum_name,
+                                  root_owner=declaration.get("owner"),
+                                  root_declarations=declarations):
                 edits_by_path.setdefault(path, []).append((fact["start"], fact["end"]))
+            elif (declaration.get("owner") != "script" and kind in ("function", "signal")
+                  and not _owner_within(fact.get("owner"), declaration.get("owner"),
+                                         declarations)):
+                # Ссылка доказанно принадлежит НЕ нашему вложенному классу
+                # (например, одноимённый метод внешнего скрипта). Это не
+                # неоднозначность, а другая сущность — молча пропускаем.
+                continue
+            elif _reference_in_other_scope(fact, declaration, kind, declarations):
+                # Ссылка живёт в scope, который НЕ является scope нашего
+                # объявления: вложенный класс не наследует внешний скрипт,
+                # поэтому одноимённый член снаружи — другая сущность.
+                continue
             elif kind in ("variable", "const", "enum", "enum_member") and fact.get("context") != "member" and _owner_shadows_name(
                     fact.get("owner"), fact.get("name"), entry["semantic"].get("declarations", [])):
                 # Локальная тень: локальная переменная/константа с тем же
@@ -1164,10 +1283,15 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         files.extend(scene_edits)
     # Связи сцен — такой же носитель имени, как и код: без их обновления
     # Godot теряет подключение молча, а операция рапортует «успешно».
-    connection_edits = _collect_scene_connection_edits(
-        project_root, {target_path} | subclasses, kind, old_name, new_name,
-        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
-        addon_dir=addon_dir)
+    # Члены вложенных классов сюда не попадают: Inner недоступен узлам сцены,
+    # поэтому method такой связи к нашему символу отношения не имеет.
+    if not _owner_is_script_scope(declaration, declarations):
+        connection_edits = []
+    else:
+        connection_edits = _collect_scene_connection_edits(
+            project_root, {target_path} | subclasses, kind, old_name, new_name,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
     files.extend(connection_edits)
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,

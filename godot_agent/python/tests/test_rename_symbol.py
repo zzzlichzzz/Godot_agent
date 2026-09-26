@@ -144,7 +144,7 @@ func run(target):
         shutil.rmtree(root, ignore_errors=True)
 
 
-def test_unqualified_call_in_nested_class_is_blocking():
+def test_unqualified_call_in_nested_class_is_not_ours():
     root = _project()
     try:
         _write(root, "src/player.gd", _read(root, "src/player.gd") + '''
@@ -153,11 +153,13 @@ class Replay:
 \t\ttake_damage(1)
 ''')
         ml_project_index.build_index(root)
-        try:
-            symbol_refactor.prepare_rename(root, _action())
-            assert False, "a nested-class call must not be bound to the outer script"
-        except symbol_refactor.RenameError as exc:
-            assert "неоднознач" in str(exc)
+        # Вложенный класс НЕ наследует внешний скрипт, поэтому take_damage
+        # внутри Replay — не наш метод. Раньше такая ссылка блокировала всё
+        # переименование; теперь она доказанно чужая и молча пропускается.
+        prepared = symbol_refactor.prepare_rename(root, _action())
+        symbol_refactor.apply_prepared_rename(root, prepared)
+        assert "apply_damage" in _read(root, "src/player.gd")
+        assert "\t\ttake_damage(1)" in _read(root, "src/player.gd")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

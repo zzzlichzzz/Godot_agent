@@ -163,6 +163,9 @@ func _on_died() -> void:
         self.assertIn("func _on_died", self._read("src/other.gd"))
 
     # --- Аудит 1.2: вложенный class как цель связи не трогается ---
+    # С Этапом 3.3 члены вложенных классов переименовываются, но Inner
+    # недоступен из сцены, поэтому связь сцены остаётся нетронутой: её
+    # method не имеет отношения к методу Inner.
     def test_connection_to_nested_class_script_is_untouched(self):
         self._write("src/nested.gd", """extends Node
 
@@ -177,11 +180,13 @@ class Inner:
             '[node name="Holder" type="Node"]\n'
             'script = ExtResource("1_n")\n\n'
             '[connection signal="died" from="." to="." method="_on_died"]\n'))
-        with self.assertRaises(symbol_refactor.RenameError):
-            symbol_refactor.prepare_rename(self.root, {
-                "action": "rename_symbol", "kind": "function",
-                "declaration": "res://src/nested.gd:4",
-                "old_name": "_on_died", "new_name": "_on_was_destroyed"})
+        prepared = symbol_refactor.prepare_rename(self.root, {
+            "action": "rename_symbol", "kind": "function",
+            "declaration": "res://src/nested.gd:4",
+            "old_name": "_on_died", "new_name": "_on_was_destroyed"})
+        self.assertNotIn("res://scenes/main.tscn", [f["path"] for f in prepared["files"]])
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        self.assertIn('method="_on_died"', self._read("scenes/main.tscn"))
     # --- Аудит 1.2: CRLF и BOM сохраняются, отступы связей не ломаются ---
     def test_crlf_and_bom_are_preserved(self):
         path = os.path.join(self.root, "scenes", "main.tscn")
