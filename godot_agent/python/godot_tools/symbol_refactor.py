@@ -1033,6 +1033,138 @@ def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
     return snapshot
 
 
+_USAGE_KINDS = {"class_name", "function", "signal", "variable", "const",
+                "enum", "enum_member"}
+
+
+def _usage_query(action):
+    """Разбор запроса поиска: нового имени может не быть (нужен только поиск)."""
+    if not isinstance(action, dict):
+        raise RenameError("find_symbol_usages должен быть объектом")
+    kind = str(action.get("kind") or "").strip()
+    old_name = str(action.get("old_name") or "").strip()
+    if kind not in _USAGE_KINDS:
+        raise RenameError("kind должен быть %s" % ", ".join(sorted(_USAGE_KINDS)))
+    if not _IDENTIFIER.match(old_name) or old_name in _KEYWORDS:
+        raise RenameError("old_name не является допустимым идентификатором GDScript")
+    new_name = str(action.get("new_name") or "").strip()
+    if new_name and (not _IDENTIFIER.match(new_name) or new_name in _KEYWORDS):
+        raise RenameError("new_name не является допустимым идентификатором GDScript")
+    path, line, column = _parse_locator(action.get("declaration"))
+    return kind, old_name, new_name, path, line, column
+
+
+def _locate_declaration(declarations, kind, old_name, path, line, column):
+    """Единственное объявление по locator'у или внятная ошибка со списком имён."""
+    candidates = [item for item in declarations
+                  if item.get("path") == path and item.get("line") == line
+                  and item.get("kind") == _decl_kind(kind)
+                  and item.get("name") == old_name
+                  and (column is None or item.get("column") == column)]
+    if len(candidates) == 1:
+        return candidates[0]
+    available = sorted({item.get("name") for item in declarations
+                        if item.get("path") == path
+                        and item.get("kind") in _DECL_KINDS
+                        and item.get("name")})
+    raise RenameError(
+        "В %s:%d нет объявления вида %s с именем %s. Объявления этого "
+        "скрипта: %s. Возьми точную строку объявления из gather_context "
+        "или read_function."
+        % (path, line, kind, old_name, ", ".join(available[:12]) or "нет"))
+
+
+def _load_snapshot(project_root, allow_addons, allow_self_edit, addon_dir):
+    snapshot = _add_allowed_addon_semantics(
+        ml_project_index.semantic_snapshot(project_root, refresh=True),
+        project_root, allow_addons, allow_self_edit, addon_dir)
+    declarations = []
+    for entry in snapshot.get("files", []):
+        path = "res://" + entry["path"]
+        for item in entry["semantic"].get("declarations", []):
+            declarations.append(dict(item, path=path, sha256=entry.get("sha256")))
+    return snapshot, declarations
+
+
+def find_references(project_root, action, allow_addons=False, addon_dir=None,
+                   allow_self_edit=False):
+    """Read-only: список мест использования символа. Ничего не пишет.
+
+    Отдельный шаг нужен модели, чтобы не угадывать locator для rename_symbol:
+    один проход отдаёт места с координатами, типом связи и уровнем
+    уверенности (proven — доказано, probable — вероятно, dynamic — по строке).
+    """
+    kind, old_name, new_name, target_path, line, column = _usage_query(action)
+    _resolve_safe_path(project_root, target_path)
+    snapshot, declarations = _load_snapshot(
+        project_root, allow_addons, allow_self_edit, addon_dir)
+    declaration = _locate_declaration(
+        declarations, kind, old_name, target_path, line, column)
+    target_entry = next(entry for entry in snapshot["files"]
+                        if "res://" + entry["path"] == target_path)
+    target_class = _class_name_for_file(target_entry["semantic"])
+    subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+    all_target_classes = {target_class} if target_class else set()
+    for sub in subclasses:
+        sub_entry = next((e for e in snapshot["files"]
+                          if "res://" + e["path"] == sub), None)
+        if sub_entry:
+            sub_class = _class_name_for_file(sub_entry["semantic"])
+            if sub_class:
+                all_target_classes.add(sub_class)
+    usages = [{"path": declaration["path"], "line": declaration.get("line"),
+               "column": declaration.get("column") or 1,
+               "link": "declaration", "confidence": "proven"}]
+    for entry in snapshot.get("files", []):
+        path = "res://" + entry["path"]
+        try:
+            with open(_resolve_safe_path(project_root, path), "rb") as handle:
+                text = handle.read().decode("utf-8-sig")
+        except Exception:
+            continue
+        tokens = gd_semantic_parser.tokenize(text)
+        typed = {item.get("name"): item.get("type")
+                 for item in entry["semantic"].get("declarations", [])
+                 if item.get("type")}
+        for fact in entry["semantic"].get("references", []):
+            if fact.get("name") != old_name:
+                continue
+            if _reference_in_other_scope(fact, declaration, kind, declarations):
+                continue
+            safe = _reference_is_safe(
+                kind, fact, text, tokens, target_path, path, target_class,
+                typed, declarations, subclasses=subclasses,
+                all_target_classes=all_target_classes,
+                root_owner=declaration.get("owner"),
+                root_declarations=declarations)
+            usages.append({
+                "path": path, "line": fact.get("line"),
+                "column": fact.get("column") or 1,
+                "link": fact.get("context") or "identifier",
+                "confidence": "proven" if safe else "probable"})
+        for fact in entry["semantic"].get("strings", []):
+            if _exact_string_value(str(fact.get("value") or "")) != old_name:
+                continue
+            reason = _classify_string_reference(
+                text, tokens, fact.get("start"), fact.get("end"))
+            if reason:
+                usages.append({
+                    "path": path, "line": fact.get("line"),
+                    "column": fact.get("column") or 1, "link": "string",
+                    "confidence": "dynamic", "note": reason})
+    usages.sort(key=lambda item: (item["path"], item["line"], item["column"]))
+    by_link = {}
+    for place in usages:
+        by_link[place["link"]] = by_link.get(place["link"], 0) + 1
+    return {"action": "find_symbol_usages", "kind": kind,
+            "old_name": old_name, "new_name": new_name,
+            "declaration": action.get("declaration"),
+            "usages": usages, "by_link": by_link,
+            "proven_count": sum(1 for i in usages if i["confidence"] == "proven"),
+            "probable_count": sum(1 for i in usages if i["confidence"] == "probable"),
+            "dynamic_count": sum(1 for i in usages if i["confidence"] == "dynamic")}
+
+
 def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                    allow_self_edit=False):
     """Build a private all-file transaction without writing project files."""

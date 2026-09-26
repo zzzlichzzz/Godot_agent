@@ -515,6 +515,22 @@ def _reply_once(prompt):
     return text, action
 
 
+def _format_usages(result):
+    """Человекочитаемый список мест использования для модели."""
+    lines = ["[Система]: использования %s (kind=%s): доказано %d, вероятно %d, "
+             "динамика %d."
+             % (result["old_name"], result["kind"], result["proven_count"],
+                result["probable_count"], result["dynamic_count"])]
+    for place in result["usages"][:200]:
+        note = (" — %s" % place["note"]) if place.get("note") else ""
+        lines.append("%s:%s:%s [%s, %s]%s"
+                     % (place["path"], place["line"], place["column"],
+                        place["link"], place["confidence"], note))
+    if len(result["usages"]) > 200:
+        lines.append("… ещё %d мест" % (len(result["usages"]) - 200))
+    return "\n".join(lines)
+
+
 def _describe_action(action):
     if not action:
         return None
@@ -3034,6 +3050,21 @@ def confirm_action():
                 results, truncated = search_project_text(
                     project_root, query, **_access_kwargs())
                 followup = _format_search_results(query, results, truncated)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "find_symbol_usages":
+            # Отдельный read-only шаг: список мест использования. Модели он
+            # нужен, чтобы не угадывать locator для rename_symbol. Ничего
+            # не пишем и подтверждения не просим — это разведка.
+            STATE["pending_action"] = None
+            try:
+                result = symbol_refactor.find_references(
+                    project_root, action, **_access_kwargs())
+            except Exception as exc:
+                followup = ("[Система]: find_symbol_usages не выполнен: %s" % exc)
+            else:
+                followup = _format_usages(result)
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 
