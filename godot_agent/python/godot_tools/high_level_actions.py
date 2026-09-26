@@ -108,11 +108,17 @@ def _compile_autoload(command, summary):
 
 
 def _compile_rename(command, _summary):
-    _exact_fields(command, ("type", "kind", "declaration", "old_name", "new_name"))
-    return {"action": "rename_symbol", "kind": _text(command["kind"], "kind", 40),
-            "declaration": _text(command["declaration"], "declaration", 600),
-            "old_name": _text(command["old_name"], "old_name", 160),
-            "new_name": _text(command["new_name"], "new_name", 160)}
+    _exact_fields(command, ("type", "kind", "declaration", "old_name", "new_name"),
+                  ("mode",))
+    result = {"action": "rename_symbol", "kind": _text(command["kind"], "kind", 40),
+              "declaration": _text(command["declaration"], "declaration", 600),
+              "old_name": _text(command["old_name"], "old_name", 160),
+              "new_name": _text(command["new_name"], "new_name", 160)}
+    if "mode" in command:
+        # mode выбирает гранулярность отказа (strict по умолчанию,
+        # probable снимает блокировку с непроверенных ссылок).
+        result["mode"] = _text(command["mode"], "mode", 20)
+    return result
 
 
 def _compile_atomic_files(command, summary):

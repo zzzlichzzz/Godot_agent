@@ -546,9 +546,23 @@ def _describe_action(action):
         return "Агент хочет локально проверить сцену %s (%d шагов)" % (
             action.get("scene", ""), len(action.get("steps") or []))
     if act == "rename_symbol":
-        return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
+        text = "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
             int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
+        # Риск обязан быть виден В ТЕКСТЕ ПОДТВЕРЖДЕНИЯ, а не только в json:
+        # иначе пользователь нажимает «да», не заметив непроверенных ссылок.
+        risks = []
+        unverified = action.get("unverified_references") or []
+        dynamic = action.get("dynamic_references") or []
+        if unverified:
+            risks.append("%d непроверенных ссылок (проверьте вручную)" % len(unverified))
+        if dynamic:
+            risks.append("%d динамических ссылок по строке" % len(dynamic))
+        if action.get("warnings"):
+            risks.append("%d предупреждений" % len(action["warnings"]))
+        if action.get("mode") == "probable":
+            risks.append("режим probable: непроверенные ссылки не блокируют")
+        return text + (("; ВНИМАНИЕ: " + ", ".join(risks)) if risks else "")
     if act == "rename_file":
         return "Агент хочет безопасно переименовать файл %s в %s (%d обновлений ссылок)" % (
             action.get("path", ""), action.get("dest", ""), int(action.get("reference_count") or 0))

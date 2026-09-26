@@ -19,6 +19,12 @@ from project_tools import (_resolve_safe_path, build_diff_preview,
 
 
 KINDS = {"class_name", "function", "signal", "variable"}
+# Режимы гранулярности отказа (Этап 2.4). strict — поведение по умолчанию,
+# полностью консервативное. probable сознательно снимает блокировку с
+# НЕПРОВЕРЕННЫХ ссылок, но оставляет все жёсткие проверки на месте.
+# Уровень dynamic — это не режим, а класс находок: ссылки, найденные
+# только по строке, попадают в отчёт при любом режиме.
+MODES = ("strict", "probable")
 _IDENTIFIER = re.compile(r"^[^\W\d]\w*$", re.U)
 _KEYWORDS = {
     "and", "as", "assert", "await", "break", "breakpoint", "class",
@@ -92,7 +98,12 @@ def _validate_action(action):
     if old_name == new_name:
         raise RenameError("Новое имя совпадает со старым")
     path, line, column = _parse_locator(action.get("declaration"))
-    return kind, old_name, new_name, path, line, column
+    # Режим отказа: strict по умолчанию. Неизвестное значение молчать не
+    # должно — иначе опечатка в действии незаметно ослабит проверки.
+    mode = str(action.get("mode") or "strict").strip().lower()
+    if mode not in MODES:
+        raise RenameError("mode должен быть %s" % " или ".join(MODES))
+    return kind, old_name, new_name, path, line, column, mode
 
 
 def _token_neighbors(tokens, start):
@@ -829,7 +840,7 @@ def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
 def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                    allow_self_edit=False):
     """Build a private all-file transaction without writing project files."""
-    kind, old_name, new_name, target_path, line, column = _validate_action(action)
+    kind, old_name, new_name, target_path, line, column, mode = _validate_action(action)
     if not can_write_project_path(
             target_path, project_root, allow_addons=allow_addons,
             allow_self_edit=allow_self_edit, addon_dir=addon_dir):
@@ -956,6 +967,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
 
     ambiguities = []
     dynamic_references = []
+    unverified_references = []
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]
@@ -998,9 +1010,16 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                 dynamic_references.append(
                     "%s:%s — %s(\"%s\"); проверьте вручную"
                     % (path, fact.get("line"), reason, old_name))
-    if ambiguities:
+    if ambiguities and mode == "strict":
         raise RenameError("Есть неоднозначные ссылки; переименование остановлено: %s"
                           % ", ".join(ambiguities[:8]))
+    if ambiguities:
+        # probable: пользователь осознанно принял риск. Ссылки не трогаем —
+        # мы их не доказали, — но каждую показываем до записи, иначе риск
+        # останется незамеченным и «успешное» переименование уедет молча.
+        unverified_references = [
+            "%s — ссылка не доказана, переименование её не выполнено" % item
+            for item in ambiguities]
     # Ссылочная правка могла пройти, а объявление-override — нет; проверяем
     # итог по всему плану, а не по одному пути.
     _assert_hierarchy_renamed(
@@ -1067,6 +1086,8 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         # видны пользователю ДО записи — иначе риск остаётся незамеченным.
         "dynamic_references": dynamic_references,
         "warnings": warnings,
+        "unverified_references": unverified_references,
+        "mode": mode,
         "reference_count": sum(item["occurrences"] for item in files) - 1,
     }
 
@@ -1080,6 +1101,8 @@ def public_prepared(prepared):
         "reference_count": prepared["reference_count"],
         "dynamic_references": list(prepared.get("dynamic_references") or []),
         "warnings": list(prepared.get("warnings") or []),
+        "unverified_references": list(prepared.get("unverified_references") or []),
+        "mode": prepared.get("mode", "strict"),
     }
 
 
