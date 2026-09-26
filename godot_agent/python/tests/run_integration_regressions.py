@@ -8,7 +8,7 @@ import sys
 
 SUITES = """
 test_editor_context test_gather_context test_semantic_index
-test_rename_symbol test_rename_symbol_overrides test_rename_symbol_flow test_rename_scene_connections test_rename_scene_instances test_rename_name_collisions test_file_refactor test_file_refactor_flow test_node_refactor test_node_refactor_flow test_client_refactor_flow test_scene_actions test_scene_action_flow
+test_rename_symbol test_rename_symbol_overrides test_rename_symbol_flow test_rename_scene_connections test_rename_scene_instances test_rename_name_collisions test_rename_typed_collections test_rename_string_guard test_rename_shadowing test_rename_refusal_levels test_file_refactor test_file_refactor_flow test_node_refactor test_node_refactor_flow test_client_refactor_flow test_scene_actions test_scene_action_flow
 test_project_settings_actions test_project_settings_flow test_godot_headless_validation
 test_transaction_actions test_transaction_flow test_high_level_actions test_high_level_flow
 test_resource_actions test_resource_action_flow test_runtime_debug test_runtime_debug_flow
@@ -27,7 +27,7 @@ test_browser_send_acceptance test_aistudio_send_acceptance
 test_browser_target_binding test_v88_11_live_input test_v105_spoof_per_site
 test_v88_16_paste_fix test_v88_12_net_confirm test_v88_7_input_wait
 test_v88_8_net_first test_rate_limit_sleep test_v87_1_kimi_cdp
-test_v88_0_aistudio test_v105_net_answer_ready test_arena_parser test_v88_13_multi_action test_updater test_variable_refactor test_asset_refactor
+test_v88_0_aistudio test_v105_net_answer_ready test_arena_parser test_v88_13_multi_action test_updater test_release_prepare test_variable_refactor test_asset_refactor
 """.split()
 
 
@@ -40,7 +40,8 @@ def main():
     suites = list(SUITES)
     live = ["test_godot_live", "test_godot_executor_live", "test_runtime_ownership_live",
             "test_headless_validator_live", "test_file_refactor_live", "test_node_refactor_live",
-            "test_updater_live", "test_variable_refactor_live", "test_asset_refactor_live"]
+            "test_updater_live", "test_updater_bbcode_live", "test_variable_refactor_live",
+            "test_asset_refactor_live"]
     if args.godot:
         suites.extend(live)
     failures = []
