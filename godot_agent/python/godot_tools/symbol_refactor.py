@@ -571,21 +571,56 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
 
 
 def _collision(declarations, declaration, kind, new_name, subclasses=None):
+    """Ищем объявление, которое РЕАЛЬНО конфликтует с новым именем.
+
+    Для class_name важно различать два разных случая, которые раньше
+    отваливались в один:
+      * затенение — новым именем занят сам скрипт объявления или его подкласс;
+        такое переименование сломало бы пространство имён, и это отказ;
+      * простое совпадение — такое же имя живёт в ПОСТОРОННЕМ файле
+        (чужой локальный var/const). Это не конфликт: имя локально, и наш
+        переименованный символ оно не задевает. Такие случаи возвращаются
+        отдельно, как предупреждения, а не как отказ.
+    """
     affected_paths = {declaration.get("path")}
     if subclasses:
         affected_paths.update(subclasses)
+    clashed = None
     for item in declarations:
         if item.get("name") != new_name:
             continue
         if kind == "class_name":
-            return item
+            # Глобальное имя класса: конфликт — только второй class_name
+            # проекта либо затенение членами самого скрипта.
+            if item.get("kind") == "class_name":
+                return item
+            if item.get("path") in affected_paths:
+                return item
+            clashed = clashed or item
+            continue
         if kind == "variable":
             if item.get("path") in affected_paths and item.get("owner") == declaration.get("owner"):
                 return item
         elif (item.get("path") == declaration.get("path")
               and item.get("owner") == declaration.get("owner")):
             return item
-    return None
+    return clashed
+
+
+def _is_real_conflict(collided, declaration, kind, subclasses=None):
+    """Отличаем затенение нашего символа от простого совпадения имени.
+
+    Затенение — это когда новое имя займёт пространство, в котором уже
+    что-то объявлено: наш скрипт, его подклассы (там перекрывается и
+    глобальное имя класса) либо тот же файл для членов. Всё остальное —
+    простое совпадение в постороннем файле.
+    """
+    if collided.get("kind") == "class_name":
+        return True
+    if kind in ("variable", "class_name"):
+        affected = {declaration.get("path")} | set(subclasses or ())
+        return collided.get("path") in affected
+    return collided.get("path") == declaration.get("path")
 
 
 def _project_global_names(project_root):
@@ -838,8 +873,12 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     # Раньше subclasses строились только при kind == "variable": вызовы в
     # подклассах обновлялись, а сами объявления-override оставались со старым
     # именем — проект получал вызов несуществующего метода при рапорте «успешно».
-    if kind in ("function", "signal", "variable"):
-        subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+    # Для class_name иерархия нужна по другой причине: объявление с тем же
+    # именем в наследнике перекрывает ГЛОБАЛЬНОЕ имя класса, и это затенение
+    # ломает код наследника — такой случай обязан быть отказом, а не «просто
+    # совпадением имени в чужом файле».
+    subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+    if kind in ("function", "signal", "variable", "class_name"):
         for sc in subclasses:
             sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
             if sc_entry:
@@ -876,9 +915,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                           % new_name)
 
     collided = _collision(declarations, declaration, kind, new_name, subclasses=subclasses)
-    if collided:
+    warnings = []
+    if collided and _is_real_conflict(collided, declaration, kind, subclasses):
         raise RenameError("Новое имя уже объявлено в том же пространстве: %s:%s"
                           % (collided.get("path"), collided.get("line")))
+    if collided:
+        # Простое совпадение имени в постороннем файле: локальная переменная
+        # или константа чужого скрипта наш символ не задевает. Молчать было бы
+        # плохо, отказывать — тем более, поэтому это видимое предупреждение.
+        warnings.append(
+            "В %s:%s уже есть объявление %s (%s) — имена совпадают, но это "
+            "локальное имя чужого скрипта, переименование его не ломает"
+            % (collided.get("path"), collided.get("line"), new_name,
+               collided.get("kind")))
     if kind == "class_name":
         duplicates = [item for item in declarations
                       if item.get("kind") == kind and item.get("name") == old_name]
@@ -1017,6 +1066,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         # Динамические ссылки не блокируют переименование, но обязаны быть
         # видны пользователю ДО записи — иначе риск остаётся незамеченным.
         "dynamic_references": dynamic_references,
+        "warnings": warnings,
         "reference_count": sum(item["occurrences"] for item in files) - 1,
     }
 
@@ -1029,6 +1079,7 @@ def public_prepared(prepared):
         "file_count": len(prepared["files"]),
         "reference_count": prepared["reference_count"],
         "dynamic_references": list(prepared.get("dynamic_references") or []),
+        "warnings": list(prepared.get("warnings") or []),
     }
 
 
