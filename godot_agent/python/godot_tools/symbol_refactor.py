@@ -11,6 +11,7 @@ import gd_api_check
 import gd_lint
 import gd_semantic_parser
 import history_manager
+import scene_deps
 from minilich import ml_project_index
 from project_tools import (_resolve_safe_path, build_diff_preview,
                            can_write_project_path)
@@ -337,6 +338,108 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
                 })
 
     return scene_edits
+
+
+_CONN_HEADER_RE = re.compile(r'^\[connection\s+([^\]]*)\]$')
+_CONN_FIELD_RE = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _connection_replacement(text, script_ids, node_paths, kind, old_name, new_name):
+    """Переименовывает signal= и method= в [connection], где оба конца известны.
+
+    Отвечаем ТОЛЬКО за те связи, у которых и источник, и приёмник — узлы с
+    нужным нам скриптом (script_ids из ext_resource, node_paths — пути этих
+    узлов). Если method указывает на метод другого узла — этот узел не несёт
+    наш скрипт, и такой текст не трогаем: иначе мы бы сломали чужой обработчик.
+    """
+    if not script_ids:
+        return text, 0
+    changes = 0
+    # Разбиваем по сохраняемым переводам строк: .tscn в Windows-проектах
+    # часто лежит в CRLF, и нормализация в LF переписывала бы весь файл
+    # целиком (Godot такой diff не покажет, а линтер и git увидят).
+    eol = "\r\n" if "\r\n" in text else "\n"
+    lines = text.split(eol)
+    for index, line in enumerate(lines):
+        match = _CONN_HEADER_RE.match(line.strip())
+        if not match:
+            continue
+        attrs = dict(_CONN_FIELD_RE.findall(match.group(1)))
+        source = attrs.get("from", "")
+        target = attrs.get("to", "")
+        if source not in node_paths or target not in node_paths:
+            continue
+        field = "signal" if kind == "signal" else "method"
+        if attrs.get(field) != old_name:
+            continue
+        new_header = _CONN_HEADER_RE.sub(
+            lambda m: m.group(0).replace('%s="%s"' % (field, old_name),
+                                       '%s="%s"' % (field, new_name)),
+            line.strip(), count=1)
+        lines[index] = line.replace(line.strip(), new_header)
+        changes += 1
+    return eol.join(lines), changes
+
+
+def _collect_scene_connection_edits(project_root, affected_scripts, kind,
+                                    old_name, new_name, allow_addons=False,
+                                    allow_self_edit=False, addon_dir=None):
+    """Собирает правки [connection] для сцен, чьи узлы несут нужный скрипт."""
+    edits = []
+    if kind not in ("signal", "function") or not affected_scripts:
+        return edits
+    wanted = set(affected_scripts)
+    for root, dirs, files in os.walk(project_root):
+        if not allow_addons and ("addons" in dirs):
+            dirs.remove("addons")
+        for d in list(dirs):
+            if d in {".git", ".godot", ".import", ".agent_history",
+                     "__pycache__", "build", "dist"}:
+                dirs.remove(d)
+        for name in files:
+            if not name.lower().endswith(".tscn"):
+                continue
+            abs_path = os.path.join(root, name)
+            rel_path = "res://" + os.path.relpath(
+                abs_path, project_root).replace("\\", "/")
+            if not can_write_project_path(
+                    rel_path, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                continue
+            try:
+                with open(abs_path, "rb") as handle:
+                    raw = handle.read()
+                text = raw.decode("utf-8-sig")
+            except Exception:
+                continue
+            bom = raw.startswith(b"\xef\xbb\xbf")
+            try:
+                ext, nodes, _connections = scene_deps.parse_scene(text)
+            except Exception:
+                continue
+            # parse_scene отдаёт ext как {id: {type, path}}: идентификатор лежит
+            # в КЛЮЧЕ, а не в значении — иначе script_id узлов не совпадёт.
+            script_ids = {key for key, info in ext.items()
+                          if info.get("path") in wanted}
+            if not script_ids:
+                continue
+            node_paths = {node.get("path") for node in nodes
+                          if node.get("script_id") in script_ids}
+            if not node_paths:
+                continue
+            after, count = _connection_replacement(
+                text, script_ids, node_paths, kind, old_name, new_name)
+            if not count:
+                continue
+            encoded = (b"\xef\xbb\xbf" if bom else b"") + after.encode("utf-8")
+            diff = build_diff_preview(text, after)
+            diff["path"] = rel_path
+            diff["action"] = "rename_symbol"
+            edits.append({"path": rel_path, "absolute": abs_path,
+                          "before_hash": _sha256(raw), "before_bytes": raw,
+                          "after_bytes": encoded, "diff": diff,
+                          "occurrences": count})
+    return edits
 
 
 def _reference_is_safe(kind, fact, text, tokens, target_path, path,
@@ -695,6 +798,13 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
             allow_addons=allow_addons, allow_self_edit=allow_self_edit,
             addon_dir=addon_dir)
         files.extend(scene_edits)
+    # Связи сцен — такой же носитель имени, как и код: без их обновления
+    # Godot теряет подключение молча, а операция рапортует «успешно».
+    connection_edits = _collect_scene_connection_edits(
+        project_root, {target_path} | subclasses, kind, old_name, new_name,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
+    files.extend(connection_edits)
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,
         "declaration": action.get("declaration"), "files": files,
