@@ -18,13 +18,28 @@ from project_tools import (_resolve_safe_path, build_diff_preview,
                            can_write_project_path)
 
 
-KINDS = {"class_name", "function", "signal", "variable", "const", "enum"}
+KINDS = {"class_name", "function", "signal", "variable", "const", "enum",
+         "enum_member"}
 # Вид, которым оперирует rename_symbol, -> вид объявления в парсере.
 # Имена не совпадают исторически: парсер называет константу "constant",
 # а публичный action говорит "const" (так его понимает модель).
 _KIND_TO_DECL = {"const": "constant", "enum": "enum"}
 # Обратное отображение для проверок вида объявления.
 _DECL_TO_KIND = {value: key for key, value in _KIND_TO_DECL.items()}
+# Все виды объявлений, которые парсер вообще отдаёт: нужны для подсказки
+# в сообщении об ошибке («что этот скрипт объявляет на самом деле»).
+_DECL_KINDS = {"class_name", "class", "function", "signal", "variable",
+               "constant", "enum", "enum_member", "parameter"}
+
+
+def _owner_is_top_level(owner, declarations):
+    """Owner принадлежит верхнему уровню скрипта (он сам скрипт или enum в нём)."""
+    if owner == "script":
+        return True
+    for item in declarations:
+        if item.get("id") == owner:
+            return item.get("owner") == "script"
+    return False
 
 
 def _decl_kind(kind):
@@ -547,7 +562,8 @@ def _collect_scene_connection_edits(project_root, affected_scripts, kind,
 
 def _reference_is_safe(kind, fact, text, tokens, target_path, path,
                        target_class, typed, declarations, target_static=False,
-                       subclasses=None, all_target_classes=None):
+                       subclasses=None, all_target_classes=None,
+                       target_enum_name=None):
     prev2, prev, nxt = _token_neighbors(tokens, fact.get("start"))
     prev_value = prev.get("value") if prev else None
     prev2_value = prev2.get("value") if prev2 else None
@@ -575,6 +591,10 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
         # точно, и ссылка однозначна.
         if target_class and receiver == target_class and not shadowed:
             return True
+        # Обращение к member через имя САМОГО ENUM: State.IDLE. Receiver —
+        # не класс и не переменная, поэтому проверки выше его не видели.
+        if kind == "enum_member" and target_enum_name and receiver == target_enum_name:
+            return True
         if kind == "function" and target_static and target_class and receiver == target_class:
             return True
         return False
@@ -594,7 +614,7 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
     if kind == "variable":
         return (hierarchy and in_script and not shadowed
                 and fact.get("context") != "member")
-    if kind in ("const", "enum"):
+    if kind in ("const", "enum", "enum_member"):
         # Константа адресуется либо через класс (Unit.MAX_HP), либо прямо
         # внутри своего скрипта. Через точку мы уже дошли сюда только если
         # ресивер — наш класс; локальная тень отсекается проверкой shadowed.
@@ -802,18 +822,23 @@ def _classify_string_reference(text, tokens, start, end):
 
 
 def _assert_hierarchy_renamed(kind, old_name, new_name, hierarchy_paths,
-                             covered, declarations):
+                             covered, declarations, owner=None):
     """Страховка от молчаливой потери полиморфизма.
 
     Если в иерархии осталось объявление старого имени, наши правки его не
     покрывают (значит, мы его потеряли или не заметили) — операция обязана
     быть отклонена, а не рапортовать успех с битым проектом.
     covered — множество троек (путь, start, end) уже запланированных правок.
+    owner — владелец переименовываемого объявления: у members разных enum
+    одного скрипта имена совпадают, но это разные сущности, и нетронутый
+    одноимённый member чужого enum — не потеря полиморфизма.
     """
     for item in declarations:
         if item.get("kind") != kind or item.get("name") != old_name:
             continue
         if item.get("path") not in hierarchy_paths:
+            continue
+        if kind == "enum_member" and item.get("owner") != owner:
             continue
         key = (item.get("path"), item.get("start"), item.get("end"))
         if key not in covered:
@@ -890,7 +915,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                   and item.get("name") == old_name
                   and (column is None or item.get("column") == column)]
     if len(candidates) != 1:
-        raise RenameError("По declaration найдено объявлений: %d, ожидалось ровно одно" % len(candidates))
+        # Сообщение должно быть пригодно для модели: что просили, что нашли
+        # и что можно попробовать. Раньше тут было «найдено объявлений: 0»,
+        # из чего нельзя было понять, в чём дело.
+        available = sorted({item.get("name") for item in declarations
+                            if item.get("path") == target_path
+                            and item.get("kind") in _DECL_KINDS
+                            and item.get("name")})
+        raise RenameError(
+            "В %s:%d нет объявления вида %s с именем %s. Объявления этого "
+            "скрипта: %s. Возьми точную строку объявления из gather_context "
+            "или read_function."
+            % (target_path, line, kind, old_name,
+               ", ".join(available[:12]) or "нет"))
     declaration = candidates[0]
     if kind in ("function", "signal") and declaration.get("owner") != "script":
         raise RenameError("Переименование членов вложенных классов пока не поддерживается безопасно")
@@ -901,6 +938,18 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         # функции или вложенного класса — это уже другая сущность, и
         # переименование «наружу» сломало бы её использование.
         raise RenameError("Константы и enum переименовываются только на верхнем уровне скрипта")
+    if kind == "enum_member" and not _owner_is_top_level(
+            declaration.get("owner"), declarations):
+        # Member анонимного enum принадлежит скрипту, а member именованного —
+        # самому enum. В обоих случаях enum должен быть верхнего уровня.
+        raise RenameError("Members enum переименовываются только в enum верхнего уровня")
+    # Имя enum, которому принадлежит member: через него идёт обращение
+    # State.IDLE, и без него такая ссылка выглядела бы неоднозначной.
+    target_enum_name = None
+    if kind == "enum_member" and declaration.get("owner") != "script":
+        target_enum_name = next(
+            (item.get("name") for item in declarations
+             if item.get("id") == declaration.get("owner")), None)
 
     target_entry = next(entry for entry in snapshot["files"]
                         if "res://" + entry["path"] == target_path)
@@ -978,7 +1027,12 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         duplicates = [item for item in declarations
                       if item.get("path") == target_path
                       and item.get("kind") == _decl_kind(kind)
-                      and item.get("name") == old_name]
+                      and item.get("name") == old_name
+                      # Members разных enum одного скрипта — разные
+                      # пространства имён: IDLE в State и IDLE в Mode
+                      # не должны считаться одним и тем же объявлением.
+                      and (kind != "enum_member"
+                           or item.get("owner") == declaration.get("owner"))]
         if len(duplicates) != 1:
             raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
 
@@ -1019,9 +1073,10 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                                   entry["semantic"].get("declarations", []),
                                   bool(declaration.get("static")),
                                   subclasses=subclasses,
-                                  all_target_classes=all_target_classes):
+                                  all_target_classes=all_target_classes,
+                                  target_enum_name=target_enum_name):
                 edits_by_path.setdefault(path, []).append((fact["start"], fact["end"]))
-            elif kind in ("variable", "const", "enum") and fact.get("context") != "member" and _owner_shadows_name(
+            elif kind in ("variable", "const", "enum", "enum_member") and fact.get("context") != "member" and _owner_shadows_name(
                     fact.get("owner"), fact.get("name"), entry["semantic"].get("declarations", [])):
                 # Локальная тень: локальная переменная/константа с тем же
                 # именем перекрывает нашу ссылку. Это НЕ неоднозначность,
@@ -1059,7 +1114,8 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     _assert_hierarchy_renamed(
         kind, old_name, new_name, {target_path} | subclasses,
         {(path, start, end) for path, spans in edits_by_path.items()
-         for start, end in spans}, declarations)
+         for start, end in spans}, declarations,
+        owner=declaration.get("owner"))
     # Подклассы вне зоны нашей записи (addons и прочие защищённые .gd) в
     # семантический индекс не попадают — их override мы не обновим, а базу
     # переименуем. Это ровно тот случай, где «успех» ломает проект.
