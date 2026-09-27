@@ -93,13 +93,18 @@ class RefusalGranularity(unittest.TestCase):
         self.assertIn("class_name Avatar", self._read("src/player.gd"))
         self.assertIn("var unit: Avatar", self._read("src/typed.gd"))
 
-    # --- 2.4.3 dynamic всегда в отчёте, независимо от режима ---
-    def test_dynamic_reference_reported_in_strict_mode(self):
-        self._write("src/loader.gd", "extends Node\n\n"
-                                    "func make() -> Node:\n"
+    # --- 2.4.3 dynamic: strict блокирует, probable — отчёт без блокировки ---
+    def test_dynamic_reference_blocks_strict_and_reports_probable(self):
+        self._write("src/loader.gd", "extends Node\n\nfunc make() -> Node:\n"
                                     "\treturn ClassDB.instantiate(\"Player\")\n")
         self._reindex()
-        prepared = symbol_refactor.prepare_rename(self.root, self._action("strict"))
+        # Критерий приёмки: dynamic-ссылка по строке в strict блокирует,
+        # в probable — видна в отчёте, но не мешает.
+        with self.assertRaises(symbol_refactor.RenameError) as ctx:
+            symbol_refactor.prepare_rename(self.root, self._action("strict"))
+        self.assertEqual(getattr(ctx.exception, "code", ""), "unsafe")
+        prepared = symbol_refactor.prepare_rename(
+            self.root, self._action("probable"))
         self.assertTrue(prepared.get("dynamic_references"))
 
     # --- 2.4.4 отчёт виден в public_prepared и в диффе/подтверждении ---

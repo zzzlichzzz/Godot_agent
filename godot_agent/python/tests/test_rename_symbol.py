@@ -118,9 +118,19 @@ func run(target):
 \ttarget.call("take_damage", 1)
 ''')
         ml_project_index.build_index(root)
-        # Этап 2.2: подтверждённая dynamic-ссылка больше не убивает транзакцию,
-        # но обязана быть видна в отчёте — иначе риск остался бы незамеченным.
-        prepared = symbol_refactor.prepare_rename(root, _action())
+        # Критерий приёмки: подтверждённая dynamic-ссылка по строке БЛОКИРУЕТ
+        # в strict — успех здесь означал бы вызов несуществующего метода.
+        # Осознанно принять риск можно через mode=probable.
+        try:
+            symbol_refactor.prepare_rename(root, _action())
+            assert False, "a dynamic string reference must block in strict mode"
+        except symbol_refactor.RenameError as exc:
+            assert "ClassDB" in str(exc) or "call()" in str(exc) or "динамическая" in str(exc)
+            assert getattr(exc, "code", "") == "unsafe"
+
+        probable_action = _action()
+        probable_action["mode"] = "probable"
+        prepared = symbol_refactor.prepare_rename(root, probable_action)
         notes = prepared.get("dynamic_references") or []
         # Отчёт собран до записи: сам вызов по строке мы не переписываем
         # (имя там — данные, а не код), но риск обязан быть виден.

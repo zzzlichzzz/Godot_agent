@@ -1508,6 +1508,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         unverified_references = [
             "%s — ссылка не доказана, переименование её не выполнено" % item
             for item in ambiguities]
+    if dynamic_references and mode == "strict":
+        # Строка рядом с вызовом API Godot по имени — это РЕАЛЬНАЯ ссылка на
+        # символ, которую мы не можем ни доказать, ни переписать: ClassDB
+        # .instantiate("X"), set("X", ...), call("X") и подобные. Успех здесь
+        # означал бы, что проект остался сломанным (вызов несуществующего
+        # класса/члена), поэтому в strict это отказ с понятным текстом.
+        # В probable пользователь принимает риск осознанно — см. Этап 2.4.
+        first = dynamic_references[0]
+        raise UnsafeRenameError(
+            "Найдена динамическая ссылка по строке, её нельзя переименовать "
+            "автоматически: %s. Таких мест: %d. Правь вручную либо повтори с "
+            "mode=probable, приняв риск (проверь список мест перед записью)."
+            % (first, len(dynamic_references)))
     # Ссылочная правка могла пройти, а объявление-override — нет; проверяем
     # итог по всему плану, а не по одному пути.
     _assert_hierarchy_renamed(

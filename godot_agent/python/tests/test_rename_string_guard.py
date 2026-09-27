@@ -56,10 +56,13 @@ class StringGuard(unittest.TestCase):
         symbol_refactor.apply_prepared_rename(self.root, prepared)
         return self._read("src/user.gd")
 
-    def _plan(self, code, new="Avatar"):
+    def _plan(self, code, new="Avatar", mode=None):
+        action = self._action(new)
+        if mode:
+            action["mode"] = mode
         self._write("src/user.gd", code)
         self._reindex()
-        return symbol_refactor.prepare_rename(self.root, self._action(new))
+        return symbol_refactor.prepare_rename(self.root, action)
 
     # --- 2.2.1 print("Player") — обычный текст, блокировать нельзя ---
     def test_plain_log_text_does_not_block(self):
@@ -68,20 +71,35 @@ class StringGuard(unittest.TestCase):
         self.assertIn('print("Player")', after)
         self.assertIn("class_name Avatar", self._read("src/player.gd"))
 
-    # --- 2.2.2 ClassDB.instantiate("Player") — подтверждённая dynamic-ссылка ---
-    def test_classdb_instantiate_is_reported_not_silently_ignored(self):
+    # --- 2.2.2 ClassDB.instantiate("Player") — strict блокирует ---
+    def test_classdb_instantiate_is_refused_in_strict(self):
+        with self.assertRaises(symbol_refactor.RenameError) as ctx:
+            self._plan(
+                "extends Node\n\nfunc make() -> Node:\n"
+                "\treturn ClassDB.instantiate(\"Player\")\n")
+        self.assertIn("ClassDB.instantiate", str(ctx.exception))
+
+    # --- 2.2.2b probable: тот же случай принимается осознанно и попадает в отчёт ---
+    def test_classdb_instantiate_is_reported_in_probable(self):
         prepared = self._plan(
             "extends Node\n\nfunc make() -> Node:\n"
-            "\treturn ClassDB.instantiate(\"Player\")\n")
+            "\treturn ClassDB.instantiate(\"Player\")\n", mode="probable")
         notes = prepared.get("dynamic_references") or []
         self.assertTrue(notes, "динамическая ссылка обязана попасть в отчёт")
         self.assertTrue(any("instantiate" in str(n) for n in notes), notes)
 
-    # --- 2.2.3 node.set("hp", 5) — set() по имени не блокирует молча ---
-    def test_set_by_name_is_reported(self):
+    # --- 2.2.3 node.set("hp", 5) — strict блокирует, probable отчитывается ---
+    def test_set_by_name_is_refused_in_strict(self):
+        with self.assertRaises(symbol_refactor.RenameError) as ctx:
+            self._plan(
+                "extends Node\n\nfunc apply(n: Node) -> void:\n"
+                "\tn.set(\"Player\", 5)\n")
+        self.assertIn("set()", str(ctx.exception))
+
+    def test_set_by_name_is_reported_in_probable(self):
         prepared = self._plan(
             "extends Node\n\nfunc apply(n: Node) -> void:\n"
-            "\tn.set(\"Player\", 5)\n")
+            "\tn.set(\"Player\", 5)\n", mode="probable")
         notes = prepared.get("dynamic_references") or []
         self.assertTrue(any("set" in str(n) for n in notes), notes)
 
@@ -92,7 +110,7 @@ class StringGuard(unittest.TestCase):
             "\tprint(n.has_signal(\"Player\"))\n"
             "\tn.emit_signal(\"Player\")\n"
             "\tn.call(\"Player\")\n"
-            "\tprint(n.is_connected(\"Player\", Callable()))\n")
+            "\tprint(n.is_connected(\"Player\", Callable()))\n", mode="probable")
         notes = " ".join(str(n) for n in (prepared.get("dynamic_references") or []))
         for expected in ("has_signal", "emit_signal", "call", "is_connected"):
             self.assertIn(expected, notes)
@@ -101,7 +119,7 @@ class StringGuard(unittest.TestCase):
     def test_dynamic_reference_reaches_public_payload(self):
         prepared = self._plan(
             "extends Node\n\nfunc make() -> Node:\n"
-            "\treturn ClassDB.instantiate(\"Player\")\n")
+            "\treturn ClassDB.instantiate(\"Player\")\n", mode="probable")
         public = symbol_refactor.public_prepared(prepared)
         self.assertTrue(public.get("dynamic_references"))
 
@@ -123,7 +141,7 @@ class StringGuard(unittest.TestCase):
     def test_connect_with_string_args_is_reported(self):
         prepared = self._plan(
             "extends Node\n\nfunc wire(n: Node) -> void:\n"
-            "\tn.connect(\"Player\", Callable())\n")
+            "\tn.connect(\"Player\", Callable())\n", mode="probable")
         notes = " ".join(str(n) for n in (prepared.get("dynamic_references") or []))
         self.assertIn("connect", notes)
 
@@ -135,12 +153,12 @@ class StringGuard(unittest.TestCase):
             "\tprint(\"spawned Player at 0,0\")\n")
         self.assertFalse(prepared.get("dynamic_references"))
 
-    # --- Аудит 2.2: dynamic-ссылка не должна ломать применение ---
-    def test_dynamic_reference_does_not_block_apply(self):
+    # --- Аудит 2.2: probable применяет, оставляя строку как есть ---
+    def test_probable_applies_and_keeps_string(self):
         prepared = self._plan(
             "extends Node\n\nvar unit: Player\n\n"
             "func make() -> Node:\n"
-            "\treturn ClassDB.instantiate(\"Player\")\n")
+            "\treturn ClassDB.instantiate(\"Player\")\n", mode="probable")
         result = symbol_refactor.apply_prepared_rename(self.root, prepared)
         # user.gd меняется (тип unit), а строка остаётся как есть.
         self.assertEqual(result["file_count"], 2)
