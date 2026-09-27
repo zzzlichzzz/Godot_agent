@@ -282,7 +282,9 @@ def _typed_receivers(text):
                 and type_token.get("kind") == "identifier"):
             result[name["value"]] = type_token["value"]
 
-    # Parameters are accepted only inside an actual func(...) signature.
+    # Параметры признаём только внутри настоящей сигнатуры func(...):
+    # одиночное «имя:» может встретиться в Dictionary-типе или в коде,
+    # и принять его за параметр значило бы привязать не туда.
     for index, token in enumerate(tokens):
         if token.get("value") != "func":
             continue
