@@ -158,10 +158,61 @@ class ClassNameAndFile(unittest.TestCase):
                       self._read("src/dark_knight_boss.gd"))
 
 
-if __name__ == "__main__":
-    unittest.main()
 
+    # --- Аудит 3.5: сцена со ссылкой на переименовываемый скрипт ---
+    # Регрессия: cc23e7f переносил .gd + .uid, но не переписывал
+    # [ext_resource path=...] — сцена оставалась на несуществующем пути,
+    # и узел терял скрипт.
+    def test_scene_reference_follows_the_renamed_script(self):
+        self._write("scenes/hero.tscn", (
+            "[gd_scene load_steps=2 format=3]\n\n"
+            "[ext_resource type=\"Script\" path=\"res://src/player.gd\" id=\"1\"]\n\n"
+            "[node name=\"Hero\" type=\"Node2D\"]\n"
+            "script = ExtResource(\"1\")\n"))
+        prepared = symbol_refactor.prepare_rename(self.root, self._action())
+        paths = [f["path"] for f in prepared["files"]]
+        self.assertIn("res://scenes/hero.tscn", paths,
+                      "ссылающаяся сцена обязана попасть в транзакцию")
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        scene = self._read("scenes/hero.tscn")
+        self.assertIn("path=\"res://src/avatar.gd\"", scene)
+        self.assertNotIn("path=\"res://src/player.gd\"", scene)
+        self.assertTrue(self._exists("src/avatar.gd"))
 
+    # --- Аудит 3.5: preload() в другом скрипте обновляется ---
+    def test_preload_reference_follows_the_renamed_script(self):
+        self._write("src/loader.gd", "extends Node\n\n"
+                                     "const P = preload(\"res://src/player.gd\")\n")
+        prepared = symbol_refactor.prepare_rename(self.root, self._action())
+        self.assertIn("res://src/loader.gd", [f["path"] for f in prepared["files"]])
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        self.assertIn("preload(\"res://src/avatar.gd\")", self._read("src/loader.gd"))
+
+    # --- Аудит 3.5: ссылка в файле, который нельзя ЗАПИСАТЬ, отказывает ---
+    # project.godot читается, но политика записи его запрещает: такой файл
+    # виден поиску, и перенос скрипта разорвал бы ссылку — значит отказ.
+    def test_unwritable_reference_blocks_file_rename(self):
+        self._write("scenes/hero.tscn", (
+            '[gd_scene load_steps=2 format=3]\n\n'
+            '[ext_resource type="Script" path="res://src/player.gd" id="1"]\n\n'
+            '[node name="Hero" type="Node2D"]\n'
+            'script = ExtResource("1")\n'))
+        # Запрещаем ЗАПИСАТЬ в сцену, оставляя чтение: ссылка видна
+        # поиску, но переписать её нельзя, поэтому перенос разорвал бы её.
+        # Подменяем именно в symbol_refactor: он импортирует функцию
+        # по имени при загрузке модуля, и правка project_tools не влияет.
+        original = symbol_refactor.can_write_project_path
+        symbol_refactor.can_write_project_path = (
+            lambda path, *a, **k: False if str(path).endswith("hero.tscn")
+            else original(path, *a, **k))
+        try:
+            with self.assertRaises(symbol_refactor.RenameError) as ctx:
+                symbol_refactor.prepare_rename(self.root, self._action())
+        finally:
+            symbol_refactor.can_write_project_path = original
+        self.assertIn("hero.tscn", str(ctx.exception))
+        self.assertTrue(self._exists("src/player.gd"))
+        self.assertFalse(self._exists("src/avatar.gd"))
 
 if __name__ == "__main__":
     unittest.main()

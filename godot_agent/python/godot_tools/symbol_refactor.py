@@ -13,6 +13,7 @@ import gd_lint
 import gd_semantic_parser
 import history_manager
 import scene_deps
+import file_refactor
 from minilich import ml_project_index
 from project_tools import (_resolve_safe_path, build_diff_preview,
                            can_write_project_path)
@@ -161,6 +162,59 @@ def _project_lock(project_root):
 
 def _sha256(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def _collect_path_reference_edits(project_root, file_rename, allow_addons=False,
+                                  allow_self_edit=False, addon_dir=None):
+    """Правки ссылок на переносимый путь (.tscn/.tres/preload и т.п.).
+
+    Перенос .gd без переписывания ссылок оставляет сцены на несуществующем
+    пути, и узел молча теряет скрипт. Пользуемся готовым поиском
+    file_refactor.find_file_references — он уже знает про относительные
+    preload(), про фильтр расширений и про политику чтения.
+    """
+    old_path = file_rename["from"]
+    new_path = file_rename["to"]
+    references = file_refactor.find_file_references(
+        project_root, old_path, allow_addons=allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
+    exact_pattern = re.compile(
+        r'(?<=["\'\*])' + re.escape(old_path) + r'(?=["\'\s,\]])')
+    edits = []
+    for ref in references:
+        if not can_write_project_path(
+                ref["path"], project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            # Ссылка есть, а права её переписать нет. Продолжать нельзя:
+            # файл уедет, а ссылка останется висеть — ровно тот случай, ради
+            # которого это переименование и затевалось.
+            raise UnsafeRenameError(
+                "На переименовываемый скрипт ссылается %s, но его нельзя "
+                "переписать по текущей политике доступа: перенос разорвал бы "
+                "эту ссылку. Переименование остановлено."
+                % ref["path"])
+        before_text = ref["text"]
+        after_text = before_text
+        for start, end, _cand in sorted(ref.get("rel_matches") or [],
+                                        key=lambda item: item[0], reverse=True):
+            after_text = after_text[:start] + new_path + after_text[end:]
+        after_text = exact_pattern.sub(new_path, after_text)
+        if ref["path"].lower().endswith(".gd"):
+            lint_errors = gd_lint.lint_gdscript(after_text)
+            if lint_errors:
+                raise UnsafeRenameError(
+                    "После обновления ссылки в %s обнаружена синтаксическая "
+                    "ошибка: %s" % (ref["path"], lint_errors[0]))
+        diff = build_diff_preview(before_text, after_text)
+        diff["path"] = ref["path"]
+        diff["action"] = "rename_symbol"
+        edits.append({
+            "path": ref["path"], "absolute": ref["absolute"],
+            "before_hash": _sha256(ref["raw"]), "before_bytes": ref["raw"],
+            "after_bytes": (b"\xef\xbb\xbf" if ref["bom"] else b"")
+                          + after_text.encode("utf-8"),
+            "diff": diff, "occurrences": ref["occurrences"]})
+    return edits
 
 
 def _read_source(project_root, path):
@@ -1597,6 +1651,13 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     if rename_file:
         file_rename = _plan_file_rename(
             project_root, target_path, new_name, addon_dir)
+        if file_rename:
+            # Ссылки на переносимый путь обновляем В ТОЙ ЖЕ транзакции.
+            # Раньше этого не было: сцена оставалась на несуществующем пути,
+            # и узел молча терял скрипт (регрессия, найденная пробой S4).
+            files.extend(_collect_path_reference_edits(
+                project_root, file_rename, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir))
         if file_rename:
             # Diff строим вручную: build_diff_preview возвращает None на
             # одинаковых текстах, а здесь изменение — это сам перенос пути.
