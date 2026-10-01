@@ -200,6 +200,9 @@ func _on_check_completed(result: int, response_code: int, _headers: PackedString
 		"tag": tag_name,
 		"html_url": html_url,
 		"body": release_body,
+		# Готовая разметка для панели. body остаётся как есть: он же уходит в
+		# кэш и может пригодиться там, где нужен исходный Markdown.
+		"notes": markdown_to_bbcode(release_body),
 		"download_url": download_url,
 		"published_at": published_at,
 		"last_check_timestamp": int(Time.get_unix_time_from_system())
@@ -441,3 +444,146 @@ func open_github_release(url: String = "") -> void:
 	if target_url == "":
 		target_url = _latest_release_info.get("html_url", "https://github.com/" + REPO + "/releases/latest")
 	OS.shell_open(target_url)
+
+
+# ---------------------------------------------------------------------------
+# Markdown -> BBCode для текста релиза
+# ---------------------------------------------------------------------------
+#
+# ЗАЧЕМ. Описание релиза пишет release_prepare.py в Markdown: его читает
+# страница релиза на GitHub. Панель же показывает body в RichTextLabel с
+# bbcode_enabled, где «## Заголовок» и «- пункт» выглядели бы как есть, вместе
+# с решётками и дефисами. Здесь та же строка переводится в BBCode.
+#
+# ГРАНИЦА. Поддержано ровно то, что выпускает release_prepare.py: заголовки
+# #/##/###, маркеры списка, **жирный**, `код`, [текст](ссылка) и разделитель
+# ---. Это НЕ общий Markdown-парсер: вложенность, таблицы и блочные цитаты не
+# разбираются и остаются обычным текстом. Курсив подчёркиванием не
+# поддерживается намеренно - _ready и _process это обычные имена в GDScript,
+# и поддержка превратила бы описание в кашу (то же решение в
+# python/server/md_to_bbcode.py).
+#
+# Ссылки становятся кликабельными [url=...]текст[/url], а не голым текстом:
+# у каждого пункта changelog есть адрес коммита, и он должен открываться.
+
+const _LINK_MARK := "\u0001"
+const _HR_LINE := "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+const _BULLET := "\u2022"
+
+
+static func _new_regexes() -> Array:
+	# Регекспы собираются на каждый вызов, а не хранятся в константах:
+	# константа RegEx в GDScript инициализируется при загрузке скрипта, и
+	# один общий экземпляр сделал бы подстановки зависимыми от порядка вызовов.
+	var link := RegEx.new()
+	link.compile("\\[([^\\]]*)\\]\\(([^)\\s]+)\\)")
+	var bold := RegEx.new()
+	bold.compile("\\*\\*([^*]+)\\*\\*")
+	var code := RegEx.new()
+	code.compile("`([^`]+)`")
+	var head := RegEx.new()
+	head.compile("^\\s*(#{1,6})\\s+(.*)$")
+	var bullet := RegEx.new()
+	bullet.compile("^(\\s*)[-*+]\\s+(.*)$")
+	return [link, bold, code, head, bullet]
+
+
+static func markdown_to_bbcode(md: String) -> String:
+	"""Перевести Markdown-описание релиза в BBCode панели."""
+	if md.strip_edges() == "":
+		return ""
+	var regexes := _new_regexes()
+	var link_re: RegEx = regexes[0]
+	var bold_re: RegEx = regexes[1]
+	var code_re: RegEx = regexes[2]
+	var head_re: RegEx = regexes[3]
+	var bullet_re: RegEx = regexes[4]
+
+	# 1. Ссылки вынимаются ДО экранирования скобок и прячутся за метки:
+	#    иначе экранирование превратило бы их в [lb]text[rb](url), и кликабельной
+	#    ссылка не осталась бы.
+	#    RegEx.sub() в Godot 4 принимает только String в качестве замены, поэтому
+	#    подстановка идёт вручную через search() со смещением курсора.
+	var links: Array[String] = []
+	var text := _extract_links(md, link_re, links)
+
+	# 2. Остальные скобки экранируются: в описании встречаются литералы вроде
+	#    [lb], и без этого RichTextLabel съел бы их как неизвестный тег.
+	#    Именно ОДИН проход, а не два replace(): второй проход по "]" испортил бы
+	#    скобки, подставленные первым, и "[lb]" превратился бы в "[lb[rb]".
+	text = _escape_brackets(text)
+
+	# 3. Построчный разбор блочных элементов.
+	var out: Array[String] = []
+	for raw_line in text.split("\n"):
+		out.append(_convert_release_line(raw_line, bold_re, code_re, head_re, bullet_re))
+
+	# 4. Ссылки возвращаются как [url=...]текст[/url].
+	var result := "\n".join(out)
+	for i in range(links.size() - 1, -1, -1):
+		result = result.replace(_LINK_MARK + str(i) + _LINK_MARK, links[i])
+	return result
+
+
+static func _extract_links(text: String, link_re: RegEx, links: Array[String]) -> String:
+	"""Заменить каждую [текст](url) на метку, вернув готовый BBCode в links."""
+	var out := ""
+	var cursor := 0
+	while cursor < text.length():
+		var match := link_re.search(text, cursor)
+		if match == null:
+			break
+		out += text.substr(cursor, match.get_start() - cursor)
+		links.append("[url=%s]%s[/url]" % [match.get_string(2), match.get_string(1)])
+		out += _LINK_MARK + str(links.size() - 1) + _LINK_MARK
+		cursor = match.get_end()
+	return out + text.substr(cursor)
+
+
+static func _escape_brackets(text: String) -> String:
+	"""За один проход заменить [ на [lb], а ] на [rb]."""
+	var out := ""
+	for i in range(text.length()):
+		var ch := text[i]
+		if ch == "[":
+			out += "[lb]"
+		elif ch == "]":
+			out += "[rb]"
+		else:
+			out += ch
+	return out
+
+
+static func _convert_release_line(raw_line: String, bold_re: RegEx, code_re: RegEx,
+		head_re: RegEx, bullet_re: RegEx) -> String:
+	var line := raw_line.strip_edges()
+	if line == "":
+		return ""
+	if line.begins_with("---") or line.begins_with("***"):
+		return _HR_LINE
+
+	var head := head_re.search(line)
+	if head != null:
+		var level := head.get_string(1).length()
+		var title := _inline(head.get_string(2), bold_re, code_re)
+		# Уровни 1-2 крупнее, 4+ - просто жирный: в окне диалога разница в
+		# пару пунктов не читается, а мелкий текст нечитаем.
+		if level <= 2:
+			return "[b][font_size=20]%s[/font_size][/b]" % title
+		return "[b]%s[/b]" % title
+
+	# Маркеры ищем в строке БЕЗ обрезки слева: отступ отражает вложенность
+	# списка, и strip_edges() его бы стёр. Справа убираем хвост, чтобы \r из
+	# CRLF-описания не попал в текст пункта.
+	var bullet := bullet_re.search(raw_line.strip_edges(false, true))
+	if bullet != null:
+		return "%s%s %s" % [bullet.get_string(1), _BULLET,
+				_inline(bullet.get_string(2), bold_re, code_re)]
+
+	return _inline(line, bold_re, code_re)
+
+
+static func _inline(text: String, bold_re: RegEx, code_re: RegEx) -> String:
+	# Жирный раньше кода: внутри `кода` двойные звёздочки - часть содержимого.
+	var out := bold_re.sub(text, "[b]$1[/b]", true)
+	return code_re.sub(out, "[code]$1[/code]", true)
