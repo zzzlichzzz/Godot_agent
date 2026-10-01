@@ -93,6 +93,18 @@ class AgentBridgeTests(unittest.TestCase):
         Path(self.root, "src", "player.gd.uid").write_text('uid://bridgeplayer\n', encoding="utf-8")
         Path(self.root, "src", "main.gd").write_text(
             'extends Node\nconst P = preload("res://src/player.gd")\n', encoding="utf-8")
+        # Python-фикстуры: свой исходник агента, внешний аддон и проект.
+        # Проверяют, что .py ищется ТОЛЬКО в agent-dev.
+        Path(self.agent_dir, "python").mkdir(parents=True)
+        Path(self.agent_dir, "python", "agent_bridge_probe.py").write_text(
+            "AGENT_PY_ONLY_TOKEN = 1\n", encoding="utf-8")
+        Path(self.agent_dir, "python", "__pycache__").mkdir()
+        Path(self.agent_dir, "python", "__pycache__", "cached.py").write_text(
+            "CACHED_PY_TOKEN = 1\n", encoding="utf-8")
+        Path(self.external_addon, "helper.py").write_text(
+            "EXTERNAL_PY_TOKEN = 1\n", encoding="utf-8")
+        Path(self.root, "src", "tool.py").write_text(
+            "PROJECT_PY_TOKEN = 1\n", encoding="utf-8")
         gd_api_cache.save_cache(self.root, {
             "Object": {"inherits": "", "methods": {"free": [0, 0]}, "properties": [], "signals": []},
             "Node": {"inherits": "Object", "methods": {"add_child": [1, 1], "get_node": [1, 1]},
@@ -1302,6 +1314,98 @@ class AgentBridgeTests(unittest.TestCase):
         rc, out, err = run_bridge(self.base + ["api"])  # без имени класса
         self.assertEqual(rc, 4, err)
         self.assertNotIn("Traceback", out + err)
+
+
+# --- search: .py только в agent-dev ---------------------------------
+    # Контракт: собственные .py Godot Agent ищутся ТОЛЬКО в developer mode.
+    # Для пользователя (project/addon) .py не должен попадать в выдачу никогда.
+
+    def test_agent_dev_search_reads_own_python_source(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "AGENT_PY_ONLY_TOKEN"])
+            self.assertEqual(rc, 0, err)
+            self.assertIn("python/agent_bridge_probe.py", out)
+            self.assertNotIn("Traceback", out + err)
+
+    def test_agent_dev_search_skips_external_addon_python(self):
+        # agent-dev открывает ТОЛЬКО свой исходник; чужие аддоны ни при чём.
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "EXTERNAL_PY_TOKEN"])
+            self.assertEqual(rc, 2, err)
+
+    def test_agent_dev_search_skips_pycache_python(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "CACHED_PY_TOKEN"])
+            self.assertEqual(rc, 2, err)
+
+    def test_addon_mode_never_searches_python(self):
+        # Регрессия для пользователя: .py не всплывает в режиме addon
+        # ни в своём агенте, ни во внешнем аддоне, ни в проекте.
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            for token in ("AGENT_PY_ONLY_TOKEN", "EXTERNAL_PY_TOKEN",
+                          "PROJECT_PY_TOKEN"):
+                rc, out, err = run_bridge(
+                    self.access_base("addon") + ["search", token])
+                self.assertEqual(rc, 2, "%s must stay invisible in addon" % token)
+                self.assertNotIn(".py", out)
+
+    def test_project_mode_never_searches_python(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            for token in ("PROJECT_PY_TOKEN", "AGENT_PY_ONLY_TOKEN",
+                          "EXTERNAL_PY_TOKEN"):
+                rc, out, err = run_bridge(
+                    self.access_base("project") + ["search", token])
+                self.assertEqual(rc, 2, "%s must stay invisible in project" % token)
+                self.assertNotIn(".py", out)
+
+    def test_python_matches_respect_max_quota(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            for index in range(12):
+                Path(self.agent_dir, "python", "bulk_%02d.py" % index).write_text(
+                    "BRIDGE_PY_QUOTA_TOKEN = %d\n" % index, encoding="utf-8")
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + [
+                    "search", "--max", "3", "BRIDGE_PY_QUOTA_TOKEN"])
+            self.assertEqual(rc, 0, err)
+            self.assertIn("3 match groups", err)
+            self.assertEqual(out.count("\n---\n"), 3)
+            self.assertIn("results truncated at 3", out)
+
+    def test_gdscript_search_still_works_in_agent_dev(self):
+        # Регрессия: включение .py не должно сломать обычный поиск .gd.
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "AGENT_ONLY_TOKEN"])
+            self.assertEqual(rc, 0, err)
+            self.assertIn("agent.gd", out)
+
+    def test_search_ext_policy_is_mode_scoped(self):
+        """Юнит-уровень: набор расширений зависит только от allow_self_edit."""
+        import project_tools
+        default_exts = project_tools.search_extensions_for(
+            allow_self_edit=False, addon_dir=str(self.agent_dir))
+        self.assertNotIn(".py", default_exts)
+        self.assertIn(".gd", default_exts)
+        # Флаг без доверенного корня агента .py НЕ открывает (fail closed).
+        orphan = project_tools.search_extensions_for(
+            allow_self_edit=True, addon_dir=None)
+        self.assertNotIn(".py", orphan)
+        dev_exts = project_tools.search_extensions_for(
+            allow_self_edit=True, addon_dir=str(self.agent_dir))
+        self.assertIn(".py", dev_exts)
+        self.assertIn(".gd", dev_exts)
+        # Исходный набор не должен мутироваться вызовами.
+        self.assertNotIn(".py", project_tools.SEARCH_EXTS)
 
 
 if __name__ == "__main__":

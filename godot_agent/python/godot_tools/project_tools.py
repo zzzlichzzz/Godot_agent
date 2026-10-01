@@ -847,6 +847,30 @@ def copy_project_file(project_root, source_godot_path, dest_godot_path):
 SEARCH_EXTS = {'.gd', '.tscn', '.tres', '.cfg', '.godot', '.json', '.txt',
                '.md', '.gdshader', '.shader', '.csv'}
 
+# Python-исходники САМОГО Godot Agent. Пользователю плагина они не нужны и
+# вредны: в обычном Godot-проекте .py — это чужой код (тулы, конвертеры
+# GDScript, скрипты сборки), и в выдаче поиска он только шумит. Поэтому .py
+# добавляется к набору ТОЛЬКО при developer mode и ТОЛЬКО при наличии
+# доверенного корня агента (fail closed, как в остальной политике доступа).
+AGENT_ONLY_SEARCH_EXTS = frozenset({'.py'})
+
+
+def search_extensions_for(allow_self_edit=False, addon_dir=None):
+    """Набор расширений для поиска под текущую capability-policy.
+
+    Возвращает НОВОЕ множество: SEARCH_EXTS общий для встроенного агента и
+    Библиотекаря, и его нельзя мутировать на месте — иначе один вызов в
+    developer mode навсегда расширил бы поиск у пользователя (в том числе в
+    уже запущенном процессе редактора).
+
+    allow_self_edit True И addon_dir реальный — единственная комбинация,
+    открывающая .py: флаг без доверенного корня агента означает, что
+    self-каталог определить нечем, и расширять нечего (fail closed).
+    """
+    if not allow_self_edit or not addon_dir:
+        return set(SEARCH_EXTS)
+    return set(SEARCH_EXTS) | AGENT_ONLY_SEARCH_EXTS
+
 
 def search_project_text(project_root, query, max_results=30, context_lines=2,
                         exclude_rel_prefixes=None, case_insensitive=False,
@@ -897,6 +921,11 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
     truncated = False
     skip = tuple(p.replace('\\', '/').lstrip('/')
                  for p in (exclude_rel_prefixes or ()) if p)
+    # Расширения выбираются ОДИН раз на вызов по capability-policy, а не
+    # пересчитываются в каждом каталоге: .py открывается только в developer
+    # mode, и этот выбор не должен зависеть от того, куда зашёл обход.
+    search_exts = search_extensions_for(allow_self_edit, addon_dir)
+    agent_py_allowed = bool(AGENT_ONLY_SEARCH_EXTS) and allow_self_edit and addon_dir
     for dirpath, dirnames, filenames in os.walk(project_root_abs):
         dirnames[:] = sorted(
             d for d in dirnames
@@ -910,8 +939,21 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
             allow_addons, allow_self_edit, addon_dir)
         for fname in sorted(filenames):
             ext = os.path.splitext(fname)[1].lower()
-            if ext not in SEARCH_EXTS:
+            if ext not in search_exts:
                 continue
+            if ext in AGENT_ONLY_SEARCH_EXTS:
+                # .py — не «просто расширение», а право видеть исходник
+                # агента. Право выдаётся ФАЙЛУ, а не всему обходу: тот же
+                # режим открывает внешние аддоны, и их .py (тулы чужих
+                # плагинов) в выдачу попадать не должны. Проверка идёт
+                # по классификации пути, а не по факту входа в addons/.
+                if not agent_py_allowed:
+                    continue
+                candidate = _scan_res_path(project_root_abs,
+                                           os.path.join(dirpath, fname))
+                if candidate is None or not classify_project_path(
+                        candidate, project_root_abs, addon_dir).get("is_agent"):
+                    continue
             abs_path = os.path.join(dirpath, fname)
             rel = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
             # v105.10: отсев ДО чтения файла и ДО набора квоты max_results
