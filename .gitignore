@@ -48,3 +48,10 @@ parser_corpus/
 # documentation of what the audit reproduced; the same guarantees are
 # covered by test_agent_bridge.py, which IS tracked and run in CI.
 godot_agent/python/tests/repro_*.py
+
+# Agent runtime state: semantic index cache, rename journal and snapshots.
+# Rebuilt by itself on the next run and empty by default, so it is never
+# something to commit. The pattern has no leading slash because the journal
+# follows the project root and can land next to the addon as well as inside
+# it - history_manager.migrate_from_project() moves an older one on startup.
+.agent_history/
