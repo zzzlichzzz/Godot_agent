@@ -110,7 +110,10 @@ func run(target):
             symbol_refactor.prepare_rename(root, _action())
             assert False, "unknown receiver must block"
         except symbol_refactor.RenameError as exc:
-            assert "неоднознач" in str(exc)
+            # Термин «недоказанные» вместо «неоднозначные»: доказуемо-чужие
+            # ссылки (тень, чужой вложенный класс) отказом НЕ являются,
+            # отказывает ровно та, которую доказать не удалось.
+            assert "недоказанные" in str(exc)
 
         os.remove(os.path.join(root, "src", "dynamic.gd"))
         _write(root, "src/reflect.gd", '''extends Node
@@ -149,7 +152,7 @@ func run(target):
             symbol_refactor.prepare_rename(root, _action())
             assert False, "a dictionary key must not prove the receiver type"
         except symbol_refactor.RenameError as exc:
-            assert "неоднознач" in str(exc)
+            assert "недоказанные" in str(exc)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

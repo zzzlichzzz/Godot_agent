@@ -1,10 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Критерий готовности: print("ClassName") не блокирует переименование класса,
-а ClassDB.instantiate("ClassName") — блокирует, с понятным сообщением.
+"""Критерий готовности: print("ClassName") не блокирует переименование класса
+и не переименовывается, а ClassDB.instantiate("ClassName") переименовывается
+ВМЕСТЕ с классом, потому что по контракту Godot принимает имя класса.
 
-Тот же контракт проверяется и в test_rename_string_guard.py; здесь он
-зафиксирован отдельным набором, потому что это критерий приёмки, а не
-частный случай реализации.
+ИЗМЕНЕНИЕ КРИТЕРИЯ (Этап 5). Раньше здесь было наоборот: instantiate считался
+недоказуемой динамикой и блокировал переименование в strict. Теперь он
+доказуем: сигнатура API однозначно говорит, что принимается имя класса, значит
+строка обязана меняться вместе с классом, иначе проект падает в рантайме.
+
+Что осталось НЕДОКАЗУЕМЫМ и по-прежнему блокирует — обращение по имени ЧЛЕНА
+(`node.call("X")`, `set("X")`). Граница принципиальна: имя класса переименовываем,
+имя свойства или метода — нет.
+
+Тот же контракт проверяется и в test_rename_string_guard.py и
+test_rename_class_name_strings; здесь он зафиксирован отдельным набором,
+потому что это критерий приёмки, а не частный случай реализации.
 """
 import os
 import shutil
@@ -60,34 +70,62 @@ class StringReferenceCriterion(unittest.TestCase):
         self.assertIn("class_name Avatar", self._read("src/player.gd"))
         self.assertIn('print("Player")', self._read("src/a.gd"))
 
-    # --- критерий 3b: ClassDB.instantiate("Player") блокирует ---
-    def test_classdb_instantiate_blocks(self):
+    # --- критерий 3b: ClassDB.instantiate("Player") переименовывается ---
+    def test_classdb_instantiate_is_renamed_with_class(self):
+        """Доказуемая ссылка: API по контракту принимает имя класса.
+
+        Возможный страх «это же опасно» закрывается рассуждением: оставить
+        строку старой хуже, чем переименовать её. Старое имя в строке после
+        переименования класса — гарантированная ошибка в рантайме, то есть
+        проект был бы сломан НАВЕРНЯКА. Переименование же ломает проект
+        только в том маловероятном случае, когда «Player» в этой строке
+        означал совсем другой класс, — но тогда такое имя и не равнялось бы
+        старому имени нашего класса, а совпадение возможно лишь как тень.
+        """
         self._write("src/b.gd", "extends Node\n\nfunc make() -> Node:\n"
                                 "\treturn ClassDB.instantiate(\"Player\")\n")
         self._reindex()
-        with self.assertRaises(symbol_refactor.RenameError) as ctx:
-            symbol_refactor.prepare_rename(self.root, self._action())
-        # Отказ не должен оставить проект изменённым «наполовину».
-        self.assertIn("class_name Player", self._read("src/player.gd"))
-        self.assertNotIn("class_name Avatar", self._read("src/player.gd"))
+        prepared = symbol_refactor.prepare_rename(self.root, self._action())
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        self.assertIn("class_name Avatar", self._read("src/player.gd"))
+        self.assertIn('ClassDB.instantiate("Avatar")', self._read("src/b.gd"))
 
-    # --- критерий 3c: сообщение объясняет, что делать ---
-    def test_refusal_message_is_actionable(self):
+    # --- критерий 3c: доказанное место НЕ попадает в отчёт как риск ---
+    def test_proven_class_string_is_not_reported_as_risk(self):
+        """Доказанное место не должно пугать пользователя: если оно и в отчёте
+        числится риском, значит переименование всё равно где-то не применится."""
         self._write("src/b.gd", "extends Node\n\nfunc make() -> Node:\n"
                                 "\treturn ClassDB.instantiate(\"Player\")\n")
+        self._reindex()
+        prepared = symbol_refactor.prepare_rename(self.root, self._action())
+        joined = " ".join(str(item)
+                          for item in (prepared.get("dynamic_references") or []))
+        self.assertNotIn("src/b.gd", joined)
+
+    # --- критерий 3d: НЕДОКАЗУЕМАЯ ссылка (имя члена) — отказ в strict ---
+    def test_unproven_member_string_still_blocks(self):
+        """Граница критерия сместилась, но не исчезла: node.call("Player") —
+        имя ЧЛЕНА, переписать его нельзя, поэтому strict обязан отказать."""
+        self._write("src/b.gd", "extends Node\n\nfunc make(node: Node) -> Node:\n"
+                                "\treturn node.call(\"Player\")\n")
         self._reindex()
         with self.assertRaises(symbol_refactor.RenameError) as ctx:
             symbol_refactor.prepare_rename(self.root, self._action())
         message = str(ctx.exception)
-        self.assertIn("ClassDB.instantiate", message)
         self.assertIn("src/b.gd", message)
+        # Отказ не должен оставить проект изменённым «наполовину».
+        self.assertIn("class_name Player", self._read("src/player.gd"))
+        self.assertNotIn("class_name Avatar", self._read("src/player.gd"))
         # Подсказка: что именно сделать дальше.
         self.assertTrue("probable" in message or "вручную" in message, message)
 
-    # --- критерий 3d: probable — осознанный выход, риск виден, но не блокирует ---
+    # --- критерий 3e: probable — осознанный выход, риск виден, но не блокирует ---
     def test_probable_mode_accepts_and_reports(self):
-        self._write("src/b.gd", "extends Node\n\nfunc make() -> Node:\n"
-                                "\treturn ClassDB.instantiate(\"Player\")\n")
+        """В probable недоказуемая ссылка видна в отчёте, но не мешает. Строка
+        при этом ОСТАЁТСЯ как есть: снять блокировку — не значит уметь
+        переписать обращение по имени члена."""
+        self._write("src/b.gd", "extends Node\n\nfunc make(node: Node) -> Node:\n"
+                                "\treturn node.call(\"Player\")\n")
         self._reindex()
         prepared = symbol_refactor.prepare_rename(
             self.root, self._action(mode="probable"))
@@ -95,7 +133,7 @@ class StringReferenceCriterion(unittest.TestCase):
         symbol_refactor.apply_prepared_rename(self.root, prepared)
         self.assertIn("class_name Avatar", self._read("src/player.gd"))
         # Строка осталась как была — её нельзя доказать.
-        self.assertIn('ClassDB.instantiate("Player")', self._read("src/b.gd"))
+        self.assertIn('node.call("Player")', self._read("src/b.gd"))
 
     # --- критерий 3e: set() по имени — тоже блокирует в strict ---
     def test_set_by_name_blocks(self):

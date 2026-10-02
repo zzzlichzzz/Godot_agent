@@ -72,21 +72,30 @@ class StringGuard(unittest.TestCase):
         self.assertIn("class_name Avatar", self._read("src/player.gd"))
 
     # --- 2.2.2 ClassDB.instantiate("Player") — strict блокирует ---
-    def test_classdb_instantiate_is_refused_in_strict(self):
-        with self.assertRaises(symbol_refactor.RenameError) as ctx:
-            self._plan(
-                "extends Node\n\nfunc make() -> Node:\n"
-                "\treturn ClassDB.instantiate(\"Player\")\n")
-        self.assertIn("ClassDB.instantiate", str(ctx.exception))
+    # --- 2.2.2a ClassDB.instantiate("Player") — ЭТАП 5: доказуемо ---
+    # Раньше случай считался недоказуемой динамикой и в strict давал отказ.
+    # С Этапом 5 он признан доказанным: API по контракту принимает имя класса,
+    # поэтому строка переименовывается вместе с классом, а не отказывает.
+    # Подробное обоснование и границы — test_rename_class_name_strings.
+    def test_classdb_instantiate_is_renamed_in_strict(self):
+        prepared = self._plan(
+            "extends Node\n\nfunc make() -> Node:\n"
+            "\treturn ClassDB.instantiate(\"Player\")\n")
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        self.assertIn('ClassDB.instantiate("Avatar")',
+                      self._read("src/user.gd"))
+        self.assertEqual(prepared.get("dynamic_references") or [], [],
+                         "доказанная строка не должна оставаться в отчёте "
+                         "как непроверенная")
 
     # --- 2.2.2b probable: тот же случай принимается осознанно и попадает в отчёт ---
-    def test_classdb_instantiate_is_reported_in_probable(self):
+    def test_classdb_instantiate_is_renamed_in_probable(self):
         prepared = self._plan(
             "extends Node\n\nfunc make() -> Node:\n"
             "\treturn ClassDB.instantiate(\"Player\")\n", mode="probable")
-        notes = prepared.get("dynamic_references") or []
-        self.assertTrue(notes, "динамическая ссылка обязана попасть в отчёт")
-        self.assertTrue(any("instantiate" in str(n) for n in notes), notes)
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        self.assertIn('ClassDB.instantiate("Avatar")',
+                      self._read("src/user.gd"))
 
     # --- 2.2.3 node.set("hp", 5) — strict блокирует, probable отчитывается ---
     def test_set_by_name_is_refused_in_strict(self):
@@ -115,11 +124,14 @@ class StringGuard(unittest.TestCase):
         for expected in ("has_signal", "emit_signal", "call", "is_connected"):
             self.assertIn(expected, notes)
 
-    # --- 2.2.5 dynamic-ссылка обязана быть видна в diff/отчёте ---
+    # --- 2.2.5 dynamic-ссылка обязана быть видна в отчёте ---
     def test_dynamic_reference_reaches_public_payload(self):
+        # НЕДОКАЗУЕМАЯ ссылка (имя члена) обязана доехать до отчёта.
+        # Раньше здесь стоял ClassDB.instantiate, но с Этапом 5 он доказуем и
+        # переименовывается вместе с классом — см. test_rename_class_name_strings.
         prepared = self._plan(
-            "extends Node\n\nfunc make() -> Node:\n"
-            "\treturn ClassDB.instantiate(\"Player\")\n", mode="probable")
+            "extends Node\n\nfunc make(n: Node) -> Node:\n"
+            "\treturn n.call(\"Player\")\n", mode="probable")
         public = symbol_refactor.public_prepared(prepared)
         self.assertTrue(public.get("dynamic_references"))
 
@@ -154,15 +166,16 @@ class StringGuard(unittest.TestCase):
         self.assertFalse(prepared.get("dynamic_references"))
 
     # --- Аудит 2.2: probable применяет, оставляя строку как есть ---
-    def test_probable_applies_and_keeps_string(self):
+    def test_probable_applies_and_renames_class_string(self):
         prepared = self._plan(
             "extends Node\n\nvar unit: Player\n\n"
             "func make() -> Node:\n"
             "\treturn ClassDB.instantiate(\"Player\")\n", mode="probable")
         result = symbol_refactor.apply_prepared_rename(self.root, prepared)
-        # user.gd меняется (тип unit), а строка остаётся как есть.
+        # С Этапом 5 строка — доказуемая ссылка на класс, поэтому меняется
+        # вместе с ним (раньше здесь ожидалось, что она останется как есть).
         self.assertEqual(result["file_count"], 2)
-        self.assertIn('ClassDB.instantiate("Player")', self._read("src/user.gd"))
+        self.assertIn('ClassDB.instantiate("Avatar")', self._read("src/user.gd"))
         self.assertIn("var unit: Avatar", self._read("src/user.gd"))
         self.assertIn("class_name Avatar", self._read("src/player.gd"))
 

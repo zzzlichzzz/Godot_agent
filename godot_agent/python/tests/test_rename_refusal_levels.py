@@ -68,7 +68,13 @@ class RefusalGranularity(unittest.TestCase):
         self._ambiguous_project()
         with self.assertRaises(symbol_refactor.RenameError) as ctx:
             symbol_refactor.prepare_rename(self.root, self._action())
-        self.assertIn("неоднознач", str(ctx.exception))
+        # Термин сменился с «неоднозначные» на «недоказанные» вместе с
+        # Этапом 1 гранулярности отказа: доказуемо-чужие ссылки отказом не
+        # являются, отказывает ровно недоказанная. Суть проверки та же —
+        # strict отказывает, и отказ называет проблемное место.
+        message = str(ctx.exception)
+        self.assertIn("недоказанные", message)
+        self.assertIn("res://src/arena.gd", message)
 
     def test_explicit_strict_blocks(self):
         self._ambiguous_project()
@@ -95,8 +101,12 @@ class RefusalGranularity(unittest.TestCase):
 
     # --- 2.4.3 dynamic: strict блокирует, probable — отчёт без блокировки ---
     def test_dynamic_reference_blocks_strict_and_reports_probable(self):
-        self._write("src/loader.gd", "extends Node\n\nfunc make() -> Node:\n"
-                                    "\treturn ClassDB.instantiate(\"Player\")\n")
+        # Используем node.call("Player"), а НЕ ClassDB.instantiate("Player"):
+        # с Этапом 5 последний признан доказуемым (API принимает имя класса)
+        # и переименовывается вместе с классом, а strict больше не отказывает.
+        # Недоказуемая ссылка — это обращение по имени ЧЛЕНА.
+        self._write("src/loader.gd", "extends Node\n\nfunc make(node: Node) -> Node:\n"
+                                    "\treturn node.call(\"Player\")\n")
         self._reindex()
         # Критерий приёмки: dynamic-ссылка по строке в strict блокирует,
         # в probable — видна в отчёте, но не мешает.
