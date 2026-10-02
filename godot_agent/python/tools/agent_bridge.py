@@ -1102,8 +1102,17 @@ def _print_write_preview(prepared, plan_id, policy):
         _out("reference_count: %d" % int(
             prepared.get("refactor", {}).get("reference_count", 0)))
     if prepared.get("kind") == "symbol_rename":
-        _out("reference_count: %d" % int(
-            prepared.get("symbol", {}).get("reference_count", 0)))
+        symbol = prepared.get("symbol", {})
+        _out("reference_count: %d" % int(symbol.get("reference_count", 0)))
+        # Раскрытие недоказанных ссылок. Ядро их уже посчитало, но мост молчал,
+        # и вывод выглядел так, будто все ссылки доказаны. Для MCP это
+        # особенно важно: панели рядом нет, и единственный источник правды о
+        # риске — этот текст. Модель обязана видеть, ЧТО именно переименуется
+        # без доказательства, иначе она считает работу полностью проверенной.
+        unverified = symbol.get("unverified_references") or []
+        _out("unverified_count: %d" % len(unverified))
+        for note in unverified[:10]:
+            _out("unproven: %s" % note)
     for problem in prepared.get("problems") or []:
         _out("remaining_problem: %s" % problem)
     for diff in prepared.get("diffs") or []:
@@ -1489,6 +1498,18 @@ def _apply_write_plan(root, opts, policy, values, request):
     _out("changed_paths: %s" % ", ".join(result.get("changed_paths") or []))
     if result.get("reference_count") is not None:
         _out("reference_count: %d" % int(result["reference_count"]))
+    # Раскрытие повторяется ПОСЛЕ записи: предпросмотр модель могла потерять
+    # из контекста, а на диске изменения уже есть. Молчание здесь означало бы
+    # «проверено всё», что неправда, если часть мест переименована вслепую.
+    # Печатаем ТОЛЬКО для переименования символов: у create_file/patch_file/
+    # transaction такого понятия нет, и «unverified_count: 0» там был бы шум,
+    # за которым перестают замечать настоящие предупреждения.
+    if prepared.get("kind") == "symbol_rename":
+        symbol = prepared.get("symbol") or {}
+        unverified = symbol.get("unverified_references") or []
+        _out("unverified_count: %d" % len(unverified))
+        for note in unverified[:10]:
+            _out("unproven: %s" % note)
     return RC_OK, "write applied and journaled"
 
 def cmd_write(opts, args):
