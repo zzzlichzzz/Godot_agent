@@ -133,6 +133,22 @@ var _log_errors_button: Button = null
 var _api_export_button: Button = null
 const SAFE_RENAME_SETTING_FILE := "user://godot_agent_safe_rename.txt"
 var _safe_rename_enabled: bool = true
+# Галочка «переименовывать недоказанные ссылки». По умолчанию СТОИТ: значит
+# ссылки, которые сервер не смог доказать, тоже переименовываются, но каждая
+# попадает в отчёт с причиной. Снятие возвращает прежнее строгое поведение,
+# где одна недоказанная ссылка отменяет всё переименование.
+# Хранится в user:// рядом с прочими переключателями, поэтому переживает
+# перезапуск редактора.
+const RENAME_UNVERIFIED_SETTING_FILE := "user://godot_agent_rename_unverified.txt"
+var _rename_unverified_enabled: bool = true
+var _rename_unverified_check: CheckBox = null
+# Выбор режима отказа для переименований. По умолчанию strict: он отказывает при
+# любой недоказанной ссылке и при динамической ссылке по строке. probable эти
+# блокировки снимает, поэтому включать его можно только осознанно — поэтому он
+# НЕ входит в дефолт, даже когда галочка недоказанных ссылок стоит.
+const RENAME_MODE_SETTING_FILE := "user://godot_agent_rename_mode.txt"
+var _rename_mode: String = "strict"
+var _rename_mode_option: OptionButton = null
 var _safe_rename_check: CheckBox = null
 var _safe_rename_button: Button = null
 var _safe_rename_dialog: ConfirmationDialog = null
@@ -670,6 +686,34 @@ func _ready() -> void:
 		advanced_box.add_child(_live_toggle)
 		_live_toggle.toggled.connect(_on_live_input_toggled)
 	_safe_rename_enabled = _load_safe_rename_setting()
+	_rename_unverified_enabled = _load_rename_unverified_setting()
+	_rename_mode = _load_rename_mode()
+	if advanced_box and _rename_mode_option == null:
+		# Режим виден и назван явно: probable снимает блокировку с динамических
+		# ссылок по строке, и пользователь должен выбрать это руками, а не
+		# получить молча.
+		_rename_mode_option = OptionButton.new()
+		_rename_mode_option.text = _t("rename_mode_label")
+		_rename_mode_option.tooltip_text = _t("rename_mode_tip")
+		_rename_mode_option.add_item(_t("rename_mode_strict"), 0)
+		_rename_mode_option.add_item(_t("rename_mode_probable"), 1)
+		_rename_mode_option.select(1 if _rename_mode == "probable" else 0)
+		advanced_box.add_child(_rename_mode_option)
+		_rename_mode_option.item_selected.connect(_on_rename_mode_selected)
+	elif _rename_mode_option:
+		_rename_mode_option.select(1 if _rename_mode == "probable" else 0)
+	if advanced_box and _rename_unverified_check == null:
+		# Галочка видимая: пользователь должен видеть, что недоказанные ссылки
+		# переименовываются, и иметь возможность это отключить. Скрытый дефолт
+		# означал бы молчаливую смену строгости переименования.
+		_rename_unverified_check = CheckBox.new()
+		_rename_unverified_check.text = _t("rename_unverified_toggle")
+		_rename_unverified_check.tooltip_text = _t("rename_unverified_tip")
+		_rename_unverified_check.button_pressed = _rename_unverified_enabled
+		advanced_box.add_child(_rename_unverified_check)
+		_rename_unverified_check.toggled.connect(_on_rename_unverified_toggled)
+	elif _rename_unverified_check:
+		_rename_unverified_check.button_pressed = _rename_unverified_enabled
 	if has_node("ChatView"):
 		_view = get_node("ChatView")
 	else:
@@ -1181,6 +1225,58 @@ func _save_safe_rename_setting(enabled: bool) -> void:
 	f.store_string("1" if enabled else "0")
 
 
+func _on_rename_unverified_toggled(pressed: bool) -> void:
+	_rename_unverified_enabled = pressed
+	_save_rename_unverified_setting(pressed)
+
+
+func _load_rename_unverified_setting() -> bool:
+	# Нет файла — считаем включённым: «галочка стоит по стандарту». Обратное
+	# поведение молча выставило бы strict при первом же открытии проекта,
+	# вопреки видимому дефолту.
+	if not FileAccess.file_exists(RENAME_UNVERIFIED_SETTING_FILE):
+		return true
+	var f = FileAccess.open(RENAME_UNVERIFIED_SETTING_FILE, FileAccess.READ)
+	if f == null:
+		return true
+	return f.get_as_text().strip_edges() != "0"
+
+
+func _save_rename_unverified_setting(enabled: bool) -> void:
+	var f = FileAccess.open(RENAME_UNVERIFIED_SETTING_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string("1" if enabled else "0")
+
+
+func _on_rename_mode_selected(index: int) -> void:
+	var modes := ["strict", "probable"]
+	if index < 0 or index >= modes.size():
+		return
+	_rename_mode = str(modes[index])
+	_save_rename_mode(_rename_mode)
+
+
+func _load_rename_mode() -> String:
+	# Дефолт — strict, и отсутствие файла настроек его НЕ меняет. Иначе первое
+	# же открытие проекта молча ослабило бы строгость переименования до
+	# нестрогой, а пользователь об этом не узнал бы.
+	if not FileAccess.file_exists(RENAME_MODE_SETTING_FILE):
+		return "strict"
+	var f = FileAccess.open(RENAME_MODE_SETTING_FILE, FileAccess.READ)
+	if f == null:
+		return "strict"
+	var stored := f.get_as_text().strip_edges()
+	return stored if stored == "probable" else "strict"
+
+
+func _save_rename_mode(mode: String) -> void:
+	var f = FileAccess.open(RENAME_MODE_SETTING_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(mode if mode == "probable" else "strict")
+
+
 func _load_policy_settings() -> void:
 	_allow_addons = false
 	if FileAccess.file_exists(POLICY_SETTING_FILE):
@@ -1207,6 +1303,13 @@ func _policy_body(extra: Dictionary = {}) -> Dictionary:
 	body["addon_dir"] = ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
 	body["allow_addons"] = _allow_addons
 	body["allow_self_edit"] = _allow_self_edit
+	# Галочка «переименовывать недоказанные ссылки» едет тем же каналом, что и
+	# остальная политика: сервер без этого поля не узнает, что пользователь
+	# её снял, и продолжит вести себя по умолчанию.
+	body["rename_unverified"] = _rename_unverified_enabled
+	# Режим отказа едет тем же каналом: без него сервер не узнает, что
+	# пользователь осознанно разрешил probable.
+	body["rename_mode"] = _rename_mode
 	return body
 
 

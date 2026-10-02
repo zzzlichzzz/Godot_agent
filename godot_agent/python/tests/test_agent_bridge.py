@@ -1256,6 +1256,85 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertEqual(rc, 2, err)
         self.assertIn("no deterministic repair", out)
 
+    # --- Этап D: мост обязан РАСКРЫВАТЬ недоказанные ссылки -------------
+    # Замер: `write preview` печатал `reference_count: 2` и НИ СЛОВА о том, что
+    # res://src/arena.gd переименован без доказательства. Ядро эти данные уже
+    # считает — их просто не печатали. Ровно та ложь, что убрана из
+    # check_action и из ответа агента, жила ещё здесь.
+
+    def _unproven_project(self):
+        """Проект, где ровно одна ссылка недоказуема (нетипизированный
+        ресивер) и одна доказуема. Возвращает путь к json-действию."""
+        Path(self.root, "src", "player.gd").write_text(
+            "class_name Player\nextends Node\n", encoding="utf-8")
+        Path(self.root, "src", "typed.gd").write_text(
+            "extends Node\n\nvar unit: Player\n", encoding="utf-8")
+        Path(self.root, "src", "arena.gd").write_text(
+            "extends Node\n\nfunc fire(target):\n\ttarget.spawn(Player)\n",
+            encoding="utf-8")
+        return self.request_file({
+            "action": "rename_symbol", "kind": "class_name",
+            "declaration": "res://src/player.gd:1", "old_name": "Player",
+            "new_name": "Avatar", "allow_unverified": True}, "unproven.json")
+
+    def _preview(self, request):
+        return run_bridge(self.access_base("project") + [
+            "--validation", "off", "write", "preview", "--request", request])
+
+    def test_preview_reports_unverified_count(self):
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unverified_count: 1", out)
+
+    def test_preview_lists_unproven_places_with_reason(self):
+        """Причина обязана быть названа: без неё модель не может ни оценить
+        риск, ни перепроверить конкретное место позже."""
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unproven: res://src/arena.gd", out)
+
+    def test_preview_lists_changed_paths(self):
+        """Модель должна знать, что изменится, ещё ДО записи."""
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        for path in ("res://src/player.gd", "res://src/typed.gd",
+                     "res://src/arena.gd"):
+            self.assertIn(path, out)
+
+    def test_apply_reports_unproven_after_write(self):
+        """После записи раскрытие обязано повториться: до записи модель видела
+        только предпросмотр, а на диске изменения уже есть."""
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        rc, out, err = run_bridge(self.access_base("project") + [
+            "--validation", "off", "write", "apply", "--request", request,
+            "--plan-id", self.plan_id(out)])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unverified_count: 1", out)
+        self.assertIn("unproven: res://src/arena.gd", out)
+
+    def test_clean_rename_has_no_unverified_noise(self):
+        """Обратная честность: если всё доказано, риск НЕ выдумывается.
+        Иначе предупреждение превращается в шум, который перестают читать."""
+        Path(self.root, "src", "player.gd").write_text(
+            "class_name Player\nextends Node\n", encoding="utf-8")
+        Path(self.root, "src", "typed.gd").write_text(
+            "extends Node\n\nvar unit: Player\n", encoding="utf-8")
+        Path(self.root, "src", "arena.gd").write_text(
+            "extends Node\n", encoding="utf-8")
+        request = self.request_file({
+            "action": "rename_symbol", "kind": "class_name",
+            "declaration": "res://src/player.gd:1", "old_name": "Player",
+            "new_name": "Avatar", "allow_unverified": True}, "clean.json")
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unverified_count: 0", out)
+        self.assertNotIn("unproven:", out)
+
     def test_rename_symbol_via_write_and_rollback(self):
         player = Path(self.root, "src", "player.gd")
         player.write_text("class_name Player\nextends Node\n\n"
