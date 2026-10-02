@@ -133,7 +133,11 @@ class UsagesChecklist(unittest.TestCase):
     # --- 4.3.3 отказ strict тоже отдаёт места, а не только текст ошибки ---
     def test_strict_refusal_includes_suggested_usages(self):
         ml_project_index._MEM_CACHE.clear()
-        payload, status = self._package(self._action(), allow_followup=False)
+        # Галочка «переименовывать недоказанные ссылки» по умолчанию СНЯТА
+        # здесь явно: тест проверяет ветку отказа, а дефолт панели теперь
+        # разрешает переименование, и до этой ветки просто не дошло бы.
+        payload, status = self._package(
+            self._action(allow_unverified=False), allow_followup=False)
         self.assertEqual(status, 200)
         self.assertIsNone(payload.get("pending_action"))
         suggested = payload.get("suggested_usages")
@@ -142,7 +146,7 @@ class UsagesChecklist(unittest.TestCase):
 
     # --- 4.3.4 текст ошибки остаётся, но с местями в структурированном виде ---
     def test_refusal_keeps_human_text(self):
-        payload, _status = self._package(self._action())
+        payload, _status = self._package(self._action(allow_unverified=False))
         self.assertIn("rename_symbol", payload["answer"])
 
     # --- Аудит 4.3: подтверждение принимает exclude и применяет частично ---

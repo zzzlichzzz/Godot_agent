@@ -100,6 +100,50 @@ def _access_kwargs():
     }
 
 
+def _with_rename_policy(action):
+    """Подставить в действие rename_symbol флаг из настройки панели.
+
+    Флаг НЕ пишет сама модель — она про настройку не знает, и доверять ей
+    выбор уровня строгости нельзя. Источник один: галочка пользователя,
+    доехавшая в серверное состояние тем же каналом, что allow_addons.
+    Явно заданный в действии флаг не перетираем: он осознаннее молчаливого.
+
+    Ключевое: пока панель НЕ прислала решение (STATE["rename_unverified"] —
+    None, включая отсутствующий ключ), флаг в действие НЕ добавляется вовсе.
+    Тогда ядро само берёт свой строгий дефолт, и «дефолт включено» в
+    настройках не превращается в «небезопасное переименование у того, кто
+    галочку никогда не открывал».
+
+    Значение обязано быть настоящим bool. Прежнее `is not False` считало
+    разрешением ЛЮБОЕ не-False — включая None, отсутствующий ключ и мусор из
+    JSON: в Python именно такое молчаливое приведение опасно, потому что
+    недоказанная ссылка получила бы молчаливую перезапись.
+    """
+    if not isinstance(action, dict) or action.get("action") != "rename_symbol":
+        return action
+    if "allow_unverified" in action:
+        return action
+    decided = STATE.get("rename_unverified")
+    if not isinstance(decided, bool):
+        # Решение не принято: оставляем действие без флага — strict из ядра.
+        pass
+    else:
+        result = dict(action)
+        result["allow_unverified"] = decided
+        action = result
+    # Режим отказа, в отличие от флага, заданный в действии МЫ ПЕРЕТИРАЕМ.
+    # probable снимает блокировку с динамической ссылки по строке — единственной
+    # ситуации, где переименование осознанно оставляет проект сломанным. Если бы
+    # модель могла поставить probable сама, она обходила бы самую строгую
+    # защиту без спроса. Источник один: явный выбор пользователя в панели.
+    chosen = STATE.get("rename_mode")
+    if chosen in ("strict", "probable"):
+        result = dict(action)
+        result["mode"] = chosen
+        return result
+    return action
+
+
 def _can_write_path(path, project_root=None):
     return can_write_project_path(
         path, project_root or STATE.get("project_root"), **_access_kwargs())
@@ -528,12 +572,30 @@ def _usage_checklist(analysis, limit=300):
 
     id устойчив (путь:строка:колонка), поэтому панель может снять галочку и
     вернуть эти id в confirm_action как exclude.
+
+    Галочка означает «это место будет переименовано», поэтому она обязана
+    соответствовать ФАКТУ, а не уверенности анализа. Недоказанная ссылка
+    (confidence=probable) помечалась раньше как checked, и это была ложь в
+    обе стороны: при снятом allow_unverified переименование отказывается
+    целиком, а в probable недоказанные места не трогаются. Отмечается такое
+    место только когда флаг действительно включён — тогда оно переименуется.
     """
+    allow_unverified = analysis.get("allow_unverified") is True
     checklist = []
     for place in analysis.get("usages", [])[:limit]:
         item = dict(place)
         item["id"] = "%s:%s:%s" % (place["path"], place["line"], place["column"])
-        item["checked"] = place.get("confidence") != "dynamic"
+        confidence = place.get("confidence")
+        if confidence == "dynamic":
+            # По строке: не доказать и не переписать, отметка всегда ложь.
+            item["checked"] = False
+        elif confidence == "probable":
+            item["checked"] = allow_unverified
+            if not item["checked"]:
+                item["note"] = (place.get("note")
+                                or "не доказано: это место не будет переименовано")
+        else:
+            item["checked"] = True
         checklist.append(item)
     return checklist
 
@@ -547,9 +609,13 @@ def _format_analysis(analysis):
                 analysis["proven_count"], analysis["probable_count"],
                 analysis["dynamic_count"])]
     for place in analysis["usages"][:200]:
-        lines.append("%s:%s:%s [%s, %s]"
+        # Причина недоказанного места идёт ВМЕСТЕ с ним, а не только в общем
+        # списке рисков: модель читает построчно и без причины строка
+        # «probable» ничего не сообщает.
+        lines.append("%s:%s:%s [%s, %s]%s"
                      % (place["path"], place["line"], place["column"],
-                        place["link"], place["confidence"]))
+                        place["link"], place["confidence"],
+                        (" — %s" % place["note"]) if place.get("note") else ""))
     if analysis["risks"]:
         lines.append("Риски (не блокируют, но проверь вручную):")
         lines.extend("  " + risk for risk in analysis["risks"][:40])
@@ -614,13 +680,35 @@ def _describe_action(action):
         unverified = action.get("unverified_references") or []
         dynamic = action.get("dynamic_references") or []
         if unverified:
-            risks.append("%d непроверенных ссылок (проверьте вручную)" % len(unverified))
+            # Формулировка обязана отличаться от «файлы не изменятся»: при
+            # allow_unverified=true эти места ПЕРЕИМЕНОВАНЫ, но без доказательства.
+            # Слово «непереименовано» здесь убрано намеренно — иначе текст врёт.
+            if action.get("allow_unverified"):
+                places = len(unverified)
+                # Согласование существительного: «1 место», но «3 места».
+                word = "место" if places == 1 else "мест"
+                risks.append("%d %s переименовано без доказательства "
+                             "(проверьте вручную)" % (places, word))
+            else:
+                risks.append("%d непроверенных ссылок (проверьте вручную)"
+                             % len(unverified))
         if dynamic:
             risks.append("%d динамических ссылок по строке" % len(dynamic))
         if action.get("warnings"):
             risks.append("%d предупреждений" % len(action["warnings"]))
         if action.get("mode") == "probable":
-            risks.append("режим probable: непроверенные ссылки не блокируют")
+            # probable снимает блокировку с динамической ссылки по строке.
+            # Формулировка обязана называть именно ЭТО: без неё «probable»
+            # выглядит как безобидное ускорение, а это решение оставить
+            # сломанный вызов по имени.
+            risks.append("режим probable: непроверенные ссылки не блокируют, "
+                         "в том числе найденные по строке — проверьте вручную")
+        if unverified and action.get("allow_unverified"):
+            # Называем ПРИЧИНУ, а не только число мест: по причине видно, что
+            # исправить в коде, чтобы в следующий раз всё доказалось само.
+            first = str(unverified[0]).split(" — ", 1)
+            if len(first) == 2:
+                risks.append("например: %s" % first[1])
         return text + (("; ВНИМАНИЕ: " + ", ".join(risks)) if risks else "")
     if act == "rename_file":
         return "Агент хочет безопасно переименовать файл %s в %s (%d обновлений ссылок)" % (
@@ -1363,6 +1451,9 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                         "pending_action_code": None,
                         "pending_action_diffs": transaction_actions.prepared_diffs(prepared)})
     if action and action.get("action") == "rename_symbol":
+        # Флаг уровня строгости берётся из настройки панели, а не из действия
+        # модели: пользователь снял галочку — и переименование стало строгим.
+        action = _with_rename_policy(action)
         try:
             prepared = symbol_refactor.prepare_rename(
                 project_root, action, **_access_kwargs())
@@ -2887,12 +2978,26 @@ def confirm_action():
                       "(%d файл(ов), %d ссылок)." % (
                           prepared["old_name"], prepared["new_name"],
                           result["file_count"], result["reference_count"]))
+            # Список изменённых файлов. Без него модель не знает, куда смотреть
+            # и что перепроверять, — а по требованию заказчика именно это ей и
+            # нужно: после автоматического переименования она обязана суметь
+            # сама проверить нужное место в нужном файле.
+            answer += " Изменены файлы: %s" % ", ".join(changed_paths[:20])
             skipped = prepared.get("skipped_usages") or []
             if skipped:
                 answer += " БЕЗ галочки остались: %s" % "; ".join(skipped[:10])
+            # Места, переименованные БЕЗ доказательства, обязаны быть названы и
+            # ПОСЛЕ записи: до записи о них знал только предпросмотр, а сейчас
+            # они уже на диске. Молчание здесь означало бы «проверено всё».
+            unproven = prepared.get("unverified_references") or []
+            if unproven:
+                answer += (" Переименовано без доказательства: %d мест — %s"
+                           % (len(unproven), "; ".join(unproven[:10])))
             return jsonify({
                 "answer": answer,
                 "skipped_usages": skipped,
+                "unverified_references": unproven,
+                "unverified_count": int(prepared.get("unverified_count") or 0),
                 "pending_action": None, "changed_paths": changed_paths,
                 "history_entry_id": result["entry_id"],
             })
