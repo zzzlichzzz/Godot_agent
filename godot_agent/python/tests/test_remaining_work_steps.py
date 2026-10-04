@@ -392,6 +392,14 @@ def run_live(godot: Path):
              "journal_has_one_entry", "journal_lookup_is_case_insensitive",
              "undo_calls_revert_once", "redo_calls_apply_once",
              "bulk_does_not_touch_undo_history", "bulk_recorded_in_journal_only"]),
+        "context_menu_callback_live.gd": (
+            "CTX_CB_RESULTS ",
+            ["точка входа загружается",
+             "внутренний класс SceneTreeMenu доступен",
+             "метод _on_ask существует",
+             "у _on_ask есть необязательный аргумент",
+             "вызов с одним аргументом не падает",
+             "вызов без аргументов не падает"]),
     }
     fixtures = Path(__file__).parent / "fixtures"
     with tempfile.TemporaryDirectory(prefix="agent-gate-") as temp:

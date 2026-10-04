@@ -64,7 +64,14 @@ class SceneTreeMenu extends EditorContextMenuPlugin:
 		_paths = paths
 		add_context_menu_item("Спросить агента про " + _label, _on_ask)
 
-	func _on_ask() -> void:
+	## Godot зовёт обработчик пункта контекстного меню С ОДНИМ аргументом,
+	## хотя add_context_menu_item() ничего о сигнатуре не сообщает. Объявить
+	## метод без параметров — значит получить ошибку в момент клика, то есть
+	## ровно тогда, когда пользователь ждёт ответа. Аргумент не нужен: что
+	## выбрано, уже лежит в _paths, заполненном в _popup_menu. Он объявлен
+	## без типа и со значением по умолчанию, чтобы пережить и вызов с нулём
+	## аргументов, и с любым типом, который движок подставит.
+	func _on_ask(_item = null) -> void:
 		if _host.has_method("agent_ask_about"):
 			_host.call("agent_ask_about", _label, _paths)
 
