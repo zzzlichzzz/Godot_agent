@@ -39,9 +39,6 @@ var _signals_integration: RefCounted = null
 # языке. Может остаться пустым — тогда работает запасной русский текст.
 var _locale = null
 
-# Наполняется владельцем панели.
-var command_handler: Callable = Callable()
-
 
 ## Контекстное меню дерева сцен и файловой системы: «Спросить агента про …».
 ##
@@ -235,10 +232,11 @@ func _build_panel(panel_script_path: String) -> Control:
 		panel.call("set_editor_plugin", self)
 	if _debugger and panel.has_method("set_runtime_debugger"):
 		panel.call("set_runtime_debugger", _debugger)
-	# Пункт контекстного меню ведёт в панель: без этого обработчик уходил бы
-	# в command_handler, который не назначен нигде, и клик не дал бы ничего.
-	if panel.has_method("bind_command_handler"):
-		panel.call("bind_command_handler", Callable(self, "_handle_command"))
+	# Маршрут команд ОДНОНАПРАВЛЕННЫЙ: точка входа вызывает панель сама
+	# (_handle_command -> панель). Обратной связи не нужно и раньше не было:
+	# bind_command_handler передавал обработчик В панель, где он ни разу не
+	# читался, а читался при этом никогда не записанный одноимённый слот в
+	# точке входа. Из-за этого и был обрыв: клик доходил до пустого слота.
 	return panel
 
 
@@ -395,9 +393,14 @@ func _make_runtime_debugger() -> EditorDebuggerPlugin:
 ## paths — то, что пользователь выбрал в дереве сцен или в файловой
 ## системе. Без них вопрос «про узел» не значит ничего конкретного,
 ## поэтому список передаётся дальше как есть, вместе с названием.
+##
+## Маршрут прямой, как у _on_menu_id. Раньше здесь стоял
+## `command_handler.call(...)`, но это поле не назначалось нигде в проекте:
+## объявлялось, читалось и никогда не записывалось, поэтому клик уходил в
+## пустоту без единой ошибки. Обработчик нужен здесь один — этот метод, —
+## и вызывать его нужно напрямую, без посредника.
 func agent_ask_about(what: String, paths: PackedStringArray = PackedStringArray()) -> void:
-	if command_handler.is_valid():
-		command_handler.call("ask", what, paths)
+	_handle_command("ask", what, paths)
 
 
 ## Поднимает вкладку агента первой — то же поведение, что сейчас даёт

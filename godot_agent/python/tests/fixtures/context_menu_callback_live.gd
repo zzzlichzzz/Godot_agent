@@ -113,13 +113,8 @@ func _init() -> void:
 	check("панель загружается", panel_script != null)
 	if panel_script != null:
 		var panel = panel_script.new()
-		check("панель принимает обработчик команд",
-			panel.has_method("bind_command_handler"))
 		check("панель принимает вопрос из меню",
 			panel.has_method("handle_context_ask"))
-		# Слот должен наполняться, а не оставаться пустым.
-		panel.call("bind_command_handler", Callable(menu, "_on_ask"))
-		check("обработчик привязывается без ошибок", true)
 		# Без собранного UI вызов обязан предупредить и выйти, а не упасть.
 		panel.call("handle_context_ask", "узел", PackedStringArray(["Player"]))
 		check("вопрос без собранной панели не роняет вызов", true)
