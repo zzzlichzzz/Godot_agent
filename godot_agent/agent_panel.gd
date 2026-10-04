@@ -83,6 +83,52 @@ var _editor_plugin: EditorPlugin = null
 # у себя, а решения разошлись бы (именно это и было первопричиной).
 var _mutation_gate = null
 var _scene_executor = null
+
+# Маршрут команд от точки входа: пункт «Спросить агента» в контекстном
+# меню. Пока слот пуст, клик по пункту не делает ровно ничего и не сообщает
+# об этом — самый неприятный вид поломки, поэтому слот заполняется сразу
+# при сборке дока (см. bind_command_handler).
+var _command_handler: Callable = Callable()
+
+
+## Точка входа отдаёт панели себя обработчиком команд. Без этого метода
+## agent_entry не может связаться с панелью: там стоит проверка
+## has_method("bind_command_handler"), и она молча ничего не сделает.
+func bind_command_handler(handler: Callable) -> void:
+	_command_handler = handler
+
+
+## Вопрос из контекстного меню: «Спросить агента» по узлу или по файлу.
+##
+## Текст, который пользователь уже набрал в поле ввода, становится самим
+## вопросом и не теряется. Если поле пустое, подставляется вопрос по умолчанию
+## для типа выбора. Отправка идёт через обычный путь _on_send_pressed, а не
+## отдельным запросом: тогда работают все её проверки (занята сеть, не
+## разобрано предыдущее действие) и разметка сообщений в чате.
+func handle_context_ask(what: String, paths: PackedStringArray) -> void:
+	if input_field == null or _view == null:
+		push_warning("[Godot Agent] Панель не готова принять вопрос из меню.")
+		return
+	if paths.is_empty():
+		push_warning("[Godot Agent] В контекстном меню ничего не выбрано.")
+		return
+	# Файл отличается от узла по виду: у сцены это путь от корня res://,
+	# у узла — путь внутри сцены. По признаку решаем, о чём спрашивать.
+	var is_file := false
+	for p in paths:
+		if str(p).begins_with("res://"):
+			is_file = true
+			break
+	var question := input_field.text.strip_edges()
+	if question.is_empty():
+		question = _t("ctx_ask_file_default") if is_file else _t("ctx_ask_node_default")
+	var lines: Array[String] = [question, ""]
+	lines.append(_t("ctx_ask_selection"))
+	for p in paths:
+		lines.append("- " + str(p))
+	input_field.text = "\n".join(lines)
+	input_field.grab_focus()
+	_on_send_pressed()
 var _pending_scene_action: Dictionary = {}
 var _pending_scene_expected_hash: String = ""
 var _pending_scene_semantic_hash: String = ""

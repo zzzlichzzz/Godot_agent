@@ -17,6 +17,10 @@ const ENTRY_CANDIDATES := [
 	"res://addons/Godot_agent/godot_agent/agent_entry.gd",
 	"res://addons/godot_agent/agent_entry.gd",
 ]
+const PANEL_CANDIDATES := [
+	"res://addons/Godot_agent/godot_agent/agent_panel.gd",
+	"res://addons/godot_agent/agent_panel.gd",
+]
 
 var completed: Array[String] = []
 var failures: Array[String] = []
@@ -95,5 +99,31 @@ func _init() -> void:
 	check("вызов без аргументов не падает", true)
 
 	host.free()
+
+	# Вторая половина той же функции. Прошлый баг был не в сигнатуре, а в том,
+	# что приёмной стороны не существовало: точка входа проверяет у панели
+	# has_method("bind_command_handler"), а метода не было — обработчик уходил
+	# в пустой слот, и клик не делал ровно ничего, без единой ошибки.
+	var panel_script: Script = null
+	for candidate in PANEL_CANDIDATES:
+		if ResourceLoader.exists(candidate):
+			panel_script = load(candidate) as Script
+			if panel_script != null:
+				break
+	check("панель загружается", panel_script != null)
+	if panel_script != null:
+		var panel = panel_script.new()
+		check("панель принимает обработчик команд",
+			panel.has_method("bind_command_handler"))
+		check("панель принимает вопрос из меню",
+			panel.has_method("handle_context_ask"))
+		# Слот должен наполняться, а не оставаться пустым.
+		panel.call("bind_command_handler", Callable(menu, "_on_ask"))
+		check("обработчик привязывается без ошибок", true)
+		# Без собранного UI вызов обязан предупредить и выйти, а не упасть.
+		panel.call("handle_context_ask", "узел", PackedStringArray(["Player"]))
+		check("вопрос без собранной панели не роняет вызов", true)
+		panel.free()
+
 	_report()
 	quit(1 if failures.size() > 0 else 0)

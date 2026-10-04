@@ -39,6 +39,9 @@ static var _cur: String = ""
 const RU := {
 	"lang_name": "Русский",
 	"dock_title": "ИИ Агент",
+	"ctx_ask_node_default": "Объясни, что делает этот узел, за что отвечает и как связан с остальной сценой.",
+	"ctx_ask_file_default": "Объясни, что делает этот файл, что в нём важного и кто его использует.",
+	"ctx_ask_selection": "Выбрано в редакторе:",
 	"title": "Godot Agent",
 	"hint": "С чего начнём?",
 	"btn_load": "Загрузиться",
@@ -490,6 +493,9 @@ const RU := {
 const EN := {
 	"lang_name": "English",
 	"dock_title": "AI Agent",
+	"ctx_ask_node_default": "Explain what this node does, what it is responsible for and how it is connected to the rest of the scene.",
+	"ctx_ask_file_default": "Explain what this file does, what matters in it and who uses it.",
+	"ctx_ask_selection": "Selected in the editor:",
 	"title": "Godot Agent",
 	"hint": "Where shall we start?",
 	"btn_load": "Load a chat",
