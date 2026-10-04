@@ -5,10 +5,34 @@ extends RefCounted
 # Python validates JSON and coordinates history; only Godot touches PackedScene.
 
 var _plugin: EditorPlugin
+# Шлюз мутаций (ЗАДАЧА 4). Исполнитель больше не решает сам, как писать
+# сцену и попадёт ли правка в историю отмены: это решение принимает шлюз.
+var _gate = null
+# Версия истории отмены сцены на момент последнего сохранения (ЗАДАЧА 1).
+var _saved_scene_versions: Dictionary = {}
 
 
 func configure(plugin: EditorPlugin) -> void:
 	_plugin = plugin
+
+
+## Шлюз мутаций. Ставится панелью сразу после configure(); без него
+## исполнитель работает как раньше, поэтому порядок подключения не важен.
+func set_mutation_gate(gate) -> void:
+	_gate = gate
+
+
+## Сигнал EditorPlugin.scene_saved: пользователь сохранил сцену вручную, и
+## авто-перезагрузка снова безопасна (ЗАДАЧА 1).
+func note_scene_saved(scene_path: String) -> void:
+	var editor := _editor_interface()
+	var root := editor.get_edited_scene_root() if editor else null
+	if root == null or str(root.get_scene_file_path()) != scene_path:
+		return
+	var manager := editor.get_editor_undo_redo()
+	var history := manager.get_history_undo_redo(manager.get_object_history_id(root))
+	if history != null:
+		_saved_scene_versions[scene_path] = int(history.get_version())
 
 
 func prepare(action: Dictionary, expected_hash: String) -> Dictionary:
@@ -69,7 +93,10 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 				save_error = int(staged.get("error", FAILED))
 				staged_hash = str(staged.get("staged_hash", ""))
 			else:
-				save_error = ResourceSaver.save(packed, scene_path)
+				# ЗАДАЧА 4: запись сцены идёт через шлюз — он ведёт журнал и
+				# точечно обновляет файловую систему. Формат остаётся тем же
+				# (PackedScene), меняется только точка принятия решения.
+				save_error = _write_scene(root, scene_path)
 		root.free()
 	else:
 		var editor := _editor_interface()
@@ -80,6 +107,10 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		var result = editor.call("save_scene")
 		if result is int:
 			save_error = int(result)
+		# ЗАДАЧА 4 (4b): правка ЖИВОЙ сцены идёт через API Godot, поэтому её
+		# место в истории отмены — там же, где у обычных правок в редакторе.
+		# Одна операция агента = одна запись = одно нажатие Ctrl+Z.
+		_commit_live_scene_undo(root, scene_path, changes)
 	if save_error != OK:
 		var failure := _with_hash(_fail("save_failed", "Godot не смог сохранить сцену: %s" % error_string(save_error)), scene_path)
 		failure["target_written"] = target_written
@@ -89,10 +120,78 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 		"staged_hash": staged_hash, "target_written": target_written}
 
 
+## Записать сцену через шлюз мутаций; без шлюза — тем же способом напрямую,
+## чтобы исполнитель оставался рабочим и в изолированных тестах.
+func _write_scene(root: Node, scene_path: String) -> Error:
+	if _gate and _gate.has_method("write_scene"):
+		return _gate.call("write_scene", root, scene_path)
+	var packed := PackedScene.new()
+	var pack_error := packed.pack(root)
+	if pack_error != OK:
+		return pack_error
+	return ResourceSaver.save(packed, scene_path)
+
+
+## Одна запись в истории отмены на одну правку живой сцены (ЗАДАЧА 4b).
+##
+## custom_context = корень сцены: запись попадает в историю СЦЕНЫ, а не в общую
+## историю редактора, поэтому Ctrl+Z отменяет именно эту сцену и не трогает
+## всё подряд. apply здесь пустой — правка уже применена и уже сохранена,
+## повторять её второй раз нельзя; revert возвращает файл с диска.
+func _commit_live_scene_undo(root: Node, scene_path: String,
+		changes: Array[String]) -> void:
+	if _gate == null or not _gate.has_method("begin_undo"):
+		return
+	if not _gate.call("begin_undo", "Правка агента: %s" % scene_path,
+			Callable(), Callable(), root):
+		return
+	_gate.call("record", scene_path, _gate.WriteKind.SCENE,
+		"; ".join(changes))
+	_gate.call("commit_undo")
+
+
 func reload_after_recovery(scene_path: String) -> void:
 	var editor := _editor_interface()
 	if editor and scene_path in Array(editor.get_open_scenes()):
+		if _scene_reload_would_lose_edits(scene_path):
+			# ЗАДАЧА 1: та же защита, что и в панели. Восстановление после
+			# неудачи тоже не имеет права стирать несохранённые правки.
+			push_warning("[Godot Agent] Сцена «%s» открыта с несохранёнными правками — авто-восстановление пропущено." % scene_path)
+			return
 		editor.reload_scene_from_path(scene_path)
+
+
+## Есть ли в открытой сцене несохранённые правки пользователя.
+##
+## Публичного is_scene_dirty() в Godot 4.6 нет, а проверка «грязности» в
+## редакторе живёт только на стороне C++. Опираемся на публичную
+## версию истории отмены: у неё есть get_version(), и версия 0 означает
+## «правок не было», ненулевая — «правки были». Сравнение с версией на
+## момент последнего сохранения делает вывод точным там, где плагин видел
+## сохранение, и осторожным там, где не видел.
+##
+## Историю отмены здесь только читают: писать ею сцену исполнителю нельзя,
+## сцену на диск пишет PackedScene.
+func _scene_reload_would_lose_edits(scene_path: String) -> bool:
+	var editor := _editor_interface()
+	if editor == null:
+		return true
+	var root := editor.get_edited_scene_root()
+	if root == null or str(root.get_scene_file_path()) != scene_path:
+		return false
+	var manager := editor.get_editor_undo_redo()
+	if manager == null:
+		return true
+	var history := manager.get_history_undo_redo(manager.get_object_history_id(root))
+	if history == null:
+		return true
+	# Пустая история — правок не было. Проверять версию вместо этого нельзя:
+	# у только что открытой сцены версия равна 1, хотя несохранённых правок нет.
+	if int(history.get_history_count()) == 0:
+		return false
+	if _saved_scene_versions.has(scene_path):
+		return int(_saved_scene_versions[scene_path]) != int(history.get_version())
+	return true
 
 
 func _editor_interface() -> EditorInterface:

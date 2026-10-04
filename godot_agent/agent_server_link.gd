@@ -20,86 +20,62 @@ signal link_status(text: String, kind: String)
 signal show_loading_requested(text: String)
 signal hide_loading_requested()
 signal server_state_changed(running: bool)
+# Ответ по «быстрому» каналу. Он не встаёт в очередь основных запросов:
+# живой ввод и прогресс идут во время длинного /chat и обязаны долететь.
+signal short_response(id: String, result: int, code: int, headers: PackedStringArray,
+		body: PackedByteArray)
 
-const HOST = "127.0.0.1:5000"
-const CHATS_LIST_URL = "http://" + HOST + "/chats/list"
-const CHATS_NEW_URL = "http://" + HOST + "/chats/new"
-const CHATS_OPEN_URL = "http://" + HOST + "/chats/open"
+# Адрес, токен и заголовки живут в AgentServer. Здесь только имена
+# маршрутов и сам транспорт (очередь, таймаут, автозапуск).
+const CHATS_LIST_URL = AgentServer.URL_CHATS_LIST
+const CHATS_NEW_URL = AgentServer.URL_CHATS_NEW
+const CHATS_OPEN_URL = AgentServer.URL_CHATS_OPEN
 # Смена модели у УЖЕ открытого чата по ключу. Отдельный адрес от /chats/new
 # намеренно: там создаётся новый чат с пустой историей, а здесь переписка как
 # раз сохраняется — в этом весь смысл действия.
-const CHATS_MODEL_URL = "http://" + HOST + "/chats/model"
-const CHATS_RENAME_URL = "http://" + HOST + "/chats/rename"
-const CHATS_DELETE_URL = "http://" + HOST + "/chats/delete"
-const SITES_LIST_URL = "http://" + HOST + "/sites/list"
-const BROWSER_STATUS_URL = "http://" + HOST + "/browser/status"
-const MINILICH_STATUS_URL = "http://" + HOST + "/minilich/status"
-const MINILICH_SET_URL = "http://" + HOST + "/minilich/set"
-const MINILICH_GITHUB_URL = "http://" + HOST + "/minilich/github_fetch"
+const CHATS_MODEL_URL = AgentServer.URL_CHATS_MODEL
+const CHATS_RENAME_URL = AgentServer.URL_CHATS_RENAME
+const CHATS_DELETE_URL = AgentServer.URL_CHATS_DELETE
+const SITES_LIST_URL = AgentServer.URL_SITES_LIST
+const BROWSER_STATUS_URL = AgentServer.URL_BROWSER_STATUS
+const MINILICH_STATUS_URL = AgentServer.URL_MINILICH_STATUS
+const MINILICH_SET_URL = AgentServer.URL_MINILICH_SET
+const MINILICH_GITHUB_URL = AgentServer.URL_MINILICH_GITHUB_FETCH
 # Работа по ключу API: список провайдеров, сохранение настроек, список моделей
 # и проверка подключения.
-const API_PROVIDERS_URL = "http://" + HOST + "/api/providers"
-const API_SET_URL = "http://" + HOST + "/api/settings/set"
-const API_MODELS_URL = "http://" + HOST + "/api/models/refresh"
+const API_PROVIDERS_URL = AgentServer.URL_API_PROVIDERS
+const API_SET_URL = AgentServer.URL_API_SETTINGS_SET
+const API_MODELS_URL = AgentServer.URL_API_MODELS_REFRESH
 # Обход провайдеров за списками моделей: у одного провайдера список тянет
 # API_MODELS_URL по кнопке, а этот адрес обновляет сразу всех, кого можно
 # спросить без участия человека, — иначе числа моделей были бы только у тех
 # провайдеров, которых пользователь успел открыть руками.
-const API_SCAN_URL = "http://" + HOST + "/api/models/scan"
-const API_TEST_URL = "http://" + HOST + "/api/test"
+const API_SCAN_URL = AgentServer.URL_API_MODELS_SCAN
+const API_TEST_URL = AgentServer.URL_API_TEST
 const SERVER_PATH_CACHE := "user://godot_agent_server_path.txt"
-# Токен, которым панель подтверждает серверу, что запрос от неё и от ЭТОГО
-# проекта. Лежит в user:// — то есть в папке конкретного проекта, поэтому
-# сервер, привязавшись к первому обратившемуся проекту, отклоняет панель
-# другого (см. server_auth.py). От программы под той же учётной записью это
-# не защищает: файл читается тем же пользователем.
-const TOKEN_FILE := "user://godot_agent_token.txt"
-const TOKEN_HEADER := "X-Agent-Token"
-
-# Токен читается один раз за сессию редактора: он не меняется, а запросов к
-# серверу десятки, и чтение файла на каждый из них — лишняя работа.
-static var _token_cache: String = ""
+# Токен, путь к его файлу и имя заголовка живут в AgentServer — там же,
+# где адрес и реестр маршрутов. Здесь сохранены прежние имена: на них
+# ссылаются панель и статические проверки обвязки.
+const TOKEN_FILE := AgentServer.TOKEN_FILE
+const TOKEN_HEADER := AgentServer.TOKEN_HEADER
 
 
+# Токен создаётся один раз и переживает перезапуск редактора: сервер мог
+# уже привязаться к прежнему значению, а смена токена на каждом запуске
+# заставляла бы перезапускать и сервер. Сама логика — в AgentServer.
 static func project_token() -> String:
-	# Токен создаётся один раз и переживает перезапуск редактора: сервер мог
-	# уже привязаться к прежнему значению, и смена токена на каждом запуске
-	# заставляла бы перезапускать и сервер.
-	if _token_cache.length() >= 16:
-		return _token_cache
-	if FileAccess.file_exists(TOKEN_FILE):
-		var f := FileAccess.open(TOKEN_FILE, FileAccess.READ)
-		if f:
-			var saved := f.get_as_text().strip_edges()
-			f.close()
-			if saved.length() >= 16:
-				_token_cache = saved
-				return _token_cache
-	var token := ""
-	for i in 8:
-		# crypto-стойкость здесь не нужна и недостижима (файл всё равно читает
-		# тот же пользователь) — достаточно, чтобы значение нельзя было угадать.
-		token += "%08x" % (randi() ^ (Time.get_ticks_usec() + i * 7919))
-	var w := FileAccess.open(TOKEN_FILE, FileAccess.WRITE)
-	if w:
-		w.store_string(token)
-		w.close()
-	_token_cache = token
-	return token
+	return AgentServer.project_token()
 
 
 static func json_headers() -> PackedStringArray:
-	# Единая точка сборки заголовков. Панель (agent_panel.gd) вызывает
-	# project_token() у ЭКЗЕМПЛЯРА этого узла, а не у загруженного скрипта:
-	# has_method() у объекта GDScript не даёт надёжного ответа про
-	# пользовательские static func, и молчаливое «нет» означало бы запросы без
-	# токена — сервер отклонял бы их все.
-	return PackedStringArray([
-		"Content-Type: application/json",
-		TOKEN_HEADER + ": " + project_token(),
-	])
+	# Токен здесь обязателен: сам транспорт работает только после привязки
+	# сервера к проекту, и запрос без токена сервер отклонит.
+	return AgentServer.json_headers(true)
 
 var _http: HTTPRequest = null
+var _short_http: HTTPRequest = null
+var _short_id: String = ""
+var _short_busy: bool = false
 var _inflight: bool = false
 var _queue: Array = []
 var _kind: String = ""
@@ -136,6 +112,54 @@ func _ready() -> void:
 		_http.timeout = 180.0
 		add_child(_http)
 		_http.request_completed.connect(_on_response)
+	if _short_http == null:
+		_short_http = HTTPRequest.new()
+		# Короткий таймаут: живой ввод и опрос прогресса должны оборваться
+		# быстро. Основной канал с его 180 с для них не годится.
+		_short_http.timeout = 5.0
+		add_child(_short_http)
+		_short_http.request_completed.connect(_on_short_response)
+
+
+## Короткий запрос мимо очереди основных. Возвращает false, если такой
+## запрос уже идёт: один слот на канал, как и было у отдельных HTTPRequest
+## в панели.
+func post_now(id: String, url: String, body: String = "{}") -> bool:
+	return _send_now(id, url, HTTPClient.METHOD_POST, body)
+
+
+func get_now(id: String, url: String) -> bool:
+	return _send_now(id, url, HTTPClient.METHOD_GET, "")
+
+
+func is_short_busy() -> bool:
+	return _short_busy
+
+
+func _send_now(id: String, url: String, method: int, body: String) -> bool:
+	if _short_http == null:
+		return false
+	if _short_busy:
+		return false
+	_short_http.set_http_proxy("", 0)
+	var err := OK
+	if method == HTTPClient.METHOD_GET:
+		err = _short_http.request(url, AgentServer.json_headers(false))
+	else:
+		err = _short_http.request(url, AgentServer.json_headers(false), method, body)
+	if err != OK:
+		return false
+	_short_id = id
+	_short_busy = true
+	return true
+
+
+func _on_short_response(result: int, code: int, headers: PackedStringArray,
+		body: PackedByteArray) -> void:
+	var id := _short_id
+	_short_id = ""
+	_short_busy = false
+	short_response.emit(id, result, code, headers, body)
 
 
 func is_inflight() -> bool:

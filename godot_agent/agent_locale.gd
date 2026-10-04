@@ -484,6 +484,7 @@ const RU := {
 	"update_check_now_btn": "Проверить обновления",
 	"update_check_now_tip": "Проверить наличие новой версии Godot Agent на GitHub.",
 	"update_error": "Ошибка обновления: %s",
+	"scene_reload_blocked": "Сцена «%s» изменена агентом на диске, но открыта с несохранёнными правками. Авто-перезагрузка пропущена, чтобы их не потерять: сохраните сцену (Ctrl+S) или закройте вкладку без сохранения, и агент перечитает файл.",
 }
 
 const EN := {
@@ -924,6 +925,7 @@ const EN := {
 	"update_check_now_btn": "Check for updates",
 	"update_check_now_tip": "Check GitHub for a newer version of Godot Agent.",
 	"update_error": "Update error: %s",
+	"scene_reload_blocked": "Scene \"%s\" was changed on disk by the agent, but it is open with unsaved edits. Auto-reload was skipped so they are not lost: save the scene (Ctrl+S) or close the tab without saving, and the agent will re-read the file.",
 }
 
 

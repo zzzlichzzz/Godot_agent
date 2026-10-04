@@ -32,6 +32,7 @@ test_browser_target_binding test_v88_11_live_input test_v105_spoof_per_site
 test_v88_16_paste_fix test_v88_12_net_confirm test_v88_7_input_wait
 test_v88_8_net_first test_rate_limit_sleep test_v87_1_kimi_cdp
 test_v88_0_aistudio test_v105_net_answer_ready test_arena_parser test_v88_13_multi_action test_updater test_release_prepare test_variable_refactor test_asset_refactor
+test_remaining_work_steps test_panel_short_channel
 """.split()
 
 
@@ -45,7 +46,13 @@ def main():
     live = ["test_godot_live", "test_godot_executor_live", "test_runtime_ownership_live",
             "test_headless_validator_live", "test_file_refactor_live", "test_node_refactor_live",
             "test_updater_live", "test_updater_bbcode_live", "test_variable_refactor_live",
-            "test_asset_refactor_live"]
+            "test_asset_refactor_live",
+            # Эти четыре требуют НАСТОЯЩЕГО движка: без --godot они честно
+            # падают с parser.error(), а не «проходят наполовину». Раньше они
+            # вообще не были зарегистрированы, поэтому их требование к движку
+            # никто не замечал, и опечатка в списке оставалась незамеченной.
+            "test_agent_server_client", "test_agent_entry_integrations",
+            "test_agent_entry_context_menu", "test_agent_entry_tool_menu"]
     if args.godot:
         suites.extend(live)
     failures = []
