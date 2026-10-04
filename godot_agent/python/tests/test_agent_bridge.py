@@ -93,6 +93,18 @@ class AgentBridgeTests(unittest.TestCase):
         Path(self.root, "src", "player.gd.uid").write_text('uid://bridgeplayer\n', encoding="utf-8")
         Path(self.root, "src", "main.gd").write_text(
             'extends Node\nconst P = preload("res://src/player.gd")\n', encoding="utf-8")
+        # Python-фикстуры: свой исходник агента, внешний аддон и проект.
+        # Проверяют, что .py ищется ТОЛЬКО в agent-dev.
+        Path(self.agent_dir, "python").mkdir(parents=True)
+        Path(self.agent_dir, "python", "agent_bridge_probe.py").write_text(
+            "AGENT_PY_ONLY_TOKEN = 1\n", encoding="utf-8")
+        Path(self.agent_dir, "python", "__pycache__").mkdir()
+        Path(self.agent_dir, "python", "__pycache__", "cached.py").write_text(
+            "CACHED_PY_TOKEN = 1\n", encoding="utf-8")
+        Path(self.external_addon, "helper.py").write_text(
+            "EXTERNAL_PY_TOKEN = 1\n", encoding="utf-8")
+        Path(self.root, "src", "tool.py").write_text(
+            "PROJECT_PY_TOKEN = 1\n", encoding="utf-8")
         gd_api_cache.save_cache(self.root, {
             "Object": {"inherits": "", "methods": {"free": [0, 0]}, "properties": [], "signals": []},
             "Node": {"inherits": "Object", "methods": {"add_child": [1, 1], "get_node": [1, 1]},
@@ -1244,6 +1256,85 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertEqual(rc, 2, err)
         self.assertIn("no deterministic repair", out)
 
+    # --- Этап D: мост обязан РАСКРЫВАТЬ недоказанные ссылки -------------
+    # Замер: `write preview` печатал `reference_count: 2` и НИ СЛОВА о том, что
+    # res://src/arena.gd переименован без доказательства. Ядро эти данные уже
+    # считает — их просто не печатали. Ровно та ложь, что убрана из
+    # check_action и из ответа агента, жила ещё здесь.
+
+    def _unproven_project(self):
+        """Проект, где ровно одна ссылка недоказуема (нетипизированный
+        ресивер) и одна доказуема. Возвращает путь к json-действию."""
+        Path(self.root, "src", "player.gd").write_text(
+            "class_name Player\nextends Node\n", encoding="utf-8")
+        Path(self.root, "src", "typed.gd").write_text(
+            "extends Node\n\nvar unit: Player\n", encoding="utf-8")
+        Path(self.root, "src", "arena.gd").write_text(
+            "extends Node\n\nfunc fire(target):\n\ttarget.spawn(Player)\n",
+            encoding="utf-8")
+        return self.request_file({
+            "action": "rename_symbol", "kind": "class_name",
+            "declaration": "res://src/player.gd:1", "old_name": "Player",
+            "new_name": "Avatar", "allow_unverified": True}, "unproven.json")
+
+    def _preview(self, request):
+        return run_bridge(self.access_base("project") + [
+            "--validation", "off", "write", "preview", "--request", request])
+
+    def test_preview_reports_unverified_count(self):
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unverified_count: 1", out)
+
+    def test_preview_lists_unproven_places_with_reason(self):
+        """Причина обязана быть названа: без неё модель не может ни оценить
+        риск, ни перепроверить конкретное место позже."""
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unproven: res://src/arena.gd", out)
+
+    def test_preview_lists_changed_paths(self):
+        """Модель должна знать, что изменится, ещё ДО записи."""
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        for path in ("res://src/player.gd", "res://src/typed.gd",
+                     "res://src/arena.gd"):
+            self.assertIn(path, out)
+
+    def test_apply_reports_unproven_after_write(self):
+        """После записи раскрытие обязано повториться: до записи модель видела
+        только предпросмотр, а на диске изменения уже есть."""
+        request = self._unproven_project()
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        rc, out, err = run_bridge(self.access_base("project") + [
+            "--validation", "off", "write", "apply", "--request", request,
+            "--plan-id", self.plan_id(out)])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unverified_count: 1", out)
+        self.assertIn("unproven: res://src/arena.gd", out)
+
+    def test_clean_rename_has_no_unverified_noise(self):
+        """Обратная честность: если всё доказано, риск НЕ выдумывается.
+        Иначе предупреждение превращается в шум, который перестают читать."""
+        Path(self.root, "src", "player.gd").write_text(
+            "class_name Player\nextends Node\n", encoding="utf-8")
+        Path(self.root, "src", "typed.gd").write_text(
+            "extends Node\n\nvar unit: Player\n", encoding="utf-8")
+        Path(self.root, "src", "arena.gd").write_text(
+            "extends Node\n", encoding="utf-8")
+        request = self.request_file({
+            "action": "rename_symbol", "kind": "class_name",
+            "declaration": "res://src/player.gd:1", "old_name": "Player",
+            "new_name": "Avatar", "allow_unverified": True}, "clean.json")
+        rc, out, err = self._preview(request)
+        self.assertEqual(rc, 0, err)
+        self.assertIn("unverified_count: 0", out)
+        self.assertNotIn("unproven:", out)
+
     def test_rename_symbol_via_write_and_rollback(self):
         player = Path(self.root, "src", "player.gd")
         player.write_text("class_name Player\nextends Node\n\n"
@@ -1302,6 +1393,98 @@ class AgentBridgeTests(unittest.TestCase):
         rc, out, err = run_bridge(self.base + ["api"])  # без имени класса
         self.assertEqual(rc, 4, err)
         self.assertNotIn("Traceback", out + err)
+
+
+# --- search: .py только в agent-dev ---------------------------------
+    # Контракт: собственные .py Godot Agent ищутся ТОЛЬКО в developer mode.
+    # Для пользователя (project/addon) .py не должен попадать в выдачу никогда.
+
+    def test_agent_dev_search_reads_own_python_source(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "AGENT_PY_ONLY_TOKEN"])
+            self.assertEqual(rc, 0, err)
+            self.assertIn("python/agent_bridge_probe.py", out)
+            self.assertNotIn("Traceback", out + err)
+
+    def test_agent_dev_search_skips_external_addon_python(self):
+        # agent-dev открывает ТОЛЬКО свой исходник; чужие аддоны ни при чём.
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "EXTERNAL_PY_TOKEN"])
+            self.assertEqual(rc, 2, err)
+
+    def test_agent_dev_search_skips_pycache_python(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "CACHED_PY_TOKEN"])
+            self.assertEqual(rc, 2, err)
+
+    def test_addon_mode_never_searches_python(self):
+        # Регрессия для пользователя: .py не всплывает в режиме addon
+        # ни в своём агенте, ни во внешнем аддоне, ни в проекте.
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            for token in ("AGENT_PY_ONLY_TOKEN", "EXTERNAL_PY_TOKEN",
+                          "PROJECT_PY_TOKEN"):
+                rc, out, err = run_bridge(
+                    self.access_base("addon") + ["search", token])
+                self.assertEqual(rc, 2, "%s must stay invisible in addon" % token)
+                self.assertNotIn(".py", out)
+
+    def test_project_mode_never_searches_python(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            for token in ("PROJECT_PY_TOKEN", "AGENT_PY_ONLY_TOKEN",
+                          "EXTERNAL_PY_TOKEN"):
+                rc, out, err = run_bridge(
+                    self.access_base("project") + ["search", token])
+                self.assertEqual(rc, 2, "%s must stay invisible in project" % token)
+                self.assertNotIn(".py", out)
+
+    def test_python_matches_respect_max_quota(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            for index in range(12):
+                Path(self.agent_dir, "python", "bulk_%02d.py" % index).write_text(
+                    "BRIDGE_PY_QUOTA_TOKEN = %d\n" % index, encoding="utf-8")
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + [
+                    "search", "--max", "3", "BRIDGE_PY_QUOTA_TOKEN"])
+            self.assertEqual(rc, 0, err)
+            self.assertIn("3 match groups", err)
+            self.assertEqual(out.count("\n---\n"), 3)
+            self.assertIn("results truncated at 3", out)
+
+    def test_gdscript_search_still_works_in_agent_dev(self):
+        # Регрессия: включение .py не должно сломать обычный поиск .gd.
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(
+                self.access_base("agent-dev") + ["search", "AGENT_ONLY_TOKEN"])
+            self.assertEqual(rc, 0, err)
+            self.assertIn("agent.gd", out)
+
+    def test_search_ext_policy_is_mode_scoped(self):
+        """Юнит-уровень: набор расширений зависит только от allow_self_edit."""
+        import project_tools
+        default_exts = project_tools.search_extensions_for(
+            allow_self_edit=False, addon_dir=str(self.agent_dir))
+        self.assertNotIn(".py", default_exts)
+        self.assertIn(".gd", default_exts)
+        # Флаг без доверенного корня агента .py НЕ открывает (fail closed).
+        orphan = project_tools.search_extensions_for(
+            allow_self_edit=True, addon_dir=None)
+        self.assertNotIn(".py", orphan)
+        dev_exts = project_tools.search_extensions_for(
+            allow_self_edit=True, addon_dir=str(self.agent_dir))
+        self.assertIn(".py", dev_exts)
+        self.assertIn(".gd", dev_exts)
+        # Исходный набор не должен мутироваться вызовами.
+        self.assertNotIn(".py", project_tools.SEARCH_EXTS)
 
 
 if __name__ == "__main__":

@@ -48,6 +48,22 @@ STATE = {
     "godot_executable": None,      # trusted editor executable path from OS.get_executable_path()
     "allow_addons": False,        # доступ к внешним res://addons, не к текущему плагину
     "allow_self_edit": False,     # временный developer mode текущего плагина
+    # Галочка панели «переименовывать недоказанные ссылки».
+    #
+    # None означает «решение НЕ принято»: панель ещё не прислала своё значение.
+    # Это НЕ то же самое, что False. Прежний дефолт True был неотличим от
+    # «пользователь реально поставил галочку», и агент, подставляя флаг из
+    # STATE, молча получал небезопасное переименование на СВЕЖЕМ проекте, где
+    # галочка ещё не синхронизировалась. Ровно тот случай, когда «по умолчанию
+    # включено» незаметно превращается в «любой клиент молча получил unsafe».
+    # Пока панель не прислала решение, флаг в действие не добавляется вовсе, и
+    # ядро само берёт свой безопасный strict (см. symbol_refactor).
+    "rename_unverified": None,
+    # Режим отказа выбирает пользователь в панели. None = панель ещё не
+    # прислала решение, и ядро само берёт свой строгий strict. Клиент без
+    # панели (MCP, сторонний скрипт) тоже остаётся на strict: probable
+    # снимает блокировку с динамической ссылки и не должен включаться молча.
+    "rename_mode": None,
     "pending_log_report": None,  # подготовленный отчёт об ошибках запуска
     "editor_context": None,     # снимок только текущего хода для gather_context
     "runtime_status": None,
@@ -742,10 +758,22 @@ def _apply_session_context(data, allow_rebind=False):
         STATE["project_root"] = requested_root
     STATE["addon_dir"] = trusted
     client_metadata_missing = "addon_dir" not in data and "project_root" in data
-    for key in ("allow_addons", "allow_self_edit"):
+    for key in ("allow_addons", "allow_self_edit", "rename_unverified"):
         if key in data:
             value = data.get(key)
-            STATE[key] = value if isinstance(value, bool) else False
+            # Для флагов доступа не-bool = False (fail-closed). Для галочки
+            # переименования не-bool = None («решение не принято»): False здесь
+            # означал бы «пользователь снял галочку», а это не то же самое, что
+            # «мы не поняли значение». Оба исхода безопасны (ядро берёт strict),
+            # но None честнее и не выдаёт мусор за решение пользователя.
+            STATE[key] = value if isinstance(value, bool) else (
+                None if key == "rename_unverified" else False)
+    # Режим отказа: принимаем ТОЛЬКО два известных значения, всё прочее — None
+    # («решение не принято»), и тогда ядро берёт свой strict. Строка из
+    # непроверенного источника не должна включать probable.
+    if "rename_mode" in data:
+        chosen = data.get("rename_mode")
+        STATE["rename_mode"] = chosen if chosen in ("strict", "probable") else None
     if trusted is None or client_metadata_missing:
         STATE["allow_addons"] = False
         STATE["allow_self_edit"] = False

@@ -247,25 +247,30 @@ for m in re.finditer(r"^func ([A-Za-z0-9_]+)\s*\(", panel, re.MULTILINE):
 check(u"каждая отправляющая функция берёт заголовки у сборщика",
       not missing_token, missing_token)
 
-tok_panel = re.search(r'const TOKEN_FILE\s*:?=\s*"([^"]+)"', panel)
-tok_link = re.search(r'const TOKEN_FILE\s*:?=\s*"([^"]+)"', link)
-check(u"путь к файлу токена задан в обоих файлах",
-      bool(tok_panel) and bool(tok_link))
-check(u"путь к файлу токена совпадает",
-      bool(tok_panel) and bool(tok_link)
-      and tok_panel.group(1) == tok_link.group(1),
-      (tok_panel.group(1) if tok_panel else None,
-       tok_link.group(1) if tok_link else None))
+# Токен и имя заголовка раньше объявлялись дважды — в панели и в транспорте —
+# и проверки ниже сравнивали две копии. Теперь источник один: agent_server.gd.
+# Сравнивать нечего, и нечего сравлать было бы опасно: расхождение копий
+# даёт 403 на КАЖДЫЙ запрос после привязки сервера, то есть плагин, сломанный
+# целиком. Поэтому проверяем другое: копий не осталось, а единственный
+# источник совпадает с серверным.
+client = read(_os0.path.join(ADDON, "agent_server.gd"))
+tok_client = re.search(r'const TOKEN_FILE\s*:?=\s*"([^"]+)"', client)
+hdr_client = re.search(r'const TOKEN_HEADER\s*:?=\s*"([^"]+)"', client)
+
+check(u"путь к файлу токена задан в клиенте", bool(tok_client),
+      tok_client.group(1) if tok_client else None)
+check(u"токен не объявляется больше нигде",
+      not re.search(r'const TOKEN_FILE\s*:?=\s*"', panel)
+      and not re.search(r'const TOKEN_FILE\s*:?=\s*"', link))
 
 # Имя заголовка должно совпадать с серверным server_auth.HEADER.
 import server_auth
-hdr_link = re.search(r'const TOKEN_HEADER\s*:?=\s*"([^"]+)"', link)
 check(u"имя заголовка токена совпадает с серверным",
-      bool(hdr_link) and hdr_link.group(1) == server_auth.HEADER,
-      (hdr_link.group(1) if hdr_link else None, server_auth.HEADER))
+      bool(hdr_client) and hdr_client.group(1) == server_auth.HEADER,
+      (hdr_client.group(1) if hdr_client else None, server_auth.HEADER))
 check(u"панель шлёт заголовок с тем же именем",
-      ('"' + server_auth.HEADER + ': "') in panel
-      or (server_auth.HEADER + ': "') in panel)
+      ("AgentServer." in panel)
+      and bool(re.search(r'AgentServer\.json_headers\(', panel)))
 
 # Токен берётся у ЭКЗЕМПЛЯРА узла, а не у загруженного скрипта: has_method()
 # объекта GDScript не даёт надёжного ответа про пользовательские static func.
@@ -485,11 +490,15 @@ check("panel coordinates project settings transaction",
                                      "project_settings_finalize",
                                      "_pending_project_settings_semantic_hash",
                                        "agent_project_settings_executor.gd")))
+# ЗАДАЧА 2: конверт настроек держится до терминального ответа. Проверяем
+# ЕДИНСТВЕННУЮ функцию отправки вместо трёх копий: копии разошлись, и
+# правило перестало действовать для двух видов из трёх.
 check("panel retains settings finalize until a terminal result",
       all(name in panel for name in ("_pending_project_settings_finalize_body",
-                                     "func _send_pending_project_settings_finalize",
-                                     "func _schedule_project_settings_finalize_retry"))
-      and "_send_pending_project_settings_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
+                                     "func _send_pending_finalize",
+                                     "func _schedule_finalize_retry",
+                                     "func _discard_pending_finalize"))
+      and "_send_pending_finalize(" in panel[panel.find("func _on_play_watch_tick"):])
 check("file operations close open target scenes before write and reopen them",
       'call("close_scene")' in panel and "func _close_scenes_before_write" in panel
       and "_open_pending_scene_paths()" in panel and "_reopen_scenes_after_write()" in panel)
@@ -501,10 +510,15 @@ check("dirty script safety does not call unavailable resource accessor",
 autoreload_helper = panel[panel.find("func _ensure_script_autoreload_setting"):panel.find("func _force_reload_open_script")]
 check("plugin does not silently change script autoreload preference",
       "set_setting(" not in autoreload_helper)
+# ZADACHA 2: the "never retry forever after a terminal code" rule is now ONE
+# source for all three transaction kinds. It used to be a copy per kind and the
+# copies drifted, so the rule silently stopped applying to two of the three.
 for finalize_kind in ("resource_finalize", "project_settings_finalize"):
-    failure_branch = panel[panel.rfind('if kind == "%s":' % finalize_kind):]
     check("terminal %s is not retried forever" % finalize_kind,
-          'if response_code in [400, 403, 409, 410, 413]:' in failure_branch.split("\n\t\tif kind ==", 1)[0])
+          "const FINALIZE_TERMINAL_CODES := [400, 403, 409, 410, 413]" in panel
+          and panel.count("response_code in FINALIZE_TERMINAL_CODES") == 1
+          and "_discard_pending_finalize(finalize_kind)" in panel
+          and ('kind == "%s"' % finalize_kind) in panel)
 resource_executor = read(_os0.path.join(ADDON, "agent_resource_executor.gd"))
 check("resource executor avoids invalid static hashing",
       "HashingContext.hash(" not in resource_executor)
@@ -530,11 +544,13 @@ check("panel coordinates resource transaction",
       all(name in panel for name in ("_prepare_resource_action", "_execute_resource_action",
                                      "resource_finalize", "_pending_resource_semantic_hash",
                                       "agent_resource_executor.gd")))
+# ZADACHA 2: the retained resource finalize envelope is re-sent by the shared
+# sender, and 'pending' still counts it as blocking work in _has_pending_action.
 check("panel retries retained resource finalize envelope",
       "_pending_resource_finalize_body" in panel
-      and "_schedule_resource_finalize_retry" in panel
-      and "not _pending_resource_finalize_body.is_empty()" in panel[panel.find("func _has_pending_action"):]
-      and "_send_pending_resource_finalize()" in panel[panel.find("func _on_play_watch_tick"):])
+      and "func _schedule_finalize_retry" in panel
+      and "_pending_resource_finalize_body.is_empty()" in panel[panel.find("func _has_pending_action"):]
+      and "_send_pending_finalize(" in panel[panel.find("func _on_play_watch_tick"):])
 check("panel explicitly dispatches all editor transaction kinds",
       all(value in panel for value in ('editor_action_kind == "scene"',
                                        'editor_action_kind == "project_settings"',

@@ -19,35 +19,31 @@ extends Control
 @onready var advanced_box: VBoxContainer = $VBoxContainer/AdvancedBox
 @onready var reinit_button: Button = $VBoxContainer/AdvancedBox/ReinitButton
 
-const HOST = "127.0.0.1:5000"
-# Файл токена проекта. Создаёт его agent_server_link.gd (там же вся логика),
-# здесь путь нужен только как запасной способ прочитать токен, если узел
-# ServerLink почему-то недоступен. Значение обязано совпадать с TOKEN_FILE
-# в agent_server_link.gd.
-const TOKEN_FILE := "user://godot_agent_token.txt"
-const CHAT_URL = "http://" + HOST + "/chat"
-const INIT_URL = "http://" + HOST + "/init"
-const CONFIRM_URL = "http://" + HOST + "/chat/confirm_action"
-const EDITOR_ACTION_RESULT_URL = "http://" + HOST + "/chat/editor_action/result"
-const RUNTIME_RESULT_URL = "http://" + HOST + "/chat/runtime_inspect/result"
-const RUNTIME_CHECK_RESULT_URL = "http://" + HOST + "/chat/runtime_check/result"
-const ROLLBACK_URL = "http://" + HOST + "/chat/rollback"
-const ROLLBACK_PREVIEW_URL = "http://" + HOST + "/chat/rollback/preview"
-const CHECK_LOG_URL = "http://" + HOST + "/project/check_log"
-const SEND_LOG_URL = "http://" + HOST + "/project/send_log_errors"
-const PROGRESS_URL = "http://" + HOST + "/chat/progress"
-const API_EXPORT_URL = "http://" + HOST + "/project/update_api_cache"
-const API_CACHE_STATUS_URL = "http://" + HOST + "/project/api_cache_status"
-const PLAN_STEP_URL = "http://" + HOST + "/chat/plan/step"
-const PLAN_STOP_URL = "http://" + HOST + "/chat/plan/stop"
-const CHAT_STOP_URL = "http://" + HOST + "/chat/stop"
-const PLAN_ROLLBACK_CHAIN_URL = "http://" + HOST + "/chat/plan/rollback_chain"
-const LIVE_INPUT_URL = "http://" + HOST + "/chat/live_input"
-const REFACTOR_FILE_PREVIEW_URL = "http://" + HOST + "/project/refactor/file/preview"
-const REFACTOR_FILE_APPLY_URL = "http://" + HOST + "/project/refactor/file/apply"
-const REFACTOR_FILE_POST_MOVE_SYNC_URL = "http://" + HOST + "/project/refactor/file/post_move_sync"
-const REFACTOR_NODE_PREVIEW_URL = "http://" + HOST + "/scene/refactor/node/preview"
-const REFACTOR_NODE_APPLY_URL = "http://" + HOST + "/scene/refactor/node/apply"
+# Адрес сервера, токен и заголовки живут в AgentServer — единственном месте,
+# где плагин знает про локальный сервер. Здесь только имена маршрутов.
+const CHAT_URL = AgentServer.URL_CHAT
+const INIT_URL = AgentServer.URL_INIT
+const CONFIRM_URL = AgentServer.URL_CHAT_CONFIRM_ACTION
+const EDITOR_ACTION_RESULT_URL = AgentServer.URL_CHAT_EDITOR_ACTION_RESULT
+const RUNTIME_RESULT_URL = AgentServer.URL_CHAT_RUNTIME_INSPECT_RESULT
+const RUNTIME_CHECK_RESULT_URL = AgentServer.URL_CHAT_RUNTIME_CHECK_RESULT
+const ROLLBACK_URL = AgentServer.URL_CHAT_ROLLBACK
+const ROLLBACK_PREVIEW_URL = AgentServer.URL_CHAT_ROLLBACK_PREVIEW
+const CHECK_LOG_URL = AgentServer.URL_PROJECT_CHECK_LOG
+const SEND_LOG_URL = AgentServer.URL_PROJECT_SEND_LOG_ERRORS
+const PROGRESS_URL = AgentServer.URL_CHAT_PROGRESS
+const API_EXPORT_URL = AgentServer.URL_PROJECT_UPDATE_API_CACHE
+const API_CACHE_STATUS_URL = AgentServer.URL_PROJECT_API_CACHE_STATUS
+const PLAN_STEP_URL = AgentServer.URL_CHAT_PLAN_STEP
+const PLAN_STOP_URL = AgentServer.URL_CHAT_PLAN_STOP
+const CHAT_STOP_URL = AgentServer.URL_CHAT_STOP
+const PLAN_ROLLBACK_CHAIN_URL = AgentServer.URL_CHAT_PLAN_ROLLBACK_CHAIN
+const LIVE_INPUT_URL = AgentServer.URL_CHAT_LIVE_INPUT
+const REFACTOR_FILE_PREVIEW_URL = AgentServer.URL_PROJECT_REFACTOR_FILE_PREVIEW
+const REFACTOR_FILE_APPLY_URL = AgentServer.URL_PROJECT_REFACTOR_FILE_APPLY
+const REFACTOR_FILE_POST_MOVE_SYNC_URL = AgentServer.URL_PROJECT_REFACTOR_FILE_POST_MOVE_SYNC
+const REFACTOR_NODE_PREVIEW_URL = AgentServer.URL_SCENE_REFACTOR_NODE_PREVIEW
+const REFACTOR_NODE_APPLY_URL = AgentServer.URL_SCENE_REFACTOR_NODE_APPLY
 
 var _pending_request_kind: String = "chat"
 var _is_network_busy: bool = false
@@ -56,6 +52,10 @@ var _is_network_busy: bool = false
 # строкой ввода одновременно с карточкой в чате. Теперь состояние живёт в
 # переменной, а сама панель не показывается никогда (см. _set_pending_action).
 var _pending_action_active: bool = false
+# Список мест переименования с галочками (Этап 4.3). Пуст, если действие не
+# связано с переименованием или список не пришёл.
+var _pending_rename_usages: Array = []
+var _rename_excluded: Dictionary = {}
 
 # Plan-режим (цепочка действий): активен, когда пользователь подтвердил план
 # и панель сама выполняет шаги через PLAN_STEP_URL по одному.
@@ -77,28 +77,63 @@ var _last_pending_action_path: String = ""
 var _last_pending_action_dest: String = ""
 var _last_pending_action_paths: PackedStringArray = PackedStringArray()
 var _editor_plugin: EditorPlugin = null
+# Шлюз мутаций (ЗАДАЧА 4): единственное место, где плагин пишет в файлы и
+# где решается, попадёт ли правка в историю отмены Godot. Создаётся раньше
+# исполнителей и передаётся им: иначе каждый исполнитель снова решал бы это
+# у себя, а решения разошлись бы (именно это и было первопричиной).
+var _mutation_gate = null
 var _scene_executor = null
+
+
+## Вопрос из контекстного меню: «Спросить агента» по узлу или по файлу.
+##
+## Вызывает точка входа через _handle_command — напрямую, без обратной
+## связи: панель ничего не знает о маршрутизаторе, знает только свои узлы.
+##
+## Текст, который пользователь уже набрал в поле ввода, становится самим
+## вопросом и не теряется. Если поле пустое, подставляется вопрос по умолчанию
+## для типа выбора. Отправка идёт через обычный путь _on_send_pressed, а не
+## отдельным запросом: тогда работают все её проверки (занята сеть, не
+## разобрано предыдущее действие) и разметка сообщений в чате.
+func handle_context_ask(what: String, paths: PackedStringArray) -> void:
+	if input_field == null or _view == null:
+		push_warning("[Godot Agent] Панель не готова принять вопрос из меню.")
+		return
+	if paths.is_empty():
+		push_warning("[Godot Agent] В контекстном меню ничего не выбрано.")
+		return
+	# Файл отличается от узла по виду: у сцены это путь от корня res://,
+	# у узла — путь внутри сцены. По признаку решаем, о чём спрашивать.
+	var is_file := false
+	for p in paths:
+		if str(p).begins_with("res://"):
+			is_file = true
+			break
+	var question := input_field.text.strip_edges()
+	if question.is_empty():
+		question = _t("ctx_ask_file_default") if is_file else _t("ctx_ask_node_default")
+	var lines: Array[String] = [question, ""]
+	lines.append(_t("ctx_ask_selection"))
+	for p in paths:
+		lines.append("- " + str(p))
+	input_field.text = "\n".join(lines)
+	input_field.grab_focus()
+	_on_send_pressed()
 var _pending_scene_action: Dictionary = {}
 var _pending_scene_expected_hash: String = ""
 var _pending_scene_semantic_hash: String = ""
 var _pending_scene_finalize_body: Dictionary = {}
-var _scene_finalize_retries: int = 0
-var _scene_finalize_retrying: bool = false
 var _project_settings_executor = null
 var _pending_project_settings_action: Dictionary = {}
 var _pending_project_settings_expected_hash: String = ""
 var _pending_project_settings_semantic_hash: String = ""
 var _pending_project_settings_finalize_body: Dictionary = {}
-var _project_settings_finalize_retries: int = 0
-var _project_settings_finalize_retrying: bool = false
 var _resource_executor = null
 var _pending_resource_action: Dictionary = {}
 var _pending_resource_expected_hash: String = ""
 var _pending_resource_semantic_hash: String = ""
 var _pending_resource_dependency_fingerprint: String = ""
 var _pending_resource_finalize_body: Dictionary = {}
-var _resource_finalize_retries: int = 0
-var _resource_finalize_retrying: bool = false
 var _runtime_debugger = null
 var _runtime_status: Dictionary = {"enabled": false, "protocol": 1, "sessions": []}
 var _pending_runtime_request: Dictionary = {}
@@ -108,6 +143,32 @@ var _runtime_check_session_id: int = -1
 var _runtime_check_run_id: String = ""
 var _pending_runtime_check_result_body: Dictionary = {}
 var _scenes_to_reopen: PackedStringArray = PackedStringArray()  # v49: сцены, закрытые перед записью
+
+# Версия истории отмены сцены на момент последнего известного сохранения
+# (ЗАДАЧА 1). Позволяет отличить «сцену сохранили» от «в сцене есть правки»
+# без несуществующего в скриптах is_scene_dirty().
+var _scene_saved_versions: Dictionary = {}
+
+# ---------------------------------------------------------------------------
+# ЗАДАЧА 2: одна отправка finalize вместо трёх копий.
+#
+# Первопричина дублирования. Сцена, настройки проекта и ресурс отправляли отчёт
+# об исходе тремя почти дословными копиями. Копии разошлись: правило «не
+# повторяемся вечно после терминального ответа» появилось у одной и
+# переехало в остальные две лишь частично, поэтому правка одного пути
+# забывала другой.
+#
+# Теперь вид транзакции — данные, а не отдельная функция: FINALIZE_KINDS
+# перечисляет адрес, тело и счётчик повторов. Правила повтора и терминальных
+# кодов существуют в одном экземпляре на все три вида.
+# ---------------------------------------------------------------------------
+const FINALIZE_KINDS := ["scene", "project_settings", "resource"]
+# Коды, после которых повтор бессмысленен: сервер отклонил запрос окончательно.
+# Проверяется ОДИН раз для всех видов, а не в каждой копии отдельно.
+const FINALIZE_TERMINAL_CODES := [400, 403, 409, 410, 413]
+
+var _finalize_retries: Dictionary = {}
+var _finalize_retrying: Dictionary = {}
 
 # Если сервер ответил, что для отката нужно подтверждение (файл менялся
 # после действия агента) — следующее нажатие кнопки отката отправит force.
@@ -129,6 +190,22 @@ var _log_errors_button: Button = null
 var _api_export_button: Button = null
 const SAFE_RENAME_SETTING_FILE := "user://godot_agent_safe_rename.txt"
 var _safe_rename_enabled: bool = true
+# Галочка «переименовывать недоказанные ссылки». По умолчанию СТОИТ: значит
+# ссылки, которые сервер не смог доказать, тоже переименовываются, но каждая
+# попадает в отчёт с причиной. Снятие возвращает прежнее строгое поведение,
+# где одна недоказанная ссылка отменяет всё переименование.
+# Хранится в user:// рядом с прочими переключателями, поэтому переживает
+# перезапуск редактора.
+const RENAME_UNVERIFIED_SETTING_FILE := "user://godot_agent_rename_unverified.txt"
+var _rename_unverified_enabled: bool = true
+var _rename_unverified_check: CheckBox = null
+# Выбор режима отказа для переименований. По умолчанию strict: он отказывает при
+# любой недоказанной ссылке и при динамической ссылке по строке. probable эти
+# блокировки снимает, поэтому включать его можно только осознанно — поэтому он
+# НЕ входит в дефолт, даже когда галочка недоказанных ссылок стоит.
+const RENAME_MODE_SETTING_FILE := "user://godot_agent_rename_mode.txt"
+var _rename_mode: String = "strict"
+var _rename_mode_option: OptionButton = null
 var _safe_rename_check: CheckBox = null
 var _safe_rename_button: Button = null
 var _safe_rename_dialog: ConfirmationDialog = null
@@ -184,13 +261,11 @@ var _guard_until_msec: int = 0        # до какого момента кно�
 
 # Живая трансляция: пока идёт запрос, отдельный HTTPRequest раз в секунду
 # опрашивает /chat/progress и показывает статус + хвост ответа модели.
-var _progress_http: HTTPRequest = null
 
 # v88.11: живой ввод — текст из поля панели зеркалируется в поле ввода сайта
 # по мере набора (тротлинг-таймер + отдельный HTTPRequest, настройка в
 # «Расширенных»; сервер вставляет текст без отправки).
 const LIVE_INPUT_SETTING_FILE := "user://godot_agent_live_input.txt"
-var _live_http: HTTPRequest = null
 var _live_timer: Timer = null
 var _live_toggle: CheckBox = null
 var _live_enabled: bool = true
@@ -205,6 +280,12 @@ var _progress_inflight: bool = false
 var _view: Node = null
 # --- Чаты: список, создание, переименование, удаление ---
 var _link: Node = null               # связь с сервером — весь транспорт и автозапуск в agent_server_link.gd
+
+# Параметры последнего post_move_sync: короткий канал один на все запросы,
+# поэтому обработчик должен знать, ЧЕЙ это ответ.
+var _sync_old: String = ""
+var _sync_new: String = ""
+var _sync_is_folder: bool = false
 var _pagewait_timer: Timer = null
 var _pagewait_left: int = 0
 var _pending_view: String = ""
@@ -271,24 +352,40 @@ func set_editor_plugin(plugin: EditorPlugin) -> void:
 	_editor_plugin = plugin
 	if plugin and plugin.has_method("_ensure_fs_dock_connected"):
 		plugin.call("_ensure_fs_dock_connected")
+	# ЗАДАЧА 1: Ctrl+S пользователя — тоже сохранение. Без этой подписки сцена,
+	# которую пользователь сохранил вручную, навсегда оставалась бы «грязной».
+	if plugin and not plugin.scene_saved.is_connected(_on_editor_scene_saved):
+		plugin.scene_saved.connect(_on_editor_scene_saved)
+	var gate_path: String = get_script().resource_path.get_base_dir() + "/agent_mutation_gate.gd"
+	if FileAccess.file_exists(gate_path):
+		var gate_script = load(gate_path)
+		if gate_script:
+			_mutation_gate = gate_script.new()
+			_mutation_gate.configure(plugin)
 	var executor_path: String = get_script().resource_path.get_base_dir() + "/agent_scene_executor.gd"
 	if FileAccess.file_exists(executor_path):
 		var executor_script = load(executor_path)
 		if executor_script:
 			_scene_executor = executor_script.new()
 			_scene_executor.configure(plugin)
+			if _mutation_gate and _scene_executor.has_method("set_mutation_gate"):
+				_scene_executor.call("set_mutation_gate", _mutation_gate)
 	var settings_executor_path: String = get_script().resource_path.get_base_dir() + "/agent_project_settings_executor.gd"
 	if FileAccess.file_exists(settings_executor_path):
 		var settings_executor_script = load(settings_executor_path)
 		if settings_executor_script:
 			_project_settings_executor = settings_executor_script.new()
 			_project_settings_executor.configure(plugin)
+			if _mutation_gate and _project_settings_executor.has_method("set_mutation_gate"):
+				_project_settings_executor.call("set_mutation_gate", _mutation_gate)
 	var resource_executor_path: String = get_script().resource_path.get_base_dir() + "/agent_resource_executor.gd"
 	if FileAccess.file_exists(resource_executor_path):
 		var resource_executor_script = load(resource_executor_path)
 		if resource_executor_script:
 			_resource_executor = resource_executor_script.new()
 			_resource_executor.configure(plugin)
+			if _mutation_gate and _resource_executor.has_method("set_mutation_gate"):
+				_resource_executor.call("set_mutation_gate", _mutation_gate)
 
 
 func set_runtime_debugger(debugger) -> void:
@@ -449,31 +546,20 @@ func _t(key: String) -> String:
 
 
 func _json_headers() -> PackedStringArray:
-	# Заголовки для всех прямых запросов панели к серверу: Content-Type плюс
-	# токен проекта (см. server_auth.py).
+	# Сборка заголовков переехала в AgentServer. Здесь осталась тонкая
+	# обёртка, потому что 27 мест в панели уже зовут _json_headers().
 	#
-	# Токен берётся у УЗЛА ServerLink, а не у загруженного скрипта: у объекта
-	# GDScript метод has_method() не даёт надёжного ответа про пользовательские
-	# static func, и молчаливое «нет» означало бы запросы без токена — сервер
-	# после привязки отклонял бы их все, и плагин выглядел бы сломанным целиком.
-	# У экземпляра узла has_method() работает однозначно.
-	#
-	# Запасной путь — прочитать файл токена напрямую. Он НЕ создаёт файл: если
-	# токена ещё нет, значит сервер к нему и не привязан, и запрос пройдёт.
+	# require_token = false — прежнее поведение панели: токен берётся у узла
+	# ServerLink, а если его нет, читается из файла, и если файла тоже нет,
+	# заголовок токена НЕ отправляется. Отправлять пустое значение хуже:
+	# сервер получил бы заголовок и ответил 403 на запрос, который без него
+	# прошёл бы.
 	var token := ""
 	if _link != null and _link.has_method("project_token"):
-		token = str(_link.project_token())
-	elif FileAccess.file_exists(TOKEN_FILE):
-		var f := FileAccess.open(TOKEN_FILE, FileAccess.READ)
-		if f:
-			token = f.get_as_text().strip_edges()
-			f.close()
-	if token == "":
-		return PackedStringArray(["Content-Type: application/json"])
-	return PackedStringArray([
-		"Content-Type: application/json",
-		"X-Agent-Token: " + token,
-	])
+		token = AgentServer.existing_token()
+		if token.is_empty():
+			token = str(_link.project_token())
+	return AgentServer.json_headers(token != "")
 
 
 var _theme_script = null
@@ -635,11 +721,6 @@ func _ready() -> void:
 		_progress_timer.one_shot = false
 		add_child(_progress_timer)
 		_progress_timer.timeout.connect(_on_progress_tick)
-	if _progress_http == null:
-		_progress_http = HTTPRequest.new()
-		_progress_http.timeout = 4.0
-		add_child(_progress_http)
-		_progress_http.request_completed.connect(_on_progress_response)
 	# v88.11: живой ввод — зеркалирование текста в браузер по мере набора.
 	# Всегда активен по стандарту для анонимности в чатах браузера.
 	_live_enabled = true
@@ -650,11 +731,6 @@ func _ready() -> void:
 		add_child(_live_timer)
 		_live_timer.timeout.connect(_on_live_input_tick)
 		_live_timer.start()
-	if _live_http == null:
-		_live_http = HTTPRequest.new()
-		_live_http.timeout = 5.0
-		add_child(_live_http)
-		_live_http.request_completed.connect(_on_live_input_response)
 	if input_field and not input_field.text_changed.is_connected(_on_live_input_changed):
 		input_field.text_changed.connect(_on_live_input_changed)
 	if advanced_box and _live_toggle == null:
@@ -666,6 +742,34 @@ func _ready() -> void:
 		advanced_box.add_child(_live_toggle)
 		_live_toggle.toggled.connect(_on_live_input_toggled)
 	_safe_rename_enabled = _load_safe_rename_setting()
+	_rename_unverified_enabled = _load_rename_unverified_setting()
+	_rename_mode = _load_rename_mode()
+	if advanced_box and _rename_mode_option == null:
+		# Режим виден и назван явно: probable снимает блокировку с динамических
+		# ссылок по строке, и пользователь должен выбрать это руками, а не
+		# получить молча.
+		_rename_mode_option = OptionButton.new()
+		_rename_mode_option.text = _t("rename_mode_label")
+		_rename_mode_option.tooltip_text = _t("rename_mode_tip")
+		_rename_mode_option.add_item(_t("rename_mode_strict"), 0)
+		_rename_mode_option.add_item(_t("rename_mode_probable"), 1)
+		_rename_mode_option.select(1 if _rename_mode == "probable" else 0)
+		advanced_box.add_child(_rename_mode_option)
+		_rename_mode_option.item_selected.connect(_on_rename_mode_selected)
+	elif _rename_mode_option:
+		_rename_mode_option.select(1 if _rename_mode == "probable" else 0)
+	if advanced_box and _rename_unverified_check == null:
+		# Галочка видимая: пользователь должен видеть, что недоказанные ссылки
+		# переименовываются, и иметь возможность это отключить. Скрытый дефолт
+		# означал бы молчаливую смену строгости переименования.
+		_rename_unverified_check = CheckBox.new()
+		_rename_unverified_check.text = _t("rename_unverified_toggle")
+		_rename_unverified_check.tooltip_text = _t("rename_unverified_tip")
+		_rename_unverified_check.button_pressed = _rename_unverified_enabled
+		advanced_box.add_child(_rename_unverified_check)
+		_rename_unverified_check.toggled.connect(_on_rename_unverified_toggled)
+	elif _rename_unverified_check:
+		_rename_unverified_check.button_pressed = _rename_unverified_enabled
 	if has_node("ChatView"):
 		_view = get_node("ChatView")
 	else:
@@ -691,6 +795,10 @@ func _ready() -> void:
 			add_child(_link)
 	if not _link.chats_response.is_connected(_on_chats_payload):
 		_link.chats_response.connect(_on_chats_payload)
+	if not _link.short_response.is_connected(_on_short_response):
+		# Короткие запросы (живой ввод, опрос прогресса, остановка) идут
+		# мимо очереди основных и приходят сюда.
+		_link.short_response.connect(_on_short_response)
 	if not _link.link_status.is_connected(_notify):
 		_link.link_status.connect(_notify)
 	if not _link.show_loading_requested.is_connected(_on_link_show_loading):
@@ -860,6 +968,12 @@ func _ready() -> void:
 
 
 func _set_pending_action(active: bool, description: String = "") -> void:
+	# Список мест живёт только пока ждём подтверждения: после ответа он больше
+	# не нужен, а оставить его — значит показать старые галочки в следующем
+	# действии.
+	if not active:
+		_pending_rename_usages = []
+		_rename_excluded = {}
 	# Единая точка вкл/выкл состояния «ждём ответа на подтверждение».
 	# Саму панель не показываем — её роль выполняет карточка в чате.
 	_pending_action_active = active
@@ -1051,12 +1165,13 @@ func _on_stop_pressed() -> void:
 	if _stop_button:
 		_stop_button.disabled = true
 		_stop_button.text = _t("stopping")
-	var req := HTTPRequest.new()
-	add_child(req)
-	req.request_completed.connect(func(_r, _rc, _h, _b): req.queue_free())
-	var err = req.request(CHAT_STOP_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json({}))
-	if err != OK:
-		req.queue_free()
+	if _link == null:
+		if _stop_button:
+			_stop_button.disabled = false
+			_stop_button.text = _t("stop_btn")
+		return
+	var stopped: bool = _link.post_now("chat_stop", CHAT_STOP_URL, _policy_json({}))
+	if not stopped:
 		if _stop_button:
 			_stop_button.disabled = false
 			_stop_button.text = _t("stop_btn")
@@ -1109,16 +1224,14 @@ func _on_live_input_changed() -> void:
 func _on_live_input_tick() -> void:
 	if not _live_enabled or not _live_dirty or _live_inflight: return
 	if _is_network_busy: return  # идёт обмен — конвейер сам вставит финальный промпт
-	if input_field == null or _live_http == null: return
+	if input_field == null or _link == null: return
 	var txt: String = input_field.text
 	if txt == _live_last_sent and not _live_force_send:
 		_live_dirty = false
 		return
 	_live_seq += 1
 	var body = _policy_body({"text": txt, "seq": _live_seq})
-	_live_http.set_http_proxy("", 0)
-	var err = _live_http.request(LIVE_INPUT_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
-	if err != OK:
+	if not _link.post_now("live_input", LIVE_INPUT_URL, _policy_json(body)):
 		return  # сервер занят/недоступен — молча попробуем на следующем тике
 	_live_inflight = true
 	_live_last_sent = txt
@@ -1171,6 +1284,58 @@ func _save_safe_rename_setting(enabled: bool) -> void:
 	f.store_string("1" if enabled else "0")
 
 
+func _on_rename_unverified_toggled(pressed: bool) -> void:
+	_rename_unverified_enabled = pressed
+	_save_rename_unverified_setting(pressed)
+
+
+func _load_rename_unverified_setting() -> bool:
+	# Нет файла — считаем включённым: «галочка стоит по стандарту». Обратное
+	# поведение молча выставило бы strict при первом же открытии проекта,
+	# вопреки видимому дефолту.
+	if not FileAccess.file_exists(RENAME_UNVERIFIED_SETTING_FILE):
+		return true
+	var f = FileAccess.open(RENAME_UNVERIFIED_SETTING_FILE, FileAccess.READ)
+	if f == null:
+		return true
+	return f.get_as_text().strip_edges() != "0"
+
+
+func _save_rename_unverified_setting(enabled: bool) -> void:
+	var f = FileAccess.open(RENAME_UNVERIFIED_SETTING_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string("1" if enabled else "0")
+
+
+func _on_rename_mode_selected(index: int) -> void:
+	var modes := ["strict", "probable"]
+	if index < 0 or index >= modes.size():
+		return
+	_rename_mode = str(modes[index])
+	_save_rename_mode(_rename_mode)
+
+
+func _load_rename_mode() -> String:
+	# Дефолт — strict, и отсутствие файла настроек его НЕ меняет. Иначе первое
+	# же открытие проекта молча ослабило бы строгость переименования до
+	# нестрогой, а пользователь об этом не узнал бы.
+	if not FileAccess.file_exists(RENAME_MODE_SETTING_FILE):
+		return "strict"
+	var f = FileAccess.open(RENAME_MODE_SETTING_FILE, FileAccess.READ)
+	if f == null:
+		return "strict"
+	var stored := f.get_as_text().strip_edges()
+	return stored if stored == "probable" else "strict"
+
+
+func _save_rename_mode(mode: String) -> void:
+	var f = FileAccess.open(RENAME_MODE_SETTING_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(mode if mode == "probable" else "strict")
+
+
 func _load_policy_settings() -> void:
 	_allow_addons = false
 	if FileAccess.file_exists(POLICY_SETTING_FILE):
@@ -1197,6 +1362,13 @@ func _policy_body(extra: Dictionary = {}) -> Dictionary:
 	body["addon_dir"] = ProjectSettings.globalize_path(get_script().resource_path.get_base_dir())
 	body["allow_addons"] = _allow_addons
 	body["allow_self_edit"] = _allow_self_edit
+	# Галочка «переименовывать недоказанные ссылки» едет тем же каналом, что и
+	# остальная политика: сервер без этого поля не узнает, что пользователь
+	# её снял, и продолжит вести себя по умолчанию.
+	body["rename_unverified"] = _rename_unverified_enabled
+	# Режим отказа едет тем же каналом: без него сервер не узнает, что
+	# пользователь осознанно разрешил probable.
+	body["rename_mode"] = _rename_mode
 	return body
 
 
@@ -1428,37 +1600,71 @@ func _send_scene_result(execution: Dictionary, envelope: Dictionary) -> void:
 		"error_code": str(execution.get("code", "")),
 		"error": str(execution.get("error", "")),
 	}
-	_scene_finalize_retries = 0
-	_send_pending_scene_finalize()
+	_finalize_retries["scene"] = 0
+	_send_pending_finalize("scene")
 
 
-func _send_pending_scene_finalize() -> void:
-	if _pending_scene_finalize_body.is_empty():
+## Тело отчёта по виду транзакции kind. Ссылка на словарь, а не копия:
+## вызывающая сторона заполняет его через finalize_body(kind), иначе правка
+## тела потерялась бы на копии.
+func _finalize_body(kind: String) -> Dictionary:
+	match kind:
+		"scene":
+			return _pending_scene_finalize_body
+		"project_settings":
+			return _pending_project_settings_finalize_body
+		"resource":
+			return _pending_resource_finalize_body
+	return {}
+
+
+## Отчёт об исходе транзакции kind. Сцена, настройки проекта и ресурс раньше
+## отправляли его тремя копиями этой функции; различались только вид и тело,
+## а правила повтора разошлись (см. FINALIZE_TERMINAL_CODES).
+func _send_pending_finalize(kind: String) -> void:
+	if _finalize_body(kind).is_empty():
 		return
 	if _is_network_busy:
-		_schedule_scene_finalize_retry()
+		_schedule_finalize_retry(kind)
 		return
-	_pending_request_kind = "scene_finalize"
+	_pending_request_kind = kind + "_finalize"
 	_set_ui_busy(true)
-	_scene_finalize_retries += 1
+	_finalize_retries[kind] = int(_finalize_retries.get(kind, 0)) + 1
 	var err := http_request.request(
 		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		_policy_json(_pending_scene_finalize_body))
+		_policy_json(_finalize_body(kind)))
 	if err != OK:
 		_set_ui_busy(false)
-		_schedule_scene_finalize_retry()
+		_schedule_finalize_retry(kind)
 
 
-func _schedule_scene_finalize_retry() -> void:
-	if _scene_finalize_retrying or _pending_scene_finalize_body.is_empty():
+## Повтор отчёта kind, если сеть была занята или запрос не ушёл.
+## Рекурсия с задержкой — единственный способ дождаться свободного канала:
+## таймер живёт, пока панель в дереве.
+func _schedule_finalize_retry(kind: String) -> void:
+	if bool(_finalize_retrying.get(kind, false)) or _finalize_body(kind).is_empty():
 		return
-	_scene_finalize_retrying = true
-	await get_tree().create_timer(float(mini(_scene_finalize_retries + 1, 5))).timeout
-	_scene_finalize_retrying = false
+	_finalize_retrying[kind] = true
+	await get_tree().create_timer(float(mini(int(_finalize_retries.get(kind, 0)) + 1, 5))).timeout
+	_finalize_retrying[kind] = false
 	if not _is_network_busy:
-		_send_pending_scene_finalize()
+		_send_pending_finalize(kind)
 	else:
-		_schedule_scene_finalize_retry()
+		_schedule_finalize_retry(kind)
+
+
+## Забыть отчёт по виду kind: сервер ответил окончательно либо транзакция
+## завершена. Без этого панель повторяла бы отказ бесконечно.
+func _discard_pending_finalize(kind: String) -> void:
+	match kind:
+		"scene":
+			_pending_scene_finalize_body = {}
+		"project_settings":
+			_pending_project_settings_finalize_body = {}
+		"resource":
+			_pending_resource_finalize_body = {}
+	_finalize_retries[kind] = 0
+	_finalize_retrying[kind] = false
 
 
 func _prepare_scene_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
@@ -1516,37 +1722,8 @@ func _execute_project_settings_action(envelope: Dictionary) -> void:
 		"error_code": str(execution.get("code", "")),
 		"error": str(execution.get("error", "")),
 	}
-	_project_settings_finalize_retries = 0
-	_send_pending_project_settings_finalize()
-
-
-func _send_pending_project_settings_finalize() -> void:
-	if _pending_project_settings_finalize_body.is_empty():
-		return
-	if _is_network_busy:
-		_schedule_project_settings_finalize_retry()
-		return
-	_pending_request_kind = "project_settings_finalize"
-	_set_ui_busy(true)
-	_project_settings_finalize_retries += 1
-	var err := http_request.request(
-		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		_policy_json(_pending_project_settings_finalize_body))
-	if err != OK:
-		_set_ui_busy(false)
-		_schedule_project_settings_finalize_retry()
-
-
-func _schedule_project_settings_finalize_retry() -> void:
-	if _project_settings_finalize_retrying or _pending_project_settings_finalize_body.is_empty():
-		return
-	_project_settings_finalize_retrying = true
-	await get_tree().create_timer(float(mini(_project_settings_finalize_retries + 1, 5))).timeout
-	_project_settings_finalize_retrying = false
-	if not _is_network_busy:
-		_send_pending_project_settings_finalize()
-	else:
-		_schedule_project_settings_finalize_retry()
+	_finalize_retries["project_settings"] = 0
+	_send_pending_finalize("project_settings")
 
 
 func _prepare_resource_action(pending: Dictionary, prepare_data: Dictionary) -> Dictionary:
@@ -1585,37 +1762,8 @@ func _execute_resource_action(envelope: Dictionary) -> void:
 		"error_code": str(execution.get("code", "")),
 		"error": str(execution.get("error", "")),
 	}
-	_resource_finalize_retries = 0
-	_send_pending_resource_finalize()
-
-
-func _send_pending_resource_finalize() -> void:
-	if _pending_resource_finalize_body.is_empty():
-		return
-	if _is_network_busy:
-		_schedule_resource_finalize_retry()
-		return
-	_pending_request_kind = "resource_finalize"
-	_set_ui_busy(true)
-	_resource_finalize_retries += 1
-	var err := http_request.request(
-		EDITOR_ACTION_RESULT_URL, _json_headers(), HTTPClient.METHOD_POST,
-		_policy_json(_pending_resource_finalize_body))
-	if err != OK:
-		_set_ui_busy(false)
-		_schedule_resource_finalize_retry()
-
-
-func _schedule_resource_finalize_retry() -> void:
-	if _resource_finalize_retrying or _pending_resource_finalize_body.is_empty():
-		return
-	_resource_finalize_retrying = true
-	await get_tree().create_timer(float(mini(_resource_finalize_retries + 1, 5))).timeout
-	_resource_finalize_retrying = false
-	if not _is_network_busy:
-		_send_pending_resource_finalize()
-	else:
-		_schedule_resource_finalize_retry()
+	_finalize_retries["resource"] = 0
+	_send_pending_finalize("resource")
 
 
 func _start_plan_execution(total: int) -> void:
@@ -2005,6 +2153,14 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 		json = JSON.parse_string(response_str)
 
 	if response_code == 200 and json != null:
+		# ЗАДАЧА 3: единственный полный scan() во всём плагине, и он остаётся
+		# именно здесь. Причина — пути здесь неизвестны, а не лень: это общий
+		# вход для ответа на ЛЮБОЙ из трёх десятков запросов, и для большинства
+		# из них панель не знает, что сервер записал на диск (обычный ответ
+		# чата может прийти с молчаливой правкой). Перечисления изменённых
+		# файлов здесь нет, взять его неоткуда, поэтому единственный честный
+		# вариант — пересчитать проект. Везде, где сервер отдаёт changed_paths,
+		# полный скан заменён точечным обновлением (см. _refresh_changed_paths).
 		EditorInterface.get_resource_filesystem().scan()
 
 		if json.has("site_mismatch") and bool(json.get("site_mismatch", false)):
@@ -2189,9 +2345,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_pending_resource_expected_hash = ""
 			_pending_resource_semantic_hash = ""
 			_pending_resource_dependency_fingerprint = ""
-			_pending_resource_finalize_body = {}
-			_resource_finalize_retries = 0
-			_resource_finalize_retrying = false
+			_discard_pending_finalize("resource")
 			_last_pending_action_type = ""
 			_last_pending_action_paths = PackedStringArray()
 			return
@@ -2208,9 +2362,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_pending_project_settings_action = {}
 			_pending_project_settings_expected_hash = ""
 			_pending_project_settings_semantic_hash = ""
-			_pending_project_settings_finalize_body = {}
-			_project_settings_finalize_retries = 0
-			_project_settings_finalize_retrying = false
+			_discard_pending_finalize("project_settings")
 			_last_pending_action_type = ""
 			_last_pending_action_paths = PackedStringArray()
 			return
@@ -2229,9 +2381,7 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			_pending_scene_action = {}
 			_pending_scene_expected_hash = ""
 			_pending_scene_semantic_hash = ""
-			_pending_scene_finalize_body = {}
-			_scene_finalize_retries = 0
-			_scene_finalize_retrying = false
+			_discard_pending_finalize("scene")
 			_last_pending_action_type = ""
 			_last_pending_action_paths = PackedStringArray()
 			return
@@ -2348,10 +2498,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				var old_p := str(json.get("old_path", ""))
 				var new_p := str(json.get("new_path", ""))
 				_sync_resource_uid(old_p, new_p)
-				EditorInterface.get_resource_filesystem().scan()
 				var ref_cnt := int(json.get("reference_count", 0))
 				var file_cnt := int(json.get("file_count", 0))
 				var changed_paths = json.get("changed_paths", [])
+				# ЗАДАЧА 3: сервер перечислил изменённые файлы — обновляем их
+				# поимённо вместо полного пересчёта проекта.
+				_refresh_changed_paths([old_p, new_p, changed_paths])
 				if changed_paths is Array:
 					for cp in changed_paths:
 						_sync_open_script_with_disk(str(cp))
@@ -2395,13 +2547,14 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 
 		if kind == "safe_node_rename_apply":
 			if bool(json.get("ok", false)):
-				EditorInterface.get_resource_filesystem().scan()
 				var scene_p := str(json.get("scene", ""))
 				var old_p := str(json.get("node_path", ""))
 				var new_p := str(json.get("new_name", ""))
 				var ref_cnt := int(json.get("reference_count", 0))
 				var file_cnt := int(json.get("file_count", 0))
 				var changed_paths = json.get("changed_paths", [])
+				# ЗАДАЧА 3: список изменённых файлов известен — точечное обновление.
+				_refresh_changed_paths([scene_p, changed_paths])
 				if changed_paths is Array:
 					for cp in changed_paths:
 						_sync_open_script_with_disk(str(cp))
@@ -2488,6 +2641,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if _last_pending_action_path.is_empty():
 				_last_pending_action_path = str(pending.get("scene", ""))
 			_last_pending_action_dest = str(pending.get("dest", ""))
+			# Список мест с галочками (Этап 4.3): показываем в карточке ДО
+			# подтверждения, чтобы снятые места были видны пользователю.
+			_pending_rename_usages = []
+			var raw_usages = json.get("pending_action_usages", json.get("suggested_usages", []))
+			if raw_usages is Array:
+				_pending_rename_usages = raw_usages
 			_last_pending_action_paths = PackedStringArray()
 			var raw_paths = pending.get("paths", [])
 			if raw_paths is Array and not raw_paths.is_empty():
@@ -2580,51 +2739,36 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				_runtime_timeout_timer.stop()
 			_log_error("Runtime inspection завершён без ответа модели: " + str(response_code))
 			return
-		if kind == "resource_finalize":
-			if response_code in [400, 403, 409, 410, 413]:
-				var resource_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции ресурса."))) if json else "Сервер отклонил завершение транзакции ресурса."
-				_view.add_error(resource_error)
-				_pending_resource_action = {}
-				_pending_resource_expected_hash = ""
-				_pending_resource_semantic_hash = ""
-				_pending_resource_dependency_fingerprint = ""
-				_pending_resource_finalize_body = {}
-				_resource_finalize_retries = 0
-				_resource_finalize_retrying = false
-				_last_pending_action_type = ""
-				_last_pending_action_paths = PackedStringArray()
-			else:
-				_schedule_resource_finalize_retry()
+		# Отказ сервера на отчёте о транзакции. ЗАДАЧА 2: правило «после
+		# терминального кода не повторяемся вечно» было написано трижды и
+		# разошлось; теперь оно одно, а вид транзакции выбирает, что забыть.
+		if kind in ["scene_finalize", "project_settings_finalize", "resource_finalize"]:
+			var finalize_kind := kind.trim_suffix("_finalize")
+			if not (response_code in FINALIZE_TERMINAL_CODES):
+				_schedule_finalize_retry(finalize_kind)
+				return
+			var fallback := "Сервер отклонил завершение транзакции."
+			if json:
+				fallback = str(json.get("answer", json.get("error", fallback)))
+			_view.add_error(fallback)
+			match finalize_kind:
+				"scene":
+					_pending_scene_action = {}
+					_pending_scene_expected_hash = ""
+					_pending_scene_semantic_hash = ""
+				"project_settings":
+					_pending_project_settings_action = {}
+					_pending_project_settings_expected_hash = ""
+					_pending_project_settings_semantic_hash = ""
+				"resource":
+					_pending_resource_action = {}
+					_pending_resource_expected_hash = ""
+					_pending_resource_semantic_hash = ""
+					_pending_resource_dependency_fingerprint = ""
+			_discard_pending_finalize(finalize_kind)
+			_last_pending_action_type = ""
+			_last_pending_action_paths = PackedStringArray()
 			return
-		if kind == "project_settings_finalize":
-			if response_code in [400, 403, 409, 410, 413]:
-				var settings_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции настроек."))) if json else "Сервер отклонил завершение транзакции настроек."
-				_view.add_error(settings_error)
-				_pending_project_settings_action = {}
-				_pending_project_settings_expected_hash = ""
-				_pending_project_settings_semantic_hash = ""
-				_pending_project_settings_finalize_body = {}
-				_project_settings_finalize_retries = 0
-				_project_settings_finalize_retrying = false
-				_last_pending_action_type = ""
-				_last_pending_action_paths = PackedStringArray()
-			else:
-				_schedule_project_settings_finalize_retry()
-			return
-		if kind == "scene_finalize":
-			if response_code in [400, 403, 409, 410, 413]:
-				var scene_error := str(json.get("answer", json.get("error", "Сервер отклонил завершение транзакции сцены."))) if json else "Сервер отклонил завершение транзакции сцены."
-				_view.add_error(scene_error)
-				_pending_scene_action = {}
-				_pending_scene_expected_hash = ""
-				_pending_scene_semantic_hash = ""
-				_pending_scene_finalize_body = {}
-				_scene_finalize_retries = 0
-				_scene_finalize_retrying = false
-				_last_pending_action_type = ""
-				_last_pending_action_paths = PackedStringArray()
-			else:
-				_schedule_scene_finalize_retry()
 			return
 		if kind == "check_log" and _auto_check:
 			# Авто-проверка не спамит в чат: нет лога, лог уже отправлялся,
@@ -2737,14 +2881,107 @@ func _auto_reload_changed_scene(p: String) -> void:
 	# v46: агент изменил сцену на диске — если она открыта в редакторе, перечитываем
 	# её САМИ, чтобы пользователю не приходилось вручную отвечать на вопрос
 	# «файлы изменены снаружи — перезагрузить?» после каждого действия агента.
+	#
+	# ЗАДАЧА 1: молча перезагружать нельзя. Если в открытой сцене есть
+	# несохранённые правки пользователя, reload_scene_from_path их уничтожит
+	# без вопроса — это единственное место в плане с риском потери данных.
 	if not (p.ends_with(".tscn") or p.ends_with(".scn")):
 		return
 	if not FileAccess.file_exists(p):
 		return
 	for sp in EditorInterface.get_open_scenes():
-		if str(sp) == p:
-			EditorInterface.reload_scene_from_path(p)
+		if str(sp) != p:
+			continue
+		if _scene_reload_would_lose_edits(p):
+			_scene_reload_blocked_notice(p)
 			return
+		EditorInterface.reload_scene_from_path(p)
+		_mark_scene_clean(p)
+		return
+
+
+## Есть ли в открытой сцене p правки, которые потеряются при перезагрузке.
+##
+## Публичного `is_scene_dirty()` в Godot 4.6 нет: `EditorUndoRedoManager.
+## is_history_unsaved()` существует только в C++ и в скрипты не выведена.
+## Поэтому чистота выводится из публичного UndoRedo.get_version():
+##   - версия 0 — сцена открыта и ни разу не менялась, терять нечего;
+##   - версия совпадает с записанной при последнем сохранении — тоже чисто;
+##   - всё остальное (правки есть, а когда сцену сохраняли плагин не видел) —
+##     считается грязной. Ложное «грязно» стоит одного лишнего сообщения,
+##     ложное «чисто» стоит пользователю его работы.
+func _scene_reload_would_lose_edits(p: String) -> bool:
+	if not (p.ends_with(".tscn") or p.ends_with(".scn")):
+		return false
+	var root := EditorInterface.get_edited_scene_root()
+	if root == null or str(root.get_scene_file_path()) != p:
+		# Редактируемая сцена — другая или её нет вовсе: несохранённые правки
+		# пользователя живут только в ней, терять нечего.
+		return false
+	var history := _scene_history(root)
+	if history == null:
+		return true
+	# Пустая история — правок не было: сцена на диске и в памяти одно и то же.
+	# Именно этот случай и ломала первую версию проверки: версия истории у
+	# только что открытой сцены равна 1, а не 0, хотя правок нет.
+	if int(history.get_history_count()) == 0:
+		return false
+	if _scene_saved_versions.has(p):
+		return int(_scene_saved_versions[p]) != int(history.get_version())
+	return true
+
+
+## История отмены редактируемой сцены; null, если её не узнать.
+##
+## Тип возврата объявлен ЯВНО. Без него вызывающий `var history := ...` не
+## выводится: get_history_undo_redo() отдаёт Object, а не UndoRedo, и Godot
+## отказывается угадывать. Такая ошибка не видна ни в --check-only на
+## agent_entry.gd (он не подтягивает панель статически), ни в 109 проверках
+## обвязки — панель просто молча не грузится, и у пользователя исчезает чат.
+func _scene_history(root: Node) -> UndoRedo:
+	var manager := EditorInterface.get_editor_undo_redo()
+	if manager == null:
+		return null
+	return manager.get_history_undo_redo(manager.get_object_history_id(root))
+
+
+## Версия истории отмены редактируемой сцены p; -1, если её не узнать.
+func _scene_undo_version(p: String) -> int:
+	var root := EditorInterface.get_edited_scene_root()
+	if root == null or str(root.get_scene_file_path()) != p:
+		return -1
+	var history := _scene_history(root)
+	if history == null:
+		return -1
+	return int(history.get_version())
+
+
+## Запомнить, что сцену p только что сохранили или перечитали с диска.
+func _mark_scene_clean(p: String) -> void:
+	var version := _scene_undo_version(p)
+	if version >= 0:
+		_scene_saved_versions[p] = version
+
+
+## Сигнал EditorPlugin.scene_saved: пользователь нажал Ctrl+S — это тоже
+## сохранение, и после него вернуть сцену можно.
+func _on_editor_scene_saved(path: String) -> void:
+	if path != "":
+		_mark_scene_clean(path)
+		# Исполнитель сцены ведёт ту же таблицу версий для восстановления
+		# после неудачной транзакции — иначе он считал бы уже сохранённую
+		# сцену грязной и пропускал авто-восстановление.
+		if _scene_executor and _scene_executor.has_method("note_scene_saved"):
+			_scene_executor.call("note_scene_saved", path)
+
+
+## Сказать в чате, почему сцена не перечитана. Молчание здесь выглядело бы
+## как «агент забыл про мою сцену», и пользователь стал бы искать причину.
+func _scene_reload_blocked_notice(p: String) -> void:
+	var message := _t("scene_reload_blocked") % p
+	push_warning("[Godot Agent] " + message)
+	if _view:
+		_view.add_warning(message)
 
 
 func _open_pending_scene_paths() -> PackedStringArray:
@@ -2832,6 +3069,14 @@ func _sync_resource_uid(_old_path: String, new_path: String) -> void:
 	# v106 (audit 3.1): штатный ResourceLoader.get_resource_uid() вместо ручного
 	# парсинга первой строки (UID текстур/звука лежит в .import-файле, бинарники
 	# построчно разбирать бессмысленно). Для папок обходим файлы рекурсивно.
+	#
+	# ЗАДАЧА 3: здесь больше НЕТ полного scan(). Раньше он стоял после
+	# update_file() и пересчитывал весь проект ради одного файла. Для каталога
+	# update_file() не годится — он не заходит внутрь, — поэтому при обходе
+	# папки обновляем каждый найденный файл поимённо.
+	#
+	# ЗАДАЧА 4: решение «обновлять этот файл или пересчитывать проект»
+	# принимает шлюз мутаций, а не сама панель.
 	if new_path.is_empty():
 		return
 	var global_new := ProjectSettings.globalize_path(new_path)
@@ -2852,11 +3097,57 @@ func _sync_resource_uid(_old_path: String, new_path: String) -> void:
 				ResourceUID.set_id(uid, new_path)
 			else:
 				ResourceUID.add_id(uid, new_path)
+	_notify_path_changed(new_path)
+
+
+## Сообщить редактору об изменении файла — через шлюз мутаций (ЗАДАЧА 4).
+##
+## Шлюз владеет решением «обновить один файл или пересчитать проект» и ведёт
+## журнал. Без шлюза (изолированный тест, до подключения плагина) делаем то же
+## самое напрямую, чтобы поведение не зависело от порядка инициализации.
+func _notify_path_changed(path: String) -> void:
+	if path == "":
+		return
+	if _mutation_gate and _mutation_gate.has_method("notify_changed"):
+		_mutation_gate.call("notify_changed", path)
+		return
 	var efs := EditorInterface.get_resource_filesystem()
-	if efs:
-		if efs.has_method("update_file"):
-			efs.call("update_file", new_path)
-		efs.scan()
+	if efs and efs.has_method("update_file"):
+		efs.call("update_file", path)
+
+
+## Сообщить редактору об изменениях по списку ИЗВЕСТНЫХ путей (ЗАДАЧА 3).
+##
+## Заменяет полный scan() там, где сервер уже перечислил, что именно он
+## поменял. update_file() пересчитывает один файл, scan() — весь проект;
+## на проекте в тысячи файлов разница видна глазами.
+##
+## Принимает и один путь, и список, и список списков: вызывающие места
+## передают то, что вернул сервер, и это либо строка, либо Array путей,
+## который сам лежит в общем списке вместе с переименованным файлом.
+func _refresh_changed_paths(paths) -> void:
+	var efs := EditorInterface.get_resource_filesystem()
+	if efs == null or paths == null:
+		return
+	var pending: Array = [paths]
+	var seen := {}
+	while not pending.is_empty():
+		var item = pending.pop_back()
+		if item is Array or item is PackedStringArray:
+			pending.append_array(Array(item))
+			continue
+		var path := str(item)
+		if path == "" or seen.has(path):
+			continue
+		seen[path] = true
+		# Каталог целиком update_file() не перечитывает; его содержимое уже
+		# обошёл _sync_resource_uid, поэтому пропускаем молча, а не сканируем
+		# ради него весь проект.
+		if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(path)):
+			continue
+		if not efs.has_method("update_file"):
+			return
+		efs.call("update_file", path)
 
 
 func _ensure_script_autoreload_setting() -> void:
@@ -2960,17 +3251,17 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 # ---------------------------------------------------------------------------
 
 func _on_play_watch_tick() -> void:
-	if not _pending_scene_finalize_body.is_empty() and not _scene_finalize_retrying and not _is_network_busy \
-			and _pending_request_kind != "scene_finalize":
-		_send_pending_scene_finalize()
+	# Страховка от забытого отчёта: раз в такт возвращаем неотправленные
+	# конверты в сеть. Перебор видов вместо трёх одинаковых блоков — ЗАДАЧА 2.
+	for finalize_kind in FINALIZE_KINDS:
+			if _finalize_body(finalize_kind).is_empty() \
+					or bool(_finalize_retrying.get(finalize_kind, false)) \
+					or _is_network_busy \
+					or _pending_request_kind == finalize_kind + "_finalize":
+				continue
+			_send_pending_finalize(finalize_kind)
 	if _hl: _hl.watchdog()
 	_reconcile_confirm_buttons()
-	if not _pending_project_settings_finalize_body.is_empty() and not _project_settings_finalize_retrying and not _is_network_busy \
-			and _pending_request_kind != "project_settings_finalize":
-		_send_pending_project_settings_finalize()
-	if not _pending_resource_finalize_body.is_empty() and not _resource_finalize_retrying and not _is_network_busy \
-			and _pending_request_kind != "resource_finalize":
-		_send_pending_resource_finalize()
 	if not _pending_runtime_check_result_body.is_empty() and not _is_network_busy:
 		_send_pending_runtime_check_result()
 	var playing := EditorInterface.is_playing_scene()
@@ -3020,16 +3311,37 @@ func _on_progress_tick() -> void:
 		if _view:
 			_view.hide_status()
 		return
-	if _progress_inflight or _progress_http == null:
+	if _progress_inflight or _link == null:
 		return
-	_progress_http.set_http_proxy("", 0)
 	# Токен обязателен и здесь: /chat/progress — обычный GET, но сервер после
 	# привязки проверяет ВСЕ запросы. Без заголовка он отвечал бы 403, а
 	# _on_progress_response молча игнорирует не-200 — живая трансляция ответа
 	# просто перестала бы появляться в чате, без единого сообщения об ошибке.
-	var err = _progress_http.request(PROGRESS_URL, _json_headers())
-	if err == OK:
+	if _link.get_now("progress", PROGRESS_URL):
 		_progress_inflight = true
+
+
+## Раздача коротких ответов по id. Один канал на все короткие запросы,
+## поэтому кто именно пришёл — определяет метка, а не порядок.
+func _on_short_response(id: String, result: int, code: int,
+		headers: PackedStringArray, body: PackedByteArray) -> void:
+	match id:
+		"progress":
+			_on_progress_response(result, code, headers, body)
+		"live_input":
+			_on_live_input_response(result, code, headers, body)
+		"chat_stop":
+			_on_short_stop_response(result, code)
+		"post_move_sync":
+			_on_post_move_sync_response(result, code, body)
+		_:
+			push_warning("[Godot Agent] Неизвестный короткий запрос: " + id)
+
+
+func _on_short_stop_response(_result: int, _code: int) -> void:
+	if _stop_button:
+		_stop_button.disabled = false
+		_stop_button.text = _t("stop_btn")
 
 
 func _on_progress_response(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
@@ -4083,7 +4395,9 @@ func _open_update_dialog(info: Dictionary) -> void:
 	var cur_v: String = _updater.get_current_version() if _updater else "0.7.0"
 	var new_v: String = info.get("version", "")
 	_update_dialog_version_label.text = (_t("update_current_version") % cur_v) + "  →  " + (_t("update_new_version") % new_v)
-	_update_dialog_changelog.text = info.get("body", "")
+	# notes - уже переведённый в BBCode текст. body оставлен запасным
+	# вариантом: старый кэш user:// мог быть записан до появления notes.
+	_update_dialog_changelog.text = String(info.get("notes", info.get("body", "")))
 	if _update_dialog_progress:
 		_update_dialog_progress.visible = false
 		_update_dialog_progress.value = 0
@@ -4503,94 +4817,91 @@ func _send_post_move_sync(clean_old: String, clean_new: String, is_folder: bool)
 		"user_data_dir": OS.get_user_data_dir(),
 		"addon_dir": ProjectSettings.globalize_path(get_script().resource_path.get_base_dir()),
 	}
-	var req := HTTPRequest.new()
-	var parent_node: Node = self if is_inside_tree() else EditorInterface.get_base_control()
-	if parent_node == null:
-		push_error("[Godot Agent] Не удалось найти узел дерева для HTTPRequest синхронизации.")
+	# Запрос уходит через узел связи: панель своих HTTPRequest не создаёт.
+	_sync_old = clean_old
+	_sync_new = clean_new
+	_sync_is_folder = is_folder
+	if _link == null or not _link.post_now("post_move_sync", REFACTOR_FILE_POST_MOVE_SYNC_URL, _policy_json(body)):
+		push_warning("[Godot Agent] Не удалось отправить post_move_sync: сервер недоступен.")
 		_fs_move_busy = false
 		call_deferred("_process_fs_move_queue")
 		return
-	parent_node.add_child(req)
-	req.set_http_proxy("", 0)
-	req.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body_bytes: PackedByteArray):
-		req.queue_free()
-		# Запрос завершён — можно отправлять следующий из очереди (audit 1.4).
-		_fs_move_busy = false
-		call_deferred("_process_fs_move_queue")
-		var json_str := body_bytes.get_string_from_utf8()
-		if result != HTTPRequest.RESULT_SUCCESS:
-			var down_msg := "[Godot Agent] Внимание: файл '%s' переименован/перемещён, но сервер агента недоступен (не запущен). Ссылки в коде и сценах не обновлены! Запустите godot_agent_server.exe." % clean_old
-			push_warning(down_msg)
-			# Предупреждение должно быть видно прямо в чате, а не только
-			# в консоли редактора — иначе пользователь не узнает о рассинхроне.
-			if _view:
-				_view.add_warning(down_msg)
-			return
-		if response_code != 200:
-			var code_msg := "[Godot Agent] Сервер вернул ошибку синхронизации (код %d): %s" % [response_code, json_str]
-			push_warning(code_msg)
-			if _view:
-				_view.add_warning(code_msg)
-			return
-		var p := JSON.new()
-		if p.parse(json_str) != OK or not (p.data is Dictionary):
-			var json_msg := "[Godot Agent] Некорректный JSON-ответ сервера при автосинхронизации: %s" % json_str
-			push_warning(json_msg)
-			if _view:
-				_view.add_warning(json_msg)
-			return
-		var resp: Dictionary = p.data
-		if not bool(resp.get("ok", false)):
-			var err_msg := str(resp.get("error", "Неизвестная ошибка синхронизации"))
-			push_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
-			if _view:
-				_view.add_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
-			return
 
-		_sync_resource_uid(clean_old, clean_new)
-		var ref_cnt := int(resp.get("reference_count", 0))
-		var changed_paths = resp.get("changed_paths", [])
-		EditorInterface.get_resource_filesystem().scan()
-		if changed_paths is Array:
-			for cp in changed_paths:
-				_sync_open_script_with_disk(str(cp))
-				_auto_reload_changed_scene(str(cp))
-			# v106 (audit 3.3): файл уже обновлён на диске сервером, но если он
-			# открыт с несохранёнными правками — вкладка держит старую версию, и
-			# Ctrl+S вернёт битые пути. Честно предупреждаем пользователя.
-			var dirty_paths := _dirty_open_scripts(PackedStringArray(changed_paths))
-			if not dirty_paths.is_empty():
-				var dirty_msg := "[Godot Agent] Файлы обновлены на диске, но открыты с несохранёнными правками: %s. Сохранение из редактора (Ctrl+S) вернёт старые пути — закройте вкладку без сохранения или перенесите правки вручную." % ", ".join(dirty_paths)
-				push_warning(dirty_msg)
-				if _view:
-					_view.add_agent_message("⚠ " + dirty_msg)
-			# v106 (audit 3.4): project.godot обновлён на диске, но редактор держит
-			# старые значения в памяти — честно предупреждаем, ничего не перезаписывая.
-			if changed_paths.has("res://project.godot"):
-				push_warning("[Godot Agent] Обновлён project.godot (например автозагрузка или главная сцена). Перезапустите редактор, чтобы F5 использовал новые настройки, — память редактора их не перечитывает.")
-		# v106 (audit 3.2): закрываем «зомби»-вкладки старых путей даже если
-		# ссылок не нашлось; для папок — все скрипты внутри по префиксу.
-		_close_ghost_script_tabs_for_move(clean_old, is_folder)
-		if FileAccess.file_exists(clean_new) and clean_new.ends_with(".gd"):
-			var scr = ResourceLoader.load(clean_new, "", ResourceLoader.CACHE_MODE_REPLACE)
-			if scr is Script:
-				scr.reload(true)
-		var file_cnt := int(resp.get("file_count", 0))
-		var entry_id := str(resp.get("entry_id", ""))
-		var msg := _t("safe_post_move_sync_success") % [clean_old, clean_new, ref_cnt, file_cnt]
+
+func _on_post_move_sync_response(result: int, response_code: int,
+		body_bytes: PackedByteArray) -> void:
+	var clean_old := _sync_old
+	var clean_new := _sync_new
+	var is_folder := _sync_is_folder
+	# Запрос завершён — можно отправлять следующий из очереди (audit 1.4).
+	_fs_move_busy = false
+	call_deferred("_process_fs_move_queue")
+	var json_str := body_bytes.get_string_from_utf8()
+	if result != HTTPRequest.RESULT_SUCCESS:
+		var down_msg := "[Godot Agent] Внимание: файл '%s' переименован/перемещён, но сервер агента недоступен (не запущен). Ссылки в коде и сценах не обновлены! Запустите godot_agent_server.exe." % clean_old
+		push_warning(down_msg)
+		# Предупреждение должно быть видно прямо в чате, а не только
+		# в консоли редактора — иначе пользователь не узнает о рассинхроне.
 		if _view:
-			_view.add_agent_message(msg, entry_id)
-		print("[Godot Agent] ", msg)
-	)
-	var err = req.request(REFACTOR_FILE_POST_MOVE_SYNC_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
-	if err != OK:
-		var send_msg := "[Godot Agent] Не удалось отправить HTTP-запрос post_move_sync, код ошибки: %d" % err
-		push_warning(send_msg)
+			_view.add_warning(down_msg)
+		return
+	if response_code != 200:
+		var code_msg := "[Godot Agent] Сервер вернул ошибку синхронизации (код %d): %s" % [response_code, json_str]
+		push_warning(code_msg)
 		if _view:
-			_view.add_warning(send_msg)
-		_fs_move_busy = false
-		call_deferred("_process_fs_move_queue")
-		req.queue_free()
+			_view.add_warning(code_msg)
+		return
+	var p := JSON.new()
+	if p.parse(json_str) != OK or not (p.data is Dictionary):
+		var json_msg := "[Godot Agent] Некорректный JSON-ответ сервера при автосинхронизации: %s" % json_str
+		push_warning(json_msg)
+		if _view:
+			_view.add_warning(json_msg)
+		return
+	var resp: Dictionary = p.data
+	if not bool(resp.get("ok", false)):
+		var err_msg := str(resp.get("error", "Неизвестная ошибка синхронизации"))
+		push_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
+		if _view:
+			_view.add_warning("[Godot Agent] Ошибка автосинхронизации: " + err_msg)
+		return
+
+	_sync_resource_uid(clean_old, clean_new)
+	var ref_cnt := int(resp.get("reference_count", 0))
+	var changed_paths = resp.get("changed_paths", [])
+	# ЗАДАЧА 3: сервер вернул точный список изменённых файлов, поэтому полный
+	# пересчёт проекта не нужен — обновляем названные файлы.
+	_refresh_changed_paths([clean_old, clean_new, changed_paths])
+	if changed_paths is Array:
+		for cp in changed_paths:
+			_sync_open_script_with_disk(str(cp))
+			_auto_reload_changed_scene(str(cp))
+		# v106 (audit 3.3): файл уже обновлён на диске сервером, но если он
+		# открыт с несохранёнными правками — вкладка держит старую версию, и
+		# Ctrl+S вернёт битые пути. Честно предупреждаем пользователя.
+		var dirty_paths := _dirty_open_scripts(PackedStringArray(changed_paths))
+		if not dirty_paths.is_empty():
+			var dirty_msg := "[Godot Agent] Файлы обновлены на диске, но открыты с несохранёнными правками: %s. Сохранение из редактора (Ctrl+S) вернёт старые пути — закройте вкладку без сохранения или перенесите правки вручную." % ", ".join(dirty_paths)
+			push_warning(dirty_msg)
+			if _view:
+				_view.add_agent_message("⚠ " + dirty_msg)
+		# v106 (audit 3.4): project.godot обновлён на диске, но редактор держит
+		# старые значения в памяти — честно предупреждаем, ничего не перезаписывая.
+		if changed_paths.has("res://project.godot"):
+			push_warning("[Godot Agent] Обновлён project.godot (например автозагрузка или главная сцена). Перезапустите редактор, чтобы F5 использовал новые настройки, — память редактора их не перечитывает.")
+	# v106 (audit 3.2): закрываем «зомби»-вкладки старых путей даже если
+	# ссылок не нашлось; для папок — все скрипты внутри по префиксу.
+	_close_ghost_script_tabs_for_move(clean_old, is_folder)
+	if FileAccess.file_exists(clean_new) and clean_new.ends_with(".gd"):
+		var scr = ResourceLoader.load(clean_new, "", ResourceLoader.CACHE_MODE_REPLACE)
+		if scr is Script:
+			scr.reload(true)
+	var file_cnt := int(resp.get("file_count", 0))
+	var entry_id := str(resp.get("entry_id", ""))
+	var msg := _t("safe_post_move_sync_success") % [clean_old, clean_new, ref_cnt, file_cnt]
+	if _view:
+		_view.add_agent_message(msg, entry_id)
+	print("[Godot Agent] ", msg)
 
 
 func _on_safe_node_rename_pressed() -> void:

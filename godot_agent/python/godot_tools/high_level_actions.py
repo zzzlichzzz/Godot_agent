@@ -108,11 +108,27 @@ def _compile_autoload(command, summary):
 
 
 def _compile_rename(command, _summary):
-    _exact_fields(command, ("type", "kind", "declaration", "old_name", "new_name"))
-    return {"action": "rename_symbol", "kind": _text(command["kind"], "kind", 40),
-            "declaration": _text(command["declaration"], "declaration", 600),
-            "old_name": _text(command["old_name"], "old_name", 160),
-            "new_name": _text(command["new_name"], "new_name", 160)}
+    # allow_unverified в белом списке: панель шлёт его из настройки, и без
+    # него путь от агента падал бы с «Неизвестные поля».
+    _exact_fields(command, ("type", "kind", "declaration", "old_name", "new_name"),
+                  ("mode", "allow_unverified"))
+    result = {"action": "rename_symbol", "kind": _text(command["kind"], "kind", 40),
+              "declaration": _text(command["declaration"], "declaration", 600),
+              "old_name": _text(command["old_name"], "old_name", 160),
+              "new_name": _text(command["new_name"], "new_name", 160)}
+    if "mode" in command:
+        # mode выбирает гранулярность отказа (strict по умолчанию,
+        # probable снимает блокировку с непроверенных ссылок).
+        result["mode"] = _text(command["mode"], "mode", 20)
+    if "allow_unverified" in command:
+        # Тип проверяет ядро: мусорное значение обязано быть отказом, а не
+        # тихим включением небезопасного переименования.
+        value = command["allow_unverified"]
+        if not isinstance(value, bool):
+            raise HighLevelActionError(
+                "allow_unverified должен быть true или false")
+        result["allow_unverified"] = value
+    return result
 
 
 def _compile_atomic_files(command, summary):

@@ -6,7 +6,7 @@ import re
 
 _IDENT_START_RE = re.compile(r"[^\W\d]", re.U)
 _IDENT_CONT_RE = re.compile(r"\w", re.U)
-_DECL_KEYWORDS = {"class_name", "class", "func", "signal", "var", "const"}
+_DECL_KEYWORDS = {"class_name", "class", "func", "signal", "var", "const", "enum"}
 _MODIFIERS = {"static"}
 
 
@@ -155,6 +155,83 @@ def _check_export_annotation(tokens, pos):
                 return True, ident["value"]
     return False, None
 
+def _inside_brackets(tokens, pos):
+    """Находится ли токен pos внутри незакрытой пары квадратных скобок.
+
+    Отделяет Dictionary[String, Player] (где запятая разделяет ТИПЫ) от
+    обычного списка аргументов: у вызова f(a, b) скобки круглые, поэтому
+    проверка возвращает False и контекст остаётся прежним.
+    """
+    depth = 0
+    for token in reversed(tokens[:pos]):
+        if token["value"] == "]":
+            depth += 1
+        elif token["value"] == "[":
+            if depth == 0:
+                return True
+            depth -= 1
+    return False
+
+
+
+
+def _parse_enum(tokens, pos, path, owner, declarations,
+               declaration_positions, token_owners):
+    """Разбирает `enum Имя { A, B = 1 }` и анонимный `enum { A, B }`.
+
+    Возвращает True, если токен pos действительно начинал объявление enum.
+    Members получают owner = id объявления enum: два разных enum в одном
+    скрипте не должны считаться одним пространством имён, иначе
+    переименование IDLE в одном enum задело бы одноимённый member другого.
+    """
+    scan = pos + 1
+    name_token = None
+    while scan < len(tokens):
+        value = tokens[scan]["value"]
+        if value == "{" or tokens[scan]["kind"] == "newline":
+            break
+        if tokens[scan]["kind"] == "identifier" and name_token is None:
+            name_token = tokens[scan]
+        scan += 1
+    enum_owner = owner
+    if name_token is not None:
+        declaration = _declaration("enum", name_token, owner, path)
+        declarations.append(declaration)
+        declaration_positions.add(scan)
+        token_owners[scan] = owner
+        enum_owner = declaration["id"]
+    # Тело: имя member — идентификатор сразу после "{" или ",", но не после
+    # "=" (там уже значение, а не имя).
+    expect_name = False
+    depth = 0
+    for p in range(scan, len(tokens)):
+        token = tokens[p]
+        if token["kind"] == "newline":
+            continue
+        value = token["value"]
+        if value == "{":
+            depth += 1
+            expect_name = True
+            continue
+        if value == "}":
+            depth -= 1
+            if depth <= 0:
+                break
+            continue
+        if value == "=":
+            expect_name = False
+            continue
+        if value == ",":
+            expect_name = True
+            continue
+        if token["kind"] == "identifier" and expect_name and depth == 1:
+            member = _declaration("enum_member", token, enum_owner, path)
+            declarations.append(member)
+            declaration_positions.add(p)
+            token_owners[p] = enum_owner
+            expect_name = False
+    return True
+
 
 def parse(text, path=""):
     """Parse bounded semantic facts; unsupported syntax remains token facts."""
@@ -195,6 +272,12 @@ def parse(text, path=""):
             decl_kind = "variable"
         elif value == "const":
             decl_kind = "constant"
+        elif value == "enum":
+            # enum разбираем целиком здесь: у него своё тело в скобках,
+            # и обычная логика «объявление = одно имя» к нему не подходит.
+            _parse_enum(tokens, pos, path, owner, declarations,
+                        declaration_positions, token_owners)
+            continue
         if decl_kind is None:
             continue
         name_token, name_pos = _next_identifier(tokens, pos + 1, (":", "=", "("))
@@ -238,7 +321,12 @@ def parse(text, path=""):
                         depth -= 1
                     elif depth == 1 and tok["kind"] == "identifier":
                         prev_tok = tokens[p - 1] if p > 0 else None
-                        if prev_tok and prev_tok["value"] in ("(", ","):
+                        # Запятая внутри квадратных скобок — это граница ТИПА
+                        # (Dictionary[String, Player]), а не новый параметр.
+                        # Без проверки Player из такого словаря становился
+                        # «объявлением параметра» и переименование его пропускало.
+                        if (prev_tok and prev_tok["value"] in ("(", ",")
+                                and not _inside_brackets(tokens, p)):
                             param_decl = _declaration("parameter", tok, declaration["id"], path)
                             declarations.append(param_decl)
                             declaration_positions.add(p)
@@ -259,7 +347,25 @@ def parse(text, path=""):
             context = "member"
         elif nxt and nxt["value"] == "(":
             context = "call"
-        elif prev and prev["value"] in (":", "->", "extends", "as", "is"):
+        elif prev and (prev["value"] in (":", "->", "extends", "as", "is")
+                       or prev["value"] == "["):
+            # "[" добавлен ради типизированных коллекций Godot 4:
+            # Array[Player], Dictionary[String, Player]. Без этого имя класса
+            # в квадратных скобках считалось обычным идентификатором, и любая
+            # типизированная коллекция блокировала переименование.
+            context = "type"
+        elif nxt and nxt["value"] == "]":
+            # закрывающая скобка: Dictionary[String, Player] -> имя типа перед
+            # ней; вложенные Array[Array[Player]] разбираются тем же правилом.
+            context = "type"
+        elif prev and prev["value"] == "," and _inside_brackets(tokens, pos):
+            # Dictionary[String, Player]: второй тип отделён запятой, а не
+            # открывающей скобкой. Без этой ветки параметр функции вида
+            # build(roster: Dictionary[String, Player]) не переименовывался.
+            context = "type"
+        elif prev and prev["value"] == "is" and nxt and nxt["value"] == "not":
+            # "x is not Player": между "is" и именем стоит "not", поэтому
+            # предыдущий токен для имени — не "is" и правило выше не срабатывает.
             context = "type"
         references.append({
             "name": value,

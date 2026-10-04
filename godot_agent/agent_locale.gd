@@ -39,6 +39,9 @@ static var _cur: String = ""
 const RU := {
 	"lang_name": "Русский",
 	"dock_title": "ИИ Агент",
+	"ctx_ask_node_default": "Объясни, что делает этот узел, за что отвечает и как связан с остальной сценой.",
+	"ctx_ask_file_default": "Объясни, что делает этот файл, что в нём важного и кто его использует.",
+	"ctx_ask_selection": "Выбрано в редакторе:",
 	"title": "Godot Agent",
 	"hint": "С чего начнём?",
 	"btn_load": "Загрузиться",
@@ -415,6 +418,12 @@ const RU := {
 	"safe_rename_toggle": "Безопасное переименование (файлы и узлы)",
 	"safe_rename_tip": "Автоматически обновляет ссылки и пути в скриптах (preload, load, extends, ext_resource) и сценах при переименовании файлов в редакторе Godot.",
 	"safe_rename_btn": "Безопасное переименование файла...",
+	"rename_unverified_toggle": "Переименовывать недоказанные ссылки",
+	"rename_mode_label": "Режим отказа при переименовании:",
+	"rename_mode_tip": "strict (по умолчанию) отменяет переименование при любой непроверенной ссылке, в том числе найденной по строке. probable выполняет переименование несмотря на них — риск берёте на себя.",
+	"rename_mode_strict": "strict — отменять при непроверенных",
+	"rename_mode_probable": "probable — выполнять несмотря ни на что",
+	"rename_unverified_tip": "Если галочка стоит (по умолчанию), ссылки, которые не удалось доказать, тоже переименовываются, но каждая попадает в отчёт с причиной. Снимите галочку — тогда одна недоказанная ссылка отменит переименование целиком.",
 	"safe_rename_title": "Безопасное переименование файла",
 	"safe_rename_desc": "Переименование файла с автоматическим обновлением всех ссылок (preload, load, extends, ext_resource, autoload) и поддержкой отката.",
 	"safe_rename_old": "Старый путь (res://):",
@@ -478,11 +487,15 @@ const RU := {
 	"update_check_now_btn": "Проверить обновления",
 	"update_check_now_tip": "Проверить наличие новой версии Godot Agent на GitHub.",
 	"update_error": "Ошибка обновления: %s",
+	"scene_reload_blocked": "Сцена «%s» изменена агентом на диске, но открыта с несохранёнными правками. Авто-перезагрузка пропущена, чтобы их не потерять: сохраните сцену (Ctrl+S) или закройте вкладку без сохранения, и агент перечитает файл.",
 }
 
 const EN := {
 	"lang_name": "English",
 	"dock_title": "AI Agent",
+	"ctx_ask_node_default": "Explain what this node does, what it is responsible for and how it is connected to the rest of the scene.",
+	"ctx_ask_file_default": "Explain what this file does, what matters in it and who uses it.",
+	"ctx_ask_selection": "Selected in the editor:",
 	"title": "Godot Agent",
 	"hint": "Where shall we start?",
 	"btn_load": "Load a chat",
@@ -849,6 +862,12 @@ const EN := {
 	"safe_rename_toggle": "Safe rename (files and nodes)",
 	"safe_rename_tip": "Automatically updates references and paths in scripts (preload, load, extends, ext_resource) and scenes when renaming files in Godot editor.",
 	"safe_rename_btn": "Safe file rename...",
+	"rename_unverified_toggle": "Rename unproven references",
+	"rename_mode_label": "Refusal mode when renaming:",
+	"rename_mode_tip": "strict (the default) cancels the rename on any unproven reference, including ones found only as strings. probable performs the rename anyway — you take the risk.",
+	"rename_mode_strict": "strict — cancel on unproven",
+	"rename_mode_probable": "probable — perform regardless",
+	"rename_unverified_tip": "When checked (the default), references that could not be proven are renamed too, and each one is listed in the report with its reason. Uncheck it and a single unproven reference cancels the whole rename.",
 	"safe_rename_title": "Safe File Rename",
 	"safe_rename_desc": "Rename file and atomically update all references (preload, load, extends, ext_resource, autoload) with rollback support.",
 	"safe_rename_old": "Old path (res://):",
@@ -912,6 +931,7 @@ const EN := {
 	"update_check_now_btn": "Check for updates",
 	"update_check_now_tip": "Check GitHub for a newer version of Godot Agent.",
 	"update_error": "Update error: %s",
+	"scene_reload_blocked": "Scene \"%s\" was changed on disk by the agent, but it is open with unsaved edits. Auto-reload was skipped so they are not lost: save the scene (Ctrl+S) or close the tab without saving, and the agent will re-read the file.",
 }
 
 

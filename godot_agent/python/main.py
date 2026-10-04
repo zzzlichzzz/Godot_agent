@@ -100,6 +100,50 @@ def _access_kwargs():
     }
 
 
+def _with_rename_policy(action):
+    """Подставить в действие rename_symbol флаг из настройки панели.
+
+    Флаг НЕ пишет сама модель — она про настройку не знает, и доверять ей
+    выбор уровня строгости нельзя. Источник один: галочка пользователя,
+    доехавшая в серверное состояние тем же каналом, что allow_addons.
+    Явно заданный в действии флаг не перетираем: он осознаннее молчаливого.
+
+    Ключевое: пока панель НЕ прислала решение (STATE["rename_unverified"] —
+    None, включая отсутствующий ключ), флаг в действие НЕ добавляется вовсе.
+    Тогда ядро само берёт свой строгий дефолт, и «дефолт включено» в
+    настройках не превращается в «небезопасное переименование у того, кто
+    галочку никогда не открывал».
+
+    Значение обязано быть настоящим bool. Прежнее `is not False` считало
+    разрешением ЛЮБОЕ не-False — включая None, отсутствующий ключ и мусор из
+    JSON: в Python именно такое молчаливое приведение опасно, потому что
+    недоказанная ссылка получила бы молчаливую перезапись.
+    """
+    if not isinstance(action, dict) or action.get("action") != "rename_symbol":
+        return action
+    if "allow_unverified" in action:
+        return action
+    decided = STATE.get("rename_unverified")
+    if not isinstance(decided, bool):
+        # Решение не принято: оставляем действие без флага — strict из ядра.
+        pass
+    else:
+        result = dict(action)
+        result["allow_unverified"] = decided
+        action = result
+    # Режим отказа, в отличие от флага, заданный в действии МЫ ПЕРЕТИРАЕМ.
+    # probable снимает блокировку с динамической ссылки по строке — единственной
+    # ситуации, где переименование осознанно оставляет проект сломанным. Если бы
+    # модель могла поставить probable сама, она обходила бы самую строгую
+    # защиту без спроса. Источник один: явный выбор пользователя в панели.
+    chosen = STATE.get("rename_mode")
+    if chosen in ("strict", "probable"):
+        result = dict(action)
+        result["mode"] = chosen
+        return result
+    return action
+
+
 def _can_write_path(path, project_root=None):
     return can_write_project_path(
         path, project_root or STATE.get("project_root"), **_access_kwargs())
@@ -515,6 +559,87 @@ def _reply_once(prompt):
     return text, action
 
 
+def _with_exclude(action, excluded):
+    """Кладёт снятые галочки (res://путь:строка[:колонка]) в действие."""
+    result = dict(action)
+    result["exclude"] = ["%s:%s" % tuple(str(item).split(":")[:2])
+                        for item in excluded]
+    return result
+
+
+def _usage_checklist(analysis, limit=300):
+    """Список мест с галочками для панели: id места + координаты + уверенность.
+
+    id устойчив (путь:строка:колонка), поэтому панель может снять галочку и
+    вернуть эти id в confirm_action как exclude.
+
+    Галочка означает «это место будет переименовано», поэтому она обязана
+    соответствовать ФАКТУ, а не уверенности анализа. Недоказанная ссылка
+    (confidence=probable) помечалась раньше как checked, и это была ложь в
+    обе стороны: при снятом allow_unverified переименование отказывается
+    целиком, а в probable недоказанные места не трогаются. Отмечается такое
+    место только когда флаг действительно включён — тогда оно переименуется.
+    """
+    allow_unverified = analysis.get("allow_unverified") is True
+    checklist = []
+    for place in analysis.get("usages", [])[:limit]:
+        item = dict(place)
+        item["id"] = "%s:%s:%s" % (place["path"], place["line"], place["column"])
+        confidence = place.get("confidence")
+        if confidence == "dynamic":
+            # По строке: не доказать и не переписать, отметка всегда ложь.
+            item["checked"] = False
+        elif confidence == "probable":
+            item["checked"] = allow_unverified
+            if not item["checked"]:
+                item["note"] = (place.get("note")
+                                or "не доказано: это место не будет переименовано")
+        else:
+            item["checked"] = True
+        checklist.append(item)
+    return checklist
+
+
+def _format_analysis(analysis):
+    """Предпросмотр переименования: места, риски и подсказка про exclude."""
+    lines = ["[Система]: предпросмотр %s -> %s: изменится %d файл(ов), "
+             "мест %d (доказано %d, вероятно %d, динамика %d)."
+             % (analysis["old_name"], analysis["new_name"],
+                len(analysis["affected_paths"]), len(analysis["usages"]),
+                analysis["proven_count"], analysis["probable_count"],
+                analysis["dynamic_count"])]
+    for place in analysis["usages"][:200]:
+        # Причина недоказанного места идёт ВМЕСТЕ с ним, а не только в общем
+        # списке рисков: модель читает построчно и без причины строка
+        # «probable» ничего не сообщает.
+        lines.append("%s:%s:%s [%s, %s]%s"
+                     % (place["path"], place["line"], place["column"],
+                        place["link"], place["confidence"],
+                        (" — %s" % place["note"]) if place.get("note") else ""))
+    if analysis["risks"]:
+        lines.append("Риски (не блокируют, но проверь вручную):")
+        lines.extend("  " + risk for risk in analysis["risks"][:40])
+    lines.append("Чтобы применить только часть мест, передай exclude со "
+                 "строками res://путь.gd:строка (снятые галочки попадут в отчёт).")
+    return "\n".join(lines)
+
+
+def _format_usages(result):
+    """Человекочитаемый список мест использования для модели."""
+    lines = ["[Система]: использования %s (kind=%s): доказано %d, вероятно %d, "
+             "динамика %d."
+             % (result["old_name"], result["kind"], result["proven_count"],
+                result["probable_count"], result["dynamic_count"])]
+    for place in result["usages"][:200]:
+        note = (" — %s" % place["note"]) if place.get("note") else ""
+        lines.append("%s:%s:%s [%s, %s]%s"
+                     % (place["path"], place["line"], place["column"],
+                        place["link"], place["confidence"], note))
+    if len(result["usages"]) > 200:
+        lines.append("… ещё %d мест" % (len(result["usages"]) - 200))
+    return "\n".join(lines)
+
+
 def _describe_action(action):
     if not action:
         return None
@@ -546,9 +671,45 @@ def _describe_action(action):
         return "Агент хочет локально проверить сцену %s (%d шагов)" % (
             action.get("scene", ""), len(action.get("steps") or []))
     if act == "rename_symbol":
-        return "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
+        text = "Агент хочет безопасно переименовать %s в %s (%d файл(ов), %d ссылок)" % (
             action.get("old_name", ""), action.get("new_name", ""),
             int(action.get("file_count") or 0), int(action.get("reference_count") or 0))
+        # Риск обязан быть виден В ТЕКСТЕ ПОДТВЕРЖДЕНИЯ, а не только в json:
+        # иначе пользователь нажимает «да», не заметив непроверенных ссылок.
+        risks = []
+        unverified = action.get("unverified_references") or []
+        dynamic = action.get("dynamic_references") or []
+        if unverified:
+            # Формулировка обязана отличаться от «файлы не изменятся»: при
+            # allow_unverified=true эти места ПЕРЕИМЕНОВАНЫ, но без доказательства.
+            # Слово «непереименовано» здесь убрано намеренно — иначе текст врёт.
+            if action.get("allow_unverified"):
+                places = len(unverified)
+                # Согласование существительного: «1 место», но «3 места».
+                word = "место" if places == 1 else "мест"
+                risks.append("%d %s переименовано без доказательства "
+                             "(проверьте вручную)" % (places, word))
+            else:
+                risks.append("%d непроверенных ссылок (проверьте вручную)"
+                             % len(unverified))
+        if dynamic:
+            risks.append("%d динамических ссылок по строке" % len(dynamic))
+        if action.get("warnings"):
+            risks.append("%d предупреждений" % len(action["warnings"]))
+        if action.get("mode") == "probable":
+            # probable снимает блокировку с динамической ссылки по строке.
+            # Формулировка обязана называть именно ЭТО: без неё «probable»
+            # выглядит как безобидное ускорение, а это решение оставить
+            # сломанный вызов по имени.
+            risks.append("режим probable: непроверенные ссылки не блокируют, "
+                         "в том числе найденные по строке — проверьте вручную")
+        if unverified and action.get("allow_unverified"):
+            # Называем ПРИЧИНУ, а не только число мест: по причине видно, что
+            # исправить в коде, чтобы в следующий раз всё доказалось само.
+            first = str(unverified[0]).split(" — ", 1)
+            if len(first) == 2:
+                risks.append("например: %s" % first[1])
+        return text + (("; ВНИМАНИЕ: " + ", ".join(risks)) if risks else "")
     if act == "rename_file":
         return "Агент хочет безопасно переименовать файл %s в %s (%d обновлений ссылок)" % (
             action.get("path", ""), action.get("dest", ""), int(action.get("reference_count") or 0))
@@ -1290,18 +1451,41 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                         "pending_action_code": None,
                         "pending_action_diffs": transaction_actions.prepared_diffs(prepared)})
     if action and action.get("action") == "rename_symbol":
+        # Флаг уровня строгости берётся из настройки панели, а не из действия
+        # модели: пользователь снял галочку — и переименование стало строгим.
+        action = _with_rename_policy(action)
         try:
             prepared = symbol_refactor.prepare_rename(
                 project_root, action, **_access_kwargs())
         except Exception as exc:
             STATE["pending_action"] = None
             STATE["pending_refactor"] = None
-            followup = ("[Система]: rename_symbol отклонён безопасным локальным анализом: %s. "
-                        "Не заменяй имя слепыми patch_file; исправь locator/имя или объясни "
-                        "пользователю найденную неоднозначность." % exc)
+            # Код отказа (Этап 4.4) подсказывает модели, что делать дальше:
+            # починить locator, выбрать другое имя или сменить подход.
+            hint = {
+                "locator": "Уточни declaration: возьми точную строку объявления "
+                           "из gather_context или read_function (или сначала "
+                           "вызови find_symbol_usages).",
+                "unsafe": "Переименование опасно: выбери другое новое имя либо "
+                          "исправь конфликт вручную. Частичное применение "
+                          "возможно с mode=probable, но проверь отчёт о рисках.",
+                "unsupported": "Этот случай не поддерживается: выбери другой вид "
+                               "символа или переименуй вручную.",
+            }.get(getattr(exc, "code", ""), "Уточни параметры и попробуй снова.")
+            followup = ("[Система]: rename_symbol отклонён (%s): %s. %s"
+                        % (getattr(exc, "code", "error"), exc, hint))
             if not allow_followup or depth >= 2:
+                # Отдаём места структурированно, а не только текстом ошибки:
+                # панель покажет их списком с галочками (Этап 4.3).
+                suggested = []
+                try:
+                    suggested = _usage_checklist(symbol_refactor.analyze_rename(
+                        project_root, action, **_access_kwargs()))
+                except Exception:
+                    suggested = []
                 return jsonify({"answer": (text + "\n\n" + followup).strip(),
-                                "pending_action": None})
+                                "pending_action": None,
+                                "suggested_usages": suggested})
             text2, action2 = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text2, action2, project_root, depth + 1)
         batch = godot_headless_validation.batch_from_rename(project_root, prepared)
@@ -1319,6 +1503,9 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
                             "pending_action": None})
         _stamp_policy(prepared)
         prepared["validation"] = {"batch": batch, "receipt": receipt}
+        # Исходное действие сохраняем: при подтверждении с exclude (снятые
+        # галочки) план пересобирается из него, а не из прежних правок.
+        prepared["source_action"] = dict(action)
         public = dict(action)
         public.update(symbol_refactor.public_prepared(prepared))
         STATE["pending_refactor"] = prepared
@@ -1326,9 +1513,17 @@ def _package_model_reply(text, action, project_root, depth=0, allow_followup=Tru
         _remember("agent", text)
         _sync_chat_after_reply()
         diffs = symbol_refactor.prepared_diffs(prepared)
+        # Список мест с галочками вместо текстовой ошибки (Этап 4.3): панель
+        # показывает его ДО подтверждения и может снять галочки — снятые
+        # приходят в confirm_action как exclude. dynamic_references дублируем
+        # отдельным полем: риск должен быть виден ДО подтверждения.
+        checklist = _usage_checklist(symbol_refactor.analyze_rename(
+            project_root, action, **_access_kwargs()))
         return jsonify({"answer": text, "pending_action": public,
                         "pending_action_description": _describe_action(public),
                         "pending_action_code": None,
+                        "pending_action_usages": checklist,
+                        "dynamic_references": public.get("dynamic_references") or [],
                         "pending_action_diff": diffs[0] if len(diffs) == 1 else None,
                          "pending_action_diffs": diffs})
     if action and action.get("action") == "rename_file":
@@ -2723,6 +2918,33 @@ def confirm_action():
             if not isinstance(prepared, dict):
                 STATE["pending_action"] = None
                 return jsonify({"error": "Подготовленная транзакция переименования утрачена."}), 409
+            # Галочки, снятые в списке мест (Этап 4.3): план пересобирается с
+            # учётом exclude, поэтому применяется ровно то, что осталось
+            # отмеченным, а не весь прежний набор.
+            excluded = [str(item) for item in (data or {}).get("exclude", [])
+                        if str(item).strip()]
+            if excluded:
+                try:
+                    prepared = symbol_refactor.prepare_rename(
+                        project_root, _with_exclude(
+                            dict(prepared.get("source_action") or {}), excluded),
+                        **_access_kwargs())
+                except Exception as exc:
+                    STATE["pending_action"] = None
+                    STATE["pending_refactor"] = None
+                    return jsonify({"error": "Не удалось применить выбор мест: %s" % exc}), 409
+                # Пересобранный план снова получает policy-метку и собственную
+                # валидацию: иначе проверка политики на confirm отклонила бы
+                # его как устаревший, а рецепт валидатора остался бы от старого
+                # плана — то есть проверял бы уже не то, что применится.
+                _stamp_policy(prepared)
+                rebuilt_batch = godot_headless_validation.batch_from_rename(
+                    project_root, prepared)
+                prepared["validation"] = {
+                    "batch": rebuilt_batch,
+                    "receipt": godot_headless_validation.validate_batch(
+                        project_root, rebuilt_batch,
+                        executable=STATE.get("godot_executable"))}
             print("--> rename_symbol %s -> %s. Применяем %d файл(ов)..." % (
                 prepared.get("old_name"), prepared.get("new_name"),
                 len(prepared.get("files") or [])))
@@ -2749,10 +2971,33 @@ def confirm_action():
                 _remember_file(project_root, changed_path)
                 _touch_file_read(changed_path)
             _refresh_fs_snapshot(project_root)
+            # Снятые галочки показываем в ответе: пользователь должен видеть,
+            # что эти места остались со старым именем — иначе «переименовано»
+            # врёт ему в лицо.
+            answer = ("[Система]: Символ %s безопасно переименован в %s "
+                      "(%d файл(ов), %d ссылок)." % (
+                          prepared["old_name"], prepared["new_name"],
+                          result["file_count"], result["reference_count"]))
+            # Список изменённых файлов. Без него модель не знает, куда смотреть
+            # и что перепроверять, — а по требованию заказчика именно это ей и
+            # нужно: после автоматического переименования она обязана суметь
+            # сама проверить нужное место в нужном файле.
+            answer += " Изменены файлы: %s" % ", ".join(changed_paths[:20])
+            skipped = prepared.get("skipped_usages") or []
+            if skipped:
+                answer += " БЕЗ галочки остались: %s" % "; ".join(skipped[:10])
+            # Места, переименованные БЕЗ доказательства, обязаны быть названы и
+            # ПОСЛЕ записи: до записи о них знал только предпросмотр, а сейчас
+            # они уже на диске. Молчание здесь означало бы «проверено всё».
+            unproven = prepared.get("unverified_references") or []
+            if unproven:
+                answer += (" Переименовано без доказательства: %d мест — %s"
+                           % (len(unproven), "; ".join(unproven[:10])))
             return jsonify({
-                "answer": "[Система]: Символ %s безопасно переименован в %s (%d файл(ов), %d ссылок)." % (
-                    prepared["old_name"], prepared["new_name"], result["file_count"],
-                    result["reference_count"]),
+                "answer": answer,
+                "skipped_usages": skipped,
+                "unverified_references": unproven,
+                "unverified_count": int(prepared.get("unverified_count") or 0),
                 "pending_action": None, "changed_paths": changed_paths,
                 "history_entry_id": result["entry_id"],
             })
@@ -3017,6 +3262,37 @@ def confirm_action():
                 results, truncated = search_project_text(
                     project_root, query, **_access_kwargs())
                 followup = _format_search_results(query, results, truncated)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "find_symbol_usages":
+            # Отдельный read-only шаг: список мест использования. Модели он
+            # нужен, чтобы не угадывать locator для rename_symbol. Ничего
+            # не пишем и подтверждения не просим — это разведка.
+            STATE["pending_action"] = None
+            try:
+                result = symbol_refactor.find_references(
+                    project_root, action, **_access_kwargs())
+            except Exception as exc:
+                followup = ("[Система]: find_symbol_usages не выполнен: %s" % exc)
+            else:
+                followup = _format_usages(result)
+            text, new_action = _reply_with_self_heal(followup, project_root)
+            return _package_model_reply(text, new_action, project_root)
+
+        elif act_type == "analyze_rename":
+            # Предпросмотр переименования: показываем места и риски, ничего
+            # не пишем и подтверждения не просим. Пользователь по возвращённым
+            # местам может снять галочки (exclude) и уже потом применить.
+            STATE["pending_action"] = None
+            try:
+                analysis = symbol_refactor.analyze_rename(
+                    project_root, action, **_access_kwargs())
+            except Exception as exc:
+                followup = ("[Система]: analyze_rename не выполнен (%s): %s"
+                            % (getattr(exc, "code", "error"), exc))
+            else:
+                followup = _format_analysis(analysis)
             text, new_action = _reply_with_self_heal(followup, project_root)
             return _package_model_reply(text, new_action, project_root)
 

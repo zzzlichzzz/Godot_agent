@@ -7,16 +7,104 @@ import re
 import tempfile
 import threading
 
+import gd_api_cache
 import gd_api_check
 import gd_lint
 import gd_semantic_parser
 import history_manager
+import scene_deps
+import file_refactor
 from minilich import ml_project_index
 from project_tools import (_resolve_safe_path, build_diff_preview,
                            can_write_project_path)
 
 
-KINDS = {"class_name", "function", "signal", "variable"}
+KINDS = {"class_name", "function", "signal", "variable", "const", "enum",
+         "enum_member"}
+# Вид, которым оперирует rename_symbol, -> вид объявления в парсере.
+# Имена не совпадают исторически: парсер называет константу "constant",
+# а публичный action говорит "const" (так его понимает модель).
+_KIND_TO_DECL = {"const": "constant", "enum": "enum"}
+# Обратное отображение для проверок вида объявления.
+_DECL_TO_KIND = {value: key for key, value in _KIND_TO_DECL.items()}
+# Все виды объявлений, которые парсер вообще отдаёт: нужны для подсказки
+# в сообщении об ошибке («что этот скрипт объявляет на самом деле»).
+_DECL_KINDS = {"class_name", "class", "function", "signal", "variable",
+               "constant", "enum", "enum_member", "parameter"}
+
+
+def _owner_is_top_level(owner, declarations):
+    """Owner принадлежит верхнему уровню скрипта.
+
+    Критерий: по цепочке объявлений до самого скрипта не встречается ФУНКЦИЯ.
+    Класс внутри функции — локальная сущность времени выполнения, её имя
+    переименовать текстом нельзя. А вот класс в классе (Deep внутри Outer) —
+    верхнего уровня, цепочка идёт через объявления kind == "class".
+    """
+    by_id = {item.get("id"): item for item in declarations}
+    current = owner
+    seen = set()
+    while current and current not in seen and current != "script":
+        seen.add(current)
+        declaration = by_id.get(current)
+        if not declaration:
+            return False
+        if declaration.get("kind") == "function":
+            return False
+        current = declaration.get("owner")
+    return current == "script"
+
+
+def _owner_within(owner, root, declarations):
+    """Владелец ссылки находится внутри root (сам root — это объявление класса).
+
+    Нужно, чтобы переименование члена вложенного класса трогало только его
+    собственные ссылки: одноимённый член ВНЕШНЕГО скрипта — другая
+    сущность, и её переименование сломало бы внешний код.
+    """
+    if root is None:
+        return owner == "script"
+    current = owner
+    for _ in range(64):
+        if current == root:
+            return True
+        parent = next((item.get("owner") for item in declarations
+                       if item.get("id") == current), None)
+        if parent is None or parent == current:
+            return False
+        current = parent
+    return False
+
+
+def _owner_is_script_scope(declaration, declarations):
+    """Объявление принадлежит самому скрипту, а не вложенному классу."""
+    return declaration.get("owner") == "script"
+
+
+def _reference_in_other_scope(fact, declaration, kind, declarations):
+    """Ссылка принадлежит scope, отличному от scope нашего объявления.
+
+    Вложенный класс в Godot НЕ наследует внешний скрипт, поэтому член с тем
+    же именем во вложенном классе (или снаружи, если мы переименовываем
+    член вложенного) — другая сущность, а не ссылка на наш символ.
+    """
+    if kind not in ("function", "signal", "variable", "const", "enum"):
+        return False
+    owner = declaration.get("owner")
+    if owner == "script":
+        return not _owner_belongs_to_script(fact.get("owner"), declarations)
+    return not _owner_within(fact.get("owner"), owner, declarations)
+
+
+def _decl_kind(kind):
+    """Вид объявления в парсере для публичного kind (или сам kind)."""
+    return _KIND_TO_DECL.get(kind, kind)
+# Режимы гранулярности отказа (Этап 2.4). strict — поведение по умолчанию,
+# полностью консервативное. probable сознательно снимает блокировку с
+# НЕПРОВЕРЕННЫХ ссылок, но оставляет все жёсткие проверки на месте.
+# Уровень dynamic — это не режим, а класс находок: ссылки, найденные
+# только по строке, попадают в отчёт при любом режиме.
+MODES = ("strict", "probable")
 _IDENTIFIER = re.compile(r"^[^\W\d]\w*$", re.U)
 _KEYWORDS = {
     "and", "as", "assert", "await", "break", "breakpoint", "class",
@@ -31,7 +119,35 @@ _replace_file = os.replace
 
 
 class RenameError(ValueError):
-    pass
+    """Отказ переименования с машинным кодом причины (Этап 4.4).
+
+    Код нужен и человеку, и модели: по тексту нельзя однозначно понять,
+    что делать дальше — исправить locator, выбрать другое имя или признать,
+    что случай не поддерживается. Подклассы ничего не меняют в поведении:
+    перехват RenameError работает как раньше.
+    """
+
+    code = "unsafe"
+
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        if code:
+            self.code = code
+
+
+class LocatorError(RenameError):
+    """Указан неверный locator: строки/имени объявления нет. Чини locator."""
+    code = "locator"
+
+
+class UnsafeRenameError(RenameError):
+    """Переименование опасно: конфликт имён или недоказанная ссылка."""
+    code = "unsafe"
+
+
+class UnsupportedRenameError(RenameError):
+    """Случай честно не поддерживается (вид, имя, scope)."""
+    code = "unsupported"
 
 
 class StaleRenameError(RuntimeError):
@@ -48,10 +164,63 @@ def _sha256(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def _collect_path_reference_edits(project_root, file_rename, allow_addons=False,
+                                  allow_self_edit=False, addon_dir=None):
+    """Правки ссылок на переносимый путь (.tscn/.tres/preload и т.п.).
+
+    Перенос .gd без переписывания ссылок оставляет сцены на несуществующем
+    пути, и узел молча теряет скрипт. Пользуемся готовым поиском
+    file_refactor.find_file_references — он уже знает про относительные
+    preload(), про фильтр расширений и про политику чтения.
+    """
+    old_path = file_rename["from"]
+    new_path = file_rename["to"]
+    references = file_refactor.find_file_references(
+        project_root, old_path, allow_addons=allow_addons,
+        allow_self_edit=allow_self_edit, addon_dir=addon_dir)
+    exact_pattern = re.compile(
+        r'(?<=["\'\*])' + re.escape(old_path) + r'(?=["\'\s,\]])')
+    edits = []
+    for ref in references:
+        if not can_write_project_path(
+                ref["path"], project_root, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+            # Ссылка есть, а права её переписать нет. Продолжать нельзя:
+            # файл уедет, а ссылка останется висеть — ровно тот случай, ради
+            # которого это переименование и затевалось.
+            raise UnsafeRenameError(
+                "На переименовываемый скрипт ссылается %s, но его нельзя "
+                "переписать по текущей политике доступа: перенос разорвал бы "
+                "эту ссылку. Переименование остановлено."
+                % ref["path"])
+        before_text = ref["text"]
+        after_text = before_text
+        for start, end, _cand in sorted(ref.get("rel_matches") or [],
+                                        key=lambda item: item[0], reverse=True):
+            after_text = after_text[:start] + new_path + after_text[end:]
+        after_text = exact_pattern.sub(new_path, after_text)
+        if ref["path"].lower().endswith(".gd"):
+            lint_errors = gd_lint.lint_gdscript(after_text)
+            if lint_errors:
+                raise UnsafeRenameError(
+                    "После обновления ссылки в %s обнаружена синтаксическая "
+                    "ошибка: %s" % (ref["path"], lint_errors[0]))
+        diff = build_diff_preview(before_text, after_text)
+        diff["path"] = ref["path"]
+        diff["action"] = "rename_symbol"
+        edits.append({
+            "path": ref["path"], "absolute": ref["absolute"],
+            "before_hash": _sha256(ref["raw"]), "before_bytes": ref["raw"],
+            "after_bytes": (b"\xef\xbb\xbf" if ref["bom"] else b"")
+                          + after_text.encode("utf-8"),
+            "diff": diff, "occurrences": ref["occurrences"]})
+    return edits
+
+
 def _read_source(project_root, path):
     absolute = _resolve_safe_path(project_root, path)
     if not os.path.isfile(absolute):
-        raise RenameError("Файл объявления не найден: %s" % path)
+        raise LocatorError("Файл объявления не найден: %s" % path)
     with open(absolute, "rb") as handle:
         raw = handle.read()
     bom = raw.startswith(b"\xef\xbb\xbf")
@@ -68,12 +237,110 @@ def _parse_locator(value):
     raw = str(value or "").strip().replace("\\", "/")
     match = re.match(r"^(res://.+\.gd):(\d+)(?::(\d+))?$", raw)
     if not match:
-        raise RenameError("declaration должен иметь вид res://path.gd:line[:column]")
+        raise LocatorError("declaration должен иметь вид res://path.gd:line[:column]")
     line = int(match.group(2))
     column = int(match.group(3)) if match.group(3) else None
     if line < 1 or (column is not None and column < 1):
-        raise RenameError("Строка и колонка declaration должны быть положительными")
+        raise LocatorError("Строка и колонка declaration должны быть положительными")
     return match.group(1), line, column
+
+
+def _move_with_uid(project_root, file_rename, moved):
+    """Переносит .gd вместе с его .uid, записывая шаг для отката.
+
+    .uid Godot генерирует рядом со скриптом и связывает ресурс по имени файла,
+    поэтому оставить старый .uid значит потерять связь сцен с переименованным
+    скриптом. Переносим оба файла и только потом считаем шаг выполненным —
+    так частичного переноса при сбое не остаётся.
+    """
+    source = _resolve_safe_path(project_root, file_rename["from"])
+    dest = _resolve_safe_path(project_root, file_rename["to"])
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    step = {"source_absolute": source, "dest_absolute": dest}
+    _replace_file(source, dest)
+    # Шаг отката регистрируем СРАЗУ после переноса .gd, до переноса .uid:
+    # иначе сбой на .uid оставил бы скрипт на новом месте без шанса
+    # вернуть его обратно.
+    moved.append(step)
+    if os.path.isfile(source + ".uid"):
+        _replace_file(source + ".uid", dest + ".uid")
+        step["dest_uid"] = dest + ".uid"
+        step["source_uid"] = source + ".uid"
+
+
+def _plan_file_rename(project_root, target_path, new_name, addon_dir):
+    """План переноса .gd под новое имя класса (вместе с .uid)."""
+    directory = target_path.rsplit("/", 1)[0]
+    new_path = "%s/%s.gd" % (directory, scene_deps.to_snake(new_name))
+    if new_path == target_path:
+        return None
+    if not can_write_project_path(
+            new_path, project_root, addon_dir=addon_dir):
+        raise RenameError("Новое имя файла защищено текущей политикой доступа: %s"
+                          % new_path)
+    absolute = _resolve_safe_path(project_root, new_path)
+    if os.path.exists(absolute):
+        raise UnsafeRenameError("Файл с новым именем уже существует: %s" % new_path)
+    return {"from": target_path, "to": new_path}
+
+
+def _unverified_reason(kind, fact, text, tokens, target_path, path,
+                       target_class, typed, declarations, subclasses,
+                       all_target_classes, root_owner):
+    """Почему ссылка НЕ доказана. Только для отчёта, решение не принимает.
+
+    Тот же обход условий, что в _reference_is_safe, но вместо True/False мы
+    возвращаем причину. Она нужна пользователю не для красоты: по причине
+    видно, ЧТО исправить, чтобы в следующий раз ссылка доказалась сама.
+    Например «тип ресивера card неизвестен» лечится аннотацией в коде.
+    """
+    prev2, prev, nxt = _token_neighbors(tokens, fact.get("start"))
+    prev_value = prev.get("value") if prev else None
+    prev2_value = prev2.get("value") if prev2 else None
+    next_value = nxt.get("value") if nxt else None
+    shadowed = _owner_shadows_name(fact.get("owner"), fact.get("name"), declarations)
+    if kind == "variable" and root_owner not in (None, "script"):
+        shadowed = False
+    in_script = _owner_in_script(fact.get("owner"), declarations)
+    in_root = _owner_within(fact.get("owner"), root_owner, declarations or [])
+    if root_owner is not None and kind in ("function", "signal", "variable",
+                                           "const", "enum"):
+        if root_owner == "script" and not _owner_belongs_to_script(
+                fact.get("owner"), declarations):
+            return "вложенный класс не наследует внешний скрипт"
+        if root_owner != "script" and not in_root:
+            return "ссылка вне вложенного класса, чей член переименовывается"
+    if kind == "class_name":
+        if fact.get("context") != "type" and next_value != ".":
+            return ("использование имени класса не как типа и не как префикса "
+                    "(%s)" % (fact.get("context"),))
+    hierarchy = (path == target_path
+                 or bool(subclasses and path in subclasses))
+    if prev_value == ".":
+        if hierarchy and prev2_value == "self" and in_script:
+            return None
+        if all_target_classes and typed.get(prev2_value) in all_target_classes:
+            return None
+        if target_class and typed.get(prev2_value) == target_class:
+            return None
+        if target_class and prev2_value == target_class and not shadowed:
+            return None
+        if shadowed:
+            return "имя перекрыто одноимённым объявлением"
+        return ("не удалось доказать тип ресивера «%s»: добавь аннотацию типа, "
+                "и ссылка переименуется сама" % (prev2_value,))
+    if kind in ("function", "signal", "variable", "const", "enum",
+                "enum_member"):
+        if not hierarchy:
+            return "файл не входит в иерархию символа"
+        if shadowed:
+            return "имя перекрыто одноимённым объявлением"
+        if kind == "function" and fact.get("context") != "call":
+            return ("упоминание функции не как вызова (%s); такой вызов по "
+                    "имени мы переписать не можем" % (fact.get("context"),))
+        if fact.get("context") == "member":
+            return "член по ссылке на неизвестный объект"
+    return "причина не установлена"
 
 
 def _validate_action(action):
@@ -83,14 +350,44 @@ def _validate_action(action):
     old_name = str(action.get("old_name") or "").strip()
     new_name = str(action.get("new_name") or "").strip()
     if kind not in KINDS:
-        raise RenameError("kind должен быть class_name, function, signal или variable")
+        raise UnsupportedRenameError(
+            "kind должен быть %s" % ", ".join(sorted(KINDS)))
     for label, name in (("old_name", old_name), ("new_name", new_name)):
         if not _IDENTIFIER.match(name) or name in _KEYWORDS:
-            raise RenameError("%s не является допустимым идентификатором GDScript" % label)
+            raise UnsupportedRenameError(
+                "%s не является допустимым идентификатором GDScript" % label)
     if old_name == new_name:
-        raise RenameError("Новое имя совпадает со старым")
+        raise UnsupportedRenameError("Новое имя совпадает со старым")
     path, line, column = _parse_locator(action.get("declaration"))
-    return kind, old_name, new_name, path, line, column
+    # rename_file: переименовать ли сам .gd вместе с class_name. По умолчанию
+    # НЕТ: имя файла может не совпадать с классом (hero.gd с class_name Unit),
+    # и молчаливый перенос ломал бы preload() и пути в сценах.
+    rename_file = bool(action.get("rename_file"))
+    if rename_file and kind != "class_name":
+        raise UnsupportedRenameError("rename_file применим только к class_name")
+    # Режим отказа: strict по умолчанию. Неизвестное значение молчать не
+    # должно — иначе опечатка в действии незаметно ослабит проверки.
+    mode = str(action.get("mode") or "strict").strip().lower()
+    if mode not in MODES:
+        raise UnsupportedRenameError("mode должен быть %s" % " или ".join(MODES))
+    # allow_unverified: переименовывать ли ссылки, которые мы НЕ смогли доказать.
+    # Дефолт — strict: флаг приходит из настройки панели, а любой другой
+    # клиент (MCP, сторонний скрипт) флага не шлёт и не должен молча получить
+    # небезопасное переименование.
+    #
+    # Тип проверяем СТРОГО. Значение приходит из JSON, который пишет модель,
+    # и в Python bool("false") is True: наивное приведение превратило бы
+    # просьбу «строго» в тихое разрешение недоказанных ссылок. Поэтому любой
+    # не-bool — явный отказ с упоминанием имени поля.
+    allow_unverified = False
+    if "allow_unverified" in action and action.get("allow_unverified") is not None:
+        if not isinstance(action["allow_unverified"], bool):
+            raise UnsupportedRenameError(
+                "allow_unverified должен быть true или false, получено: %r"
+                % (action["allow_unverified"],))
+        allow_unverified = action["allow_unverified"]
+    return (kind, old_name, new_name, path, line, column, mode, rename_file,
+            allow_unverified)
 
 
 def _token_neighbors(tokens, start):
@@ -115,7 +412,9 @@ def _typed_receivers(text):
                 and type_token.get("kind") == "identifier"):
             result[name["value"]] = type_token["value"]
 
-    # Parameters are accepted only inside an actual func(...) signature.
+    # Параметры признаём только внутри настоящей сигнатуры func(...):
+    # одиночное «имя:» может встретиться в Dictionary-типе или в коде,
+    # и принять его за параметр значило бы привязать не туда.
     for index, token in enumerate(tokens):
         if token.get("value") != "func":
             continue
@@ -144,6 +443,25 @@ def _typed_receivers(text):
                     cursor += 2
             cursor += 1
     return result
+
+
+def _owner_in_script(owner, declarations):
+    """Ссылка принадлежит этому же скрипту, включая вложенные классы.
+
+    Отличается от _owner_belongs_to_script, который намеренно обрывается на
+    вложенном классе: он был нужен, когда переименование членов вложенных
+    классов вообще не поддерживалось.
+    """
+    by_id = {item.get("id"): item for item in declarations}
+    current = owner
+    seen = set()
+    while current and current != "script" and current not in seen:
+        seen.add(current)
+        declaration = by_id.get(current)
+        if not declaration:
+            return False
+        current = declaration.get("owner")
+    return current == "script"
 
 
 def _exact_string_value(raw):
@@ -240,6 +558,59 @@ def _find_subclasses(project_root, target_path, target_class, snapshot):
     return subclasses
 
 
+def _section_node_path(header):
+    """Путь узла по заголовку секции .tscn (или пустая строка)."""
+    attrs = dict(re.findall(r'([\w]+)="([^"]*)"', header))
+    name = attrs.get("name", "")
+    parent = attrs.get("parent")
+    if parent is None:
+        return "."
+    if parent == ".":
+        return name
+    return parent + "/" + name
+
+
+def _scene_script_owners(project_root, scene_res, cache, seen=None):
+    """Множество res://путей скриптов, узлы с которыми встречаются в сцене.
+
+    Учитывает и ПРЯМОЕ указание script = ExtResource(...), и ИНСТАНЦИРОВАНИЕ
+    (node ... instance = ExtResource("...tscn")): у инстанцированной сцены
+    свой скрипт в ext_resource родителя отсутствует, но переопределения
+    свойств в родителе относятся именно к нему.
+    """
+    seen = seen if seen is not None else set()
+    if scene_res in seen:
+        return set()
+    seen.add(scene_res)
+    if scene_res in cache:
+        return cache[scene_res]
+    try:
+        abs_path = _resolve_safe_path(project_root, scene_res)
+        with open(abs_path, "rb") as handle:
+            text = handle.read().decode("utf-8-sig")
+    except Exception:
+        cache[scene_res] = set()
+        return set()
+    try:
+        ext, nodes, _connections = scene_deps.parse_scene(text)
+    except Exception:
+        cache[scene_res] = set()
+        return set()
+    owners = set()
+    for key, info in ext.items():
+        if info.get("type") == "Script" and info.get("path"):
+            owners.add(info["path"])
+    for node in nodes:
+        instance_id = node.get("instance_id")
+        if not instance_id:
+            continue
+        target = ext.get(instance_id, {}).get("path")
+        if target and target.lower().endswith(".tscn"):
+            owners |= _scene_script_owners(project_root, target, cache, seen)
+    cache[scene_res] = owners
+    return owners
+
+
 def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_name,
                                   allow_addons=False, allow_self_edit=False,
                                   addon_dir=None):
@@ -247,6 +618,9 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
     scene_edits = []
     if not affected_scripts:
         return scene_edits
+    # Кэш «сцена -> скрипты её узлов» на весь проход: одна и та же сцена
+    # инстанцируется из многих мест, перечитывать её каждый раз незачем.
+    scene_owner_cache = {}
 
     for root, dirs, files in os.walk(project_root):
         if not allow_addons and ("addons" in dirs):
@@ -286,8 +660,28 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
                 for m in pattern2.finditer(text):
                     matching_ids.add(m.group(1))
 
-            if not matching_ids:
-                continue
+            # Раньше здесь стоял ранний выход «нет matching_ids — пропускаем
+            # файл». Он и был причиной потери: у инстанцирующей сцены в
+            # ext_resource нет нашего скрипта, и файл уходил целиком,
+            # вместе с переопределениями свойств.
+            # Секции с нашим скриптом и секции, которые ИНСТАНЦИРУЮТ сцену с
+            # нашим скриптом: у инстанцированной сцены в ext_resource родителя
+            # скрипта нет, поэтому раньше такие переопределения терялись молча.
+            instanced_paths = set()
+            scene_nodes = []
+            if rel_path.lower().endswith(".tscn"):
+                try:
+                    scene_ext, scene_nodes, _c = scene_deps.parse_scene(text)
+                except Exception:
+                    scene_ext, scene_nodes = {}, []
+                wanted_instance_ids = {
+                    key for key, info in scene_ext.items()
+                    if (info.get("type") == "PackedScene" and info.get("path")
+                        and _scene_script_owners(
+                            project_root, info["path"], scene_owner_cache)
+                        & affected_scripts)}
+                instanced_paths = {node.get("path") for node in scene_nodes
+                                   if node.get("instance_id") in wanted_instance_ids}
 
             section_re = re.compile(r'(^\[(?:node|sub_resource|resource)[^\]]*\])(.*?)(?=(?:^\[|\Z))', re.M | re.S)
             file_changed = False
@@ -306,6 +700,10 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
                     if re.search(r'script\s*=\s*ExtResource\(["\']?' + re.escape(mid) + r'["\']?\)', body):
                         has_script = True
                         break
+                if not has_script and _section_node_path(header) in instanced_paths:
+                    # Переопределение свойства внутри инстанцированного узла:
+                    # ключ свойства принадлежит скрипту ИНСТАНЦИРУЕМОЙ сцены.
+                    has_script = True
 
                 if not has_script:
                     continue
@@ -339,16 +737,143 @@ def _collect_scene_property_edits(project_root, affected_scripts, old_name, new_
     return scene_edits
 
 
+_CONN_HEADER_RE = re.compile(r'^\[connection\s+([^\]]*)\]$')
+_CONN_FIELD_RE = re.compile(r'(\w+)="([^"]*)"')
+
+
+def _connection_replacement(text, script_ids, node_paths, kind, old_name, new_name):
+    """Переименовывает signal= и method= в [connection], где оба конца известны.
+
+    Отвечаем ТОЛЬКО за те связи, у которых и источник, и приёмник — узлы с
+    нужным нам скриптом (script_ids из ext_resource, node_paths — пути этих
+    узлов). Если method указывает на метод другого узла — этот узел не несёт
+    наш скрипт, и такой текст не трогаем: иначе мы бы сломали чужой обработчик.
+    """
+    if not script_ids:
+        return text, 0
+    changes = 0
+    # Разбиваем по сохраняемым переводам строк: .tscn в Windows-проектах
+    # часто лежит в CRLF, и нормализация в LF переписывала бы весь файл
+    # целиком (Godot такой diff не покажет, а линтер и git увидят).
+    eol = "\r\n" if "\r\n" in text else "\n"
+    lines = text.split(eol)
+    for index, line in enumerate(lines):
+        match = _CONN_HEADER_RE.match(line.strip())
+        if not match:
+            continue
+        attrs = dict(_CONN_FIELD_RE.findall(match.group(1)))
+        source = attrs.get("from", "")
+        target = attrs.get("to", "")
+        if source not in node_paths or target not in node_paths:
+            continue
+        field = "signal" if kind == "signal" else "method"
+        if attrs.get(field) != old_name:
+            continue
+        new_header = _CONN_HEADER_RE.sub(
+            lambda m: m.group(0).replace('%s="%s"' % (field, old_name),
+                                       '%s="%s"' % (field, new_name)),
+            line.strip(), count=1)
+        lines[index] = line.replace(line.strip(), new_header)
+        changes += 1
+    return eol.join(lines), changes
+
+
+def _collect_scene_connection_edits(project_root, affected_scripts, kind,
+                                    old_name, new_name, allow_addons=False,
+                                    allow_self_edit=False, addon_dir=None):
+    """Собирает правки [connection] для сцен, чьи узлы несут нужный скрипт."""
+    edits = []
+    if kind not in ("signal", "function") or not affected_scripts:
+        return edits
+    wanted = set(affected_scripts)
+    for root, dirs, files in os.walk(project_root):
+        if not allow_addons and ("addons" in dirs):
+            dirs.remove("addons")
+        for d in list(dirs):
+            if d in {".git", ".godot", ".import", ".agent_history",
+                     "__pycache__", "build", "dist"}:
+                dirs.remove(d)
+        for name in files:
+            if not name.lower().endswith(".tscn"):
+                continue
+            abs_path = os.path.join(root, name)
+            rel_path = "res://" + os.path.relpath(
+                abs_path, project_root).replace("\\", "/")
+            if not can_write_project_path(
+                    rel_path, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                continue
+            try:
+                with open(abs_path, "rb") as handle:
+                    raw = handle.read()
+                text = raw.decode("utf-8-sig")
+            except Exception:
+                continue
+            bom = raw.startswith(b"\xef\xbb\xbf")
+            try:
+                ext, nodes, _connections = scene_deps.parse_scene(text)
+            except Exception:
+                continue
+            # parse_scene отдаёт ext как {id: {type, path}}: идентификатор лежит
+            # в КЛЮЧЕ, а не в значении — иначе script_id узлов не совпадёт.
+            script_ids = {key for key, info in ext.items()
+                          if info.get("path") in wanted}
+            if not script_ids:
+                continue
+            node_paths = {node.get("path") for node in nodes
+                          if node.get("script_id") in script_ids}
+            if not node_paths:
+                continue
+            after, count = _connection_replacement(
+                text, script_ids, node_paths, kind, old_name, new_name)
+            if not count:
+                continue
+            encoded = (b"\xef\xbb\xbf" if bom else b"") + after.encode("utf-8")
+            diff = build_diff_preview(text, after)
+            diff["path"] = rel_path
+            diff["action"] = "rename_symbol"
+            edits.append({"path": rel_path, "absolute": abs_path,
+                          "before_hash": _sha256(raw), "before_bytes": raw,
+                          "after_bytes": encoded, "diff": diff,
+                          "occurrences": count})
+    return edits
+
+
 def _reference_is_safe(kind, fact, text, tokens, target_path, path,
                        target_class, typed, declarations, target_static=False,
-                       subclasses=None, all_target_classes=None):
+                       subclasses=None, all_target_classes=None,
+                       target_enum_name=None, root_owner=None,
+                       root_declarations=None):
     prev2, prev, nxt = _token_neighbors(tokens, fact.get("start"))
     prev_value = prev.get("value") if prev else None
     prev2_value = prev2.get("value") if prev2 else None
     next_value = nxt.get("value") if nxt else None
 
     shadowed = _owner_shadows_name(fact.get("owner"), fact.get("name"), declarations)
-    in_script = _owner_belongs_to_script(fact.get("owner"), declarations)
+    if kind == "variable" and root_owner not in (None, "script"):
+        # У локальной переменной объявление и все ссылки принадлежат ОДНОМУ
+        # scope — функции, поэтому проверка тени нашла бы само объявление.
+        # Область и так ограничена функцией, а дубль имени в ней мы уже
+        # отсекли проверкой уникальности объявления.
+        shadowed = False
+    # Принадлежность скрипту считаем с учётом вложенных классов: их члены
+    # переименовываются (Этап 3.3), значит и ссылки внутри них — наши.
+    in_script = _owner_in_script(fact.get("owner"), declarations)
+    # Переименование члена вложенного класса затрагивает ТОЛЬКО ссылки,
+    # принадлежащие этому классу: одноимённый член внешнего скрипта — другая
+    # сущность, и трогать его нельзя.
+    in_root = _owner_within(fact.get("owner"), root_owner, root_declarations or [])
+    if root_owner is not None and kind in ("function", "signal", "variable",
+                                           "const", "enum"):
+        # Член САМОГО скрипта: ссылка должна быть в scope скрипта, а не внутри
+        # вложенного класса — вложенный класс не наследует внешний скрипт.
+        # Член вложенного класса или локальная переменная функции: наоборот,
+        # только ссылки ВНУТРИ своего scope.
+        if root_owner == "script":
+            if not _owner_belongs_to_script(fact.get("owner"), declarations):
+                return False
+        elif not in_root:
+            return False
     if kind == "class_name":
         return fact.get("context") == "type" or (next_value == "." and not shadowed)
 
@@ -364,38 +889,325 @@ def _reference_is_safe(kind, fact, text, tokens, target_path, path,
             return True
         if target_class and typed.get(receiver) == target_class:
             return True
+        # Обращение через ИМЯ КЛАССА: Unit.MAX_HP. Здесь receiver — не
+        # переменная, поэтому typed его не содержит, но имя класса мы знаем
+        # точно, и ссылка однозначна.
+        if target_class and receiver == target_class and not shadowed:
+            return True
+        # Обращение к member через имя САМОГО ENUM: State.IDLE. Receiver —
+        # не класс и не переменная, поэтому проверки выше его не видели.
+        if kind == "enum_member" and target_enum_name and receiver == target_enum_name:
+            return True
         if kind == "function" and target_static and target_class and receiver == target_class:
             return True
         return False
 
     if kind == "function":
-        return (same_script and in_script and not shadowed
+        # Иерархия, а не только сам скрипт: override в подклассе и его
+        # self-вызовы — те же носители имени. Локальная тень (параметр,
+        # локальная переменная) по-прежнему отсекается проверкой shadowed.
+        return (hierarchy and in_script and not shadowed
                 and fact.get("context") == "call")
     if kind == "signal":
-        return (same_script and in_script and not shadowed
+        # То же для сигнала: emit/await в подклассе относятся к сигналу
+        # базового класса, если подкласс не перекрыл его своим объявлением
+        # (такое перекрытие отсекается проверкой выше).
+        return (hierarchy and in_script and not shadowed
                 and (next_value == "." or prev_value == "await"))
     if kind == "variable":
+        return (hierarchy and in_script and not shadowed
+                and fact.get("context") != "member")
+    if kind in ("const", "enum", "enum_member"):
+        # Константа адресуется либо через класс (Unit.MAX_HP), либо прямо
+        # внутри своего скрипта. Через точку мы уже дошли сюда только если
+        # ресивер — наш класс; локальная тень отсекается проверкой shadowed.
         return (hierarchy and in_script and not shadowed
                 and fact.get("context") != "member")
     return False
 
 
 def _collision(declarations, declaration, kind, new_name, subclasses=None):
+    """Ищем объявление, которое РЕАЛЬНО конфликтует с новым именем.
+
+    Для class_name важно различать два разных случая, которые раньше
+    отваливались в один:
+      * затенение — новым именем занят сам скрипт объявления или его подкласс;
+        такое переименование сломало бы пространство имён, и это отказ;
+      * простое совпадение — такое же имя живёт в ПОСТОРОННЕМ файле
+        (чужой локальный var/const). Это не конфликт: имя локально, и наш
+        переименованный символ оно не задевает. Такие случаи возвращаются
+        отдельно, как предупреждения, а не как отказ.
+    """
     affected_paths = {declaration.get("path")}
     if subclasses:
         affected_paths.update(subclasses)
+    clashed = None
     for item in declarations:
         if item.get("name") != new_name:
             continue
         if kind == "class_name":
-            return item
-        if kind == "variable":
+            # Глобальное имя класса: конфликт — только второй class_name
+            # проекта либо затенение членами самого скрипта.
+            if item.get("kind") == "class_name":
+                return item
+            if item.get("path") in affected_paths:
+                return item
+            clashed = clashed or item
+            continue
+        if kind in ("variable", "const", "enum"):
             if item.get("path") in affected_paths and item.get("owner") == declaration.get("owner"):
                 return item
         elif (item.get("path") == declaration.get("path")
               and item.get("owner") == declaration.get("owner")):
             return item
-    return None
+    return clashed
+
+
+def _is_real_conflict(collided, declaration, kind, subclasses=None):
+    """Отличаем затенение нашего символа от простого совпадения имени.
+
+    Затенение — это когда новое имя займёт пространство, в котором уже
+    что-то объявлено: наш скрипт, его подклассы (там перекрывается и
+    глобальное имя класса) либо тот же файл для членов. Всё остальное —
+    простое совпадение в постороннем файле.
+    """
+    if collided.get("kind") == "class_name":
+        return True
+    if kind in ("variable", "const", "class_name"):
+        affected = {declaration.get("path")} | set(subclasses or ())
+        return collided.get("path") in affected
+    return collided.get("path") == declaration.get("path")
+
+
+def _project_global_names(project_root):
+    """Имена, занятые на уровне проекта: autoload и действия ввода.
+
+    Autoload — это глобальный синглтон, доступный из любого скрипта по имени,
+    а действие ввода — ключ секции [input]. Переименование class_name/члена в
+    такое имя перекрывает глобальное значение, и проект падает в движке.
+    """
+    autoloads, actions = set(), set()
+    try:
+        absolute = _resolve_safe_path(project_root, "res://project.godot")
+        with open(absolute, "rb") as handle:
+            text = handle.read().decode("utf-8-sig", errors="replace")
+    except Exception:
+        return autoloads, actions
+    section = ""
+    for line in text.replace("\r\n", "\n").split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            section = stripped[1:-1].strip()
+            continue
+        if "=" not in stripped or stripped.startswith(";") or stripped.startswith("#"):
+            continue
+        key, _sep, _value = stripped.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        if section == "autoload":
+            autoloads.add(key)
+        elif section == "input":
+            actions.add(key)
+    return autoloads, actions
+
+
+def _engine_class_name(project_root, name, addon_dir=None):
+    """True, если имя занято классом движка в кэше ClassDB этого проекта."""
+    try:
+        return gd_api_cache.get_class(project_root, name, addon_dir=addon_dir) is not None
+    except Exception:
+        return False
+
+
+def _unwritable_subclass_overrides(project_root, target_path, target_class, snapshot,
+                                  kind, old_name, allow_addons=False,
+                                  allow_self_edit=False, addon_dir=None):
+    """Ищет override старого имени в .gd, которые мы НЕ имеем права переписать.
+
+    Семантический индекс по умолчанию не заходит в addons (см. SKIP_DIRS), а
+    политика доступа может запрещать запись в отдельные файлы. Такой подкласс
+    для нас невидим: базовый метод переименуется, а override останется со
+    старым именем — Godot получит вызов несуществующего метода. Молчать об
+    этом нельзя, поэтому такой случай честно блокирует переименование.
+    """
+    known = {"res://" + entry.get("path") for entry in snapshot.get("files", [])}
+    found = []
+    for root, dirs, files in os.walk(project_root):
+        dirs[:] = [d for d in dirs if d not in (".git", ".godot", ".import",
+                                               "__pycache__", ".agent_history")]
+        for name in files:
+            if not name.endswith(".gd"):
+                continue
+            absolute = os.path.join(root, name)
+            rel = "res://" + os.path.relpath(absolute, project_root).replace("\\", "/")
+            if rel in known:
+                continue
+            if can_write_project_path(
+                    rel, project_root, allow_addons=allow_addons,
+                    allow_self_edit=allow_self_edit, addon_dir=addon_dir):
+                continue
+            try:
+                with open(absolute, "rb") as handle:
+                    text = handle.read().decode("utf-8-sig")
+            except Exception:
+                continue
+            if len(text) > _MAX_SOURCE_CHARS:
+                continue
+            parent_path, parent_class = _get_script_parent(text, rel)
+            if parent_path != target_path and (not target_class
+                                               or parent_class != target_class):
+                continue
+            semantic = gd_semantic_parser.parse(text, rel)
+            for item in semantic.get("declarations", []):
+                if (item.get("kind") == kind and item.get("name") == old_name
+                        and item.get("owner") == "script"):
+                    found.append((rel, item.get("line")))
+    return found
+
+
+# API, которые ПО КОНТРАКТУ Godot принимают ИМЯ КЛАССА. Здесь строка не
+# «ссылка по имени вообще», а конкретно имя класса: если класс переименован,
+# строка обязана меняться, иначе проект падает в рантайме
+# (ClassDB.instantiate("Player") после Player -> Avatar вернёт ошибку).
+# Это вывод из сигнатуры API, а не допущение, поэтому такие ссылки
+# переименовываются наравне с обычными.
+_CLASS_NAME_STRING_CALLS = {
+    "instantiate": "ClassDB.instantiate",
+    "class_exists": "ClassDB.class_exists",
+    "is_class": "ClassDB.is_class",
+    "is_parent_class": "ClassDB.is_parent_class",
+    "can_instantiate": "ClassDB.can_instantiate",
+}
+
+_DYNAMIC_STRING_CALLS = {
+    # Ключ — имя метода Godot, который работает со строковым именем члена.
+    # Строка рядом с таким вызовом означает реальную ссылку, которую мы не
+    # можем доказать статически, — молчать о ней нельзя.
+    "instantiate": "ClassDB.instantiate",
+    "set": "set() по имени",
+    "get": "get() по имени",
+    "has_signal": "has_signal()",
+    "has_method": "has_method()",
+    "emit_signal": "emit_signal()",
+    "is_connected": "is_connected()",
+    "call": "call() по имени",
+    "call_deferred": "call_deferred() по имени",
+    "connect": "connect() по имени",
+    "disconnect": "disconnect() по имени",
+    "get_signal": "get_signal()",
+    "tr": "tr() по имени",
+    "translate": "translate() по имени",
+    "to_upper": "to_upper()",
+    "to_lower": "to_lower()",
+    "capitalize": "capitalize()",
+}
+
+
+def _classify_string_reference(text, tokens, start, end):
+    """Определяет, является ли строковый литерал ссылкой на символ.
+
+    Возвращает описание dynamic-ссылки или None, если это обычный текст
+    (лог, сообщение об ошибке, подпись). Ключевой факт: БЛИЖАЙШИЙ ИДЕНТИФИКАТОР
+    СЛЕВА от строки. У print("Player") слева print, у ClassDB.instantiate(
+    "Player") — instantiate, и только второе означает обращение к API по имени.
+    """
+    kind, method = _classify_string_reference_kind(text, tokens, start, end)
+    return method
+
+
+def _classify_string_reference_kind(text, tokens, start, end):
+    """Как _classify_string_reference, но различает КЛАСС и ЧЛЕН.
+
+    Нужно для Этапа 5: `ClassDB.instantiate("Player")` — доказуемая ссылка на
+    класс, её можно переименовать вместе с ним. А `obj.call("Player")` — имя
+    метода объекта, это другой символ, и трогать его нельзя. Прежний код
+    отдавал только описание, и обе роли попадали в один отчёт.
+    """
+    pos = None
+    for index, token in enumerate(tokens):
+        if token.get("start") == start and token.get("kind") == "string":
+            pos = index
+            break
+    if pos is None:
+        return None, None
+    # Между именем вызова и строкой стоит открывающая скобка: set("X", 5).
+    # Токены идут так: `instantiate` `(` `"X"`, поэтому от строки назад нужно
+    # перешагнуть скобку, а затем взять ИМЯ вызова, а не точку: без этого
+    # ветка «владелец точки» не срабатывала никогда и ClassDB.instantiate
+    # ошибочно читался как вызов по имени члена.
+    previous = tokens[pos - 1] if pos else None
+    if previous is not None and previous["value"] == "(":
+        previous = tokens[pos - 2] if pos >= 2 else None
+    if previous is None:
+        return None, None
+    call = previous
+    if previous["value"] == ".":
+        # Редкая форма: точка непосредственно перед именем вызова.
+        call = tokens[pos - 2] if pos >= 2 else None
+        owner = tokens[pos - 3] if pos >= 3 else None
+        if owner is None or call is None:
+            return None, None
+    else:
+        # Обычная форма `Владелец.имя(...)`. Токены: `Владелец` `.` `имя` `(`
+        # `"X"`. Имя вызова мы уже забрали как previous (это pos-2), поэтому
+        # точка стоит на pos-3, а владелец — на pos-4. Читать владельца с pos-2
+        # бессмысленно: там уже имя вызова, и ClassDB не распознавался НИКОГДА.
+        if pos >= 4 and tokens[pos - 3]["value"] == ".":
+            owner = tokens[pos - 4]
+        else:
+            # Без владельца: set("X", 1) — вызов сам по себе.
+            owner = None
+    if owner is not None and owner["value"] == "ClassDB":
+        known = _CLASS_NAME_STRING_CALLS.get(call["value"])
+        if known:
+            return "class", known
+    # Владельца НЕ ограничиваем списком ClassDB/Node/Object: `n.set("X", 5)`
+    # и `n.connect("X")` — самый частый случай в живом коде, и ресивер там
+    # произвольный. Ограничение отбрасывало их, и переименование снова стало
+    # бы отказывать на каждом set() по имени.
+    #
+    # Запасного варианта «"%s() по имени" для ЛЮБОГО вызова» здесь нет
+    # намеренно: из-за него print("Player") — обычный текст для человека —
+    # попадал в отчёт как ссылка на наш символ.
+    method = _DYNAMIC_STRING_CALLS.get(call["value"])
+    return ("member", method) if method else (None, None)
+
+
+def _assert_hierarchy_renamed(kind, old_name, new_name, hierarchy_paths,
+                             covered, declarations, owner=None):
+    """Страховка от молчаливой потери полиморфизма.
+
+    Если в иерархии осталось объявление старого имени, наши правки его не
+    покрывают (значит, мы его потеряли или не заметили) — операция обязана
+    быть отклонена, а не рапортовать успех с битым проектом.
+    covered — множество троек (путь, start, end) уже запланированных правок.
+    owner — владелец переименовываемого объявления: у members разных enum
+    одного скрипта имена совпадают, но это разные сущности, и нетронутый
+    одноимённый member чужого enum — не потеря полиморфизма.
+    """
+    for item in declarations:
+        if item.get("kind") != kind or item.get("name") != old_name:
+            continue
+        if item.get("path") not in hierarchy_paths:
+            continue
+        # Локальная переменная (owner — функция, не скрипт) и members enum:
+        # одноимённые сущности в других scope — другая история.
+        if owner is not None and owner != "script" and item.get("owner") != owner:
+            if kind in ("variable", "enum_member"):
+                continue
+        # Член вложенного класса (owner передан и это не "script"):
+        # одноимённый член внешнего скрипта — другая сущность, и его
+        # нетронутость не означает потерю полиморфизма.
+        if (kind in ("function", "signal") and owner is not None
+                and owner != "script" and item.get("owner") == "script"):
+            continue
+        key = (item.get("path"), item.get("start"), item.get("end"))
+        if key not in covered:
+            raise RenameError(
+                "После переименования в иерархии осталось объявление %s: %s:%s; "
+                "переименование остановлено"
+                % (old_name, item.get("path"), item.get("line")))
 
 
 def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
@@ -434,10 +1246,209 @@ def _add_allowed_addon_semantics(snapshot, project_root, allow_addons,
     return snapshot
 
 
+_USAGE_KINDS = {"class_name", "function", "signal", "variable", "const",
+                "enum", "enum_member"}
+
+
+def _usage_excluded(excluded, path, line):
+    """Место снято пользователем? Формат: res://path.gd:строка (колонка необязательна)."""
+    if not excluded:
+        return False
+    return ("%s:%s" % (path, line)) in excluded or (path in excluded)
+
+
+def _usage_query(action):
+    """Разбор запроса поиска: нового имени может не быть (нужен только поиск)."""
+    if not isinstance(action, dict):
+        raise RenameError("find_symbol_usages должен быть объектом")
+    kind = str(action.get("kind") or "").strip()
+    old_name = str(action.get("old_name") or "").strip()
+    if kind not in _USAGE_KINDS:
+        raise RenameError("kind должен быть %s" % ", ".join(sorted(_USAGE_KINDS)))
+    if not _IDENTIFIER.match(old_name) or old_name in _KEYWORDS:
+        raise RenameError("old_name не является допустимым идентификатором GDScript")
+    new_name = str(action.get("new_name") or "").strip()
+    if new_name and (not _IDENTIFIER.match(new_name) or new_name in _KEYWORDS):
+        raise RenameError("new_name не является допустимым идентификатором GDScript")
+    path, line, column = _parse_locator(action.get("declaration"))
+    return kind, old_name, new_name, path, line, column
+
+
+def _locate_declaration(declarations, kind, old_name, path, line, column):
+    """Единственное объявление по locator'у или внятная ошибка со списком имён."""
+    candidates = [item for item in declarations
+                  if item.get("path") == path and item.get("line") == line
+                  and item.get("kind") == _decl_kind(kind)
+                  and item.get("name") == old_name
+                  and (column is None or item.get("column") == column)]
+    if len(candidates) == 1:
+        return candidates[0]
+    available = sorted({item.get("name") for item in declarations
+                        if item.get("path") == path
+                        and item.get("kind") in _DECL_KINDS
+                        and item.get("name")})
+    raise LocatorError(
+        "В %s:%d нет объявления вида %s с именем %s. Объявления этого "
+        "скрипта: %s. Возьми точную строку объявления из gather_context "
+        "или read_function."
+        % (path, line, kind, old_name, ", ".join(available[:12]) or "нет"))
+
+
+def _load_snapshot(project_root, allow_addons, allow_self_edit, addon_dir):
+    snapshot = _add_allowed_addon_semantics(
+        ml_project_index.semantic_snapshot(project_root, refresh=True),
+        project_root, allow_addons, allow_self_edit, addon_dir)
+    declarations = []
+    for entry in snapshot.get("files", []):
+        path = "res://" + entry["path"]
+        for item in entry["semantic"].get("declarations", []):
+            declarations.append(dict(item, path=path, sha256=entry.get("sha256")))
+    return snapshot, declarations
+
+
+def find_references(project_root, action, allow_addons=False, addon_dir=None,
+                   allow_self_edit=False):
+    """Read-only: список мест использования символа. Ничего не пишет.
+
+    Отдельный шаг нужен модели, чтобы не угадывать locator для rename_symbol:
+    один проход отдаёт места с координатами, типом связи и уровнем
+    уверенности (proven — доказано, probable — вероятно, dynamic — по строке).
+    """
+    kind, old_name, new_name, target_path, line, column = _usage_query(action)
+    _resolve_safe_path(project_root, target_path)
+    snapshot, declarations = _load_snapshot(
+        project_root, allow_addons, allow_self_edit, addon_dir)
+    declaration = _locate_declaration(
+        declarations, kind, old_name, target_path, line, column)
+    target_entry = next(entry for entry in snapshot["files"]
+                        if "res://" + entry["path"] == target_path)
+    target_class = _class_name_for_file(target_entry["semantic"])
+    subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+    all_target_classes = {target_class} if target_class else set()
+    for sub in subclasses:
+        sub_entry = next((e for e in snapshot["files"]
+                          if "res://" + e["path"] == sub), None)
+        if sub_entry:
+            sub_class = _class_name_for_file(sub_entry["semantic"])
+            if sub_class:
+                all_target_classes.add(sub_class)
+    usages = [{"path": declaration["path"], "line": declaration.get("line"),
+               "column": declaration.get("column") or 1,
+               "link": "declaration", "confidence": "proven"}]
+    for entry in snapshot.get("files", []):
+        path = "res://" + entry["path"]
+        try:
+            with open(_resolve_safe_path(project_root, path), "rb") as handle:
+                text = handle.read().decode("utf-8-sig")
+        except Exception:
+            continue
+        tokens = gd_semantic_parser.tokenize(text)
+        typed = {item.get("name"): item.get("type")
+                 for item in entry["semantic"].get("declarations", [])
+                 if item.get("type")}
+        for fact in entry["semantic"].get("references", []):
+            if fact.get("name") != old_name:
+                continue
+            if _reference_in_other_scope(fact, declaration, kind, declarations):
+                continue
+            # Локальная тень — доказанно ДРУГАЯ сущность: одноимённая
+            # локальная переменная перекрывает нашу ссылку. prepare_rename
+            # молча пропускает такие места (ветка 1618), и find_references
+            # обязан вести себя так же, иначе в отчёте они выглядят как
+            # недоказанные ссылки на наш символ — а это ложь: переименовывать
+            # их нельзя, и в балансировке они мешают зря.
+            if (kind in ("variable", "const", "enum", "enum_member",
+                         "class_name")
+                    and fact.get("context") != "member"
+                    and _owner_shadows_name(
+                        fact.get("owner"), fact.get("name"),
+                        entry["semantic"].get("declarations", []))):
+                continue
+            safe = _reference_is_safe(
+                kind, fact, text, tokens, target_path, path, target_class,
+                typed, declarations, subclasses=subclasses,
+                all_target_classes=all_target_classes,
+                root_owner=declaration.get("owner"),
+                root_declarations=declarations)
+            usages.append({
+                "path": path, "line": fact.get("line"),
+                "column": fact.get("column") or 1,
+                "link": fact.get("context") or "identifier",
+                "confidence": "proven" if safe else "probable",
+                # Причина обязательна для недоказанного места. Модель видит
+                # это первым шагом и решает здесь, можно ли доверять месту:
+                # слово «probable» без объяснения заставляет её гадать, а
+                # гадание — это ровно та неопределённость, которую этап
+                # гранулярности отказа и устраняет.
+                "note": None if safe else (
+                    _unverified_reason(
+                        kind, fact, text, tokens, target_path, path,
+                        target_class, typed, declarations, subclasses,
+                        all_target_classes, declaration.get("owner"))
+                    or "не доказано: связь с символом не установлена")})
+        for fact in entry["semantic"].get("strings", []):
+            if _exact_string_value(str(fact.get("value") or "")) != old_name:
+                continue
+            reason = _classify_string_reference(
+                text, tokens, fact.get("start"), fact.get("end"))
+            if reason:
+                usages.append({
+                    "path": path, "line": fact.get("line"),
+                    "column": fact.get("column") or 1, "link": "string",
+                    "confidence": "dynamic", "note": reason})
+    usages.sort(key=lambda item: (item["path"], item["line"], item["column"]))
+    by_link = {}
+    for place in usages:
+        by_link[place["link"]] = by_link.get(place["link"], 0) + 1
+    return {"action": "find_symbol_usages", "kind": kind,
+            "old_name": old_name, "new_name": new_name,
+            "declaration": action.get("declaration"),
+            "usages": usages, "by_link": by_link,
+            "proven_count": sum(1 for i in usages if i["confidence"] == "proven"),
+            "probable_count": sum(1 for i in usages if i["confidence"] == "probable"),
+            "dynamic_count": sum(1 for i in usages if i["confidence"] == "dynamic")}
+
+
+def analyze_rename(project_root, action, allow_addons=False, addon_dir=None,
+                   allow_self_edit=False):
+    """Read-only предпросмотр переименования: что и где изменится.
+
+    Анализ отделён от записи, поэтому пользователь может сначала посмотреть
+    места и риски (Этап 4.2), снять галочки с мест (exclude) и только потом
+    применить. Ничего не пишет.
+    """
+    result = find_references(project_root, action, allow_addons=allow_addons,
+                             addon_dir=addon_dir, allow_self_edit=allow_self_edit)
+    target_path, line, _column = _parse_locator(action.get("declaration"))
+    affected_paths = sorted({place["path"] for place in result["usages"]
+                             if place["confidence"] == "proven"})
+    risks = []
+    for place in result["usages"]:
+        if place["confidence"] == "proven":
+            continue
+        risks.append("%s:%s [%s, %s]%s"
+                     % (place["path"], place["line"], place["link"],
+                        place["confidence"],
+                        (" — %s" % place["note"]) if place.get("note") else ""))
+    return {"action": "analyze_rename", "kind": result["kind"],
+            "old_name": result["old_name"], "new_name": result["new_name"],
+            "declaration": action.get("declaration"),
+            # Флаг проходит в отчёт: чеклист мест должен знать, переименуются
+            # ли недоказанные ссылки, иначе он обещает несуществующее.
+            "allow_unverified": action.get("allow_unverified") is True,
+            "mode": str(action.get("mode") or "strict"),
+            "usages": result["usages"], "affected_paths": affected_paths,
+            "risks": risks, "by_link": result["by_link"],
+            "proven_count": result["proven_count"],
+            "probable_count": result["probable_count"],
+            "dynamic_count": result["dynamic_count"],
+            "declaration_path": target_path, "declaration_line": line}
+
+
 def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                    allow_self_edit=False):
     """Build a private all-file transaction without writing project files."""
-    kind, old_name, new_name, target_path, line, column = _validate_action(action)
+    kind, old_name, new_name, target_path, line, column, mode, rename_file, allow_unverified = _validate_action(action)
     if not can_write_project_path(
             target_path, project_root, allow_addons=allow_addons,
             allow_self_edit=allow_self_edit, addon_dir=addon_dir):
@@ -449,10 +1460,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         project_root, allow_addons, allow_self_edit, addon_dir)
     if not snapshot.get("complete"):
         raise RenameError("Семантический индекс неполон; безопасное переименование невозможно")
-    partial = ["res://" + entry["path"] for entry in snapshot["files"]
-               if entry["semantic"].get("parse_status") != "ok"]
-    if partial:
-        raise RenameError("Не удалось полностью разобрать GDScript: %s" % ", ".join(partial[:4]))
+    # Неполный разбор — не повод отказывать сразу. Старый код отказывал при
+    # ЛЮБОМ файле со статусом partial, из-за чего сломанный файл в углу
+    # проекта блокировал переименование везде. Измерено: парсер в partial-файле
+    # всё равно выдаёт пригодные объявления и ссылки, поэтому отказ здесь
+    # выбрасывал доказуемые сведения и заставлял разбираться вручную там, где
+    # мы и так всё знаем.
+    #
+    # Что мы действительно НЕ можем игнорировать: сломанный файл, который
+    # входит в иерархию нашего символа (неизвестно, что в нём переименовать)
+    # или который упоминает наше имя (неизвестно, все ли вхождения он увидел).
+    # Решение принимается ПОСЛЕ того, как известны иерархия и подстрока имени.
+    partial_paths = ["res://" + entry["path"] for entry in snapshot["files"]
+                     if entry["semantic"].get("parse_status") != "ok"]
 
     declarations = []
     for entry in snapshot["files"]:
@@ -461,15 +1481,59 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
             declarations.append(dict(item, path=path, sha256=entry.get("sha256")))
     candidates = [item for item in declarations
                   if item.get("path") == target_path and item.get("line") == line
-                  and item.get("kind") == kind and item.get("name") == old_name
+                  and item.get("kind") == _decl_kind(kind)
+                  and item.get("name") == old_name
                   and (column is None or item.get("column") == column)]
     if len(candidates) != 1:
-        raise RenameError("По declaration найдено объявлений: %d, ожидалось ровно одно" % len(candidates))
+        # Сообщение должно быть пригодно для модели: что просили, что нашли
+        # и что можно попробовать. Раньше тут было «найдено объявлений: 0»,
+        # из чего нельзя было понять, в чём дело.
+        available = sorted({item.get("name") for item in declarations
+                            if item.get("path") == target_path
+                            and item.get("kind") in _DECL_KINDS
+                            and item.get("name")})
+        raise LocatorError(
+            "В %s:%d нет объявления вида %s с именем %s. Объявления этого "
+            "скрипта: %s. Возьми точную строку объявления из gather_context "
+            "или read_function."
+            % (target_path, line, kind, old_name,
+               ", ".join(available[:12]) or "нет"))
     declaration = candidates[0]
     if kind in ("function", "signal") and declaration.get("owner") != "script":
-        raise RenameError("Переименование членов вложенных классов пока не поддерживается безопасно")
+        # Член вложенного класса допустим, но только если сам класс вложен
+        # на верхнем уровне скрипта. Класс, объявленный внутри функции, —
+        # локальная сущность времени выполнения, её имя нельзя переименовать
+        # безопасным текстовым способом.
+        if not _owner_is_top_level(declaration.get("owner"), declarations):
+            raise UnsupportedRenameError(
+                "Члены вложенных классов переименовываются только для классов "
+                "верхнего уровня скрипта")
     if kind == "variable" and declaration.get("owner") != "script":
-        raise RenameError("Переименование локальных переменных внутри функций пока не поддерживается безопасно")
+        # Локальная переменная живёт ровно в своей функции: её объявление и
+        # все обращения принадлежат одному scope. Переименование затрагивает
+        # только этот scope — одноимённые локальные переменные в других
+        # функциях и одноимённые члены скрипта остаются нетронутыми.
+        if not _owner_belongs_to_script(declaration.get("owner"), declarations):
+            raise UnsupportedRenameError(
+                "Локальные переменные переименовываются только внутри функций "
+                "верхнего уровня скрипта")
+    if kind in ("const", "enum") and declaration.get("owner") != "script":
+        # Константа и enum живут на верхнем уровне скрипта. Объявление внутри
+        # функции или вложенного класса — это уже другая сущность, и
+        # переименование «наружу» сломало бы её использование.
+        raise UnsupportedRenameError("Константы и enum переименовываются только на верхнем уровне скрипта")
+    if kind == "enum_member" and not _owner_is_top_level(
+            declaration.get("owner"), declarations):
+        # Member анонимного enum принадлежит скрипту, а member именованного —
+        # самому enum. В обоих случаях enum должен быть верхнего уровня.
+        raise UnsupportedRenameError("Members enum переименовываются только в enum верхнего уровня")
+    # Имя enum, которому принадлежит member: через него идёт обращение
+    # State.IDLE, и без него такая ссылка выглядела бы неоднозначной.
+    target_enum_name = None
+    if kind == "enum_member" and declaration.get("owner") != "script":
+        target_enum_name = next(
+            (item.get("name") for item in declarations
+             if item.get("id") == declaration.get("owner")), None)
 
     target_entry = next(entry for entry in snapshot["files"]
                         if "res://" + entry["path"] == target_path)
@@ -477,8 +1541,16 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     subclasses = set()
     all_target_classes = {target_class} if target_class else set()
 
-    if kind == "variable":
-        subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+    # Иерархия нужна для ЛЮБОГО вида членов, а не только для переменных.
+    # Раньше subclasses строились только при kind == "variable": вызовы в
+    # подклассах обновлялись, а сами объявления-override оставались со старым
+    # именем — проект получал вызов несуществующего метода при рапорте «успешно».
+    # Для class_name иерархия нужна по другой причине: объявление с тем же
+    # именем в наследнике перекрывает ГЛОБАЛЬНОЕ имя класса, и это затенение
+    # ломает код наследника — такой случай обязан быть отказом, а не «просто
+    # совпадением имени в чужом файле».
+    subclasses = _find_subclasses(project_root, target_path, target_class, snapshot)
+    if kind in ("function", "signal", "variable", "class_name", "const", "enum"):
         for sc in subclasses:
             sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
             if sc_entry:
@@ -486,32 +1558,142 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                 if sc_cls:
                     all_target_classes.add(sc_cls)
 
+    # Собственное одноимённое объявление ДРУГОГО вида в подклассе перекрывает
+    # метод/сигнал базового класса: self.take_damage в таком подклассе — уже не
+    # метод. Молча переименовывать ссылку здесь нельзя — это разные сущности.
+    for sc in sorted(subclasses):
+        sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
+        if not sc_entry:
+            continue
+        for item in sc_entry["semantic"].get("declarations", []):
+            if (item.get("owner") == "script" and item.get("name") == old_name
+                    and item.get("kind") != kind):
+                raise RenameError(
+                    "В подклассе %s есть собственное объявление %s (%s), перекрывающее "
+                    "переименовываемое; переименование остановлено"
+                    % (sc, old_name, item.get("kind")))
+
+    # Коллизии уровня проекта и движка. _collision смотрит только объявления
+    # в .gd, поэтому Hero -> Sprite2D (класс движка) и Hero -> GameState
+    # (autoload) проходили, а проект падал в редакторе.
+    if _engine_class_name(project_root, new_name, addon_dir=addon_dir):
+        raise UnsafeRenameError("Новое имя %s занято классом движка Godot" % new_name)
+    autoloads, input_actions = _project_global_names(project_root)
+    if new_name in autoloads:
+        raise UnsafeRenameError("Новое имя %s совпадает с autoload этого проекта"
+                          % new_name)
+    if new_name in input_actions:
+        raise UnsafeRenameError("Новое имя %s совпадает с действием ввода InputMap"
+                          % new_name)
+
     collided = _collision(declarations, declaration, kind, new_name, subclasses=subclasses)
-    if collided:
-        raise RenameError("Новое имя уже объявлено в том же пространстве: %s:%s"
+    warnings = []
+    # Здесь известна иерархия, поэтому только теперь решаем, обязаны ли
+    # неполностью разобранные файлы останавливать переименование.
+    if partial_paths:
+        hierarchy_now = {target_path} | subclasses
+        blocking = [path for path in partial_paths if path in hierarchy_now]
+        mentioning = []
+        for path in partial_paths:
+            if path in blocking:
+                continue
+            try:
+                _abs, _raw, source, _bom = _read_source(project_root, path)
+            except Exception:
+                # Не читается вообще: считаем, что имя там может быть.
+                mentioning.append(path)
+                continue
+            # Ищем имя как ОТДЕЛЬНОЕ слово: грубый поиск подстроки давал бы
+            # ложные срабатывания (health внутри healthy).
+            if re.search(r"\b%s\b" % re.escape(old_name), source):
+                mentioning.append(path)
+        if blocking:
+            raise RenameError(
+                "Не удалось разобрать файл в иерархии символа: %s; неизвестно, "
+                "что в нём нужно переименовать. Переименование остановлено"
+                % ", ".join(sorted(blocking)[:4]))
+        if mentioning:
+            raise RenameError(
+                "Не удалось разобрать файл, где встречается %s: %s; неизвестно, "
+                "все ли вхождения найдены. Переименование остановлено"
+                % (old_name, ", ".join(sorted(mentioning)[:4])))
+        # Остальные сломанные файлы символа не касаются: ни иерархии, ни
+        # упоминания имени. Молчать о них нельзя — пользователь должен знать,
+        # что часть проекта осталась непроверенной.
+        warnings.append(
+            "Не удалось полностью разобрать %d файл(ов) вне иерархии и без "
+            "упоминания %s (%s); на это переименование они не влияют, но эти "
+            "файлы остались непроверенными"
+            % (len(partial_paths), old_name, ", ".join(sorted(partial_paths)[:4])))
+    if collided and _is_real_conflict(collided, declaration, kind, subclasses):
+        raise UnsafeRenameError("Новое имя уже объявлено в том же пространстве: %s:%s"
                           % (collided.get("path"), collided.get("line")))
+    if collided:
+        # Простое совпадение имени в постороннем файле: локальная переменная
+        # или константа чужого скрипта наш символ не задевает. Молчать было бы
+        # плохо, отказывать — тем более, поэтому это видимое предупреждение.
+        warnings.append(
+            "В %s:%s уже есть объявление %s (%s) — имена совпадают, но это "
+            "локальное имя чужого скрипта, переименование его не ломает"
+            % (collided.get("path"), collided.get("line"), new_name,
+               collided.get("kind")))
     if kind == "class_name":
         duplicates = [item for item in declarations
                       if item.get("kind") == kind and item.get("name") == old_name]
         if len(duplicates) != 1:
-            raise RenameError("class_name неоднозначен: найдено объявлений %d" % len(duplicates))
+            raise LocatorError("class_name неоднозначен: найдено объявлений %d" % len(duplicates))
     else:
+        # Проверяем вид объявления в терминах парсера: публичный "const"
+        # разбирается как "constant" (иначе поиск не нашёл бы ничего).
         duplicates = [item for item in declarations
-                      if item.get("path") == target_path and item.get("kind") == kind
-                      and item.get("name") == old_name]
+                      if item.get("path") == target_path
+                      and item.get("kind") == _decl_kind(kind)
+                      and item.get("name") == old_name
+                      # Members разных enum одного скрипта — разные
+                      # пространства имён: IDLE в State и IDLE в Mode
+                      # не должны считаться одним и тем же объявлением.
+                      and (kind != "enum_member"
+                           or item.get("owner") == declaration.get("owner"))
+                      # Член вложенного класса ищется ТОЛЬКО внутри него:
+                      # одноимённый метод внешнего скрипта — другая
+                      # сущность, и её переименование было бы поломкой.
+                      and (declaration.get("owner") == "script"
+                           or item.get("owner") == declaration.get("owner"))]
         if len(duplicates) != 1:
-            raise RenameError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
+            raise LocatorError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
 
     edits_by_path = {target_path: [(declaration["start"], declaration["end"])]}
-    if kind == "variable":
-        for sc in subclasses:
-            sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
-            if sc_entry:
-                for item in sc_entry["semantic"].get("declarations", []):
-                    if item.get("kind") == "variable" and item.get("name") == old_name and item.get("owner") == "script":
-                        edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
+    # Объявления-override в подклассах — такие же носители имени, как и сам
+    # скрипт: пока они не переименованы, полиморфизм теряется (вызов уходит
+    # в несуществующий метод базового класса), поэтому берём их всеми видами,
+    # а не только для переменных.
+    for sc in sorted(subclasses):
+        sc_entry = next((e for e in snapshot["files"] if "res://" + e["path"] == sc), None)
+        if not sc_entry:
+            continue
+        for item in sc_entry["semantic"].get("declarations", []):
+            if (item.get("kind") == _decl_kind(kind) and item.get("name") == old_name
+                    and item.get("owner") == "script"):
+                edits_by_path.setdefault(sc, []).append((item["start"], item["end"]))
 
     ambiguities = []
+    dynamic_references = []
+    unverified_references = []
+    skipped_usages = []
+    # Адреса уже занятых ДОКАЗАННЫХ правок: (путь, начало, конец). Правку
+    # недоказанной ссылки нельзя наложить на уже занятый диапазон — получится
+    # двойная замена и порча текста, поэтому проверяем адресно.
+    proven_spans = set()
+    for span_path, spans in edits_by_path.items():
+        for span_start, span_end in spans:
+            proven_spans.add((span_path, span_start, span_end))
+    # Частичное применение: пользователь мог снять галочки с мест в
+    # предпросмотре. Такие места не меняются, но попадают в отчёт, иначе
+    # «переименовано» враньёт пользователю в лицо.
+    excluded = set()
+    for item in (action.get("exclude") or []):
+        if isinstance(item, str) and item.strip():
+            excluded.add(item.strip())
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]
@@ -527,24 +1709,172 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         for fact in entry["semantic"].get("references", []):
             if fact.get("name") != old_name:
                 continue
+            if _usage_excluded(excluded, path, fact.get("line")):
+                # Место снято пользователем (галочка снята в предпросмотре):
+                # не переименовываем, но честно показываем, что осталось.
+                skipped_usages.append(
+                    "%s:%s:%s — снято пользователем, имя не переименовано"
+                    % (path, fact.get("line"), fact.get("column")))
+                continue
             if _reference_is_safe(kind, fact, text, tokens, target_path, path,
                                   target_class, typed,
                                   entry["semantic"].get("declarations", []),
                                   bool(declaration.get("static")),
                                   subclasses=subclasses,
-                                  all_target_classes=all_target_classes):
+                                  all_target_classes=all_target_classes,
+                                  target_enum_name=target_enum_name,
+                                  root_owner=declaration.get("owner"),
+                                  root_declarations=declarations):
                 edits_by_path.setdefault(path, []).append((fact["start"], fact["end"]))
-            elif kind == "variable" and fact.get("context") != "member" and _owner_shadows_name(
-                    fact.get("owner"), fact.get("name"), entry["semantic"].get("declarations", [])):
+                proven_spans.add((path, fact["start"], fact["end"]))
+            elif (declaration.get("owner") != "script" and kind in ("function", "signal")
+                  and not _owner_within(fact.get("owner"), declaration.get("owner"),
+                                         declarations)):
+                # Ссылка доказанно принадлежит НЕ нашему вложенному классу
+                # (например, одноимённый метод внешнего скрипта). Это не
+                # неоднозначность, а другая сущность — молча пропускаем.
+                continue
+            elif _reference_in_other_scope(fact, declaration, kind, declarations):
+                # Ссылка живёт в scope, который НЕ является scope нашего
+                # объявления: вложенный класс не наследует внешний скрипт,
+                # поэтому одноимённый член снаружи — другая сущность.
+                continue
+            elif (kind in ("variable", "const", "enum", "enum_member", "class_name")
+                  and fact.get("context") != "member"
+                  and _owner_shadows_name(
+                      fact.get("owner"), fact.get("name"),
+                      entry["semantic"].get("declarations", []))):
+                # Локальная тень: локальная переменная/константа с тем же
+                # именем перекрывает нашу ссылку. Это НЕ неоднозначность,
+                # а доказанно другая сущность — молча её пропускаем.
+                #
+                # class_name добавлен в список с Этапом 1 гранулярности отказа.
+                # Раньше локальная переменная, названная как класс, попадала в
+                # недоказанные, и это давало безопасный ОТКАЗ. Теперь такие
+                # ссылки переименовываются, и без этой проверки переименование
+                # портило код: `var Enemy = 1` рядом с `return Enemy` — это уже
+                # не наш символ, и мы обязаны его не трогать.
                 continue
             else:
-                ambiguities.append("%s:%s:%s" % (path, fact.get("line"), fact.get("column")))
+                # Ссылка наша, но доказать её не удалось. Раньше она
+                # отменяла ВСЮ операцию (одна неуверенность — ноль правок).
+                # Теперь поведение зависит от флага allow_unverified.
+                if (allow_unverified
+                        and (path, fact["start"], fact["end"]) not in proven_spans):
+                    # Флаг включён: переименовываем, но ОБЯЗАТЕЛЬНО показываем
+                    # причину. Молча переименовать недоказанное — это ровно тот
+                    # молчаливый ущерб, ради устранения которого этап и делается.
+                    edits_by_path.setdefault(path, []).append(
+                        (fact["start"], fact["end"]))
+                    reason = _unverified_reason(
+                        kind, fact, text, tokens, target_path, path,
+                        target_class, typed,
+                        entry["semantic"].get("declarations", []),
+                        subclasses, all_target_classes,
+                        declaration.get("owner"))
+                    ambiguities.append(
+                        {"path": path, "line": fact.get("line"),
+                         "column": fact.get("column"), "reason": reason})
+                else:
+                    ambiguities.append(
+                        {"path": path, "line": fact.get("line"),
+                         "column": fact.get("column"),
+                         "reason": "ссылка не доказана, имя не переименовано"})
         for fact in entry["semantic"].get("strings", []):
-            if _exact_string_value(str(fact.get("value") or "")) == old_name:
-                ambiguities.append("%s:%s (строковая/dynamic ссылка)" % (path, fact.get("line")))
-    if ambiguities:
-        raise RenameError("Есть неоднозначные ссылки; переименование остановлено: %s"
-                          % ", ".join(ambiguities[:8]))
+            if _exact_string_value(str(fact.get("value") or "")) != old_name:
+                continue
+            # Строка с именем символа — не всегда ссылка. print("Player") —
+            # это текст, а ClassDB.instantiate("Player") — обращение к API по
+            # имени, которое мы не можем доказать статически. Раньше оба случая
+            # давали одинаковый отказ, хотя свойства в .tscn переписываются
+            # без вопросов. Теперь обычный текст не мешает, а настоящая
+            # dynamic-ссылка попадает в отчёт для ручной проверки.
+            reason_kind, reason = _classify_string_reference_kind(
+                text, tokens, fact.get("start"), fact.get("end"))
+            if not reason:
+                continue
+            if reason_kind == "class" and kind == "class_name":
+                # Доказуемая ссылка на класс: API по контракту принимает имя
+                # класса, значит строка обязана меняться вместе с ним. Раньше
+                # она попадала в dynamic_references и в strict была отказом,
+                # хотя доказать её легко.
+                #
+                # Правка идёт по ВНУТРЕННОСТИ литерала: диапазон fact покрывает
+                # и кавычки (`"Player"`), а замена проверяет, что срез РАВЕН
+                # имени. Оставлять кавычки снаружи обязательно, иначе получится
+                # `ClassDB.instantiate(Avatar)` — синтаксическая ошибка.
+                raw = str(fact.get("value") or "")
+                quote = ""
+                if len(raw) >= 2 and raw[0] in "\"'" and raw[-1] == raw[0]:
+                    quote = raw[0]
+                if not quote:
+                    # Без кавычек заменять нечего: это не строковый литерал.
+                    dynamic_references.append(
+                        "%s:%s — %s(\"%s\"); проверьте вручную"
+                        % (path, fact.get("line"), reason, old_name))
+                    continue
+                inner_start = fact["start"] + len(quote)
+                inner_end = fact["end"] - len(quote)
+                if text[inner_start:inner_end] != old_name:
+                    dynamic_references.append(
+                        "%s:%s — %s(\"%s\"); проверьте вручную"
+                        % (path, fact.get("line"), reason, old_name))
+                    continue
+                edits_by_path.setdefault(path, []).append(
+                    (inner_start, inner_end))
+                proven_spans.add((path, inner_start, inner_end))
+                continue
+            dynamic_references.append(
+                "%s:%s — %s(\"%s\"); проверьте вручную"
+                % (path, fact.get("line"), reason, old_name))
+    # Отчёт собираем ДО решения об отказе: пользователь должен увидеть причину
+    # и в случае отказа, и в случае применения.
+    unverified_references = [
+        "%s:%s:%s — %s" % (item["path"], item["line"], item["column"],
+                           item["reason"])
+        for item in ambiguities]
+    if ambiguities and mode == "strict" and not allow_unverified:
+        # Флаг снят (или не передан): поведение прежнее — одна недоказанная
+        # ссылка отменяет всё переименование. Это защищает клиентов, которые
+        # флаг не шлют: они получают ровно то, что получали раньше.
+        raise UnsafeRenameError(
+            "Есть недоказанные ссылки (%d); переименование остановлено. "
+            "Включи настройку «переименовывать недоказанные ссылки» или "
+            "исправь их вручную: %s"
+            % (len(ambiguities),
+               ", ".join(unverified_references[:6])))
+    if dynamic_references and mode == "strict":
+        # Строка рядом с вызовом API Godot по имени — это РЕАЛЬНАЯ ссылка на
+        # символ, которую мы не можем ни доказать, ни переписать: ClassDB
+        # .instantiate("X"), set("X", ...), call("X") и подобные. Успех здесь
+        # означал бы, что проект остался сломанным (вызов несуществующего
+        # класса/члена), поэтому в strict это отказ с понятным текстом.
+        # В probable пользователь принимает риск осознанно — см. Этап 2.4.
+        first = dynamic_references[0]
+        raise UnsafeRenameError(
+            "Найдена динамическая ссылка по строке, её нельзя переименовать "
+            "автоматически: %s. Таких мест: %d. Правь вручную либо повтори с "
+            "mode=probable, приняв риск (проверь список мест перед записью)."
+            % (first, len(dynamic_references)))
+    # Ссылочная правка могла пройти, а объявление-override — нет; проверяем
+    # итог по всему плану, а не по одному пути.
+    _assert_hierarchy_renamed(
+        kind, old_name, new_name, {target_path} | subclasses,
+        {(path, start, end) for path, spans in edits_by_path.items()
+         for start, end in spans}, declarations,
+        owner=declaration.get("owner"))
+    # Подклассы вне зоны нашей записи (addons и прочие защищённые .gd) в
+    # семантический индекс не попадают — их override мы не обновим, а базу
+    # переименуем. Это ровно тот случай, где «успех» ломает проект.
+    blocked = _unwritable_subclass_overrides(
+        project_root, target_path, target_class, snapshot, kind, old_name,
+        allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+        addon_dir=addon_dir)
+    if blocked:
+        raise RenameError(
+            "Вне зоны записи есть подкласс с переопределением %s: %s:%s; "
+            "переименование остановлено"
+            % (old_name, blocked[0][0], blocked[0][1]))
 
     files = []
     for path in sorted(edits_by_path):
@@ -573,17 +1903,87 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                       "before_hash": _sha256(raw), "before_bytes": raw,
                       "after_bytes": encoded, "diff": diff,
                       "occurrences": len(ranges)})
-    if kind == "variable":
+    if kind == "variable" and declaration.get("owner") == "script":
+        # Только ЧЛЕНЫ скрипта бывают свойствами сцены. Локальная переменная
+        # функции в .tscn не записывается, и её имя там может совпадать с
+        # совершенно чужым свойством другого скрипта.
         scene_edits = _collect_scene_property_edits(
             project_root, {target_path} | subclasses, old_name, new_name,
             allow_addons=allow_addons, allow_self_edit=allow_self_edit,
             addon_dir=addon_dir)
         files.extend(scene_edits)
+    # Связи сцен — такой же носитель имени, как и код: без их обновления
+    # Godot теряет подключение молча, а операция рапортует «успешно».
+    # Члены вложенных классов сюда не попадают: Inner недоступен узлам сцены,
+    # поэтому method такой связи к нашему символу отношения не имеет.
+    if not _owner_is_script_scope(declaration, declarations):
+        connection_edits = []
+    else:
+        connection_edits = _collect_scene_connection_edits(
+            project_root, {target_path} | subclasses, kind, old_name, new_name,
+            allow_addons=allow_addons, allow_self_edit=allow_self_edit,
+            addon_dir=addon_dir)
+    files.extend(connection_edits)
+    # Содержимое, имя файла и .uid едут ОДНОЙ транзакцией: пока класс
+    # переименован, а файл нет, проект находится в промежуточном состоянии.
+    file_rename = None
+    if rename_file:
+        file_rename = _plan_file_rename(
+            project_root, target_path, new_name, addon_dir)
+        if file_rename:
+            # Ссылки на переносимый путь обновляем В ТОЙ ЖЕ транзакции.
+            # Раньше этого не было: сцена оставалась на несуществующем пути,
+            # и узел молча терял скрипт (регрессия, найденная пробой S4).
+            files.extend(_collect_path_reference_edits(
+                project_root, file_rename, allow_addons=allow_addons,
+                allow_self_edit=allow_self_edit, addon_dir=addon_dir))
+        if file_rename:
+            # Diff строим вручную: build_diff_preview возвращает None на
+            # одинаковых текстах, а здесь изменение — это сам перенос пути.
+            diff = {"path": file_rename["from"], "action": "rename_symbol",
+                    "dest": file_rename["to"],
+                    "lines": [{"type": "info",
+                               "text": "Файл переименован в %s (вместе с .uid)"
+                                       % file_rename["to"]}]}
     return {
         "kind": kind, "old_name": old_name, "new_name": new_name,
         "declaration": action.get("declaration"), "files": files,
+        "file_rename": file_rename,
+        "file_rename_diff": diff if file_rename else None,
+        # Динамические ссылки не блокируют переименование, но обязаны быть
+        # видны пользователю ДО записи — иначе риск остаётся незамеченным.
+        "dynamic_references": dynamic_references,
+        "warnings": warnings,
+        "unverified_references": unverified_references,
+        # Счётчики обязаны быть в отчёте: пользователю нужно видеть масштаб
+        # правки, а не только список. unverified_count — сколько мест из
+        # переименованных мы НЕ смогли доказать.
+        "unverified_count": len(unverified_references),
+        # renamed_count — сколько мест реально переименовано, ВКЛЮЧАЯ
+        # недоказанные. Считаем по фактическим диапазонам правок, а не как
+        # `sum(occurrences) - 1`: вычитание единицы считает объявление один раз
+        # на весь план, из-за чего счётчик занижался на число затронутых файлов
+        # и вводил в заблуждение о масштабе правки.
+        "renamed_count": _count_renamed(files, target_path,
+                                         declaration.get("start")),
+        "skipped_usages": skipped_usages,
+        "mode": mode,
+        "allow_unverified": allow_unverified,
         "reference_count": sum(item["occurrences"] for item in files) - 1,
     }
+
+
+def _count_renamed(files, target_path, declaration_start):
+    """Сколько мест переименовано на самом деле.
+
+    occurrences у файла — число ПРАВОК в нём, и объявление символа тоже
+    является правкой. Значит «сколько мест изменено» — это просто сумма
+    правок, без вычитания единицы: прежний reference_count вычитал единицу
+    один раз на весь план, из-за чего занижался на (файлы − 1) и вводил в
+    заблуждение о масштабе правки. Здесь считаем факт: и доказанные, и
+    переименованные без доказательства места.
+    """
+    return sum(int(item.get("occurrences") or 0) for item in files)
 
 
 def public_prepared(prepared):
@@ -593,28 +1993,68 @@ def public_prepared(prepared):
         "paths": [item["path"] for item in prepared["files"]],
         "file_count": len(prepared["files"]),
         "reference_count": prepared["reference_count"],
+        "dynamic_references": list(prepared.get("dynamic_references") or []),
+        "warnings": list(prepared.get("warnings") or []),
+        "unverified_references": list(prepared.get("unverified_references") or []),
+        "unverified_count": int(prepared.get("unverified_count") or 0),
+        "renamed_count": int(prepared.get("renamed_count") or 0),
+        "skipped_usages": list(prepared.get("skipped_usages") or []),
+        "mode": prepared.get("mode", "strict"),
+        "allow_unverified": bool(prepared.get("allow_unverified")),
+        "file_rename": prepared.get("file_rename"),
     }
 
 
 def prepared_diffs(prepared):
-    return [item["diff"] for item in prepared.get("files", [])]
+    diffs = [item["diff"] for item in prepared.get("files", [])]
+    # Перенос файла показываем в том же диффе: пользователь должен увидеть
+    # итог транзакции, а не только изменённое содержимое.
+    if prepared.get("file_rename_diff"):
+        diffs.append(prepared["file_rename_diff"])
+    return diffs
 
 
 def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None):
     """Apply all files or restore every replaced file on a caught failure."""
     files = prepared.get("files") or []
     if not files:
-        raise RenameError("Подготовленная транзакция не содержит файлов")
+        raise UnsafeRenameError("Подготовленная транзакция не содержит файлов")
     with _project_lock(project_root):
         for item in files:
             with open(item["absolute"], "rb") as handle:
                 if _sha256(handle.read()) != item["before_hash"]:
                     raise StaleRenameError("Файл изменился после предпросмотра: %s" % item["path"])
+        # Новый путь файла тоже попадает в журнал: на момент записи его ещё
+        # нет, поэтому откат удалит его, а старый путь восстановит из
+        # снапшота. Вместе это даёт возврат и содержимого, и имени файла.
+        file_rename = prepared.get("file_rename")
+        history_paths = [item["path"] for item in files]
+        states = None
+        if file_rename:
+            # Новый путь и новый .uid в журнале НЕ существуют на момент
+            # записи (before_present = False) — откат их удалит. Старые пути
+            # восстановятся из снапшотов. Вместе это возвращает и содержимое,
+            # и имя файла, и .uid одной кнопкой отката.
+            history_paths.append(file_rename["to"])
+            states = [{"path": file_rename["to"], "before_bytes": None,
+                       "after_bytes": b""}]
+            source_uid = _resolve_safe_path(project_root, file_rename["from"]) + ".uid"
+            if os.path.isfile(source_uid):
+                with open(source_uid, "rb") as handle:
+                    uid_bytes = handle.read()
+                history_paths.append(file_rename["from"] + ".uid")
+                history_paths.append(file_rename["to"] + ".uid")
+                states.append({"path": file_rename["from"] + ".uid",
+                               "before_bytes": uid_bytes,
+                               "after_bytes": uid_bytes})
+                states.append({"path": file_rename["to"] + ".uid",
+                               "before_bytes": None, "after_bytes": b""})
         entry_id = history_manager.record_batch_change(
-            project_root, "rename_symbol", [item["path"] for item in files],
-            chat_id=chat_id, chat_title=chat_title)
+            project_root, "rename_symbol", history_paths,
+            chat_id=chat_id, chat_title=chat_title, states=states)
         replaced = []
         temps = []
+        moved = []
         try:
             for item in files:
                 directory = os.path.dirname(item["absolute"])
@@ -628,8 +2068,19 @@ def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None)
             for item in files:
                 _replace_file(item["temp_path"], item["absolute"])
                 replaced.append(item)
+            if file_rename:
+                _move_with_uid(project_root, file_rename, moved)
             history_manager.commit_change(project_root, entry_id)
         except Exception:
+            # Откат в обратном порядке: сначала возвращаем перенесённые файлы
+            # на старые места, затем — прежнее содержимое.
+            for entry in reversed(moved):
+                try:
+                    _replace_file(entry["dest_absolute"], entry["source_absolute"])
+                    if entry.get("dest_uid") and os.path.isfile(entry["dest_uid"]):
+                        _replace_file(entry["dest_uid"], entry["source_uid"])
+                except OSError:
+                    pass
             for item in reversed(replaced):
                 with open(item["absolute"], "wb") as handle:
                     handle.write(item["before_bytes"])
@@ -643,6 +2094,10 @@ def apply_prepared_rename(project_root, prepared, chat_id=None, chat_title=None)
                 except OSError:
                     pass
         paths = [item["path"] for item in files]
+        if file_rename:
+            # Старый путь исчез, новый появился: индекс обновляем по обоим.
+            paths = [file_rename["to"] if path == file_rename["from"] else path
+                     for path in paths]
         ml_project_index.update_entries(project_root, changed_rels=paths)
         return {"entry_id": entry_id, "changed_paths": paths,
                 "file_count": len(paths), "reference_count": prepared["reference_count"]}

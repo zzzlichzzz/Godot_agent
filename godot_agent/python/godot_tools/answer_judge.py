@@ -45,8 +45,39 @@ def _judge_structural_action(project_root, action, addon_dir,
             prepared = symbol_refactor.prepare_rename(
                 project_root, action, allow_addons=allow_addons,
                 addon_dir=addon_dir, allow_self_edit=allow_self_edit)
-            return 94, [], ["Safe rename resolves %d references in %d files" % (
+            evidence = ["Safe rename resolves %d references in %d files" % (
                 prepared["reference_count"], len(prepared["files"]))]
+            findings = []
+            # Недоказанные ссылки: переименование их РАЗРЕШЕНО (модель имеет
+            # право работать автоматически), но молчать об этом нельзя — судья
+            # отвечает на вопрос «безопасно ли», и молчание делает его ответ
+            # ложью ровно настолько, насколько неполон риск.
+            notes = prepared.get("unverified_references") or []
+            # Порядок важен: evidence обрезается до 12 строк (см. return ниже),
+            # поэтому риск и список файлов идут В НАЧАЛЕ. Иначе при большом
+            # переименовании список файлов вытеснил бы предупреждение, и вердикт
+            # снова стал бы неполным молчанием.
+            if notes:
+                findings.append(_finding(
+                    "warning", "refactor",
+                    "rename rewrites %d reference(s) that could not be proven; "
+                    "each one is listed for manual re-check" % len(notes)))
+                evidence.append(
+                    "UNPROVEN: %d reference(s) renamed without proof" % len(notes))
+                for note in notes[:6]:
+                    evidence.append("unproven: %s" % note)
+            # Список ИЗМЕНЯЕМЫХ ФАЙЛОВ: без него модель не знает, что именно
+            # сейчас будет переписано, и не может позже перепроверить нужное
+            # место сама.
+            for item in sorted(prepared["files"], key=lambda f: f["path"]):
+                evidence.append("rename will change %s (%d)" % (
+                    item["path"], item.get("occurrences", 0)))
+            dynamic = prepared.get("dynamic_references") or []
+            if dynamic:
+                evidence.append(
+                    "DYNAMIC: %d string-based reference(s) cannot be renamed"
+                    % len(dynamic))
+            return 94, findings, evidence
         if act in ("edit_scene", "create_scene"):
             import scene_actions
             normalized, _absolute = scene_actions.normalize_action(

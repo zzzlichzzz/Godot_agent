@@ -2,10 +2,17 @@
 extends RefCounted
 
 var _plugin: EditorPlugin
+# Шлюз мутаций (ЗАДАЧА 4): решение о способе записи и о журнале принимает он.
+var _gate = null
 
 
 func configure(plugin: EditorPlugin) -> void:
 	_plugin = plugin
+
+
+## Шлюз мутаций (ЗАДАЧА 4). Без него исполнитель работает как раньше.
+func set_mutation_gate(gate) -> void:
+	_gate = gate
 
 
 func prepare(action: Dictionary, expected_hash: String) -> Dictionary:
@@ -99,6 +106,11 @@ func execute(action: Dictionary, expected_hash: String) -> Dictionary:
 
 
 func _save_temporary_resource(resource: Resource, path: String) -> Error:
+	# ЗАДАЧА 4: запись идёт через шлюз мутаций. Сам вызов остаётся прежним
+	# (ResourceSaver во временный файл) — меняется только точка, где решается,
+	# что запись вообще состоялась, и попадает ли она в журнал плагина.
+	if _gate and _gate.has_method("write_resource"):
+		return _gate.call("write_resource", resource, path)
 	return ResourceSaver.save(resource, path)
 
 

@@ -5,10 +5,26 @@ extends RefCounted
 # never opened for writing here; Python owns the byte snapshot and rollback.
 
 var _plugin: EditorPlugin
+# Шлюз мутаций (ЗАДАЧА 4): решение о способе записи project.godot и о журнале
+# принимает он. Правка настроек требует перезапуска редактора, поэтому в историю
+# отмены Godot она не попадает — откат ведёт журнал плагина и сервер.
+var _gate = null
 
 
 func configure(plugin: EditorPlugin) -> void:
 	_plugin = plugin
+
+
+## Шлюз мутаций (ЗАДАЧА 4). Без него исполнитель работает как раньше.
+func set_mutation_gate(gate) -> void:
+	_gate = gate
+
+
+## Сохранить project.godot через шлюз мутаций (ЗАДАЧА 4).
+func _save_project_settings() -> Error:
+	if _gate and _gate.has_method("write_project_settings"):
+		return _gate.call("write_project_settings")
+	return ProjectSettings.save()
 
 
 func prepare(action: Dictionary, expected_hash: String) -> Dictionary:
@@ -259,7 +275,7 @@ func _apply(operations: Array) -> Dictionary:
 					setting["operation_index"] = index + 1
 					return setting
 				ProjectSettings.set_setting(setting["key"], setting["value"])
-	var save_error := ProjectSettings.save()
+	var save_error := _save_project_settings()
 	if save_error != OK:
 		return _fail("save_failed", "ProjectSettings.save завершился ошибкой: " + error_string(save_error))
 	return {"ok": true}
@@ -280,7 +296,7 @@ func _restore(before: Dictionary) -> Dictionary:
 			ProjectSettings.set_setting(key, item.get("value"))
 		else:
 			ProjectSettings.clear(key)
-	var error := ProjectSettings.save()
+	var error := _save_project_settings()
 	return {"ok": error == OK, "error": error_string(error) if error != OK else ""}
 
 
