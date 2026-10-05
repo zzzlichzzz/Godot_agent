@@ -2569,6 +2569,9 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 				if _safe_node_rename_status_label:
 					_safe_node_rename_status_label.text = err_msg
 				_log_error(err_msg)
+			# ЗАДАЧА 3: собственное переименование завершено (успех или
+			# отказ) — перехват снова активен.
+			_node_rename_suppress = maxi(0, _node_rename_suppress - 1)
 			return
 
 		# После подтверждённого WRITE-действия — синхронизируем открытую вкладку.
@@ -2785,6 +2788,8 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 			if kind.begins_with("safe_node_rename_"):
 				if _safe_node_rename_status_label:
 					_safe_node_rename_status_label.text = sr_err
+				if kind == "safe_node_rename_apply":
+					_node_rename_suppress = maxi(0, _node_rename_suppress - 1)
 			else:
 				if _safe_rename_status_label:
 					_safe_rename_status_label.text = sr_err
@@ -3334,6 +3339,10 @@ func _on_short_response(id: String, result: int, code: int,
 			_on_short_stop_response(result, code)
 		"post_move_sync":
 			_on_post_move_sync_response(result, code, body)
+		"node_rename_sync":
+			_on_node_rename_sync_response(result, code, body)
+		"node_rename_apply":
+			_on_node_rename_apply_response(result, code, body)
 		_:
 			push_warning("[Godot Agent] Неизвестный короткий запрос: " + id)
 
@@ -4777,6 +4786,15 @@ func _on_safe_rename_apply() -> void:
 var _fs_move_queue: Array = []
 var _fs_move_busy := false
 
+# ЗАДАЧА 3: перехват переименования узла человеком в дереве сцен.
+# Очередь — как у перемещений файлов; сцена на диске НЕ переписывается
+# (scripts_only): узел уже переименован в памяти редактора, и там могут быть
+# несохранённые правки, которые перезапись файла потеряет.
+var _node_rename_queue: Array = []
+var _node_rename_busy := false
+var _node_rename_suppress := 0
+var _node_sync_ctx: Dictionary = {}
+
 
 func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
 	if not _safe_rename_enabled:
@@ -4902,6 +4920,124 @@ func _on_post_move_sync_response(result: int, response_code: int,
 	if _view:
 		_view.add_agent_message(msg, entry_id)
 	print("[Godot Agent] ", msg)
+
+
+# --- ЗАДАЧА 3: перехват переименования узла человеком -----------------------
+
+## Вызывается модулем сигналов, когда ЧЕЛОВЕК переименовал узел в дереве.
+## Применяем сразу, как для файлов, но только скрипты: .tscn на диске может
+## содержать несохранённые правки редактора, и переписывать его нельзя.
+func handle_scene_node_renamed(scene_path: String, old_path: String,
+		old_name: String, new_name: String) -> void:
+	if _node_rename_suppress > 0:
+		return
+	var clean_scene := scene_path.strip_edges().replace("\\", "/")
+	var clean_old := old_name.strip_edges()
+	var clean_new := new_name.strip_edges()
+	var clean_path := old_path.strip_edges()
+	if clean_scene.is_empty() or clean_old.is_empty() or clean_new.is_empty():
+		return
+	if not clean_scene.begins_with("res://") or clean_old == clean_new:
+		return
+	_node_rename_queue.append({
+		"scene": clean_scene, "old_path": clean_path,
+		"old_name": clean_old, "new_name": clean_new,
+	})
+	_process_node_rename_queue()
+
+
+func _process_node_rename_queue() -> void:
+	if _node_rename_busy or _node_rename_queue.is_empty():
+		return
+	_node_rename_busy = true
+	_send_node_rename_sync(_node_rename_queue.pop_front())
+
+
+func _node_rename_body(item: Dictionary) -> Dictionary:
+	return _policy_body({
+		"scene": str(item.get("scene", "")),
+		"node_path": str(item.get("old_path", "")),
+		"previous_name": str(item.get("old_name", "")),
+		"new_name": str(item.get("new_name", "")),
+		"scripts_only": true,
+	})
+
+
+func _send_node_rename_sync(item: Dictionary) -> void:
+	_node_sync_ctx = item
+	_node_rename_suppress += 1
+	if _link == null or not _link.post_now("node_rename_sync", REFACTOR_NODE_PREVIEW_URL, _policy_json(_node_rename_body(item))):
+		_node_rename_failed("сервер агента недоступен")
+
+
+func _node_rename_failed(reason: String) -> void:
+	var item: Dictionary = _node_sync_ctx
+	var msg := _t("node_rename_intercept_failed") % [
+		str(item.get("old_name", "?")), str(item.get("new_name", "?")), reason]
+	push_warning("[Godot Agent] " + msg)
+	if _view:
+		_view.add_warning(msg)
+	_finish_node_rename_roundtrip()
+
+
+func _finish_node_rename_roundtrip() -> void:
+	_node_rename_busy = false
+	_node_rename_suppress = maxi(0, _node_rename_suppress - 1)
+	call_deferred("_process_node_rename_queue")
+
+
+func _on_node_rename_sync_response(result: int, response_code: int,
+		body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		_node_rename_failed("HTTP " + str(response_code))
+		return
+	var json = JSON.parse_string(body.get_string_from_utf8())
+	if typeof(json) != TYPE_DICTIONARY or not bool(json.get("ok", false)):
+		var err := "некорректный ответ сервера"
+		if typeof(json) == TYPE_DICTIONARY:
+			err = str(json.get("error", err))
+		_node_rename_failed(err)
+		return
+	var prep: Dictionary = json.get("prepared", {})
+	if int(prep.get("file_count", 0)) == 0:
+		# Ссылок на узел в скриптах нет — обновлять нечего, молча заканчиваем.
+		_finish_node_rename_roundtrip()
+		return
+	# Фаза 2: применение того же запроса. Двухфазность общая с панелью
+	# безопасного переименования — отдельного пути применения нет.
+	if _link == null or not _link.post_now("node_rename_apply", REFACTOR_NODE_APPLY_URL, _policy_json(_node_rename_body(_node_sync_ctx))):
+		_node_rename_failed("сервер агента недоступен")
+
+
+func _on_node_rename_apply_response(result: int, response_code: int,
+		body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		_node_rename_failed("HTTP " + str(response_code))
+		return
+	var json = JSON.parse_string(body.get_string_from_utf8())
+	if typeof(json) != TYPE_DICTIONARY or not bool(json.get("ok", false)):
+		var err := "некорректный ответ сервера"
+		if typeof(json) == TYPE_DICTIONARY:
+			err = str(json.get("error", err))
+		_node_rename_failed(err)
+		return
+	var item: Dictionary = _node_sync_ctx
+	var ref_cnt := int(json.get("reference_count", 0))
+	var file_cnt := int(json.get("file_count", 0))
+	var changed_paths = json.get("changed_paths", [])
+	# Обновляем только скрипты. Сцену НЕ трогаем: при перехвате в ней
+	# несохранённые правки редактора, перезагрузка их потеряет.
+	if changed_paths is Array:
+		_refresh_changed_paths([changed_paths])
+		for cp in changed_paths:
+			_sync_open_script_with_disk(str(cp))
+	var msg := _t("node_rename_intercept_success") % [
+		str(item.get("old_name", "")), str(item.get("new_name", "")),
+		ref_cnt, file_cnt]
+	if _view:
+		_view.add_agent_message(msg, str(json.get("entry_id", "")))
+	print("[Godot Agent] ", msg)
+	_finish_node_rename_roundtrip()
 
 
 func _on_safe_node_rename_pressed() -> void:
@@ -5112,10 +5248,13 @@ func _on_safe_node_rename_apply() -> void:
 		"node_path": node_p,
 		"new_name": new_n,
 	})
+	# ЗАДАЧА 3: пока плагин сам переименовывает, перехват подавлен.
+	_node_rename_suppress += 1
 	_pending_request_kind = "safe_node_rename_apply"
 	_set_ui_busy(true)
 	http_request.set_http_proxy("", 0)
 	var err = http_request.request(REFACTOR_NODE_APPLY_URL, _json_headers(), HTTPClient.METHOD_POST, _policy_json(body))
 	if err != OK:
 		_set_ui_busy(false)
+		_node_rename_suppress = maxi(0, _node_rename_suppress - 1)
 		_safe_node_rename_status_label.text = "Ошибка отправки запроса на переименование узла."

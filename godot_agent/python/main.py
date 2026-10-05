@@ -4313,15 +4313,20 @@ def refactor_node_preview():
     scene = data.get("scene")
     node_path = data.get("node_path") or data.get("node")
     new_name = data.get("new_name") or data.get("name")
+    scripts_only = bool(data.get("scripts_only"))
+    previous_name = str(data.get("previous_name") or "")
     project_root = STATE.get("project_root")
     if not project_root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
     try:
         prepared = node_refactor.prepare_node_rename(
             project_root, scene, node_path, new_name,
+            scripts_only=scripts_only, previous_name=previous_name,
             **_access_kwargs())
         _stamp_policy(prepared)
-        STATE["pending_node_refactor"] = prepared
+        # Пустой кандидат (ссылок в скриптах нет) — обновлять нечего:
+        # не держим pending, иначе apply попытается применить пустую транзакцию.
+        STATE["pending_node_refactor"] = prepared if prepared.get("files") else None
         diffs = [item["diff"] for item in prepared["files"]]
         return jsonify({
             "ok": True,
@@ -4333,6 +4338,7 @@ def refactor_node_preview():
                 "file_count": len(prepared["files"]),
                 "affected_paths": prepared["affected_paths"],
                 "diffs": diffs,
+                "scripts_only": bool(prepared.get("scripts_only")),
             }
         })
     except Exception as e:
@@ -4346,13 +4352,17 @@ def refactor_node_apply():
     scene = data.get("scene")
     node_path = data.get("node_path") or data.get("node")
     new_name = data.get("new_name") or data.get("name")
+    scripts_only = bool(data.get("scripts_only"))
+    previous_name = str(data.get("previous_name") or "")
     project_root = STATE.get("project_root")
     if not project_root:
         return jsonify({"error": "Проект не синхронизирован."}), 400
     prepared = STATE.get("pending_node_refactor")
     if (not isinstance(prepared, dict) or prepared.get("scene") != scene
             or prepared.get("target_node_path") != node_path
-            or prepared.get("new_name") != new_name):
+            or prepared.get("new_name") != new_name
+            or bool(prepared.get("scripts_only")) != scripts_only
+            or str(prepared.get("previous_name") or "") != previous_name):
         return jsonify({"error": "Сначала выполните предпросмотр переименования узла."}), 409
     if not _pending_policy_current(prepared):
         return _policy_error_response(prepared)

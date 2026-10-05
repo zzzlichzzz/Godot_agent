@@ -298,6 +298,56 @@ class NodeRefactorTests(unittest.TestCase):
         self.assertNotIn('# [REMOVED_NODE]', rb_gd)
 
 
+    # --- ЗАДАЧА 3: scripts_only — сцена на диске неприкосновенна -------------
+
+    def test_scripts_only_prepare_excludes_scene_and_apply_keeps_it(self):
+        original_tscn = self.player_tscn.read_text(encoding="utf-8")
+        prep = node_refactor.prepare_node_rename(
+            str(self.root), "res://player.tscn", "Gun", "Weapon",
+            update_scripts=True, scripts_only=True)
+        self.assertEqual(prep["action"], "rename_node")
+        self.assertTrue(prep.get("scripts_only"))
+        self.assertNotIn("res://player.tscn", prep["affected_paths"],
+                         "scripts_only обязан исключить сцену из файлов")
+        self.assertIn("res://player.gd", prep["affected_paths"])
+
+        res = node_refactor.apply_prepared_node_rename(str(self.root), prep)
+        self.assertTrue(res["entry_id"])
+        self.assertEqual(self.player_tscn.read_text(encoding="utf-8"),
+                         original_tscn,
+                         "scripts_only переписал .tscn на диске")
+        new_gd = self.player_gd.read_text(encoding="utf-8")
+        self.assertIn('$Weapon', new_gd)
+        self.assertIn('%Weapon', new_gd)
+        self.assertNotIn('$Gun', new_gd)
+
+    def test_scripts_only_double_rename_uses_previous_name(self):
+        original_tscn = self.player_tscn.read_text(encoding="utf-8")
+        prep1 = node_refactor.prepare_node_rename(
+            str(self.root), "res://player.tscn", "Gun", "Weapon",
+            scripts_only=True)
+        node_refactor.apply_prepared_node_rename(str(self.root), prep1)
+        # В редакторе узел уже Weapon, человек переименовал его в Rifle;
+        # на диске сцена всё ещё содержит Gun.
+        prep2 = node_refactor.prepare_node_rename(
+            str(self.root), "res://player.tscn", "Gun", "Rifle",
+            scripts_only=True, previous_name="Weapon")
+        node_refactor.apply_prepared_node_rename(str(self.root), prep2)
+        new_gd = self.player_gd.read_text(encoding="utf-8")
+        self.assertIn('$Rifle', new_gd)
+        self.assertNotIn("Weapon", new_gd,
+                         "второе переименование не учло имя из редактора")
+        self.assertEqual(self.player_tscn.read_text(encoding="utf-8"),
+                         original_tscn,
+                         "scripts_only переписал .tscn на диске")
+
+    def test_scripts_only_rejects_unchanged_name(self):
+        with self.assertRaises(node_refactor.NodeRefactorError):
+            node_refactor.prepare_node_rename(
+                str(self.root), "res://player.tscn", "Gun", "Gun",
+                scripts_only=True)
+
+
 if __name__ == "__main__":
     unittest.main()
 

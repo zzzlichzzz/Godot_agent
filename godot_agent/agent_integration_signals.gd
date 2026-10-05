@@ -35,6 +35,14 @@ extends RefCounted
 ## а временный Callable теряется вместе с выражением.
 var _subscriptions: Array[Dictionary] = []
 
+## ЗАДАЧА 3: перехват переименования узлов человеком. Сигнал Node.renamed не
+## несёт прежнего имени (проверено: 0 аргументов), поэтому держим снимок
+## {instance_id: имя} каждого узла открытой сцены. Подписки на самих узлах
+## нужны для честной отписки при смене сцены.
+var _node_handler: Callable = Callable()
+var _node_names: Dictionary = {}
+var _node_subscriptions: Array[Dictionary] = []
+
 var _plugin: EditorPlugin = null
 
 
@@ -55,6 +63,10 @@ func attach() -> void:
 	_bind(_plugin.resource_saved, _on_resource_saved)
 	_bind(_plugin.project_settings_changed, _on_project_settings_changed)
 	_bind(_plugin.editor_state_changed, _on_editor_state_changed)
+	# Сцена могла быть открыта ДО загрузки плагина: до первого scene_changed
+	# снимок имён обязан существовать, иначе первое переименование узла
+	# останется незамеченным.
+	_on_scene_changed(_edited_scene_root())
 
 
 ## Отписаться. Повторный вызов безопасен.
@@ -67,6 +79,7 @@ func detach() -> void:
 		if source.is_connected(handler):
 			source.disconnect(handler)
 	_subscriptions.clear()
+	_clear_node_watch()
 
 
 ## Сколько подписок держится сейчас. Нужно проверкам и отладке.
@@ -89,8 +102,84 @@ func _on_script_changed() -> void:
 	pass
 
 
-func _on_scene_changed(_root: Node) -> void:
-	pass
+func _on_scene_changed(root: Node) -> void:
+	# ЗАДАЧА 3: снимок имён открытой сцены. Пересобирается целиком: узлы
+	# прошлой сцены больше не наблюдаются, их объекты могут жить дальше.
+	_clear_node_watch()
+	if root == null:
+		return
+	_watch_node(root)
+	for child in root.get_children(true):
+		_watch_node(child)
+
+
+# --- ЗАДАЧА 3: перехват переименования узлов человеком -----------------------
+
+## Обработчик панели: (scene_path, old_node_path, old_name, new_name).
+func set_node_rename_handler(handler: Callable) -> void:
+	_node_handler = handler
+
+
+func _watch_node(node: Node) -> void:
+	if node == null:
+		return
+	_node_names[node.get_instance_id()] = str(node.name)
+	var renamed_cb := _on_node_renamed.bind(node)
+	var exiting_cb := _on_node_tree_exiting.bind(node)
+	if not node.renamed.is_connected(renamed_cb):
+		node.renamed.connect(renamed_cb)
+	if not node.tree_exiting.is_connected(exiting_cb):
+		node.tree_exiting.connect(exiting_cb)
+	_node_subscriptions.append({"signal": node.renamed, "callable": renamed_cb})
+	_node_subscriptions.append({"signal": node.tree_exiting, "callable": exiting_cb})
+
+
+func _clear_node_watch() -> void:
+	for subscription in _node_subscriptions:
+		var source: Signal = subscription["signal"]
+		var handler: Callable = subscription["callable"]
+		if source.is_connected(handler):
+			source.disconnect(handler)
+	_node_subscriptions.clear()
+	_node_names.clear()
+
+
+func _on_node_tree_exiting(node: Node) -> void:
+	# Узел покидает сцену: карта не должна расти и держать имена мёртвых
+	# узлов. Сами подписки снимет объект при освобождении.
+	if node == null:
+		return
+	_node_names.erase(node.get_instance_id())
+
+
+func _on_node_renamed(node: Node) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var id := node.get_instance_id()
+	var old_name := str(_node_names.get(id, ""))
+	var new_name := str(node.name)
+	_node_names[id] = new_name
+	if old_name.is_empty() or old_name == new_name:
+		return
+	if not _node_handler.is_valid():
+		return
+	var root := _edited_scene_root()
+	if root == null or not (node == root or root.is_ancestor_of(node)):
+		return
+	var scene_path := str(root.scene_file_path)
+	if scene_path.is_empty():
+		return
+	var new_path := str(root.get_path_to(node))
+	var slash := new_path.rfind("/")
+	var old_path := (new_path.substr(0, slash + 1) + old_name) if slash >= 0 else old_name
+	_node_handler.call(scene_path, old_path, old_name, new_name)
+
+
+func _edited_scene_root() -> Node:
+	if _plugin == null:
+		return null
+	var interface := _plugin.get_editor_interface()
+	return interface.get_edited_scene_root() if interface != null else null
 
 
 func _on_scene_saved(_path: String) -> void:
