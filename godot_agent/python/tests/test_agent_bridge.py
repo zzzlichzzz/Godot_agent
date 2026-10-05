@@ -1468,6 +1468,187 @@ class AgentBridgeTests(unittest.TestCase):
             self.assertEqual(rc, 0, err)
             self.assertIn("agent.gd", out)
 
+    # --- read-команды моста: scene/functions/usages/analyze_rename (задание 2) ---
+
+    def make_symbol_lab(self):
+        """Полигон символов: take_damage в базе, наследнике и строкой."""
+        src = Path(self.root, "src")
+        src.mkdir(exist_ok=True)
+        (src / "lab_entity.gd").write_text(
+            'class_name LabEntity\n'
+            'extends Node\n\n'
+            'func take_damage(amount: int) -> int:\n'
+            '\treturn amount\n',
+            encoding="utf-8")
+        (src / "lab_turret.gd").write_text(
+            'class_name LabTurret\n'
+            'extends LabEntity\n\n'
+            'func take_damage(amount: int) -> int:\n'
+            '\treturn super.take_damage(amount)\n\n'
+            'func fire() -> void:\n'
+            '\ttake_damage(1)\n',
+            encoding="utf-8")
+        (src / "lab_root.gd").write_text(
+            'extends Node\n\n'
+            'func damage_all() -> void:\n'
+            '\tif has_method("take_damage"):\n'
+            '\t\tcall("take_damage", 1)\n',
+            encoding="utf-8")
+        return "res://src/lab_entity.gd"
+
+    def reindex_project(self):
+        from minilich import ml_project_index
+        ml_project_index.build_index(self.root)
+
+    def test_usages_finds_symbol_across_files(self):
+        declaration = self.make_symbol_lab()
+        self.reindex_project()
+        rc, out, err = self.node_bridge(
+            "project", "usages", "--declaration", declaration + ":4",
+            "--name", "take_damage")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("link=declaration", out)
+        self.assertIn("lab_entity.gd", out)
+        self.assertIn("lab_turret.gd", out)
+        self.assertIn("lab_root.gd", out)
+        self.assertIn("confidence=dynamic", out)
+        self.assertIn("counts: proven=", out)
+
+    def test_analyze_rename_is_readonly_and_reports_risks(self):
+        declaration = self.make_symbol_lab()
+        self.reindex_project()
+        before = {}
+        for rel in ("src/lab_entity.gd", "src/lab_turret.gd", "src/lab_root.gd"):
+            before[rel] = Path(self.root, rel).read_bytes()
+        rc, out, err = self.node_bridge(
+            "project", "analyze_rename", "--kind", "function",
+            "--declaration", declaration + ":4",
+            "--old-name", "take_damage", "--new-name", "apply_damage")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("affected_paths:", out)
+        self.assertIn("risks (", out)
+        self.assertIn("counts: proven=", out)
+        for rel, blob in before.items():
+            self.assertEqual(Path(self.root, rel).read_bytes(), blob,
+                             "%s изменён read-only командой" % rel)
+
+    def test_read_commands_leave_source_files_untouched(self):
+        scene = self.make_node_lab()
+        declaration = self.make_symbol_lab()
+        self.reindex_project()
+        root = Path(self.root)
+        tracked = [p for p in root.rglob("*")
+                   if p.is_file() and p.suffix in (".gd", ".tscn", ".uid",
+                                                   ".godot")]
+        before = {str(p): p.read_bytes() for p in tracked}
+        for argv in (["scene", scene],
+                     ["functions", declaration],
+                     ["usages", "--declaration", declaration + ":4",
+                      "--name", "take_damage"],
+                     ["analyze_rename", "--kind", "function",
+                      "--declaration", declaration + ":4",
+                      "--old-name", "take_damage",
+                      "--new-name", "apply_damage"]):
+            rc, out, err = self.node_bridge("project", *argv)
+            self.assertEqual(rc, 0, "argv=%s: %s" % (argv, out + err))
+        after = {str(p): p.read_bytes() for p in tracked}
+        self.assertEqual(sorted(before), sorted(after),
+                         "read-команды изменили состав файлов")
+        for name in before:
+            self.assertEqual(before[name], after[name],
+                             "read-команда изменила %s" % name)
+
+    # --- узлы сцены в write: rename/reparent/delete (задание 1) -------------
+
+    def make_node_lab(self):
+        """Мини-полигон сцены: $Node, %Unique, get_node(), connection, child."""
+        src = Path(self.root, "src")
+        src.mkdir(exist_ok=True)
+        (src / "lab.gd").write_text(
+            'extends Node\n\n'
+            '@onready var panel = $PlayerPanel\n'
+            '@onready var label = %HealthLabel\n\n'
+            'func _ready() -> void:\n'
+            '    var stats = get_node("PlayerPanel/Stats")\n'
+            '    print(stats)\n',
+            encoding="utf-8")
+        (src / "lab.tscn").write_text(
+            '[gd_scene load_steps=2 format=3]\n\n'
+            '[ext_resource type="Script" path="res://src/lab.gd" id="1_lab"]\n\n'
+            '[node name="Root" type="Node"]\n'
+            'script = ExtResource("1_lab")\n\n'
+            '[node name="PlayerPanel" type="Panel" parent="."]\n\n'
+            '[node name="HealthLabel" type="Label" parent="PlayerPanel"]\n'
+            'unique_name_in_owner = true\n\n'
+            '[node name="Stats" type="Label" parent="PlayerPanel"]\n\n'
+            '[connection signal="visibility_changed" from="PlayerPanel" '
+            'to="." method="_on_panel_visibility"]\n',
+            encoding="utf-8")
+        return "res://src/lab.tscn"
+
+    def node_bridge(self, mode, *argv):
+        return run_bridge(self.access_base(mode) + [
+            "--validation", "off"] + list(argv))
+
+    def test_node_rename_preview_then_apply(self):
+        scene = self.make_node_lab()
+        scene_file = Path(self.root, "src", "lab.tscn")
+        script_file = Path(self.root, "src", "lab.gd")
+        scene_before = scene_file.read_text(encoding="utf-8")
+        script_before = script_file.read_text(encoding="utf-8")
+        request = self.request_file({"action": "rename_node", "scene": scene,
+            "node": "PlayerPanel", "new_name": "ActorPanel"}, "node_rename.json")
+        rc, out, err = self.node_bridge(
+            "project", "write", "preview", "--request", request)
+        self.assertEqual(rc, 0, err)
+        plan_id = self.plan_id(out)
+        self.assertRegex(plan_id, r"^[0-9a-f]{24}$")
+        self.assertIn("reference_count:", out)
+        self.assertIn("diff:", out)
+        self.assertEqual(scene_file.read_text(encoding="utf-8"), scene_before,
+                         "preview изменил сцену на диске")
+        self.assertEqual(script_file.read_text(encoding="utf-8"), script_before,
+                         "preview изменил скрипт на диске")
+        rc, out, err = self.node_bridge(
+            "project", "write", "apply", "--request", request,
+            "--plan-id", plan_id)
+        self.assertEqual(rc, 0, err)
+        self.assertTrue(self.entry_id(out), "apply не создал запись журнала")
+        scene_after = scene_file.read_text(encoding="utf-8")
+        script_after = script_file.read_text(encoding="utf-8")
+        self.assertIn('[node name="ActorPanel" type="Panel" parent="."]',
+                      scene_after)
+        self.assertIn(
+            '[node name="HealthLabel" type="Label" parent="ActorPanel"]',
+            scene_after)
+        self.assertIn('from="ActorPanel"', scene_after)
+        self.assertIn('$ActorPanel', script_after)
+        self.assertIn('get_node("ActorPanel/Stats")', script_after)
+        self.assertNotIn('$PlayerPanel', script_after)
+
+    def test_node_reparent_preview_then_apply(self):
+        scene = self.make_node_lab()
+        scene_file = Path(self.root, "src", "lab.tscn")
+        script_file = Path(self.root, "src", "lab.gd")
+        scene_before = scene_file.read_text(encoding="utf-8")
+        request = self.request_file({"action": "reparent_node", "scene": scene,
+            "node": "Stats", "new_parent": "."}, "node_reparent.json")
+        rc, out, err = self.node_bridge(
+            "project", "write", "preview", "--request", request)
+        self.assertEqual(rc, 0, err)
+        plan_id = self.plan_id(out)
+        self.assertRegex(plan_id, r"^[0-9a-f]{24}$")
+        self.assertEqual(scene_file.read_text(encoding="utf-8"), scene_before,
+                         "preview изменил сцену на диске")
+        rc, out, err = self.node_bridge(
+            "project", "write", "apply", "--request", request,
+            "--plan-id", plan_id)
+        self.assertEqual(rc, 0, err)
+        self.assertIn('[node name="Stats" type="Label" parent="."]',
+                      scene_file.read_text(encoding="utf-8"))
+        self.assertIn('get_node("Stats")',
+                      script_file.read_text(encoding="utf-8"))
+
     def test_search_ext_policy_is_mode_scoped(self):
         """Юнит-уровень: набор расширений зависит только от allow_self_edit."""
         import project_tools
@@ -1485,6 +1666,138 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertIn(".gd", dev_exts)
         # Исходный набор не должен мутироваться вызовами.
         self.assertNotIn(".py", project_tools.SEARCH_EXTS)
+
+    def test_node_delete_preview_then_apply(self):
+        scene = self.make_node_lab()
+        scene_file = Path(self.root, "src", "lab.tscn")
+        script_file = Path(self.root, "src", "lab.gd")
+        scene_before = scene_file.read_text(encoding="utf-8")
+        script_before = script_file.read_text(encoding="utf-8")
+        request = self.request_file({"action": "delete_node", "scene": scene,
+            "node": "Stats"}, "node_delete.json")
+        rc, out, err = self.node_bridge(
+            "project", "write", "preview", "--request", request)
+        self.assertEqual(rc, 0, err)
+        plan_id = self.plan_id(out)
+        self.assertIn("warning:", out)
+        self.assertIn("Stats", out)
+        self.assertEqual(scene_file.read_text(encoding="utf-8"), scene_before)
+        rc, out, err = self.node_bridge(
+            "project", "write", "apply", "--request", request,
+            "--plan-id", plan_id)
+        self.assertEqual(rc, 0, err)
+        self.assertNotIn('name="Stats"',
+                         scene_file.read_text(encoding="utf-8"))
+        self.assertEqual(script_file.read_text(encoding="utf-8"), script_before,
+                         "delete_node не должен молча править скрипт")
+
+    def test_node_apply_refuses_stale_plan(self):
+        scene = self.make_node_lab()
+        scene_file = Path(self.root, "src", "lab.tscn")
+        request = self.request_file({"action": "rename_node", "scene": scene,
+            "node": "PlayerPanel", "new_name": "ActorPanel"}, "node_stale.json")
+        rc, out, err = self.node_bridge(
+            "project", "write", "preview", "--request", request)
+        self.assertEqual(rc, 0, err)
+        plan_id = self.plan_id(out)
+        scene_file.write_text(
+            scene_file.read_text(encoding="utf-8").replace("Stats", "Stats0"),
+            encoding="utf-8")
+        rc, out, err = self.node_bridge(
+            "project", "write", "apply", "--request", request,
+            "--plan-id", plan_id)
+        self.assertEqual(
+            rc, 2, "изменённый после preview файл не остановил apply: %s" % out)
+        self.assertIn("stale plan", out + err)
+
+    def test_node_action_cannot_write_into_protected_agent_dir(self):
+        dist = self.agent_dir / "dist"
+        dist.mkdir(parents=True, exist_ok=True)
+        (dist / "scene.tscn").write_text(
+            '[gd_scene format=3]\n\n'
+            '[node name="Root" type="Node"]\n\n'
+            '[node name="Child" type="Node" parent="."]\n',
+            encoding="utf-8")
+        request = self.request_file({"action": "rename_node",
+            "scene": "res://addons/Godot_agent/godot_agent/dist/scene.tscn",
+            "node": "Child", "new_name": "Renamed"}, "protected_node.json")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "--validation", "off", "write", "preview", "--request", request])
+        self.assertNotEqual(rc, 0,
+                            "node-операция прошла в защищённый dist/: %s" % out)
+        self.assertIn("generated/frozen", out)
+        self.assertIn('name="Child"',
+                      (dist / "scene.tscn").read_text(encoding="utf-8"))
+
+    def test_node_rename_without_new_name_is_usage(self):
+        scene = self.make_node_lab()
+        for action, payload in (
+                ("rename_node", {"scene": scene, "node": "PlayerPanel"}),
+                ("reparent_node", {"scene": scene, "node": "Stats"})):
+            with self.subTest(action=action):
+                request = self.request_file(
+                    dict(payload, action=action), "%s_bad.json" % action)
+                rc, out, err = self.node_bridge(
+                    "project", "write", "preview", "--request", request)
+                self.assertEqual(rc, 4, err)
+
+    def test_unknown_write_action_lists_supported_kinds(self):
+        request = self.request_file({"action": "bogus_action"}, "bogus.json")
+        rc, out, err = self.node_bridge(
+            "project", "write", "preview", "--request", request)
+        self.assertEqual(rc, 2, err)
+        for expected in ("rename_node", "reparent_node", "delete_node"):
+            self.assertIn(expected, out + err)
+
+    def test_scene_command_reports_structure(self):
+        scene = self.make_node_lab()
+        rc, out, err = self.node_bridge("project", "scene", scene)
+        self.assertEqual(rc, 0, err)
+        for expected in ("PlayerPanel", "HealthLabel", "Stats",
+                         "скрипт:", "visibility_changed"):
+            self.assertIn(expected, out)
+
+    def test_scene_command_respects_access_policy(self):
+        addon_scene = self.external_addon / "scene.tscn"
+        addon_scene.write_text(
+            '[gd_scene format=3]\n\n'
+            '[node name="Root" type="Node"]\n',
+            encoding="utf-8")
+        rc, out, err = self.node_bridge(
+            "project", "scene", "res://addons/demo/scene.tscn")
+        self.assertEqual(rc, 2, "аддон-сцена видна в project-режиме: %s" % out)
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = self.node_bridge(
+                "addon", "scene", "res://addons/demo/scene.tscn")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("Root", out)
+
+    def test_functions_lists_names_and_extracts_bodies(self):
+        src = Path(self.root, "src")
+        src.mkdir(exist_ok=True)
+        (src / "api.gd").write_text(
+            'extends Node\n\n'
+            '## Комментарий к функции.\n'
+            'func heal(amount: int) -> int:\n'
+            '\treturn amount\n\n'
+            'func describe() -> String:\n'
+            '\treturn "ok"\n',
+            encoding="utf-8")
+        rc, out, err = self.node_bridge(
+            "project", "functions", "res://src/api.gd")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("heal", out)
+        self.assertIn("describe", out)
+        rc, out, err = self.node_bridge(
+            "project", "functions", "--names", "heal,absent_fn",
+            "res://src/api.gd")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("function: heal", out)
+        self.assertIn("missing: absent_fn", out)
+        self.assertIn("## Комментарий к функции.", out)
 
 
 if __name__ == "__main__":

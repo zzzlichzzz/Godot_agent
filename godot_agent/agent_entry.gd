@@ -97,11 +97,22 @@ func _enter_tree() -> void:
 ## Поэтому подтверждение печатается явно и содержит то, что важно: док,
 ## число интеграций и подписки на сигналы.
 func _report_entry_ready() -> void:
+	_wire_node_rename_intercept()
 	print("[Godot Agent] Точка входа agent_entry.gd загружена: dock=%s, интеграций=%d, сигналы=%s" % [
 		"да" if _dock != null else "нет",
 		_integrations.size(),
 		"подключены" if _signals_integration != null else "нет",
 	])
+
+
+## ЗАДАЧА 3: панель принимает события Node.renamed из модуля сигналов.
+## Связка ставится после сборки дока — до неё принимать события некому.
+func _wire_node_rename_intercept() -> void:
+	if _signals_integration == null or _dock == null:
+		return
+	if _dock.has_method("handle_scene_node_renamed"):
+		_signals_integration.set_node_rename_handler(
+			Callable(_dock, "handle_scene_node_renamed"))
 
 
 func _exit_tree() -> void:

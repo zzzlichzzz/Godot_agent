@@ -101,6 +101,57 @@ func _on_gun_ready():
         self.assertEqual(self.scene_path.read_text(encoding="utf-8"), self.scene_content)
         self.assertEqual(self.script_path.read_text(encoding="utf-8"), self.script_content)
 
+    def test_scripts_only_route_keeps_scene_on_disk(self):
+        """Перехват: сцена на диске не меняется, скрипт обновляется."""
+        original_scene = self.scene_path.read_text(encoding="utf-8")
+        resp = self.client.post("/scene/refactor/node/preview", json={
+            "scene": "res://scenes/player.tscn",
+            "node_path": "Gun",
+            "new_name": "Weapon",
+            "previous_name": "Gun",
+            "scripts_only": True,
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["prepared"]["file_count"], 1)
+        self.assertEqual([d["path"] for d in data["prepared"]["diffs"]],
+                         ["res://scripts/player.gd"])
+
+        resp2 = self.client.post("/scene/refactor/node/apply", json={
+            "scene": "res://scenes/player.tscn",
+            "node_path": "Gun",
+            "new_name": "Weapon",
+            "previous_name": "Gun",
+            "scripts_only": True,
+        })
+        self.assertEqual(resp2.status_code, 200)
+        data2 = resp2.get_json()
+        self.assertTrue(data2["ok"], data2)
+        self.assertEqual(self.scene_path.read_text(encoding="utf-8"),
+                         original_scene,
+                         "scripts_only переписал сцену на диске")
+        new_script = self.script_path.read_text(encoding="utf-8")
+        self.assertIn('$Weapon', new_script)
+        self.assertIn('$"Weapon/Muzzle"', new_script)
+        self.assertEqual(data2["changed_paths"], ["res://scripts/player.gd"])
+
+    def test_scripts_only_flag_is_part_of_apply_match(self):
+        """Apply с другим scripts_only/previous_name обязан быть отклонён."""
+        self.client.post("/scene/refactor/node/preview", json={
+            "scene": "res://scenes/player.tscn",
+            "node_path": "Gun",
+            "new_name": "Weapon",
+            "previous_name": "Gun",
+            "scripts_only": True,
+        })
+        resp = self.client.post("/scene/refactor/node/apply", json={
+            "scene": "res://scenes/player.tscn",
+            "node_path": "Gun",
+            "new_name": "Weapon",
+        })
+        self.assertEqual(resp.status_code, 409)
+
     def test_model_action_and_confirm(self):
         # Simulate model returning rename_node action
         action = {

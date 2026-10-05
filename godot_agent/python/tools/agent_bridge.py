@@ -15,10 +15,16 @@
   ask <запрос...>                 компактная справка о проекте (Библиотекарь)
   search [--max N] <текст...>  поиск подстроки по текущему режиму доступа
   read [--max-chars N] <res://path>
+  scene <res://path.tscn>         структура сцены: узлы, скрипты, связи
+  functions [--names a,b] <res://path.gd>   список имён или тела функций
+  usages --declaration D --name N [--kind K]  где используется символ
+  analyze_rename --kind K --declaration D --old-name A --new-name B
+                                  предпросмотр переименования (read-only)
   context --request FILE          bounded local project context
   check <res://path...>          gd/tscn/py/json/cfg + headless Godot
   check_action --request FILE    local action judge without a model
-  write preview --request FILE    подготовить create/patch без записи
+  write preview --request FILE    подготовить create/patch/rename/reparent/
+                                  delete без записи
   write apply --request FILE --plan-id ID
   write rollback --entry-id ID [--force]
   paths preview <old> <new>       предпросмотр; apply остаётся в панели агента
@@ -386,6 +392,81 @@ def cmd_read(opts, args):
     _out(content)
     return _finish(RC_OK, "file read")
 
+def cmd_scene(opts, args):
+    """Структура сцены .tscn: узлы, скрипты, инстансы, связи (только чтение).
+
+    Канал разведки для внешнего агента: тот же describe_scene, что у
+    list_scene встроенного агента; редактор не нужен.
+    """
+    if len(args) != 1 or not args[0].startswith("res://"):
+        return _finish(RC_USAGE, "usage: scene <res://path.tscn>")
+    root = _find_project_root(opts.get("root"))
+    if not root:
+        return _finish(RC_ERROR, "project.godot not found (use --root)")
+    import project_tools
+    try:
+        policy = _access_policy(opts, root, _policy_warning_writer())
+        project_tools.assert_can_read_project_path(
+            args[0], root, **_access_kwargs(policy))
+        summary = project_tools.describe_scene(root, args[0])
+    except (BridgeRefused, FileNotFoundError, ValueError, OSError) as exc:
+        _out("refused: %s" % exc)
+        return _finish(_refusal_code(exc), str(exc))
+    _out("path: %s" % args[0])
+    _out("access: %s" % policy["mode"])
+    _out(summary)
+    return _finish(RC_OK, "scene structure")
+
+def cmd_functions(opts, args):
+    """Функции .gd: список имён или тела запрошенных (только чтение)."""
+    names = []
+    if args and args[0] == "--names":
+        if len(args) < 2:
+            return _finish(RC_USAGE, "--names requires a comma-separated list")
+        names = [name.strip() for name in args[1].split(",") if name.strip()]
+        args = args[2:]
+    if len(args) != 1 or not args[0].startswith("res://"):
+        return _finish(RC_USAGE, "usage: functions [--names a,b] <res://path.gd>")
+    path = args[0]
+    if not path.lower().endswith(".gd"):
+        return _finish(RC_USAGE, "functions works only for .gd scripts: %s" % path)
+    root = _find_project_root(opts.get("root"))
+    if not root:
+        return _finish(RC_ERROR, "project.godot not found (use --root)")
+    import gd_functions
+    import project_tools
+    try:
+        policy = _access_policy(opts, root, _policy_warning_writer())
+        project_tools.assert_can_read_project_path(
+            path, root, **_access_kwargs(policy))
+        content, truncated = project_tools.read_project_file(
+            root, path, max_chars=CHECK_LINT_MAX_CHARS)
+    except (BridgeRefused, FileNotFoundError, ValueError, OSError) as exc:
+        _out("refused: %s" % exc)
+        return _finish(_refusal_code(exc), str(exc))
+    if truncated:
+        # Частичный файл — неполный список функций: честный отказ вместо
+        # ложного «в файле больше нет функций».
+        _out("refused: file is larger than the read budget; use read --max-chars")
+        return _finish(RC_NOT_FOUND, "file too large for function listing")
+    if not names:
+        all_names = gd_functions.list_functions(content)
+        _out("path: %s" % path)
+        _out("functions (%d): %s" % (len(all_names), ", ".join(all_names)))
+        return _finish(RC_OK, "%d functions" % len(all_names))
+    found, missing = gd_functions.extract_functions(content, names)
+    _out("path: %s" % path)
+    for item in found:
+        _out("function: %s (lines %d-%d)"
+             % (item["name"], item["start_line"], item["end_line"]))
+        _out(item["snippet"])
+        _out("---")
+    for name in missing:
+        _out("missing: %s" % name)
+    if not found:
+        return _finish(RC_NOT_FOUND, "requested functions not found")
+    return _finish(RC_OK, "%d functions extracted" % len(found))
+
 def cmd_api(opts, args):
     """Методы/свойства/сигналы класса с учётом цепочки наследования."""
     if not args:
@@ -441,6 +522,68 @@ _BRIDGE_FOOTER = ("Next (bridge): read exact file bodies with `read <res://path>
                   "for a code change use `write preview --request FILE`, then apply "
                   "the returned plan_id only after checking the diff. "
                   "Explore: ask with other English terms; verify signatures: api <Class>.")
+
+def _rename_query_options(args, value_options, flag_options=()):
+    """Разбор --option value ... для usages/analyze_rename.
+
+    flag_options — опции-флаги без значения (например --allow-unverified);
+    только они могут идти без аргумента. Повторы запрещены: молча взять
+    последний значило бы тихо поменять смысл запроса.
+    """
+    values = {}
+    index = 0
+    while index < len(args):
+        key = args[index]
+        if key in flag_options:
+            if key in values:
+                raise BridgeUsage("duplicate option: %s" % key)
+            values[key] = True
+            index += 1
+            continue
+        if key not in value_options or index + 1 >= len(args):
+            raise BridgeUsage("unknown or incomplete option: %s" % key)
+        if key in values:
+            raise BridgeUsage("duplicate option: %s" % key)
+        values[key] = args[index + 1]
+        index += 2
+    return values
+
+
+def _assert_declaration_readable(root, declaration, policy):
+    """Политика доступа к файлу объявления — до любых read-only проходов."""
+    target = str(declaration or "").strip().replace("\\", "/").rsplit(":", 2)[0]
+    if not target.startswith("res://"):
+        return
+    import project_tools
+    project_tools.assert_can_read_project_path(
+        target, root, **_access_kwargs(policy))
+
+
+def _print_symbol_usages(result):
+    """Общий вывод usages/analyze_rename: места, связи, уверенность."""
+    _out("kind: %s" % result.get("kind"))
+    header = "old_name: %s" % result.get("old_name")
+    if result.get("new_name"):
+        header += ", new_name: %s" % result["new_name"]
+    _out(header)
+    usages = result.get("usages") or []
+    _out("usages (%d):" % len(usages))
+    # Недоказанное место печатается с причиной: без неё «probable»/«dynamic»
+    # заставляют модель гадать, можно ли доверять этому месту.
+    for place in usages:
+        note = (" — %s" % place["note"]) if place.get("note") else ""
+        _out("%s:%s:%s link=%s confidence=%s%s"
+             % (place.get("path"), place.get("line"), place.get("column"),
+                place.get("link"), place.get("confidence"), note))
+    by_link = result.get("by_link") or {}
+    if by_link:
+        _out("by_link: %s" % ", ".join(
+            "%s=%s" % (key, by_link[key]) for key in sorted(by_link)))
+    _out("counts: proven=%d probable=%d dynamic=%d"
+         % (int(result.get("proven_count") or 0),
+            int(result.get("probable_count") or 0),
+            int(result.get("dynamic_count") or 0)))
+
 
 def cmd_ask(opts, args):
     """Компактная справка Библиотекаря о проекте (индекс строится на лету)."""
@@ -518,6 +661,80 @@ def cmd_search(opts, args):
     if truncated:
         _out("(results truncated at %d; уточни запрос)" % max_results)
     return _finish(RC_OK, "%d match groups" % len(results))
+
+def cmd_usages(opts, args):
+    """Где используется символ — read-only шаг перед rename_symbol."""
+    try:
+        values = _rename_query_options(
+            args, ("--declaration", "--name", "--kind", "--new-name"))
+    except BridgeUsage as exc:
+        _out("refused: %s" % exc)
+        return _finish(RC_USAGE, str(exc))
+    declaration = str(values.get("--declaration") or "").strip()
+    name = str(values.get("--name") or "").strip()
+    if not declaration or not name:
+        return _finish(RC_USAGE, "usage: usages --declaration res://path.gd:LINE "
+                                 "--name SYMBOL [--kind K] [--new-name N]")
+    root = _find_project_root(opts.get("root"))
+    if not root:
+        return _finish(RC_ERROR, "project.godot not found (use --root)")
+    import symbol_refactor
+    try:
+        policy = _access_policy(opts, root, _policy_warning_writer())
+        _assert_declaration_readable(root, declaration, policy)
+        action = {"kind": str(values.get("--kind") or "function"),
+                  "declaration": declaration, "old_name": name}
+        if values.get("--new-name"):
+            action["new_name"] = values["--new-name"]
+        result = symbol_refactor.find_references(
+            root, action, **_access_kwargs(policy))
+    except (BridgeRefused, FileNotFoundError, ValueError, OSError) as exc:
+        _out("refused: %s" % exc)
+        return _finish(_refusal_code(exc), str(exc))
+    _print_symbol_usages(result)
+    return _finish(RC_OK, "%d usages" % len(result.get("usages") or []))
+
+
+def cmd_analyze_rename(opts, args):
+    """Предпросмотр переименования символа (read-only): файлы и риски."""
+    try:
+        values = _rename_query_options(
+            args, ("--kind", "--declaration", "--old-name", "--new-name",
+                   "--mode"), flag_options=("--allow-unverified",))
+    except BridgeUsage as exc:
+        _out("refused: %s" % exc)
+        return _finish(RC_USAGE, str(exc))
+    declaration = str(values.get("--declaration") or "").strip()
+    old_name = str(values.get("--old-name") or "").strip()
+    new_name = str(values.get("--new-name") or "").strip()
+    if not declaration or not old_name or not new_name:
+        return _finish(RC_USAGE, "usage: analyze_rename --kind K --declaration "
+                                 "res://path.gd:LINE --old-name A --new-name B")
+    root = _find_project_root(opts.get("root"))
+    if not root:
+        return _finish(RC_ERROR, "project.godot not found (use --root)")
+    import symbol_refactor
+    try:
+        policy = _access_policy(opts, root, _policy_warning_writer())
+        _assert_declaration_readable(root, declaration, policy)
+        action = {"kind": str(values.get("--kind") or "function"),
+                  "declaration": declaration, "old_name": old_name,
+                  "new_name": new_name,
+                  "mode": str(values.get("--mode") or "strict")}
+        if values.get("--allow-unverified"):
+            action["allow_unverified"] = True
+        result = symbol_refactor.analyze_rename(
+            root, action, **_access_kwargs(policy))
+    except (BridgeRefused, FileNotFoundError, ValueError, OSError) as exc:
+        _out("refused: %s" % exc)
+        return _finish(_refusal_code(exc), str(exc))
+    _print_symbol_usages(result)
+    _out("affected_paths: %s" % ", ".join(result.get("affected_paths") or []))
+    risks = result.get("risks") or []
+    _out("risks (%d):" % len(risks))
+    for risk in risks:
+        _out("risk: %s" % risk)
+    return _finish(RC_OK, "rename analysis")
 
 def cmd_paths(opts, args):
     """paths preview <old> <new> — предпросмотр переименования/перемещения.
@@ -870,7 +1087,9 @@ def _as_transaction(request):
     if request.get("action") in ("create_file", "patch_file", "move_file"):
         return {"action": "transaction", "operations": [request],
                 "summary": str(request.get("summary") or "MCP Alpha write")}
-    raise ValueError("write request must be create_file, patch_file, move_file, or transaction")
+    raise ValueError(
+        "write request must be create_file, patch_file, move_file, "
+        "rename_node, reparent_node, delete_node, or transaction")
 
 def _plan_dir(project_root, opts):
     _configure_history_storage(opts, project_root)
@@ -1080,7 +1299,8 @@ def _assert_prepared_access(project_root, prepared, policy):
                 project_tools.assert_can_write_project_path(
                     candidate, project_root, **_access_kwargs(policy))
                 _assert_agent_path_writable(project_root, candidate, policy)
-        elif prepared.get("kind") in ("scene_repair", "symbol_rename"):
+        elif prepared.get("kind") in ("scene_repair", "symbol_rename",
+                                      "node_refactor"):
             project_tools.assert_can_write_project_path(
                 path, project_root, **_access_kwargs(policy))
             _assert_agent_path_writable(project_root, path, policy)
@@ -1113,6 +1333,15 @@ def _print_write_preview(prepared, plan_id, policy):
         _out("unverified_count: %d" % len(unverified))
         for note in unverified[:10]:
             _out("unproven: %s" % note)
+    if prepared.get("kind") == "node_refactor":
+        refactor = prepared.get("node_refactor") or {}
+        _out("reference_count: %d" % int(refactor.get("reference_count", 0)))
+        # Удаление узла скрипты НЕ правит молча — только предупреждает.
+        # Без панели рядом этот текст — единственный источник правды о риске.
+        for warning in refactor.get("warnings") or []:
+            message = (warning.get("message") if isinstance(warning, dict)
+                       else str(warning))
+            _out("warning: %s" % message)
     for problem in prepared.get("problems") or []:
         _out("remaining_problem: %s" % problem)
     for diff in prepared.get("diffs") or []:
@@ -1232,6 +1461,56 @@ def _make_symbol_rename_prepared(root, request, policy):
             "already_satisfied": False}
 
 
+def _make_node_refactor_prepared(root, request, policy):
+    """Структурная операция с узлом сцены: rename_node/reparent_node/delete_node.
+
+    Вся работа — в node_refactor (чистый разбор .tscn и прикреплённых
+    скриптов, редактор не нужен). Мост проверяет обязательные поля запроса,
+    зовёт нужную функцию подготовки и оборачивает результат в общий вид
+    prepared-плана, чтобы дальше работал общий двухфазный write.
+    """
+    import godot_headless_validation
+    import node_refactor
+    action = str(request.get("action") or "")
+    scene = str(request.get("scene") or "").strip().replace("\\", "/")
+    node = str(request.get("node") or "")
+    if not scene:
+        raise BridgeUsage("%s requires scene (res://*.tscn)" % action)
+    if not node:
+        raise BridgeUsage("%s requires node" % action)
+    required_field = {"rename_node": "new_name",
+                      "reparent_node": "new_parent"}.get(action)
+    if required_field and not str(request.get(required_field) or "").strip():
+        raise BridgeUsage("%s requires %s" % (action, required_field))
+    if action == "rename_node":
+        refactor = node_refactor.prepare_node_rename(
+            root, scene, node, request.get("new_name"), **_access_kwargs(policy))
+    elif action == "reparent_node":
+        refactor = node_refactor.prepare_node_reparent(
+            root, scene, node, request.get("new_parent"),
+            **_access_kwargs(policy))
+    elif action == "delete_node":
+        refactor = node_refactor.prepare_node_deletion(
+            root, scene, node, **_access_kwargs(policy))
+    else:
+        raise BridgeRefused("unsupported node action: %s" % action)
+    files = refactor.get("files") or []
+    bridge_action = {"action": action,
+                     "scene": refactor.get("scene") or scene, "node": node}
+    if action == "rename_node":
+        bridge_action["new_name"] = refactor.get("new_name")
+    elif action == "reparent_node":
+        bridge_action["new_parent"] = refactor.get("new_parent")
+    return {"kind": "node_refactor", "action": bridge_action,
+            "node_refactor": refactor, "files": files,
+            "paths": [item["path"] for item in files],
+            "affected_paths": refactor.get("affected_paths") or [],
+            "diffs": [item["diff"] for item in files if item.get("diff")],
+            "warnings": refactor.get("warnings") or [],
+            "batch": godot_headless_validation.batch_from_rename(root, refactor),
+            "already_satisfied": False}
+
+
 def _make_prepared(root, request, policy):
     if request.get("action") == "repair_scene":
         prepared = _make_scene_repair_prepared(root, request, policy)
@@ -1239,6 +1518,10 @@ def _make_prepared(root, request, policy):
         return prepared
     if request.get("action") == "rename_symbol":
         prepared = _make_symbol_rename_prepared(root, request, policy)
+        _assert_prepared_access(root, prepared, policy)
+        return prepared
+    if request.get("action") in ("rename_node", "reparent_node", "delete_node"):
+        prepared = _make_node_refactor_prepared(root, request, policy)
         _assert_prepared_access(root, prepared, policy)
         return prepared
     if request.get("action") == "move_file":
@@ -1480,6 +1763,11 @@ def _apply_write_plan(root, opts, policy, values, request):
             import symbol_refactor
             result = symbol_refactor.apply_prepared_rename(
                 root, prepared["symbol"], "mcp-alpha", "MCP Alpha")
+        elif prepared.get("kind") == "node_refactor":
+            import node_refactor
+            result = node_refactor.apply_prepared_node_refactor(
+                root, prepared["node_refactor"], "mcp-alpha", "MCP Alpha",
+                **_access_kwargs(policy))
         else:
             transaction_actions.attach_validation(prepared, receipt)
             result = transaction_actions.apply_prepared(
@@ -1583,6 +1871,10 @@ _COMMANDS = {
     "ask": cmd_ask,
     "search": cmd_search,
     "read": cmd_read,
+    "scene": cmd_scene,
+    "functions": cmd_functions,
+    "usages": cmd_usages,
+    "analyze_rename": cmd_analyze_rename,
     "context": cmd_context,
     "check": cmd_check,
     "check_action": cmd_check_action,
@@ -1594,7 +1886,8 @@ _USAGE = ("usage: agent_bridge.py [--root PATH] [--udd PATH] [--token T] "
           "[--host H] [--port N] [--timeout SEC] [--no-builtin-cache] "
           "[--access project|addon|agent-dev] [--godot PATH] "
           "[--validation off|auto|required] "
-          "<status|engine|api|ask|search|read|context|check|check_action|paths|write> "
+          "<status|engine|api|ask|search|read|scene|functions|usages|"
+          "analyze_rename|context|check|check_action|paths|write> "
           "[args...]")
 
 def main(argv):

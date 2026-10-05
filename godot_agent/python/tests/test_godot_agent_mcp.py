@@ -244,6 +244,39 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("plan_id", self.text_of(preview))
         self.assertFalse(target.exists(), "preview must not write")
 
+    def test_scene_tool_reads_structure_in_user_profile(self):
+        src = Path(self.root, "src")
+        src.mkdir(exist_ok=True)
+        (src / "scene.tscn").write_text(
+            '[gd_scene format=3]\n\n'
+            '[node name="Root" type="Node"]\n\n'
+            '[node name="Child" type="Node" parent="."]\n',
+            encoding="utf-8")
+        server = self.make_server("user")
+        result = self.call(server, "scene", path="res://src/scene.tscn")
+        text = self.text_of(result)
+        self.assertIn("Root", text)
+        self.assertIn("Child", text)
+
+    def test_node_rename_preview_via_mcp_reports_plan(self):
+        src = Path(self.root, "src")
+        src.mkdir(exist_ok=True)
+        scene = src / "scene.tscn"
+        scene.write_text(
+            '[gd_scene format=3]\n\n'
+            '[node name="Root" type="Node"]\n\n'
+            '[node name="Child" type="Node" parent="."]\n',
+            encoding="utf-8")
+        server = self.make_server("agent-dev")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            result = self.call(server, "node_rename_preview",
+                               scene="res://src/scene.tscn", node="Child",
+                               new_name="Renamed")
+        text = self.text_of(result)
+        self.assertIn("plan_id", text)
+        self.assertIn('name="Child"', scene.read_text(encoding="utf-8"))
+
     def test_write_is_not_reachable_in_user_profile(self):
         """Инструмента записи в профиле user нет — вызов обязан честно упасть."""
         import asyncio
@@ -262,8 +295,11 @@ class McpServerTests(unittest.TestCase):
         server = self.make_server("agent-dev")
         names = {tool.name for tool in asyncio.run(server.list_tools())}
         for expected in ("engine", "api", "ask", "search", "read",
+                         "scene", "functions", "usages", "analyze_rename",
                          "context", "check", "check_action",
                          "write_preview", "write_apply", "write_rollback",
+                         "node_rename_preview", "node_reparent_preview",
+                         "node_delete_preview",
                          "paths_preview"):
             self.assertIn(expected, names)
 
@@ -272,7 +308,9 @@ class McpServerTests(unittest.TestCase):
         import asyncio
         server = self.make_server("user")
         names = {tool.name for tool in asyncio.run(server.list_tools())}
-        for hidden in ("write_preview", "write_apply", "write_rollback"):
+        for hidden in ("write_preview", "write_apply", "write_rollback",
+                       "node_rename_preview", "node_reparent_preview",
+                       "node_delete_preview"):
             self.assertNotIn(hidden, names)
 
     def test_import_does_not_start_transport(self):

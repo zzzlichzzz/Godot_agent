@@ -224,8 +224,20 @@ def find_node_in_scene(nodes, target_spec):
 
 def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
                         update_scripts=True, allow_addons=False,
-                        allow_self_edit=False, addon_dir=None):
-    """Prepares atomic node rename with diffs for .tscn and all attached scripts."""
+                        allow_self_edit=False, addon_dir=None,
+                        scripts_only=False, previous_name=""):
+    """Prepares atomic node rename with diffs for .tscn and all attached scripts.
+
+    scripts_only=True — сцена на диске НЕ переписывается: обновляются только
+    прикреплённые скрипты. Нужно для перехвата переименования в редакторе:
+    узел уже переименован в памяти редактора, и в открытой сцене могут быть
+    несохранённые правки человека, которые нельзя затирать.
+
+    previous_name — имя, под которым узел известен РЕДАКТОРУ, когда оно уже
+    отличается от имени в файле на диске (человек переименовал дважды подряд
+    без сохранения). Замены в скриптах считаются от него, а .tscn остаётся
+    источником структуры: родитель, дочерние узлы, связи.
+    """
     scene_path, abs_scene = _normalize_scene_path(
         project_root, scene_godot_path, allow_addons=allow_addons,
         allow_self_edit=allow_self_edit, addon_dir=addon_dir)
@@ -238,7 +250,19 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
     old_name = target_node["name"]
     old_path = target_node["path"]
 
-    if old_name == new_name:
+    # Имя, под которым узел известен редактору (см. docstring). Без
+    # previous_name это старое имя на диске — прежнее поведение.
+    seen_name = (_normalize_node_name(previous_name)
+                 if str(previous_name or "").strip() else old_name)
+    if old_name != seen_name:
+        if target_node["parent"] in (".", None):
+            seen_path = seen_name
+        else:
+            seen_path = target_node["parent"].rstrip("/") + "/" + seen_name
+    else:
+        seen_path = old_path
+
+    if seen_name == new_name:
         raise NodeRefactorError("Новое имя узла совпадает со старым: %s" % new_name)
 
     # Check for name collision among siblings
@@ -356,16 +380,21 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
     tscn_diff["action"] = "patch_file"
 
     after_tscn_bytes = (b"\xef\xbb\xbf" if bom else b"") + new_tscn_text.encode("utf-8")
-    files_to_modify.append({
-        "action": "patch_file",
-        "path": scene_path,
-        "absolute": abs_scene,
-        "before_hash": _sha256(raw_scene),
-        "before_bytes": raw_scene,
-        "after_bytes": after_tscn_bytes,
-        "diff": tscn_diff,
-        "occurrences": occurrences_count,
-    })
+    if not scripts_only:
+        files_to_modify.append({
+            "action": "patch_file",
+            "path": scene_path,
+            "absolute": abs_scene,
+            "before_hash": _sha256(raw_scene),
+            "before_bytes": raw_scene,
+            "after_bytes": after_tscn_bytes,
+            "diff": tscn_diff,
+            "occurrences": occurrences_count,
+        })
+
+    # Ссылки, посчитанные секцией .tscn, при scripts_only не входят в
+    # reference_count: сцена не меняется, и обещать её правки нельзя.
+    tscn_occurrences = occurrences_count
 
     # -------------------------------------------------------------------------
     # 2. Update GDScripts attached to the scene
@@ -399,14 +428,14 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
             paths_to_replace = []
             for snode in script_nodes:
                 from_path = snode["path"]
-                rel_old = _rel_path_between(from_path, old_path)
+                rel_old = _rel_path_between(from_path, seen_path)
                 rel_new = _rel_path_between(from_path, new_path)
                 if rel_old != rel_new:
                     paths_to_replace.append((rel_old, rel_new))
 
             # Also include direct paths from root if script is on root
-            if any(snode["path"] == "." for snode in script_nodes) and old_path != ".":
-                paths_to_replace.append((old_path, new_path))
+            if any(snode["path"] == "." for snode in script_nodes) and seen_path != ".":
+                paths_to_replace.append((seen_path, new_path))
 
             # Deduplicate
             seen = set()
@@ -420,7 +449,7 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
             if is_unique:
                 # %OldName
                 mod_scr_text, count1 = re.subn(
-                    r'(%|\$"%|get_node\(["\']%)' + re.escape(old_name) + r'(\b|["\'])',
+                    r'(%|\$"%|get_node\(["\']%)' + re.escape(seen_name) + r'(\b|["\'])',
                     r'\g<1>' + new_name + r'\2',
                     mod_scr_text
                 )
@@ -450,7 +479,7 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
 
             # 3. find_child("OldName")
             mod_scr_text, count4 = re.subn(
-                r'(\bfind_child\s*\(\s*["\'])' + re.escape(old_name) + r'(["\'])',
+                r'(\bfind_child\s*\(\s*["\'])' + re.escape(seen_name) + r'(["\'])',
                 r'\g<1>' + new_name + r'\2',
                 mod_scr_text
             )
@@ -482,6 +511,8 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
                 })
                 occurrences_count += scr_changes
 
+    reference_count = ((occurrences_count - tscn_occurrences)
+                       if scripts_only else occurrences_count)
     return {
         "action": "rename_node",
         "scene": scene_path,
@@ -492,8 +523,10 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
         "new_path": new_path,
         "target_node_path": old_path,
         "files": files_to_modify,
-        "reference_count": occurrences_count,
+        "reference_count": reference_count,
         "affected_paths": [item["path"] for item in files_to_modify],
+        "scripts_only": bool(scripts_only),
+        "previous_name": seen_name if str(previous_name or "").strip() else "",
     }
 
 

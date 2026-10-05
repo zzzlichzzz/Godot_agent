@@ -195,6 +195,44 @@ def build_server(profile="user", root=None, udd=None, name=None):
     def read(path: str, max_chars: int = 50000) -> CallToolResult:
         return call(["read", "--max-chars", str(int(max_chars)), path])
 
+    @server.tool(description="Структура сцены .tscn: дерево узлов с типами, "
+                            "прикреплённые скрипты, инстансы и связи сигналов. "
+                            "Операция только читает, подтверждения не требует.")
+    def scene(path: str) -> CallToolResult:
+        return call(["scene", path])
+
+    @server.tool(description="Функции .gd-файла: без names — список всех "
+                            "объявленных имён; с names — тела запрошенных "
+                            "функций дословно. Операция только читает, "
+                            "подтверждения не требует.")
+    def functions(path: str, names: list = []) -> CallToolResult:
+        argv = ["functions"]
+        if names:
+            argv += ["--names", ",".join(str(n) for n in names)]
+        return call(argv + [path])
+
+    @server.tool(description="Где используется символ: файл:строка:колонка, тип "
+                            "связи и уверенность (proven/probable/dynamic). "
+                            "Операция только читает, подтверждения не требует.")
+    def usages(declaration: str, name: str, kind: str = "function",
+               new_name: str = "") -> CallToolResult:
+        argv = ["usages", "--declaration", declaration, "--name", name,
+                "--kind", kind]
+        if new_name:
+            argv += ["--new-name", new_name]
+        return call(argv)
+
+    @server.tool(description="Предпросмотр переименования символа: что и где "
+                            "изменится, какие места недоказуемы (риски). "
+                            "Операция только читает, подтверждения не требует; "
+                            "применение — write_preview (rename_symbol) или "
+                            "панель агента.")
+    def analyze_rename(kind: str, declaration: str, old_name: str,
+                       new_name: str) -> CallToolResult:
+        return call(["analyze_rename", "--kind", kind, "--declaration",
+                     declaration, "--old-name", old_name,
+                     "--new-name", new_name])
+
     @server.tool(description="Тот же ограниченный пакет контекста, который "
                             "собирает встроенный агент: символы, зависимости, "
                             "diagnostics, project settings. Не пишет ничего.")
@@ -250,6 +288,36 @@ def build_server(profile="user", root=None, udd=None, name=None):
             if force:
                 argv.append("--force")
             return call(argv)
+
+        @server.tool(description="Предпросмотр переименования узла сцены: "
+                                "правит .tscn и прикреплённые скрипты ($Node, "
+                                "%Unique, get_node(), parent, connection). "
+                                "Только чтение: файлы не меняются до write_apply.")
+        def node_rename_preview(scene: str, node: str,
+                                new_name: str) -> CallToolResult:
+            return call_request(["write", "preview"],
+                                {"action": "rename_node", "scene": scene,
+                                 "node": node, "new_name": new_name})
+
+        @server.tool(description="Предпросмотр переноса узла сцены к другому "
+                                "родителю: пересчитывает пути в .tscn и "
+                                "прикреплённых скриптах. Только чтение; "
+                                "применение — через write_apply с plan_id.")
+        def node_reparent_preview(scene: str, node: str,
+                                  new_parent: str) -> CallToolResult:
+            return call_request(["write", "preview"],
+                                {"action": "reparent_node", "scene": scene,
+                                 "node": node, "new_parent": new_parent})
+
+        @server.tool(description="Предпросмотр удаления узла и его поддерева из "
+                                "сцены: убирает узел, связи и треки; ссылки в "
+                                "скриптах не правятся, а попадают в "
+                                "предупреждения. Только чтение; применение — "
+                                "через write_apply с plan_id.")
+        def node_delete_preview(scene: str, node: str) -> CallToolResult:
+            return call_request(["write", "preview"],
+                                {"action": "delete_node", "scene": scene,
+                                 "node": node})
 
     return server
 
