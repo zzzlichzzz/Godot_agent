@@ -9,7 +9,7 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        64,
+        -32,
         96
       ]
     },
@@ -27,7 +27,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        960,
+        864,
         -1072
       ]
     },
@@ -49,8 +49,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        864,
-        -816
+        784,
+        -848
       ],
       "credentials": {
         "openAiApi": {
@@ -109,7 +109,7 @@
         "promptType": "define",
         "text": "={{ $json.task || $json.task_browser || \"Выполни действие через браузер\" }}",
         "options": {
-          "systemMessage": "Ты канал «Браузер». Веб-страницы и внешняя информация (web_search/fetch_url).\nГЛАВНОЕ ПРАВИЛО — ты ИСПОЛНИТЕЛЬ, а не советник: есть задача — открой/найди/собери сам. Минимизируй шаги: объединяй действия, не делай лишних переходов.\nКаждое утверждение — со ссылкой (URL, цитата). Не нашёл — фиксируй это в ИТОГЕ, не выдумывай.\nСекреты — только с подтверждением.\nОБЯЗАТЕЛЬНЫЙ ФИНАЛ: ИТОГ — что сделано / что не сделано / почему / следующий шаг; со ссылками.\n\nРИТМ (обязательно): разведка не больше ~10 вызовов; затем результат и ИТОГ. Одинаковые запросы и переходы не повторяй; дважды одинаковый отказ — факт в ИТОГ и завершение.",
+          "systemMessage": "Ты канал «Браузер». Веб-страницы и внешняя информация (web_search/fetch_url).\nГЛАВНОЕ ПРАВИЛО — ты ИСПОЛНИТЕЛЬ, а не советник: есть задача — открой/найди/собери сам. Минимизируй шаги: объединяй действия, не делай лишних переходов.\nКаждое утверждение — со ссылкой (URL, цитата). Не нашёл — фиксируй это в ИТОГЕ, не выдумывай.\nСекреты — только с подтверждением.\nОБЯЗАТЕЛЬНЫЙ ФИНАЛ: ИТОГ — что сделано / что не сделано / почему / следующий шаг; со ссылками.\n\nРИТМ (обязательно): разведка не больше ~10 вызовов; затем результат и ИТОГ. Одинаковые запросы и переходы не повторяй; дважды одинаковый отказ — факт в ИТОГ и завершение.\n\n- Не знаешь, где лежит код/функция по задаче — СНАЧАЛА инструмент «Поисковик (Браузер)» с одним конкретным запросом (симптом + что искать), затем точечное чтение по его карте; широкий поиск сам не дублируй.",
           "maxIterations": 100
         }
       },
@@ -118,8 +118,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        5280,
-        -112
+        5728,
+        -48
       ],
       "onError": "continueRegularOutput"
     },
@@ -141,8 +141,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        5280,
-        96
+        5728,
+        160
       ],
       "credentials": {
         "openAiApi": {
@@ -165,7 +165,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        5344,
+        5952,
         -2336
       ],
       "onError": "continueRegularOutput"
@@ -188,8 +188,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        5344,
-        -2144
+        5952,
+        -2208
       ],
       "credentials": {
         "openAiApi": {
@@ -203,7 +203,7 @@
         "promptType": "define",
         "text": "={{ $json.task || $json.task_editor || \"Помоги с ручным изменением в редакторе\" }}",
         "options": {
-          "systemMessage": "Ты канал «Редактор». Работаешь рядом с человеком в Godot: сервер сообщает о ручных изменениях (переименование узлов, правки сцен) — ты доводишь за ними код, зависимости и ссылки.\n\nГЛАВНОЕ ПРАВИЛО — ты ИСПОЛНИТЕЛЬ, а не советник: у тебя есть руки и Godot-инструменты; выполняй сам (ищи связанное, правь код, прогоняй проверки). Запрещено вместо действий писать инструкции «что сделать человеку»; инструкции — только для того, что физически делает человек кликами в редакторе.\nУзлы/сцены — через Godot-инструменты (read/search/usages/check); файлы — через руки (read_file/grep_files) и мост записи.\nПРАВКИ ФАЙЛОВ ПРОЕКТА — строго через мост: write_preview (diff ровно по делу) → write_apply (plan_id) → проверка (профильный тест: python -B <файл> из addons/Godot_agent) → при сомнении write_rollback.\n.tscn на диске не переписывай, пока человек не сохранил сцену; скриптовые обновления — только через мост (scripts_only).\nЧеловек в контуре: необратимые/спорные действия — сначала отметь их в ИТОГЕ для человека; рутинную правку кода выполняй сам.\nЭКОНОМИЯ КОНТЕКСТА: file_outline/grep → окна 60–150 строк; одну область не перечитывай; бюджет разведки ~15 вызовов.\nФАКТЫ, А НЕ ЗАЯВЛЕНИЯ: не отчитывайся о том, чего не делал; каждый факт — из вывода инструмента.\nОБЯЗАТЕЛЬНЫЙ ФИНАЛ: ИТОГ — что сделано / что не сделано / почему / что осталось человеку; с фактами и id (plan_id/entry_id).\n\nГРАНИЦЫ И РИТМ (обязательно):\n- Рабочая зона — только D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent; src/, tools/, .agent_history/ — не твои, не исследуй их.\n- Разведка — не больше ~10 читающих вызовов (окна read_file, grep, Godot read/search), затем ДЕЙСТВУЙ: твоя работа — правка кода панели, а не расследование процессов и снапшотов (2-3 проверки максимум).\n- Правка кода — через мост: write_preview → write_apply (plan_id) → прогон теста. Если write_preview дважды не сработал — зафиксируй в ИТОГЕ и заверши, не крутись.\n- Баг повторного переименования узлов: правь agent_panel.gd так, чтобы имя сверялось с ДИСКОМ (карта имён редактор→диск, node_path от дискового листа, previous_name из редактора; идентично в preview/apply).\n- run_command — одиночные команды (без git/&&/|/head).\n- НИКОГДА не завершайся без ИТОГА.",
+          "systemMessage": "Ты канал «Редактор». Работаешь рядом с человеком в Godot: сервер сообщает о ручных изменениях (переименование узлов, правки сцен) — ты доводишь за ними код, зависимости и ссылки.\n\nГЛАВНОЕ ПРАВИЛО — ты ИСПОЛНИТЕЛЬ, а не советник: у тебя есть руки и Godot-инструменты; выполняй сам (ищи связанное, правь код, прогоняй проверки). Запрещено вместо действий писать инструкции «что сделать человеку»; инструкции — только для того, что физически делает человек кликами в редакторе.\nУзлы/сцены — через Godot-инструменты (read/search/usages/check); файлы — через руки (read_file/grep_files) и мост записи.\nПРАВКИ ФАЙЛОВ ПРОЕКТА — строго через мост: write_preview (diff ровно по делу) → write_apply (plan_id) → проверка (профильный тест: python -B <файл> из addons/Godot_agent) → при сомнении write_rollback.\n.tscn на диске не переписывай, пока человек не сохранил сцену; скриптовые обновления — только через мост (scripts_only).\nЧеловек в контуре: необратимые/спорные действия — сначала отметь их в ИТОГЕ для человека; рутинную правку кода выполняй сам.\nЭКОНОМИЯ КОНТЕКСТА: file_outline/grep → окна 60–150 строк; одну область не перечитывай; бюджет разведки ~15 вызовов.\nФАКТЫ, А НЕ ЗАЯВЛЕНИЯ: не отчитывайся о том, чего не делал; каждый факт — из вывода инструмента.\nОБЯЗАТЕЛЬНЫЙ ФИНАЛ: ИТОГ — что сделано / что не сделано / почему / что осталось человеку; с фактами и id (plan_id/entry_id).\n\nГРАНИЦЫ И РИТМ (обязательно):\n- Рабочая зона — только D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent; src/, tools/, .agent_history/ — не твои, не исследуй их.\n- Разведка — не больше ~10 читающих вызовов (окна read_file, grep, Godot read/search), затем ДЕЙСТВУЙ: твоя работа — правка кода панели, а не расследование процессов и снапшотов (2-3 проверки максимум).\n- Правка кода — через мост: write_preview → write_apply (plan_id) → прогон теста. Если write_preview дважды не сработал — зафиксируй в ИТОГЕ и заверши, не крутись.\n- Баг повторного переименования узлов: правь agent_panel.gd так, чтобы имя сверялось с ДИСКОМ (карта имён редактор→диск, node_path от дискового листа, previous_name из редактора; идентично в preview/apply).\n- Не знаешь, где лежит код/функция по задаче — СНАЧАЛА инструмент «Поисковик (Редактор)» с одним конкретным запросом (симптом + что искать), затем точечное чтение по его карте; широкий поиск сам не дублируй.\n- run_command — одиночные команды (без git/&&/|/head).\n- НИКОГДА не завершайся без ИТОГА.",
           "maxIterations": 100
         }
       },
@@ -212,8 +212,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        5216,
-        -1120
+        5760,
+        -1072
       ],
       "onError": "continueRegularOutput"
     },
@@ -235,8 +235,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        5216,
-        -928
+        5760,
+        -880
       ],
       "credentials": {
         "openAiApi": {
@@ -250,7 +250,7 @@
         "promptType": "define",
         "text": "={{ $json.task || $json.task_mcp || \"Передай запрос внешнего агента\" }}",
         "options": {
-          "systemMessage": "Ты канал «MCP». Мост для внешних агентов к функционалу ядра. Журналируй вызовы; уважай права доступа; не дублируй логику ядра — проксируй к его функциям.\n\nГЛАВНОЕ ПРАВИЛО — ты ИСПОЛНИТЕЛЬ, а не советник: есть задача — делай её инструментами. Запрещено вместо действия выдавать инструкции/харнесс «что сделать человеку». Отвечать «у меня нет доступа» нельзя: у тебя есть «руки» (n8n-hands) и мост записи. Если инструмента действительно нет — это факт для ИТОГА, но сначала исчерпай имеющиеся.\n\nЭКОНОМИЯ КОНТЕКСТА (обязательно):\n- Большие файлы не читай целиком: сначала file_outline (структура), затем окна 60–150 строк вокруг нужного места.\n- Одну и ту же область не читай дважды; прочитанное цитируй по памяти.\n- Бюджет разведки ~15 вызовов, затем переходи к результату даже при неполной картине. Вторая одинаково неуспешная попытка = фиксируй факт и двигайся дальше.\n\nПРАВКИ В ПРОЕКТЕ — строго через мост (write_preview / write_apply / write_rollback):\n1) write_preview — подготовь изменение; diff должен менять ровно необходимое;\n2) write_apply — примени ровно тот план (plan_id из preview). write_apply без preview ЗАПРЕЩЁН;\n3) после записи прогони проверку (профильный тест/команду через run_python/run_command) и подтверди результат фактом (rc, хвост вывода);\n4) при неудаче или сомнении — write_rollback (entry_id из журнала) и честно сообщи об откате.\nnode_rename_preview / node_reparent_preview / node_delete_preview — только предпросмотр узловых операций; применение узловых правок — через write_preview→write_apply.\nФАКТЫ, А НЕ ЗАЯВЛЕНИЯ: не отчитывайся о правках, файлах и тестах, которых не делал; перед планом правки убедись, что файл существует (glob/read). Каждый пункт ИТОГА подкрепляй id (plan_id/entry_id) или выводом команды.\nРазведочные задачи (правок не требуется) — только чтение, ничего не записывай.\n\nОБЯЗАТЕЛЬНЫЙ ФИНАЛ: ИТОГ — что сделано / что не сделано / почему / следующий шаг; с фактами и id, без пересказа процесса. Никогда не завершайся без итога. Отказ инструмента — факт для итога, а не повод искать обход.\n\n«Руки» (n8n-hands): run_command и run_python — прогон тестов, git, проверки; read_file, write_file, edit_file, list_dir, glob_files, grep_files — служебные и временные файлы (пробы держи в C:\\Users\\Lich\\AppData\\Local\\Temp\\n8n_hands_scratch); web_search и fetch_url — интернет. Правки файлов ПРОЕКТА — только через мост (журнал и откат), не через «руки».\n\nГРАНИЦЫ И РИТМ (обязательно):\n- Рабочая зона — только D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent.\n- Если задача дала готовые координаты (файл:строки) — работай точечно, не перечитывай проект; разведка ~10 вызовов, затем write_preview.\n- Один повторный провал write_preview = факт в ИТОГ и завершение, без поиска обходов.\n- Прогон теста после правки обязателен: python -B python/tests/<файл>.py из каталога addons/Godot_agent (run_command, одиночные команды без git/&&/|/head).\n- НИКОГДА не завершайся без ИТОГА.",
+          "systemMessage": "Ты канал «MCP». Мост для внешних агентов к функционалу ядра. Журналируй вызовы; уважай права доступа; не дублируй логику ядра — проксируй к его функциям.\n\nГЛАВНОЕ ПРАВИЛО — ты ИСПОЛНИТЕЛЬ, а не советник: есть задача — делай её инструментами. Запрещено вместо действия выдавать инструкции/харнесс «что сделать человеку». Отвечать «у меня нет доступа» нельзя: у тебя есть «руки» (n8n-hands) и мост записи. Если инструмента действительно нет — это факт для ИТОГА, но сначала исчерпай имеющиеся.\n\nЭКОНОМИЯ КОНТЕКСТА (обязательно):\n- Большие файлы не читай целиком: сначала file_outline (структура), затем окна 60–150 строк вокруг нужного места.\n- Одну и ту же область не читай дважды; прочитанное цитируй по памяти.\n- Бюджет разведки ~15 вызовов, затем переходи к результату даже при неполной картине. Вторая одинаково неуспешная попытка = фиксируй факт и двигайся дальше.\n\nПРАВКИ В ПРОЕКТЕ — строго через мост (write_preview / write_apply / write_rollback):\n1) write_preview — подготовь изменение; diff должен менять ровно необходимое;\n2) write_apply — примени ровно тот план (plan_id из preview). write_apply без preview ЗАПРЕЩЁН;\n3) после записи прогони проверку (профильный тест/команду через run_python/run_command) и подтверди результат фактом (rc, хвост вывода);\n4) при неудаче или сомнении — write_rollback (entry_id из журнала) и честно сообщи об откате.\nnode_rename_preview / node_reparent_preview / node_delete_preview — только предпросмотр узловых операций; применение узловых правок — через write_preview→write_apply.\nФАКТЫ, А НЕ ЗАЯВЛЕНИЯ: не отчитывайся о правках, файлах и тестах, которых не делал; перед планом правки убедись, что файл существует (glob/read). Каждый пункт ИТОГА подкрепляй id (plan_id/entry_id) или выводом команды.\nРазведочные задачи (правок не требуется) — только чтение, ничего не записывай.\n\nОБЯЗАТЕЛЬНЫЙ ФИНАЛ: ИТОГ — что сделано / что не сделано / почему / следующий шаг; с фактами и id, без пересказа процесса. Никогда не завершайся без итога. Отказ инструмента — факт для итога, а не повод искать обход.\n\n«Руки» (n8n-hands): run_command и run_python — прогон тестов, git, проверки; read_file, write_file, edit_file, list_dir, glob_files, grep_files — служебные и временные файлы (пробы держи в C:\\Users\\Lich\\AppData\\Local\\Temp\\n8n_hands_scratch); web_search и fetch_url — интернет. Правки файлов ПРОЕКТА — только через мост (журнал и откат), не через «руки».\n\nГРАНИЦЫ И РИТМ (обязательно):\n- Рабочая зона — только D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent.\n- Не знаешь, где лежит код/функция по задаче — СНАЧАЛА инструмент «Поисковик (MCP)» с одним конкретным запросом (симптом + что искать), затем точечное чтение по его карте; широкий поиск сам не дублируй.\n- Если задача дала готовые координаты (файл:строки) — работай точечно, не перечитывай проект; разведка ~10 вызовов, затем write_preview.\n- Один повторный провал write_preview = факт в ИТОГ и завершение, без поиска обходов.\n- Прогон теста после правки обязателен: python -B python/tests/<файл>.py из каталога addons/Godot_agent (run_command, одиночные команды без git/&&/|/head).\n- НИКОГДА не завершайся без ИТОГА.",
           "maxIterations": 200
         }
       },
@@ -259,8 +259,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        5200,
-        -3376
+        5600,
+        -3360
       ],
       "onError": "continueRegularOutput"
     },
@@ -282,8 +282,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        5200,
-        -3184
+        5600,
+        -3168
       ],
       "credentials": {
         "openAiApi": {
@@ -295,8 +295,8 @@
     {
       "parameters": {
         "content": "## ЯДРО: аудит, план, распределение\n\nАудитор ищет баги и проверяет план (plan_done). Планировщик строит план (память общая). Распределитель раскладывает по каналам.\nКольцо: максимум 3 круга, дальше — итог «нужен человек». План выполнен → Итог пользователю.",
-        "height": 1324,
-        "width": 2136,
+        "height": 1388,
+        "width": 2216,
         "color": 4
       },
       "id": "31cfe926-b812-4ddc-85cd-5bcbacbd7c33",
@@ -304,7 +304,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        544,
+        464,
         -1792
       ]
     },
@@ -312,7 +312,7 @@
       "parameters": {
         "content": "## Цикл исправления — у каждого канала свой\n\n1 причина - 2 синтетические тесты (падают до фикса) - 3 фикс - 4 прогон - 5 аудит-2 свежим взглядом.\nПри провале агент сам выбирает путь назад: CAUSE — переосмыслить причину, FIX — быстрый рефикс, TESTS — переписать тест.\nЛимиты: 3 петли на этап (любой возврат), кольцо — 3 круга.",
         "height": 1180,
-        "width": 1164,
+        "width": 684,
         "color": 5
       },
       "id": "c7827577-29f9-44c8-a322-3f77f5c4b233",
@@ -320,7 +320,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2800,
+        3248,
         -2208
       ]
     },
@@ -328,7 +328,7 @@
       "parameters": {
         "content": "## Каналы — исполнители плана\n\nРаспределитель раздаёт план по каналам. Каждый канал решает свои задачи в своём цикле:\nБраузер — минимум шагов. API — прямые вызовы.\nРедактор — события ручных правок. MCP — мост к функционалу.",
         "height": 1324,
-        "width": 1160,
+        "width": 680,
         "color": 6
       },
       "id": "50309659-dd3e-4649-ab4a-b331911c9831",
@@ -336,7 +336,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2800,
+        3248,
         -3536
       ]
     },
@@ -381,8 +381,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        8816,
-        -128
+        9264,
+        -64
       ]
     },
     {
@@ -413,8 +413,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        9072,
-        -400
+        9520,
+        -336
       ]
     },
     {
@@ -445,7 +445,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        9024,
+        9632,
         -2352
       ]
     },
@@ -477,7 +477,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        9280,
+        9888,
         -2576
       ]
     },
@@ -509,8 +509,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        8736,
-        -1136
+        9280,
+        -1088
       ]
     },
     {
@@ -541,8 +541,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        8992,
-        -1408
+        9536,
+        -1360
       ]
     },
     {
@@ -573,8 +573,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        8720,
-        -3392
+        9120,
+        -3376
       ]
     },
     {
@@ -605,8 +605,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        8976,
-        -3664
+        9376,
+        -3648
       ]
     },
     {
@@ -722,8 +722,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4112,
-        -96
+        4576,
+        256
       ]
     },
     {
@@ -754,8 +754,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4128,
-        -2320
+        4592,
+        -2064
       ]
     },
     {
@@ -786,8 +786,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4112,
-        -1104
+        4560,
+        -752
       ]
     },
     {
@@ -818,8 +818,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4112,
-        -3360
+        4640,
+        -3040
       ]
     },
     {
@@ -858,8 +858,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6272,
-        -112
+        6720,
+        -48
       ]
     },
     {
@@ -898,7 +898,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6480,
+        7088,
         -2336
       ]
     },
@@ -938,8 +938,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6192,
-        -1120
+        6736,
+        -1072
       ]
     },
     {
@@ -978,8 +978,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6176,
-        -3376
+        6576,
+        -3360
       ]
     },
     {
@@ -991,8 +991,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5152,
-        864
+        6368,
+        1040
       ]
     },
     {
@@ -1004,7 +1004,7 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.1,
       "position": [
-        64,
+        -32,
         -64
       ],
       "webhookId": "d427a6da-c3fe-41cb-9610-13b3c73ef593"
@@ -1020,7 +1020,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        64,
+        -32,
         -704
       ],
       "webhookId": "55cb9e58-f355-411f-8c64-39fcc4297aa6"
@@ -1036,7 +1036,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        64,
+        -32,
         -544
       ],
       "webhookId": "cf78eb91-029c-4ef5-898c-011f115d0e62"
@@ -1052,7 +1052,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        64,
+        -32,
         -384
       ],
       "webhookId": "e1f024da-e796-46b8-9642-a6bb5e16d1c8"
@@ -1068,7 +1068,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        64,
+        -32,
         -224
       ],
       "webhookId": "7738e29d-b45e-4f95-b66b-0a8bd3abb7d5"
@@ -1173,8 +1173,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        9280,
-        -16
+        9728,
+        48
       ]
     },
     {
@@ -1277,7 +1277,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        9488,
+        10096,
         -2240
       ]
     },
@@ -1381,8 +1381,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        9200,
-        -1024
+        9744,
+        -976
       ]
     },
     {
@@ -1485,8 +1485,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        9184,
-        -3280
+        9584,
+        -3264
       ]
     },
     {
@@ -1498,8 +1498,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9072,
-        -112
+        9520,
+        -48
       ]
     },
     {
@@ -1511,7 +1511,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9280,
+        9888,
         -2336
       ]
     },
@@ -1524,8 +1524,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8992,
-        -1120
+        9536,
+        -1072
       ]
     },
     {
@@ -1537,8 +1537,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8976,
-        -3376
+        9376,
+        -3360
       ]
     },
     {
@@ -1553,7 +1553,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -48,
+        -144,
         -848
       ]
     },
@@ -1561,7 +1561,7 @@
       "parameters": {
         "content": "## Канал: Браузер\n\nМинимум шагов.\nСвой цикл: причина → тесты → фикс → прогон → аудит-2.\nВозвраты и лимиты — справа от колонны.",
         "height": 1028,
-        "width": 5780,
+        "width": 6276,
         "color": 5
       },
       "id": "003026fa-fb77-452a-87e4-51fa3bea8b32",
@@ -1577,7 +1577,7 @@
       "parameters": {
         "content": "## Канал: API\n\nПрямые вызовы API.\nСвой цикл: причина → тесты → фикс → прогон → аудит-2.\nВозвраты и лимиты — справа от колонны.",
         "height": 1124,
-        "width": 5780,
+        "width": 6292,
         "color": 5
       },
       "id": "3d2f6f9c-4178-4257-b75c-fb2e6bcb833f",
@@ -1593,7 +1593,7 @@
       "parameters": {
         "content": "## Канал: Редактор\n\nСобытия ручных правок человека.\nСвой цикл: причина → тесты → фикс → прогон → аудит-2.\nВозвраты и лимиты — справа от колонны.",
         "height": 1108,
-        "width": 5780,
+        "width": 6292,
         "color": 5
       },
       "id": "a4892f38-0f6a-4988-8701-f0f8da37f60b",
@@ -1609,7 +1609,7 @@
       "parameters": {
         "content": "## Канал: MCP\n\nМост к функционалу ядра.\nСвой цикл: причина → тесты → фикс → прогон → аудит-2.\nВозвраты и лимиты — справа от колонны.",
         "height": 980,
-        "width": 5780,
+        "width": 6292,
         "color": 5
       },
       "id": "00437eaa-eec1-4b80-ab99-1dc36d9d0713",
@@ -1639,8 +1639,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        4752,
-        832
+        5968,
+        944
       ],
       "credentials": {
         "openAiApi": {
@@ -1662,8 +1662,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        4752,
-        624
+        5968,
+        736
       ]
     },
     {
@@ -1742,7 +1742,7 @@
       "parameters": {
         "content": "## Правила параллельности\n\n1. Один файл — один канал (владелец от распределителя).\n2. Одноэкземплярные ресурсы (редактор, браузер, MCP) — очередь «по одному».\n3. Общая память: секции записи разделены (ядро ≠ каналы).\n4. Независимые задачи — параллельно; пересекающиеся — последовательно.",
         "height": 1340,
-        "width": 1160,
+        "width": 680,
         "color": 2
       },
       "id": "a2c7545e-5195-4622-8eb5-ccbf4628ac93",
@@ -1750,7 +1750,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2800,
+        3248,
         -1024
       ]
     },
@@ -1776,21 +1776,21 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2416,
-        -1360
+        2288,
+        -1536
       ]
     },
     {
       "parameters": {
-        "jsCode": "// АГРЕГАТОР-СУПЕРВИСОР («ждать всех», фикс ②): ждёт отчёты каналов из шины (каналы — отдельные исполнения).\n// Вход: строки шины (или пусто) из «Шина: чтение». Выход ВСЕГДА один элемент с agg_done;\n// false — кольцо ещё ждёт (назад на «Шина: ожидание (60с)»), true — идём в Сборщик.\n// run_id фильтруем ЗДЕСЬ (в коде), а не фильтром dataTable — так кольцо не зависит от резолва выражения в фильтре.\nconst store = $getWorkflowStaticData('global');\nif (store.bus_run !== $execution.id) { store.bus_run = $execution.id; store.bus_polls = 0; }\nstore.bus_polls++;\nconst runId = String($execution.id);\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nconst expected = Object.keys(flags).filter(c => flags[c] === 'YES');\nconst all = $input.all().map(i => i.json).filter(r => r && r.channel && r.channel !== 'none');\nconst rows = all.filter(r => String(r.run_id || '') === runId);\nconst seen = {};\nconst parts = [];\nfor (const r of rows) {\n  const ch = String(r.channel);\n  if (seen[ch]) continue;\n  seen[ch] = r;\n  parts.push('--- Канал ' + ch + ' (' + String(r.status || 'done') + ') ---\\n' + String(r.summary || '').slice(0, 2000));\n}\nconst missing = expected.filter(c => !seen[c]);\nconst cap = 75; // 75 опросов × 60 c ≈ 75 минут — жёсткий предел ожидания каналов\nconst timeout = store.bus_polls >= cap;\nconst done = missing.length === 0 || timeout;\nlet task = 'СВОДКА ВЕТОК КАНАЛОВ (' + (expected.length - missing.length) + ' из ' + expected.length + '):\\n\\n' + (parts.join('\\n\\n') || 'отчётов нет');\nif (!expected.length) task = 'СВОДКА ВЕТОК КАНАЛОВ: задач ни одному каналу не поставлено (все NO).';\nif (timeout && missing.length) task += '\\n\\nВНИМАНИЕ (сторож): каналы не отчитались за ' + cap + ' минут: ' + missing.join(', ') + '. Это пропуск — сверь их исполнения по run_id ' + runId + '.';\nreturn [{ json: { task: task, agg_done: done, agg_missing: missing, agg_run_id: runId, agg_polls: store.bus_polls, agg_expected: expected, agg_seen: Object.keys(seen), agg_rows: rows.length, agg_all_rows: all.length, agg_flags: flags } }];"
+        "jsCode": "// АГРЕГАТОР-СУПЕРВИСОР («ждать всех», фикс ②): ждёт отчёты каналов из шины (каналы — отдельные исполнения).\n// Вход: строки шины (или пусто) из «Шина: чтение». Выход ВСЕГДА один элемент с agg_done;\n// false — кольцо ещё ждёт (назад на «Шина: ожидание (60с)»), true — идём в Сборщик.\n// run_id фильтруем ЗДЕСЬ (в коде), а не фильтром dataTable — так кольцо не зависит от резолва выражения в фильтре.\nconst store = $getWorkflowStaticData('global');\nif (store.bus_run !== $execution.id) { store.bus_run = $execution.id; store.bus_polls = 0; }\nstore.bus_polls++;\nconst runId = String($execution.id);\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nconst expected = Object.keys(flags).filter(c => flags[c] === 'YES');\nconst all = $input.all().map(i => i.json).filter(r => r && r.channel && r.channel !== 'none');\nconst waveStart = Number(store.wave_start_ms || 0);\nconst rows = all.filter(r => String(r.run_id || '') === runId && (waveStart <= 0 || new Date(String(r.createdAt || '')).getTime() >= waveStart - 2000));\nconst seen = {};\nconst parts = [];\nfor (const r of rows) {\n  const ch = String(r.channel);\n  if (seen[ch]) continue;\n  seen[ch] = r;\n  parts.push('--- Канал ' + ch + ' (' + String(r.status || 'done') + ') ---\\n' + String(r.summary || '').slice(0, 2000));\n}\nconst missing = expected.filter(c => !seen[c]);\nconst cap = 75; // 75 опросов × 60 c ≈ 75 минут — жёсткий предел ожидания каналов\nconst timeout = store.bus_polls >= cap;\nconst done = missing.length === 0 || timeout;\nlet task = 'СВОДКА ВЕТОК КАНАЛОВ (' + (expected.length - missing.length) + ' из ' + expected.length + '):\\n\\n' + (parts.join('\\n\\n') || 'отчётов нет');\nif (!expected.length) task = 'СВОДКА ВЕТОК КАНАЛОВ: задач ни одному каналу не поставлено (все NO).';\nif (timeout && missing.length) task += '\\n\\nВНИМАНИЕ (сторож): каналы не отчитались за ' + cap + ' минут: ' + missing.join(', ') + '. Это пропуск — сверь их исполнения по run_id ' + runId + '.';\nreturn [{ json: { task: task, agg_done: done, agg_missing: missing, agg_run_id: runId, agg_polls: store.bus_polls, agg_expected: expected, agg_seen: Object.keys(seen), agg_rows: rows.length, agg_all_rows: all.length, agg_flags: flags } }];"
       },
       "id": "ab06e91f-9034-471c-a2ec-6cf7f211257f",
       "name": "Агрегатор каналов (ждать всех)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4048,
-        624
+        5024,
+        752
       ]
     },
     {
@@ -1811,8 +1811,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        5664,
-        -1120
+        6208,
+        -1072
       ]
     },
     {
@@ -1833,8 +1833,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        6464,
-        -1136
+        7008,
+        -1088
       ]
     },
     {
@@ -1855,8 +1855,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7024,
-        -1136
+        7568,
+        -1088
       ]
     },
     {
@@ -1877,8 +1877,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7584,
-        -1136
+        8128,
+        -1088
       ]
     },
     {
@@ -1899,8 +1899,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        8160,
-        -1136
+        8704,
+        -1088
       ]
     },
     {
@@ -1912,8 +1912,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6800,
-        -1136
+        7344,
+        -1088
       ]
     },
     {
@@ -1925,8 +1925,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7360,
-        -1136
+        7904,
+        -1088
       ]
     },
     {
@@ -1938,8 +1938,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7936,
-        -1136
+        8480,
+        -1088
       ]
     },
     {
@@ -1951,8 +1951,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8512,
-        -1136
+        9056,
+        -1088
       ]
     },
     {
@@ -1964,8 +1964,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6000,
-        -1120
+        6544,
+        -1072
       ]
     },
     {
@@ -1994,8 +1994,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        576,
-        -832
+        512,
+        -816
       ],
       "alwaysOutputData": true,
       "settings": {
@@ -2011,7 +2011,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        752,
+        656,
         -1072
       ]
     },
@@ -2226,8 +2226,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4816,
-        -112
+        5264,
+        -48
       ],
       "alwaysOutputData": true,
       "settings": {
@@ -2236,15 +2236,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Браузер: промпт (память)»: история сессии канала + текущая задача канала.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('Браузер: Есть работа?').last().json.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-browser-' + $('Чат (общий вход)').first().json.sessionId : 'channel-browser';\nlet task = '';\ntry { task = String($('Браузер: Есть работа?').last().json.task_browser || ''); } catch (e) { task = ''; }\nif (!task) task = 'Выполни действие через браузер';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+        "jsCode": "// «Браузер: промпт (память)»: история сессии канала + текущая задача канала (приоритет — задание Планировщика Браузер).\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('Браузер: Есть работа?').last().json.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-browser-' + $('Чат (общий вход)').first().json.sessionId : 'channel-browser';\nlet task = '';\ntry { task = String($('Планировщик Браузер').last().json.output || '').trim().slice(0, 4000); } catch (e) { task = ''; }\nif (!task) { try { task = String($('Браузер: Есть работа?').last().json.task_browser || ''); } catch (e2) { task = ''; } }\nif (!task) task = 'Выполни действие через браузер';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
       },
       "id": "094249b2-1089-4db9-9d27-50e6d49c6312",
       "name": "Браузер: промпт (память)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5056,
-        -112
+        5504,
+        -48
       ]
     },
     {
@@ -2256,8 +2256,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5744,
-        -416
+        6192,
+        -352
       ]
     },
     {
@@ -2312,8 +2312,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        6080,
-        -416
+        6528,
+        -352
       ]
     },
     {
@@ -2342,7 +2342,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4896,
+        5504,
         -2336
       ],
       "alwaysOutputData": true,
@@ -2359,7 +2359,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5120,
+        5728,
         -2336
       ]
     },
@@ -2372,7 +2372,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5936,
+        6544,
         -2576
       ]
     },
@@ -2434,7 +2434,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        6208,
+        6816,
         -2576
       ]
     },
@@ -2464,8 +2464,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4800,
-        -1120
+        5344,
+        -1072
       ],
       "alwaysOutputData": true,
       "settings": {
@@ -2474,15 +2474,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Редактор: промпт (память)»: история сессии канала + текущая задача канала.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('Редактор: Есть работа?').last().json.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-editor-' + $('Чат (общий вход)').first().json.sessionId : 'channel-editor';\nlet task = '';\ntry { task = String($('Редактор: Есть работа?').last().json.task_editor || ''); } catch (e) { task = ''; }\nif (!task) task = 'Помоги с ручным изменением в редакторе';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+        "jsCode": "// «Редактор: промпт (память)»: история сессии канала + текущая задача канала (приоритет — задание Планировщика Редактор).\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('Редактор: Есть работа?').last().json.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-editor-' + $('Чат (общий вход)').first().json.sessionId : 'channel-editor';\nlet task = '';\ntry { task = String($('Планировщик Редактор').last().json.output || '').trim().slice(0, 4000); } catch (e) { task = ''; }\nif (!task) { try { task = String($('Редактор: Есть работа?').last().json.task_editor || ''); } catch (e2) { task = ''; } }\nif (!task) task = 'Помоги с ручным изменением в редакторе';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
       },
       "id": "e343dd5d-a688-4f30-9577-c696363fc828",
       "name": "Редактор: промпт (память)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5008,
-        -1120
+        5552,
+        -1072
       ]
     },
     {
@@ -2494,8 +2494,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5632,
-        -1424
+        6176,
+        -1376
       ]
     },
     {
@@ -2550,8 +2550,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        5968,
-        -1424
+        6512,
+        -1376
       ]
     },
     {
@@ -2580,8 +2580,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4784,
-        -3376
+        5184,
+        -3360
       ],
       "alwaysOutputData": true,
       "settings": {
@@ -2590,15 +2590,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// «MCP: промпт (память)»: история сессии канала + текущая задача канала.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('MCP: Есть работа?').last().json.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-mcp-' + $('Чат (общий вход)').first().json.sessionId : 'channel-mcp';\nlet task = '';\ntry { task = String($('MCP: Есть работа?').last().json.task_mcp || ''); } catch (e) { task = ''; }\nif (!task) task = 'Передай запрос внешнего агента';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+        "jsCode": "// «MCP: промпт (память)»: история сессии канала + текущая задача канала (приоритет — задание Планировщика MCP).\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('MCP: Есть работа?').last().json.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-mcp-' + $('Чат (общий вход)').first().json.sessionId : 'channel-mcp';\nlet task = '';\ntry { task = String($('Планировщик MCP').last().json.output || '').trim().slice(0, 4000); } catch (e) { task = ''; }\nif (!task) { try { task = String($('MCP: Есть работа?').last().json.task_mcp || ''); } catch (e2) { task = ''; } }\nif (!task) task = 'Передай запрос внешнего агента';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
       },
       "id": "db5fa965-6751-46c2-861a-f673d37da575",
       "name": "MCP: промпт (память)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4992,
-        -3376
+        5392,
+        -3360
       ]
     },
     {
@@ -2610,8 +2610,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5632,
-        -3616
+        6032,
+        -3600
       ]
     },
     {
@@ -2666,8 +2666,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        5952,
-        -3616
+        6352,
+        -3600
       ]
     },
     {
@@ -2696,8 +2696,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4304,
-        624
+        5536,
+        736
       ],
       "alwaysOutputData": true,
       "settings": {
@@ -2713,8 +2713,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4512,
-        624
+        5728,
+        736
       ]
     },
     {
@@ -2726,8 +2726,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5152,
-        624
+        6368,
+        736
       ]
     },
     {
@@ -2788,8 +2788,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        5344,
-        624
+        6560,
+        736
       ]
     },
     {
@@ -2821,8 +2821,8 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
       "position": [
-        1024,
-        -816
+        1072,
+        -896
       ]
     },
     {
@@ -3366,8 +3366,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
-        -2128
+        1280,
+        -2016
       ]
     },
     {
@@ -3382,8 +3382,8 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
       "position": [
-        1184,
-        -816
+        896,
+        -896
       ]
     },
     {
@@ -3404,7 +3404,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        5952,
+        6560,
         -2336
       ]
     },
@@ -3417,7 +3417,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6288,
+        6896,
         -2336
       ]
     },
@@ -3439,7 +3439,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        6752,
+        7360,
         -2352
       ]
     },
@@ -3452,7 +3452,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7088,
+        7696,
         -2352
       ]
     },
@@ -3474,7 +3474,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7312,
+        7920,
         -2352
       ]
     },
@@ -3487,7 +3487,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7648,
+        8256,
         -2352
       ]
     },
@@ -3509,7 +3509,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7872,
+        8480,
         -2352
       ]
     },
@@ -3522,7 +3522,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8224,
+        8832,
         -2352
       ]
     },
@@ -3544,7 +3544,7 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        8448,
+        9056,
         -2352
       ]
     },
@@ -3557,7 +3557,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8816,
+        9424,
         -2352
       ]
     },
@@ -3579,8 +3579,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        5648,
-        -3376
+        6048,
+        -3360
       ]
     },
     {
@@ -3592,8 +3592,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5984,
-        -3376
+        6384,
+        -3360
       ]
     },
     {
@@ -3614,8 +3614,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        6448,
-        -3392
+        6848,
+        -3376
       ]
     },
     {
@@ -3627,8 +3627,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6784,
-        -3392
+        7184,
+        -3376
       ]
     },
     {
@@ -3649,8 +3649,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7008,
-        -3392
+        7408,
+        -3376
       ]
     },
     {
@@ -3662,8 +3662,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7344,
-        -3392
+        7744,
+        -3376
       ]
     },
     {
@@ -3684,8 +3684,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7568,
-        -3392
+        7968,
+        -3376
       ]
     },
     {
@@ -3697,8 +3697,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7920,
-        -3392
+        8320,
+        -3376
       ]
     },
     {
@@ -3719,8 +3719,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        8144,
-        -3392
+        8544,
+        -3376
       ]
     },
     {
@@ -3732,8 +3732,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8496,
-        -3392
+        8896,
+        -3376
       ]
     },
     {
@@ -3754,8 +3754,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        5744,
-        -112
+        6192,
+        -48
       ]
     },
     {
@@ -3767,8 +3767,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6080,
-        -112
+        6528,
+        -48
       ]
     },
     {
@@ -3789,8 +3789,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        6544,
-        -128
+        6992,
+        -64
       ]
     },
     {
@@ -3802,8 +3802,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        6880,
-        -128
+        7328,
+        -64
       ]
     },
     {
@@ -3824,8 +3824,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7104,
-        -128
+        7552,
+        -64
       ]
     },
     {
@@ -3837,8 +3837,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        7440,
-        -128
+        7888,
+        -64
       ]
     },
     {
@@ -3859,8 +3859,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        7664,
-        -128
+        8112,
+        -64
       ]
     },
     {
@@ -3872,8 +3872,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8016,
-        -128
+        8464,
+        -64
       ]
     },
     {
@@ -3894,8 +3894,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        8240,
-        -128
+        8688,
+        -64
       ]
     },
     {
@@ -3907,8 +3907,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        8592,
-        -128
+        9040,
+        -64
       ]
     },
     {
@@ -3929,8 +3929,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1216,
-        -1280
+        928,
+        -624
       ],
       "credentials": {
         "openAiApi": {
@@ -3951,8 +3951,8 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
       "position": [
-        1008,
-        -1280
+        1168,
+        -576
       ]
     },
     {
@@ -3978,8 +3978,8 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
       "position": [
-        1424,
-        -1280
+        1040,
+        -576
       ]
     },
     {
@@ -3989,17 +3989,15 @@
         "options": {
           "systemMessage": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов.",
           "maxIterations": 50
-        },
-        "hasOutputParser": false,
-        "needsFallback": false
+        }
       },
       "id": "04ece415-8ac5-4e20-8094-0343b1330565",
       "name": "Поисковик (субагент)",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 3,
       "position": [
-        1216,
-        -1072
+        928,
+        -752
       ]
     },
     {
@@ -4028,7 +4026,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        4256,
+        4864,
         -2592
       ],
       "alwaysOutputData": true,
@@ -4045,7 +4043,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4464,
+        5072,
         -2592
       ]
     },
@@ -4063,7 +4061,7 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        4608,
+        5216,
         -2592
       ]
     },
@@ -4076,7 +4074,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4912,
+        5520,
         -2592
       ]
     },
@@ -4138,7 +4136,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        5136,
+        5744,
         -2592
       ]
     },
@@ -4149,16 +4147,14 @@
         "options": {
           "systemMessage": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов.",
           "maxIterations": 50
-        },
-        "hasOutputParser": false,
-        "needsFallback": false
+        }
       },
       "id": "3e55d111-b367-4084-97fc-0eef2143cbfd",
       "name": "Поисковик (API)",
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 3,
       "position": [
-        5536,
+        6144,
         -2032
       ]
     },
@@ -4180,7 +4176,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        4608,
+        5216,
         -2432
       ],
       "credentials": {
@@ -4202,7 +4198,7 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
       "position": [
-        5808,
+        6416,
         -1840
       ]
     },
@@ -4224,7 +4220,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        5472,
+        6080,
         -1840
       ],
       "credentials": {
@@ -4257,7 +4253,7 @@
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
       "position": [
-        5648,
+        6256,
         -1840
       ]
     },
@@ -4270,8 +4266,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9904,
-        -2800
+        4464,
+        736
       ]
     },
     {
@@ -4290,8 +4286,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        10128,
-        -2800
+        4064,
+        992
       ]
     },
     {
@@ -4322,21 +4318,21 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        10352,
-        -2800
+        4688,
+        736
       ]
     },
     {
       "parameters": {
-        "jsCode": "// «Шина: стартовый пакет»: переживаем рассылку вебхуков и уходим в цикл ожидания отчётов.\n// run_id берём из $execution.id напрямую — не зависим от того, пробросил ли wait данные.\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nreturn [{ json: { run_id: String($execution.id), flags: flags } }];"
+        "jsCode": "// «Шина: стартовый пакет»: переживаем рассылку вебхуков и уходим в цикл ожидания отчётов.\n// run_id берём из $execution.id напрямую — не зависим от того, пробросил ли wait данные.\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nconst store = $getWorkflowStaticData('global');\nstore.wave_start_ms = Date.now();\nreturn [{ json: { run_id: String($execution.id), flags: flags } }];"
       },
       "id": "bus-start-1",
       "name": "Шина: стартовый пакет",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        10560,
-        -2800
+        4272,
+        992
       ]
     },
     {
@@ -4348,8 +4344,8 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        10784,
-        -2800
+        4512,
+        992
       ],
       "webhookId": "7637d976-26c8-4fc9-8757-807a2cad778c"
     },
@@ -4362,7 +4358,6 @@
           "mode": "id",
           "value": "ZvfZaYqn0VRT6O8t"
         },
-        "limit": 200,
         "matchType": "allConditions",
         "filters": {
           "conditions": [
@@ -4371,15 +4366,16 @@
               "condition": "isNotEmpty"
             }
           ]
-        }
+        },
+        "limit": 200
       },
       "id": "bus-read-1",
       "name": "Шина: чтение",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        6040,
-        4010
+        4752,
+        992
       ],
       "alwaysOutputData": true,
       "retryOnFail": false,
@@ -4415,8 +4411,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        11440,
-        -2800
+        5264,
+        752
       ]
     },
     {
@@ -4430,8 +4426,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        3600,
-        -3808
+        4144,
+        256
       ],
       "webhookId": "a9c3aab2-9813-403a-821e-7ad3d016089d"
     },
@@ -4444,8 +4440,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3824,
-        -3808
+        4368,
+        256
       ]
     },
     {
@@ -4513,8 +4509,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        12400,
-        -3600
+        5072,
+        272
       ]
     },
     {
@@ -4528,8 +4524,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        3600,
-        -3600
+        4160,
+        -2064
       ],
       "webhookId": "ae95c018-86c0-4bb6-95b1-1060e7befaee"
     },
@@ -4542,8 +4538,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3824,
-        -3600
+        4384,
+        -2064
       ]
     },
     {
@@ -4611,8 +4607,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        12400,
-        -3408
+        4976,
+        -2000
       ]
     },
     {
@@ -4626,8 +4622,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        3600,
-        -3408
+        4128,
+        -752
       ],
       "webhookId": "cab83123-62a8-485c-ada4-f46d08afa5a0"
     },
@@ -4640,8 +4636,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3824,
-        -3408
+        4352,
+        -752
       ]
     },
     {
@@ -4709,8 +4705,8 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        12400,
-        -3200
+        5136,
+        -736
       ]
     },
     {
@@ -4724,8 +4720,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        3600,
-        -3200
+        4176,
+        -3040
       ],
       "webhookId": "9cfb1037-9428-43a2-a72b-b4a9e3739022"
     },
@@ -4738,8 +4734,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3824,
-        -3200
+        4400,
+        -3040
       ]
     },
     {
@@ -4807,9 +4803,768 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        12400,
-        -3008
+        4992,
+        -2976
       ]
+    },
+    {
+      "id": "a874907e-12bc-49f0-8ca1-fe2ba901033b",
+      "name": "Планировщик Браузер",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        4992,
+        -304
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.task || \"Спланируй задачу канала Браузер\" }}",
+        "options": {
+          "systemMessage": "Ты — планировщик канала «Браузер». Ты получаешь задачу канала из общего плана (одна строка распределителя) и превращаешь её в конкретное задание для исполнителя канала Браузер.\n\nЧТО НА ВХОДЕ\n- Задача канала (task_browser из плана) — что требуется сделать по каналу Браузер.\n- История сессии планировщика — что уже ставилось ранее; учитывай её, не повторяй сделанное.\n\nПРАВИЛА\n- Факты дороже догадок. Если для постановки нужны пути файлов, имена функций или поведение кода — вызови инструмент-поисковик и опирайся на его отчёт (пути и строки). Не выдумывай файлы и команды.\n- Поисковик вызывай не больше двух раз, по одному ясному вопросу каждый. Как только картина ясна — сразу отвечай.\n- Только постановка: файлы не меняй, команды не запускай — это работа исполнителя.\n- Не расширяй задачу и ничего не добавляй «заодно»: всё, что нужно выполнить, — внутри задания.\n- Если по истории видно, что делать уже нечего, — так и напиши (см. формат).\n\nФОРМАТ ОТВЕТА (обязательно) — один блок, от строки «ЗАДАЧА КАНАЛУ:» до конца ответа:\nЗАДАЧА КАНАЛУ:\n1) Цель: что должно работать после выполнения.\n2) Где: конкретные файлы (пути от addons/Godot_agent) и функции/участки.\n3) Шаги: что именно изменить.\n4) Проверка: команда/тест и ожидаемый результат (например: python -B python/tests/<файл>.py из каталога addons/Godot_agent).\n5) Ограничения: что не трогать.\nВместо блока при отсутствии работы — одна строка «НЕТ НОВЫХ ДЕЙСТВИЙ: <причина>». Никогда не завершайся без блока или этой строки. Компактно, без рассуждений вне блока.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "b4e7007f-aa8b-4e17-aecc-2f36bdd926a8",
+      "name": "Планировщик Браузер: чтение (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4640,
+        -304
+      ],
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session",
+              "keyValue": "={{ $json.session ? 'planner-browser-' + $json.session : ($('Чат (общий вход)').isExecuted ? 'planner-browser-' + $('Чат (общий вход)').first().json.sessionId : 'planner-browser') }}"
+            }
+          ]
+        },
+        "limit": 10,
+        "orderBy": true
+      }
+    },
+    {
+      "id": "100eccbb-ae7e-47d2-a8a1-851688dd8d1c",
+      "name": "Планировщик Браузер: промпт (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4848,
+        -304
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик Браузер: промпт (память)»: история сессии планировщика API + задача канала из плана.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('Браузер: Есть работа?').last().json.session_key || '').replace(/^channel-browser-/, 'planner-browser-'); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-browser-' + $('Чат (общий вход)').first().json.sessionId : 'planner-browser';\nlet task = '';\ntry { task = String($('Браузер: Есть работа?').last().json.task_browser || ''); } catch (e) { task = ''; }\nif (!task) task = 'Спланируй задачу канала Браузер';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+      }
+    },
+    {
+      "id": "c2037df4-5123-4dee-8765-ead5e0934331",
+      "name": "Планировщик Браузер: подготовка записи (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5296,
+        -304
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик Браузер: подготовка записи (память)»: user-задача канала + assistant-задание.\nconst answer = String(($json.output !== undefined ? $json.output : ($json.text || '')) || '').slice(0, 4000);\nlet taskInput = '', sessionKey = '';\ntry { const m = $('Планировщик Браузер: промпт (память)').last().json; taskInput = String(m.task_input || ''); sessionKey = String(m.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-browser-' + $('Чат (общий вход)').first().json.sessionId : 'planner-browser';\nconst out = [];\nif (taskInput) out.push({ json: { session: sessionKey, role: 'user', content: taskInput.slice(0, 4000) } });\nif (answer) out.push({ json: { session: sessionKey, role: 'assistant', content: answer } });\nreturn out;"
+      }
+    },
+    {
+      "id": "10dcbbfe-dbeb-4c2b-9719-8e85bbc1da55",
+      "name": "Планировщик Браузер: запись (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5520,
+        -304
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "content": "={{ $json.content }}",
+            "role": "={{ $json.role }}",
+            "session": "={{ $json.session }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session",
+              "displayName": "session",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d7ef77ac-47f4-499e-b14c-71c68876c26f",
+      "name": "Модель (Планировщик Браузер)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4992,
+        -144
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "47256857-4b0f-4e1d-877a-445573137a60",
+      "name": "Поисковик (Браузер)",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        5920,
+        256
+      ],
+      "parameters": {
+        "toolDescription": "Поиск файлов и информации по проекту по текстовому запросу. Вызывай, когда не знаешь точное расположение кода или данных по теме задачи. Возвращает подробный отчёт: что найдено, где именно (пути и строки) и что читать первым. Только чтение — файлы не изменяются.",
+        "text": "={{ $fromAI('input', 'Текст поискового запроса: 1–2 фразы — симптом и что искать (файл, функция, тема).', 'string') }}",
+        "options": {
+          "systemMessage": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "fc43bd9f-a830-45bb-b10d-e7e352f978a5",
+      "name": "Модель (Поисковик Браузер)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        5856,
+        448
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "e4078487-e6f1-43a3-bfbb-e5315196de8d",
+      "name": "MCP: руки (Поисковик Браузер)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        6192,
+        448
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8010/mcp",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "50b389b8-5903-43c7-9408-fb1e94af026f",
+      "name": "MCP: инструменты Godot (Поисковик Браузер)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        6032,
+        448
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8000/mcp",
+        "include": "selected",
+        "includeTools": [
+          "engine",
+          "api",
+          "ask",
+          "search",
+          "read",
+          "functions",
+          "usages",
+          "check"
+        ],
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "ec0df89f-71b7-4a74-9223-465b68f0ef47",
+      "name": "Планировщик Редактор",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        5024,
+        -1328
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.task || \"Спланируй задачу канала Редактор\" }}",
+        "options": {
+          "systemMessage": "Ты — планировщик канала «Редактор». Ты получаешь задачу канала из общего плана (одна строка распределителя) и превращаешь её в конкретное задание для исполнителя канала Редактор.\n\nЧТО НА ВХОДЕ\n- Задача канала (task_editor из плана) — что требуется сделать по каналу Редактор.\n- История сессии планировщика — что уже ставилось ранее; учитывай её, не повторяй сделанное.\n\nПРАВИЛА\n- Факты дороже догадок. Если для постановки нужны пути файлов, имена функций или поведение кода — вызови инструмент-поисковик и опирайся на его отчёт (пути и строки). Не выдумывай файлы и команды.\n- Поисковик вызывай не больше двух раз, по одному ясному вопросу каждый. Как только картина ясна — сразу отвечай.\n- Только постановка: файлы не меняй, команды не запускай — это работа исполнителя.\n- Не расширяй задачу и ничего не добавляй «заодно»: всё, что нужно выполнить, — внутри задания.\n- Если по истории видно, что делать уже нечего, — так и напиши (см. формат).\n\nФОРМАТ ОТВЕТА (обязательно) — один блок, от строки «ЗАДАЧА КАНАЛУ:» до конца ответа:\nЗАДАЧА КАНАЛУ:\n1) Цель: что должно работать после выполнения.\n2) Где: конкретные файлы (пути от addons/Godot_agent) и функции/участки.\n3) Шаги: что именно изменить.\n4) Проверка: команда/тест и ожидаемый результат (например: python -B python/tests/<файл>.py из каталога addons/Godot_agent).\n5) Ограничения: что не трогать.\nВместо блока при отсутствии работы — одна строка «НЕТ НОВЫХ ДЕЙСТВИЙ: <причина>». Никогда не завершайся без блока или этой строки. Компактно, без рассуждений вне блока.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "23e07558-f094-47d6-8d0f-579aa08102fa",
+      "name": "Планировщик Редактор: чтение (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4672,
+        -1328
+      ],
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session",
+              "keyValue": "={{ $json.session ? 'planner-editor-' + $json.session : ($('Чат (общий вход)').isExecuted ? 'planner-editor-' + $('Чат (общий вход)').first().json.sessionId : 'planner-editor') }}"
+            }
+          ]
+        },
+        "limit": 10,
+        "orderBy": true
+      }
+    },
+    {
+      "id": "30029b07-73ab-46ad-acc4-1d7baac1f630",
+      "name": "Планировщик Редактор: промпт (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4880,
+        -1328
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик Редактор: промпт (память)»: история сессии планировщика API + задача канала из плана.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('Редактор: Есть работа?').last().json.session_key || '').replace(/^channel-editor-/, 'planner-editor-'); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-editor-' + $('Чат (общий вход)').first().json.sessionId : 'planner-editor';\nlet task = '';\ntry { task = String($('Редактор: Есть работа?').last().json.task_editor || ''); } catch (e) { task = ''; }\nif (!task) task = 'Спланируй задачу канала Редактор';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+      }
+    },
+    {
+      "id": "219a14c1-c38a-4fed-989a-17ebe28a63a1",
+      "name": "Планировщик Редактор: подготовка записи (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5328,
+        -1328
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик Редактор: подготовка записи (память)»: user-задача канала + assistant-задание.\nconst answer = String(($json.output !== undefined ? $json.output : ($json.text || '')) || '').slice(0, 4000);\nlet taskInput = '', sessionKey = '';\ntry { const m = $('Планировщик Редактор: промпт (память)').last().json; taskInput = String(m.task_input || ''); sessionKey = String(m.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-editor-' + $('Чат (общий вход)').first().json.sessionId : 'planner-editor';\nconst out = [];\nif (taskInput) out.push({ json: { session: sessionKey, role: 'user', content: taskInput.slice(0, 4000) } });\nif (answer) out.push({ json: { session: sessionKey, role: 'assistant', content: answer } });\nreturn out;"
+      }
+    },
+    {
+      "id": "fc3ab0f5-5467-4236-8f7e-70d28a70151f",
+      "name": "Планировщик Редактор: запись (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5552,
+        -1328
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "content": "={{ $json.content }}",
+            "role": "={{ $json.role }}",
+            "session": "={{ $json.session }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session",
+              "displayName": "session",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "de1a8b27-e86c-46aa-a307-00c9017b0be3",
+      "name": "Модель (Планировщик Редактор)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        5024,
+        -1168
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "e2ba07b7-7ae4-41a7-9af9-0661583d94f1",
+      "name": "Поисковик (Редактор)",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        5952,
+        -768
+      ],
+      "parameters": {
+        "toolDescription": "Поиск файлов и информации по проекту по текстовому запросу. Вызывай, когда не знаешь точное расположение кода или данных по теме задачи. Возвращает подробный отчёт: что найдено, где именно (пути и строки) и что читать первым. Только чтение — файлы не изменяются.",
+        "text": "={{ $fromAI('input', 'Текст поискового запроса: 1–2 фразы — симптом и что искать (файл, функция, тема).', 'string') }}",
+        "options": {
+          "systemMessage": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "30572c5c-834d-4f7e-a4c8-9be1cb222c07",
+      "name": "Модель (Поисковик Редактор)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        5888,
+        -576
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "564cbdc3-9d61-4e8e-884c-aff54a826c77",
+      "name": "MCP: руки (Поисковик Редактор)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        6224,
+        -576
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8010/mcp",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "82600a84-0311-4c67-88d2-3d7602903465",
+      "name": "MCP: инструменты Godot (Поисковик Редактор)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        6064,
+        -576
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8000/mcp",
+        "include": "selected",
+        "includeTools": [
+          "engine",
+          "api",
+          "ask",
+          "search",
+          "read",
+          "functions",
+          "usages",
+          "check"
+        ],
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "6f0e5828-581c-4412-b4ce-f7d160bf5f4f",
+      "name": "Планировщик MCP",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        4864,
+        -3616
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.task || \"Спланируй задачу канала MCP\" }}",
+        "options": {
+          "systemMessage": "Ты — планировщик канала «MCP». Ты получаешь задачу канала из общего плана (одна строка распределителя) и превращаешь её в конкретное задание для исполнителя канала MCP.\n\nЧТО НА ВХОДЕ\n- Задача канала (task_mcp из плана) — что требуется сделать по каналу MCP.\n- История сессии планировщика — что уже ставилось ранее; учитывай её, не повторяй сделанное.\n\nПРАВИЛА\n- Факты дороже догадок. Если для постановки нужны пути файлов, имена функций или поведение кода — вызови инструмент-поисковик и опирайся на его отчёт (пути и строки). Не выдумывай файлы и команды.\n- Поисковик вызывай не больше двух раз, по одному ясному вопросу каждый. Как только картина ясна — сразу отвечай.\n- Только постановка: файлы не меняй, команды не запускай — это работа исполнителя.\n- Не расширяй задачу и ничего не добавляй «заодно»: всё, что нужно выполнить, — внутри задания.\n- Если по истории видно, что делать уже нечего, — так и напиши (см. формат).\n\nФОРМАТ ОТВЕТА (обязательно) — один блок, от строки «ЗАДАЧА КАНАЛУ:» до конца ответа:\nЗАДАЧА КАНАЛУ:\n1) Цель: что должно работать после выполнения.\n2) Где: конкретные файлы (пути от addons/Godot_agent) и функции/участки.\n3) Шаги: что именно изменить.\n4) Проверка: команда/тест и ожидаемый результат (например: python -B python/tests/<файл>.py из каталога addons/Godot_agent).\n5) Ограничения: что не трогать.\nВместо блока при отсутствии работы — одна строка «НЕТ НОВЫХ ДЕЙСТВИЙ: <причина>». Никогда не завершайся без блока или этой строки. Компактно, без рассуждений вне блока.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "ee2104e0-2368-4565-9866-728951918ef6",
+      "name": "Планировщик MCP: чтение (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4512,
+        -3616
+      ],
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session",
+              "keyValue": "={{ $json.session ? 'planner-mcp-' + $json.session : ($('Чат (общий вход)').isExecuted ? 'planner-mcp-' + $('Чат (общий вход)').first().json.sessionId : 'planner-mcp') }}"
+            }
+          ]
+        },
+        "limit": 10,
+        "orderBy": true
+      }
+    },
+    {
+      "id": "9b9be4e2-de55-4fda-98cd-2259d63ba1d6",
+      "name": "Планировщик MCP: промпт (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4720,
+        -3616
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик MCP: промпт (память)»: история сессии планировщика API + задача канала из плана.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nlet sessionKey = '';\ntry { sessionKey = String($('MCP: Есть работа?').last().json.session_key || '').replace(/^channel-mcp-/, 'planner-mcp-'); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-mcp-' + $('Чат (общий вход)').first().json.sessionId : 'planner-mcp';\nlet task = '';\ntry { task = String($('MCP: Есть работа?').last().json.task_mcp || ''); } catch (e) { task = ''; }\nif (!task) task = 'Спланируй задачу канала MCP';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+      }
+    },
+    {
+      "id": "fd0ff6a7-ac6e-4481-aad3-c614c8f0c692",
+      "name": "Планировщик MCP: подготовка записи (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5168,
+        -3616
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик MCP: подготовка записи (память)»: user-задача канала + assistant-задание.\nconst answer = String(($json.output !== undefined ? $json.output : ($json.text || '')) || '').slice(0, 4000);\nlet taskInput = '', sessionKey = '';\ntry { const m = $('Планировщик MCP: промпт (память)').last().json; taskInput = String(m.task_input || ''); sessionKey = String(m.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-mcp-' + $('Чат (общий вход)').first().json.sessionId : 'planner-mcp';\nconst out = [];\nif (taskInput) out.push({ json: { session: sessionKey, role: 'user', content: taskInput.slice(0, 4000) } });\nif (answer) out.push({ json: { session: sessionKey, role: 'assistant', content: answer } });\nreturn out;"
+      }
+    },
+    {
+      "id": "dd02b5ea-a437-4364-a55f-260990adb02a",
+      "name": "Планировщик MCP: запись (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5392,
+        -3616
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "content": "={{ $json.content }}",
+            "role": "={{ $json.role }}",
+            "session": "={{ $json.session }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session",
+              "displayName": "session",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "624ec9bc-b487-49f6-a4ad-0df8c9917712",
+      "name": "Модель (Планировщик MCP)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4864,
+        -3456
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "f5c81377-5ade-4541-b9c2-efd8bb43ec47",
+      "name": "Поисковик (MCP)",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        5792,
+        -3056
+      ],
+      "parameters": {
+        "toolDescription": "Поиск файлов и информации по проекту по текстовому запросу. Вызывай, когда не знаешь точное расположение кода или данных по теме задачи. Возвращает подробный отчёт: что найдено, где именно (пути и строки) и что читать первым. Только чтение — файлы не изменяются.",
+        "text": "={{ $fromAI('input', 'Текст поискового запроса: 1–2 фразы — симптом и что искать (файл, функция, тема).', 'string') }}",
+        "options": {
+          "systemMessage": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "a6675514-9ff3-4d63-b27a-1777d13db160",
+      "name": "Модель (Поисковик MCP)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        5728,
+        -2864
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "e4e1a4a6-dc84-44a3-9f31-a88bd51ca32b",
+      "name": "MCP: руки (Поисковик MCP)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        6064,
+        -2864
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8010/mcp",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "fec1c568-a043-48d7-a5a2-9ee36b53eb8c",
+      "name": "MCP: инструменты Godot (Поисковик MCP)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        5904,
+        -2864
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8000/mcp",
+        "include": "selected",
+        "includeTools": [
+          "engine",
+          "api",
+          "ask",
+          "search",
+          "read",
+          "functions",
+          "usages",
+          "check"
+        ],
+        "options": {
+          "timeout": 300000
+        }
+      }
     }
   ],
   "connections": {
@@ -5202,7 +5957,7 @@
       "main": [
         [
           {
-            "node": "Браузер: чтение (память)",
+            "node": "Планировщик Браузер: чтение (память)",
             "type": "main",
             "index": 0
           }
@@ -5238,7 +5993,7 @@
       "main": [
         [
           {
-            "node": "Редактор: чтение (память)",
+            "node": "Планировщик Редактор: чтение (память)",
             "type": "main",
             "index": 0
           }
@@ -5256,7 +6011,7 @@
       "main": [
         [
           {
-            "node": "MCP: чтение (память)",
+            "node": "Планировщик MCP: чтение (память)",
             "type": "main",
             "index": 0
           }
@@ -6998,6 +7753,333 @@
           {
             "node": "MCP: Есть работа?",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Браузер: чтение (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Браузер: промпт (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Браузер: промпт (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Браузер",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Планировщик Браузер)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Планировщик Браузер",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Браузер": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Браузер: подготовка записи (память)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Браузер: чтение (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Браузер: подготовка записи (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Браузер: запись (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Поисковик (Браузер)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Планировщик Браузер",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Канал: Браузер",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Поисковик Браузер)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Поисковик (Браузер)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: руки (Поисковик Браузер)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (Браузер)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: инструменты Godot (Поисковик Браузер)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (Браузер)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Редактор: чтение (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Редактор: промпт (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Редактор: промпт (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Редактор",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Планировщик Редактор)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Планировщик Редактор",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Редактор": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Редактор: подготовка записи (память)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Редактор: чтение (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик Редактор: подготовка записи (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик Редактор: запись (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Поисковик (Редактор)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Планировщик Редактор",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Канал: Редактор",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Поисковик Редактор)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Поисковик (Редактор)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: руки (Поисковик Редактор)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (Редактор)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: инструменты Godot (Поисковик Редактор)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (Редактор)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик MCP: чтение (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик MCP: промпт (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик MCP: промпт (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик MCP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Планировщик MCP)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Планировщик MCP",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик MCP": {
+      "main": [
+        [
+          {
+            "node": "Планировщик MCP: подготовка записи (память)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MCP: чтение (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик MCP: подготовка записи (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик MCP: запись (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Поисковик (MCP)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Планировщик MCP",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Канал: MCP",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Поисковик MCP)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Поисковик (MCP)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: руки (Поисковик MCP)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (MCP)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: инструменты Godot (Поисковик MCP)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (MCP)",
+            "type": "ai_tool",
             "index": 0
           }
         ]
