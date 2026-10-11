@@ -108,9 +108,18 @@ func _on_scene_changed(root: Node) -> void:
 	_clear_node_watch()
 	if root == null:
 		return
-	_watch_node(root)
-	for child in root.get_children(true):
-		_watch_node(child)
+	_watch_subtree(root)
+
+
+## Обход поддерева открытой сцены: подписываем каждый узел, включая вложенные.
+## Плоский get_children(true) видел только прямых детей корня — узлы глубже
+## оставались ненаблюдаемыми, и их переименование проходило незамеченным.
+func _watch_subtree(node: Node) -> void:
+	if node == null:
+		return
+	_watch_node(node)
+	for child in node.get_children(true):
+		_watch_subtree(child)
 
 
 # --- ЗАДАЧА 3: перехват переименования узлов человеком -----------------------
@@ -126,12 +135,18 @@ func _watch_node(node: Node) -> void:
 	_node_names[node.get_instance_id()] = str(node.name)
 	var renamed_cb := _on_node_renamed.bind(node)
 	var exiting_cb := _on_node_tree_exiting.bind(node)
+	# child_entered_tree несёт сам добавленный узел, поэтому bind не нужен:
+	# обработчик один и тот же для всех наблюдаемых узлов.
+	var added_cb := _on_child_entered_tree
 	if not node.renamed.is_connected(renamed_cb):
 		node.renamed.connect(renamed_cb)
 	if not node.tree_exiting.is_connected(exiting_cb):
 		node.tree_exiting.connect(exiting_cb)
+	if not node.child_entered_tree.is_connected(added_cb):
+		node.child_entered_tree.connect(added_cb)
 	_node_subscriptions.append({"signal": node.renamed, "callable": renamed_cb})
 	_node_subscriptions.append({"signal": node.tree_exiting, "callable": exiting_cb})
+	_node_subscriptions.append({"signal": node.child_entered_tree, "callable": added_cb})
 
 
 func _clear_node_watch() -> void:
@@ -150,6 +165,13 @@ func _on_node_tree_exiting(node: Node) -> void:
 	if node == null:
 		return
 	_node_names.erase(node.get_instance_id())
+
+
+func _on_child_entered_tree(child: Node) -> void:
+	# Узел добавился в уже открытую сцену (человек вставил ветку, инстанс
+	# сцены создался позже). Плоский снимок такой узел не видел, и его
+	# переименование терялось. Подписываем поддерево целиком.
+	_watch_subtree(child)
 
 
 func _on_node_renamed(node: Node) -> void:

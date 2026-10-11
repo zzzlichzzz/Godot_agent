@@ -4858,10 +4858,10 @@ var _node_rename_queue: Array = []
 var _node_rename_busy := false
 var _node_rename_suppress := 0
 var _node_sync_ctx: Dictionary = {}
-# Карта «имя в редакторе → имя на диске»: scripts_only не переписывает .tscn,
-# поэтому после первого перехвата имя в редакторе расходится с диском, и все
-# следующие синхронизации должны строиться по дисковому имени (контракт
-# сервера: node_path — узел на диске, previous_name — имя у редактора).
+# Карта «путь в редакторе → путь на диске»: scripts_only не переписывает .tscn,
+# поэтому после первого перехвата путь в редакторе расходится с диском, и все
+# следующие синхронизации должны строиться по дисковому пути (контракт
+# сервера: node_path — полный путь узла на диске, previous_name — имя у редактора).
 var _node_disk_names: Dictionary = {}
 
 
@@ -5025,15 +5025,17 @@ func _process_node_rename_queue() -> void:
 func _node_rename_body(item: Dictionary) -> Dictionary:
 	# Контракт сервера при scripts_only: node_path — путь узла НА ДИСКЕ
 	# (сцену сервер не переписывает и ищет узел в её фактическом тексте),
-	# previous_name — как узел называется у редактора. disk_leaf кладёт
+	# previous_name — как узел называется у редактора. Полный путь, а не лист:
+	# при двух узлах с одинаковым именем в разных ветках лист неоднозначен,
+	# и сервер отказывается искать узел по нему. disk_path кладёт
 	# _send_node_rename_sync; при его отсутствии — прежнее поведение.
 	# Контракт закреплён профильными тестами godot_agent/python/tests/
 	# test_node_refactor_flow.py (scripts_only: сцена на диске не меняется)
 	# и test_node_rename_intercept.py.
-	var disk_leaf := str(item.get("disk_leaf", ""))
+	var disk_path := str(item.get("disk_path", ""))
 	return _policy_body({
 		"scene": str(item.get("scene", "")),
-		"node_path": disk_leaf if disk_leaf != "" else str(item.get("old_path", "")),
+		"node_path": disk_path if disk_path != "" else str(item.get("old_path", "")),
 		"previous_name": str(item.get("old_name", "")),
 		"new_name": str(item.get("new_name", "")),
 		"scripts_only": true,
@@ -5049,76 +5051,142 @@ func _send_node_rename_sync(item: Dictionary) -> void:
 	var new_name := str(item.get("new_name", ""))
 	# scripts_only сцену не переписывает: после первого перехвата имя узла
 	# в редакторе уже разошлось с диском, и искать узел надо по ДИСКОВОМУ
-	# имени (история — _node_disk_names). Пустой результат означает, что
+	# пути (история — _node_disk_names). Пустой результат означает, что
 	# панель ничего не знает об узле: прежний предохранитель от устаревшего
 	# состояния редактора остаётся как честное предупреждение.
-	var disk_leaf := _node_leaf_for_sync(scene_path, old_path, old_name)
-	if disk_leaf == "":
-		var editor_leaf := old_path.get_file() if old_path != "" else old_name
-		if _scene_has_node_named(scene_path, new_name):
-			print("[Godot Agent] Узел '%s' уже переименован на диске в '%s' — синхронизация не требуется." % [editor_leaf, new_name])
+	var disk_path := _node_disk_path_for_sync(scene_path, old_path, old_name)
+	if disk_path == "":
+		var editor_path := old_path if old_path != "" else old_name
+		if _scene_has_node_path(scene_path, _node_path_with_leaf(editor_path, new_name)):
+			print("[Godot Agent] Узел '%s' уже переименован на диске в '%s' — синхронизация не требуется." % [editor_path, new_name])
 		else:
-			push_warning("[Godot Agent] В сцене '%s' нет узла '%s' (и нет '%s') — синхронизация пропущена." % [scene_path, editor_leaf, new_name])
+			push_warning("[Godot Agent] В сцене '%s' нет узла '%s' (и нет '%s') — синхронизация пропущена." % [scene_path, editor_path, new_name])
 		_finish_node_rename_roundtrip()
 		return
-	item["disk_leaf"] = disk_leaf
+	item["disk_path"] = disk_path
+	# Лист может быть неоднозначным: два узла с одним именем в разных ветках.
+	# Путь мы уже уточнили сами — человек должен это увидеть, а не угадывать,
+	# почему обновились «не те» ссылки.
+	item["non_unique"] = _scene_node_name_count(scene_path, disk_path.get_file()) > 1
 	if _link == null or not _link.post_now("node_rename_sync", REFACTOR_NODE_PREVIEW_URL, _policy_json(_node_rename_body(item))):
 		_node_rename_failed("сервер агента недоступен")
 
 
-## Дисковое имя листа узла для контракта scripts_only: сначала фактическая
+## Полный путь узла НА ДИСКЕ для контракта scripts_only: сначала фактическая
 ## проверка по тексту .tscn, затем история перехватов «редактор → диск».
-## Пустая строка — узел не найден ни на диске, ни в истории.
-func _node_leaf_for_sync(scene_path: String, old_path: String, old_name: String) -> String:
-	var leaf := old_path.get_file() if old_path != "" else old_name
-	if leaf == "":
+## Путь, а не лист: при двух узлах с одинаковым именем лист неоднозначен.
+## Пустая строка — путь не найден ни на диске, ни в истории.
+func _node_disk_path_for_sync(scene_path: String, old_path: String, old_name: String) -> String:
+	var editor_path := old_path if old_path != "" else old_name
+	if editor_path == "":
 		return ""
-	if _scene_has_node_named(scene_path, leaf):
-		return leaf
+	if _scene_has_node_path(scene_path, editor_path):
+		return editor_path
 	var scene_map: Dictionary = _node_disk_names.get(scene_path, {})
-	var mapped := str(scene_map.get(leaf, ""))
+	var mapped := str(scene_map.get(editor_path, ""))
 	if mapped == "":
-		return ""
-	if _scene_has_node_named(scene_path, mapped):
+		# Переименован ВНУК уже переименованного предка: в редакторе путь
+		# "ActorPanel/HpLabel", на диске — "PlayerPanel/HpLabel" (scripts_only
+		# .tscn не трогает, и точного ключа в истории нет). Ищем в истории
+		# САМЫЙ ДЛИННЫЙ предок-префикс и переносим в него остаток пути: при
+		# двух подходящих ветках короткий предок дал бы не тот узел.
+		var best_editor := ""
+		var best_disk := ""
+		for key in scene_map.keys():
+			var prefix := str(key)
+			if not editor_path.begins_with(prefix + "/"):
+				continue
+			if prefix.length() > best_editor.length():
+				best_editor = prefix
+				best_disk = str(scene_map[key])
+		if best_editor == "":
+			return ""
+		var via_ancestor: String = best_disk.rstrip("/") + editor_path.substr(best_editor.length())
+		return via_ancestor if _scene_has_node_path(scene_path, via_ancestor) else ""
+	if _scene_has_node_path(scene_path, mapped):
 		return mapped
 	# Человек сохранил сцену: диск догнал редактор — запись устарела.
-	scene_map.erase(leaf)
+	scene_map.erase(editor_path)
 	return ""
 
 
-## Запомнить пару «имя в редакторе → имя на диске» после успешного применения:
-## scripts_only не трогает .tscn, поэтому лист на диске остаётся прежним.
-func _note_node_disk_name(scene_path: String, editor_name: String, disk_leaf: String) -> void:
-	if scene_path == "" or editor_name == "" or disk_leaf == "":
+## Запомнить пару «путь в редакторе → путь на диске» после успешного
+## применения: scripts_only не трогает .tscn, поэтому путь на диске прежний.
+func _note_node_disk_name(scene_path: String, editor_path: String, disk_path: String) -> void:
+	if scene_path == "" or editor_path == "" or disk_path == "":
 		return
 	var scene_map: Dictionary = _node_disk_names.get(scene_path, {})
-	scene_map[editor_name] = disk_leaf
+	scene_map[editor_path] = disk_path
 	_node_disk_names[scene_path] = scene_map
 
 
-## Есть ли в файле сцены объявление узла с таким именем. Консервативно:
-## отсутствие файла или ошибка чтения — false, и решение остаётся за сервером.
-func _scene_has_node_named(scene_path: String, node_name: String) -> bool:
-	if scene_path.is_empty() or node_name.is_empty():
-		return false
-	if not FileAccess.file_exists(scene_path):
-		return false
+## Полные пути узлов файла сцены — так же, как их считает сервер: у корня
+## ".", у прямого ребёнка корня — имя, глубже — путь родителя плюс имя.
+func _scene_node_paths(scene_path: String) -> PackedStringArray:
+	var paths := PackedStringArray()
+	if scene_path.is_empty() or not FileAccess.file_exists(scene_path):
+		return paths
 	var f := FileAccess.open(scene_path, FileAccess.READ)
 	if f == null:
-		return false
+		return paths
 	var text := f.get_as_text()
 	f.close()
-	# name — атрибут СЕКЦИИ узла ([node name="X" ...]), а не любая подстрока
-	# в файле: ключи вида metadata/display_name="X" давали ложное «узел есть
-	# на диске», и обновление ссылок молча пропускалось.
-	var needle := 'name="%s"' % node_name
-	var idx := text.find(needle, 0)
-	while idx > 0:
-		var prev := text.substr(idx - 1, 1)
-		if prev == " " or prev == "[":
-			return true
-		idx = text.find(needle, idx + 1)
-	return false
+	# name/parent — атрибуты СЕКЦИИ узла ([node name="X" ...]), а не любая
+	# подстрока в файле: ключи вида metadata/display_name="X" давали ложное
+	# «узел есть на диске», и обновление ссылок молча пропускалось.
+	var idx := text.find("[node ")
+	while idx >= 0:
+		var stop := text.find("]", idx)
+		if stop < 0:
+			break
+		var header := text.substr(idx, stop - idx + 1)
+		var node_name := _tscn_attr(header, "name")
+		if node_name != "":
+			if not header.contains("parent="):
+				paths.append(".")
+			else:
+				var parent := _tscn_attr(header, "parent")
+				paths.append(node_name if parent == "." else parent.rstrip("/") + "/" + node_name)
+		idx = text.find("[node ", stop)
+	return paths
+
+
+## Значение атрибута в заголовке секции .tscn. Пустая строка — атрибута нет.
+func _tscn_attr(header: String, key: String) -> String:
+	var needle := key + "=\""
+	var start := header.find(needle)
+	if start < 0:
+		return ""
+	start += needle.length()
+	var stop := header.find("\"", start)
+	return header.substr(start, stop - start) if stop >= 0 else ""
+
+
+## Есть ли в файле сцены узел ровно по этому полному пути. Консервативно:
+## отсутствие файла или ошибка чтения — false, и решение остаётся за сервером.
+func _scene_has_node_path(scene_path: String, node_path: String) -> bool:
+	var clean := node_path.strip_edges().replace("\\", "/")
+	if clean == "":
+		clean = "."
+	return _scene_node_paths(scene_path).has(clean)
+
+
+## Сколько узлов файла сцены называются так же. Больше одного — путь по
+## листу неоднозначен, и это стоит показать человеку, а не угадывать.
+func _scene_node_name_count(scene_path: String, node_name: String) -> int:
+	if node_name.is_empty():
+		return 0
+	var count := 0
+	for path in _scene_node_paths(scene_path):
+		if path == node_name or path.get_file() == node_name:
+			count += 1
+	return count
+
+
+## Полный путь с заменённым листом: "Panel/Stats" + "Row" -> "Panel/Row".
+func _node_path_with_leaf(node_path: String, leaf: String) -> String:
+	var slash := node_path.rfind("/")
+	return (node_path.substr(0, slash + 1) + leaf) if slash >= 0 else leaf
 
 
 func _node_rename_failed(reason: String) -> void:
@@ -5167,7 +5235,14 @@ func _on_node_rename_sync_response(result: int, response_code: int,
 		return
 	var prep: Dictionary = json.get("prepared", {})
 	if int(prep.get("file_count", 0)) == 0:
-		# Ссылок на узел в скриптах нет — обновлять нечего, молча заканчиваем.
+		# Ссылок на узел в скриптах нет — обновлять нечего, но «нет ссылок»
+		# при НЕ уникальном имени узла похоже на путаницу с одноимённым
+		# узлом: здесь молчать нельзя.
+		if bool(_node_sync_ctx.get("non_unique", false)):
+			var ambiguous_msg := "[Godot Agent] В сцене '%s' несколько узлов с именем '%s' — ссылки не обновлены. Убедитесь, что переименован именно '%s'." % [str(_node_sync_ctx.get("scene", "")), str(_node_sync_ctx.get("new_name", "")), str(_node_sync_ctx.get("disk_path", ""))]
+			push_warning(ambiguous_msg)
+			if _view:
+				_view.add_warning(ambiguous_msg)
 		_finish_node_rename_roundtrip()
 		return
 	# Фаза 2: применение того же запроса. Двухфазность общая с панелью
@@ -5207,10 +5282,14 @@ func _on_node_rename_apply_response(result: int, response_code: int,
 	if _view:
 		_view.add_agent_message(msg, str(json.get("entry_id", "")))
 	print("[Godot Agent] ", msg)
-	# scripts_only: .tscn на диске не менялся, поэтому редакторское имя
-	# продолжает соответствовать тому же дисковому листу.
-	_note_node_disk_name(str(item.get("scene", "")), str(item.get("new_name", "")),
-		str(item.get("disk_leaf", "")))
+	# scripts_only: .tscn на диске не менялся, поэтому редакторский путь
+	# продолжает соответствовать тому же дисковому пути (сменён только лист).
+	var editor_before := str(item.get("old_path", ""))
+	if editor_before == "":
+		editor_before = str(item.get("old_name", ""))
+	_note_node_disk_name(str(item.get("scene", "")),
+		_node_path_with_leaf(editor_before, str(item.get("new_name", ""))),
+		str(item.get("disk_path", "")))
 	_finish_node_rename_roundtrip()
 
 
