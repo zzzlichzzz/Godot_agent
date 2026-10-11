@@ -2340,7 +2340,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «API: промпт (память)»: история сессии канала + текущая задача канала.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nconst sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-api-' + $('Чат (общий вход)').first().json.sessionId : 'channel-api';\nlet task = '';\ntry { task = String($('API: Есть работа?').last().json.task_api || ''); } catch (e) { task = ''; }\nif (!task) task = 'Выполни действие через API';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+        "jsCode": "// «API: промпт (память)»: история сессии канала + текущая задача канала (приоритет — задание Планировщика API).\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nconst sessionKey = $('Чат (общий вход)').isExecuted ? 'channel-api-' + $('Чат (общий вход)').first().json.sessionId : 'channel-api';\nlet task = '';\ntry { task = String($('Планировщик API').last().json.output || '').trim().slice(0, 4000); } catch (e) { task = ''; }\nif (!task) { try { task = String($('API: Есть работа?').last().json.task_api || ''); } catch (e2) { task = ''; } }\nif (!task) task = 'Выполни действие через API';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
       },
       "id": "2c37b433-5925-47e4-be85-8a34dab016f0",
       "name": "API: промпт (память)",
@@ -3980,6 +3980,259 @@
           "maxIterations": 25
         }
       }
+    },
+    {
+      "id": "144187bf-e50e-42ac-9b99-78df1b6f8b7c",
+      "name": "Планировщик API: чтение (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4240,
+        -2448
+      ],
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session",
+              "keyValue": "={{ $('Чат (общий вход)').isExecuted ? 'planner-api-' + $('Чат (общий вход)').first().json.sessionId : 'planner-api' }}"
+            }
+          ]
+        },
+        "limit": 10,
+        "orderBy": true
+      }
+    },
+    {
+      "id": "ef3a596f-987c-448f-9ec2-b7f1bd797b73",
+      "name": "Планировщик API: промпт (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4464,
+        -2448
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик API: промпт (память)»: история сессии планировщика API + задача канала из плана.\nconst rows = $input.all().map(i => i.json).filter(r => r && r.content !== undefined && r.content !== '');\nrows.reverse();\nconst hist = rows.map(r => String(r.role || 'user') + ': ' + String(r.content || '')).join('\\n').slice(0, 3000);\nconst sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-api-' + $('Чат (общий вход)').first().json.sessionId : 'planner-api';\nlet task = '';\ntry { task = String($('API: Есть работа?').last().json.task_api || ''); } catch (e) { task = ''; }\nif (!task) task = 'Спланируй задачу канала API';\nconst prompt = (hist ? '[ИСТОРИЯ СЕССИИ ' + sessionKey + ']\\n' + hist + '\\n[КОНЕЦ ИСТОРИИ]\\n\\n' : '') + task;\nreturn [{ json: { task: prompt, task_input: task, session_key: sessionKey, mem_rows: rows.length } }];"
+      }
+    },
+    {
+      "id": "a9dd8a65-81a2-4fa7-846f-386c185b3fb2",
+      "name": "Планировщик API",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        4688,
+        -2448
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.task || \"Спланируй задачу канала API\" }}",
+        "options": {
+          "systemMessage": "Ты — планировщик канала «API». Ты получаешь задачу канала из общего плана (одна строка распределителя) и превращаешь её в конкретное задание для исполнителя канала API.\n\nЧТО НА ВХОДЕ\n- Задача канала (task_api из плана) — что требуется сделать по каналу API.\n- История сессии планировщика — что уже ставилось ранее; учитывай её, не повторяй сделанное.\n\nПРАВИЛА\n- Факты дороже догадок. Если для постановки нужны пути файлов, имена функций или поведение кода — вызови инструмент-поисковик и опирайся на его отчёт (пути и строки). Не выдумывай файлы и команды.\n- Поисковик вызывай не больше двух раз, по одному ясному вопросу каждый. Как только картина ясна — сразу отвечай.\n- Только постановка: файлы не меняй, команды не запускай — это работа исполнителя.\n- Не расширяй задачу и ничего не добавляй «заодно»: всё, что нужно выполнить, — внутри задания.\n- Если по истории видно, что делать уже нечего, — так и напиши (см. формат).\n\nФОРМАТ ОТВЕТА (обязательно) — один блок, от строки «ЗАДАЧА КАНАЛУ:» до конца ответа:\nЗАДАЧА КАНАЛУ:\n1) Цель: что должно работать после выполнения.\n2) Где: конкретные файлы (пути от addons/Godot_agent) и функции/участки.\n3) Шаги: что именно изменить.\n4) Проверка: команда/тест и ожидаемый результат (например: python -B python/tests/<файл>.py из каталога addons/Godot_agent).\n5) Ограничения: что не трогать.\nВместо блока при отсутствии работы — одна строка «НЕТ НОВЫХ ДЕЙСТВИЙ: <причина>». Никогда не завершайся без блока или этой строки. Компактно, без рассуждений вне блока.",
+          "maxIterations": 50
+        }
+      }
+    },
+    {
+      "id": "835cef0d-d902-44b2-99e9-2e49b011f114",
+      "name": "Планировщик API: подготовка записи (память)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4912,
+        -2448
+      ],
+      "parameters": {
+        "jsCode": "// «Планировщик API: подготовка записи (память)»: user-задача канала + assistant-задание.\nconst answer = String(($json.output !== undefined ? $json.output : ($json.text || '')) || '').slice(0, 4000);\nlet taskInput = '', sessionKey = '';\ntry { const m = $('Планировщик API: промпт (память)').last().json; taskInput = String(m.task_input || ''); sessionKey = String(m.session_key || ''); } catch (e) {}\nif (!sessionKey) sessionKey = $('Чат (общий вход)').isExecuted ? 'planner-api-' + $('Чат (общий вход)').first().json.sessionId : 'planner-api';\nconst out = [];\nif (taskInput) out.push({ json: { session: sessionKey, role: 'user', content: taskInput.slice(0, 4000) } });\nif (answer) out.push({ json: { session: sessionKey, role: 'assistant', content: answer } });\nreturn out;"
+      }
+    },
+    {
+      "id": "f50fe2dd-54d1-496b-9c48-beedbc636e6a",
+      "name": "Планировщик API: запись (память)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5136,
+        -2448
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "cachedResultName": "Память чатов агентов",
+          "mode": "id",
+          "value": "dbjMlKe2ekQMB6bO"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "content": "={{ $json.content }}",
+            "role": "={{ $json.role }}",
+            "session": "={{ $json.session }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session",
+              "displayName": "session",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3e55d111-b367-4084-97fc-0eef2143cbfd",
+      "name": "Поисковик (API)",
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 3,
+      "position": [
+        4464,
+        -2640
+      ],
+      "parameters": {
+        "toolDescription": "Поиск файлов и информации по проекту по текстовому запросу. Вызывай, когда не знаешь точное расположение кода или данных по теме задачи. Возвращает подробный отчёт: что найдено, где именно (пути и строки) и что читать первым. Только чтение — файлы не изменяются.",
+        "text": "={{ $json.input }}",
+        "options": {
+          "systemMessage": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: ориентируйся на ~8–10 инструментальных вызовов; если картина ясна — останавливайся раньше.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов.",
+          "maxIterations": 25
+        }
+      }
+    },
+    {
+      "id": "20acb57b-5e47-4372-b7f2-54e8d3297d0c",
+      "name": "Модель (Планировщик API)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4688,
+        -2640
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "aa31a5f4-7374-4978-b4e9-1235b4ce7026",
+      "name": "MCP: руки (Поисковик API)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        4240,
+        -2760
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8010/mcp",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "a33998d4-7272-4037-b064-c9ed0a523dd2",
+      "name": "Модель (Поисковик API)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4464,
+        -2760
+      ],
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "cline-pass/deepseek-v4.1-flash"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "timeout": 300000,
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+        }
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "b8rsLbnBZTdGI79i",
+          "name": "Cline API (ClinePass)"
+        }
+      }
+    },
+    {
+      "id": "665495c2-c9da-4c6a-b22a-7f20c727442c",
+      "name": "MCP: инструменты Godot (Поисковик API)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        4688,
+        -2760
+      ],
+      "parameters": {
+        "endpointUrl": "http://127.0.0.1:8000/mcp",
+        "include": "selected",
+        "includeTools": [
+          "engine",
+          "api",
+          "ask",
+          "search",
+          "read",
+          "functions",
+          "usages",
+          "check"
+        ],
+        "options": {
+          "timeout": 300000
+        }
+      }
     }
   ],
   "connections": {
@@ -4390,7 +4643,7 @@
       "main": [
         [
           {
-            "node": "API: чтение (память)",
+            "node": "Планировщик API: чтение (память)",
             "type": "main",
             "index": 0
           }
@@ -5894,6 +6147,115 @@
         [
           {
             "node": "Аудитор (ищет баги)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик API: чтение (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик API: промпт (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик API: промпт (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Планировщик API)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Планировщик API",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Поисковик (API)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Планировщик API",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Канал: API-ключи",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик API": {
+      "main": [
+        [
+          {
+            "node": "Планировщик API: подготовка записи (память)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "API: чтение (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Планировщик API: подготовка записи (память)": {
+      "main": [
+        [
+          {
+            "node": "Планировщик API: запись (память)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Модель (Поисковик API)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Поисковик (API)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: руки (Поисковик API)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (API)",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: инструменты Godot (Поисковик API)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Поисковик (API)",
             "type": "ai_tool",
             "index": 0
           }
