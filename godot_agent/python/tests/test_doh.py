@@ -43,7 +43,8 @@ def check(name, cond, detail=None):
 # ---------------------------------------------------------------------------
 # Локальный DoH-сервер
 # ---------------------------------------------------------------------------
-ANSWERS = {"example.test": "203.0.113.7", "second.test": "198.51.100.9"}
+ANSWERS = {"example.test": "203.0.113.7", "second.test": "198.51.100.9",
+           "loop.test": "127.0.0.5"}
 SEEN = {"queries": [], "mode": "ok"}
 
 
@@ -84,6 +85,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if SEEN["mode"] == "nxdomain":
             body = query[:2] + struct.pack(">HHHHH", 0x8183, 1, 0, 0, 0) + query[12:]
+        elif SEEN["mode"] == "null":
+            body = _build_response(query, "0.0.0.0")
         elif qname in ANSWERS:
             body = _build_response(query, ANSWERS[qname])
         else:
@@ -181,6 +184,40 @@ SEEN["mode"] = "ok"
 doh.clear_cache()
 
 # ---------------------------------------------------------------------------
+# 5b) DoH вернул 0.0.0.0 / адрес из петли: брак, откат на системный резолвер
+# ---------------------------------------------------------------------------
+SEEN["mode"] = "null"
+check(u"DoH вернул 0.0.0.0 -> пустой ответ, а не адрес",
+      doh.resolve(u"example.test") == [])
+check(u"отбракованный адрес не попал в кэш",
+      doh._cache.get(u"example.test") is None, doh._cache.get(u"example.test"))
+check(u"адрес из 127.0.0.0/8 тоже отбракован",
+      doh.resolve(u"loop.test") == [])
+system_answer = [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP,
+                  "", ("192.0.2.42", 443))]
+real_orig = doh._orig_getaddrinfo  # настоящий резолвер, сохранён install()
+
+
+def _fallback_probe(host, port, family=0, type=0, proto=0, flags=0):
+    # Адрес самого DoH-сервера (127.0.0.1) обязан разрешаться ПО-НАСТОЯЩЕМУ:
+    # иначе запрос ушёл бы в никуда, и «неудача» DoH была бы нашей подделкой,
+    # а не браком ответа, который здесь проверяется.
+    if host == "example.test":
+        return system_answer
+    return real_orig(host, port, family, type, proto, flags)
+
+
+with patch.object(doh, "_orig_getaddrinfo", side_effect=_fallback_probe) as original:
+    fallback = socket.getaddrinfo("example.test", 443)
+    check(u"брак от DoH -> имя разрешает системный резолвер",
+          fallback == system_answer, fallback)
+    # assert_any_call, а не once: в лог попадает и разрешение адреса самого
+    # DoH-сервера — это ожидаемая служебная запись, а не подмена имени.
+    original.assert_any_call("example.test", 443, 0, 0, 0, 0)
+SEEN["mode"] = "ok"
+doh.clear_cache()
+
+# ---------------------------------------------------------------------------
 # 6) Подмена системного резолвера
 # ---------------------------------------------------------------------------
 check(u"резолвер подменён после включения", doh.is_installed())
@@ -224,29 +261,38 @@ check(u"резолвер возвращён системе", not doh.is_installe
 # ---------------------------------------------------------------------------
 # 7) Настройки через api_keys
 # ---------------------------------------------------------------------------
-check(u"для новой конфигурации DoH включён по умолчанию",
-      api_keys.get_dns() == {"enabled": True,
-                             "url": u"https://xbox-dns.ru/dns-query"},
+check(u"для новой конфигурации DoH выключен и адрес не задан",
+      api_keys.get_dns() == {"enabled": False, "url": u""},
       api_keys.get_dns())
+check(u"DEFAULT_DOH_URL остался только примером",
+      api_keys.DEFAULT_DOH_URL == u"https://xbox-dns.ru/dns-query")
 ok, err = api_keys.set_dns(url=u"http://dns.example.com/dns-query", enabled=True)
 check(u"http-адрес DoH не сохраняется", not ok and err != u"", (ok, err))
-check(u"неверный адрес не изменил стандартный DoH",
-      api_keys.get_dns()["enabled"] is True
-      and api_keys.get_dns()["url"] == u"https://xbox-dns.ru/dns-query")
+check(u"неверный адрес ничего не изменил",
+      api_keys.get_dns()["enabled"] is False
+      and api_keys.get_dns()["url"] == u"")
 
-ok, err = api_keys.set_dns(url=u"xbox-dns.ru/dns-query", enabled=True)
+ok, err = api_keys.set_dns(enabled=True)
+check(u"включить DoH без адреса нельзя", not ok and u"без адреса" in err, err)
+check(u"отказ не переключил флаг DoH", api_keys.get_dns()["enabled"] is False)
+
+ok, err = api_keys.set_dns(url=u"xbox-dns.ru/dns-query")
 check(u"адрес без схемы принят и достроен", ok and err == u"", (ok, err))
 check(u"сохранён https-адрес",
       api_keys.get_dns()["url"] == u"https://xbox-dns.ru/dns-query",
       api_keys.get_dns())
+check(u"один адрес DoH не включает", api_keys.get_dns()["enabled"] is False)
+
+ok, err = api_keys.set_dns(enabled=True)
+check(u"DoH включается явным действием", ok and err == u"", (ok, err))
 check(u"DoH включён в настройках", api_keys.get_dns()["enabled"] is True)
 
-ok, err = api_keys.set_dns(url=u"", enabled=True)
-check(u"включить DoH без адреса нельзя", not ok and u"без адреса" in err, err)
-
 api_keys.set_dns(enabled=False)
-check(u"явное выключение стандартного DoH сохраняется",
+check(u"явное выключение DoH сохраняется",
       api_keys.get_dns()["enabled"] is False)
+check(u"адрес остаётся для следующего включения",
+      api_keys.get_dns()["url"] == u"https://xbox-dns.ru/dns-query",
+      api_keys.get_dns())
 doh.configure(False, "")
 doh.uninstall()
 srv.shutdown()
