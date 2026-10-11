@@ -3181,19 +3181,23 @@ func _dirty_open_scripts(target_paths: PackedStringArray) -> PackedStringArray:
 	for path in target_paths:
 		if path != "":
 			wanted[path.to_lower()] = true
-	var open_scripts := script_editor.get_open_scripts()
-	var open_editors := script_editor.get_open_script_editors()
-	for i in range(min(open_scripts.size(), open_editors.size())):
-		var scr := open_scripts[i]
-		var ed := open_editors[i]
-		if not scr or not ed:
+	for scr in script_editor.get_open_scripts():
+		if scr == null:
 			continue
 		var path_str := str(scr.resource_path)
-		if wanted.is_empty() or wanted.has(path_str.to_lower()):
-			var code_edit := ed.get_base_editor() as CodeEdit
-			if code_edit and code_edit.get_version() != code_edit.get_saved_version():
-				if not affected.has(path_str):
-					affected.append(path_str)
+		if not wanted.is_empty() and not wanted.has(path_str.to_lower()):
+			continue
+		# Вкладку ищем без арифметики по индексам (см. _find_open_code_edit_for).
+		var code_edit := _find_open_code_edit_for(script_editor, scr, path_str)
+		if code_edit == null:
+			# Чистая вкладка всегда опознаётся по содержимому; если вкладку
+			# найти не удалось, значит в ней есть несохранённые правки.
+			if not affected.has(path_str):
+				affected.append(path_str)
+			continue
+		if code_edit.get_version() != code_edit.get_saved_version():
+			if not affected.has(path_str):
+				affected.append(path_str)
 	return affected
 
 
@@ -3214,39 +3218,99 @@ func _sync_open_script_with_disk(target_path: String) -> void:
 	file.close()
 
 	var open_scripts := script_editor.get_open_scripts()
-	var open_editors := script_editor.get_open_script_editors()
 	var target_script: Script = null
-	var target_code_edit: CodeEdit = null
-
-	for i in range(open_scripts.size()):
-		var scr := open_scripts[i]
+	for scr in open_scripts:
 		if scr and scr.resource_path == target_path:
 			target_script = scr
-			if i < open_editors.size():
-				var editor_base = open_editors[i]
-				if editor_base:
-					target_code_edit = editor_base.get_base_editor() as CodeEdit
 			break
 
+	# Вкладку опознаём ДО перезагрузки ресурса: буфер чистой вкладки равен
+	# СТАРОМУ source_code, по нему и находится нужный редактор.
+	var target_code_edit := _find_open_code_edit_for(script_editor, target_script, target_path)
+
+	var buffer_synced := false
 	if target_code_edit:
 		var has_unsaved_edits := target_code_edit.get_version() != target_code_edit.get_saved_version()
 		if has_unsaved_edits:
 			push_warning("Вкладка '%s' содержит несохранённые правки — авто-обновление пропущено, чтобы не потерять их." % target_path)
-		elif target_code_edit.text != real_text:
-			var caret_line := target_code_edit.get_caret_line()
-			var caret_col := target_code_edit.get_caret_column()
-			target_code_edit.text = real_text
-			target_code_edit.set_caret_line(min(caret_line, max(0, target_code_edit.get_line_count() - 1)))
-			target_code_edit.set_caret_column(caret_col)
-			target_code_edit.tag_saved_version()
-			print("Вкладка скрипта синхронизирована с диском: ", target_path)
+		else:
+			buffer_synced = true
+			if target_code_edit.text != real_text:
+				var caret_line := target_code_edit.get_caret_line()
+				var caret_col := target_code_edit.get_caret_column()
+				target_code_edit.text = real_text
+				target_code_edit.set_caret_line(min(caret_line, max(0, target_code_edit.get_line_count() - 1)))
+				target_code_edit.set_caret_column(caret_col)
+				target_code_edit.tag_saved_version()
+				print("Вкладка скрипта синхронизирована с диском: ", target_path)
+	elif target_script:
+		# Скрипт открыт, но чистой вкладки, показывающей его, не нашлось:
+		# либо несохранённые правки, либо несколько вкладок с одинаковым
+		# содержимым (сопоставление неоднозначно). Буфер не трогаем — это и
+		# есть защита 6.3.
+		push_warning("Вкладка '%s' не синхронизирована: вкладку не удалось надёжно опознать (несохранённые правки или несколько вкладок с одинаковым содержимым)." % target_path)
 
-	if target_script:
+	# Обновление РЕСУРСА. Измерено живой фикстурой (script_tab_sync_live.gd) и
+	# сверено с исходниками Godot 4.6: GDScript::reload() файл с диска НЕ
+	# читает — он лишь пере-парсит уже загруженный текст (err=OK, source_code
+	# не меняется ни при keep_state=true, ни при false). Ресурс освежает пара
+	# «set_source_code(текст с диска) + reload(true)» — ровно тот порядок,
+	# которым внутри движка пользуется load_source_code() + reload() при
+	# авто-перезагрузке скриптов. При несохранённых правках ресурс не трогаем:
+	# буфер человека — источник правды, ресурс догонит его при сохранении.
+	if target_script and buffer_synced:
+		if target_script.source_code != real_text:
+			target_script.set_source_code(real_text)
 		target_script.reload(true)
 	elif ResourceLoader.has_cached(target_path):
 		var res = ResourceLoader.load(target_path, "", ResourceLoader.CACHE_MODE_REPLACE)
-		if res is Script:
+		if res is Script and res.source_code != real_text:
+			# CACHE_MODE_REPLACE возвращает тот же инстанс (измерено живой
+			# фикстурой), поэтому «перечитать с диска» работает только так же,
+			# как для открытой вкладки: set_source_code(диск) + reload. Ветка
+			# срабатывает для закэшированного, но НЕ открытого скрипта.
+			res.set_source_code(real_text)
 			res.reload(true)
+
+
+## Найти CodeEdit, показывающий ИМЕННО target_script.
+##
+## Сопоставление get_open_scripts()[i] и get_open_script_editors()[i] по
+## индексу движком не гарантировано (список скриптов сортируется по имени,
+## вкладки идут в порядке открытия), а метода «какой скрипт показываешь» у
+## ScriptEditorBase нет. Поэтому:
+##   1) активная вкладка — ground truth через get_current_script();
+##   2) неактивные — по содержимому: у чистой вкладки буфер равен source_code.
+func _find_open_code_edit_for(script_editor, target_script: Script, target_path: String) -> CodeEdit:
+	var current_script: Script = script_editor.get_current_script()
+	if current_script != null and str(current_script.resource_path) == target_path:
+		var current = script_editor.get_current_editor()
+		if current:
+			var current_edit := current.get_base_editor() as CodeEdit
+			if current_edit:
+				return current_edit
+	if target_script == null:
+		return null
+	var reference := _normalized_script_text(target_script.source_code)
+	# Собираем ВСЕ совпадения: одинаковое содержимое у двух вкладок (шаблон,
+	# копия) делает сопоставление неоднозначным — тогда чужой буфер трогать
+	# нельзя, и это НЕ ошибка, а честный отказ (внешний warning объяснит).
+	var matches: Array[CodeEdit] = []
+	for editor in script_editor.get_open_script_editors():
+		if editor == null:
+			continue
+		var code_edit := editor.get_base_editor() as CodeEdit
+		if code_edit != null and _normalized_script_text(code_edit.text) == reference:
+			matches.append(code_edit)
+	if matches.size() == 1:
+		return matches[0]
+	return null
+
+
+## Сравнимый вид текста скрипта: хвостовые пустые строки и CRLF не должны
+## решать, «та ли это вкладка».
+func _normalized_script_text(text: String) -> String:
+	return str(text).replace("\r\n", "\n").rstrip("\n")
 
 
 # ---------------------------------------------------------------------------
@@ -4794,6 +4858,11 @@ var _node_rename_queue: Array = []
 var _node_rename_busy := false
 var _node_rename_suppress := 0
 var _node_sync_ctx: Dictionary = {}
+# Карта «путь в редакторе → путь на диске»: scripts_only не переписывает .tscn,
+# поэтому после первого перехвата путь в редакторе расходится с диском, и все
+# следующие синхронизации должны строиться по дисковому пути (контракт
+# сервера: node_path — полный путь узла на диске, previous_name — имя у редактора).
+var _node_disk_names: Dictionary = {}
 
 
 func handle_filesystem_move(old_path: String, new_path: String, is_folder: bool = false) -> void:
@@ -4954,9 +5023,19 @@ func _process_node_rename_queue() -> void:
 
 
 func _node_rename_body(item: Dictionary) -> Dictionary:
+	# Контракт сервера при scripts_only: node_path — путь узла НА ДИСКЕ
+	# (сцену сервер не переписывает и ищет узел в её фактическом тексте),
+	# previous_name — как узел называется у редактора. Полный путь, а не лист:
+	# при двух узлах с одинаковым именем в разных ветках лист неоднозначен,
+	# и сервер отказывается искать узел по нему. disk_path кладёт
+	# _send_node_rename_sync; при его отсутствии — прежнее поведение.
+	# Контракт закреплён профильными тестами godot_agent/python/tests/
+	# test_node_refactor_flow.py (scripts_only: сцена на диске не меняется)
+	# и test_node_rename_intercept.py.
+	var disk_path := str(item.get("disk_path", ""))
 	return _policy_body({
 		"scene": str(item.get("scene", "")),
-		"node_path": str(item.get("old_path", "")),
+		"node_path": disk_path if disk_path != "" else str(item.get("old_path", "")),
 		"previous_name": str(item.get("old_name", "")),
 		"new_name": str(item.get("new_name", "")),
 		"scripts_only": true,
@@ -4966,8 +5045,148 @@ func _node_rename_body(item: Dictionary) -> Dictionary:
 func _send_node_rename_sync(item: Dictionary) -> void:
 	_node_sync_ctx = item
 	_node_rename_suppress += 1
+	var scene_path := str(item.get("scene", ""))
+	var old_path := str(item.get("old_path", ""))
+	var old_name := str(item.get("old_name", ""))
+	var new_name := str(item.get("new_name", ""))
+	# scripts_only сцену не переписывает: после первого перехвата имя узла
+	# в редакторе уже разошлось с диском, и искать узел надо по ДИСКОВОМУ
+	# пути (история — _node_disk_names). Пустой результат означает, что
+	# панель ничего не знает об узле: прежний предохранитель от устаревшего
+	# состояния редактора остаётся как честное предупреждение.
+	var disk_path := _node_disk_path_for_sync(scene_path, old_path, old_name)
+	if disk_path == "":
+		var editor_path := old_path if old_path != "" else old_name
+		if _scene_has_node_path(scene_path, _node_path_with_leaf(editor_path, new_name)):
+			print("[Godot Agent] Узел '%s' уже переименован на диске в '%s' — синхронизация не требуется." % [editor_path, new_name])
+		else:
+			push_warning("[Godot Agent] В сцене '%s' нет узла '%s' (и нет '%s') — синхронизация пропущена." % [scene_path, editor_path, new_name])
+		_finish_node_rename_roundtrip()
+		return
+	item["disk_path"] = disk_path
+	# Лист может быть неоднозначным: два узла с одним именем в разных ветках.
+	# Путь мы уже уточнили сами — человек должен это увидеть, а не угадывать,
+	# почему обновились «не те» ссылки.
+	item["non_unique"] = _scene_node_name_count(scene_path, disk_path.get_file()) > 1
 	if _link == null or not _link.post_now("node_rename_sync", REFACTOR_NODE_PREVIEW_URL, _policy_json(_node_rename_body(item))):
 		_node_rename_failed("сервер агента недоступен")
+
+
+## Полный путь узла НА ДИСКЕ для контракта scripts_only: сначала фактическая
+## проверка по тексту .tscn, затем история перехватов «редактор → диск».
+## Путь, а не лист: при двух узлах с одинаковым именем лист неоднозначен.
+## Пустая строка — путь не найден ни на диске, ни в истории.
+func _node_disk_path_for_sync(scene_path: String, old_path: String, old_name: String) -> String:
+	var editor_path := old_path if old_path != "" else old_name
+	if editor_path == "":
+		return ""
+	if _scene_has_node_path(scene_path, editor_path):
+		return editor_path
+	var scene_map: Dictionary = _node_disk_names.get(scene_path, {})
+	var mapped := str(scene_map.get(editor_path, ""))
+	if mapped == "":
+		# Переименован ВНУК уже переименованного предка: в редакторе путь
+		# "ActorPanel/HpLabel", на диске — "PlayerPanel/HpLabel" (scripts_only
+		# .tscn не трогает, и точного ключа в истории нет). Ищем в истории
+		# САМЫЙ ДЛИННЫЙ предок-префикс и переносим в него остаток пути: при
+		# двух подходящих ветках короткий предок дал бы не тот узел.
+		var best_editor := ""
+		var best_disk := ""
+		for key in scene_map.keys():
+			var prefix := str(key)
+			if not editor_path.begins_with(prefix + "/"):
+				continue
+			if prefix.length() > best_editor.length():
+				best_editor = prefix
+				best_disk = str(scene_map[key])
+		if best_editor == "":
+			return ""
+		var via_ancestor: String = best_disk.rstrip("/") + editor_path.substr(best_editor.length())
+		return via_ancestor if _scene_has_node_path(scene_path, via_ancestor) else ""
+	if _scene_has_node_path(scene_path, mapped):
+		return mapped
+	# Человек сохранил сцену: диск догнал редактор — запись устарела.
+	scene_map.erase(editor_path)
+	return ""
+
+
+## Запомнить пару «путь в редакторе → путь на диске» после успешного
+## применения: scripts_only не трогает .tscn, поэтому путь на диске прежний.
+func _note_node_disk_name(scene_path: String, editor_path: String, disk_path: String) -> void:
+	if scene_path == "" or editor_path == "" or disk_path == "":
+		return
+	var scene_map: Dictionary = _node_disk_names.get(scene_path, {})
+	scene_map[editor_path] = disk_path
+	_node_disk_names[scene_path] = scene_map
+
+
+## Полные пути узлов файла сцены — так же, как их считает сервер: у корня
+## ".", у прямого ребёнка корня — имя, глубже — путь родителя плюс имя.
+func _scene_node_paths(scene_path: String) -> PackedStringArray:
+	var paths := PackedStringArray()
+	if scene_path.is_empty() or not FileAccess.file_exists(scene_path):
+		return paths
+	var f := FileAccess.open(scene_path, FileAccess.READ)
+	if f == null:
+		return paths
+	var text := f.get_as_text()
+	f.close()
+	# name/parent — атрибуты СЕКЦИИ узла ([node name="X" ...]), а не любая
+	# подстрока в файле: ключи вида metadata/display_name="X" давали ложное
+	# «узел есть на диске», и обновление ссылок молча пропускалось.
+	var idx := text.find("[node ")
+	while idx >= 0:
+		var stop := text.find("]", idx)
+		if stop < 0:
+			break
+		var header := text.substr(idx, stop - idx + 1)
+		var node_name := _tscn_attr(header, "name")
+		if node_name != "":
+			if not header.contains("parent="):
+				paths.append(".")
+			else:
+				var parent := _tscn_attr(header, "parent")
+				paths.append(node_name if parent == "." else parent.rstrip("/") + "/" + node_name)
+		idx = text.find("[node ", stop)
+	return paths
+
+
+## Значение атрибута в заголовке секции .tscn. Пустая строка — атрибута нет.
+func _tscn_attr(header: String, key: String) -> String:
+	var needle := key + "=\""
+	var start := header.find(needle)
+	if start < 0:
+		return ""
+	start += needle.length()
+	var stop := header.find("\"", start)
+	return header.substr(start, stop - start) if stop >= 0 else ""
+
+
+## Есть ли в файле сцены узел ровно по этому полному пути. Консервативно:
+## отсутствие файла или ошибка чтения — false, и решение остаётся за сервером.
+func _scene_has_node_path(scene_path: String, node_path: String) -> bool:
+	var clean := node_path.strip_edges().replace("\\", "/")
+	if clean == "":
+		clean = "."
+	return _scene_node_paths(scene_path).has(clean)
+
+
+## Сколько узлов файла сцены называются так же. Больше одного — путь по
+## листу неоднозначен, и это стоит показать человеку, а не угадывать.
+func _scene_node_name_count(scene_path: String, node_name: String) -> int:
+	if node_name.is_empty():
+		return 0
+	var count := 0
+	for path in _scene_node_paths(scene_path):
+		if path == node_name or path.get_file() == node_name:
+			count += 1
+	return count
+
+
+## Полный путь с заменённым листом: "Panel/Stats" + "Row" -> "Panel/Row".
+func _node_path_with_leaf(node_path: String, leaf: String) -> String:
+	var slash := node_path.rfind("/")
+	return (node_path.substr(0, slash + 1) + leaf) if slash >= 0 else leaf
 
 
 func _node_rename_failed(reason: String) -> void:
@@ -4986,10 +5205,26 @@ func _finish_node_rename_roundtrip() -> void:
 	call_deferred("_process_node_rename_queue")
 
 
+func _short_channel_error_text(response_code: int, body: PackedByteArray) -> String:
+	# Тело ответа несёт пояснение сервера («Узел 'X' не найден в сцене»).
+	# Раньше оно терялось и пользователь видел только «HTTP 400» — по такому
+	# сообщению невозможно понять, что случилось и что делать.
+	var text := "HTTP " + str(response_code)
+	var json = JSON.parse_string(body.get_string_from_utf8())
+	if typeof(json) == TYPE_DICTIONARY:
+		var detail := str(json.get("error", json.get("message", ""))).strip_edges()
+		if detail != "":
+			text += ": " + detail
+	return text
+
+
 func _on_node_rename_sync_response(result: int, response_code: int,
 		body: PackedByteArray) -> void:
-	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		_node_rename_failed("HTTP " + str(response_code))
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_node_rename_failed("сервер агента недоступен")
+		return
+	if response_code != 200:
+		_node_rename_failed(_short_channel_error_text(response_code, body))
 		return
 	var json = JSON.parse_string(body.get_string_from_utf8())
 	if typeof(json) != TYPE_DICTIONARY or not bool(json.get("ok", false)):
@@ -5000,7 +5235,14 @@ func _on_node_rename_sync_response(result: int, response_code: int,
 		return
 	var prep: Dictionary = json.get("prepared", {})
 	if int(prep.get("file_count", 0)) == 0:
-		# Ссылок на узел в скриптах нет — обновлять нечего, молча заканчиваем.
+		# Ссылок на узел в скриптах нет — обновлять нечего, но «нет ссылок»
+		# при НЕ уникальном имени узла похоже на путаницу с одноимённым
+		# узлом: здесь молчать нельзя.
+		if bool(_node_sync_ctx.get("non_unique", false)):
+			var ambiguous_msg := "[Godot Agent] В сцене '%s' несколько узлов с именем '%s' — ссылки не обновлены. Убедитесь, что переименован именно '%s'." % [str(_node_sync_ctx.get("scene", "")), str(_node_sync_ctx.get("new_name", "")), str(_node_sync_ctx.get("disk_path", ""))]
+			push_warning(ambiguous_msg)
+			if _view:
+				_view.add_warning(ambiguous_msg)
 		_finish_node_rename_roundtrip()
 		return
 	# Фаза 2: применение того же запроса. Двухфазность общая с панелью
@@ -5011,8 +5253,11 @@ func _on_node_rename_sync_response(result: int, response_code: int,
 
 func _on_node_rename_apply_response(result: int, response_code: int,
 		body: PackedByteArray) -> void:
-	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		_node_rename_failed("HTTP " + str(response_code))
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_node_rename_failed("сервер агента недоступен")
+		return
+	if response_code != 200:
+		_node_rename_failed(_short_channel_error_text(response_code, body))
 		return
 	var json = JSON.parse_string(body.get_string_from_utf8())
 	if typeof(json) != TYPE_DICTIONARY or not bool(json.get("ok", false)):
@@ -5037,6 +5282,14 @@ func _on_node_rename_apply_response(result: int, response_code: int,
 	if _view:
 		_view.add_agent_message(msg, str(json.get("entry_id", "")))
 	print("[Godot Agent] ", msg)
+	# scripts_only: .tscn на диске не менялся, поэтому редакторский путь
+	# продолжает соответствовать тому же дисковому пути (сменён только лист).
+	var editor_before := str(item.get("old_path", ""))
+	if editor_before == "":
+		editor_before = str(item.get("old_name", ""))
+	_note_node_disk_name(str(item.get("scene", "")),
+		_node_path_with_leaf(editor_before, str(item.get("new_name", ""))),
+		str(item.get("disk_path", "")))
 	_finish_node_rename_roundtrip()
 
 

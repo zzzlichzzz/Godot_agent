@@ -22,6 +22,15 @@
 отладки браузера. Сам DoH-сервер тоже разрешается системным резолвером —
 иначе получилась бы рекурсия.
 
+ЧТО СЧИТАЕТСЯ БРАКОМ ОТВЕТА. 0.0.0.0/8, 127.0.0.0/8, :: и ::1 — это не
+адреса провайдера API, а способ «погасить» имя: так отвечает подменяющий DNS
+и так иногда отвечает сам DoH-сервер. Принять такой ответ значит отправить
+соединение на локальную машину (или в никуда) и показать пользователю
+непонятную сетевую ошибку вместо честного «DoH здесь не помог». Поэтому
+такие адреса отбрасываются, в кэш не попадают, и имя разрешается системным
+резолвером. Ответы DoH — только A-записи (IPv4): запрос семейства AF_INET6
+таким ответом не подменяется, он целиком уходит системному резолверу.
+
 ФОРМАТ. Реализован RFC 8484 (POST, application/dns-message) — он обязателен
 для любого DoH-сервера. JSON-API (dns-json) поддерживают не все, поэтому он
 здесь не используется.
@@ -53,7 +62,7 @@ MIN_TTL = 30
 MAX_TTL = 3600
 TIMEOUT = 8.0
 
-_LOCAL = ("localhost", "::1", "0.0.0.0")
+_LOCAL = ("localhost", "::1", "::", "0.0.0.0")
 
 
 def configure(enabled, url):
@@ -179,6 +188,27 @@ def parse_answer(data, want_type=1):
     return ips, max(MIN_TTL, min(MAX_TTL, ttl))
 
 
+# Адреса, которые нельзя отдавать вызывающему коду: см. «ЧТО СЧИТАЕТСЯ БРАКОМ
+# ОТВЕТА» в шапке файла. 0.0.0.0/8 — это и сам 0.0.0.0, и любой адрес блока;
+# 127.0.0.0/8 — ВСЯ петля, а не только 127.0.0.1: подменяющий резолвер
+# отвечает любым адресом из петли, и проверка «ровно 127.0.0.1» пропускала бы
+# 127.0.0.5 как «настоящий» адрес провайдера.
+_UNUSABLE_V4_PREFIXES = ("0.", "127.")
+_UNUSABLE_V6 = ("::", "::1", "0:0:0:0:0:0:0:0", "0:0:0:0:0:0:0:1")
+
+
+def is_unusable_address(ip):
+    """True, если адрес — брак ответа (0.0.0.0/8, 127.0.0.0/8, ::, ::1)."""
+    value = str(ip or "").strip().strip("[]").lower()
+    if not value:
+        return True
+    if value in _UNUSABLE_V6:
+        return True
+    if ":" in value:
+        return False  # прочие IPv6-адреса не наш случай, но и не петля
+    return value.startswith(_UNUSABLE_V4_PREFIXES)
+
+
 # ---------------------------------------------------------------------------
 # Запрос к DoH-серверу
 # ---------------------------------------------------------------------------
@@ -203,7 +233,15 @@ def query(host, url=None, timeout=TIMEOUT):
             data = resp.read()
     finally:
         _busy.on = False
-    return parse_answer(data)
+    ips, ttl = parse_answer(data)
+    good = [ip for ip in ips if not is_unusable_address(ip)]
+    if ips and not good:
+        # Ответ формально успешный (rcode=0), но адрес — брак. Вернуть молча
+        # пустой список значило бы потерять причину: resolve() откатится на
+        # системный резолвер, а в журнале останется понятное объяснение.
+        raise ValueError("DoH-сервер вернул непригодный адрес (%s)"
+                         % ", ".join(ips[:3]))
+    return good, ttl
 
 
 def resolve(host):
@@ -228,6 +266,11 @@ def resolve(host):
         print("[doh] %s не разрешён через DoH (%s) — использую системный DNS."
               % (h, e))
         return []
+    # Фильтр повторяется ЗДЕСЬ, а не только в query(): кэш не должен получить
+    # брак ни из какого источника, а doh.query в тестах подменяется заглушкой.
+    # Отбракованный ответ не кэшируется вообще — иначе один неудачный ответ
+    # DoH залип бы в кэше на весь TTL, и системный резолвер не был бы спрошен.
+    ips = [ip for ip in ips if not is_unusable_address(ip)]
     if not ips:
         return []
     with _cache_lock:
@@ -254,19 +297,31 @@ def _looks_like_ip(host):
 
 def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     if not getattr(_busy, "on", False) and is_enabled():
-        try:
-            ips = resolve(host)
-        except Exception:
-            ips = []
-        if ips:
-            stype = type or socket.SOCK_STREAM
-            sproto = proto or socket.IPPROTO_TCP
-            return [(socket.AF_INET, stype, sproto, "", (ip, port)) for ip in ips]
+        # DoH отвечает только A-записями (IPv4). Подменять ими запрос AF_INET6
+        # нельзя: вызывающий код ждёт адрес ДРУГОГО семейства, и подсунутый
+        # IPv4 либо не соединится, либо заставит его решить, что IPv6 у хоста
+        # нет. Поэтому несовместимое семейство целиком уходит системному
+        # резолверу, а не «приводится» к AF_INET молча.
+        if family in (0, socket.AF_INET):
+            try:
+                ips = resolve(host)
+            except Exception:
+                ips = []
+            if ips:
+                stype = type or socket.SOCK_STREAM
+                sproto = proto or socket.IPPROTO_TCP
+                return [(socket.AF_INET, stype, sproto, "", (ip, port))
+                        for ip in ips]
     return _orig_getaddrinfo(host, port, family, type, proto, flags)
 
 
 def install():
-    """Ставит подмену резолвера один раз за жизнь процесса."""
+    """Ставит подмену резолвера один раз за жизнь процесса.
+
+    Подменяется именно socket.getaddrinfo, причём не «вообще»: вызовы AF_INET6
+    к DoH не уходят (см. _patched_getaddrinfo), а брак-адреса отбрасываются до
+    кэша. Снятие подмены — uninstall(), нужное тестам и выключению DoH.
+    """
     global _orig_getaddrinfo
     with _install_lock:
         if _orig_getaddrinfo is not None:

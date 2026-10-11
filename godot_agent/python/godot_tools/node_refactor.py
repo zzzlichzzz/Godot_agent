@@ -265,9 +265,15 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
     if seen_name == new_name:
         raise NodeRefactorError("Новое имя узла совпадает со старым: %s" % new_name)
 
-    # Check for name collision among siblings
+    # Check for name collision among siblings. Сам целевой узел не коллизия:
+    # при scripts_only сцена на диске не переписывается, и «обратное»
+    # переименование обязано работать (на диске у узла ещё старое имя,
+    # new_name вполне может совпасть с ним — это и есть цель).
     target_parent = target_node["parent"]
+    target_path = target_node["path"]
     for n in nodes:
+        if n.get("path") == target_path:
+            continue
         if n["parent"] == target_parent and n["name"] == new_name:
             raise NodeRefactorError("Узел с именем '%s' уже существует в той же ветке" % new_name)
 
@@ -376,11 +382,14 @@ def prepare_node_rename(project_root, scene_godot_path, target_spec, new_name,
         new_tscn_text = new_tscn_text[:start] + repl + new_tscn_text[end:]
 
     tscn_diff = build_diff_preview(tscn_text, new_tscn_text)
-    tscn_diff["path"] = scene_path
-    tscn_diff["action"] = "patch_file"
+    # build_diff_preview возвращает None, когда .tscn фактически не меняется
+    # (scripts_only со сменой имени только в редакторе — замены no-op).
+    if tscn_diff is not None:
+        tscn_diff["path"] = scene_path
+        tscn_diff["action"] = "patch_file"
 
     after_tscn_bytes = (b"\xef\xbb\xbf" if bom else b"") + new_tscn_text.encode("utf-8")
-    if not scripts_only:
+    if not scripts_only and tscn_diff is not None:
         files_to_modify.append({
             "action": "patch_file",
             "path": scene_path,

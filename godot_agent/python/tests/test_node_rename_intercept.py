@@ -66,7 +66,24 @@ class StaticChecks:
                    "tree_exiting.connect(" in watch, watch)
         scene_changed = self.function_body(signals, "_on_scene_changed")
         self.check("_on_scene_changed пересобирает снимок имён",
-                   "_watch_node" in scene_changed, scene_changed)
+                   "_watch_subtree(" in scene_changed, scene_changed)
+        # Обход обязан быть рекурсивным: плоский get_children(true) видел
+        # только прямых детей корня, и переименование узла глубже терялось.
+        self.check("_on_scene_changed обходит ПОДДЕРЕВО, а не только детей корня",
+                   "root.get_children(true)" not in scene_changed, scene_changed)
+        watch_tree = self.function_body(signals, "_watch_subtree")
+        self.check("_watch_subtree рекурсивен и подписывает каждый узел",
+                   "_watch_subtree(" in watch_tree and "_watch_node(" in watch_tree,
+                   watch_tree)
+        # Узел, добавленный в уже открытую сцену, тоже обязан попасть под
+        # наблюдение — иначе его переименование пройдёт незамеченным.
+        self.check("_watch_node подписывается на child_entered_tree",
+                   "child_entered_tree.connect(" in watch, watch)
+        self.check("подписка на child_entered_tree учтена для detach",
+                   "node.child_entered_tree, \"callable\"" in watch, watch)
+        added = self.function_body(signals, "_on_child_entered_tree")
+        self.check("новый узел сразу попадает под наблюдение поддеревом",
+                   "_watch_subtree(" in added, added)
         renamed_handler = self.function_body(signals, "_on_node_renamed")
         self.check("_on_node_renamed достаёт ПРЕЖНЕЕ имя из снимка",
                    "_node_names.get(" in renamed_handler, renamed_handler)
@@ -90,7 +107,40 @@ class StaticChecks:
                    "\"scripts_only\": true" in body_fn, body_fn)
         self.check("прежнее имя передаётся серверу (двойное переименование)",
                    "\"previous_name\"" in body_fn, body_fn)
+        # ЗАДАЧА 3 (повторные переименования): node_path строится по ДИСКОВОМУ
+        # ПУТИ (.tscn не переписывается), панель помнит пары «редактор → диск».
+        # Лист не годится: при двух узлах с одним именем сервер отказывается
+        # искать узел по листу («имя неоднозначно»).
+        self.check("в тело запроса попадает дисковый ПУТЬ узла (disk_path)",
+                   "disk_path" in body_fn and "disk_leaf" not in body_fn, body_fn)
+        self.check("синхронизация ищет дисковый путь и в истории перехватов",
+                   "_node_disk_path_for_sync(" in sync_body, sync_body)
+        # ВНУК уже переименованного предка: точного ключа в истории нет (в
+        # редакторе "ActorPanel/StatsLabel", на диске "PlayerPanel/StatsLabel").
+        # Без подъёма к самому длинному предку-префиксу перехват такого узла
+        # молча пропускался («нет узла — синхронизация пропущена»).
+        disk_fn = self.function_body(panel, "_node_disk_path_for_sync")
+        self.check("путь внука переводится через предка: редактор → диск",
+                   "best_disk" in disk_fn and "begins_with(" in disk_fn
+                   and "_scene_has_node_path(" in disk_fn, disk_fn)
+        self.check("дисковая история — карта путей, лист отставляется в прошлое",
+                   "_node_path_with_leaf(" in panel and "_node_leaf_for_sync(" not in panel,
+                   sync_body)
+        self.check("есть подсчёт одноимённых узлов (признак неоднозначного листа)",
+                   "_scene_node_name_count(" in panel)
+        self.check("пути узлов считаются из секций .tscn с parent",
+                   "_scene_node_paths(" in panel and '"[node "' in panel)
         apply_body = self.function_body(panel, "_on_node_rename_apply_response")
+        self.check("после успешного применения запоминается пара имён",
+                   "_note_node_disk_name(" in apply_body, apply_body)
+        # Одноимённые узлы — молчать нельзя: «нет ссылок» неотличимо от
+        # правки «не того» узла.
+        sync_response = self.function_body(panel, "_on_node_rename_sync_response")
+        self.check("для не-уникального имени есть предупреждение в панели",
+                   "non_unique" in sync_response and "add_warning(" in sync_response,
+                   sync_response)
+        self.check("не-уникальность помечается до отправки запроса",
+                   'item["non_unique"]' in sync_body, sync_body)
         self.check("после применения есть уведомление в панели",
                    "add_agent_message(" in apply_body, apply_body)
         self.check("сцена НЕ перезагружается авто-перезагрузкой при перехвате",

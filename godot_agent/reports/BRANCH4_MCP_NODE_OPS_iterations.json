@@ -1,0 +1,153 @@
+{
+  "branch": "Ветка 4 (MCP)",
+  "artifact_type": "реальный прогон узловых операций канала MCP (preview → apply → rollback)",
+  "ran_at": "2026-10-11",
+  "host_root": "D:\\vajno\\Godot\\тест-плагина-ии",
+  "engine": "Godot 4.6.3-stable",
+  "verdict": "YES",
+  "test_path": "godot_agent/python/tests/test_node_refactor.py",
+  "test_path_secondary": "godot_agent/python/tests/test_godot_agent_mcp.py",
+  "iterations": [
+    {
+      "n": 1,
+      "what": "попытка переименовать узел PlayerPanel в res://src/refactor_lab/scenes/lab_root.tscn через CLI моста (agent_bridge write preview)",
+      "command": "python -B godot_agent/python/tools/agent_bridge.py --root <root> write preview --request <scratch>/b4_req.json",
+      "rc": 2,
+      "result": "refused: Узел 'PlayerPanel' не найден в сцене",
+      "note": "PlayerPanel — легаси-имя из src/refactor_lab/CHECKLIST.md:219; в сцене уже ActorPanel. Проба отброшена, ни один файл не изменён"
+    },
+    {
+      "n": 2,
+      "what": "node_rename_preview (write preview) HpLabel → HpLabelB4 в res://src/refactor_lab/scenes/lab_root.tscn",
+      "plan_id": "2b64cd8d810eb4c31f0c3f40",
+      "reference_count": 3,
+      "paths": [
+        "res://src/refactor_lab/scenes/lab_root.tscn",
+        "res://src/refactor_lab/scripts/lab_root.gd"
+      ],
+      "result": "plan_id выдан; файлы на диске не тронуты (фаза preview)"
+    },
+    {
+      "n": 3,
+      "what": "write_apply того же плана",
+      "entry_id": "c3fb9236f17e",
+      "changed_paths": 2,
+      "rc_verify": 0,
+      "result": "tscn: [node name=\"HpLabelB4\"] — 1 вхождение, старого HpLabel — 0; gd: %HpLabelB4 — 2 вхождения (шапка + @onready)"
+    },
+    {
+      "n": 4,
+      "what": "node_rename_preview обратно: HpLabelB4 → HpLabel",
+      "plan_id": "740929d611e05d56583b637c",
+      "reference_count": 3,
+      "result": "plan_id выдан"
+    },
+    {
+      "n": 5,
+      "what": "write_apply обратного плана — возврат сцены и скрипта в исходное состояние",
+      "entry_id": "761adc2fdd85",
+      "rc_verify": 0,
+      "result": "HpLabelB4 в файлах — 0; sha256 совпали с исходными: lab_root.tscn 390290e3c7edfb235d9a3f0db5c39b0f95e1f994d8d4dcf0355f4dca1a683e63, lab_root.gd f305103b36710f1b26f55f0ba43722f8ef2a75431e68bc79c49cb451372c7a00"
+    },
+    {
+      "n": 6,
+      "what": "полный цикл служебного файла: create_file preview → apply → write_rollback",
+      "plan_id": "e2ceda22f14a55e356a6b650",
+      "entry_id": "53fc77d99774",
+      "rollback_entry_id": "53fc77d99774",
+      "result": "после apply res://addons/Godot_agent/godot_agent/python/_branch4_rollback_probe.txt существовал (os.path.exists=True); write_rollback вернул success:true, «Откачено: transaction (1 файлов)», файл удалён"
+    }
+  ],
+  "facts": {
+    "preview_leaves_disk_untouched": true,
+    "apply_changed_paths_count": 2,
+    "rollback_success": true,
+    "plan_ids": [
+      "2b64cd8d810eb4c31f0c3f40",
+      "740929d611e05d56583b637c",
+      "e2ceda22f14a55e356a6b650"
+    ],
+    "journal_entries": [
+      "c3fb9236f17e",
+      "761adc2fdd85",
+      "53fc77d99774"
+    ],
+    "mcp_tools_exercised": [
+      "node_rename_preview (write preview)",
+      "write_apply",
+      "write_rollback"
+    ],
+    "mcp_tools_registered_but_not_run": [
+      "node_reparent_preview",
+      "node_delete_preview"
+    ],
+    "scene_restored_to_original_sha256": true,
+    "tests": {
+      "test_node_refactor.py": "rc=0, Ran 9 tests, OK",
+      "test_godot_agent_mcp.py": "rc=0, Ran 33 tests, OK",
+      "test_node_rename_intercept.py": "rc=0, СТАТИКА: 28 проверок, 0 провалов"
+    },
+    "code_paths": {
+      "node_tools": "python/tools/godot_agent_mcp.py:300-330 (node_rename_preview/node_reparent_preview/node_delete_preview)",
+      "bridge_branch": "python/tools/agent_bridge.py:1523 → _make_node_refactor_prepared (agent_bridge.py:1466)",
+      "node_logic": "python/godot_tools/node_refactor.py: prepare_node_rename:225, prepare_node_reparent:542, prepare_node_deletion:800"
+    }
+  },
+  "why_yes": "Канал MCP закрывает узловые операции целиком: инструменты node_rename_preview/node_reparent_preview/node_delete_preview зарегистрированы в python/tools/godot_agent_mcp.py и идут в ту же ветку node_refactor моста (agent_bridge.py:1523, _make_node_refactor_prepared:1466) без участия редактора. Прогон подтверждён фактами: preview не тронул диск (итерация 2), apply изменил 2 файла и 3 ссылки (итерация 3), обратный apply вернул sha256 к исходным (итерация 5), откат журнальной записи сработал (итерация 6).",
+  "stage6_discharge": {
+    "ran_at": "2026-10-11",
+    "source": "артефакт канала MCP: дописаны Этап 2 (три прогона + file:line вставок) и Этапы 5-7 (id журнала, преемственность, решение по attempt_limit) плана закрытия run_id 62",
+    "cwd": "addons/Godot_agent",
+    "runs": [
+      {
+        "command": "python -B godot_agent/python/tests/test_node_rename_intercept.py",
+        "rc": 0,
+        "output_tail": "СТАТИКА: 39 проверок, 0 провалов",
+        "output_head": "модуль сигналов на месте -> OK; _watch_node подписывается на Node.renamed -> OK; _on_scene_changed обходит ПОДДЕРЕВО -> OK; путь внука переводится через предка: редактор → диск -> OK; сцена НЕ перезагружается авто-перезагрузкой при перехвате -> OK"
+      },
+      {
+        "command": "python -B godot_agent/python/tests/test_node_refactor_flow.py",
+        "rc": 0,
+        "output_tail": "Ran 7 tests in 0.575s — OK",
+        "output_head": "stderr: .......; stdout: --> rename_node Gun в res://scenes/player.tscn; --> reparent_node Gun в res://scenes/player.tscn"
+      },
+      {
+        "command": "python -B godot_agent/python/tests/test_panel_short_channel.py",
+        "rc": 0,
+        "output_tail": "СТАТИКА: 15 проверок, 0 провалов",
+        "output_head": "панель не создаёт HTTPRequest -> OK; транспорт отдаёт короткие ответы -> OK; короткий запрос node_rename_sync идёт через узел связи -> OK"
+      }
+    ],
+    "file_line": [
+      {"site": "agent_panel.gd:5025", "symbol": "_node_rename_body", "role": "контракт scripts_only: node_path = disk_path, previous_name, new_name"},
+      {"site": "agent_panel.gd:5045", "symbol": "_send_node_rename_sync", "role": "дисковый путь и признак non_unique до отправки"},
+      {"site": "agent_panel.gd:5079-5110", "symbol": "_node_disk_path_for_sync", "role": "фикс «внук через самого длинного предка-префикс»"},
+      {"site": "agent_panel.gd:5115", "symbol": "_note_node_disk_name", "role": "карта _node_disk_names после успешного применения"},
+      {"site": "agent_panel.gd:5167", "symbol": "_scene_has_node_path", "role": "проверка узла по фактическому тексту .tscn"},
+      {"site": "agent_panel.gd:5176", "symbol": "_scene_node_name_count", "role": "подсчёт одноимённых узлов (неоднозначный лист)"}
+    ],
+    "file_line_note": "Координаты проверены grep по текущему agent_panel.gd (5513 строк). В разделе 3 отчёта NODE_RENAME_GRANDCHILD_REPORT.md те же точки указаны иначе (5108/5150/5159) — это состояние файла до последующих вставок; актуальны координаты выше.",
+    "journal": {
+      "verified": [
+        {"entry_id": "dd614bd3cb2b", "plan_id": "826d411729e91fe09ee1d292", "path": "res://addons/Godot_agent/godot_agent/agent_panel.gd", "after_hash": "faa57fedb02cf1eea161407e0cb84253dfc3c777d5c06019b1cea42a5c68304f", "hash_matches_disk": true},
+        {"entry_id": "d632545bc591", "plan_id": "2848aa02da99700de9d1a87b", "path": "res://addons/Godot_agent/godot_agent/python/tests/test_node_rename_intercept.py", "after_hash": "598db353ead5bbffe2d70f5929c5cd02075878ce015ad1af6c212ad773dd7bac", "hash_matches_disk": true},
+        {"entry_id": "d009712aa84d", "plan_id": "91c0962b2bdb705ad33d35f4", "path": "res://addons/Godot_agent/godot_agent/NODE_RENAME_GRANDCHILD_REPORT.md", "after_hash": "fc747d98d8343ac3e9f19d6a28aaf2c4998792b7c4076c2dfda811b4e1d1045a", "hash_matches_disk": true}
+      ],
+      "removed": [
+        {"id": "c1c947e7474d98926f8a3dac", "reason": "не запись журнала: в journal.json (50 записей, chat_id mcp-alpha) совпадений 0; 16 hex-символов — формат plan_id, а не 12-символьного entry_id. Встречается только в своде и в логе n8n. Свод называл пару c1c947e7474d98926f8a3dac / d009712aa84d для отчёта; фактическая пара отчёта — 91c0962b2bdb705ad33d35f4 / d009712aa84d."}
+      ],
+      "source": "user://agent_history/journal.json проекта; сверка after_hash записей с sha256 файлов на диске"
+    },
+    "continuity": {
+      "postanovka": ["res://addons/Godot_agent/godot_agent/tasks/TASK_3_NODE_RENAME_INTERCEPT.md (разделы 4.1-4.4, 5.2)", "res://addons/Godot_agent/godot_agent/THREE_CHANNEL_AUDIT.md § 5, ЗАДАЧА 3 (перехват переименования узлов)"],
+      "state_change": "Ранний раунд (run_id 52) каналы MCP/Браузер закрывали без входных данных; текущий раунд (run_id 62) — та же постановка TASK_3, выданная каналам через шину (DataTable «Шина каналов», строки run_id 62: task_mcp = «правки кода: agent_integration_signals.gd:111-113 ...; затем этап 6 — прогнать 3 теста и вернуть файл:строки и plan_id»). Преемственность подтверждается ссылкой на постановку, а не пересказом.",
+      "note": "Свод живёт в n8n DataTable (вне рабочей зоны файлов); ссылка приведена в артефакте канала — сборщику достаточно перенести её в свод."
+    },
+    "attempt_limit": {
+      "decision": "Лимит этапа = 3 итерации (cycle_limit) одинаково для всех четырёх каналов; attempt_limit (порог 4) — служебный счётчик заходов канала в шаг «Причина» и решением по лимиту не является.",
+      "schema_facts": ["n8n/schemas/template_v2_core_4_channels.json:1494,1507,1520,1533 — store.cycle_ch.<канал>, cycle_limit: n >= 3", ":1536 — узел «MCP: Счётчик петель (лимит 3)»", ":1960,3413,3588,3763 — шаг 1 «Причина»: const lim = attempt >= 4 ? 'YES' : 'NO'", "узел «MCP: Продолжать этап?» требует nothing_to_do = NO И attempt_limit = NO"],
+      "consequence": "Пункт «лимит петель» из «осталось» снимается: решение зафиксировано (3 итерации на этап), четвёртый заход остаётся предохранителем и продолжение этапа не блокирует."
+    },
+    "stale_note": "Блок tests выше описывает прогон от 2026-10-11 01:06 и устарел: test_node_rename_intercept.py тогда дал 28 проверок, текущий прогон — 39 проверок, 0 провалов (см. stage6_discharge.runs)."
+  }
+}

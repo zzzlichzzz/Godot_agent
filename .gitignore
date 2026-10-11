@@ -55,3 +55,15 @@ godot_agent/python/tests/repro_*.py
 # follows the project root and can land next to the addon as well as inside
 # it - history_manager.migrate_from_project() moves an older one on startup.
 .agent_history/
+
+# Одноразовые аудит-скрипты и выгрузки (godot_agent/python/audit/).
+# Локальная диагностика циклов n8n: дампы исполнений, разбор тулколлов.
+# В репозитории не нужны: пересоздаются под текущую задачу и мешают обзору.
+godot_agent/python/audit/
+
+
+# One-off diagnostic probes for a specific build (python/tests/_probe_*.py).
+# Same policy as repro_* and audit/: local snapshots of how a frozen dist
+# (PYZ from build/) was compared with the fresh sources right after a rebuild.
+# Depends on the PyInstaller workspace, so it is never a test fixture.
+godot_agent/python/tests/_probe_*.py

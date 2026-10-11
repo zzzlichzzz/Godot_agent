@@ -1,0 +1,58 @@
+{
+  "branch": "Ветка 3 (Редактор)",
+  "artifact_type": "перечень узловых операций канала «Редактор»",
+  "ran_at": "2026-10-11T00:26:43",
+  "host_root": "D:\\vajno\\Godot\\тест-плагина-ии",
+  "engine": "Godot 4.6.3-stable",
+  "verdict": "NO",
+  "node_operations": [
+    {
+      "op": "rename_node",
+      "scope": "узел сцены + ссылки ($Node, %Unique, get_node) + parent= + [connection]",
+      "engine_route_preview": "POST /scene/refactor/node/preview (agent_server.gd:80,135; python/main.py:268,4309)",
+      "engine_route_apply": "POST /scene/refactor/node/apply (agent_server.gd:80,132; python/main.py:268,4348)",
+      "editor_ui_entry": "меню «Безопасное переименование узла...» (agent_entry.gd:281,289,306 → MENU_SAFE_NODE_RENAME) + диалог agent_panel.gd:5218 open_safe_node_rename / agent_panel.gd:5397 _on_safe_node_rename_apply",
+      "editor_uses_declared_route": "agent_panel.gd:45-46 — объявлены только REFACTOR_NODE_PREVIEW_URL / REFACTOR_NODE_APPLY_URL (rename)",
+      "human_rename_intercept": "есть: agent_integration_signals.gd:119 set_node_rename_handler / 155 _on_node_renamed; agent_entry.gd:100,110-115",
+      "available_in_editor": true
+    },
+    {
+      "op": "reparent_node",
+      "scope": "перенос узла к новому родителю + пересчёт путей в .tscn и прикреплённых скриптах",
+      "engine_route_preview": "POST /scene/refactor/node/reparent/preview (agent_server.gd:85,137; python/main.py:269,4397)",
+      "engine_route_apply": "POST /scene/refactor/node/reparent/apply (agent_server.gd:84,136; python/main.py:269,4431)",
+      "editor_ui_entry": "нет",
+      "editor_uses_declared_route": "нет: строки URL_SCENE_REFACTOR_NODE_REPARENT_PREVIEW/APPLY встречаются только в agent_server.gd; ни один вызов из agent_panel.gd/agent_entry.gd не найден",
+      "human_rename_intercept": "нет подписки на parent_changed/child_entered_tree" ,
+      "dead_locale_keys": "agent_locale.gd:466-469 (RU) и 912-915 (EN): safe_node_reparent_title/desc/new_parent/success — вызовов _t() с этими ключами нет ни в одном .gd",
+      "available_in_editor": false
+    },
+    {
+      "op": "delete_node",
+      "scope": "удаление узла с поддеревом + снятие [connection] и треков анимации",
+      "engine_route_preview": "POST /scene/refactor/node/delete/preview (agent_server.gd:82,134; python/main.py:270,4477)",
+      "engine_route_apply": "POST /scene/refactor/node/delete/apply (agent_server.gd:81,133; python/main.py:270,4511)",
+      "editor_ui_entry": "нет",
+      "editor_uses_declared_route": "нет: строки URL_SCENE_REFACTOR_NODE_DELETE_PREVIEW/APPLY встречаются только в agent_server.gd",
+      "human_rename_intercept": "нет подписки на child_exiting_tree",
+      "dead_locale_keys": "agent_locale.gd:470-473 (RU) и 916-919 (EN): safe_node_delete_title/desc/cleanup/success — вызовов _t() с этими ключами нет ни в одном .gd",
+      "available_in_editor": false
+    }
+  ],
+  "facts": {
+    "node_ops_total": 3,
+    "available_in_editor": 1,
+    "unavailable_in_editor": 2,
+    "python_logic": "godot_agent/python/godot_tools/node_refactor.py: prepare_node_rename:225, prepare_node_reparent:542, prepare_node_deletion:800, apply_prepared_node_refactor:969",
+    "server_routes_are_live": "6 маршрутов (/scene/refactor/node/{preview,apply,reparent/preview,reparent/apply,delete/preview,delete/apply}) объявлены в agent_server.gd:80-85 и реализованы в python/main.py:268-270,4309-4511, но канал «Редактор» вызывает только 2 из них (rename)"
+  },
+  "why_no": "Канал «Редактор» закрывает 1 из 3 узловых операций: переименование узла (пункт меню + диалог + перехват ручного rename). reparent_node и delete_node в канале «Редактор» недоступны: маршруты движка объявлены и работают (agent_server.gd:81-85, python/main.py:270,4477-4511), но ни один вызов из agent_panel.gd/agent_entry.gd не найден, UI-входа нет, а заготовленные ключи локализации safe_node_reparent_*/safe_node_delete_* (agent_locale.gd:466-473,912-919) никем не читаются. Перехват ручных операций человеком в редакторе есть только для rename (agent_integration_signals.gd:119,155); подписок на parent_changed/child_entered_tree/child_exiting_tree нет. Отсюда verdict NO.",
+  "checks": {
+    "content_differs_from_branch1": true,
+    "method": "сравнение JSON-артефакта ветки 3 с ветки 1 по branch, набору ключей, url_tasks_count/node_operations и sha256",
+    "branch1_artifact": "tools/n8n_hands/artifacts/url_tasks_run.json",
+    "branch1_sha256": "18a1d16fb5b7a146d5278cc471586af15eb8fc9d76aa08b2f03c11192550a37c",
+    "branch1_branch": "Ветка 1 (Браузер)",
+    "branch3_unique_keys": ["node_operations", "facts", "checks", "engine"]
+  }
+}
