@@ -16,6 +16,12 @@
                                      инструменты записи не публикуются.
   agent-dev  -> --access agent-dev  : саморазвитие агента; дополнительно
                                      видны .py исходника агента и write.
+
+ТРАНСПОРТ. По умолчанию stdio: процесс сервера запускает сам MCP-клиент.
+Для клиентов, которые процесс не запускают, а подключаются по сети
+(например, MCP Client Tool в n8n), есть локальные HTTP-транспорты:
+--transport sse|streamable-http с --host/--port (умолчание 127.0.0.1:8000).
+Собственной аутентификации у HTTP-режима нет: он рассчитан на localhost.
 """
 
 import io
@@ -44,6 +50,11 @@ PROFILES = {
     "user": "addon",
     "agent-dev": "agent-dev",
 }
+
+# Транспорты сервера. stdio — процесс запускает сам клиент; sse и
+# streamable-http поднимают локальный HTTP-сервер для клиентов, которые
+# этого не делают (MCP Client Tool в n8n, веб-клиенты).
+TRANSPORTS = ("stdio", "sse", "streamable-http")
 
 # Коды моста: 2 — «запрошенного нет» (это ОТВЕТ, а не сбой), 3/4 — ошибка.
 _ERROR_CODES = (agent_bridge.RC_ERROR, agent_bridge.RC_USAGE)
@@ -328,34 +339,70 @@ _SERVER = None
 
 
 def main(argv=None):
-    """Точка входа: собирает сервер по --profile и гоняет stdio-транспорт."""
+    """Точка входа: собирает сервер по --profile и запускает транспорт.
+
+    Умолчание — stdio: процесс запускает MCP-клиент. HTTP-транспорты
+    (--transport sse|streamable-http с --host/--port) нужны клиентам,
+    которые подключаются к уже запущенному серверу по сети.
+    """
     global _SERVER
     args = list(sys.argv[1:] if argv is None else argv)
     profile = "user"
     root = None
     udd = None
+    transport = "stdio"
+    host = None
+    port = None
     index = 0
     while index < len(args):
         option = args[index]
-        if option in ("--profile", "--root", "--udd"):
+        if option in ("--profile", "--root", "--udd", "--transport",
+                      "--host", "--port"):
             if index + 1 >= len(args):
                 raise SystemExit("%s requires a value" % option)
             key = option[2:]
+            value = args[index + 1]
             if key == "profile":
-                profile = args[index + 1]
+                profile = value
             elif key == "root":
-                root = args[index + 1]
+                root = value
+            elif key == "udd":
+                udd = value
+            elif key == "transport":
+                transport = value
+            elif key == "host":
+                host = value
             else:
-                udd = args[index + 1]
+                try:
+                    port = int(value)
+                except ValueError:
+                    raise SystemExit(
+                        "--port must be an integer, got %r" % value)
             index += 2
             continue
         if option in ("--help", "-h"):
             print("usage: godot_agent_mcp.py [--profile user|agent-dev] "
-                  "[--root PATH] [--udd PATH]")
+                  "[--root PATH] [--udd PATH] "
+                  "[--transport %s] [--host HOST] [--port PORT]"
+                  % "|".join(TRANSPORTS))
             return 0
         raise SystemExit("unknown option %s" % option)
+    if transport not in TRANSPORTS:
+        raise SystemExit("unknown transport %r; expected one of: %s"
+                         % (transport, ", ".join(TRANSPORTS)))
+    if transport == "stdio" and (host is not None or port is not None):
+        raise SystemExit("--host/--port require --transport sse or "
+                         "streamable-http")
     _SERVER = build_server(profile=profile, root=root, udd=udd)
-    _SERVER.run("stdio")
+    if transport == "stdio":
+        _SERVER.run("stdio")
+        return 0
+    options = {}
+    if host is not None:
+        options["host"] = host
+    if port is not None:
+        options["port"] = port
+    _SERVER.run(transport, **options)
     return 0
 
 

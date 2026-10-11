@@ -323,5 +323,86 @@ class McpServerTests(unittest.TestCase):
         self.assertIsNotNone(result)
 
 
+class McpMainTransportTests(unittest.TestCase):
+    """Контракт main(): профиль и транспорт задаются при запуске.
+
+    stdio остаётся умолчанием — так сервер запускают Cline и другие
+    MCP-клиенты. HTTP-транспорты (sse|streamable-http) существуют для
+    клиентов, которые сами процесс не запускают.
+    """
+
+    class RecordingServer(object):
+        def __init__(self):
+            self.calls = []
+
+        def run(self, transport="stdio", **options):
+            self.calls.append((transport, options))
+
+    def setUp(self):
+        previous = godot_agent_mcp._SERVER
+        self.addCleanup(setattr, godot_agent_mcp, "_SERVER", previous)
+        self.server = self.RecordingServer()
+        builder = patch.object(godot_agent_mcp, "build_server",
+                               return_value=self.server)
+        self.build = builder.start()
+        self.addCleanup(builder.stop)
+
+    def test_default_transport_is_stdio(self):
+        self.assertEqual(0, godot_agent_mcp.main([]))
+        self.assertEqual([("stdio", {})], self.server.calls)
+        self.build.assert_called_once_with(profile="user", root=None,
+                                           udd=None)
+
+    def test_http_transport_receives_host_and_port(self):
+        code = godot_agent_mcp.main([
+            "--profile", "agent-dev", "--root", "R", "--udd", "U",
+            "--transport", "streamable-http",
+            "--host", "127.0.0.1", "--port", "8010"])
+        self.assertEqual(0, code)
+        self.assertEqual([("streamable-http",
+                           {"host": "127.0.0.1", "port": 8010})],
+                         self.server.calls)
+        self.build.assert_called_once_with(profile="agent-dev", root="R",
+                                           udd="U")
+
+    def test_sse_transport_without_host_port(self):
+        godot_agent_mcp.main(["--transport", "sse"])
+        self.assertEqual([("sse", {})], self.server.calls)
+
+    def test_unknown_transport_fails_closed(self):
+        with self.assertRaises(SystemExit) as ctx:
+            godot_agent_mcp.main(["--transport", "websocket"])
+        self.assertIn("transport", str(ctx.exception).lower())
+        self.assertEqual([], self.server.calls)
+        self.build.assert_not_called()
+
+    def test_host_or_port_requires_http_transport(self):
+        with self.assertRaises(SystemExit):
+            godot_agent_mcp.main(["--port", "9000"])
+        with self.assertRaises(SystemExit):
+            godot_agent_mcp.main(["--transport", "stdio",
+                                  "--host", "0.0.0.0"])
+        self.build.assert_not_called()
+
+    def test_non_integer_port_fails_closed(self):
+        with self.assertRaises(SystemExit) as ctx:
+            godot_agent_mcp.main(["--transport", "sse", "--port", "nope"])
+        self.assertIn("port", str(ctx.exception).lower())
+
+    def test_missing_option_value_fails(self):
+        with self.assertRaises(SystemExit):
+            godot_agent_mcp.main(["--transport"])
+
+    def test_help_lists_transports(self):
+        import contextlib
+        import io
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            code = godot_agent_mcp.main(["--help"])
+        self.assertEqual(0, code)
+        self.assertIn("streamable-http", buffer.getvalue())
+        self.build.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
