@@ -503,10 +503,12 @@ check("file operations close open target scenes before write and reopen them",
       'call("close_scene")' in panel and "func _close_scenes_before_write" in panel
       and "_open_pending_scene_paths()" in panel and "_reopen_scenes_after_write()" in panel)
 dirty_helper = panel[panel.find("func _dirty_open_scripts"):panel.find("func _sync_open_script_with_disk")]
+editor_lookup_helper = panel[panel.find("func _find_open_code_edit_for"):panel.find("func _normalized_script_text")]
 check("dirty script safety does not call unavailable resource accessor",
-      "editor.get_edited_resource(" not in dirty_helper
-      and "get_open_scripts()" in dirty_helper and "get_open_script_editors()" in dirty_helper
-      and "get_saved_version()" in dirty_helper)
+      "editor.get_edited_resource(" not in dirty_helper + editor_lookup_helper
+      and "get_open_scripts()" in dirty_helper
+      and "get_saved_version()" in dirty_helper
+      and "get_open_script_editors()" in editor_lookup_helper)
 autoreload_helper = panel[panel.find("func _ensure_script_autoreload_setting"):panel.find("func _force_reload_open_script")]
 check("plugin does not silently change script autoreload preference",
       "set_setting(" not in autoreload_helper)

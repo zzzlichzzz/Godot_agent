@@ -90,7 +90,15 @@ class StaticChecks:
                    "\"scripts_only\": true" in body_fn, body_fn)
         self.check("прежнее имя передаётся серверу (двойное переименование)",
                    "\"previous_name\"" in body_fn, body_fn)
+        # ЗАДАЧА 3 (повторные переименования): node_path строится по ДИСКОВОМУ
+        # имени (.tscn не переписывается), панель помнит пары «редактор → диск».
+        self.check("в тело запроса попадает дисковое имя узла (disk_leaf)",
+                   "disk_leaf" in body_fn, body_fn)
+        self.check("синхронизация ищет дисковое имя и в истории перехватов",
+                   "_node_leaf_for_sync(" in sync_body, sync_body)
         apply_body = self.function_body(panel, "_on_node_rename_apply_response")
+        self.check("после успешного применения запоминается пара имён",
+                   "_note_node_disk_name(" in apply_body, apply_body)
         self.check("после применения есть уведомление в панели",
                    "add_agent_message(" in apply_body, apply_body)
         self.check("сцена НЕ перезагружается авто-перезагрузкой при перехвате",

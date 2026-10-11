@@ -341,6 +341,27 @@ class NodeRefactorTests(unittest.TestCase):
                          original_tscn,
                          "scripts_only переписал .tscn на диске")
 
+    def test_scripts_only_reverse_rename_to_disk_name(self):
+        # Живой кейс: человек переименовал Gun→Weapon (перехват, сцена не
+        # сохранена), затем переименовал обратно Weapon→Gun. Ввод для сервера:
+        # node_path="Gun" (имя узла в файле сцены), previous_name="Weapon".
+        original_tscn = self.player_tscn.read_text(encoding="utf-8")
+        prep1 = node_refactor.prepare_node_rename(
+            str(self.root), "res://player.tscn", "Gun", "Weapon",
+            scripts_only=True)
+        node_refactor.apply_prepared_node_rename(str(self.root), prep1)
+        prep2 = node_refactor.prepare_node_rename(
+            str(self.root), "res://player.tscn", "Gun", "Gun",
+            scripts_only=True, previous_name="Weapon")
+        node_refactor.apply_prepared_node_rename(str(self.root), prep2)
+        new_gd = self.player_gd.read_text(encoding="utf-8")
+        self.assertIn('$Gun', new_gd)
+        self.assertNotIn('%Weapon', new_gd)
+        self.assertNotIn('$Weapon', new_gd)
+        self.assertEqual(self.player_tscn.read_text(encoding="utf-8"),
+                         original_tscn,
+                         "scripts_only переписал .tscn на диске")
+
     def test_scripts_only_rejects_unchanged_name(self):
         with self.assertRaises(node_refactor.NodeRefactorError):
             node_refactor.prepare_node_rename(
