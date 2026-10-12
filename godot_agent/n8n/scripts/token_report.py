@@ -5,8 +5,8 @@
 токенов, а не на глаз. n8n хранит usage каждого вызова AI-ноды
 (runData[node].data.ai_languageModel[0][0].json.tokenUsage), а число вызовов
 каждой «Модель (…)» — в executionData.metadata. Скрипт сводит это в таблицу:
-вызовы (точно), токены (выборка первых запусков + экстраполяция) — «до» и
-«после» правок схемы.
+вызовы (точно), токены (avg и максимум ответа; сумма по полученным
+запускам) — «до» и «после» правок схемы.
 
 Запуск (из папки n8n):
     python -B scripts/token_report.py 95
@@ -99,20 +99,24 @@ def show_execution(invoke, workflow_id, execution_id, model_names, sample):
                              for u in usages) / len(usages)
             avg_completion = sum(u.get("completionTokens", 0)
                                  for u in usages) / len(usages)
+            max_prompt = max(u.get("promptTokens", 0) for u in usages)
+            max_completion = max(u.get("completionTokens", 0) for u in usages)
             est_prompt = avg_prompt * calls
             est_completion = avg_completion * calls
             result["tokens"][name] = {
                 "sample": len(usages),
                 "avg_prompt": round(avg_prompt, 1),
                 "avg_completion": round(avg_completion, 1),
+                "max_prompt": int(max_prompt),
+                "max_completion": int(max_completion),
                 "est_prompt_total": round(est_prompt),
                 "est_completion_total": round(est_completion),
             }
             print("  %-42s %4d выз.  выборка %d: prompt~%s + completion~%s"
-                  " -> est prompt %s + completion %s"
+                  " (макс. ответ %s) -> est prompt %s + completion %s"
                   % (name, calls, len(usages), fnum(avg_prompt),
-                     fnum(avg_completion), fnum(est_prompt),
-                     fnum(est_completion)))
+                     fnum(avg_completion), fnum(max_completion),
+                     fnum(est_prompt), fnum(est_completion)))
             tot_prompt += est_prompt
             tot_completion += est_completion
         else:
