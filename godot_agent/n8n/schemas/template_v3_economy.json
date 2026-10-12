@@ -1012,7 +1012,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "browser",
+        "path": "v3-browser",
         "options": {}
       },
       "id": "825507ed-e093-4c48-9960-3b2cd9e50324",
@@ -1028,7 +1028,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "api",
+        "path": "v3-api",
         "options": {}
       },
       "id": "edf14b1a-bbcd-43a5-b8fd-0704c090e246",
@@ -1044,7 +1044,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "editor",
+        "path": "v3-editor",
         "options": {}
       },
       "id": "4823f722-2120-4572-96b8-4e9e4d2b638f",
@@ -1060,7 +1060,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "mcp",
+        "path": "v3-mcp",
         "options": {}
       },
       "id": "0251cd3e-b7e0-4aed-bf5b-becf1bbf3028",
@@ -4259,7 +4259,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Веер: запуск каналов (код)»: параллельный веер — на каждый канал с работой шлём запускающий вебхук.\n// Выход: до 4 элементов {url, body, flags, run_id} или один {no_run:true} — тогда запусков нет.\nconst p = $json; // выход «Распределитель: парсер флагов»\nconst session = $('Чат (общий вход)').isExecuted ? String($('Чат (общий вход)').first().json.sessionId || '') : '';\nconst runId = String($execution.id);\nconst base = 'http://localhost:5678/webhook/';\nconst defs = [\n  ['browser', 'work_browser', 'task_browser', 'ch-browser'],\n  ['api', 'work_api', 'task_api', 'ch-api'],\n  ['editor', 'work_editor', 'task_editor', 'ch-editor'],\n  ['mcp', 'work_mcp', 'task_mcp', 'ch-mcp']\n];\nconst flags = {};\nconst out = [];\nfor (const d of defs) {\n  const ch = d[0];\n  const task = String((p && p[d[2]]) || '').trim();\n  const ok = String((p && p[d[1]]) || '') === 'YES' && task !== '';\n  flags[ch] = ok ? 'YES' : 'NO';\n  if (ok) out.push({ json: { channel: ch, url: base + d[3], flags: flags, run_id: runId, body: { session: session, task: task, run_id: runId, ring: Number((p && p.ring) || 0) } } });\n}\nif (!out.length) return [{ json: { no_run: true, channel: 'none', flags: flags, run_id: runId } }];\nreturn out;"
+        "jsCode": "// «Веер: запуск каналов (код)»: параллельный веер — на каждый канал с работой шлём запускающий вебхук.\n// Выход: до 4 элементов {url, body, flags, run_id} или один {no_run:true} — тогда запусков нет.\nconst p = $json; // выход «Распределитель: парсер флагов»\nconst session = $('Чат (общий вход)').isExecuted ? String($('Чат (общий вход)').first().json.sessionId || '') : '';\nconst runId = String($execution.id);\nconst base = 'http://localhost:5678/webhook/';\n// Шаг 0 (изоляция v3): канальные вебхуки с префиксом v3-, чтобы v3 не топтал живой v2.\nconst defs = [\n  ['browser', 'work_browser', 'task_browser', 'v3-ch-browser'],\n  ['api', 'work_api', 'task_api', 'v3-ch-api'],\n  ['editor', 'work_editor', 'task_editor', 'v3-ch-editor'],\n  ['mcp', 'work_mcp', 'task_mcp', 'v3-ch-mcp']\n];\n// Шаг 1 (событийная шина): канал получит этот resume-URL и разбудит wait вебхуком после отчёта.\nlet resumeUrl = '';\ntry { resumeUrl = String($execution.resumeUrl || ''); } catch (e) {}\nconst flags = {};\nconst out = [];\nfor (const d of defs) {\n  const ch = d[0];\n  const task = String((p && p[d[2]]) || '').trim();\n  const ok = String((p && p[d[1]]) || '') === 'YES' && task !== '';\n  flags[ch] = ok ? 'YES' : 'NO';\n  if (ok) out.push({ json: { channel: ch, url: base + d[3], flags: flags, run_id: runId, body: { session: session, task: task, run_id: runId, ring: Number((p && p.ring) || 0), bus_resume: resumeUrl } } });\n}\nif (!out.length) return [{ json: { no_run: true, channel: 'none', flags: flags, run_id: runId } }];\nreturn out;"
       },
       "id": "veer-dispatch-1",
       "name": "Веер: запуск каналов (код)",
@@ -4337,7 +4337,11 @@
     },
     {
       "parameters": {
-        "amount": 60
+        "resume": "webhook",
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 1,
+        "resumeUnit": "minutes"
       },
       "id": "bus-wait-1",
       "name": "Шина: ожидание (60с)",
@@ -4418,7 +4422,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "ch-browser",
+        "path": "v3-ch-browser",
         "options": {}
       },
       "id": "d2d7272c-13e2-4421-b5d1-f09f0ffbd8ab",
@@ -4433,7 +4437,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск Браузер: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\nreturn [{ json: {\n  work_browser: task ? 'YES' : 'NO',\n  task_browser: task,\n  session: session,\n  session_key: session ? 'channel-browser-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0)\n} }];"
+        "jsCode": "// «Запуск Браузер: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_browser: task ? 'YES' : 'NO',\n  task_browser: task,\n  session: session,\n  session_key: session ? 'channel-browser-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
       },
       "id": "707923c5-eb8b-4f3d-b48c-3da4412578ed",
       "name": "Запуск Браузер: пакет",
@@ -4516,7 +4520,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "ch-api",
+        "path": "v3-ch-api",
         "options": {}
       },
       "id": "081a4e90-d431-4f8d-8e7d-e6426c1567fa",
@@ -4531,7 +4535,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск API: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\nreturn [{ json: {\n  work_api: task ? 'YES' : 'NO',\n  task_api: task,\n  session: session,\n  session_key: session ? 'channel-api-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0)\n} }];"
+        "jsCode": "// «Запуск API: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_api: task ? 'YES' : 'NO',\n  task_api: task,\n  session: session,\n  session_key: session ? 'channel-api-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
       },
       "id": "c3e3d652-1374-40e6-9d32-ca459f9209ac",
       "name": "Запуск API: пакет",
@@ -4614,7 +4618,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "ch-editor",
+        "path": "v3-ch-editor",
         "options": {}
       },
       "id": "0c313ab4-ba7c-4cd0-ae88-ac37a7441d87",
@@ -4629,7 +4633,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск Редактор: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\nreturn [{ json: {\n  work_editor: task ? 'YES' : 'NO',\n  task_editor: task,\n  session: session,\n  session_key: session ? 'channel-editor-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0)\n} }];"
+        "jsCode": "// «Запуск Редактор: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_editor: task ? 'YES' : 'NO',\n  task_editor: task,\n  session: session,\n  session_key: session ? 'channel-editor-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
       },
       "id": "bcfb86ed-4031-407a-8bac-7d9bb0034222",
       "name": "Запуск Редактор: пакет",
@@ -4712,7 +4716,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "ch-mcp",
+        "path": "v3-ch-mcp",
         "options": {}
       },
       "id": "4af8c85c-1264-4070-bbc3-45e237e6d5bf",
@@ -4727,7 +4731,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск MCP: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\nreturn [{ json: {\n  work_mcp: task ? 'YES' : 'NO',\n  task_mcp: task,\n  session: session,\n  session_key: session ? 'channel-mcp-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0)\n} }];"
+        "jsCode": "// «Запуск MCP: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_mcp: task ? 'YES' : 'NO',\n  task_mcp: task,\n  session: session,\n  session_key: session ? 'channel-mcp-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
       },
       "id": "33fad588-0031-44ee-b995-f19cfea54104",
       "name": "Запуск MCP: пакет",
@@ -5568,6 +5572,154 @@
         6384,
         -2960
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// «Браузер: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'browser' } }];"
+      },
+      "id": "73e80d04-67e4-436a-877e-540e2e32e0c0",
+      "name": "Браузер: дзынь шине (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5664,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.bus_resume }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signal: 'report', channel: $json.signal_channel }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "e3b007be-3ad3-4607-856c-2fe29598140d",
+      "name": "Браузер: дзынь шине (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5904,
+        240
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "// «API: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'api' } }];"
+      },
+      "id": "2bb8af1f-9a49-439e-97b9-9b102753a182",
+      "name": "API: дзынь шине (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5536,
+        -2016
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.bus_resume }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signal: 'report', channel: $json.signal_channel }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "561d853d-81a9-411b-b20b-fc499dc38e43",
+      "name": "API: дзынь шине (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5776,
+        -2016
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "// «Редактор: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'editor' } }];"
+      },
+      "id": "c244ab28-87f4-48c1-be3c-6cf56b0b33d7",
+      "name": "Редактор: дзынь шине (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5632,
+        -736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.bus_resume }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signal: 'report', channel: $json.signal_channel }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "1ff19e10-fd1e-4de3-8c07-af9cd13f37af",
+      "name": "Редактор: дзынь шине (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5872,
+        -736
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "// «MCP: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'mcp' } }];"
+      },
+      "id": "000b4eca-df0e-49cf-89b4-fccf89313239",
+      "name": "MCP: дзынь шине (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5680,
+        -3024
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.bus_resume }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signal: 'report', channel: $json.signal_channel }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "5041fdee-b813-4ee9-82fe-5665d105980b",
+      "name": "MCP: дзынь шине (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5920,
+        -3024
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
     }
   ],
   "connections": {
@@ -8093,6 +8245,94 @@
           {
             "node": "Поисковик (MCP)",
             "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Браузер: отчёт в шину": {
+      "main": [
+        [
+          {
+            "node": "Браузер: дзынь шине (код)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Браузер: дзынь шине (код)": {
+      "main": [
+        [
+          {
+            "node": "Браузер: дзынь шине (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: отчёт в шину": {
+      "main": [
+        [
+          {
+            "node": "API: дзынь шине (код)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: дзынь шине (код)": {
+      "main": [
+        [
+          {
+            "node": "API: дзынь шине (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Редактор: отчёт в шину": {
+      "main": [
+        [
+          {
+            "node": "Редактор: дзынь шине (код)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Редактор: дзынь шине (код)": {
+      "main": [
+        [
+          {
+            "node": "Редактор: дзынь шине (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: отчёт в шину": {
+      "main": [
+        [
+          {
+            "node": "MCP: дзынь шине (код)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: дзынь шине (код)": {
+      "main": [
+        [
+          {
+            "node": "MCP: дзынь шине (HTTP)",
+            "type": "main",
             "index": 0
           }
         ]
