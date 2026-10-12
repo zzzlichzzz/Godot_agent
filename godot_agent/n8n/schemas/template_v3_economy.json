@@ -41,7 +41,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "c14cef4c-51bc-4428-8d36-a569bda6e2c8",
@@ -86,7 +87,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "f489ed43-b24b-4e52-9ee4-1c9b71651bea",
@@ -133,7 +135,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "cddcb193-7ecf-4faa-b5c4-2ddb7e3fc759",
@@ -180,7 +183,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "1f238fc0-da55-41d9-8f54-d0ea4af6a98c",
@@ -227,7 +231,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "ff7dd484-bf90-4554-99de-dc333596bb45",
@@ -274,7 +279,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "0c12a0bb-71e1-4761-b21c-0d35e6b5ba4b",
@@ -619,7 +625,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "907c3668-4c92-44ca-a496-83433a69acb6",
@@ -1631,7 +1638,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "75db07d7-e8f3-4c3c-b121-c94fb3c976e6",
@@ -1704,7 +1712,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "fcb0c9ae-a4d3-4b45-afc0-6de2ae29ea8b",
@@ -2852,7 +2861,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "5f20f364-21c5-4a94-96c4-034a8655f7da",
@@ -3921,7 +3931,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "01953655-adef-43c7-a0c5-cea0031aed17",
@@ -4168,7 +4179,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "20acb57b-5e47-4372-b7f2-54e8d3297d0c",
@@ -4212,7 +4224,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "a33998d4-7272-4037-b064-c9ed0a523dd2",
@@ -4958,7 +4971,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "d7ef77ac-47f4-499e-b14c-71c68876c26f",
@@ -5004,7 +5018,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "fc43bd9f-a830-45bb-b10d-e7e352f978a5",
@@ -5212,7 +5227,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "de1a8b27-e86c-46aa-a307-00c9017b0be3",
@@ -5258,7 +5274,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "30572c5c-834d-4f7e-a4c8-9be1cb222c07",
@@ -5466,7 +5483,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "624ec9bc-b487-49f6-a4ad-0df8c9917712",
@@ -5512,7 +5530,8 @@
         "responsesApiEnabled": false,
         "options": {
           "timeout": 300000,
-          "extraBody": "{\"reasoning\": {\"effort\": \"high\"}}"
+          "extraBody": "{\"reasoning\": {\"effort\": \"medium\"}}",
+          "maxTokens": 8192
         }
       },
       "id": "a6675514-9ff3-4d63-b27a-1777d13db160",

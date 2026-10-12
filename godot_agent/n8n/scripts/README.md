@@ -25,6 +25,7 @@ Python 3.10+ (только стандартная библиотека, ниче
 | `fork_workflow.py` | Форк: копия текущего черновика с новым id/именем в новый файл (ветка разработки) | `python -B scripts/fork_workflow.py --name "Шаблон v3: …" --out schemas/template_v3_economy.json` |
 | `mcp_invoke.py` | Один вызов любого инструмента n8n MCP (`tools/call`) | `python -B scripts/mcp_invoke.py get_workflow_execution '{"workflowId":"v81fH05KY5uKUNK0","executionId":"61"}'` |
 | `dump_execution.py` | Разобрать прогон: статус, ноды, ошибки, данные выбранных нод | `python -B scripts/dump_execution.py 61 --nodes "Аудитор (ищет баги)"` |
+| `token_report.py` | Токены прогона: вызовы и usage каждой «Модель (…)» (замер «эконома») | `python -B scripts/token_report.py 92 93 94 95` |
 
 ## Типовые сценарии
 
@@ -48,6 +49,13 @@ Python 3.10+ (только стандартная библиотека, ниче
 2. `... <id> --nodes "Поисковик (субагент),Аудитор (ищет баги)"` — данные
    конкретных нод (первый запуск каждой, полный JSON — в `--out`).
 3. `... <id> --out dump.json` — полный ответ MCP сохранить в файл.
+
+**Оценка токенов прогона («эконом»-ветка):**
+1. `python -B scripts/token_report.py 92 93 94 95` — по каждому прогону: вызовы
+   каждой «Модель (…)» (точно, из метаданных) и prompt/completion-токены
+   (вызовы — точно; токены — сумма по полученным запускам, обычно всем).
+2. `... --out tokens.json` — те же цифры в JSON (сравнение «до/после» правок
+   схемы; ответы MCP тяжёлые — по сотне запусков на модель).
 
 **Пример `ops.json`** для `mcp_invoke.py` (объект JSON; BOM допустим — файл
 читается как utf-8-sig):
