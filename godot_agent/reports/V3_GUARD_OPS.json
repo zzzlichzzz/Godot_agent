@@ -1,0 +1,377 @@
+{
+  "workflowId": "rIwvKxDNhOxodBCc",
+  "operations": [
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Поисковик (субагент)",
+      "path": "/parameters/options/systemMessage",
+      "value": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Ограничение вывода: ответ инструмента с пометкой «обрезан»/«строка обрезана», а также выдача заметно больше ~30 КБ — сигнал остановиться: НЕ повторяй и не расширяй этот запрос, укажи в отчёте, что материал большой/minified, и переходи к следующему пункту; точные данные берут точечным чтением фрагмента.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов."
+    },
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Поисковик (API)",
+      "path": "/parameters/options/systemMessage",
+      "value": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Ограничение вывода: ответ инструмента с пометкой «обрезан»/«строка обрезана», а также выдача заметно больше ~30 КБ — сигнал остановиться: НЕ повторяй и не расширяй этот запрос, укажи в отчёте, что материал большой/minified, и переходи к следующему пункту; точные данные берут точечным чтением фрагмента.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов."
+    },
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Поисковик (Браузер)",
+      "path": "/parameters/options/systemMessage",
+      "value": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Ограничение вывода: ответ инструмента с пометкой «обрезан»/«строка обрезана», а также выдача заметно больше ~30 КБ — сигнал остановиться: НЕ повторяй и не расширяй этот запрос, укажи в отчёте, что материал большой/minified, и переходи к следующему пункту; точные данные берут точечным чтением фрагмента.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов."
+    },
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Поисковик (Редактор)",
+      "path": "/parameters/options/systemMessage",
+      "value": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Ограничение вывода: ответ инструмента с пометкой «обрезан»/«строка обрезана», а также выдача заметно больше ~30 КБ — сигнал остановиться: НЕ повторяй и не расширяй этот запрос, укажи в отчёте, что материал большой/minified, и переходи к следующему пункту; точные данные берут точечным чтением фрагмента.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов."
+    },
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Поисковик (MCP)",
+      "path": "/parameters/options/systemMessage",
+      "value": "Ты — агент-поисковик. Родительский агент передаёт тебе текстовый запрос: найти в проекте файлы, функции и информацию по теме. Ты только ищешь и читаешь — ничего не меняешь.\n\nПравила:\n- Только чтение: не вызывай write_file, edit_file, write_preview, write_apply, write_rollback и не меняй файлы через run_command/run_python.\n- Сначала широкий поиск (glob_files, grep_files, search), затем точечное чтение фрагментов (read_file и Godot read) — 100–200 строк вокруг совпадений; файлы целиком не читай.\n- Бюджет: до ~25–30 инструментальных вызовов для широких запросов; как только тема запроса раскрыта в основных файлах — останавливайся и выдавай отчёт, не старайся обойти все перечисленные файлы целиком.\n- Ограничение вывода: ответ инструмента с пометкой «обрезан»/«строка обрезана», а также выдача заметно больше ~30 КБ — сигнал остановиться: НЕ повторяй и не расширяй этот запрос, укажи в отчёте, что материал большой/minified, и переходи к следующему пункту; точные данные берут точечным чтением фрагмента.\n- Проект: плагин Godot в addons/Godot_agent/godot_agent (GDScript — agent_panel.gd и другие файлы в корне, серверная логика — python/), тесты — python/tests.\n\nТАКТ И ЗАВЕРШЕНИЕ (критично!): как только картина ясна, НЕМЕДЛЕННО выдавай финальный отчёт — не продолжай поиск «для полноты». Приближаешься к ~35 вызовам — прекращай поиск и выдавай финальный отчёт по найденному. Ты обязан ответить текстом отчёта; не исчерпывай лимит итераций без ответа.\n\nФормат отчёта (строго, без воды):\n1) Интерпретация запроса: одна строка.\n2) Находки: нумерованный список «путь/файл:строки — что это — сниппет 1–3 строки — зачем нужно».\n3) Карта: где в целом лежит тема запроса (директории, точки входа).\n4) Не найдено / спорно: что и где ещё стоит проверить.\n5) Что читать первым: топ-3 файла.\n\nОбъём отчёта — до ~4000 символов; без полных дампов файлов."
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Аудитор (ищет баги)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Аудитор)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Планировщик (план этапов)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Планировщик)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Канал: Браузер",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Браузер)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Канал: API-ключи",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (API)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Канал: Редактор",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Редактор)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Канал: MCP",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (MCP)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Распределитель)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Распределитель плана (по каналам)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Сборщик)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Сборщик информации (4 канала)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Испытатель (adversarial)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Испытатель)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Документатор (README)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Документатор)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Поисковик)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Поисковик (субагент)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Планировщик API",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Поисковик (API)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Планировщик API)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Поисковик API)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Планировщик Браузер",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Планировщик Браузер)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Поисковик (Браузер)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Поисковик Браузер)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Планировщик Редактор",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Планировщик Редактор)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Поисковик (Редактор)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Поисковик Редактор)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Планировщик MCP",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Планировщик MCP)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Поисковик (MCP)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Модель (Поисковик MCP)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    }
+  ]
+}

@@ -204,6 +204,27 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("add_child",
                       self.text_of(self.call(server, "api", class_name="Node")))
 
+    def test_huge_tool_output_is_clipped_with_honest_marker(self):
+        """Предохранитель размера: один ответ не может раздуть контекст.
+
+        Живой прогон n8n (exec 98): ответ поиска в 2.1 МБ (minified-кэш API
+        одной строкой) остался в истории агента и пересылался на каждом шаге —
+        ~700к токенов на шаг. Предел и пометка — как у сервера «рук» (:8010).
+        """
+        Path(self.root, "src", "big.gd").write_text(
+            "# " + "c" * 120000, encoding="utf-8")
+        server = self.make_server()
+        text = self.text_of(self.call(
+            server, "read", path="res://src/big.gd", max_chars=200000))
+        self.assertIn("обрезано: всего", text)
+        self.assertLess(len(text), godot_agent_mcp.MAX_TEXT + 100)
+        # Хвост сохранён: пометка идёт ПЕРЕД хвостом, а не после.
+        self.assertTrue(text.endswith("c" * 100))
+        # Короткий ответ не трогается: ни обрезки, ни пометки.
+        short = self.text_of(self.call(
+            server, "read", path="res://src/player.gd"))
+        self.assertNotIn("обрезано", short)
+
     def test_ask_and_context_and_check_work_through_mcp(self):
         server = self.make_server("user")
         self.assertTrue(self.text_of(self.call(server, "ask", query="player")))
