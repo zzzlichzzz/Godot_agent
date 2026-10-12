@@ -1536,8 +1536,84 @@ func _on_reject_pressed() -> void:
 	_send_confirm_request(false)
 
 
+## Сколько мест переименования показываем галочками в карточке. Ограничение
+## только на показ: снятые места адресуются своим id, а не порядковым номером.
+const RENAME_USAGE_LIST_LIMIT := 40
+
+
+## Карточка подтверждения — PanelContainer с одним VBoxContainer внутри
+## (agent_chat_view.add_confirmation_card). Свой список дописываем ИМЕННО в
+## него: второй ребёнок PanelContainer наложился бы на первый.
+func _rename_usage_card_box(card) -> VBoxContainer:
+	if card == null or not (card is PanelContainer):
+		return null
+	for child in (card as PanelContainer).get_children():
+		if child is VBoxContainer:
+			return child as VBoxContainer
+	return null
+
+
+## Список мест переименования с галочками (Этап 4.3). Галочка означает «это
+## место будет переименовано» — ровно как в чеклисте сервера. Снятая позиция
+## уходит в confirm_action полем exclude ровно тем же id, который показан
+## пользователю, поэтому панель и приёмник адресуют одно и то же место
+## (main.py: _with_exclude/_usage_id_to_place -> symbol_refactor._usage_excluded),
+## а не считают строку каждый по-своему.
+func _attach_rename_usage_checklist(card) -> void:
+	if _last_pending_action_type != "rename_symbol" or _pending_rename_usages.is_empty():
+		return
+	var box := _rename_usage_card_box(card)
+	if box == null:
+		return
+	_rename_excluded = {}
+	var caption := Label.new()
+	caption.text = "Места переименования (снимите галочку, чтобы не менять это место):"
+	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(caption)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 2)
+	box.add_child(list)
+	var shown := 0
+	for place in _pending_rename_usages:
+		if not (place is Dictionary):
+			continue
+		var usage := place as Dictionary
+		var place_id := str(usage.get("id", ""))
+		# Место без id нельзя адресовать в exclude: показать его галочкой
+		# означало бы обещать выбор, которого нет.
+		if place_id.is_empty():
+			continue
+		if shown >= RENAME_USAGE_LIST_LIMIT:
+			var rest := Label.new()
+			rest.text = "... ещё %d мест" % (_pending_rename_usages.size() - shown)
+			list.add_child(rest)
+			break
+		shown += 1
+		var check := CheckBox.new()
+		var note := str(usage.get("note", ""))
+		check.text = "%s:%s [%s]%s" % [usage.get("path", ""), usage.get("line", ""),
+			usage.get("confidence", ""), (" — " + note) if note != "" else ""]
+		check.button_pressed = bool(usage.get("checked", true))
+		check.tooltip_text = place_id
+		# Снятая галочка запоминается по id, а не по строке списка: id —
+		# единственный устойчивый адрес места.
+		var handler := func(pressed: bool, pid: String) -> void:
+			if pressed:
+				_rename_excluded.erase(pid)
+			else:
+				_rename_excluded[pid] = true
+		check.toggled.connect(handler.bind(place_id))
+		list.add_child(check)
+
+
 func _send_confirm_request(approved: bool) -> void:
 	if _is_network_busy: return
+	# Снятые места (снятые галочки в карточке) читаем ДО _set_pending_action(false):
+	# он очищает _rename_excluded, и exclude уехал бы в приёмник пустым — то есть
+	# снятая позиция применилась бы вместе с остальными.
+	var excluded_places: Array = []
+	if _last_pending_action_type == "rename_symbol":
+		excluded_places = _rename_excluded.keys()
 	if approved and _last_pending_action_type in ["rename_symbol", "rename_file", "rename_node", "reparent_node", "delete_node", "transaction", "create_file", "patch_file", "move_file"]:
 		var targets := _last_pending_action_paths.duplicate()
 		for path in [_last_pending_action_path, _last_pending_action_dest]:
@@ -1572,6 +1648,12 @@ func _send_confirm_request(approved: bool) -> void:
 	_view.add_system(label + _t("waiting_reply"))
 	var headers = _json_headers()
 	var body = _policy_body({"approved": approved})
+	if approved and not excluded_places.is_empty():
+		# Адреса мест — ровно те же id, что показаны галочками в карточке
+		# (main.py: _usage_id_to_place -> symbol_refactor._usage_excluded).
+		# Один источник адреса: панель и приёмник не считают строку каждый
+		# по-своему, поэтому снимается ровно выбранное место.
+		body["exclude"] = excluded_places
 	if approved and _last_pending_action_type in ["edit_scene", "create_scene"]:
 		body["editor_semantic_hash"] = _pending_scene_semantic_hash
 	elif approved and _last_pending_action_type == "edit_project_settings":
@@ -2699,11 +2781,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 					if raw_diff is Dictionary:
 						var readonly_diff := raw_diff as Dictionary
 						_view.add_readonly_diff(str(readonly_diff.get("path", "")), readonly_diff)
-				_view.add_confirmation_card(
+				var usage_card: PanelContainer = _view.add_confirmation_card(
 					str(description),
 					func(): _on_confirm_pressed(),
 					func(): _on_reject_pressed()
 				)
+				_attach_rename_usage_checklist(usage_card)
 			elif (pcode != null and str(pcode) != "") or not diff_data.is_empty():
 				var file_path = _last_pending_action_path if _last_pending_action_path != "" else _last_pending_action_dest
 				var card = _view.add_diff_preview(file_path, str(pcode) if pcode != null else "", diff_data)
@@ -2711,11 +2794,12 @@ func _on_request_completed(result: int, response_code: int, headers: PackedStrin
 					card.diff_applied.connect(func(_p): _on_confirm_pressed())
 					card.diff_rejected.connect(func(_p): _on_reject_pressed())
 			else:
-				_view.add_confirmation_card(
+				var fallback_card: PanelContainer = _view.add_confirmation_card(
 					str(description),
 					func(): _on_confirm_pressed(),
 					func(): _on_reject_pressed()
 				)
+				_attach_rename_usage_checklist(fallback_card)
 		elif pending_action_box:
 			_set_pending_action(false)
 			# Ни текста, ни действий — не молчим, чтобы ответ не "пропадал" бесследно.

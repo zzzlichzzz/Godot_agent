@@ -68,6 +68,48 @@ class ConstRename(unittest.TestCase):
         self.assertIn("return MAX_HEALTH", unit)
         self.assertNotIn("MAX_HP", unit)
 
+    # --- Этап 1: запись exclude БЕЗ номера строки — явный отказ ---
+    def test_path_only_exclude_is_refused(self):
+        """Полный путь без :строка не принимается молча за «весь файл».
+
+        Раньше такая запись снимала ВСЕ места файла (ветка `path in excluded`),
+        причём объявление всё равно переименовывалось. Теперь у записи без
+        строки один детерминированный исход — отказ RenameError с понятным
+        сообщением, и он приходит ДО регистрации правок: файл проекта остаётся
+        нетронутым (ни DECL, ни usages).
+        """
+        before = self._read("src/unit.gd")
+        # Варианты одной и той же сути: номера строки в записи нет. Двоеточие с
+        # нечисловым хвостом тоже не адрес места и не отдельная семантика.
+        for bad in ("res://src/unit.gd", "res://src/unit.gd:",
+                    "res://src/unit.gd:void"):
+            action = self._action()
+            action["exclude"] = [bad]
+            with self.assertRaises(symbol_refactor.RenameError) as ctx:
+                symbol_refactor.prepare_rename(self.root, action)
+            self.assertIn("без номера строки", str(ctx.exception))
+            self.assertIn("res://src/unit.gd", str(ctx.exception))
+        self.assertEqual(self._read("src/unit.gd"), before)
+        self.assertIn("const MAX_HP = 100", before)
+        self.assertIn("return MAX_HP", before)
+
+    # --- Этап 1: отказ касается ТОЛЬКО записи без строки ---
+    def test_same_path_with_line_still_works(self):
+        """Точечный адрес того же файла (:строка) работает как раньше."""
+        action = self._action()
+        action["exclude"] = ["res://src/unit.gd:7"]
+        prepared = symbol_refactor.prepare_rename(self.root, action)
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        unit = self._read("src/unit.gd")
+        self.assertIn("const MAX_HEALTH = 100", unit)
+        self.assertIn("return MAX_HP", unit)
+        self.assertEqual(len(prepared.get("skipped_usages") or []), 1,
+                         prepared.get("skipped_usages"))
+        self.assertEqual(symbol_refactor._exclude_place_kind(
+            "res://src/unit.gd"), ("path", "res://src/unit.gd", None))
+        self.assertEqual(symbol_refactor._exclude_place_kind(
+            "res://src/unit.gd:7"), ("place", "res://src/unit.gd", 7))
+
     # --- 3.1.2 ссылки в других файлах (через class_name) ---
     def test_references_from_other_files(self):
         self._write("src/arena.gd", """extends Node

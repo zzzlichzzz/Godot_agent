@@ -1250,11 +1250,112 @@ _USAGE_KINDS = {"class_name", "function", "signal", "variable", "const",
                 "enum", "enum_member"}
 
 
+def _exclude_place_kind(entry):
+    """Разбор адреса снятого места — ЕДИНСТВЕННАЯ точка разбора строки.
+
+    Исход разбора:
+      ("place", res://путь.gd, строка) — точечное место, строка обязательна;
+      ("path", res://путь.gd, None)    — запись БЕЗ распознанной строки;
+      ("invalid", None, None)          — запись не адрес: игнорируется.
+
+    Разбирается только ХВОСТ адреса (после префикса res://), потому что
+    двоеточие в самом префиксе — часть схемы, а не разделитель: раньше из-за
+    этого id "res://src/unit.gd:7:9" путал :column с :line.
+
+    path-only отделён от invalid намеренно: раньше такая запись МОЛЧА
+    принималась за «весь файл» и снимала ВСЕ места файла. Теперь решение о
+    ней принимает `_excluded_places` — один раз и явно, а не побочным
+    эффектом разбора. Любой нераспознанный нецифровой хвост после пути
+    ("res://src/unit.gd:", "res://src/unit.gd:void") — это тот же случай
+    «нет номера строки», а не отдельная (молчаливая) семантика.
+    """
+    raw = str(entry or "").strip().replace("\\", "/")
+    body = raw[6:] if raw.startswith("res://") else ""
+    if not body.strip("/"):
+        return "invalid", None, None
+    head, sep, tail = body.rpartition(":")
+    if not sep:
+        # После префикса двоеточий нет вовсе — адрес файла без строки.
+        return "path", raw, None
+    if not tail.isdigit():
+        # Хвост после последнего «:» — не число, значит номера строки в записи
+        # нет; путь берём из уже отделённой части.
+        return "path", "res://" + head, None
+    # Если и перед хвостом стоит цифровая группа, хвост — это колонка, а
+    # строка — перед ней. Именно здесь раньше терялся номер строки.
+    head2, sep2, tail2 = head.rpartition(":")
+    if sep2 and tail2.isdigit():
+        head, tail = head2, tail2
+    if not head.strip("/") or int(tail) < 1:
+        return "invalid", None, None
+    return "place", "res://" + head, int(tail)
+
+
+def _exclude_entry(entry):
+    """Адрес снятого места -> (res://путь.gd, строка) или None.
+
+    Тонкая обёртка над `_exclude_place_kind` (единая точка разбора): path-only
+    и мусор отдают None — точечного места в них нет.
+    """
+    kind, path, line = _exclude_place_kind(entry)
+    if kind != "place":
+        return None
+    return path, line
+
+
+def exclude_place(entry):
+    """Адрес снятого места -> "res://путь.gd:строка" (колонка отбрасывается).
+
+    Обёртка над единственным разбором адреса (`_exclude_place_kind`). Пустая
+    строка и path-only — адрес не разобран: вызывающий отдаёт исходную
+    запись дальше без подмены пути (а ядро отвергнет её явно, а не молча).
+    """
+    key = _exclude_entry(entry)
+    if key is None:
+        return ""
+    return "%s:%d" % key
+
+
+def _excluded_places(excluded):
+    """Снятые пользователем места как множество пар (путь, строка).
+
+    Это ЕДИНСТВЕННАЯ точка правды об исключении: объявление и ссылки
+    сравниваются с ней одинаково. Раньше объявление регистрировалось в
+    правках вообще без этой проверки, а приёмник принимал запись без строки
+    за весь файл (ветка `path in excluded`): снятие ОДНОЙ галочки отменяло
+    переименование всех использований файла, а объявление всё равно
+    переименовывалось — DECL RENAMED / USAGE STALE и сломанный проект.
+
+    Запись БЕЗ номера строки ("res://src/unit.gd") не поддержана и
+    отвергается здесь явно (RenameError): семантика «весь файл» скрытая и
+    неоднозначная, а единственный понятный адрес снятого места —
+    res://путь.gd:строка. Отказ приходит ДО регистрации правок, поэтому
+    файлы проекта остаются нетронутыми.
+    """
+    places = set()
+    for entry in excluded or ():
+        kind, path, line = _exclude_place_kind(entry)
+        if kind == "place":
+            places.add((path, line))
+        elif kind == "path":
+            raise RenameError(
+                "exclude-адрес без номера строки не поддержан: %r. Место "
+                "указывается точечно — res://путь.gd:строка (например "
+                "%s:1). Запись без строки означала бы «весь файл», а эта "
+                "семантика скрытая; снимите галочки с конкретных мест "
+                "использования." % (str(entry).strip(), path))
+    return places
+
+
 def _usage_excluded(excluded, path, line):
-    """Место снято пользователем? Формат: res://path.gd:строка (колонка необязательна)."""
+    """Место снято пользователем? Сравнение точечное: (путь, строка)."""
     if not excluded:
         return False
-    return ("%s:%s" % (path, line)) in excluded or (path in excluded)
+    try:
+        number = int(line)
+    except (TypeError, ValueError):
+        return False
+    return (str(path), number) in excluded
 
 
 def _usage_query(action):
@@ -1662,6 +1763,19 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         if len(duplicates) != 1:
             raise LocatorError("Имя неоднозначно внутри скрипта: найдено объявлений %d" % len(duplicates))
 
+    # Исключение мест (снятые в предпросмотре галочки) разбирается ОДНОЙ
+    # точкой правды и ДО регистрации правок: объявление и ссылки ниже
+    # сравниваются с одним и тем же множеством (путь, строка).
+    excluded = _excluded_places(action.get("exclude") or ())
+    if _usage_excluded(excluded, target_path, declaration.get("line")):
+        # Снятое объявление нельзя переименовать в одиночку: использования
+        # остались бы со старым именем — то есть проект был бы сломан при
+        # рапорте «успешно». Отказ честнее половинчатой правки.
+        raise RenameError(
+            "Место объявления %s:%s снято пользователем: переименование "
+            "невозможно — использования остались бы со старым именем. "
+            "Снимите галочки с мест использования, а не с объявления"
+            % (target_path, declaration.get("line")))
     edits_by_path = {target_path: [(declaration["start"], declaration["end"])]}
     # Объявления-override в подклассах — такие же носители имени, как и сам
     # скрипт: пока они не переименованы, полиморфизм теряется (вызов уходит
@@ -1687,13 +1801,10 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     for span_path, spans in edits_by_path.items():
         for span_start, span_end in spans:
             proven_spans.add((span_path, span_start, span_end))
-    # Частичное применение: пользователь мог снять галочки с мест в
-    # предпросмотре. Такие места не меняются, но попадают в отчёт, иначе
-    # «переименовано» враньёт пользователю в лицо.
-    excluded = set()
-    for item in (action.get("exclude") or []):
-        if isinstance(item, str) and item.strip():
-            excluded.add(item.strip())
+    # Частичное применение: снятые галочки не меняются, но попадают в отчёт,
+    # иначе «переименовано» враньёт пользователю в лицо. Само множество
+    # excluded разобрано ВЫШЕ — там же, где принято решение об объявлении:
+    # одна точка правды на объявление и на ссылки.
 
     for entry in snapshot["files"]:
         path = "res://" + entry["path"]

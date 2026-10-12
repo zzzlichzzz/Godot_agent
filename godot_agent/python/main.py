@@ -559,11 +559,28 @@ def _reply_once(prompt):
     return text, action
 
 
+def _usage_id_to_place(item):
+    """id места (res://путь.gd:строка[:колонка]) -> "res://путь.gd:строка".
+
+    Адрес разбирает ЯДРО (symbol_refactor.exclude_place): логика снятых
+    галочек должна быть одна, иначе копия парсера в сервере и парсер в ядре
+    расходятся. Прежний `split(":")[:2]` резал id по ПЕРВОМУ двоеточию:
+    "res://src/arena.gd:6:19" превращался в "res://src/arena.gd", и приёмник
+    (ветка `path in excluded`) снимал ВСЕ места файла вместо одного — то
+    есть снятие одной галочки отменяло переименование целого файла.
+    """
+    return symbol_refactor.exclude_place(item) or str(item).strip()
+
+
 def _with_exclude(action, excluded):
-    """Кладёт снятые галочки (res://путь:строка[:колонка]) в действие."""
+    """Кладёт снятые галочки (res://путь:строка[:колонка]) в действие.
+
+    Адрес снятого места не пересчитывается здесь заново: он берётся из того
+    же id, что показан в списке мест, поэтому панель и приёмник адресуют
+    одно и то же место.
+    """
     result = dict(action)
-    result["exclude"] = ["%s:%s" % tuple(str(item).split(":")[:2])
-                        for item in excluded]
+    result["exclude"] = [_usage_id_to_place(item) for item in excluded]
     return result
 
 

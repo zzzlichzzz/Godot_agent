@@ -103,6 +103,13 @@ apply без настоящей проверки.
 | `write apply --request FILE --plan-id ID` | применить ранее подготовленный и одноразовый план |
 | `write rollback --entry-id ID [--force]` | адресный откат записи журнала; `--force` только для ручного конфликта |
 
+Откат адресуется ТОЛЬКО `--entry-id`. `write rollback --plan-id <ID>` — это
+ошибка ВЫЗОВА: rc=4 и строка `refused: unknown or incomplete option:
+--plan-id`. Так и должно быть: `plan_id` одноразовый и живёт лишь до
+`write apply`, а адрес отката после записи — `entry_id` из вывода apply.
+Подменять `--plan-id` на `--entry-id` мост не станет: имена различаются не
+случайно, и угадывание намерения скрыло бы неверный вызов.
+
 `move_file` через `write` использует тот же безопасный file-refactor, что и встроенный агент: обновляет точные `res://`-ссылки в `.gd`, `.tscn`, `.tres`, `project.godot`, внутренние относительные `preload/load/extends`, companion `.import`, сохраняет `.uid` и создаёт адресный rollback. `move_file` нельзя смешивать с create/patch внутри `transaction` — отправляйте его отдельным запросом.
 
 ### Квитанции планов и уборка мусора
