@@ -5799,6 +5799,48 @@
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8010/notify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ kind: 'pause', status: 'WAITING', task: String($('Отчёт: пакет (аудит+план)').last().json.task || ''), ring: Number($('Отчёт: пакет (аудит+план)').last().json.ring || 0), execution_id: String($('Отчёт: пакет (аудит+план)').last().json.execution_id || ''), resume_url: String($('Отчёт: пакет (аудит+план)').last().json.resume_url || ''), workflow: 'v3' }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "5fe1a0f4-90b3-4bd8-8e59-24c7c3aa9101",
+      "name": "Мост: пауза → руки (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        -1856
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8010/notify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ kind: 'done', status: String($json.status || ''), ring: Number($json.ring || 0), ring_history: String($json.ring_history || ''), task: ($('Отчёт: пакет (аудит+план)').isExecuted ? String($('Отчёт: пакет (аудит+план)').last().json.task || '') : ''), execution_id: String($execution.id || ''), workflow: 'v3' }) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "5fe1a0f4-90b3-4bd8-8e59-24c7c3aa9102",
+      "name": "Мост: финал → руки (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2288,
+        -1024
+      ],
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
@@ -7174,6 +7216,11 @@
             "node": "Ждать решения (Cline)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Мост: пауза → руки (HTTP)",
+            "type": "main",
+            "index": 0
           }
         ],
         [
@@ -7243,6 +7290,11 @@
             "node": "Отчёт: итог в таблицу",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Мост: финал → руки (HTTP)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -7281,6 +7333,11 @@
         [
           {
             "node": "Отчёт: итог в таблицу",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Мост: финал → руки (HTTP)",
             "type": "main",
             "index": 0
           }
