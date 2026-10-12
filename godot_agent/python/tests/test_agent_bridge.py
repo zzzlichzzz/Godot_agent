@@ -222,6 +222,30 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertIn("results truncated at 10", out)
         self.assertNotIn("Traceback", out + err)
 
+    def test_search_long_minified_line_is_clipped(self):
+        # minified-файл держит весь документ одной строкой: без обрезки один
+        # ответ поиска раздувался до мегабайтов (в живом прогоне — 2.1 МБ в
+        # одном сообщении, ~780к токенов в промпте одного вызова модели).
+        # Строка обязана обрезаться, а пометка — называть полную длину.
+        long_line = '{"k": "bridge_minified_marker' + 'x' * 5000 + '"}'
+        Path(self.root, "src", "cache.json").write_text(
+            long_line + "\n", encoding="utf-8")
+
+        rc, out, err = run_bridge(
+            self.base + ["search", "bridge_minified_marker"])
+
+        self.assertEqual(rc, 0, err)
+        self.assertIn("cache.json", out)
+        self.assertIn("bridge_minified_marker", out)
+        self.assertIn("строка обрезана, всего %d символов" % len(long_line), out)
+        self.assertNotIn("x" * 400, out)
+        self.assertLess(len(out), 2000)
+        # Короткие строки не трогаются: пометки обрезки в обычной выдаче нет.
+        rc, out, err = run_bridge(self.base + ["search", "take_damage"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("hp -= amount", out)
+        self.assertNotIn("строка обрезана", out)
+
     # --- ask (библиотекарь) -------------------------------------------------
 
     def test_ask_exit0_librarian_answer(self):

@@ -872,6 +872,26 @@ def search_extensions_for(allow_self_edit=False, addon_dir=None):
     return set(SEARCH_EXTS) | AGENT_ONLY_SEARCH_EXTS
 
 
+# Длина ОДНОЙ строки в сниппете выдачи поиска. Minified-файлы (кэши API,
+# сжатые JSON) держат весь документ одной строкой: без обрезки один ответ
+# поиска достигал 2.1 МБ (в живом прогоне это раздуло промпт одного вызова
+# модели до ~780к токенов). Модели нужен ориентир, а не сама строка; дословный
+# код для patch она берёт точечным чтением (read_file/read_function).
+SNIPPET_LINE_MAX = 300
+
+
+def _clip_snippet_line(line):
+    """Строка сниппета для модели: слишком длинные (minified) строки режем.
+
+    Пометка называет полную длину: иначе модель примет фрагмент за целую
+    строку. Через search_project_text проходят ВСЕ выходы сниппетов — мост
+    (search), панельный поиск (main), Библиотекарь и gather_context.
+    """
+    if len(line) <= SNIPPET_LINE_MAX:
+        return line
+    return line[:SNIPPET_LINE_MAX] + '… [строка обрезана, всего %d символов]' % len(line)
+
+
 def search_project_text(project_root, query, max_results=30, context_lines=2,
                         exclude_rel_prefixes=None, case_insensitive=False,
                         needles=None, allow_addons=False, allow_self_edit=False,
@@ -990,7 +1010,9 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
                 for grp in groups:
                     lo = max(0, grp[0] - context_lines)
                     hi = min(len(lines), grp[-1] + context_lines + 1)
-                    snippet = '\n'.join('%d: %s' % (n + 1, lines[n]) for n in range(lo, hi))
+                    snippet = '\n'.join(
+                        '%d: %s' % (n + 1, _clip_snippet_line(lines[n]))
+                        for n in range(lo, hi))
                 # 'line' — первое совпадение группы: так вывод остаётся
                 # стабильным и сортируется по (path, line) как раньше.
                     row = {'path': godot_path, 'line': grp[0] + 1, 'snippet': snippet}
