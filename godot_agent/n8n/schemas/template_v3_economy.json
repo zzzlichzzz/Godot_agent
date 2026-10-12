@@ -58,7 +58,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -104,7 +107,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -152,7 +158,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -200,7 +209,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -248,7 +260,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -296,7 +311,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -642,7 +660,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -1655,7 +1676,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -1729,7 +1753,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -2878,7 +2905,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -3948,7 +3978,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -4196,7 +4229,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -4241,7 +4277,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -4301,7 +4340,10 @@
       "position": [
         4064,
         992
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
     },
     {
       "parameters": {
@@ -4988,7 +5030,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -5035,7 +5080,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -5244,7 +5292,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -5291,7 +5342,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -5500,7 +5554,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -5547,7 +5604,10 @@
           "id": "b8rsLbnBZTdGI79i",
           "name": "Cline API (ClinePass)"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
