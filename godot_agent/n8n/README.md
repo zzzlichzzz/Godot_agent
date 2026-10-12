@@ -8,16 +8,18 @@
 ## Состав
 
     schemas/template_v2_core_4_channels.json   снимок воркфлоу (черновик)
+    schemas/template_v3_economy.json           снимок копии-ветки v3 (черновик)
     scripts/export_workflow.py                 снимок базы n8n -> schemas/
     scripts/verify_snapshot.py                 сверка снимка с текущей базой
     scripts/import_workflow.cmd                импорт схемы в локальный n8n
+    scripts/fork_workflow.py                   форк схемы в новую ветку (копия)
     scripts/check_no_secrets.py                скан папки на ключи и токены
     scripts/mcp_invoke.py                      вызов любого инструмента n8n MCP
     scripts/dump_execution.py                  разбор прогона: ноды, ошибки, данные
     scripts/README.md                          шпаргалка по этим скриптам
 
 Текущий снимок: id `v81fH05KY5uKUNK0`, 212 узлов, active=true (вебхуки живут),
-versionId печатается при экспорте (последний: `3692506f-d3b4-4b05-841f-be35aa6d8569`).
+versionId печатается при экспорте (последний на 12.10.2026: `b39bef85-c6e1-41fe-8df5-3c74f5ed98cf`).
 Файл держит только состав данных схемы (id/name/nodes/connections/settings/meta);
 versionId, даты и прочие рантайм-поля не пишутся, чтобы не шуметь в
 истории git. Скрипт экспорта печатает актуальный versionId при каждом
@@ -47,6 +49,26 @@ Godot (:8000, включая мост записи write_preview → write_apply
 только API/MCP» больше нет), один этап можно дробить между каналами ради
 параллельной работы; формат ответа (work_<ch>/task_<ch>, правило маркеров из
 вердикта, «Правила полей») не менялся.
+
+## Копия-ветка v3 (черновик, разработка)
+
+С 12.10.2026 существует форк рабочей схемы — «Шаблон v3: Эконом +
+отказоустойчивость» (id `rIwvKxDNhOxodBCc`, draft, active=false, 212 узлов;
+снят с того же черновика базы, что и v2). v2 остаётся рабочей схемой (её
+вебхуки активны), все эксперименты — в копии. Снимок ветки —
+`schemas/template_v3_economy.json`, сверка:
+`python -B scripts/verify_snapshot.py --workflow-id rIwvKxDNhOxodBCc --file schemas/template_v3_economy.json`.
+
+Грабли: у копии те же пути вебхуков, что у v2 (`browser`, `api`, `editor`,
+`mcp`, `ch-*`) — пока v3 не активна, конфликта нет; до публикации v3 пути
+надо переименовать (в том числе в «Веер: запуск каналов (код)», где URL
+вееров собираются как `base + 'ch-…'`), иначе два воркфлоу будут драться
+за одни и те же адреса.
+
+Ещё одна ветка (например, v4) — тем же инструментом:
+
+    python -B scripts/fork_workflow.py --name "Шаблон v4: ..." --out schemas/template_v4_....json
+    scripts\import_workflow.cmd "<абсолютный путь к файлу>"
 
 ## Безопасность (ключи нейросетей)
 
