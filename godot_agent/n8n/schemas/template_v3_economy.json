@@ -7213,11 +7213,6 @@
       "main": [
         [
           {
-            "node": "Ждать решения (Cline)",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Мост: пауза → руки (HTTP)",
             "type": "main",
             "index": 0
@@ -8468,6 +8463,17 @@
         [
           {
             "node": "MCP: дзынь шине (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Мост: пауза → руки (HTTP)": {
+      "main": [
+        [
+          {
+            "node": "Ждать решения (Cline)",
             "type": "main",
             "index": 0
           }
