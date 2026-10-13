@@ -174,7 +174,7 @@ versionId `22d16508`):
 3. [x] D3: дзынь — fallback resume-URL из body триггера (гонка 404/409).
 4. [x] D4: Error Trigger в воркфлоу → строка `status=failed` в шину + дзынь —
    сбой канала виден в момент возникновения.
-5. [x] D5: снят `retryOnFail` у «X: 3. Фикс» ×4 (108/110: до 72 вызовов агента
+5. [x] D5: снят `retryOnFail` у «X: 3. Фикс» ×4 (108/110: до 48 вызовов агента
    на прогон, ~30–56K prompt каждый).
 
 Отчёты: `reports/REPORT_BUS_FIX_TASK7.json` (verdict YES) и
