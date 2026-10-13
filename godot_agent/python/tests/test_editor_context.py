@@ -41,8 +41,8 @@ snapshot = {
     "run": {"playing": False},
 }
 
-block, sizes = editor_context.format_snapshot(snapshot)
-normalized = editor_context.normalize_snapshot(snapshot)
+block, sizes = editor_context.format_editor_snapshot(snapshot)
+normalized = editor_context.normalize_editor_snapshot(snapshot)
 check(u"снимок форматируется", block.startswith("[Godot editor context v1"), block)
 check(u"активная сцена передана", "res://levels/main.tscn" in block)
 check(u"абсолютный путь отфильтрован", "C:/secret" not in block)
@@ -85,13 +85,13 @@ check(u"контекст курсора отправляется только п
 
 for malformed in (None, [], {}, {"schema_version": 2},
                   {"schema_version": 1, "script": "bad"}):
-    formatted, _ = editor_context.format_snapshot(malformed)
+    formatted, _ = editor_context.format_editor_snapshot(malformed)
     check(u"повреждённый снимок не ломает форматирование", isinstance(formatted, str))
 
 huge = {"schema_version": 1, "script": {"selection": {"text": "x" * 20000}},
         "selection": {"nodes": [{"path": "Selected", "type": "Node"}]},
         "scene": {"open": ["res://%03d.tscn" % i for i in range(100)]}}
-limited, _ = editor_context.format_snapshot(huge, max_chars=700)
+limited, _ = editor_context.format_editor_snapshot(huge, max_chars=700)
 check(u"общий бюджет соблюдён", len(limited) <= 700, len(limited))
 check(u"выделение узла переживает усечение", "Selected" in limited, limited)
 check(u"длинный список сцен отбрасывается раньше", "res://000.tscn" not in limited)

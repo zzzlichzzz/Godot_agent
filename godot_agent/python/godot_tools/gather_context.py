@@ -276,7 +276,7 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
               "sources": [], "omitted": [], "errors": errors}
     if errors:
         return result
-    snapshot = editor_context.normalize_snapshot(editor_snapshot)
+    snapshot = editor_context.normalize_editor_snapshot(editor_snapshot)
     script_snapshot = snapshot.get("script") if isinstance(snapshot, dict) else None
     if isinstance(script_snapshot, dict):
         script_path = str(script_snapshot.get("path") or "")
@@ -286,7 +286,7 @@ def gather(project_root, action, editor_snapshot=None, addon_dir=None,
             snapshot["script"] = {}
     source_paths = []
     if spec["editor"] and snapshot:
-        block, _stats = editor_context.format_snapshot(snapshot, max_chars=4500)
+        block, _stats = editor_context.format_editor_snapshot(snapshot, max_chars=4500)
         if block:
             result["sections"].append(("EDITOR SNAPSHOT", block))
         script_path = ((snapshot.get("script") or {}).get("path") or "")

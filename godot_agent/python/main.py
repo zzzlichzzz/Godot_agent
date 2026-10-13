@@ -176,13 +176,13 @@ def _pending_policy_current(container):
 
 def _filter_editor_snapshot_policy(snapshot, project_root):
     """Remove live code from paths hidden by the current access policy."""
-    clean = editor_context.normalize_snapshot(snapshot)
+    clean = editor_context.normalize_editor_snapshot(snapshot)
     script = clean.get("script") if isinstance(clean, dict) else None
     if isinstance(script, dict):
         path = str(script.get("path") or "")
         if path and not _can_read_path(path, project_root):
             clean["script"] = {}
-    return editor_context.normalize_snapshot(clean)
+    return editor_context.normalize_editor_snapshot(clean)
 
 
 def _is_project_settings_path(path):
@@ -4608,7 +4608,7 @@ def send_log_errors():
         return jsonify({"error": "Нет подготовленного отчёта. Нажмите «Ошибки запуска» заново."}), 400
     project_root = STATE.get("project_root")
     try:
-        message = log_reader.format_report(report)
+        message = log_reader.format_log_report(report)
         note = server_state.peek_action_note_for_current()
         if note:
             message = f"{note}\n\n{message}"
