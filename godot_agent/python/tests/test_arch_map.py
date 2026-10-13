@@ -7,6 +7,8 @@
     предупреждение, зона deny — отказ, зона вне карты — предупреждение,
     отсутствие карты — предупреждение (не молчаливое «ок»);
   * check_names:false (тесты, n8n, per-site парсеры) отключает сверку имён;
+  * чистота проекта: limits (line_warn/line_max) — файл сверх лимита отказ,
+    близкий к лимиту — предупреждение; аудит перечисляет крупные файлы;
   * поставленная карта аддона валидна и покрывает ключевые каталоги дерева.
 """
 import json
@@ -226,6 +228,59 @@ class AuditTests(Fixture):
         self.assertIn("weird/file.py", report["unknown_files"])
 
 
+LIMITS = {"line_warn": 6, "line_max": 8, "line_exts": [".py"],
+          "line_exempt_roles": ["generated", "workflow"]}
+
+
+class CleanlinessTests(Fixture):
+    """Лимиты строк и размещение: маленькая карта с явными limits."""
+
+    def setUp(self):
+        super().setUp()
+        data = dict(MINI_MAP)
+        data["limits"] = LIMITS
+        zones = list(MINI_MAP["zones"])
+        zones.insert(len(zones) - 1, {"glob": "n8n/**", "role": "workflow",
+                                      "new_files": "allow"})
+        data["zones"] = zones
+        self.write_map(data)
+
+    def test_oversized_new_file_is_refused(self):
+        text = "def unique_big_module():\n" + "    x = 1\n" * 9
+        errors, _warnings = arch_map.check_new_file(
+            self.addon, "python/godot_tools/big_mod.py", text)
+        self.assertTrue(any("лимит" in item for item in errors), errors)
+
+    def test_near_limit_new_file_warns(self):
+        text = "def unique_near_module():\n" + "    x = 1\n" * 6
+        errors, warnings = arch_map.check_new_file(
+            self.addon, "python/godot_tools/near_mod.py", text)
+        self.assertEqual(errors, [])
+        self.assertTrue(any("близко к лимиту" in item for item in warnings),
+                        warnings)
+
+    def test_limit_skips_exempt_roles_and_other_extensions(self):
+        big = "x = 1\n" * 40
+        errors, warnings = arch_map.check_new_file(
+            self.addon, "n8n/big_script.py", big)
+        self.assertEqual(errors, [])
+        self.assertFalse(any("лимит" in item for item in warnings), warnings)
+        errors, warnings = arch_map.check_new_file(
+            self.addon, "panel_big.gd", big)
+        self.assertEqual(errors, [])
+        self.assertFalse(any("лимит" in item for item in warnings), warnings)
+
+    def test_audit_lists_large_files(self):
+        self.write("python/godot_tools/audit_big.py", "y = 1\n" * 20)
+        self.write("python/godot_tools/audit_small.py", "y = 1\n")
+        report = arch_map.audit(self.addon)
+        rows = {item["rel"]: item for item in report["large_files"]}
+        self.assertIn("python/godot_tools/audit_big.py", rows)
+        self.assertTrue(rows["python/godot_tools/audit_big.py"]["over_max"])
+        self.assertNotIn("python/godot_tools/audit_small.py", rows)
+        self.assertEqual(report["line_policy"]["max"], 8)
+
+
 class ShippedMapTests(unittest.TestCase):
     def test_shipped_map_is_valid_and_covers_tree(self):
         data = arch_map.load_map(ADDON)
@@ -245,6 +300,7 @@ class ShippedMapTests(unittest.TestCase):
             "minilich_brain/dataset.jsonl": "generated",
             "python/dist/bundle/x.py": "generated",
             "panel_extra.gd": "godot-side",
+            "stray_root.py": "root-stray",
             "elsewhere/thing.py": "unknown",
         }
         for rel, role in expected.items():
@@ -257,6 +313,22 @@ class ShippedMapTests(unittest.TestCase):
         data = arch_map.load_map(ADDON)
         core = arch_map.core_dir_of(data).rstrip("/")
         self.assertTrue(os.path.isdir(os.path.join(ADDON, core)), core)
+
+    def test_shipped_map_sets_cleanliness_limits(self):
+        data = arch_map.load_map(ADDON)
+        limits = data.get("limits") or {}
+        warn = int(limits.get("line_warn") or 0)
+        maximum = int(limits.get("line_max") or 0)
+        self.assertGreaterEqual(warn, 200)
+        self.assertGreater(maximum, warn)
+        policy = arch_map.line_policy(data)
+        self.assertIn(".py", policy["exts"])
+        self.assertIn(".gd", policy["exts"])
+
+    def test_shipped_map_places_stray_root_python(self):
+        data = arch_map.load_map(ADDON)
+        zone = arch_map.zone_for(data, "stray_helper.py") or {}
+        self.assertEqual(zone.get("role"), "root-stray")
 
 
 if __name__ == "__main__":

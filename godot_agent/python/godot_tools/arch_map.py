@@ -20,6 +20,11 @@ docs/architecture_map.json, а аудит (tools/arch_audit.py) из той же
 Вердикты честные: карты нет или она битая — предупреждение, а не молчаливое «ок».
 Глобы карты сегментные: `*` не пересекает «/», `**` пересекает (без fnmatch —
 там `*.gd` зацепил бы и вложенные каталоги).
+
+Чистота проекта: карта задаёт лимиты размера файлов (`limits.line_warn` /
+`line_max`) и зоны размещения (какой файл куда кладётся). Новый файл сверх
+лимита — отказ гейта, близкий к лимиту — предупреждение «arch:»; audit()
+дополнительно перечисляет накопленные крупные файлы.
 """
 
 import ast
@@ -33,6 +38,12 @@ _SKIP_DIRS = {"__pycache__", "dist", "minilich_brain", "parser_corpus",
 
 _MAP_CACHE = {}
 _INDEX_CACHE = {"sig": None, "index": None}
+
+# Чистота проекта: лимиты размера файлов по умолчанию (переопределяет limits карты).
+_DEFAULT_LINE_LIMITS = {"line_warn": 1500, "line_max": 2000,
+                        "line_exts": [".py", ".gd"],
+                        "line_exempt_roles": ["workflow", "generated",
+                                              "tasks", "reports"]}
 
 
 def _glob_to_re(pattern):
@@ -120,6 +131,48 @@ def core_dir_of(map_data):
     return value.strip("/").replace("\\", "/") + "/"
 
 
+def line_policy(map_data):
+    """Лимиты размера файла из карты (`limits`) с безопасными значениями.
+
+    Возвращает {"warn": int, "max": int, "exts": [".py", ...],
+    "exempt_roles": [...]}. Битые значения и отсутствие карты — дефолт:
+    предупреждение 1500 строк, лимит 2000, .py/.gd, генерируемые зоны не
+    считаем (их размер диктует экспортёр, а не автор кода).
+    """
+    limits = (map_data or {}).get("limits")
+    limits = limits if isinstance(limits, dict) else {}
+
+    def _int(key, fallback):
+        try:
+            value = int(limits.get(key))
+        except (TypeError, ValueError):
+            return fallback
+        return value if value > 0 else fallback
+
+    warn = _int("line_warn", _DEFAULT_LINE_LIMITS["line_warn"])
+    maximum = _int("line_max", _DEFAULT_LINE_LIMITS["line_max"])
+    if maximum < warn:
+        maximum = warn
+    exts = limits.get("line_exts")
+    exts = [str(item).lower() for item in exts
+            if str(item).strip().startswith(".")] \
+        if isinstance(exts, list) else []
+    if not exts:
+        exts = list(_DEFAULT_LINE_LIMITS["line_exts"])
+    roles = limits.get("line_exempt_roles")
+    roles = [str(item) for item in roles if str(item).strip()] \
+        if isinstance(roles, list) else list(_DEFAULT_LINE_LIMITS["line_exempt_roles"])
+    return {"warn": warn, "max": maximum, "exts": exts,
+            "exempt_roles": roles}
+
+
+def count_lines(text):
+    """Число строк текста (пустой текст — 0)."""
+    if not text:
+        return 0
+    return len(str(text).splitlines())
+
+
 def name_checks_enabled(map_data, rel_path):
     """Зона может отключить сверку имён (`check_names: false`).
 
@@ -152,14 +205,15 @@ def public_names(text):
     return names
 
 
-def _py_signature(addon_dir):
-    """Слепок всех .py аддона (относительный путь, mtime, размер) — для кэша."""
+def _source_signature(addon_dir, exts):
+    """Слепок файлов аддона с расширениями exts (путь, mtime, размер)."""
+    exts = tuple(str(item).lower() for item in exts)
     entries = []
     for root, dirs, files in os.walk(str(addon_dir)):
         dirs[:] = [item for item in dirs
                    if item not in _SKIP_DIRS and not item.startswith(".")]
         for name in files:
-            if not name.endswith(".py"):
+            if not name.lower().endswith(exts):
                 continue
             full = os.path.join(root, name)
             try:
@@ -170,6 +224,11 @@ def _py_signature(addon_dir):
             entries.append((rel, stat.st_mtime_ns, stat.st_size))
     entries.sort()
     return tuple(entries)
+
+
+def _py_signature(addon_dir):
+    """Слепок всех .py аддона (относительный путь, mtime, размер) — для кэша."""
+    return _source_signature(addon_dir, (".py",))
 
 
 def name_index(addon_dir):
@@ -232,6 +291,21 @@ def check_new_file(addon_dir, rel_path, text, map_data=None, index=None):
         errors.append("%s: зона %s (%s) — только генерируемые файлы%s"
                       % (value, zone.get("glob") or "?", role, suffix))
         return errors, warnings
+    policy = line_policy(map_data)
+    extension = os.path.splitext(value)[1].lower()
+    if extension in policy["exts"] and role not in policy["exempt_roles"]:
+        lines = count_lines(text)
+        if lines > policy["max"]:
+            errors.append(
+                "%s: %d строк — больше лимита %d строк на файл (чистота проекта, "
+                "docs/ARCHITECTURE.md): раздели функциональность на модули ядра "
+                "(%s), каждый — со своим тестом"
+                % (value, lines, policy["max"],
+                   core_dir_of(map_data).rstrip("/")))
+        elif lines >= policy["warn"]:
+            warnings.append(
+                "%s: %d строк — близко к лимиту %d строк на файл: планируй "
+                "разделение на модули ядра" % (value, lines, policy["max"]))
     if not value.lower().endswith(".py"):
         if new_files == "warn":
             warnings.append("%s: зона %s (%s)%s" % (value, zone.get("glob") or "?",
@@ -309,7 +383,9 @@ def audit(addon_dir, map_data=None):
 
     Возвращает dict: core_duplicates (имя есть и в ядре, и вне ядра),
     consumer_duplicates (одно имя у двух и более файлов вне ядра),
-    unknown_files (существующие .py в зоне «unknown» карты), count.
+    unknown_files (существующие .py в зоне «unknown» карты — файл не на своём
+    месте либо зона не описана), large_files (файлы от warn-лимита строк,
+    over_max — сверх жёсткого лимита), line_policy (действующие лимиты), count.
     """
     if map_data is None:
         map_data = load_map(addon_dir)
@@ -334,6 +410,22 @@ def audit(addon_dir, map_data=None):
         zone = zone_for(map_data, rel) or {}
         if str(zone.get("role") or "unknown") == "unknown":
             unknown_files.append(rel)
+    policy = line_policy(map_data)
+    large_files = []
+    for rel, _mtime, _size in _source_signature(addon_dir, policy["exts"]):
+        zone = zone_for(map_data, rel) or {}
+        if str(zone.get("role") or "unknown") in policy["exempt_roles"]:
+            continue
+        try:
+            with open(os.path.join(str(addon_dir), rel), "r",
+                      encoding="utf-8-sig", errors="replace") as handle:
+                lines = count_lines(handle.read())
+        except OSError:
+            continue
+        if lines >= policy["warn"]:
+            large_files.append({"rel": rel, "lines": lines,
+                                "over_max": lines > policy["max"]})
+    large_files.sort(key=lambda item: (-item["lines"], item["rel"]))
     return {
         "addon_dir": str(addon_dir),
         "core_dir": core_dir.rstrip("/"),
@@ -341,4 +433,8 @@ def audit(addon_dir, map_data=None):
         "core_duplicates": core_duplicates,
         "consumer_duplicates": consumer_duplicates,
         "unknown_files": unknown_files,
+        "large_files": large_files,
+        "line_policy": {"warn": policy["warn"], "max": policy["max"],
+                        "exts": list(policy["exts"]),
+                        "exempt_roles": list(policy["exempt_roles"])},
     }

@@ -8,6 +8,8 @@
   * зона deny (генерируемые каталоги) — отказ;
   * зона вне карты — предупреждение, не отказ;
   * зоны с check_names:false (тесты) не сверяют имена;
+  * чистота проекта: новый файл сверх лимита строк — отказ, близкий к
+    лимиту — предупреждение «arch:»;
   * файлы пользовательских проектов и режим project карту не касаются.
 """
 import contextlib
@@ -174,6 +176,32 @@ class ArchGateTests(unittest.TestCase):
             mode="project")
         self.assertEqual(rc, 0, out + err)
         self.assertNotIn("arch:", out)
+
+    def _rewrite_map(self, limits):
+        map_data = dict(MAP)
+        map_data["limits"] = limits
+        (self.agent / "docs" / "architecture_map.json").write_text(
+            json.dumps(map_data, ensure_ascii=False), encoding="utf-8")
+
+    def test_oversized_new_file_is_refused(self):
+        self._rewrite_map({"line_warn": 5, "line_max": 6,
+                           "line_exts": [".py"], "line_exempt_roles": []})
+        rc, out, err = self.preview(self.create(
+            AGENT + "/python/browser/big_helper.py",
+            "def sweep_big():\n" + "    x = 1\n" * 8))
+        self.assertEqual(rc, 2, out + err)
+        self.assertIn("лимит", out)
+        self.assertFalse(
+            (self.agent / "python" / "browser" / "big_helper.py").exists())
+
+    def test_near_limit_new_file_warns(self):
+        self._rewrite_map({"line_warn": 5, "line_max": 50,
+                           "line_exts": [".py"], "line_exempt_roles": []})
+        rc, out, err = self.preview(self.create(
+            AGENT + "/python/browser/near_helper.py",
+            "def sweep_near():\n" + "    x = 1\n" * 6))
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("близко к лимиту", out)
 
 
 if __name__ == "__main__":

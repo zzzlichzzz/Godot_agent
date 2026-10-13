@@ -5,7 +5,8 @@
 уже накопленные дубли имён он не замечает. Этот скрипт — периодическая
 проверка всего дерева: где публичное имя встречается и в ядре, и вне ядра;
 где одно имя живёт у двух и более файлов-потребителей; какие .py не покрыты
-картой архитектуры. Отчёт читает человек; ничего не меняется.
+картой архитектуры (файл не на своём месте); какие .py/.gd переросли лимит
+строк (чистота проекта). Отчёт читает человек; ничего не меняется.
 
 Запуск из python/ (или откуда угодно — аддон берётся от самого файла,
 можно переопределить --addon):
@@ -73,9 +74,18 @@ def main(argv=None):
     consumer_rows = ["%s: %s" % (item["name"], ", ".join(item["files"]))
                      for item in report["consumer_duplicates"]]
     unknown_rows = list(report["unknown_files"])
+    policy = report.get("line_policy") or {}
+    large_rows = ["%s: %d строк%s"
+                  % (item["rel"], item["lines"],
+                     " — БОЛЬШЕ ЛИМИТА, раздели на модули"
+                     if item.get("over_max") else "")
+                  for item in report.get("large_files") or []]
     _print_section("дубли «ядро ↔ потребители»", core_rows)
     _print_section("одно имя у нескольких файлов вне ядра", consumer_rows)
-    _print_section("файлы вне зон карты", unknown_rows)
+    _print_section("файлы вне зон карты (не на своём месте)", unknown_rows)
+    _print_section("крупные файлы (>= %s строк; лимит %s)"
+                   % (policy.get("warn", "?"), policy.get("max", "?")),
+                   large_rows)
 
     if args.json:
         try:
@@ -86,12 +96,14 @@ def main(argv=None):
             print("arch_audit: не смог записать json: %s" % exc)
             return RC_ERROR
 
-    findings = len(core_rows) + len(consumer_rows) + len(unknown_rows)
+    findings = (len(core_rows) + len(consumer_rows) + len(unknown_rows)
+                + len(large_rows))
     if findings:
         print("итог: %d замечание(й) — решай по каждой: слить в ядро, "
-              "переименовать или внести осознанное исключение в карту" % findings)
+              "переименовать, разбить крупный файл на модули или внести "
+              "осознанное исключение в карту" % findings)
         return RC_FINDINGS
-    print("итог: чисто — дублей имён и файлов вне зон нет")
+    print("итог: чисто — дублей имён, файлов вне зон и крупных файлов нет")
     return RC_OK
 
 
