@@ -16,6 +16,13 @@ import re
 import sys
 
 
+def panel_source(addon: Path) -> str:
+    """Исходник панели: части «пилы» split_gd первыми, донор последним."""
+    parts = sorted(addon.glob("agent_panel_part*.gd"))
+    return "\n".join(path.read_text(encoding="utf-8")
+                     for path in parts + [addon / "agent_panel.gd"])
+
+
 class StaticChecks:
     """Панель не создаёт HTTPRequest: короткие запросы идут через узел связи."""
 
@@ -41,7 +48,7 @@ class StaticChecks:
             self.check("%s на месте" % name, path.is_file(), str(path))
         if not (self.panel_path.is_file() and self.link_path.is_file()):
             return
-        panel = self.panel_path.read_text(encoding="utf-8")
+        panel = panel_source(self.addon)
         link = self.link_path.read_text(encoding="utf-8")
 
         self.check("панель не создаёт HTTPRequest",

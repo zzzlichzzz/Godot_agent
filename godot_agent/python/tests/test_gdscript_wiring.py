@@ -137,7 +137,25 @@ check(u"все обработчики из .connect() объявлены в св
 
 # --- 4) сигналы стартового экрана и их подключения в панели ---
 start = read(_os0.path.join(ADDON, "agent_start_screen.gd"))
-panel = read(_os0.path.join(ADDON, "agent_panel.gd"))
+
+
+def read_panel():
+    """Исходник панели целиком: части «пилы» split_gd и сам донор.
+
+    Тела вынесенных методов живут в agent_panel_part*.gd, в доноре остались
+    только обёртки вида `AgentPanelPartN._method(self, ...)`. Части идут
+    первыми, чтобы поиск тела функции не натыкался на обёртку.
+    """
+    parts = sorted(glob.glob(_os0.path.join(ADDON, "agent_panel_part*.gd")))
+    return "\n".join(read(path)
+                     for path in parts + [_os0.path.join(ADDON, "agent_panel.gd")])
+
+
+panel = read_panel()
+# Текст панели без квалификатора «пилы»: тела вынесенных методов обращаются
+# к членам донора через параметр `panel` (panel.<член>), а проверки ниже
+# написаны для исходного вида — со свободными именами членов донора.
+panel_flat = re.sub(r"\bpanel\.", "", panel)
 diff_card = read(_os0.path.join(ADDON, "DiffPreviewCard.gd"))
 declared = set(re.findall(r"^signal\s+([A-Za-z0-9_]+)", start, re.MULTILINE))
 emitted = set(re.findall(r"([A-Za-z0-9_]+)\.emit\(", start))
@@ -235,8 +253,8 @@ check(u"нет HTTP-запросов вообще без заголовков", 
 
 # Каждая функция панели, шлющая запрос, обязана брать заголовки у сборщика.
 missing_token = []
-for m in re.finditer(r"^func ([A-Za-z0-9_]+)\s*\(", panel, re.MULTILINE):
-    nxt = re.search(r"^func ", panel[m.end():], re.MULTILINE)
+for m in re.finditer(r"^(?:static )?func ([A-Za-z0-9_]+)\s*\(", panel, re.MULTILINE):
+    nxt = re.search(r"^(?:static )?func ", panel[m.end():], re.MULTILINE)
     body = panel[m.end():m.end() + (nxt.start() if nxt else len(panel))]
     if ".request(" not in body:
         continue
@@ -281,7 +299,7 @@ check(u"панель берёт токен у узла ServerLink",
       "_link.project_token()" in panel)
 
 check(u"chat request привязан к открытому chat id",
-      '"chat_id": _current_chat_id' in panel)
+      '"chat_id": _current_chat_id' in panel_flat)
 check(u"поле ввода очищается централизованно и возвращает фокус",
       "func _clear_chat_input" in panel
       and 'call_deferred("grab_focus")' in panel
@@ -342,6 +360,10 @@ for scene in scenes:
     src_scene = read(scene)
     # Сцена без парного скрипта: переписать надпись некому в принципе.
     gd = read(gd_path) if _os0.path.isfile(gd_path) else ""
+    # Тела методов панели вынесены «пилой» split_gd в <stem>_part*.gd:
+    # надписи доковой сцены переписывает код из частей (_on_language_changed).
+    for extra in sorted(glob.glob(_os0.path.join(ADDON, stem + "_part*.gd"))):
+        gd += "\n" + read(extra)
     # Имя узла -> имя переменной, к которой его привязал @onready.
     node_var = {}
     for m in re.finditer(r"@onready\s+var\s+([A-Za-z0-9_]+)\s*:[^=]*=\s*\$([^\s#]+)",
@@ -441,11 +463,11 @@ check("scene executor creates typed scenes through PackedScene temp save",
 check("panel sends trusted Godot executable for engine validation",
       "OS.get_executable_path()" in panel and '"godot_executable"' in panel)
 check("policy confirmation restores both internal capabilities on cancel",
-      all(name in panel for name in (
+      all(name in panel_flat for name in (
           "_policy_previous_allow_addons", "_policy_previous_allow_self_edit",
           "_allow_addons = _policy_previous_allow_addons",
           "_allow_self_edit = _policy_previous_allow_self_edit"))
-      and "canceled.connect" in panel)
+      and "canceled.connect" in panel_flat)
 
 check("panel coordinates scene prepare execute finalize",
       all(name in panel for name in ("_prepare_scene_action", "_execute_scene_action",
@@ -480,7 +502,7 @@ for path in GD_FILES:
 check("зарезервированное class_name не используется как local variable",
       not reserved_locals, reserved_locals)
 panel_script_paths = re.findall(
-    r"var\s+\w+_path\s*([^\n=]*?)=\s*get_script\(\)\.resource_path", panel)
+    r"var\s+\w+_path\s*([^\n=]*?)=\s*get_script\(\)\.resource_path", panel_flat)
 check("пути от get_script resource_path имеют явный String type",
       panel_script_paths and all(": String" in prefix for prefix in panel_script_paths),
       panel_script_paths)
@@ -575,7 +597,7 @@ check("runtime bridge is debug-only and read-only",
       and "register_message_capture" in runtime_bridge
       and all(name not in runtime_bridge for name in ("set_property", "queue_free(", "change_scene_to", "UndoRedo")))
 check("panel sends compact runtime status and handles bounded result",
-      '"runtime_status": _runtime_status' in panel
+      '"runtime_status": _runtime_status' in panel_flat
       and "_start_runtime_inspect" in panel and "RUNTIME_RESULT_URL" in panel
       and "_pending_runtime_request" in panel)
 check("automatic runtime log setup is read-only",
@@ -612,10 +634,10 @@ check("panel policy confirmation is first-enable and cancel-safe",
       and 'confirmed.connect' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")]
       and 'canceled.connect' in panel[panel.find("func _request_policy_enable"):panel.find("func _on_reinit_pressed")])
 check("policy confirmation stays attached above the settings window",
-      "_settings_dialog.add_child(_policy_confirmation_dialog)" in panel
-      and "func _restore_settings_window" in panel
-      and "_settings_dialog.move_to_front()" in panel
-      and "is_instance_valid(_policy_confirmation_dialog)" in panel)
+      "_settings_dialog.add_child(_policy_confirmation_dialog)" in panel_flat
+      and "func _restore_settings_window" in panel_flat
+      and "_settings_dialog.move_to_front()" in panel_flat
+      and "is_instance_valid(_policy_confirmation_dialog)" in panel_flat)
 check("panel policy body carries all session policy fields",
       all(token in panel[panel.find("func _policy_body"):panel.find("func _policy_json")]
           for token in ('project_root', 'user_data_dir', 'addon_dir', 'allow_addons', 'allow_self_edit')))

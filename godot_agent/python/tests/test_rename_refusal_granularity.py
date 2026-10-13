@@ -427,8 +427,18 @@ class PanelSettingDefault(unittest.TestCase):
                          "agent_panel.gd")
 
     def setUp(self):
+        # Тела методов вынесены «пилой» split_gd в agent_panel_part*.gd:
+        # для проверок исходник панели — это части вместе с донором.
+        addon_dir = os.path.dirname(self.PANEL)
+        sources = []
+        for name in sorted(os.listdir(addon_dir)):
+            if name.startswith("agent_panel_part") and name.endswith(".gd"):
+                with open(os.path.join(addon_dir, name), "r",
+                          encoding="utf-8") as handle:
+                    sources.append(handle.read())
         with open(self.PANEL, "r", encoding="utf-8") as handle:
-            self.source = handle.read()
+            sources.append(handle.read())
+        self.source = "\n".join(sources)
 
     def test_panel_has_unverified_toggle_defaulting_to_true(self):
         self.assertRegex(
@@ -446,7 +456,7 @@ class PanelSettingDefault(unittest.TestCase):
         """Отсутствие файла настроек = включено. Иначе первое же открытие
         проекта молча выставило бы strict вопреки «галочка стоит по стандарту»."""
         match = re.search(
-            r"func\s+_load_rename_unverified_setting.*?\n\nfunc", self.source, re.S)
+            r"func\s+_load_rename_unverified_setting.*?\n\n(?:static )?func", self.source, re.S)
         self.assertIsNotNone(match, "не найден загрузчик настройки")
         body = match.group(0)
         self.assertRegex(body, r"file_exists\([^)]*\)\s*:\s*\n?\s*return\s+true")
@@ -454,7 +464,7 @@ class PanelSettingDefault(unittest.TestCase):
     def test_panel_sends_the_flag_in_policy_body(self):
         """Флаг обязан уезжать тем же каналом, что allow_addons, иначе сервер
         не узнает о снятой галочке и поведёт себя по умолчанию."""
-        match = re.search(r"func\s+_policy_body.*?\n\nfunc", self.source, re.S)
+        match = re.search(r"func\s+_policy_body.*?\n\n(?:static )?func", self.source, re.S)
         self.assertIsNotNone(match, "не найдена _policy_body")
         self.assertIn("rename_unverified", match.group(0))
 

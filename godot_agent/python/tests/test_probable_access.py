@@ -153,8 +153,18 @@ class PanelCanChooseMode(unittest.TestCase):
                          "agent_panel.gd")
 
     def setUp(self):
+        # Тела методов вынесены «пилой» split_gd в agent_panel_part*.gd:
+        # для проверок исходник панели — это части вместе с донором.
+        addon_dir = os.path.dirname(self.PANEL)
+        sources = []
+        for name in sorted(os.listdir(addon_dir)):
+            if name.startswith("agent_panel_part") and name.endswith(".gd"):
+                with open(os.path.join(addon_dir, name), "r",
+                          encoding="utf-8") as handle:
+                    sources.append(handle.read())
         with open(self.PANEL, "r", encoding="utf-8") as handle:
-            self.source = handle.read()
+            sources.append(handle.read())
+        self.source = "\n".join(sources)
 
     def test_panel_has_mode_choice_control(self):
         self.assertRegex(
@@ -168,7 +178,7 @@ class PanelCanChooseMode(unittest.TestCase):
         self.assertRegex(self.source, r"func\s+_load_rename_mode")
 
     def test_panel_sends_mode_in_policy_body(self):
-        match = re.search(r"func\s+_policy_body.*?\n\nfunc", self.source, re.S)
+        match = re.search(r"func\s+_policy_body.*?\n\n(?:static )?func", self.source, re.S)
         self.assertIsNotNone(match, "не найдена _policy_body")
         self.assertIn("rename_mode", match.group(0))
 
@@ -181,7 +191,7 @@ class PanelCanChooseMode(unittest.TestCase):
         принимаемое значение), а конкретную границу: ОТСУТСТВИЕ файла
         настроек возвращает strict.
         """
-        match = re.search(r"func\s+_load_rename_mode.*?\n\nfunc",
+        match = re.search(r"func\s+_load_rename_mode.*?\n\n(?:static )?func",
                           self.source, re.S)
         self.assertIsNotNone(match, "не найден загрузчик режима")
         body = match.group(0)
