@@ -418,8 +418,9 @@ func shutdown_server() -> void:
 	var headers := _json_headers()
 	http.request("http://127.0.0.1:5000/server/shutdown", headers, HTTPClient.METHOD_POST, "{}")
 
-	# 2. На Windows принудительно завершаем godot_agent_server.exe, если он активен
+	# 2. На Windows: короткая пауза, чтобы сервер сам погасил chromedriver, затем taskkill — страховка.
 	if OS.get_name() == "Windows":
+		OS.delay_msec(900)
 		OS.execute("taskkill", ["/F", "/IM", "godot_agent_server.exe"], [], false, true)
 
 	# Удаляем временный узел через 1 секунду

@@ -239,6 +239,7 @@ import providers        # noqa: F401
 
 from chat_routes import chats_bp
 import server_auth
+import port_guard  # v105: защита порта :5000 от «призрачных» сокетов
 
 app = Flask(__name__)
 app.register_blueprint(chats_bp)
@@ -4696,6 +4697,25 @@ def server_shutdown():
     """Завершить работу локального сервера (для обновления плагина)."""
     def _do_exit():
         time.sleep(0.3)
+        # ВАЖНО (13.10.2026): сначала гасим chromedriver, потом выходим.
+        # Раньше os._exit(0) убивал сервер, а chromedriver (запущенный
+        # selenium с наследованием хендлов) оставался жив и держал копию
+        # слушающего сокета :5000 — новый сервер не мог занять порт, и
+        # панель в Godot «не соединялась». driver.quit() после stop() —
+        # просто вежливое закрытие сессии, ошибки здесь не важны.
+        try:
+            _drv = server_state.get_driver()
+        except Exception:
+            _drv = None
+        if _drv is not None:
+            try:
+                _drv.service.stop()
+            except Exception:
+                pass
+            try:
+                _drv.quit()
+            except Exception:
+                pass
         os._exit(0)
 
     threading.Thread(target=_do_exit, daemon=True).start()
@@ -4794,6 +4814,10 @@ if __name__ == '__main__':
             print("--> Не удалось применить настройки DNS: %s" % e)
         # ВАЖНО: только 127.0.0.1! На 0.0.0.0 любой в локальной сети
         # мог бы писать файлы в ваш проект простым POST-запросом.
+        # Порт 5000 мог остаться занятым «призраком» от прошлого запуска
+        # (осиротевший chromedriver держит слушающий сокет сервера) — тогда
+        # панель в Godot подключается, но не получает ответа. Лечим до app.run().
+        port_guard.recover_ghost_port(5000)
         print("Dashbord servera: http://127.0.0.1:5000/dashboard")
         app.run(port=5000, host='127.0.0.1', threaded=True)
     except Exception as e:
