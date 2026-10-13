@@ -1850,7 +1850,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// АГРЕГАТОР-СУПЕРВИСОР («ждать всех», фикс ②): ждёт отчёты каналов из шины (каналы — отдельные исполнения).\n// Вход: строки шины (или пусто) из «Шина: чтение». Выход ВСЕГДА один элемент с agg_done;\n// false — кольцо ещё ждёт (назад на «Шина: ожидание (60с)»), true — идём в Сборщик.\n// run_id фильтруем ЗДЕСЬ (в коде), а не фильтром dataTable — так кольцо не зависит от резолва выражения в фильтре.\nconst store = $getWorkflowStaticData('global');\nif (store.bus_run !== $execution.id) { store.bus_run = $execution.id; store.bus_polls = 0; }\nstore.bus_polls++;\nconst runId = String($execution.id);\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nconst expected = Object.keys(flags).filter(c => flags[c] === 'YES');\nconst all = $input.all().map(i => i.json).filter(r => r && r.channel && r.channel !== 'none');\nconst waveStart = Number(store.wave_start_ms || 0);\nconst rows = all.filter(r => String(r.run_id || '') === runId && (waveStart <= 0 || new Date(String(r.createdAt || '')).getTime() >= waveStart - 2000));\nconst seen = {};\nconst parts = [];\nfor (const r of rows) {\n  const ch = String(r.channel);\n  if (seen[ch]) continue;\n  seen[ch] = r;\n  parts.push('--- Канал ' + ch + ' (' + String(r.status || 'done') + ') ---\\n' + String(r.summary || '').slice(0, 2000));\n}\nconst missing = expected.filter(c => !seen[c]);\nconst cap = 75; // 75 опросов × 60 c ≈ 75 минут — жёсткий предел ожидания каналов\nconst timeout = store.bus_polls >= cap;\nconst done = missing.length === 0 || timeout;\nlet task = 'СВОДКА ВЕТОК КАНАЛОВ (' + (expected.length - missing.length) + ' из ' + expected.length + '):\\n\\n' + (parts.join('\\n\\n') || 'отчётов нет');\nif (!expected.length) task = 'СВОДКА ВЕТОК КАНАЛОВ: задач ни одному каналу не поставлено (все NO).';\nif (timeout && missing.length) task += '\\n\\nВНИМАНИЕ (сторож): каналы не отчитались за ' + cap + ' минут: ' + missing.join(', ') + '. Это пропуск — сверь их исполнения по run_id ' + runId + '.';\nreturn [{ json: { task: task, agg_done: done, agg_missing: missing, agg_run_id: runId, agg_polls: store.bus_polls, agg_expected: expected, agg_seen: Object.keys(seen), agg_rows: rows.length, agg_all_rows: all.length, agg_flags: flags } }];"
+        "jsCode": "// АГРЕГАТОР-СУПЕРВИСОР («ждать всех», v3.1): ждёт отчёты каналов из шины (каналы — отдельные исполнения).\n// Сторож — по ВРЕМЕНИ от метки волны (не счётчик в static: он не переживал wait-паузы и не срабатывал).\nconst CAP_MIN = 30; // сторож: 30 минут на волну; сбой канала приходит строкой status=failed сразу\nconst now = Date.now();\nlet waveStart = 0;\ntry { waveStart = Number($('Шина: стартовый пакет').last().json.wave_start_ms || 0); } catch (e) {}\nconst runId = String($execution.id);\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nconst expected = Object.keys(flags).filter(c => flags[c] === 'YES');\nconst all = $input.all().map(i => i.json).filter(r => r && r.channel && r.channel !== 'none');\nconst freshMs = 45 * 60 * 1000;\nconst rows = all.filter(r => String(r.run_id || '') === runId\n  && (waveStart <= 0 || new Date(String(r.createdAt || '')).getTime() >= waveStart - 2000)\n  && (now - new Date(String(r.createdAt || '')).getTime()) <= freshMs);\nconst seen = {};\nconst parts = [];\nfor (const r of rows) {\n  const ch = String(r.channel);\n  if (seen[ch]) continue;\n  seen[ch] = r;\n  parts.push('--- Канал ' + ch + ' (' + String(r.status || 'done') + ') ---\\n' + String(r.summary || '').slice(0, 2000));\n}\nconst missing = expected.filter(c => !seen[c]);\nconst failed = expected.filter(c => seen[c] && String(seen[c].status || '') === 'failed');\nconst elapsedMin = waveStart > 0 ? Math.round((now - waveStart) / 60000) : 0;\nconst timeout = waveStart > 0 && (now - waveStart) >= CAP_MIN * 60000;\nconst done = missing.length === 0 || timeout;\nlet task = 'СВОДКА ВЕТОК КАНАЛОВ (' + (expected.length - missing.length) + ' из ' + expected.length + '):\\n\\n' + (parts.join('\\n\\n') || 'отчётов нет');\nif (!expected.length) task = 'СВОДКА ВЕТОК КАНАЛОВ: задач ни одному каналу не поставлено (все NO).';\nif (failed.length) task += '\\n\\nСБОЙ КАНАЛОВ: ' + failed.join(', ') + ' — см. строки status=failed в шине (канал упал и сообщил сам).';\nif (timeout && missing.length) task += '\\n\\nВНИМАНИЕ (сторож, ' + CAP_MIN + ' мин): каналы не отчитались: ' + missing.join(', ') + '. Сверь их исполнения по run_id ' + runId + '.';\nreturn [{ json: { task: task, agg_done: done, agg_missing: missing, agg_failed: failed, agg_run_id: runId, agg_elapsed_min: elapsedMin, agg_expected: expected, agg_seen: Object.keys(seen), agg_rows: rows.length, agg_all_rows: all.length, agg_flags: flags } }];"
       },
       "id": "ab06e91f-9034-471c-a2ec-6cf7f211257f",
       "name": "Агрегатор каналов (ждать всех)",
@@ -4341,7 +4341,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Шина: стартовый пакет»: переживаем рассылку вебхуков и уходим в цикл ожидания отчётов.\n// run_id берём из $execution.id напрямую — не зависим от того, пробросил ли wait данные.\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nconst store = $getWorkflowStaticData('global');\nstore.wave_start_ms = Date.now();\nreturn [{ json: { run_id: String($execution.id), flags: flags } }];"
+        "jsCode": "// «Шина: стартовый пакет»: переживаем рассылку вебхуков и уходим в цикл ожидания отчётов.\n// v3.1: wave_start_ms живёт В ПАКЕТЕ (execution data), а не в static data — static не переживает wait-паузы\n// (значение терялось, фильтр волны отключался и волна закрывалась по старым строкам).\nlet flags = {};\ntry { flags = $('Веер: запуск каналов (код)').first().json.flags || {}; } catch (e) {}\nreturn [{ json: { run_id: String($execution.id), flags: flags, wave_start_ms: Date.now() } }];"
       },
       "id": "bus-start-1",
       "name": "Шина: стартовый пакет",
@@ -4454,7 +4454,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск Браузер: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_browser: task ? 'YES' : 'NO',\n  task_browser: task,\n  session: session,\n  session_key: session ? 'channel-browser-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
+        "jsCode": "// «Запуск Браузер: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины и run_id круга — канал дзынькнет ядру после отчёта,\n// а обработчик сбоя («Сбой канала: определить (код)») возьмёт run_id отсюда на случай падения.\nif (b.bus_resume) {\n  const st = $getWorkflowStaticData('global');\n  st.bus_resume = String(b.bus_resume);\n  st.bus_run_id = String(b.run_id || '');\n}\nreturn [{ json: {\n  work_browser: task ? 'YES' : 'NO',\n  task_browser: task,\n  session: session,\n  session_key: session ? 'channel-browser-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: String(b.bus_resume || '')\n} }];"
       },
       "id": "707923c5-eb8b-4f3d-b48c-3da4412578ed",
       "name": "Запуск Браузер: пакет",
@@ -4518,9 +4518,9 @@
           ],
           "value": {
             "channel": "browser",
-            "run_id": "={{ $('Запуск канала: Браузер').isExecuted ? (($('Запуск канала: Браузер').first().json.body || {}).run_id || '') : '' }}",
-            "status": "={{ ($('Браузер: Есть работа?').isExecuted && String($('Браузер: Есть работа?').last().json.work_browser || '') === 'NO') ? 'skipped' : ((($('Браузер: 5. Аудит-2 (парсер)').isExecuted ? String($('Браузер: 5. Аудит-2 (парсер)').last().json.clean || '') : '') === 'YES') ? 'done' : ((($('Браузер: Счётчик петель (лимит 3)').isExecuted ? String($('Браузер: Счётчик петель (лимит 3)').last().json.cycle_limit || '') : '') === 'YES') ? 'limit' : 'needs_work')) }}",
-            "summary": "={{ ($('Браузер: Есть работа?').isExecuted && String($('Браузер: Есть работа?').last().json.work_browser || '') === 'NO') ? 'Канал Браузер: пропуск (нет работы в этом круге).' : ('Канал Браузер. clean=' + ($('Браузер: 5. Аудит-2 (парсер)').isExecuted ? String($('Браузер: 5. Аудит-2 (парсер)').last().json.clean || '?') : '?') + '; audit=' + ($('Браузер: 5. Аудит-2 (парсер)').isExecuted ? String($('Браузер: 5. Аудит-2 (парсер)').last().json.audit || '?') : '?') + '; verdict=' + ($('Браузер: 4. Прогон тестов (парсер)').isExecuted ? String($('Браузер: 4. Прогон тестов (парсер)').last().json.verdict || '?') : '?') + '; applied=' + ($('Браузер: 3. Фикс (парсер)').isExecuted ? String($('Браузер: 3. Фикс (парсер)').last().json.applied || '?') : '?') + ((($('Браузер: 2. Синтетические тесты (парсер)').isExecuted ? String($('Браузер: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '') !== '') ? ('; test=' + ($('Браузер: 2. Синтетические тесты (парсер)').isExecuted ? String($('Браузер: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '')) : '') + '; loops=' + ($('Браузер: Счётчик петель (лимит 3)').isExecuted ? ($('Браузер: Счётчик петель (лимит 3)').last().json.cycle_n || 0) : 0) + '\\n\\nИТОГ канала:\\n' + ($('Канал: Браузер').isExecuted ? String($('Канал: Браузер').last().json.output || '').slice(0, 3000) : '')) }}"
+            "run_id": "={{ $json.run_id }}",
+            "status": "={{ $json.status }}",
+            "summary": "={{ $json.summary }}"
           }
         },
         "options": {}
@@ -4552,7 +4552,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск API: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_api: task ? 'YES' : 'NO',\n  task_api: task,\n  session: session,\n  session_key: session ? 'channel-api-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
+        "jsCode": "// «Запуск API: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины и run_id круга — канал дзынькнет ядру после отчёта,\n// а обработчик сбоя («Сбой канала: определить (код)») возьмёт run_id отсюда на случай падения.\nif (b.bus_resume) {\n  const st = $getWorkflowStaticData('global');\n  st.bus_resume = String(b.bus_resume);\n  st.bus_run_id = String(b.run_id || '');\n}\nreturn [{ json: {\n  work_api: task ? 'YES' : 'NO',\n  task_api: task,\n  session: session,\n  session_key: session ? 'channel-api-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: String(b.bus_resume || '')\n} }];"
       },
       "id": "c3e3d652-1374-40e6-9d32-ca459f9209ac",
       "name": "Запуск API: пакет",
@@ -4616,9 +4616,9 @@
           ],
           "value": {
             "channel": "api",
-            "run_id": "={{ $('Запуск канала: API').isExecuted ? (($('Запуск канала: API').first().json.body || {}).run_id || '') : '' }}",
-            "status": "={{ ($('API: Есть работа?').isExecuted && String($('API: Есть работа?').last().json.work_api || '') === 'NO') ? 'skipped' : ((($('API: 5. Аудит-2 (парсер)').isExecuted ? String($('API: 5. Аудит-2 (парсер)').last().json.clean || '') : '') === 'YES') ? 'done' : ((($('API: Счётчик петель (лимит 3)').isExecuted ? String($('API: Счётчик петель (лимит 3)').last().json.cycle_limit || '') : '') === 'YES') ? 'limit' : 'needs_work')) }}",
-            "summary": "={{ ($('API: Есть работа?').isExecuted && String($('API: Есть работа?').last().json.work_api || '') === 'NO') ? 'Канал API: пропуск (нет работы в этом круге).' : ('Канал API. clean=' + ($('API: 5. Аудит-2 (парсер)').isExecuted ? String($('API: 5. Аудит-2 (парсер)').last().json.clean || '?') : '?') + '; audit=' + ($('API: 5. Аудит-2 (парсер)').isExecuted ? String($('API: 5. Аудит-2 (парсер)').last().json.audit || '?') : '?') + '; verdict=' + ($('API: 4. Прогон тестов (парсер)').isExecuted ? String($('API: 4. Прогон тестов (парсер)').last().json.verdict || '?') : '?') + '; applied=' + ($('API: 3. Фикс (парсер)').isExecuted ? String($('API: 3. Фикс (парсер)').last().json.applied || '?') : '?') + ((($('API: 2. Синтетические тесты (парсер)').isExecuted ? String($('API: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '') !== '') ? ('; test=' + ($('API: 2. Синтетические тесты (парсер)').isExecuted ? String($('API: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '')) : '') + '; loops=' + ($('API: Счётчик петель (лимит 3)').isExecuted ? ($('API: Счётчик петель (лимит 3)').last().json.cycle_n || 0) : 0) + '\\n\\nИТОГ канала:\\n' + ($('Канал: API-ключи').isExecuted ? String($('Канал: API-ключи').last().json.output || '').slice(0, 3000) : '')) }}"
+            "run_id": "={{ $json.run_id }}",
+            "status": "={{ $json.status }}",
+            "summary": "={{ $json.summary }}"
           }
         },
         "options": {}
@@ -4650,7 +4650,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск Редактор: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_editor: task ? 'YES' : 'NO',\n  task_editor: task,\n  session: session,\n  session_key: session ? 'channel-editor-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
+        "jsCode": "// «Запуск Редактор: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины и run_id круга — канал дзынькнет ядру после отчёта,\n// а обработчик сбоя («Сбой канала: определить (код)») возьмёт run_id отсюда на случай падения.\nif (b.bus_resume) {\n  const st = $getWorkflowStaticData('global');\n  st.bus_resume = String(b.bus_resume);\n  st.bus_run_id = String(b.run_id || '');\n}\nreturn [{ json: {\n  work_editor: task ? 'YES' : 'NO',\n  task_editor: task,\n  session: session,\n  session_key: session ? 'channel-editor-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: String(b.bus_resume || '')\n} }];"
       },
       "id": "bcfb86ed-4031-407a-8bac-7d9bb0034222",
       "name": "Запуск Редактор: пакет",
@@ -4714,9 +4714,9 @@
           ],
           "value": {
             "channel": "editor",
-            "run_id": "={{ $('Запуск канала: Редактор').isExecuted ? (($('Запуск канала: Редактор').first().json.body || {}).run_id || '') : '' }}",
-            "status": "={{ ($('Редактор: Есть работа?').isExecuted && String($('Редактор: Есть работа?').last().json.work_editor || '') === 'NO') ? 'skipped' : ((($('Редактор: 5. Аудит-2 (парсер)').isExecuted ? String($('Редактор: 5. Аудит-2 (парсер)').last().json.clean || '') : '') === 'YES') ? 'done' : ((($('Редактор: Счётчик петель (лимит 3)').isExecuted ? String($('Редактор: Счётчик петель (лимит 3)').last().json.cycle_limit || '') : '') === 'YES') ? 'limit' : 'needs_work')) }}",
-            "summary": "={{ ($('Редактор: Есть работа?').isExecuted && String($('Редактор: Есть работа?').last().json.work_editor || '') === 'NO') ? 'Канал Редактор: пропуск (нет работы в этом круге).' : ('Канал Редактор. clean=' + ($('Редактор: 5. Аудит-2 (парсер)').isExecuted ? String($('Редактор: 5. Аудит-2 (парсер)').last().json.clean || '?') : '?') + '; audit=' + ($('Редактор: 5. Аудит-2 (парсер)').isExecuted ? String($('Редактор: 5. Аудит-2 (парсер)').last().json.audit || '?') : '?') + '; verdict=' + ($('Редактор: 4. Прогон тестов (парсер)').isExecuted ? String($('Редактор: 4. Прогон тестов (парсер)').last().json.verdict || '?') : '?') + '; applied=' + ($('Редактор: 3. Фикс (парсер)').isExecuted ? String($('Редактор: 3. Фикс (парсер)').last().json.applied || '?') : '?') + ((($('Редактор: 2. Синтетические тесты (парсер)').isExecuted ? String($('Редактор: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '') !== '') ? ('; test=' + ($('Редактор: 2. Синтетические тесты (парсер)').isExecuted ? String($('Редактор: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '')) : '') + '; loops=' + ($('Редактор: Счётчик петель (лимит 3)').isExecuted ? ($('Редактор: Счётчик петель (лимит 3)').last().json.cycle_n || 0) : 0) + '\\n\\nИТОГ канала:\\n' + ($('Канал: Редактор').isExecuted ? String($('Канал: Редактор').last().json.output || '').slice(0, 3000) : '')) }}"
+            "run_id": "={{ $json.run_id }}",
+            "status": "={{ $json.status }}",
+            "summary": "={{ $json.summary }}"
           }
         },
         "options": {}
@@ -4748,7 +4748,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Запуск MCP: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины — по нему канал дзынькнет ядру после отчёта.\nconst busResume = String(b.bus_resume || '');\nif (busResume) $getWorkflowStaticData('global').bus_resume = busResume;\nreturn [{ json: {\n  work_mcp: task ? 'YES' : 'NO',\n  task_mcp: task,\n  session: session,\n  session_key: session ? 'channel-mcp-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: busResume\n} }];"
+        "jsCode": "// «Запуск MCP: пакет» — пакет канала из вебхука запуска (параллельный веер ядра).\nconst b = $json.body || $json || {};\nconst session = String(b.session || '');\nconst task = String(b.task || '');\n// Шаг 1: запоминаем resume-URL шины и run_id круга — канал дзынькнет ядру после отчёта,\n// а обработчик сбоя («Сбой канала: определить (код)») возьмёт run_id отсюда на случай падения.\nif (b.bus_resume) {\n  const st = $getWorkflowStaticData('global');\n  st.bus_resume = String(b.bus_resume);\n  st.bus_run_id = String(b.run_id || '');\n}\nreturn [{ json: {\n  work_mcp: task ? 'YES' : 'NO',\n  task_mcp: task,\n  session: session,\n  session_key: session ? 'channel-mcp-' + session : '',\n  run_id: String(b.run_id || ''),\n  ring: Number(b.ring || 0),\n  bus_resume: String(b.bus_resume || '')\n} }];"
       },
       "id": "33fad588-0031-44ee-b995-f19cfea54104",
       "name": "Запуск MCP: пакет",
@@ -4812,9 +4812,9 @@
           ],
           "value": {
             "channel": "mcp",
-            "run_id": "={{ $('Запуск канала: MCP').isExecuted ? (($('Запуск канала: MCP').first().json.body || {}).run_id || '') : '' }}",
-            "status": "={{ ($('MCP: Есть работа?').isExecuted && String($('MCP: Есть работа?').last().json.work_mcp || '') === 'NO') ? 'skipped' : ((($('MCP: 5. Аудит-2 (парсер)').isExecuted ? String($('MCP: 5. Аудит-2 (парсер)').last().json.clean || '') : '') === 'YES') ? 'done' : ((($('MCP: Счётчик петель (лимит 3)').isExecuted ? String($('MCP: Счётчик петель (лимит 3)').last().json.cycle_limit || '') : '') === 'YES') ? 'limit' : 'needs_work')) }}",
-            "summary": "={{ ($('MCP: Есть работа?').isExecuted && String($('MCP: Есть работа?').last().json.work_mcp || '') === 'NO') ? 'Канал MCP: пропуск (нет работы в этом круге).' : ('Канал MCP. clean=' + ($('MCP: 5. Аудит-2 (парсер)').isExecuted ? String($('MCP: 5. Аудит-2 (парсер)').last().json.clean || '?') : '?') + '; audit=' + ($('MCP: 5. Аудит-2 (парсер)').isExecuted ? String($('MCP: 5. Аудит-2 (парсер)').last().json.audit || '?') : '?') + '; verdict=' + ($('MCP: 4. Прогон тестов (парсер)').isExecuted ? String($('MCP: 4. Прогон тестов (парсер)').last().json.verdict || '?') : '?') + '; applied=' + ($('MCP: 3. Фикс (парсер)').isExecuted ? String($('MCP: 3. Фикс (парсер)').last().json.applied || '?') : '?') + ((($('MCP: 2. Синтетические тесты (парсер)').isExecuted ? String($('MCP: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '') !== '') ? ('; test=' + ($('MCP: 2. Синтетические тесты (парсер)').isExecuted ? String($('MCP: 2. Синтетические тесты (парсер)').last().json.test_path || '') : '')) : '') + '; loops=' + ($('MCP: Счётчик петель (лимит 3)').isExecuted ? ($('MCP: Счётчик петель (лимит 3)').last().json.cycle_n || 0) : 0) + '\\n\\nИТОГ канала:\\n' + ($('Канал: MCP').isExecuted ? String($('Канал: MCP').last().json.output || '').slice(0, 3000) : '')) }}"
+            "run_id": "={{ $json.run_id }}",
+            "status": "={{ $json.status }}",
+            "summary": "={{ $json.summary }}"
           }
         },
         "options": {}
@@ -5649,7 +5649,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Браузер: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'browser' } }];"
+        "jsCode": "// «Браузер: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\n// v3.1: резюм из static data (пишет «Запуск Браузер: пакет»), fallback — напрямую из body триггера.\nlet url = '';\ntry { url = String($getWorkflowStaticData('global').bus_resume || ''); } catch (e) {}\nif (!url) {\n  try { url = String((($('Запуск канала: Браузер').first().json.body || {}).bus_resume) || ''); } catch (e) {}\n}\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'browser' } }];"
       },
       "id": "73e80d04-67e4-436a-877e-540e2e32e0c0",
       "name": "Браузер: дзынь шине (код)",
@@ -5686,7 +5686,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «API: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'api' } }];"
+        "jsCode": "// «API: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\n// v3.1: резюм из static data (пишет «Запуск API: пакет»), fallback — напрямую из body триггера.\nlet url = '';\ntry { url = String($getWorkflowStaticData('global').bus_resume || ''); } catch (e) {}\nif (!url) {\n  try { url = String((($('Запуск канала: API').first().json.body || {}).bus_resume) || ''); } catch (e) {}\n}\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'api' } }];"
       },
       "id": "2bb8af1f-9a49-439e-97b9-9b102753a182",
       "name": "API: дзынь шине (код)",
@@ -5723,7 +5723,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «Редактор: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'editor' } }];"
+        "jsCode": "// «Редактор: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\n// v3.1: резюм из static data (пишет «Запуск Редактор: пакет»), fallback — напрямую из body триггера.\nlet url = '';\ntry { url = String($getWorkflowStaticData('global').bus_resume || ''); } catch (e) {}\nif (!url) {\n  try { url = String((($('Запуск канала: Редактор').first().json.body || {}).bus_resume) || ''); } catch (e) {}\n}\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'editor' } }];"
       },
       "id": "c244ab28-87f4-48c1-be3c-6cf56b0b33d7",
       "name": "Редактор: дзынь шине (код)",
@@ -5760,7 +5760,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// «MCP: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\nconst store = $getWorkflowStaticData('global');\nconst url = String(store.bus_resume || '');\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'mcp' } }];"
+        "jsCode": "// «MCP: дзынь шине (код)»: будим ядро — wait шины резюмится вебхуком сразу после отчёта канала.\n// v3.1: резюм из static data (пишет «Запуск MCP: пакет»), fallback — напрямую из body триггера.\nlet url = '';\ntry { url = String($getWorkflowStaticData('global').bus_resume || ''); } catch (e) {}\nif (!url) {\n  try { url = String((($('Запуск канала: MCP').first().json.body || {}).bus_resume) || ''); } catch (e) {}\n}\nif (!url) return [];\nreturn [{ json: { bus_resume: url, signal_channel: 'mcp' } }];"
       },
       "id": "000b4eca-df0e-49cf-89b4-fccf89313239",
       "name": "MCP: дзынь шине (код)",
@@ -5860,7 +5860,7 @@
           }
         }
       },
-      "retryOnFail": true,
+      "retryOnFail": false,
       "maxTries": 2,
       "waitBetweenTries": 3000
     },
@@ -5914,7 +5914,7 @@
           }
         }
       },
-      "retryOnFail": true,
+      "retryOnFail": false,
       "maxTries": 2,
       "waitBetweenTries": 3000
     },
@@ -5968,7 +5968,7 @@
           }
         }
       },
-      "retryOnFail": true,
+      "retryOnFail": false,
       "maxTries": 2,
       "waitBetweenTries": 3000
     },
@@ -6022,7 +6022,7 @@
           }
         }
       },
-      "retryOnFail": true,
+      "retryOnFail": false,
       "maxTries": 2,
       "waitBetweenTries": 3000
     },
@@ -6052,6 +6052,175 @@
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 3000
+    },
+    {
+      "id": "66319ebf-b7b5-4cb7-99cc-d59531f3f9d3",
+      "name": "Сбой канала: слушать (ошибка)",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        5284,
+        1072
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f2f743c7-254f-4242-8604-e467569d86a7",
+      "name": "Сбой канала: определить (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5504,
+        1072
+      ],
+      "parameters": {
+        "jsCode": "// «Сбой канала: определить (код)»: Error Trigger → строка status=failed в шину + дзынь ядру.\n// Канал определяем по имени упавшего узла (execution.lastNodeExecuted); ядровые падения (Вход:/ядро) пропускаем.\nconst d = $json || {};\nconst exec = d.execution || {};\nconst last = String(exec.lastNodeExecuted || '');\nconst pairs = [['Браузер', 'browser'], ['API', 'api'], ['Редактор', 'editor'], ['MCP', 'mcp']];\nfunction classify(s) {\n  if (!s || s.startsWith('Вход:')) return '';\n  for (const p of pairs) {\n    const tok = p[0];\n    if (s.startsWith(tok + ':') || s.startsWith('Запуск ' + tok) || s.startsWith('Запуск канала: ' + tok)\n      || s.startsWith('Канал: ' + tok) || s.startsWith('Планировщик ' + tok)\n      || s.includes('(' + tok) || s.includes(tok + ')')) return p[1];\n  }\n  return '';\n}\nconst channel = classify(last);\nif (!channel) return [];\nconst errObj = exec.error || {};\nconst errMsg = String(errObj.message || errObj.description || 'unknown error');\nlet runId = '', resume = '';\ntry {\n  const st = $getWorkflowStaticData('global');\n  runId = String(st.bus_run_id || '');\n  resume = String(st.bus_resume || '');\n} catch (e) {}\nconst summary = 'Канал ' + channel + ' (execution ' + String(exec.id || '?') + ', СБОЙ): узел «' + last + '»: '\n  + errMsg.slice(0, 700) + (runId ? '' : ' [run_id не определён — строка не попадёт в волну]');\nreturn [{ json: { run_id: runId, channel: channel, status: 'failed', summary: summary, bus_resume: resume, fail_exec: String(exec.id || '') } }];"
+      }
+    },
+    {
+      "id": "6c85509c-f1e0-4b37-8a62-201501c7dcf8",
+      "name": "Сбой канала: в шину (запись)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5724,
+        1072
+      ],
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "ZvfZaYqn0VRT6O8t",
+          "cachedResultName": "Шина каналов"
+        },
+        "columns": {
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false,
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "schema": [
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "run_id",
+              "id": "run_id",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "channel",
+              "id": "channel",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "status",
+              "id": "status",
+              "required": false,
+              "type": "string"
+            },
+            {
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
+              "displayName": "summary",
+              "id": "summary",
+              "required": false,
+              "type": "string"
+            }
+          ],
+          "value": {
+            "run_id": "={{ $json.run_id }}",
+            "channel": "={{ $json.channel }}",
+            "status": "={{ $json.status }}",
+            "summary": "={{ $json.summary }}"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a69c7a9a-e9da-4dfc-b519-2b938af2c43a",
+      "name": "Сбой канала: дзынь шине (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5944,
+        1072
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.bus_resume }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signal: 'report', channel: $json.channel, status: 'failed' }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "ba7edc7b-c244-4ea7-b56e-acdafb81d7cb",
+      "name": "Браузер: отчёт-сбор (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5188,
+        240
+      ],
+      "parameters": {
+        "jsCode": "// «Браузер: отчёт-сбор (код)»: собираем поля отчёта ЗАРАНЕЕ и с защитой.\n// Причина: прямые выражения в DataTable писали null (status/summary), когда часть нод ветки не выполнялась,\n// хотя guard isExecuted стоял — проблема резолва выражений в аргументах ноды таблицы. Здесь всё в try/catch.\nfunction val(nodeName, key, missing) {\n  try {\n    const n = $(nodeName);\n    if (n && n.isExecuted) {\n      const v = n.last().json[key];\n      if (v !== undefined && v !== null) return v;\n    }\n  } catch (e) {}\n  return missing;\n}\nconst work = String(val('Браузер: Есть работа?', 'work_browser', ''));\nconst clean = String(val('Браузер: 5. Аудит-2 (парсер)', 'clean', '?'));\nconst cycleLimit = String(val('Браузер: Счётчик петель (лимит 3)', 'cycle_limit', ''));\nconst audit = String(val('Браузер: 5. Аудит-2 (парсер)', 'audit', '?'));\nconst verdict = String(val('Браузер: 4. Прогон тестов (парсер)', 'verdict', '?'));\nconst applied = String(val('Браузер: 3. Фикс (парсер)', 'applied', '?'));\nconst testPath = String(val('Браузер: 2. Синтетические тесты (парсер)', 'test_path', ''));\nconst cycles = Number(val('Браузер: Счётчик петель (лимит 3)', 'cycle_n', 0) || 0);\nconst finalOut = String(val('Канал: Браузер', 'output', ''));\nconst runId = String(val('Запуск Браузер: пакет', 'run_id', ''));\nlet status = 'needs_work';\nlet summary = '';\nif (work === 'NO') {\n  status = 'skipped';\n  summary = 'Канал Браузер: пропуск (нет работы в этом круге).';\n} else {\n  status = (clean === 'YES') ? 'done' : ((cycleLimit === 'YES') ? 'limit' : 'needs_work');\n  summary = 'Канал Браузер. clean=' + (clean || '?') + '; audit=' + audit + '; verdict=' + verdict\n    + '; applied=' + applied + (testPath ? ('; test=' + testPath) : '') + '; loops=' + cycles\n    + '\\n\\nИТОГ канала:\\n' + finalOut.slice(0, 3000);\n}\nreturn [{ json: { run_id: runId, channel: 'browser', status: status, summary: summary } }];"
+      }
+    },
+    {
+      "id": "838eee39-bf0e-4e8c-b51d-d6abe5b7831f",
+      "name": "API: отчёт-сбор (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5060,
+        -2016
+      ],
+      "parameters": {
+        "jsCode": "// «API: отчёт-сбор (код)»: собираем поля отчёта ЗАРАНЕЕ и с защитой.\n// Причина: прямые выражения в DataTable писали null (status/summary), когда часть нод ветки не выполнялась,\n// хотя guard isExecuted стоял — проблема резолва выражений в аргументах ноды таблицы. Здесь всё в try/catch.\nfunction val(nodeName, key, missing) {\n  try {\n    const n = $(nodeName);\n    if (n && n.isExecuted) {\n      const v = n.last().json[key];\n      if (v !== undefined && v !== null) return v;\n    }\n  } catch (e) {}\n  return missing;\n}\nconst work = String(val('API: Есть работа?', 'work_api', ''));\nconst clean = String(val('API: 5. Аудит-2 (парсер)', 'clean', '?'));\nconst cycleLimit = String(val('API: Счётчик петель (лимит 3)', 'cycle_limit', ''));\nconst audit = String(val('API: 5. Аудит-2 (парсер)', 'audit', '?'));\nconst verdict = String(val('API: 4. Прогон тестов (парсер)', 'verdict', '?'));\nconst applied = String(val('API: 3. Фикс (парсер)', 'applied', '?'));\nconst testPath = String(val('API: 2. Синтетические тесты (парсер)', 'test_path', ''));\nconst cycles = Number(val('API: Счётчик петель (лимит 3)', 'cycle_n', 0) || 0);\nconst finalOut = String(val('Канал: API-ключи', 'output', ''));\nconst runId = String(val('Запуск API: пакет', 'run_id', ''));\nlet status = 'needs_work';\nlet summary = '';\nif (work === 'NO') {\n  status = 'skipped';\n  summary = 'Канал API: пропуск (нет работы в этом круге).';\n} else {\n  status = (clean === 'YES') ? 'done' : ((cycleLimit === 'YES') ? 'limit' : 'needs_work');\n  summary = 'Канал API. clean=' + (clean || '?') + '; audit=' + audit + '; verdict=' + verdict\n    + '; applied=' + applied + (testPath ? ('; test=' + testPath) : '') + '; loops=' + cycles\n    + '\\n\\nИТОГ канала:\\n' + finalOut.slice(0, 3000);\n}\nreturn [{ json: { run_id: runId, channel: 'api', status: status, summary: summary } }];"
+      }
+    },
+    {
+      "id": "e03c2ac8-2107-4e7e-9c03-3853b5d69f1a",
+      "name": "Редактор: отчёт-сбор (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5156,
+        -736
+      ],
+      "parameters": {
+        "jsCode": "// «Редактор: отчёт-сбор (код)»: собираем поля отчёта ЗАРАНЕЕ и с защитой.\n// Причина: прямые выражения в DataTable писали null (status/summary), когда часть нод ветки не выполнялась,\n// хотя guard isExecuted стоял — проблема резолва выражений в аргументах ноды таблицы. Здесь всё в try/catch.\nfunction val(nodeName, key, missing) {\n  try {\n    const n = $(nodeName);\n    if (n && n.isExecuted) {\n      const v = n.last().json[key];\n      if (v !== undefined && v !== null) return v;\n    }\n  } catch (e) {}\n  return missing;\n}\nconst work = String(val('Редактор: Есть работа?', 'work_editor', ''));\nconst clean = String(val('Редактор: 5. Аудит-2 (парсер)', 'clean', '?'));\nconst cycleLimit = String(val('Редактор: Счётчик петель (лимит 3)', 'cycle_limit', ''));\nconst audit = String(val('Редактор: 5. Аудит-2 (парсер)', 'audit', '?'));\nconst verdict = String(val('Редактор: 4. Прогон тестов (парсер)', 'verdict', '?'));\nconst applied = String(val('Редактор: 3. Фикс (парсер)', 'applied', '?'));\nconst testPath = String(val('Редактор: 2. Синтетические тесты (парсер)', 'test_path', ''));\nconst cycles = Number(val('Редактор: Счётчик петель (лимит 3)', 'cycle_n', 0) || 0);\nconst finalOut = String(val('Канал: Редактор', 'output', ''));\nconst runId = String(val('Запуск Редактор: пакет', 'run_id', ''));\nlet status = 'needs_work';\nlet summary = '';\nif (work === 'NO') {\n  status = 'skipped';\n  summary = 'Канал Редактор: пропуск (нет работы в этом круге).';\n} else {\n  status = (clean === 'YES') ? 'done' : ((cycleLimit === 'YES') ? 'limit' : 'needs_work');\n  summary = 'Канал Редактор. clean=' + (clean || '?') + '; audit=' + audit + '; verdict=' + verdict\n    + '; applied=' + applied + (testPath ? ('; test=' + testPath) : '') + '; loops=' + cycles\n    + '\\n\\nИТОГ канала:\\n' + finalOut.slice(0, 3000);\n}\nreturn [{ json: { run_id: runId, channel: 'editor', status: status, summary: summary } }];"
+      }
+    },
+    {
+      "id": "ff7def64-8312-4ff5-a6d4-88d32a771663",
+      "name": "MCP: отчёт-сбор (код)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5204,
+        -3024
+      ],
+      "parameters": {
+        "jsCode": "// «MCP: отчёт-сбор (код)»: собираем поля отчёта ЗАРАНЕЕ и с защитой.\n// Причина: прямые выражения в DataTable писали null (status/summary), когда часть нод ветки не выполнялась,\n// хотя guard isExecuted стоял — проблема резолва выражений в аргументах ноды таблицы. Здесь всё в try/catch.\nfunction val(nodeName, key, missing) {\n  try {\n    const n = $(nodeName);\n    if (n && n.isExecuted) {\n      const v = n.last().json[key];\n      if (v !== undefined && v !== null) return v;\n    }\n  } catch (e) {}\n  return missing;\n}\nconst work = String(val('MCP: Есть работа?', 'work_mcp', ''));\nconst clean = String(val('MCP: 5. Аудит-2 (парсер)', 'clean', '?'));\nconst cycleLimit = String(val('MCP: Счётчик петель (лимит 3)', 'cycle_limit', ''));\nconst audit = String(val('MCP: 5. Аудит-2 (парсер)', 'audit', '?'));\nconst verdict = String(val('MCP: 4. Прогон тестов (парсер)', 'verdict', '?'));\nconst applied = String(val('MCP: 3. Фикс (парсер)', 'applied', '?'));\nconst testPath = String(val('MCP: 2. Синтетические тесты (парсер)', 'test_path', ''));\nconst cycles = Number(val('MCP: Счётчик петель (лимит 3)', 'cycle_n', 0) || 0);\nconst finalOut = String(val('Канал: MCP', 'output', ''));\nconst runId = String(val('Запуск MCP: пакет', 'run_id', ''));\nlet status = 'needs_work';\nlet summary = '';\nif (work === 'NO') {\n  status = 'skipped';\n  summary = 'Канал MCP: пропуск (нет работы в этом круге).';\n} else {\n  status = (clean === 'YES') ? 'done' : ((cycleLimit === 'YES') ? 'limit' : 'needs_work');\n  summary = 'Канал MCP. clean=' + (clean || '?') + '; audit=' + audit + '; verdict=' + verdict\n    + '; applied=' + applied + (testPath ? ('; test=' + testPath) : '') + '; loops=' + cycles\n    + '\\n\\nИТОГ канала:\\n' + finalOut.slice(0, 3000);\n}\nreturn [{ json: { run_id: runId, channel: 'mcp', status: status, summary: summary } }];"
+      }
     }
   ],
   "connections": {
@@ -6266,7 +6435,7 @@
         ],
         [
           {
-            "node": "Браузер: отчёт в шину",
+            "node": "Браузер: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6318,7 +6487,7 @@
         ],
         [
           {
-            "node": "API: отчёт в шину",
+            "node": "API: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6354,7 +6523,7 @@
         ],
         [
           {
-            "node": "Редактор: отчёт в шину",
+            "node": "Редактор: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6406,7 +6575,7 @@
         ],
         [
           {
-            "node": "MCP: отчёт в шину",
+            "node": "MCP: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6451,7 +6620,7 @@
         ],
         [
           {
-            "node": "Браузер: отчёт в шину",
+            "node": "Браузер: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6469,7 +6638,7 @@
         ],
         [
           {
-            "node": "API: отчёт в шину",
+            "node": "API: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6487,7 +6656,7 @@
         ],
         [
           {
-            "node": "Редактор: отчёт в шину",
+            "node": "Редактор: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6505,7 +6674,7 @@
         ],
         [
           {
-            "node": "MCP: отчёт в шину",
+            "node": "MCP: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6541,7 +6710,7 @@
         ],
         [
           {
-            "node": "Браузер: отчёт в шину",
+            "node": "Браузер: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6559,7 +6728,7 @@
         ],
         [
           {
-            "node": "API: отчёт в шину",
+            "node": "API: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6577,7 +6746,7 @@
         ],
         [
           {
-            "node": "Редактор: отчёт в шину",
+            "node": "Редактор: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6595,7 +6764,7 @@
         ],
         [
           {
-            "node": "MCP: отчёт в шину",
+            "node": "MCP: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6650,7 +6819,7 @@
       "main": [
         [
           {
-            "node": "Браузер: отчёт в шину",
+            "node": "Браузер: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6689,7 +6858,7 @@
       "main": [
         [
           {
-            "node": "API: отчёт в шину",
+            "node": "API: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6728,7 +6897,7 @@
       "main": [
         [
           {
-            "node": "Редактор: отчёт в шину",
+            "node": "Редактор: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -6767,7 +6936,7 @@
       "main": [
         [
           {
-            "node": "MCP: отчёт в шину",
+            "node": "MCP: отчёт-сбор (код)",
             "type": "main",
             "index": 0
           }
@@ -8745,6 +8914,83 @@
         [
           {
             "node": "MCP: 4. Прогон тестов (парсер)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сбой канала: слушать (ошибка)": {
+      "main": [
+        [
+          {
+            "node": "Сбой канала: определить (код)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сбой канала: определить (код)": {
+      "main": [
+        [
+          {
+            "node": "Сбой канала: в шину (запись)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сбой канала: в шину (запись)": {
+      "main": [
+        [
+          {
+            "node": "Сбой канала: дзынь шине (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Браузер: отчёт-сбор (код)": {
+      "main": [
+        [
+          {
+            "node": "Браузер: отчёт в шину",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API: отчёт-сбор (код)": {
+      "main": [
+        [
+          {
+            "node": "API: отчёт в шину",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Редактор: отчёт-сбор (код)": {
+      "main": [
+        [
+          {
+            "node": "Редактор: отчёт в шину",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP: отчёт-сбор (код)": {
+      "main": [
+        [
+          {
+            "node": "MCP: отчёт в шину",
             "type": "main",
             "index": 0
           }
