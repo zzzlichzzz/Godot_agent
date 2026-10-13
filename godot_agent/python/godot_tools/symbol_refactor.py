@@ -1794,6 +1794,10 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
     dynamic_references = []
     unverified_references = []
     skipped_usages = []
+    # Сколько правок-ССЫЛОК реально попало в план (P2). Объявления сюда не
+    # считаются: сам символ и override в подклассах — носители имени, и их
+    # наличие не доказывает, что хоть одна ссылка будет переименована.
+    reference_edits = 0
     # Адреса уже занятых ДОКАЗАННЫХ правок: (путь, начало, конец). Правку
     # недоказанной ссылки нельзя наложить на уже занятый диапазон — получится
     # двойная замена и порча текста, поэтому проверяем адресно.
@@ -1838,6 +1842,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                                   root_declarations=declarations):
                 edits_by_path.setdefault(path, []).append((fact["start"], fact["end"]))
                 proven_spans.add((path, fact["start"], fact["end"]))
+                reference_edits += 1
             elif (declaration.get("owner") != "script" and kind in ("function", "signal")
                   and not _owner_within(fact.get("owner"), declaration.get("owner"),
                                          declarations)):
@@ -1877,6 +1882,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                     # молчаливый ущерб, ради устранения которого этап и делается.
                     edits_by_path.setdefault(path, []).append(
                         (fact["start"], fact["end"]))
+                    reference_edits += 1
                     reason = _unverified_reason(
                         kind, fact, text, tokens, target_path, path,
                         target_class, typed,
@@ -1933,6 +1939,7 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                     continue
                 edits_by_path.setdefault(path, []).append(
                     (inner_start, inner_end))
+                reference_edits += 1
                 proven_spans.add((path, inner_start, inner_end))
                 continue
             dynamic_references.append(
@@ -1944,6 +1951,17 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         "%s:%s:%s — %s" % (item["path"], item["line"], item["column"],
                            item["reason"])
         for item in ambiguities]
+    # P2: половинчатое переименование запрещено. Если объявление цели реально
+    # правится, а НИ ОДНОЙ правки-ссылки не набралось, и при этом есть снятые
+    # пользователем места — переименовывать нельзя: символ получит новое имя, а
+    # его использования останутся со старым. Отказ приходит ДО apply, поэтому
+    # файлы проекта остаются байт-в-байт прежними.
+    declaration_edited = (declaration["start"], declaration["end"]) in (
+        edits_by_path.get(target_path) or [])
+    if declaration_edited and reference_edits == 0 and skipped_usages:
+        raise RenameError(
+            "Все ссылки сняты пользователем, объявление переименовывать нельзя: %s"
+            % "; ".join(skipped_usages))
     if ambiguities and mode == "strict" and not allow_unverified:
         # Флаг снят (или не передан): поведение прежнее — одна недоказанная
         # ссылка отменяет всё переименование. Это защищает клиентов, которые

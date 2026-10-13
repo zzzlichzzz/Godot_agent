@@ -28,6 +28,11 @@
 прогон n8n: один ответ поиска в 2.1 МБ (minified-кэш API одной строкой)
 остался в истории агента и пересылался на каждом следующем шаге — ~700к
 токенов на шаг. Тот же предел и та же схема обрезки — у сервера «рук» (:8010).
+
+ВХОД ограничен отдельно (per-tool кэпы): клип режет уже собранный ответ,
+но не стоимость шага — мост строит строку целиком. search.max_results
+кэпируется, functions.names и check.paths сверх предела получают
+usage-ответ, длины строк search/analyze_rename — тоже.
 """
 
 import io
@@ -122,16 +127,30 @@ def _run_bridge(profile, argv):
 # здесь последний рубеж, через который проходит ВЕСЬ вывод инструментов.
 MAX_TEXT = 60000          # общий предел текста одного ответа
 TAIL_KEEP = 6000          # хвост, который сохраняется при обрезке
+# Пределы входных параметров «перечислительных» инструментов: клип режет
+# ОТВЕТ, но не стоимость шага — мост строит строку целиком до обрезки.
+# Значения — по эталону «рук» (:8010, n8n_hands_mcp.py:38-48) и рабочим
+# вызовам поисковиков (max_results 30–50).
+MAX_MATCHES = 200         # search: предел max_results
+MAX_NAMES = 100           # functions: предел числа имён
+MAX_PATHS = 100           # check: предел числа путей
+MAX_ARG_TEXT = 4000       # search/analyze_rename: предел длины строки
 
 
 def _clip(text, limit=MAX_TEXT):
-    """Ограничивает текст одного ответа: голова, честная пометка, хвост."""
+    """Ограничивает текст одного ответа: голова, честная пометка, хвост.
+
+    Пометка входит В бюджет limit, итог никогда не длиннее limit: лишние
+    41 символ пометки сверх лимита дали ответ 60 041 при MAX_TEXT=60 000
+    в живом прогоне 102.
+    """
     body = str(text if text is not None else "")
     if len(body) <= limit:
         return body
-    head = limit - TAIL_KEEP
-    return ("%s\n...[обрезано: всего %d символов]...\n%s"
-            % (body[:head], len(body), body[-TAIL_KEEP:]))
+    marker = "\n...[обрезано: всего %d символов]...\n" % len(body)
+    head = limit - TAIL_KEEP - len(marker)
+    return ("%s%s%s"
+            % (body[:max(head, 0)], marker, body[-TAIL_KEEP:]))[:limit]
 
 
 def _tool_result(code, text):
@@ -228,7 +247,18 @@ def build_server(profile="user", root=None, udd=None, name=None):
     @server.tool(description="Поиск подстроки по проекту. Возвращает путь, номер "
                             "строки и фрагмент.")
     def search(query: str, max_results: int = 30) -> CallToolResult:
-        return call(["search", "--max", str(int(max_results)), query])
+        if len(str(query)) > MAX_ARG_TEXT:
+            return _tool_result(
+                agent_bridge.RC_USAGE,
+                "usage: query длиннее %d символов" % MAX_ARG_TEXT)
+        try:
+            top = int(max_results)
+        except (TypeError, ValueError):
+            top = 0
+        if top < 1:
+            return _tool_result(agent_bridge.RC_USAGE,
+                                "usage: max_results должен быть целым > 0")
+        return call(["search", "--max", str(min(top, MAX_MATCHES)), query])
 
     @server.tool(description="Прочитать один файл проекта по адресу res://. Путь "
                             "проверяется политикой доступа.")
@@ -246,6 +276,12 @@ def build_server(profile="user", root=None, udd=None, name=None):
                             "функций дословно. Операция только читает, "
                             "подтверждения не требует.")
     def functions(path: str, names: list = []) -> CallToolResult:
+        names = names or []
+        if len(names) > MAX_NAMES:
+            return _tool_result(
+                agent_bridge.RC_USAGE,
+                "usage: слишком много имён: %d (предел %d)"
+                % (len(names), MAX_NAMES))
         argv = ["functions"]
         if names:
             argv += ["--names", ",".join(str(n) for n in names)]
@@ -269,6 +305,12 @@ def build_server(profile="user", root=None, udd=None, name=None):
                             "панель агента.")
     def analyze_rename(kind: str, declaration: str, old_name: str,
                        new_name: str) -> CallToolResult:
+        for field, value in (("kind", kind), ("declaration", declaration),
+                             ("old_name", old_name), ("new_name", new_name)):
+            if len(str(value or "")) > MAX_ARG_TEXT:
+                return _tool_result(
+                    agent_bridge.RC_USAGE,
+                    "usage: %s длиннее %d символов" % (field, MAX_ARG_TEXT))
         return call(["analyze_rename", "--kind", kind, "--declaration",
                      declaration, "--old-name", old_name,
                      "--new-name", new_name])
@@ -284,6 +326,12 @@ def build_server(profile="user", root=None, udd=None, name=None):
                             "для .py/.json/.cfg, плюс настоящий headless Godot. "
                             "Ничего не меняет.")
     def check(paths: list) -> CallToolResult:
+        paths = paths or []
+        if len(paths) > MAX_PATHS:
+            return _tool_result(
+                agent_bridge.RC_USAGE,
+                "usage: слишком много путей: %d (предел %d)"
+                % (len(paths), MAX_PATHS))
         return call(["check"] + [str(p) for p in paths])
 
     @server.tool(description="Локальный судья одного действия модели по переданному "

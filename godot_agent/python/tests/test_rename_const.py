@@ -95,14 +95,24 @@ class ConstRename(unittest.TestCase):
 
     # --- Этап 1: отказ касается ТОЛЬКО записи без строки ---
     def test_same_path_with_line_still_works(self):
-        """Точечный адрес того же файла (:строка) работает как раньше."""
+        """Точечный адрес того же файла (:строка) работает как раньше.
+
+        В файле ДВА использования: снимаем одно (строка 7), второе вместе с
+        объявлением переименовывается. В фикстуру добавлена вторая ссылка
+        намеренно: снятие ЕДИНСТВЕННОЙ ссылки — теперь отдельный случай, и он
+        отвергается целиком (tests/test_rename_const_exclude_last_usage.py).
+        """
+        self._write("src/unit.gd",
+                    UNIT + "\nfunc cap() -> int:\n\treturn MAX_HP + 1\n")
+        self._reindex()
         action = self._action()
         action["exclude"] = ["res://src/unit.gd:7"]
         prepared = symbol_refactor.prepare_rename(self.root, action)
         symbol_refactor.apply_prepared_rename(self.root, prepared)
         unit = self._read("src/unit.gd")
         self.assertIn("const MAX_HEALTH = 100", unit)
-        self.assertIn("return MAX_HP", unit)
+        self.assertIn("return MAX_HP\n", unit)
+        self.assertIn("return MAX_HEALTH + 1", unit)
         self.assertEqual(len(prepared.get("skipped_usages") or []), 1,
                          prepared.get("skipped_usages"))
         self.assertEqual(symbol_refactor._exclude_place_kind(
