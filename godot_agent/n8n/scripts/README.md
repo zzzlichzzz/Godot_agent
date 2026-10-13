@@ -26,6 +26,7 @@ Python 3.10+ (только стандартная библиотека, ниче
 | `mcp_invoke.py` | Один вызов любого инструмента n8n MCP (`tools/call`) | `python -B scripts/mcp_invoke.py get_workflow_execution '{"workflowId":"v81fH05KY5uKUNK0","executionId":"61"}'` |
 | `dump_execution.py` | Разобрать прогон: статус, ноды, ошибки, данные выбранных нод | `python -B scripts/dump_execution.py 61 --nodes "Аудитор (ищет баги)"` |
 | `token_report.py` | Токены прогона: вызовы и usage каждой «Модель (…)» (замер «эконома») | `python -B scripts/token_report.py 92 93 94 95` |
+| `postrun_tokens.py` | Токен-сводка ПОСЛЕ финала (B2): ядро + каналы волны, строка `TOKENS_JSON` для события `kind=tokens` рук | `python -B scripts/postrun_tokens.py 103 --workflow-id rIwvKxDNhOxodBCc` |
 
 ## Типовые сценарии
 
@@ -56,6 +57,13 @@ Python 3.10+ (только стандартная библиотека, ниче
    (avg и максимум ответа; сумма по полученным запускам, обычно всем).
 2. `... --out tokens.json` — те же цифры в JSON (сравнение «до/после» правок
    схемы; ответы MCP тяжёлые — по сотне запусков на модель).
+
+**Токен-сводка после финала (B2).** Цикл v3 заказывает её сам: сервер рук по
+событию `kind=done` (POST `/notify` от «Мост: финал → руки») запускает
+`postrun_tokens.py <execution_id>` в фоне и пишет в журнал «цикл → чат»
+событие `kind=tokens` (читается `cycle_events`/`cycle_wait`). Вручную — тот
+же скрипт: `--wait-sec 0` не ждёт завершения ядра, `--out f.json` — полный
+отчёт. Выключение хука — `N8N_HANDS_NO_TOKEN_HOOK=1` в окружении рук.
 
 **Пример `ops.json`** для `mcp_invoke.py` (объект JSON; BOM допустим — файл
 читается как utf-8-sig):
