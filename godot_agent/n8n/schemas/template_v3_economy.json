@@ -1867,7 +1867,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'CHANNEL TASK: ' + String($('Редактор: Есть работа?').last()?.json?.task_editor ?? '') + '\\n\\nCHANNEL OUTPUT (what the agent said): ' + String($('Канал: Редактор').last()?.json?.output ?? '').slice(0, 1000) + '\\n\\nRING CONTEXT: ' + ($('Редактор: Куда вернуться?').isExecuted ? JSON.stringify($('Редактор: Куда вернуться?').last()?.json ?? {}).slice(0, 800) : 'first entry') + '\\n\\nSTEP 1 — ROOT CAUSE. Find the root cause: what exactly blocks the task, what is your hypothesis / minimal-fix plan. If there is really no work to do (all done already) — nothing_to_do = YES.\\nAnswer strictly in lines:\\nnothing_to_do = YES|NO\\nhypothesis = <одно-два предложения>' }}"
+        }
       },
       "id": "83a8bc25-7ecb-4663-8404-48b81c063260",
       "name": "Редактор: 1. Причина",
@@ -1892,7 +1895,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'HYPOTHESIS (step 1): ' + $('Редактор: 1. Причина (парсер)').last().json.hypothesis + '\\nTASK: ' + $('Редактор: Есть работа?').last().json.task_editor + '\\n\\nSTEP 2 — SYNTHETIC TEST. Design a synthetic test that fails BEFORE the fix (RED). The project is the Godot agent plugin. Specify the test file path.\\nAnswer strictly in lines:\\ntest = <test essence>\\ntest_path = <test file path>' }}"
+        }
       },
       "id": "7620e7bc-81fc-46be-a27e-83be121c64ab",
       "name": "Редактор: 2. Синтетические тесты",
@@ -3432,7 +3438,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'CHANNEL TASK: ' + String($('API: Есть работа?').last()?.json?.task_api ?? '') + '\\n\\nCHANNEL OUTPUT (what the agent said): ' + String($('Канал: API-ключи').last()?.json?.output ?? '').slice(0, 1000) + '\\n\\nRING CONTEXT: ' + ($('API: Куда вернуться?').isExecuted ? JSON.stringify($('API: Куда вернуться?').last()?.json ?? {}).slice(0, 800) : 'first entry') + '\\n\\nSTEP 1 — ROOT CAUSE. Find the root cause: what exactly blocks the task, what is your hypothesis / minimal-fix plan. If there is really no work to do (all done already) — nothing_to_do = YES.\\nAnswer strictly in lines:\\nnothing_to_do = YES|NO\\nhypothesis = <одно-два предложения>' }}"
+        }
       },
       "id": "d531b3bc-48b5-46bd-9d02-b2e6c768accf",
       "name": "API: 1. Причина",
@@ -3470,7 +3479,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'HYPOTHESIS (step 1): ' + $('API: 1. Причина (парсер)').last().json.hypothesis + '\\nTASK: ' + $('API: Есть работа?').last().json.task_api + '\\n\\nSTEP 2 — SYNTHETIC TEST. Design a synthetic test that fails BEFORE the fix (RED). This channel verifies by running commands and tests directly (python -B python/tests/<file>.py from addons/Godot_agent/godot_agent). Specify the test file path.\\nAnswer strictly in lines:\\ntest = <test essence>\\ntest_path = <test file path>' }}"
+        }
       },
       "id": "31ecfc58-8cac-4499-a575-60c6f4ee919c",
       "name": "API: 2. Синтетические тесты",
@@ -3572,7 +3584,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'CHANNEL TASK: ' + String($('MCP: Есть работа?').last()?.json?.task_mcp ?? '') + '\\n\\nCHANNEL OUTPUT (what the agent said): ' + String($('Канал: MCP').last()?.json?.output ?? '').slice(0, 1000) + '\\n\\nRING CONTEXT: ' + ($('MCP: Куда вернуться?').isExecuted ? JSON.stringify($('MCP: Куда вернуться?').last()?.json ?? {}).slice(0, 800) : 'first entry') + '\\n\\nSTEP 1 — ROOT CAUSE. Find the root cause: what exactly blocks the task, what is your hypothesis / minimal-fix plan. If there is really no work to do (all done already) — nothing_to_do = YES.\\nAnswer strictly in lines:\\nnothing_to_do = YES|NO\\nhypothesis = <одно-два предложения>' }}"
+        }
       },
       "id": "d50891a6-d7d1-428d-ad92-aab9a5de1174",
       "name": "MCP: 1. Причина",
@@ -3610,7 +3625,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'HYPOTHESIS (step 1): ' + $('MCP: 1. Причина (парсер)').last().json.hypothesis + '\\nTASK: ' + $('MCP: Есть работа?').last().json.task_mcp + '\\n\\nSTEP 2 — SYNTHETIC TEST. Design a synthetic test that fails BEFORE the fix (RED). This channel edits project files via the bridge and runs checks (python -B python/tests/<file>.py from addons/Godot_agent/godot_agent). Specify the test file path.\\nAnswer strictly in lines:\\ntest = <test essence>\\ntest_path = <test file path>' }}"
+        }
       },
       "id": "3d2404c5-3d50-4da5-bb66-7da593a58940",
       "name": "MCP: 2. Синтетические тесты",
@@ -3712,7 +3730,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'CHANNEL TASK: ' + String($('Браузер: Есть работа?').last()?.json?.task_browser ?? '') + '\\n\\nCHANNEL OUTPUT (what the agent said): ' + String($('Канал: Браузер').last()?.json?.output ?? '').slice(0, 1000) + '\\n\\nRING CONTEXT: ' + ($('Браузер: Куда вернуться?').isExecuted ? JSON.stringify($('Браузер: Куда вернуться?').last()?.json ?? {}).slice(0, 800) : 'first entry') + '\\n\\nSTEP 1 — ROOT CAUSE. Find the root cause: what exactly blocks the task, what is your hypothesis / minimal-fix plan. If there is really no work to do (all done already) — nothing_to_do = YES.\\nAnswer strictly in lines:\\nnothing_to_do = YES|NO\\nhypothesis = <одно-два предложения>' }}"
+        }
       },
       "id": "807ea83e-15a5-407c-a828-85c7e42c22fc",
       "name": "Браузер: 1. Причина",
@@ -3750,7 +3771,10 @@
             }
           ]
         },
-        "batching": {}
+        "batching": {},
+        "parameters": {
+          "text": "={{ 'HYPOTHESIS (step 1): ' + $('Браузер: 1. Причина (парсер)').last().json.hypothesis + '\\nTASK: ' + $('Браузер: Есть работа?').last().json.task_browser + '\\n\\nSTEP 2 — SYNTHETIC TEST. Design a synthetic test that fails BEFORE the fix (RED). This channel verifies facts with external sources (web_search/fetch_url) and runs checks (python -B python/tests/<file>.py from addons/Godot_agent/godot_agent). Specify the test file path.\\nAnswer strictly in lines:\\ntest = <test essence>\\ntest_path = <test file path>' }}"
+        }
       },
       "id": "35426621-974e-4d04-9317-39f0141a4f8d",
       "name": "Браузер: 2. Синтетические тесты",
