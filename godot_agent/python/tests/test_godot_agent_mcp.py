@@ -402,6 +402,20 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("plan_id", text)
         self.assertIn('name="Child"', scene.read_text(encoding="utf-8"))
 
+    def test_split_scan_via_mcp_reports_refs(self):
+        donor = self.agent_dir / "python" / "probe_split.py"
+        donor.write_text("def mcp_probe_one():\n    return 1\n",
+                         encoding="utf-8")
+        server = self.make_server("agent-dev")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            result = self.call(server, "split_scan", file=(
+                "res://addons/Godot_agent/godot_agent/python/probe_split.py"))
+        text = self.text_of(result)
+        self.assertIn("refs: import=", text)
+        self.assertEqual(donor.read_text(encoding="utf-8"),
+                         "def mcp_probe_one():\n    return 1\n")
+
     def test_write_is_not_reachable_in_user_profile(self):
         """Инструмента записи в профиле user нет — вызов обязан честно упасть."""
         import asyncio
@@ -425,6 +439,7 @@ class McpServerTests(unittest.TestCase):
                          "write_preview", "write_apply", "write_rollback",
                          "node_rename_preview", "node_reparent_preview",
                          "node_delete_preview",
+                         "split_scan", "split_plan",
                          "paths_preview"):
             self.assertIn(expected, names)
 

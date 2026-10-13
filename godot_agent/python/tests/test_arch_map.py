@@ -197,6 +197,34 @@ class CheckNewFileTests(Fixture):
                          ["python/browser/a.py", "python/browser/b.py"])
         self.assertTrue(any("reticulate_splines" in item for item in errors))
 
+    def test_replaced_donor_is_not_a_name_duplicate(self):
+        """Имена из донора переезжают в модули пилы, а не копируются.
+
+        Без replaced новое определение выглядит дублем; мост передаёт
+        replaced = донор той же транзакции, и вердикт чист.
+        """
+        self.write("python/godot_tools/donor_mod.py",
+                   "def sweep_cache():\n    return 1\n")
+        text = "def sweep_cache():\n    return 1\n"
+        errors, _warnings = arch_map.check_new_file(
+            self.addon, "python/godot_tools/donor_part1.py", text)
+        self.assertTrue(errors, "донор без replaced обязан считаться дублем")
+        self.assertIn("sweep_cache", errors[0])
+        errors, _warnings = arch_map.check_new_file(
+            self.addon, "python/godot_tools/donor_part1.py", text,
+            replaced=["python/godot_tools/donor_mod.py"])
+        self.assertEqual(errors, [])
+
+    def test_batch_replaced_donor_normalizes_separators(self):
+        self.write("python/godot_tools/donor_batch.py",
+                   "def sweep_batch():\n    return 1\n")
+        errors, _warnings, _checked = arch_map.check_new_files(
+            self.addon,
+            [("python/godot_tools/donor_batch_part1.py",
+              "def sweep_batch():\n    return 1\n")],
+            replaced=["python\\godot_tools\\donor_batch.py"])
+        self.assertEqual(errors, [])
+
 
 class AuditTests(Fixture):
     def setUp(self):

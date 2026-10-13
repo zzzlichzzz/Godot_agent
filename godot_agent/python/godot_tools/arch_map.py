@@ -267,12 +267,19 @@ def _join_hits(hits, limit=3):
     return shown
 
 
-def check_new_file(addon_dir, rel_path, text, map_data=None, index=None):
+def check_new_file(addon_dir, rel_path, text, map_data=None, index=None,
+                   replaced=()):
     """Вердикт для ОДНОГО нового файла агента: (errors, warnings).
 
     errors — отказ моста (имя из ядра или зона deny);
     warnings — предупреждения «arch:» (зона-потребитель, соседи по имени, зона
     вне карты). Не-.py файлы проверяются только по зоне.
+
+    replaced — относительные пути файлов, которые ЭТА ЖЕ транзакция
+    перезаписывает (донор разбиения пилой): их старые определения имён не
+    считаются дублем и не считаются «соседями» — имена переезжают в новые
+    файлы, а не копируются. Мост передаёт сюда только пути, участвующие в
+    той же записи; после неё этих имён в старом файле не останется.
     """
     value = str(rel_path or "").replace("\\", "/").lstrip("/")
     errors, warnings = [], []
@@ -328,11 +335,14 @@ def check_new_file(addon_dir, rel_path, text, map_data=None, index=None):
     in_core = value.startswith(core_dir)
     if index is None:
         index = name_index(addon_dir)
+    replaced_set = {str(item).replace("\\", "/").lstrip("/")
+                    for item in replaced}
     for name, kind in names:
         if name in stoplist:
             continue
         hits = [(rel, k) for rel, k in (index.get(name) or [])
-                if name_checks_enabled(map_data, rel)]
+                if rel not in replaced_set
+                and name_checks_enabled(map_data, rel)]
         core_hits = [(rel, k) for rel, k in hits if rel.startswith(core_dir)]
         if core_hits:
             where = _join_hits(core_hits)
@@ -359,19 +369,23 @@ def check_new_file(addon_dir, rel_path, text, map_data=None, index=None):
     return errors, warnings
 
 
-def check_new_files(addon_dir, items, map_data=None):
+def check_new_files(addon_dir, items, map_data=None, replaced=()):
     """Пакетная проверка: items = [(rel_path, text)] -> (errors, warnings, checked).
 
     Индекс имён и карта читаются один раз на пакет — гейту моста важно не
-    сканировать дерево повторно для каждого файла транзакции.
+    сканировать дерево повторно для каждого файла транзакции. replaced —
+    пути, перезаписываемые той же транзакцией (см. check_new_file): их
+    старые определения не считаются дублем имён новых файлов.
     """
     if map_data is None:
         map_data = load_map(addon_dir)
     index = name_index(addon_dir) if map_data is not None else None
     errors, warnings, checked = [], [], []
+    replaced = list(replaced or ())
     for rel_path, text in items:
         file_errors, file_warnings = check_new_file(
-            addon_dir, rel_path, text, map_data=map_data, index=index)
+            addon_dir, rel_path, text, map_data=map_data, index=index,
+            replaced=replaced)
         checked.append(str(rel_path).replace("\\", "/").lstrip("/"))
         errors.extend(file_errors)
         warnings.extend(file_warnings)

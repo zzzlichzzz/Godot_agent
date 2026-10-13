@@ -133,8 +133,8 @@ class ScanTests(Fixture):
         scan = split_refactor.scan_refs(
             self.addon, "python/godot_tools/target_mod.py")
         self.assertEqual(scan["counts"],
-                         {"import": 3, "source_read": 1, "mention": 1,
-                          "doc": 1})
+                         {"import": 3, "source_read": 1, "patch": 0,
+                          "mention": 1, "doc": 1})
         self.assertIn("python/server/user1.py", scan["hard_files"])
         self.assertIn("python/server/user2.py", scan["hard_files"])
         self.assertIn("docs/note.md", scan["soft_files"])
@@ -147,6 +147,23 @@ class ScanTests(Fixture):
         self.assertNotIn("python/dist/gen.py", seen)
         self.assertNotIn("python/tests/test_target_mod.py", seen)
         self.assertNotIn("python/server/user3.py", seen)
+
+    def test_attr_patch_of_donor_is_hard_reference(self):
+        """Патч атрибута донора (`mod.fn = ...`) — жёсткая ссылка.
+
+        После разбиения фасад сохраняет атрибут, но вынесенные функции
+        вызывают свои копии-импорты: патч тихо перестаёт действовать,
+        поэтому файл обязан попасть в hard_files.
+        """
+        self.write("python/server/user4.py",
+                   "import target_mod\n"
+                   "\n"
+                   "original = target_mod.t\n"
+                   "target_mod.t = lambda: None\n")
+        scan = split_refactor.scan_refs(
+            self.addon, "python/godot_tools/target_mod.py")
+        self.assertEqual(scan["counts"]["patch"], 1)
+        self.assertIn("python/server/user4.py", scan["hard_files"])
 
 
 INVENTORY_TEXT = '''"""Докстрока модуля."""
@@ -344,6 +361,26 @@ class PlanTests(Fixture):
         self.assertIn("нужен нескольким группам",
                       "\n".join(prepared["errors"]))
 
+    def test_shared_state_in_own_module_is_allowed(self):
+        """Просьбу guard-а «отдельным модулем» после выноса выполняем.
+
+        state живёт в собственном модуле, потребители импортируют один
+        общий объект — ошибка снимается, остаётся предупреждение.
+        """
+        self.write("python/godot_tools/statemod2.py",
+                   '"""Общий state отдельным модулем."""\n\n\nSTORE = {}\n\n\n'
+                   "def put():\n    STORE['a'] = 1\n\n\n"
+                   "def take():\n    return STORE.get('a')\n")
+        prepared = split_refactor.plan_split(
+            self.addon, "python/godot_tools/statemod2.py",
+            groups=[{"module": "statemod2_data", "symbols": ["STORE"]},
+                    {"module": "statemod2_part1", "symbols": ["put"]},
+                    {"module": "statemod2_part2", "symbols": ["take"]}])
+        joined_errors = "\n".join(prepared["errors"])
+        joined_warnings = "\n".join(prepared["warnings"])
+        self.assertNotIn("нужен нескольким группам", joined_errors)
+        self.assertIn("вынесен отдельным модулем", joined_warnings)
+
     def test_consumer_zone_warning(self):
         self.write("python/tools/toolmod.py",
                    '"""Проводка."""\n\n\ndef tool_one():\n    return 1\n')
@@ -354,6 +391,29 @@ class PlanTests(Fixture):
         joined = "\n".join(prepared["warnings"])
         self.assertIn("зона", joined)
         self.assertIn("только проводка", joined)
+
+    def test_patched_moved_attribute_warns(self):
+        """Патч атрибута переезжающего символа — предупреждение в плане."""
+        self.write("python/godot_tools/patchmod.py",
+                   '"""Патчи."""\n\n\n'
+                   "def patcher():\n    return 1\n\n\n"
+                   "def helper():\n    return patcher()\n")
+        self.write("python/tests/test_patch_usage.py",
+                   "import patchmod\n\n\n"
+                   "def inject():\n"
+                   "    patchmod.patcher = None\n"
+                   "    patchmod.absent = None\n")
+        prepared = split_refactor.plan_split(
+            self.addon, "python/godot_tools/patchmod.py",
+            groups=[{"module": "patchmod_part1",
+                     "symbols": ["patcher", "helper"]}])
+        joined = "\n".join(prepared["warnings"])
+        self.assertIn("patcher", joined)
+        self.assertIn("test_patch_usage.py", joined)
+        self.assertIn("не долетит", joined)
+        # Патч имени, которого нет среди переезжающих, — не про нас.
+        self.assertNotIn("absent", joined)
+        self.assertEqual(prepared["errors"], [])
 
 
 class ApplyTests(Fixture):

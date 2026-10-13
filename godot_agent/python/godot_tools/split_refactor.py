@@ -127,10 +127,18 @@ def _module_matches(candidate, stem):
 def scan_refs(addon_dir, rel_path):
     """Карта ссылок на файл аддона: импорты, строки, доки, чтение исходника.
 
-    Возвращает dict: counts по видам (import/source_read/mention/doc),
-    occurrences (rel, line, kind, text), hard_files (импорты и чтение
-    исходника — сломаются при смене пути/имени), soft_files (упоминания и
-    доки — ревизия человеком), truncated (обрезан ли отчёт предохранителем).
+    Возвращает dict: counts по видам (import/source_read/patch/mention/doc),
+    occurrences (rel, line, kind, text), hard_files (импорты, чтение
+    исходника и патчи атрибутов — сломаются или перестанут действовать при
+    смене пути/имени), soft_files (упоминания и доки — ревизия человеком),
+    truncated (обрезан ли отчёт предохранителем).
+
+    «patch» — присваивание атрибута донора снаружи (`mod.fn = ...` или
+    `setattr(mod, ...)` — типичная инъекция сбоя в тестах). После разбиения
+    фасад сохраняет атрибут, но вынесенные функции вызывают собственные
+    копии-импорты — патч фасада до них не долетает. Тихо перестаёт
+    действовать, поэтому это hard-ссылка: лечится переводом патча на
+    модуль-владелец (`sys.modules[func.__module__]`).
     """
     rel = _norm(rel_path)
     if not os.path.isfile(os.path.join(str(addon_dir), rel)):
@@ -138,7 +146,14 @@ def scan_refs(addon_dir, rel_path):
     stem = os.path.splitext(os.path.basename(rel))[0]
     base = os.path.basename(rel)
     name_re = re.compile(r"(?<![\w-])" + re.escape(base) + r"(?![\w])")
-    counts = {"import": 0, "source_read": 0, "mention": 0, "doc": 0}
+    patch_re = re.compile(
+        r"(?<![\w.])" + re.escape(stem)
+        + r"\s*(?:\.\s*\w+\s*(?:[+\-*/%@|&^]?=)(?!=)"
+        r"|\.\s*__setattr__\s*\()")
+    setattr_re = re.compile(r"(?<![\w.])setattr\(\s*" + re.escape(stem)
+                            + r"\s*,")
+    counts = {"import": 0, "source_read": 0, "patch": 0, "mention": 0,
+              "doc": 0}
     occurrences, truncated = [], False
     for file_rel, file_abs in _files_of(addon_dir):
         if file_rel == rel:
@@ -156,6 +171,8 @@ def scan_refs(addon_dir, rel_path):
             modules, _aliases = _imported_modules(line)
             if any(_module_matches(item, stem) for item in modules):
                 kind = "import"
+            elif patch_re.search(line) or setattr_re.search(line):
+                kind = "patch"
             elif name_re.search(line) or rel in line:
                 if ext == ".py" and ("open(" in line or "__file__" in line
                                      or "read_text(" in line):
@@ -173,12 +190,42 @@ def scan_refs(addon_dir, rel_path):
             else:
                 truncated = True
     hard_files = sorted({item["rel"] for item in occurrences
-                         if item["kind"] in ("import", "source_read")})
+                         if item["kind"] in ("import", "source_read",
+                                             "patch")})
     soft_files = sorted({item["rel"] for item in occurrences
                          if item["kind"] in ("mention", "doc")})
     return {"rel": rel, "stem": stem, "counts": counts,
             "occurrences": occurrences, "hard_files": hard_files,
             "soft_files": soft_files, "truncated": truncated}
+
+
+def _warn_patched_attributes(scan, prepared, warnings):
+    """Предупреждение о патчах атрибутов переезжающих имён.
+
+    Патч вида `mod.fn = ...` (инъекция сбоя в тестах) после разбиения
+    попадает только в фасад: вынесенные функции вызывают собственные
+    копии-импорты, и подмена перестаёт действовать. Лечение — патчить
+    модуль-владелец: `sys.modules[func.__module__]`.
+    """
+    stem = os.path.splitext(os.path.basename(prepared["donor"]))[0]
+    moved = set(prepared.get("moved_names") or [])
+    pattern = re.compile(r"(?<![\w.])" + re.escape(stem)
+                         + r"\s*\.\s*(\w+)\s*(?:[+\-*/%@|&^]?=)(?!=)")
+    names, files = set(), set()
+    for item in scan.get("occurrences") or []:
+        if item.get("kind") != "patch":
+            continue
+        files.add(item.get("rel"))
+        match = pattern.search(item.get("text") or "")
+        if match and match.group(1) in moved:
+            names.add(match.group(1))
+    if not names:
+        return
+    warnings.append(
+        "атрибут(ы) %s патчат снаружи (%s): после разбиения патч фасада не "
+        "долетит до вынесенных функций — переведи патчи на модуль-владелец "
+        "(`sys.modules[func.__module__]`) до применения"
+        % (", ".join(sorted(names)), ", ".join(sorted(files))))
 
 
 def _segment_text(lines, start, end):
@@ -461,10 +508,21 @@ def plan_split(addon_dir, rel_path, groups=None,
                         % ", ".join(leftover))
     for name in sorted(state_users):
         users = sorted(state_users[name])
-        if len(users) > 1:
+        owner = group_of.get(name)
+        if len(users) > 1 and owner in users:
             errors.append("мутабельный state %s нужен нескольким группам "
                           "(%s): вынеси его отдельным модулем-группой"
                           % (name, ", ".join(users)))
+        elif len(users) > 1:
+            # Рекомендацию «отдельным модулем» выполнили: state живёт в
+            # собственном модуле, а потребители лишь импортируют один общий
+            # объект — мутации не теряются, поэтому это не ошибка. Опасен
+            # был именно случай, когда state уезжает вместе с функциями
+            # одной группы, а его мутируют ещё из другой.
+            warnings.append("мутабельный state %s вынесен отдельным модулем "
+                            "%s и нужен группам (%s) — мутируй его только "
+                            "через модуль-владелец"
+                            % (name, owner, ", ".join(users)))
         else:
             warnings.append("мутабельный state %s переезжает в модуль %s — "
                             "проверь, что его больше никто не мутирует"
@@ -589,6 +647,7 @@ def plan_split(addon_dir, rel_path, groups=None,
                             "hard_files": scan["hard_files"],
                             "soft_files": scan["soft_files"],
                             "truncated": scan["truncated"]}
+        _warn_patched_attributes(scan, prepared, warnings)
     except SplitError:
         pass
     return prepared
@@ -720,9 +779,10 @@ def _print_plan_summary(prepared):
           % (prepared["facade"]["rel"], prepared["facade"]["lines"],
              len(prepared["facade"]["reexports"])))
     counts = ((prepared.get("refs") or {}).get("counts") or {})
-    print("  ссылки: import=%s source_read=%s mention=%s doc=%s"
+    print("  ссылки: import=%s source_read=%s patch=%s mention=%s doc=%s"
           % (counts.get("import", 0), counts.get("source_read", 0),
-             counts.get("mention", 0), counts.get("doc", 0)))
+             counts.get("patch", 0), counts.get("mention", 0),
+             counts.get("doc", 0)))
     for message in prepared["warnings"]:
         print("warning: %s" % message)
     for message in prepared["errors"]:
@@ -763,9 +823,10 @@ def _cli(argv=None):
         if args.command == "scan":
             payload = scan_refs(args.addon, args.file)
             counts = payload["counts"]
-            print("ссылки: import=%d source_read=%d mention=%d doc=%d"
+            print("ссылки: import=%d source_read=%d patch=%d mention=%d "
+                  "doc=%d"
                   % (counts["import"], counts["source_read"],
-                     counts["mention"], counts["doc"]))
+                     counts["patch"], counts["mention"], counts["doc"]))
             for label, key in (("жёсткие", "hard_files"),
                                ("мягкие", "soft_files")):
                 if payload[key]:

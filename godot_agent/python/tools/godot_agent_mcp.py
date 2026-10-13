@@ -197,7 +197,9 @@ _DEV_INSTRUCTIONS = (
     "исходник агента, включая .py, и доступны инструменты записи. write "
     "двухфазный: сначала write_preview возвращает plan_id и НЕ меняет файлы, "
     "затем write_apply с тем же plan_id. Переименование файлов применяй через "
-    "панель агента: paths_preview только читает."
+    "панель агента: paths_preview только читает. Большой .py агента (>2000 "
+    "строк) разбивай пилой: split_scan → split_plan (его groups) → "
+    "write_preview {action: split_refactor, file, groups} → write_apply."
 )
 
 
@@ -406,6 +408,24 @@ def build_server(profile="user", root=None, udd=None, name=None):
             return call_request(["write", "preview"],
                                 {"action": "delete_node", "scene": scene,
                                  "node": node})
+
+        @server.tool(description="Пила .py, шаг 1: карта ссылок на файл агента — "
+                                "кто им пользуется и что поедет при разбиении. "
+                                "Только чтение.")
+        def split_scan(file: str) -> CallToolResult:
+            return call(["split", "scan", str(file)])
+
+        @server.tool(description="Пила .py, шаг 2: план разбиения файла агента "
+                                "(модули, фасад, groups для write_preview с "
+                                "action split_refactor). Только чтение.")
+        def split_plan(file: str, groups: list = [],
+                       target_lines: int = 0) -> CallToolResult:
+            request = {"file": str(file)}
+            if groups:
+                request["groups"] = groups
+            if target_lines:
+                request["target_lines"] = int(target_lines)
+            return call_request(["split", "plan"], request)
 
     return server
 
