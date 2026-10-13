@@ -1285,6 +1285,75 @@ def _assert_agent_path_writable(project_root, path, policy):
         raise BridgeRefused(
             "generated/frozen Agent path is not writable: %s" % path)
 
+def _addon_relative_path(project_root, path, policy):
+    """Путь относительно аддона агента (для карты архитектуры) или None."""
+    import project_tools
+    try:
+        absolute = project_tools._resolve_safe_path(project_root, path)
+        addon = os.path.realpath(policy["addon_dir"])
+        rel = os.path.relpath(absolute, addon).replace(os.sep, "/")
+    except (OSError, TypeError, ValueError):
+        return None
+    if rel == ".." or rel.startswith("../"):
+        return None
+    return rel
+
+def _print_arch_notes(prepared):
+    """Строки «arch:» — вердикт архитектурного гейта для preview и apply.
+
+    Их читает и человек, и стадия-архитектор n8n: каждый новый файл агента
+    прошёл карту (docs/architecture_map.json) — либо транзакция отклонена
+    раньше, и модель видит причину в «refused:».
+    """
+    checked = prepared.get("arch_checked_files") or []
+    if checked:
+        _out("arch: new agent file(s) checked: %s" % ", ".join(checked))
+    for note in prepared.get("arch_notes") or []:
+        _out("arch: %s" % note)
+
+def _assert_new_agent_files(project_root, prepared, policy):
+    """Архитектурный гейт для НОВЫХ файлов агента (только agent-dev).
+
+    Правило проекта (docs/ARCHITECTURE.md): функциональность живёт в ядре
+    (python/godot_tools), оболочки — потребители; карта — docs/architecture_map.json.
+    Дубль имени ядра и зона deny — отказ моста; зона потребителя и зона вне
+    карты — строки «arch:» в ответе preview/apply. Файлы пользовательских
+    проектов и внешних аддонов не затрагиваются: карта описывает этот аддон.
+    """
+    if not (policy.get("allow_self_edit") and policy.get("addon_dir")):
+        return
+    new_items = [item for item in prepared.get("files") or []
+                 if item.get("before_bytes") is None
+                 and item.get("after_bytes") is not None and item.get("path")]
+    if not new_items:
+        return
+    import arch_map
+    import project_tools
+    checks = []
+    for item in new_items:
+        path = item["path"]
+        if not project_tools.is_agent_path(path, project_root,
+                                           policy["addon_dir"]):
+            continue
+        rel = _addon_relative_path(project_root, path, policy)
+        if not rel:
+            continue
+        try:
+            text = item["after_bytes"].decode("utf-8-sig")
+        except UnicodeDecodeError:
+            # Не-Python с «чужой» кодировкой всё равно проходит зонные правила.
+            text = ""
+        checks.append((rel, text))
+    if not checks:
+        return
+    errors, warnings, checked = arch_map.check_new_files(
+        policy["addon_dir"], checks)
+    if errors:
+        raise BridgeRefused("; ".join(errors))
+    prepared["arch_checked_files"] = checked
+    if warnings:
+        prepared["arch_notes"] = warnings
+
 def _assert_prepared_access(project_root, prepared, policy):
     import project_tools
     for item in prepared.get("files") or []:
@@ -1347,6 +1416,7 @@ def _print_write_preview(prepared, plan_id, policy):
     for diff in prepared.get("diffs") or []:
         _out("diff: %s" % json.dumps(diff, ensure_ascii=False,
                                       separators=(",", ":")))
+    _print_arch_notes(prepared)
 
 def _validate_bridge_candidate(project_root, prepared):
     """Local syntax checks complement the existing GDScript/Godot barriers.
@@ -1561,6 +1631,9 @@ def _make_prepared(root, request, policy):
     _validate_bridge_candidate(root, prepared)
     prepared["diffs"] = transaction_actions.prepared_diffs(prepared)
     _assert_prepared_access(root, prepared, policy)
+    # Архитектурный гейт — последним: синтаксис/доступ уже проверены, и
+    # отказ по карте не тратит ход модели на нечитаемый файл.
+    _assert_new_agent_files(root, prepared, policy)
     return prepared
 
 def _validation_receipt(root, prepared, opts):
@@ -1784,6 +1857,7 @@ def _apply_write_plan(root, opts, policy, values, request):
     _out("plan_id: %s" % expected)
     _out("entry_id: %s" % result["entry_id"])
     _out("changed_paths: %s" % ", ".join(result.get("changed_paths") or []))
+    _print_arch_notes(prepared)
     if result.get("reference_count") is not None:
         _out("reference_count: %d" % int(result["reference_count"]))
     # Раскрытие повторяется ПОСЛЕ записи: предпросмотр модель могла потерять
