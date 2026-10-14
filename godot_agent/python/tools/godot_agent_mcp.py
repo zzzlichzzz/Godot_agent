@@ -199,7 +199,11 @@ _DEV_INSTRUCTIONS = (
     "затем write_apply с тем же plan_id. Переименование файлов применяй через "
     "панель агента: paths_preview только читает. Большой .py агента (>2000 "
     "строк) разбивай пилой: split_scan → split_plan (его groups) → "
-    "write_preview {action: split_refactor, file, groups} → write_apply."
+    "write_preview {action: split_refactor, file, groups} → write_apply. "
+    "Большой .gd агента (>2000 строк) — так же, через split_gd_scan → "
+    "split_gd_plan → write_preview {action: split_gd, file, groups} → "
+    "write_apply: тела методов уезжают в модули, а в доноре остаются "
+    "обёртки, поэтому внешние ссылки не ломаются."
 )
 
 
@@ -426,6 +430,24 @@ def build_server(profile="user", root=None, udd=None, name=None):
             if target_lines:
                 request["target_lines"] = int(target_lines)
             return call_request(["split", "plan"], request)
+
+        @server.tool(description="Пила .gd, шаг 1: карта ссылок на .gd файл агента — "
+                                "кто им пользуется и что поедет при разбиении "
+                                "(path/call/doc/source_read/mention). Только чтение.")
+        def split_gd_scan(file: str) -> CallToolResult:
+            return call(["split_gd", "scan", str(file)])
+
+        @server.tool(description="Пила .gd, шаг 2: план разбиения .gd файла агента "
+                                "(модули, обёртки, groups для write_preview с "
+                                "action split_gd). Только чтение.")
+        def split_gd_plan(file: str, groups: list = [],
+                          target_lines: int = 0) -> CallToolResult:
+            request = {"file": str(file)}
+            if groups:
+                request["groups"] = groups
+            if target_lines:
+                request["target_lines"] = int(target_lines)
+            return call_request(["split_gd", "plan"], request)
 
     return server
 

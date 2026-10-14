@@ -47,6 +47,7 @@ import runtime_checks
 import gather_context
 import symbol_refactor
 import file_refactor
+import split_gd
 import node_refactor
 import scene_actions
 import project_settings_actions
@@ -4322,6 +4323,170 @@ def refactor_file_post_move_sync():
         traceback.print_exc()
         return jsonify({"ok": False, "error": str(e)}), 400
 
+
+
+def _split_gd_target(project_root, file):
+    """(.gd-донор относительно аддона, addon_dir) или ошибка.
+
+    Пила .gd — продуктовый инструмент агента: она работает только с файлами
+    собственного аддона (где лежит addon_dir), и только с .gd: тела методов уезжают
+    в модули, а в доноре остаются обёртки — поэтому внешние ссылки и сцены
+    не ломаются и править их не нужно.
+    """
+    addon_dir = STATE.get("addon_dir")
+    if not addon_dir:
+        raise ValueError("Аддон агента не синхронизирован (addon_dir).")
+    absolute = _resolve_safe_path(project_root, file)
+    rel = os.path.relpath(absolute, os.path.realpath(addon_dir)).replace(os.sep, "/")
+    if rel == ".." or rel.startswith("../"):
+        raise ValueError("Пила .gd работает только с файлами аддона агента.")
+    if not rel.lower().endswith(".gd"):
+        raise ValueError("Пила .gd работает только с .gd файлами аддона агента.")
+    return rel, addon_dir
+
+
+@app.route('/project/split_gd/scan', methods=['POST'])
+def split_gd_scan_route():
+    """Карта ссылок на .gd-донора: кто им пользуется. Только чтение."""
+    data = request.json or {}
+    _apply_session_context(data)
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    file = str(data.get("file") or "").strip()
+    if not file.startswith("res://"):
+        return jsonify({"error": "Укажите file как res:// путь .gd внутри аддона."}), 400
+    try:
+        if not _can_read_path(file, project_root):
+            return jsonify({"error": "Нет доступа на чтение этого файла."}), 400
+        rel, addon_dir = _split_gd_target(project_root, file)
+        result = split_gd.scan_refs(addon_dir, rel, project_root=project_root)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({"ok": True, "scan": result})
+
+
+@app.route('/project/split_gd/plan', methods=['POST'])
+def split_gd_plan_route():
+    """План раскола .gd (модули, обёртки, groups). Ничего не пишет на диск."""
+    data = request.json or {}
+    _apply_session_context(data)
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    file = str(data.get("file") or "").strip()
+    if not file.startswith("res://"):
+        return jsonify({"error": "Укажите file как res:// путь .gd внутри аддона."}), 400
+    groups = data.get("groups")
+    if groups is not None and not isinstance(groups, list):
+        return jsonify({"error": "groups — список {module, funcs}."}), 400
+    kwargs = {}
+    target_lines = data.get("target_lines")
+    if target_lines not in (None, "", 0):
+        try:
+            kwargs["target_lines"] = int(target_lines)
+        except (TypeError, ValueError):
+            return jsonify({"error": "target_lines должен быть целым числом."}), 400
+    try:
+        if not _can_write_path(file, project_root):
+            return jsonify({"error": "Нет доступа на запись этого файла."}), 400
+        rel, addon_dir = _split_gd_target(project_root, file)
+        prepared = split_gd.plan_split(addon_dir, rel, groups=groups,
+                                       project_root=project_root, **kwargs)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    # res:// пути модулей — для журнала и apply: модули лежат рядом с донором.
+    prefix = file[:-len(prepared["donor"])]
+    prepared["donor_res"] = file
+    prepared["res_paths"] = [file] + [prefix + module["rel"]
+                                      for module in prepared["modules"]]
+    _stamp_policy(prepared)
+    STATE["pending_split_gd"] = prepared
+    stats = prepared["stats"]
+    return jsonify({
+        "ok": True,
+        "plan": {
+            "donor": file,
+            "donor_rel": prepared["donor"],
+            "target_lines": prepared["target_lines"],
+            "donor_before": stats["donor_before"],
+            "donor_after": stats["donor_after"],
+            "moved": stats["moved"],
+            "modules": [{"rel": module["rel"], "lines": module["lines"],
+                         "funcs": module["funcs"]}
+                        for module in prepared["modules"]],
+            "groups": prepared["groups"],
+            "warnings": prepared["warnings"],
+        }
+    })
+
+
+@app.route('/project/split_gd/apply', methods=['POST'])
+def split_gd_apply_route():
+    """Запись раскола: модули + донор одной транзакцией журнала (с откатом)."""
+    data = request.json or {}
+    _apply_session_context(data)
+    project_root = STATE.get("project_root")
+    if not project_root:
+        return jsonify({"error": "Проект не синхронизирован."}), 400
+    prepared = STATE.get("pending_split_gd")
+    if not isinstance(prepared, dict) or prepared.get("kind") != "split_gd":
+        return jsonify({"error": "Сначала выполните предпросмотр (шаг plan)."}), 409
+    if not _pending_policy_current(prepared):
+        STATE["pending_split_gd"] = None
+        return _policy_error_response()
+    donor_res = str(prepared.get("donor_res") or "")
+    res_paths = list(prepared.get("res_paths") or [])
+    if not donor_res or len(res_paths) != len(prepared.get("modules") or []) + 1:
+        STATE["pending_split_gd"] = None
+        return jsonify({"error": "Подготовленный план раскола утрачен."}), 409
+    try:
+        donor_abs = _resolve_safe_path(project_root, donor_res)
+        with open(donor_abs, "rb") as handle:
+            before_bytes = handle.read()
+    except OSError as e:
+        STATE["pending_split_gd"] = None
+        return jsonify({"error": "Донор недоступен: %s" % e}), 400
+    if not _can_write_path(donor_res, project_root):
+        STATE["pending_split_gd"] = None
+        return jsonify({"error": "Нет доступа на запись этого файла."}), 400
+    states = []
+    for index, module in enumerate(prepared.get("modules") or []):
+        states.append({"path": res_paths[index + 1], "before_bytes": None,
+                       "after_bytes": str(module["content"]).encode("utf-8")})
+    states.append({"path": donor_res, "before_bytes": before_bytes,
+                   "after_bytes": str(prepared["donor_content"]).encode("utf-8")})
+    changed_paths = [item["path"] for item in states]
+    entry_id = history.record_batch_change(
+        project_root, "split_gd", changed_paths, *_current_chat_info(),
+        states=states)
+    try:
+        report = split_gd.apply_prepared_split(
+            prepared, godot=STATE.get("godot_executable") or None)
+    except Exception as e:
+        history.abort_change(project_root, entry_id)
+        STATE["pending_split_gd"] = None
+        return jsonify({"error": str(e)}), 400
+    history.commit_change(project_root, entry_id)
+    STATE["pending_split_gd"] = None
+    try:
+        librarian.note_files_changed(project_root, changed_paths)
+    except Exception:
+        pass
+    for changed_path in changed_paths:
+        _remember_file(project_root, changed_path)
+        _touch_file_read(changed_path)
+    _refresh_fs_snapshot(project_root)
+    return jsonify({
+        "ok": True,
+        "entry_id": entry_id,
+        "changed_paths": changed_paths,
+        "donor": donor_res,
+        "donor_lines": report.get("donor_lines"),
+        "modules": report.get("modules") or [],
+        "wrappers": report.get("wrappers"),
+        "checks": report.get("checks") or [],
+    })
 
 
 @app.route('/scene/refactor/node/preview', methods=['POST'])

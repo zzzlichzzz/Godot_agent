@@ -36,6 +36,7 @@ class AccessPolicyFlowTests(unittest.TestCase):
             "project_root", "addon_dir", "allow_addons", "allow_self_edit",
             "pending_action", "pending_batch", "pending_plan",
             "pending_transaction", "pending_refactor", "pending_file_refactor",
+            "pending_split_gd",
             "pending_node_refactor", "pending_scene_action",
             "pending_project_settings_action", "pending_resource_action",
             "pending_validation", "content_parts", "plan_parts")}

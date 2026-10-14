@@ -790,19 +790,24 @@ def cmd_paths(opts, args):
 # Write alpha: preview -> single-use apply -> journaled rollback
 # ---------------------------------------------------------------------------
 
-def _split_target(root, file, policy):
-    """Донор «пилы»: (addon_dir, rel) для .py внутри аддона агента."""
+def _split_target(root, file, policy, ext=".py", tool="split_refactor"):
+    """Донор «пилы»: (addon_dir, rel) внутри аддона агента.
+
+    Одна проверка на две пилы: .py — split_refactor, .gd — split_gd.
+    Различается только ожидаемое расширение и текст отказа.
+    """
     if not (policy.get("addon_dir") and policy.get("allow_self_edit")):
         raise BridgeRefused(
-            "split_refactor works on the agent's own addon; "
-            "run the bridge with --access agent-dev")
+            "%s works on the agent's own addon; "
+            "run the bridge with --access agent-dev" % tool)
     import project_tools
     project_tools.assert_can_read_project_path(
         file, root, **_access_kwargs(policy))
     rel = _addon_relative_path(root, file, policy)
-    if not rel or not rel.lower().endswith(".py"):
+    if not rel or not rel.lower().endswith(ext):
         raise BridgeRefused(
-            "split_refactor splits .py files of the agent addon only: %s" % file)
+            "%s splits %s files of the agent addon only: %s"
+            % (tool, ext, file))
     return policy["addon_dir"], rel
 
 def cmd_split(opts, args):
@@ -892,6 +897,99 @@ def cmd_split(opts, args):
     _out("next: write preview {\"action\": \"split_refactor\", \"file\": \"%s\", "
          "\"groups\": <groups выше>}" % file)
     return _finish(RC_OK, "split plan ready; nothing written")
+
+def _split_gd_target_lines(request):
+    """target_lines для split_gd: 100..5000 или None (дефолт ядра)."""
+    target_lines = request.get("target_lines")
+    if target_lines is None:
+        return None
+    try:
+        target_lines = int(target_lines)
+    except (TypeError, ValueError):
+        raise BridgeUsage("split_gd target_lines must be an integer")
+    if not 100 <= target_lines <= 5000:
+        raise BridgeUsage("split_gd target_lines must be between 100 and 5000")
+    return target_lines
+
+def cmd_split_gd(opts, args):
+    """Пила .gd: scan (карта ссылок) и plan (план раскола) — только чтение.
+
+    Запись — только через write preview/apply (action split_gd): те же гейт,
+    журнал и приёмка Godot, что у остальных записей моста. Модель выноса
+    отличается от .py: тела переезжают в статические функции модулей, а в доноре
+    остаются тонкие обёртки, поэтому внешние ссылки (сцены, connect, call)
+    продолжают работать без правок потребителей.
+    """
+    if not args or args[0] not in ("scan", "plan"):
+        return _finish(RC_USAGE, "usage: split_gd scan <res://file.gd> | "
+                                 "split_gd plan --request FILE")
+    root = _find_project_root(opts.get("root"))
+    if not root:
+        return _finish(RC_ERROR, "project.godot not found (use --root)")
+    import split_gd
+    try:
+        policy = _access_policy(opts, root, _policy_warning_writer())
+        if args[0] == "scan":
+            if len(args) != 2 or not args[1].startswith("res://"):
+                return _finish(RC_USAGE, "usage: split_gd scan <res://file.gd>")
+            addon_dir, rel = _split_target(root, args[1], policy, ".gd",
+                                           "split_gd")
+            payload = split_gd.scan_refs(addon_dir, rel)
+        else:
+            values = _parse_write_options(args[1:], ("--request",))
+            request_path = values.get("--request")
+            if not request_path:
+                return _finish(RC_USAGE, "--request is required")
+            request = _read_request(request_path)
+            file = str(request.get("file") or "").strip().replace("\\", "/")
+            if not file.startswith("res://"):
+                return _finish(RC_USAGE,
+                               "split_gd plan requires file (res://path.gd)")
+            addon_dir, rel = _split_target(root, file, policy, ".gd",
+                                           "split_gd")
+            target_lines = _split_gd_target_lines(request)
+            kwargs = {"target_lines": target_lines} if target_lines else {}
+            payload = split_gd.plan_split(addon_dir, rel,
+                                          groups=request.get("groups"),
+                                          project_root=root, **kwargs)
+    except (OSError, ValueError, RuntimeError) as exc:
+        _out("refused: %s" % exc)
+        return _finish(_refusal_code(exc), str(exc))
+    _out("access: %s" % policy["mode"])
+    if args[0] == "scan":
+        counts = payload["counts"]
+        _out("donor: %s — %d строк, extends %s, методов %d, const %d, членов %d"
+             % (rel, payload["lines"], payload.get("extends") or "?",
+                payload["funcs"], payload["consts"], payload["vars"]))
+        _out("refs: path=%d source_read=%d call=%d doc=%d mention=%d"
+             % (counts["path"], counts["source_read"], counts["call"],
+                counts["doc"], counts["mention"]))
+        for label in ("hard_files", "soft_files"):
+            files = payload.get(label) or []
+            _out("%s (%d): %s" % (label, len(files), ", ".join(files[:12])))
+        if payload.get("public_methods"):
+            _out("public_methods: %s" % ", ".join(payload["public_methods"]))
+        if payload.get("truncated"):
+            _out("warning: список ссылок усечён (лимит отчёта)")
+        _out("next: split_gd plan --request FILE, затем write preview "
+             "(action split_gd)")
+        return _finish(RC_OK, "split_gd scan ready")
+    stats = payload["stats"]
+    for module in payload["modules"]:
+        _out("module: %s — %d строк, методов %d: %s"
+             % (module["rel"], module["lines"], len(module["funcs"]),
+                ", ".join(module["funcs"])))
+    _out("donor: %s — %d -> %d строк; обёрток %d, модулей %d"
+         % (payload["donor"], stats["donor_before"], stats["donor_after"],
+            stats["moved"], stats["modules"]))
+    for message in payload["warnings"]:
+        _out("warning: %s" % message)
+    _out("groups: %s" % json.dumps(
+        [{"module": module["module"], "funcs": list(module["funcs"])}
+         for module in payload["groups"]], ensure_ascii=False))
+    _out("next: write preview {\"action\": \"split_gd\", \"file\": \"%s\", "
+         "\"groups\": <groups выше>}" % file)
+    return _finish(RC_OK, "split_gd plan ready; nothing written")
 
 def _reject_duplicate_json_keys(pairs):
     result = {}
@@ -1482,7 +1580,7 @@ def _assert_prepared_access(project_root, prepared, policy):
                     candidate, project_root, **_access_kwargs(policy))
                 _assert_agent_path_writable(project_root, candidate, policy)
         elif prepared.get("kind") in ("scene_repair", "symbol_rename",
-                                      "node_refactor", "split"):
+                                      "node_refactor", "split", "split_gd"):
             project_tools.assert_can_write_project_path(
                 path, project_root, **_access_kwargs(policy))
             _assert_agent_path_writable(project_root, path, policy)
@@ -1524,6 +1622,20 @@ def _print_write_preview(prepared, plan_id, policy):
             message = (warning.get("message") if isinstance(warning, dict)
                        else str(warning))
             _out("warning: %s" % message)
+    if prepared.get("kind") == "split_gd":
+        plan = prepared.get("split_gd") or {}
+        stats = plan.get("stats") or {}
+        _out("donor: %s — %s -> %s строк, цель ~%s"
+             % (plan.get("donor") or "?", stats.get("donor_before"),
+                stats.get("donor_after"), plan.get("target_lines")))
+        for module in plan.get("modules") or []:
+            _out("module: %s — %d строк, методов %d: %s"
+                 % (module.get("rel"), int(module.get("lines") or 0),
+                    len(module.get("funcs") or []),
+                    ", ".join(module.get("funcs") or [])))
+        _out("wrappers: %d" % int(stats.get("moved") or 0))
+        for warning in plan.get("warnings") or []:
+            _out("warning: %s" % warning)
     if prepared.get("kind") == "split":
         split = prepared.get("split") or {}
         facade = split.get("facade") or {}
@@ -1805,6 +1917,81 @@ def _make_split_prepared(root, request, policy):
             # донор перезаписывается фасадом в той же транзакции.
             "arch_replaced_paths": [rel]}
 
+def _make_split_gd_prepared(root, request, policy):
+    """Раскол большого .gd «пилой» split_gd (модель: модули + обёртки).
+
+    Ядро уже проверило вход (группы, super, аннотации, дефолты-идентификаторы,
+    коллизии имён) и вернуло полный prepared-план. Мост оборачивает его в общий вид:
+    донор — заменяемый файл, модули — новые. Дальше работает двухфазный write: preview
+    фиксирует plan_id, apply повторно строит ТОТ ЖЕ план, сверяет sha256 донора
+    и пишет через журнал (rollback доступен как у остальных записей моста).
+    """
+    import project_tools
+    import split_gd
+    file = str(request.get("file") or "").strip().replace("\\", "/")
+    if not file.startswith("res://"):
+        raise BridgeUsage(
+            "split_gd requires file (res:// path of an agent .gd)")
+    if not (policy.get("allow_self_edit") and policy.get("addon_dir")):
+        raise BridgeRefused(
+            "split_gd edits the running addon; use --access agent-dev")
+    _assert_agent_path_writable(root, file, policy)
+    rel = _addon_relative_path(root, file, policy)
+    if not rel or not rel.lower().endswith(".gd"):
+        raise BridgeRefused(
+            "split_gd splits .gd files of the agent addon only: %s" % file)
+    groups = request.get("groups")
+    if groups is not None and not isinstance(groups, list):
+        raise BridgeUsage("split_gd groups must be a list of {module, funcs}")
+    target_lines = _split_gd_target_lines(request)
+    kwargs = {"target_lines": target_lines} if target_lines else {}
+    plan = split_gd.plan_split(policy["addon_dir"], rel, groups=groups,
+                               project_root=root, **kwargs)
+    absolute = project_tools._resolve_safe_path(root, file)
+    try:
+        with open(absolute, "rb") as handle:
+            before_bytes = handle.read()
+    except OSError as exc:
+        raise BridgeRefused("cannot read donor file %s: %s" % (file, exc))
+    prefix = file[:-len(rel)]
+    files = [{"path": prefix + module["rel"], "before_bytes": None,
+              "after_bytes": str(module["content"]).encode("utf-8"),
+              "before_hash": None}
+             for module in plan.get("modules") or []]
+    files.append({"path": file, "before_bytes": before_bytes,
+                  "after_bytes": str(plan["donor_content"]).encode("utf-8"),
+                  "before_hash": hashlib.sha256(before_bytes).hexdigest()})
+    diffs = []
+    for item in files:
+        before = (None if item["before_bytes"] is None
+                  else item["before_bytes"].decode("utf-8-sig",
+                                                   errors="replace"))
+        after = item["after_bytes"].decode("utf-8-sig", errors="replace")
+        diff = project_tools.build_diff_preview(before, after)
+        if diff:
+            diff.update({"path": item["path"], "action": "split_gd"})
+            diffs.append(diff)
+    import godot_headless_validation
+    operations, targets, hashes = [], [], {}
+    for item in files:
+        operations.append({"op": "write", "path": item["path"],
+                           "content": item["after_bytes"]})
+        hashes[item["path"]] = item.get("before_hash")
+        if item["path"].lower().endswith(
+                godot_headless_validation.RESOURCE_EXTENSIONS):
+            targets.append(item["path"])
+    batch = godot_headless_validation.make_batch(
+        "split_gd", operations, targets, hashes)
+    return {"kind": "split_gd",
+            "action": {"action": "split_gd", "file": file, "groups": groups,
+                       "target_lines": target_lines},
+            "split_gd": plan, "files": files,
+            "paths": [item["path"] for item in files],
+            "diffs": diffs, "batch": batch, "already_satisfied": False,
+            # Гейт не должен видеть в новых модулях «дубль» имён донора:
+            # донор перезаписывается обёртками в той же транзакции.
+            "arch_replaced_paths": [rel]}
+
 def _make_prepared(root, request, policy):
     if request.get("action") == "repair_scene":
         prepared = _make_scene_repair_prepared(root, request, policy)
@@ -1846,6 +2033,15 @@ def _make_prepared(root, request, policy):
         prepared = _make_split_prepared(root, request, policy)
         # Синтаксис и защищённые каталоги — до гейта; гейт — последним, как
         # в транзакциях: отказ по карте не тратит ход модели впустую.
+        _validate_bridge_candidate(root, prepared)
+        _assert_prepared_access(root, prepared, policy)
+        _assert_new_agent_files(root, prepared, policy)
+        return prepared
+
+    if request.get("action") == "split_gd":
+        prepared = _make_split_gd_prepared(root, request, policy)
+        # Тот же порядок, что у .py-пилы: локальные проверки — до гейта,
+        # архитектурный гейт — последним: отказ по карте не тратит ход модели.
         _validate_bridge_candidate(root, prepared)
         _assert_prepared_access(root, prepared, policy)
         _assert_new_agent_files(root, prepared, policy)
@@ -2022,6 +2218,44 @@ def _apply_split_write(root, prepared, policy):
             "facade_lines": report.get("facade_lines"),
             "remaining_problems": []}
 
+def _apply_split_gd_write(root, prepared, policy, opts):
+    """Применение раскола .gd: журнал -> модули и донор -> commit.
+
+    Ядро пишет модули, при заданном Godot проверяет синтаксис каждого .gd
+    и только потом заменяет донора; при провале оно само убирает созданные файлы.
+    Мост добавляет журнал: запись откатывается как любая другая.
+    """
+    import history_manager
+    import split_gd
+    files = prepared["files"]
+    paths = [item["path"] for item in files]
+    states = [{"path": item["path"], "before_bytes": item["before_bytes"],
+               "after_bytes": item["after_bytes"]} for item in files]
+    entry_id = history_manager.record_batch_change(
+        root, "split_gd", paths, "mcp-alpha", "MCP Alpha", states=states)
+    try:
+        report = split_gd.apply_prepared_split(
+            prepared["split_gd"], godot=opts.get("godot") or None)
+    except Exception:
+        _restore_split_files(root, prepared)
+        history_manager.abort_change(root, entry_id)
+        raise
+    history_manager.commit_change(root, entry_id)
+    try:
+        import librarian
+        from minilich import ml_project_index
+        librarian.note_files_changed(root, paths)
+        ml_project_index.update_entries(root, changed_rels=paths)
+    except Exception:
+        pass
+    return {"entry_id": entry_id, "changed_paths": paths,
+            "file_count": len(paths), "reference_count": None,
+            "donor_lines": report.get("donor_lines"),
+            "modules": report.get("modules") or [],
+            "wrappers": report.get("wrappers"),
+            "checks": report.get("checks") or [],
+            "remaining_problems": []}
+
 def _apply_scene_repair(root, prepared, policy):
     import history_manager
     import librarian
@@ -2135,6 +2369,8 @@ def _apply_write_plan(root, opts, policy, values, request):
                 **_access_kwargs(policy))
         elif prepared.get("kind") == "split":
             result = _apply_split_write(root, prepared, policy)
+        elif prepared.get("kind") == "split_gd":
+            result = _apply_split_gd_write(root, prepared, policy, opts)
         else:
             transaction_actions.attach_validation(prepared, receipt)
             result = transaction_actions.apply_prepared(
@@ -2172,6 +2408,17 @@ def _apply_write_plan(root, opts, policy, values, request):
              % (split.get("donor") or "?",
                 int((split.get("facade") or {}).get("lines") or 0),
                 len(split.get("modules") or [])))
+    if prepared.get("kind") == "split_gd":
+        plan = prepared.get("split_gd") or {}
+        stats = plan.get("stats") or {}
+        _out("split_gd: донор %s — %s -> %s строк, обёрток %s, модулей %s"
+             % (plan.get("donor") or "?", stats.get("donor_before"),
+                stats.get("donor_after"), stats.get("moved"),
+                stats.get("modules")))
+        for module in plan.get("modules") or []:
+            _out("module: %s — %d строк, методов %d"
+                 % (module.get("rel"), int(module.get("lines") or 0),
+                    len(module.get("funcs") or [])))
     return RC_OK, "write applied and journaled"
 
 def cmd_write(opts, args):
@@ -2254,6 +2501,7 @@ _COMMANDS = {
     "check_action": cmd_check_action,
     "paths": cmd_paths,
     "split": cmd_split,
+    "split_gd": cmd_split_gd,
     "write": cmd_write,
 }
 

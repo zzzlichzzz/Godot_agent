@@ -210,6 +210,7 @@ class RenamePolicyEndToEnd(unittest.TestCase):
         self.addCleanup(self._restore_policy)
         for key in ("pending_action", "pending_refactor", "pending_validation",
                     "pending_transaction", "pending_file_refactor",
+                    "pending_split_gd",
                     "pending_node_refactor", "pending_plan"):
             STATE.pop(key, None)
         STATE.update({"project_root": self.root, "pending_action": None,
