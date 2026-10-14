@@ -22,7 +22,15 @@ def fixture():
     write(root, "project.godot", "config_version=5\n")
     write(root, "src/game_state.gd", "extends Node\n")
     write(root, "scenes/main.tscn", '[gd_scene format=3]\n\n[node name="Main" type="Node"]\n')
+    # Политика аддонов fail-closed: доступ к addons открывается только вместе
+    # с серверным addon_dir текущего агента.
+    write(root, "addons/Godot_agent/godot_agent/agent.gd", "extends Node\n")
     return root
+
+
+def agent_dir(root):
+    """Абсолютный путь текущего агента для проверок политики аддонов."""
+    return os.path.join(root, "addons", "Godot_agent", "godot_agent")
 
 
 def raises(callback, expected):
@@ -88,7 +96,7 @@ def test_addon_and_sequence_policy_are_conservative():
         action = {"action": "edit_project_settings", "operations": [{
             "op": "add_autoload", "name": "Tool", "path": "res://addons/demo/tool.gd"}]}
         raises(lambda: actions.normalize_action(root, action), "явному запросу")
-        actions.normalize_action(root, action, allow_addons=True)
+        actions.normalize_action(root, action, allow_addons=True, addon_dir=agent_dir(root))
         raises(lambda: actions.normalize_action(root, {
             "action": "edit_project_settings", "operations": [
                 {"op": "add_autoload", "name": "Temp", "path": "res://src/game_state.gd"},
