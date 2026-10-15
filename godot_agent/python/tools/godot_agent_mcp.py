@@ -279,9 +279,13 @@ def build_server(profile="user", root=None, udd=None, name=None):
 
     @server.tool(description="Функции .gd-файла: без names — список всех "
                             "объявленных имён; с names — тела запрошенных "
-                            "функций дословно. Операция только читает, "
-                            "подтверждения не требует.")
-    def functions(path: str, names: list = []) -> CallToolResult:
+                            "функций дословно; с card=true и одним именем — "
+                            "глубокая карточка функции: тело дословно + все "
+                            "символы тела с адресами (члены, консты, автолоады, "
+                            "чужие классы, builtins) + связи (кто вызывает "
+                            "с proven/probable, наследники, переопределения). "
+                            "Операция только читает, подтверждения не требует.")
+    def functions(path: str, names: list = [], card: bool = False) -> CallToolResult:
         names = names or []
         if len(names) > MAX_NAMES:
             return _tool_result(
@@ -289,6 +293,8 @@ def build_server(profile="user", root=None, udd=None, name=None):
                 "usage: слишком много имён: %d (предел %d)"
                 % (len(names), MAX_NAMES))
         argv = ["functions"]
+        if card:
+            argv.append("--card")
         if names:
             argv += ["--names", ",".join(str(n) for n in names)]
         return call(argv + [path])

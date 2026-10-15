@@ -1071,7 +1071,7 @@ def _card_request(query):
     return None, None
 
 
-def _symbol_card(project_root, query):
+def _symbol_card(project_root, query, addon_dir=None):
     """L7 (карточка символа): объявление + параметры + локальные переменные +
     члены, к которым обращается функция, и ВСЕ ссылки по проекту — по данным
     семантического индекса. Возвращает готовые строки секции SYMBOL или []
@@ -1197,6 +1197,40 @@ def _symbol_card(project_root, query):
                                    r.get("path"), int(r.get("line") or 0)))
     if len(uniq) > CARD_MAX_REFS:
         out.append("  (+%d more references)" % (len(uniq) - CARD_MAX_REFS))
+    # Глубокая карточка функции (function_card_plan.md): явный вид `func:имя`
+    # означает «мне нужна функция ЦЕЛИКОМ» — добавляем тело + все символы тела
+    # + связи. Голое имя остаётся дешёвой карточкой L7 (план §3).
+    if kind_hint == "function":
+        fdecls = [d for d in decls if d.get("kind") == "function"]
+        if fdecls:
+            by_file = {}
+            for r in refs:
+                if str(r.get("context")) in ("call", "member"):
+                    by_file[r.get("path")] = by_file.get(r.get("path"), 0) + 1
+            if len(fdecls) > 1:
+                # Имя объявлено в нескольких файлах: карточку строим для
+                # иерархического корня (у base-класса наследники, у override —
+                # нет); при равенстве — самое вызываемое (план §5).
+                import function_card
+                best = max(fdecls, key=lambda d: (
+                    function_card.subclass_count(project_root, d.get("path")),
+                    by_file.get(d.get("path"), 0)))
+            else:
+                best = fdecls[0]
+            try:
+                import function_card
+                card = function_card.build_function_card(
+                    project_root, best.get("path"), name, addon_dir=addon_dir)
+                if card.get("lines"):
+                    if len(fdecls) > 1:
+                        card["lines"].insert(
+                            1, "WARNING: имя объявлено в %d файлах — карточка "
+                               "для самого вызываемого объявления (%s)"
+                               % (len(fdecls), best.get("path")))
+                    out.append("")
+                    out.extend(card["lines"])
+            except Exception:
+                pass  # глубокая карточка не должна убить базовую L7
     return out
 
 
@@ -1333,7 +1367,7 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None,
     # L7 (карточка символа): сразу после MAP — точные данные важнее размытой
     # релевантности, и они берутся не из урезанного символами индекса.
     try:
-        card_lines = _symbol_card(project_root, q)
+        card_lines = _symbol_card(project_root, q, addon_dir=addon_dir)
     except Exception:
         card_lines = []  # L7 не должен убить ответ целиком
     if card_lines:

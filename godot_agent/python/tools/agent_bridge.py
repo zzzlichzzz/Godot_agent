@@ -16,7 +16,8 @@
   search [--max N] <текст...>  поиск подстроки по текущему режиму доступа
   read [--max-chars N] <res://path>
   scene <res://path.tscn>         структура сцены: узлы, скрипты, связи
-  functions [--names a,b] <res://path.gd>   список имён или тела функций
+  functions [--names a,b] [--card] <res://path.gd>
+                                  список имён, тела функций или глубокая карточка
   usages --declaration D --name N [--kind K]  где используется символ
   analyze_rename --kind K --declaration D --old-name A --new-name B
                                   предпросмотр переименования (read-only)
@@ -422,15 +423,22 @@ def cmd_scene(opts, args):
     return _finish(RC_OK, "scene structure")
 
 def cmd_functions(opts, args):
-    """Функции .gd: список имён или тела запрошенных (только чтение)."""
+    """Функции .gd: список имён, тела запрошенных или глубокая карточка
+    (--card, план function_card_plan.md) — только чтение."""
     names = []
-    if args and args[0] == "--names":
-        if len(args) < 2:
-            return _finish(RC_USAGE, "--names requires a comma-separated list")
-        names = [name.strip() for name in args[1].split(",") if name.strip()]
-        args = args[2:]
+    want_card = False
+    while args and args[0] in ("--names", "--card"):
+        if args[0] == "--card":
+            want_card = True
+            args = args[1:]
+        else:
+            if len(args) < 2:
+                return _finish(RC_USAGE, "--names requires a comma-separated list")
+            names = [name.strip() for name in args[1].split(",") if name.strip()]
+            args = args[2:]
     if len(args) != 1 or not args[0].startswith("res://"):
-        return _finish(RC_USAGE, "usage: functions [--names a,b] <res://path.gd>")
+        return _finish(RC_USAGE,
+                       "usage: functions [--names a,b] [--card] <res://path.gd>")
     path = args[0]
     if not path.lower().endswith(".gd"):
         return _finish(RC_USAGE, "functions works only for .gd scripts: %s" % path)
@@ -453,6 +461,27 @@ def cmd_functions(opts, args):
         # ложного «в файле больше нет функций».
         _out("refused: file is larger than the read budget; use read --max-chars")
         return _finish(RC_NOT_FOUND, "file too large for function listing")
+    if want_card:
+        # Глубокая карточка функции (function_card_plan.md): тело + символы
+        # тела с адресами + связи (call files / наследники / overrides).
+        if not names:
+            return _finish(RC_USAGE, "--card requires --names a,b")
+        import function_card
+        _out("path: %s" % path)
+        ok = 0
+        for name in names:
+            card = function_card.build_function_card(
+                root, path, name, content, addon_dir=_addon_arg(opts))
+            if card.get("error"):
+                _out("error: %s" % card["error"])
+                continue
+            for line in card["lines"]:
+                _out(line)
+            _out("---")
+            ok += 1
+        if not ok:
+            return _finish(RC_NOT_FOUND, "function card not built")
+        return _finish(RC_OK, "%d function cards" % ok)
     if not names:
         all_names = gd_functions.list_functions(content)
         _out("path: %s" % path)

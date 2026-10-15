@@ -20,7 +20,9 @@
 Дополнительно: `docs/split_gd_transfer_map.md` — где искать тело метода после
 раскола панели; `docs/v3_improvements_plan.md` — план v3 и долги;
 `docs/librarian_search_plan.md` — починка поиска Библиотекаря и «карточка
-символа» (отдавать функции со связями, а не строки); полигон — реальный проект
+символа» (отдавать функции со связями, а не строки); `docs/function_card_plan.md`
+— план «глубокой карточки функции» (тело + все символы + наследники/overrides
+и автолоады; продолжение карточки L7); полигон — реальный проект
 `D:\vajno\Godot\yandex-game-dev`; `docs/limitations/` — ограничения окружения.
 Историческое (читать как историю, а не как правду): `ОТЛОЖЕНО.md`,
 `GODOT_INTEGRATION_ROADMAP.md`, `VISUAL_UI_ROADMAP.md`, `reports/`, `tasks/`.
@@ -84,6 +86,10 @@ L4c/L3, L10, L6 и L7 (см. §2.1), не закоммичено.
 | `godot_agent/python/tests/test_librarian.py` | L5: `test_symbol_cap_keeps_rare_kinds` разделён на два утверждения — файл-переросток не урезается, а механизм квот проверяется на явном лимите 60. L4: `_search_bruteforce` повторяет новый порядок (те же три признака тай-брейка); L4c: бонус за путь считается по ключам `_path_keys` (сырой запрос + склейки ≥2 слов), поэтому `test_search_matches_bruteforce` держит паритет индекса с перебором. L7: 4 теста карточки — `test_symbol_card_layers`, `test_symbol_card_exact_name_and_kind_prefixes`, `test_symbol_card_caps_are_honest`, `test_symbol_card_uses_hide_keywords` (+ хелпер `_card_sec`) | зелёный (полигон: «ВСЕ ТЕСТЫ ПРОШЛИ», паритет 42 запроса) |
 | `godot_agent/python/tests/run_integration_regressions.py` | сьюты `test_scan_policy_cost` и `test_search_quality` добавлены в канонический прогон | — |
 | `godot_agent/docs/librarian_search_plan.md` | §4: L8 закрыт (числа до/после, чем проверено); §3.1: базис L2 по ведрам + вывод «все 21 промаха — `MAX_SYMBOLS`»; §3.2: результат L5 (свип лимита, +15 % индекса, просевшие `intent`/`ambiguous` mrr); §3.3: результат L4 (структурный тай-брейк, выбор признаков замером); §3.4: результат L4b и **полное сравнение L2 → L5 → L4 по всем ведрам** (hit@8 и mrr@8); §3.5: L4c и L3 — таблица замеров (IDF отвергнут замером: 10 конфигураций), три дефекта, выбранные веса, итоговые ведра; §3.6: результат L10 (склейка слов в пути, +4.0, плато 4.0…6.0); §3.7: результат L6 (срез шумного хвоста MAP — выдача 7.45 → 3.22, лишних 6.09 → 1.87, завсегдатаев 27 → 2, метрики те же; живой отчёт на полигоне); §5 (результат L7: карточка символа — живая проба полигона, 4 теста; план закрыт целиком) | — |
+| `godot_agent/python/godot_tools/function_card.py` | FUNC CARD (план `docs/function_card_plan.md`): `build_function_card(project_root, res_path, name, content=None, addon_dir=None)` → `{"lines"}` или `{"error"}`; тело — `gd_functions.extract_functions` (не режется, не входит в бюджет секций); группы символов — same-file (members/consts/signals), автолоады по `project.godot` c разрешением `uid://` по спутникам `.gd.uid`, чужие `class_name`, proven-функции (единственное топ-уровневое объявление в проекте), builtins (`_GD_BUILTINS` — статичный набор глобальных утилит GDScript + `@GDScript`/`@GlobalScope` из кэша; виртуальных классов в экспорте ClassDB нет — проверено), dynamic (вызовы по значению; типы-аннотации `_BUILTIN_TYPES` молча пропущены); связи — call sites (proven/probable по контексту call/member), dynamic strings (`has_method`/`call()`), подклассы и переопределения через `symbol_refactor_part1._find_subclasses` с пометкой «(probable super)»; лимиты секций §2.3 с честными «…(+N more)»; `subclass_count` — выбор иерархического корня | синтетика 15/15 (`test_function_card`); полигон: `take_damage`, `_on_death` |
+| `godot_agent/python/godot_tools/librarian.py` (FUNC CARD) | `_symbol_card(..., addon_dir)`: явный вид `func:имя` после секции SYMBOL добавляет FUNC CARD (голое имя — только L7, дёшево); при нескольких объявлениях имени выбор — `subclass_count` → вызываемость, WARNING перечисляет ситуацию честно; ошибки глубокой карточки не роняют L7 | `test_function_card.FunctionCardLibrarianTest`; полигон: `func:take_damage` с WARNING (2 объявления) |
+| `godot_agent/python/tools/agent_bridge.py`, `godot_agent/python/tools/godot_agent_mcp.py` (FUNC CARD) | мост: `functions [--names a,b] [--card] <res://path.gd>` — `--card` требует `--names`, печатает карточки (`error:` при промахе, RC_NOT_FOUND если ни одной), usage/справка обновлены; MCP: тулза `functions` получила параметр `card: bool = false` | `test_function_card.FunctionCardBridgeTest` (RC_OK/RC_USAGE/RC_NOT_FOUND) |
+| `godot_agent/python/tests/test_function_card.py` | 15 тестов на синтетическом мини-проекте: все секции карточки (params/locals/members/consts/signals/autoloads res:// и uid://, proven vs dynamic, ambiguous → dynamic, funcs этого файла), CALLERS proven/probable + dynamic strings, SUBCLASSES по extends-иерархии (путь и class_name), OVERRIDES с probable super, честные хвосты caps, func-not-found, мост `--card` (3 кода), проводка Библиотекаря | зелёный 15/15 |
 
 Все правки L8/L2/L5/L4/L4c/L3/L10/L6/L7 перенесены в полигон
 (`D:\vajno\Godot\yandex-game-dev\addons\godot_agent\`), sha256 файлов совпадают (в L7 добавлены `minilich/ml_project_index.py` и `tests/test_librarian.py`);
@@ -166,7 +172,32 @@ godot_agent/docs/architecture_map.json (карта зон и лимитов; е�
 ПРАВИЛО АРХИТЕКТУРЫ: функциональность живёт в ядре godot_agent/python/godot_tools/; панель, main.py,
 браузер, API-слой, MCP и n8n — тонкая проводка, без второй реализации.
 ТЕСТЫ: 119/119 зелёные. Прогон из корня репо: python -B godot_agent/python/tests/run_integration_regressions.py
-СДЕЛАНО ПОСЛЕДНИМ: L7 — карточка символа: запрос одним именем (`take_damage`,
+СДЕЛАНО ПОСЛЕДНИМ: FUNC CARD — глубокая карточка функции (план
+`docs/function_card_plan.md`): в Библиотекаре запрос `func:имя` (голое имя —
+как раньше, дешёвая карточка L7), а в мосте/MCP `functions --card` отдают
+одним вызовом тело функции дословно + ВСЕ символы тела с адресами (члены,
+консты, сигналы своего файла; автолоады — по `project.godot` с разрешением
+`uid://`; чужие `class_name`; встроенные) + три связи: кто вызывает
+(call-контекст = proven, member = probable), наследники по extends-иерархии
+(тот же `_find_subclasses`, что у rename-движка — карточка и переименование
+обязаны соглашаться), переопределения с пометкой «(probable super)» (парсер
+даёт `super.x()` как member — метка честно вероятностная). Данные — из
+семантического индекса; пересборки нет. Неразрушенное статикой помечено
+dynamic (вызовы по значению); строки `has_method(...)` — отдельно как
+dynamic strings. Если имя объявлено в нескольких файлах — карточка строится
+для иерархического корня (`subclass_count`: у базового класса наследники, у
+override — нет; при равенстве — самое вызываемое) с честным WARNING.
+Живые пробы на полигоне: `func:take_damage` — тело `base_enemy.gd:1314–1363`,
+[CALLERS] 2 proven + 41 probable в 20 файлах, [SUBCLASSES] 6; `func:_on_death`
+— 5 переопределений без super (хуки-заглушки). Тесты: `test_function_card`
+15/15; `test_librarian` (119/119), `test_search_quality`, `test_agent_bridge`
+зелёные. Полный канонический регресс: **120/120 сьютов** (`test_function_card`
+включён в `run_integration_regressions.py`). Перенос в копию аддона полигона
+(`addons/godot_agent`): 6 файлов, SHA256 совпадают; `godot_agent_server.exe`
+пересобран на обеих площадках (REPO 21:07, POLYGON 21:09 15.10.2026); контрольный
+прогон карточки выполнен из синхронизированной копии полигона — `bridge: ok`.
+Полигон при проверках не грязнился (git status — те же 46 строк
+владельца). Перед этим L7 — карточка символа: запрос одним именем (`take_damage`,
 `func:take_damage`) возвращает секцию SYMBOL — объявления с классом владельца, параметры,
 локальные переменные со строками, имена, к которым обращается функция, и ВСЕ ссылки по
 проекту (счётчики call/member/type/identifier, честные «+N more»). Данные — из
