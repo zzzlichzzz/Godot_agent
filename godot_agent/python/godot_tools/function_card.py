@@ -42,6 +42,7 @@ CARD_MAX_CALL_LINES_PER_FILE = 3
 CARD_MAX_STRING_HITS = 8
 CARD_MAX_SUBCLASSES = 12
 CARD_MAX_OVERRIDES = 8
+CARD_MAX_INHERITS = 6
 
 # Идентификаторы, которые парсер может занести в references, но которые не
 # являются символами проекта (та же идея, что _CARD_SKIP_USES в librarian).
@@ -427,9 +428,165 @@ def _collect_relations(project_root, res_path, func_name, data):
     data["string_hits"] = string_hits
     data["subclasses"] = subclasses
     data["overrides"] = overrides
+    try:
+        _chain, _trunc = _inherits_chain(project_root, res_path, func_name, data)
+    except Exception as exc:
+        _chain, _trunc = [], False
+        data["warnings"].append("цепочка наследования не собрана: %s" % exc)
+    data["inherits"] = _chain
+    data["inherits_truncated"] = _trunc
     return data
 
 # === ЧАСТЬ 3b: форматирование и точка входа — вставляется ниже ===
+
+def _class_decl_in_text(text):
+    """(class_name, строка) прямо из текста файла — диск-свежесть для предков
+    в [INHERITS]: индекс может отставать до STALE_SEC, а текст предка и так
+    прочитан с диска ради extends и спанов."""
+    from gd_semantic_parser import tokenize
+    toks = tokenize(text)
+    for i, t in enumerate(toks):
+        if t.get("value") == "class_name" and i + 1 < len(toks):
+            nxt = toks[i + 1]
+            if nxt.get("kind") == "identifier":
+                return nxt.get("value"), int(t.get("line") or 0)
+    return None, None
+
+
+def _engine_class_probe(project_root, cls_name, addon_dir):
+    """Три исхода для имени из extends: True — встроенный класс Godot (кэш
+    ClassDB); None — кэш есть, а класса в нём нет (честный unresolved);
+    False — кэша нет вовсе, встроенность проверить нечем."""
+    try:
+        import gd_api_cache
+        if not gd_api_cache.has_cache(project_root, addon_dir=addon_dir):
+            return False
+        return True if gd_api_cache.get_class(
+            project_root, cls_name, addon_dir=addon_dir) else None
+    except Exception:
+        return False
+
+
+def _inherits_chain(project_root, res_path, func_name, data):
+    """Цепочка наследования ВВЕРХ от файла карточки (дополнение FUNC CARD).
+    Вниз смотрят _find_subclasses/[SUBCLASSES], вверх до сих пор не смотрел
+    никто — а сценарий «запросили переопределение наследника» требует знать,
+    от кого наследуется переопределяемая func. Родитель берётся тем же
+    _get_script_parent, что и у rename-движка; скриптовые предки разрешаются
+    по class_name в индексе, встроенные — по кэшу ClassDB. Для каждого
+    скриптового предка отмечается, объявляет ли он ту же func: ближайший
+    такой помечается «переопределяете эту». Ошибки чтения предка не роняют
+    карточку — цепочка честно обрывается с тем, что собрано.
+    Возвращает (цепочка, обрезана_ли_по_лимиту)."""
+    from symbol_refactor_part1 import _get_script_parent, _class_name_for_file
+    addon_dir = data.get("_addon_dir")
+    cls_map = {}   # class_name -> (res://путь, строка class_name)
+    cls_dup = {}   # class_name -> в скольких файлах объявлен
+    for e in data.get("files") or []:
+        semantic = e.get("semantic") or {}
+        epath = "res://" + str(e.get("path") or "")
+        for d in semantic.get("declarations", []):
+            if d.get("kind") == "class_name" and d.get("name"):
+                name = str(d["name"])
+                cls_dup[name] = cls_dup.get(name, 0) + 1
+                cls_map.setdefault(
+                    name,
+                    (epath, int(d.get("line") or 0)))
+    cur_res = res_path if res_path.startswith("res://") else "res://" + res_path
+    cur_text = data.get("_content")
+    seen = {cur_res}
+    chain = []
+    nearest_done = False
+    truncated = False
+    for _hop in range(CARD_MAX_INHERITS):
+        if not cur_text:
+            break
+        rel_cur = cur_res[len("res://"):].replace("/", os.sep)
+        p_path, p_cls = _get_script_parent(
+            cur_text, os.path.join(project_root, rel_cur))
+        if not p_path and not p_cls:
+            break
+        cls_line = None
+        dup_files = 1
+        if p_cls:
+            hit = cls_map.get(p_cls)
+            if hit:
+                p_res, cls_line = hit
+                dup_files = cls_dup.get(p_cls, 1)
+            else:
+                probe = _engine_class_probe(project_root, p_cls, addon_dir)
+                if probe is True:
+                    engine_chain = []
+                    try:
+                        import gd_api_cache
+                        engine_chain = gd_api_cache.resolve_chain(
+                            project_root, p_cls, addon_dir=addon_dir) or []
+                    except Exception:
+                        engine_chain = []
+                    chain.append({"kind": "builtin", "cls": p_cls,
+                                  "engine_chain": engine_chain})
+                    break
+                if probe is None:
+                    chain.append({"kind": "unresolved", "cls": p_cls})
+                    break
+                chain.append({"kind": "nocache", "cls": p_cls})
+                break
+        else:
+            # Строковый extends: res://... или относительный путь.
+            if p_path.startswith("res://"):
+                p_res = p_path
+            else:
+                try:
+                    rel = os.path.relpath(p_path, project_root)
+                except ValueError:
+                    chain.append({"kind": "unresolved", "cls": p_path})
+                    break
+                p_res = "res://" + rel.replace("\\", "/")
+        if p_res in seen:
+            break  # цикл в extends — честно обрываем
+        seen.add(p_res)
+        entry = data["entries"].get(p_res[len("res://"):])
+        cls_name = None
+        if entry:
+            cls_name = _class_name_for_file(entry["semantic"])
+            if cls_line is None:
+                for d in (entry["semantic"] or {}).get("declarations", []):
+                    if d.get("kind") == "class_name":
+                        cls_line = int(d.get("line") or 0)
+                        break
+        func_span = None
+        text = None
+        try:
+            from project_tools import read_project_file
+            text, _tr = read_project_file(
+                project_root, p_res, max_chars=1 << 21)
+        except Exception:
+            text = None
+        if text:
+            found, _m = gd_functions.extract_functions(text, [func_name])
+            if found:
+                func_span = (found[0]["start_line"],
+                             found[0]["end_line"])
+            d_cls, d_line = _class_decl_in_text(text)
+            if d_cls:
+                cls_name = d_cls
+                if d_line:
+                    cls_line = d_line
+        rec = {"kind": "script", "cls": cls_name, "path": p_res,
+               "cls_line": cls_line, "func_span": func_span,
+               "dup": dup_files,
+               "nearest": bool(func_span) and not nearest_done}
+        if func_span:
+            nearest_done = True
+        chain.append(rec)
+        if text:
+            cur_text = text
+            cur_res = p_res
+        else:
+            break  # текст предка не читается — выше не пройти
+    else:
+        truncated = True
+    return chain, truncated
 
 def _tail(count):
     return "  …(+%d more)" % count
@@ -513,6 +670,42 @@ def _format(func_name, res_path, data):
             out.append('    %s:%d "%s"' % (p, ln, val.replace("\n", " ")))
         if n:
             out.append("    …(+%d more)" % n)
+    if data.get("inherits"):
+        out.append("[INHERITS] (chain up)")
+        for anc in data["inherits"]:
+            kind = anc["kind"]
+            if kind == "script":
+                head = "%s — %s" % (anc.get("cls") or "?", anc["path"])
+                if anc.get("cls_line"):
+                    head += " (class_name L%d)" % anc["cls_line"]
+                if (anc.get("dup") or 1) > 1:
+                    head += " (class_name в %d файлах — взят первый)" % (
+                        anc["dup"])
+                out.append(head)
+                if anc.get("func_span"):
+                    s, e = anc["func_span"]
+                    if anc.get("nearest"):
+                        mark = " ← переопределяете эту"
+                    else:
+                        mark = " (та же func выше по цепочке)"
+                    out.append("    func %s L%d-%d%s"
+                               % (func_name, s, e, mark))
+            elif kind == "builtin":
+                ec = anc.get("engine_chain") or []
+                if len(ec) > 1:
+                    out.append("  %s — встроенный класс Godot (%s)"
+                               % (anc["cls"], " → ".join(ec)))
+                else:
+                    out.append("  %s — встроенный класс Godot" % anc["cls"])
+            elif kind == "unresolved":
+                out.append("  %s — не разрулен: нет class_name в проекте "
+                           "и не встроенный класс" % anc["cls"])
+            else:
+                out.append("  %s — нет кэша ClassDB: встроенность не проверить "
+                           "(соберите кэш в панели агента)" % anc["cls"])
+        if data.get("inherits_truncated"):
+            out.append("  …(цепочка длиннее %d предков не показана)"
+                       % CARD_MAX_INHERITS)
     if data["subclasses"]:
         out.append("[SUBCLASSES] (%d)" % len(data["subclasses"]))
         show, n = _cap(data["subclasses"], CARD_MAX_SUBCLASSES)
@@ -550,6 +743,7 @@ def build_function_card(project_root, res_path, func_name, content=None,
     if data.get("error"):
         return {"error": data["error"]}
     data["_content"] = content
+    data["_addon_dir"] = addon_dir
     data["groups"]["local_funcs"] = [
         "%s:%d-%d" % (name, data["spans"][name][0], data["spans"][name][1])
         for name in sorted(data["spans"])]

@@ -100,6 +100,65 @@ OGRE_GD = """extends BaseUnit
 var ogre_flag := true
 """
 
+IN_BASE_GD = """extends Node2D
+class_name ChainBase
+
+func hit(a):
+\treturn a
+"""
+
+IN_MID_GD = """extends ChainBase
+
+func hit(a):
+\tsuper.hit(a)
+\treturn a + 1
+"""
+
+IN_LEAF_GD = """extends "res://scripts/chain/mid.gd"
+
+func hit(a):
+\tsuper.hit(a)
+\treturn a + 2
+"""
+
+IN_REL_GD = """extends "../chain/base.gd"
+
+func hit(a):
+\tsuper.hit(a)
+\treturn a + 3
+"""
+
+IN_DUP_A_GD = """extends Node2D
+class_name DupBase
+"""
+
+IN_DUP_B_GD = """extends Node2D
+class_name DupBase
+"""
+
+IN_DUP_CHILD_GD = """extends DupBase
+
+func hit(a):
+\treturn a
+"""
+
+IN_INNER_AFTER_GD = """extends Node2D
+
+class Inner extends Node:
+\tvar q := 1
+
+func hit(a):
+\treturn a
+"""
+
+IN_INNER_ONLY_GD = """class Inner extends Node:
+\tfunc inner_hit():
+\t\tpass
+
+func top_hit():
+\tpass
+"""
+
 
 def _make_project():
     root = tempfile.mkdtemp(prefix="func_card_")
@@ -226,6 +285,89 @@ class FunctionCardEdgeTest(unittest.TestCase):
         self.assertIn("more", text)
 
 
+class FunctionCardInheritsTest(unittest.TestCase):
+    """[INHERITS] (chain up): цепочка вверх, маркеры переопределения,
+    дубликаты class_name, inner class, относительный extends, хвост глубины."""
+
+    @classmethod
+    def setUpClass(cls):
+        root = tempfile.mkdtemp(prefix="func_card_inh_")
+        _write(root, "project.godot", "config_version=5\n")
+        _write(root, "scripts/chain/base.gd", IN_BASE_GD)
+        _write(root, "scripts/chain/mid.gd", IN_MID_GD)
+        _write(root, "scripts/leaf/leaf.gd", IN_LEAF_GD)
+        _write(root, "scripts/leaf/rel.gd", IN_REL_GD)
+        _write(root, "scripts/dup/dup_a.gd", IN_DUP_A_GD)
+        _write(root, "scripts/dup/dup_b.gd", IN_DUP_B_GD)
+        _write(root, "scripts/dup/child.gd", IN_DUP_CHILD_GD)
+        _write(root, "scripts/inner/inner_after.gd", IN_INNER_AFTER_GD)
+        _write(root, "scripts/inner/inner_only.gd", IN_INNER_ONLY_GD)
+        for k in range(1, 8):
+            parent = "Node2D" if k == 1 else "ChainA%d" % (k - 1)
+            _write(root, "chain/a%d.gd" % k,
+                   "extends %s\nclass_name ChainA%d\n\nfunc f():\n\tpass\n"
+                   % (parent, k))
+        ml_project_index.build_index(root)
+        import history_manager
+        import gd_api_cache
+        cls._old_override = history_manager._STORAGE_OVERRIDE
+        store = tempfile.mkdtemp(prefix="func_card_inh_store_")
+        history_manager.set_storage_dir(store)
+        gd_api_cache.save_cache(root, {
+            "Node2D": {"inherits": "Node", "methods": {}, "properties": [],
+                       "signals": []},
+            "Node": {"inherits": None, "methods": {}, "properties": [],
+                     "signals": []}})
+        cls.addClassCleanup(
+            lambda: setattr(history_manager, "_STORAGE_OVERRIDE",
+                            cls._old_override))
+        cls.root = root
+
+    def _card(self, res_path, func):
+        res = function_card.build_function_card(self.root, res_path, func)
+        self.assertFalse(res.get("error"), res)
+        return "\n".join(res["lines"])
+
+    def _section(self, text, name):
+        return text.split(name)[1].split("\n[")[0]
+
+    def test_override_marker_and_chain(self):
+        text = self._card("res://scripts/leaf/leaf.gd", "hit")
+        section = self._section(text, "[INHERITS]")
+        self.assertIn("? — res://scripts/chain/mid.gd", section)
+        self.assertIn("← переопределяете эту", section)
+        self.assertIn("ChainBase — res://scripts/chain/base.gd (class_name L2)",
+                      section)
+        self.assertIn("(та же func выше по цепочке)", section)
+        self.assertIn("Node2D — встроенный класс Godot (Node2D → Node)",
+                      section)
+
+    def test_relative_extends_resolved(self):
+        text = self._card("res://scripts/leaf/rel.gd", "hit")
+        self.assertIn("ChainBase — res://scripts/chain/base.gd", text)
+        # Движковая сторона (rename-скан): относительный extends обязан
+        # попадать и в наследников base — карточка и rename соглашаются.
+        base_card = self._card("res://scripts/chain/base.gd", "hit")
+        self.assertIn("res://scripts/leaf/rel.gd",
+                      self._section(base_card, "[SUBCLASSES]"))
+
+    def test_duplicate_class_name_marked(self):
+        text = self._card("res://scripts/dup/child.gd", "hit")
+        self.assertIn("class_name в 2 файлах — взят первый", text)
+
+    def test_inner_class_extends_not_parent(self):
+        text = self._card("res://scripts/inner/inner_after.gd", "hit")
+        section = self._section(text, "[INHERITS]")
+        self.assertIn("Node2D — встроенный класс Godot", section)
+        self.assertNotIn("нет кэша ClassDB", section)
+        only = self._card("res://scripts/inner/inner_only.gd", "top_hit")
+        self.assertNotIn("[INHERITS]", only)
+
+    def test_depth_cap_is_honest(self):
+        text = self._card("res://chain/a7.gd", "f")
+        self.assertIn("…(цепочка длиннее 6 предков не показана)", text)
+
+
 class FunctionCardBridgeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -238,6 +380,7 @@ class FunctionCardBridgeTest(unittest.TestCase):
         self.assertEqual(rc, agent_bridge.RC_OK, err)
         self.assertIn("FUNC CARD func:hurt", out)
         self.assertIn("[SUBCLASSES]", out)
+        self.assertIn("[INHERITS] (chain up)", out)
 
     def test_bridge_card_requires_names(self):
         rc, out, err = _run_bridge(
