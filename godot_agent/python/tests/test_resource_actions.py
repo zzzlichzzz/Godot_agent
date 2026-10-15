@@ -36,7 +36,15 @@ def fixture():
     write(root, "resources/new.tres", '[gd_resource type="Resource" format=3]\n')
     write(root, "textures/frame.png", "png")
     write(root, "addons/tool/private.tres", '[gd_resource type="Resource" format=3]\n')
+    # Политика аддонов fail-closed: доступ к addons открывается только вместе
+    # с серверным addon_dir текущего агента.
+    write(root, "addons/Godot_agent/godot_agent/agent.gd", "extends Node\n")
     return root
+
+
+def agent_dir(root):
+    """Абсолютный путь текущего агента для проверок политики аддонов."""
+    return os.path.join(root, "addons", "Godot_agent", "godot_agent")
 
 
 def test_full_schema_digest_and_public_payload():
@@ -88,7 +96,8 @@ def test_schema_limits_paths_and_addon_policy():
         expect_error(root, dict(base, resource="res://resources/missing.tres"), "не найден")
         expect_error(root, dict(base, resource="res://addons/tool/private.tres"), "аддонов")
         normalized, _ = resource_actions.normalize_action(
-            root, dict(base, resource="res://addons/tool/private.tres"), allow_addons=True)
+            root, dict(base, resource="res://addons/tool/private.tres"),
+            allow_addons=True, addon_dir=agent_dir(root))
         assert normalized["resource"].startswith("res://addons/")
         bad = dict(base)
         bad["operations"] = [{"op": "sprite_frames_add_animation", "name": "idle",

@@ -31,10 +31,27 @@ def strip_comments(text):
 
 
 def function_body(text, name):
-    """Исходник функции целиком — от `func` до следующей `func`."""
-    match = re.search(r"^func\s+%s\s*\(.*?(?=^func\s|\Z)" % re.escape(name),
+    """Исходник функции целиком — от `func` до следующей `func`.
+
+    Вынесенные «пилой» split_gd тела объявлены как `static func`, поэтому
+    префикс `static` учитывается наравне с обычным объявлением.
+    """
+    match = re.search(r"^(?:static\s+)?func\s+%s\s*\(.*?(?=^(?:static\s+)?func\s|\Z)"
+                      % re.escape(name),
                       text, re.MULTILINE | re.DOTALL)
     return match.group(0) if match else ""
+
+
+def panel_source(addon: Path) -> str:
+    """Исходник панели целиком: части «пилы» split_gd первыми, донор последним.
+
+    Тела вынесенных методов живут в agent_panel_part*.gd, в доноре остались
+    обёртки без логики: проверки поведения обязаны видеть части раньше,
+    иначе поиск тела функции натыкается на трёхстрочную обёртку.
+    """
+    parts = sorted(addon.glob("agent_panel_part*.gd"))
+    return "\n".join(path.read_text(encoding="utf-8")
+                     for path in parts + [addon / "agent_panel.gd"])
 
 
 class Suite:
@@ -71,7 +88,7 @@ class Task1StaticChecks(Suite):
         if not self.check("agent_panel.gd на месте", self.panel_path.is_file(),
                           str(self.panel_path)):
             return
-        panel = self.panel_path.read_text(encoding="utf-8")
+        panel = panel_source(ADDON)
 
         reload_fn = function_body(panel, "_auto_reload_changed_scene")
         if not self.check("функция _auto_reload_changed_scene есть", bool(reload_fn)):
@@ -174,7 +191,7 @@ class Task2UnifiedFinalizeChecks(Suite):
     def run(self):
         if not self.check("agent_panel.gd на месте", self.panel_path.is_file()):
             return
-        panel = self.panel_path.read_text(encoding="utf-8")
+        panel = panel_source(ADDON)
         code = strip_comments(panel)
 
         copies = [name for name in
@@ -239,7 +256,7 @@ class Task3TargetedRefreshChecks(Suite):
     def run(self):
         if not self.check("agent_panel.gd на месте", self.panel_path.is_file()):
             return
-        panel = self.panel_path.read_text(encoding="utf-8")
+        panel = panel_source(ADDON)
         code = strip_comments(panel)
 
         calls = re.findall(r"(?<!is_scanning)\.scan\(\)", code)
@@ -312,7 +329,7 @@ class Task4MutationGateChecks(Suite):
         self.check("шлюз НЕ кладёт в undo Godot массовый рефакторинг",
                    "bulk" in code)
 
-        panel = (ADDON / "agent_panel.gd").read_text(encoding="utf-8")
+        panel = panel_source(ADDON)
         panel_code = strip_comments(panel)
         self.check("панель создаёт шлюз", self.GATE in panel)
         self.check("панель больше не сканирует проект ради UID",
@@ -329,7 +346,8 @@ class Task4MutationGateChecks(Suite):
             self.check("%s пишет через шлюз" % name,
                        re.search(r'_gate\.call\("write_', source) is not None, name)
             self.check("панель внедряет шлюз в %s" % name,
-                       'call("set_mutation_gate", _mutation_gate)' in panel, name)
+                       re.search(r'call\("set_mutation_gate", (?:panel\.)?_mutation_gate\)',
+                                 panel) is not None, name)
 
         # Правило «одна операция агента = одна запись» обязано быть выражено
         # кодом, а не только пожеланием в комментарии.

@@ -27,6 +27,7 @@ STATE = {
     "pending_resource_action": None, # private editor-side resource transaction
     "pending_validation": None, # private Godot headless receipt for the pending write
     "pending_transaction": None, # private prepared atomic multi-file transaction
+    "pending_split_gd": None,  # private prepared раскол .gd («пила» split_gd)
     "current_chat_id": None,  # активный чат (см. chat_store.py)
     "current_site_id": None,  # явный режим сайта, включая arena vs arena_battle
     "pending_batch": None,    # ожидающая подтверждений пачка файлов на чтение
@@ -577,6 +578,7 @@ def clear_pending_confirmations():
     STATE["pending_resource_action"] = None
     STATE["pending_validation"] = None
     STATE["pending_transaction"] = None
+    STATE["pending_split_gd"] = None
     STATE["pending_batch"] = None
     STATE["pending_plan"] = None
     STATE["plan_parts"] = None

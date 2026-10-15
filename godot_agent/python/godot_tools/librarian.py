@@ -8,10 +8,14 @@ librarian_log могут обновляться в .agent_history (как search
 
 Слои ответа (заполняются по порядку, пока не исчерпан бюджет символов):
   1. MAP       — релевантные файлы + символы (индекс ml_project_index);
-  2. STRUCTURE — сигнатуры функций/сигналов топ-скриптов с номерами строк,
+  2. SYMBOL    — карточка символа (L7): одиночное имя (можно с видом,
+                 `func:take_damage`) даёт объявление, параметры, локальные
+                 переменные, затрагиваемые члены и все ссылки по проекту —
+                 из семантического индекса, не урезанного MAX_SYMBOLS;
+  3. STRUCTURE — сигнатуры функций/сигналов топ-скриптов с номерами строк,
                  краткая структура топ-сцены (describe_scene);
-  3. FRAGMENTS — дословные сниппеты по токенам запроса (search_project_text);
-  4. GODOT API — члены упомянутых классов Godot из кэша API (gd_api_cache).
+  4. FRAGMENTS — дословные сниппеты по токенам запроса (search_project_text);
+  5. GODOT API — члены упомянутых классов Godot из кэша API (gd_api_cache).
 
 Полные тела файлов Библиотекарь НЕ отдаёт никогда — только адреса, сигнатуры
 и короткие фрагменты: полное чтение остаётся за read_file с подтверждением
@@ -34,6 +38,7 @@ from project_tools import can_read_project_path, describe_scene, read_project_fi
 
 CHAR_BUDGET = 8000    # жёсткий потолок ответа, символов
 MAP_LIMIT = 8         # слой 1: максимум файлов в карте
+MAP_CUT_RATIO = 0.55  # L6: срез шумного хвоста карты (доля от лучшего веса)
 STRUCT_FILES = 3      # слой 2: максимум файлов с сигнатурами/структурой
 SIG_PER_FILE = 24     # слой 2: максимум строк-сигнатур на один .gd
 SCENE_CHARS = 900     # слой 2: максимум символов на структуру сцены
@@ -53,13 +58,45 @@ CALLERS_FUNCS = 2     # слой 3.5 (патч 3): максимум функци
 AUTOLOAD_LIMIT = 12   # слой 1.5 (патч 4): максимум автозагрузок в ответе
 SIGNALS_MAX = 2       # слой 3.6 (патч 4): максимум сигналов, для которых ищем связи
 SIGNALS_LIMIT = 6     # слой 3.6 (патч 4): максимум строк о сигналах суммарно
+# v105.16 (L7): карточка символа. Одиночное имя (можно с явным видом,
+# `func:take_damage`) — запрос ТОЧНЫХ данных: объявления, параметры,
+# локальные переменные, затрагиваемые члены и ВСЕ ссылки по проекту.
+# Источник — семантический индекс (gd_semantic_parser через
+# ml_project_index.semantic_snapshot): он не урезан MAX_SYMBOLS, поэтому
+# находит и то, что MAP показать не может. Формат и лимиты — здесь.
+CARD_MAX_DECLS = 4     # максимум объявлений в карточке
+CARD_MAX_PARAMS = 10   # параметров функции в строке
+CARD_MAX_LOCALS = 8    # локальных переменных функции в строке
+CARD_MAX_USES = 8      # имён, к которым обращается функция
+CARD_MAX_REFS = 8      # показанных ссылок (места вызова — первыми)
+# Виды, дающие карточку без явного префикса: слово-запрос с таким
+# объявлением — это имя символа, а не понятие (`damage`/`health` почти
+# всегда параметры/переменные и без префикса карточку не запускают).
+_CARD_STRONG_KINDS = ("function", "signal", "class", "class_name",
+                      "constant", "enum")
+_CARD_PREFIXES = {"func": "function", "function": "function",
+                  "class": "class", "class_name": "class_name",
+                  "signal": "signal", "var": "variable",
+                  "const": "constant", "enum": "enum",
+                  "param": "parameter", "parameter": "parameter"}
+_CARD_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_CARD_CTX_ORDER = {"call": 0, "member": 1, "type": 2, "identifier": 3}
+# Ключевые слова GDScript в references парсера идут как identifier — для
+# списка «членов, к которым обращается функция» это шум, а не связи (§5).
+_CARD_SKIP_USES = frozenset((
+    "if", "elif", "else", "for", "while", "match", "break", "continue",
+    "pass", "return", "and", "or", "not", "in", "is", "as", "await",
+    "yield", "true", "false", "null", "self", "super", "func", "var",
+    "const", "signal", "class", "class_name", "extends", "static",
+    "enum", "void",
+))
 
 # Ключевые слова, при которых список автозагрузок показывается всегда
 _AUTOLOAD_KEYWORDS = {"autoload", "autoloads", "singleton", "singletons", "global", "globals"}
 
 _LOG_FILE = "librarian_log.jsonl"   # патч 5: телеметрия обкатки
 _LOG_MAX_BYTES = 262144             # ~256 КБ; старый файл уходит в .1 (одно поколение)
-_LOG_SECTIONS = ("MAP", "AUTOLOADS", "STRUCTURE", "FRAGMENTS", "CALLERS", "SIGNALS", "GODOT API")
+_LOG_SECTIONS = ("MAP", "SYMBOL", "AUTOLOADS", "STRUCTURE", "FRAGMENTS", "CALLERS", "SIGNALS", "GODOT API")
 
 # v105.10 (шаг 8): нижний порог бюджета. Было жёсткое max(1000, ...) —
 # вызов с budget_chars=500 молча получал 1000. Меньше этого смысла нет:
@@ -319,13 +356,84 @@ def _frag_rank(path):
     return _FRAG_KIND_RANK.get(ext, 2)
 _RERANK_POOL = 3                          # берём из индекса MAP_LIMIT*3 кандидатов
 
+# Служебные префиксы символов .gd в индексе (см. ml_project_index._SYM_PREFIXES):
+# по ним видно, объявлено имя в КОДЕ или это узел сцены. Символы .tscn идут как
+# «Имя:Тип» — без известного префикса.
+_SYM_PREFIXES = ("class:", "func:", "signal:", "var:", "const:")
+
+
+def _phrase_key(query):
+    """Запрос как имя объявления: «boss chest» -> «boss_chest» (L3, слой MAP)."""
+    text = re.sub(r"\W+", "_", str(query or "").strip().lower(), flags=re.U)
+    return text.strip("_")
+
+
+def _symbol_name(sym):
+    """Имя объявления без служебного префикса (`class:`/`func:`/`signal:`/…)."""
+    s = str(sym or "").strip()
+    low = s.lower()
+    for p in _SYM_PREFIXES:
+        if low.startswith(p):
+            return s[len(p):]
+    return s
+
+
+def _phrase_rank(symbols, pk, pk_flat):
+    """Запрос ЦЕЛИКОМ как имя объявления записи: 0 — код, 1 — сцена, None — нет.
+
+    Фрагменты запроса сюда не попадают: «slow motion effect» не должен
+    узнавать себя в объявлении `motion`, иначе страдает разведочный `intent`.
+    Ранг 1 пока недостижим: символ .tscn всегда «Имя:Тип», точного равенства с
+    именем не бывает. Ветка оставлена двузначной, как `phrase_name` в индексе
+    (0 код / 1 сцена / 2 нет), чтобы поведение не менялось, если у записи
+    появится имя без типа.
+    """
+    if not pk:
+        return None
+    best = None
+    for s in symbols or ():
+        nm = _symbol_name(s).strip().lower()
+        if not nm:
+            continue
+        if nm != pk and nm.replace("_", "") != pk_flat:
+            continue
+        rank = 0 if str(s).lower().startswith(_SYM_PREFIXES) else 1
+        if best is None or rank < best:
+            best = rank
+            if best == 0:
+                break
+    return best
+
+
+def _path_join_keys(query):
+    """Склейки ≥2 слов запроса — «запрос лежит в пути файла» (L10, слой MAP).
+
+    Ровно те же ключи, по которым индекс награждает путь (`_path_keys`,
+    L4c), но без сырой строки запроса: в слое MAP она ничего не добавляет
+    (замер — план §3.6), потому что база из индекса её уже содержит.
+    """
+    try:
+        return ml_project_index._phrase_keys(query, min_words=2)
+    except Exception:
+        return ()
+
 
 def _rerank_hits(hits, query, syn_used):
     """Взвешенный скоринг: совпадение с именем функции/класса/сигнала/узла
     дороже совпадения с именем файла, то — дороже папки; точный токен запроса
-    дороже синонима; .gd выше .tscn и прочих. Сортировка стабильная (score, path)."""
+    дороже синонима; .gd выше .tscn и прочих; запрос, который ЦЕЛИКОМ является
+    именем объявления, сильнее любого совпадения по частям (L3). Сортировка
+    стабильная по весу: при равном весе порядок остаётся порядком индекса
+    (см. L4b ниже). Склейка слов запроса лежит в пути файла — отдельный
+    признак (L10): `event pool act one` находит `event_pool_act_1.gd`. Слабый
+    хвост пула отсекается (L6): в карту не попадают записи с весом ниже
+    `MAP_CUT_RATIO` от лучшего — карта перестаёт добиваться до 8 слотов
+    «завсегдатаями», которые совпали с запросом лишь синонимом."""
     q_orig = _query_subtokens(query)
     q_syn = {str(s).lower() for s in (syn_used or ())}
+    pk = _phrase_key(query)
+    pk_flat = pk.replace("_", "")
+    pkeys = _path_join_keys(query)
     rescored = []
     for h in hits:
         path = str(h.get("path", ""))
@@ -348,8 +456,60 @@ def _rerank_hits(hits, query, syn_used):
             if t in name_tok:
                 score += 1.0
         score += _KIND_WEIGHT.get(str(h.get("kind", "")), 0.0)
+        # L3: запрос целиком — имя объявления. Индекс этот признак уже считает
+        # (L4 `phrase_name`), но в MAP он не участвовал вовсе, и сцена
+        # `boss_chest.tscn` обгоняла свой скрипт за счёт узлов Boss/Chest (+10).
+        # Замер на golden-set (срез `map`): mrr@8 0.899 -> 0.966,
+        # `ambiguous` 0.794 -> 0.956, `capped` 0.900 -> 1.000,
+        # `rare_func` 0.912 -> 1.000, `rare_words` 0.867 -> 1.000,
+        # `intent` 0.740 без изменений; 5.0/2.5 даёт 0.959, а 6.0..12.0 —
+        # одно и то же плато, поэтому берём нижний край.
+        ph = _phrase_rank(h.get("symbols"), pk, pk_flat)
+        if ph == 0:
+            score += 6.0                   # объявлено в коде
+        elif ph == 1:
+            score += 3.0                   # объявлено только у сцены/ресурса
+        # L10: склейка слов запроса лежит в ПУТИ записи. Индекс этот признак
+        # считает с L4c (+2 за ключ), но символические веса MAP (5.0/3.0 за
+        # токен) его перебивают, и «завсегдатаи» вроде `game_manager.gd` с
+        # `event_manager.gd` остаются впереди. Замер на golden-set (срез `map`,
+        # 150 запросов): mrr@8 0.966 -> 0.978, `intent` 0.740 -> 0.843,
+        # `ambiguous` 0.956 и все `rare_*` без изменений; 2.0/3.0 дают 0.976,
+        # 4.0..6.0 — одно плато, поэтому берём нижний край. Сырая строка
+        # запроса в ключах (как в индексном `_path_keys`) не даёт ничего.
+        if pkeys:
+            low_path = path.lower()
+            for k in pkeys:
+                if k in low_path:
+                    score += 4.0           # склейка слов запроса в пути файла
+                    break
         rescored.append((score, path, h))
-    rescored.sort(key=lambda x: (-x[0], x[1]))
+    # Сортировка СТАБИЛЬНАЯ и без пути в ключе (L4b): при равном весе порядок
+    # остаётся тем, что дал индекс, а индекс с L4 разбивает равенство
+    # структурно (код раньше сцены, запрос-фраза узнаёт своё объявление, файл,
+    # названный по запросу, раньше соседа). Раньше здесь стоял алфавит пути —
+    # то же P2, что и в индексе: релевантность подменялась сортировкой строк,
+    # из-за чего `scripts/environment/boss_chest.gd` уступал своей же сцене
+    # `scenes/environment/boss_chest.tscn`. Замер на golden-set полигона
+    # (150 запросов, срез `map`): mrr@8 0.880 → 0.885, `intent` 0.686 → 0.693,
+    # `rare_words` 0.810 → 0.817, `rare_signal` 0.975 → 1.000, ни одно ведро
+    # не просело.
+    rescored.sort(key=lambda x: -x[0])
+    # L6: карта не добивается шумом до MAP_LIMIT слотов. Пул индекса (24
+    # записи) всегда длиннее карты, и слабый хвост занимал все восемь строк —
+    # «завсегдатаи» вроде `chain_lightning.gd` попадали в ответ на чужие
+    # запросы. Остаются записи с весом не ниже доли от лучшего; доля выбрана
+    # замером на golden-set (150 запросов, срез `map`): до 0.55 включительно
+    # hit@8 1.000, recall@8 1.000 и mrr@8 0.978 не меняются, 0.58 теряет
+    # ожидаемый `upgrade_node.gd` («skill tree node upgrade»), 0.62 роняет
+    # mrr до 0.974. При 0.55 выдача падает 7.45 -> 3.22 файла, «лишних»
+    # записей 6.09 -> 1.87, «завсегдатаев» (>= 10 попаданий, < 30 %
+    # ожидаемых) 27 -> 2. Сравнение нестрогое, поэтому запись с лучшим весом
+    # проходит всегда: даже при нулевом лучшем весе карта не обрезается в
+    # пустоту.
+    if rescored and MAP_CUT_RATIO > 0.0:
+        _thr = rescored[0][0] * MAP_CUT_RATIO
+        rescored = [x for x in rescored if x[0] >= _thr]
     return [h for _sc, _p, h in rescored]
 
 
@@ -887,6 +1047,193 @@ def _signal_wiring(project_root, query, hits, allow_addons=False,
     return [txt for _p, _ln, txt in cands[:SIGNALS_LIMIT]]
 
 
+def _card_request(query):
+    """L7: распознаёт запрос-карточку. Возвращает (kind|None, name) или (None, None).
+
+    Карточка запрашивается ОДНИМ именем символа — так же, как модель пишет
+    имена в коде: `take_damage`, либо с явным видом `func:take_damage`
+    (func/function/class/class_name/signal/var/const/enum/param/parameter).
+    Многословный запрос карточку не запускает: там имя неотличимо от
+    обычного слова, а ложная карточка хуже её отсутствия.
+    """
+    qs = str(query or "").strip()
+    if not qs:
+        return None, None
+    if ":" in qs:
+        head, _, tail = qs.partition(":")
+        kind = _CARD_PREFIXES.get(head.strip().lower())
+        tail = tail.strip()
+        if kind and _CARD_IDENT_RE.match(tail):
+            return kind, tail
+        return None, None
+    if _CARD_IDENT_RE.match(qs):
+        return None, qs
+    return None, None
+
+
+def _symbol_card(project_root, query, addon_dir=None):
+    """L7 (карточка символа): объявление + параметры + локальные переменные +
+    члены, к которым обращается функция, и ВСЕ ссылки по проекту — по данным
+    семантического индекса. Возвращает готовые строки секции SYMBOL или []
+    (не тот запрос / нет точного объявления / индекс недоступен).
+
+    Только ТОЧНОЕ совпадение имени: греп по подстроке цепляет
+    `take_damage_from_enemy`, семантический индекс — нет (§5 плана). Файл
+    индекса читается один раз; оба прохода — по уже загруженным фактам.
+    """
+    kind_hint, name = _card_request(query)
+    if not name:
+        return []
+    try:
+        snapshot = ml_project_index.semantic_snapshot(project_root)
+    except Exception:
+        return []
+    files = snapshot.get("files") or []
+    if not files:
+        return []
+    decls, refs = [], []
+    for entry in files:
+        semantic = entry.get("semantic") or {}
+        path = "res://" + str(entry.get("path") or "")
+        for fact in semantic.get("declarations", []):
+            if fact.get("name") == name:
+                item = dict(fact)
+                item["path"] = path
+                decls.append(item)
+        for fact in semantic.get("references", []):
+            if fact.get("name") == name:
+                item = dict(fact)
+                item["path"] = path
+                refs.append(item)
+    if kind_hint is not None:
+        decls = [d for d in decls if d.get("kind") == kind_hint]
+    else:
+        # Без явного вида карточку даёт только «сильное» объявление
+        # (function/signal/class/...): одиночное слово `damage`/`health`
+        # почти всегда означает понятие, а не параметр с таким именем.
+        decls = [d for d in decls if d.get("kind") in _CARD_STRONG_KINDS]
+    if not decls:
+        return []
+    decls.sort(key=lambda d: (d.get("path") or "", int(d.get("start") or 0)))
+    decl_ids = {d.get("id") for d in decls}
+    owner_ids = {d.get("owner") for d in decls
+                 if d.get("owner") not in (None, "script")}
+    params, locals_, uses, class_of = {}, {}, {}, {}
+    for entry in files:
+        semantic = entry.get("semantic") or {}
+        for fact in semantic.get("declarations", []):
+            owner = fact.get("owner")
+            if owner in decl_ids:
+                if fact.get("kind") == "parameter":
+                    params.setdefault(owner, []).append(fact)
+                elif fact.get("kind") == "variable":
+                    locals_.setdefault(owner, []).append(fact)
+            if fact.get("id") in owner_ids:
+                class_of[fact["id"]] = fact.get("name")
+        for fact in semantic.get("references", []):
+            owner = fact.get("owner")
+            if owner in decl_ids and fact.get("name") != name:
+                fname = fact.get("name")
+                if fname and fname not in _CARD_SKIP_USES:
+                    bucket = uses.setdefault(owner, {})
+                    bucket[fname] = bucket.get(fname, 0) + 1
+
+    def _cap(names_list, limit):
+        head = ", ".join(names_list[:limit])
+        if len(names_list) > limit:
+            head += " …(+%d more)" % (len(names_list) - limit)
+        return head
+
+    ref_files = {r.get("path") for r in refs if r.get("path")}
+    by_ctx = {}
+    for r in refs:
+        ctx = str(r.get("context") or "identifier")
+        by_ctx[ctx] = by_ctx.get(ctx, 0) + 1
+    ctx_txt = ", ".join("%s=%d" % (k, by_ctx[k]) for k in sorted(by_ctx))
+    out = ['SYMBOL ("%s": %d declaration%s, %d reference%s in %d file%s%s):' % (
+        name, len(decls), "" if len(decls) == 1 else "s",
+        len(refs), "" if len(refs) == 1 else "s",
+        len(ref_files), "" if len(ref_files) == 1 else "s",
+        (" — " + ctx_txt) if ctx_txt else "")]
+    for d in decls[:CARD_MAX_DECLS]:
+        owner = d.get("owner")
+        cls = class_of.get(owner)
+        out.append("- decl %s %s:%d%s" % (
+            d.get("kind"), d.get("path"), int(d.get("line") or 0),
+            (" (in class %s)" % cls) if cls else ""))
+        fid = d.get("id")  # детали функции лежат под id, не под owner
+        if d.get("kind") != "function":
+            continue
+        plist = [str(p.get("name")) for p in
+                 sorted(params.get(fid, []),
+                        key=lambda p: int(p.get("start") or 0))]
+        llist = sorted(locals_.get(fid, []),
+                       key=lambda p: int(p.get("start") or 0))
+        ucounts = uses.get(fid) or {}
+        skip = set(plist) | {str(p.get("name")) for p in llist}
+        unames = sorted((n for n in ucounts if n not in skip),
+                        key=lambda n: (-ucounts[n], n))
+        if plist:
+            out.append("  params: %s" % _cap(plist, CARD_MAX_PARAMS))
+        if llist:
+            ltxt = _cap(["%s (L%d)" % (p.get("name"), int(p.get("line") or 0))
+                         for p in llist], CARD_MAX_LOCALS)
+            out.append("  locals: %s" % ltxt)
+        if unames:
+            out.append("  uses: %s" % _cap(unames, CARD_MAX_USES))
+    if len(decls) > CARD_MAX_DECLS:
+        out.append("  …(+%d more declarations)" % (len(decls) - CARD_MAX_DECLS))
+    uniq, seen = [], set()
+    for r in sorted(refs, key=lambda r: (
+            _CARD_CTX_ORDER.get(str(r.get("context")), 9),
+            str(r.get("path")), int(r.get("line") or 0))):
+        key = (str(r.get("context")), r.get("path"), int(r.get("line") or 0))
+        if key in seen:
+            continue
+        seen.add(key)
+        uniq.append(r)
+    for r in uniq[:CARD_MAX_REFS]:
+        out.append("- %s %s:%d" % (r.get("context") or "identifier",
+                                   r.get("path"), int(r.get("line") or 0)))
+    if len(uniq) > CARD_MAX_REFS:
+        out.append("  (+%d more references)" % (len(uniq) - CARD_MAX_REFS))
+    # Глубокая карточка функции (function_card_plan.md): явный вид `func:имя`
+    # означает «мне нужна функция ЦЕЛИКОМ» — добавляем тело + все символы тела
+    # + связи. Голое имя остаётся дешёвой карточкой L7 (план §3).
+    if kind_hint == "function":
+        fdecls = [d for d in decls if d.get("kind") == "function"]
+        if fdecls:
+            by_file = {}
+            for r in refs:
+                if str(r.get("context")) in ("call", "member"):
+                    by_file[r.get("path")] = by_file.get(r.get("path"), 0) + 1
+            if len(fdecls) > 1:
+                # Имя объявлено в нескольких файлах: карточку строим для
+                # иерархического корня (у base-класса наследники, у override —
+                # нет); при равенстве — самое вызываемое (план §5).
+                import function_card
+                best = max(fdecls, key=lambda d: (
+                    function_card.subclass_count(project_root, d.get("path")),
+                    by_file.get(d.get("path"), 0)))
+            else:
+                best = fdecls[0]
+            try:
+                import function_card
+                card = function_card.build_function_card(
+                    project_root, best.get("path"), name, addon_dir=addon_dir)
+                if card.get("lines"):
+                    if len(fdecls) > 1:
+                        card["lines"].insert(
+                            1, "WARNING: имя объявлено в %d файлах — карточка "
+                               "для самого вызываемого объявления (%s)"
+                               % (len(fdecls), best.get("path")))
+                    out.append("")
+                    out.extend(card["lines"])
+            except Exception:
+                pass  # глубокая карточка не должна убить базовую L7
+    return out
+
+
 def _pick_members(names, query_subtokens, limit):
     """Члены класса: сперва совпадающие с подтокенами запроса, иначе первые по алфавиту."""
     all_sorted = sorted(names)
@@ -1017,6 +1364,14 @@ def answer(project_root, query, budget_chars=CHAR_BUDGET, addon_dir=None,
         for h in hits:
             syms = ", ".join(h.get("symbols", [])[:10])
             lines.append("- res://%s%s" % (h["path"], (" — " + syms) if syms else ""))
+    # L7 (карточка символа): сразу после MAP — точные данные важнее размытой
+    # релевантности, и они берутся не из урезанного символами индекса.
+    try:
+        card_lines = _symbol_card(project_root, q, addon_dir=addon_dir)
+    except Exception:
+        card_lines = []  # L7 не должен убить ответ целиком
+    if card_lines:
+        lines += card_lines
     try:
         auto_lines = _autoload_lines(
             project_root, q, allow_addons=allow_addons,

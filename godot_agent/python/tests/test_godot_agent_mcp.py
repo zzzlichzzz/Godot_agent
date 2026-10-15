@@ -70,10 +70,10 @@ class McpServerTests(unittest.TestCase):
         return godot_agent_mcp.build_server(
             profile=profile, root=self.root, udd=self.store)
 
-    def call(self, server, name, **arguments):
+    def call(self, server, tool, **arguments):
         """Вызов tool так, как это делает клиент MCP: call_tool — корутина."""
         import asyncio
-        result = asyncio.run(server.call_tool(name, arguments))
+        result = asyncio.run(server.call_tool(tool, arguments))
         self.assertFalse(asyncio.iscoroutine(result),
                          "call_tool must be awaited")
         return result
@@ -204,6 +204,131 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("add_child",
                       self.text_of(self.call(server, "api", class_name="Node")))
 
+    def test_huge_tool_output_is_clipped_with_honest_marker(self):
+        """Предохранитель размера: один ответ не может раздуть контекст.
+
+        Живой прогон n8n (exec 98): ответ поиска в 2.1 МБ (minified-кэш API
+        одной строкой) остался в истории агента и пересылался на каждом шаге —
+        ~700к токенов на шаг. Предел и пометка — как у сервера «рук» (:8010).
+        """
+        Path(self.root, "src", "big.gd").write_text(
+            "# " + "c" * 120000, encoding="utf-8")
+        server = self.make_server()
+        text = self.text_of(self.call(
+            server, "read", path="res://src/big.gd", max_chars=200000))
+        self.assertIn("обрезано: всего", text)
+        self.assertLessEqual(len(text), godot_agent_mcp.MAX_TEXT)
+        # Хвост сохранён: пометка идёт ПЕРЕД хвостом, а не после.
+        self.assertTrue(text.endswith("c" * 100))
+        # Короткий ответ не трогается: ни обрезки, ни пометки.
+        short = self.text_of(self.call(
+            server, "read", path="res://src/player.gd"))
+        self.assertNotIn("обрезано", short)
+
+    def test_clip_never_exceeds_limit(self):
+        """Граница _clip: пометка входит в бюджет, итог ≤ MAX_TEXT.
+
+        Прогон 102: _clip возвращал 60 041 при MAX_TEXT=60 000, а тест
+        закреплял это допуском +100. Теперь лимит соблюдается буквально.
+        """
+        limit = godot_agent_mcp.MAX_TEXT
+        text = godot_agent_mcp._clip("x" * (limit + 1000))
+        self.assertLessEqual(len(text), limit)
+        self.assertIn("обрезано: всего %d символов" % (limit + 1000), text)
+        self.assertLessEqual(
+            len(godot_agent_mcp._clip("y" * (limit * 40))), limit)
+
+    def test_search_max_results_is_capped(self):
+        """Перебор max_results не доходит до моста: кэп MAX_MATCHES."""
+        server = self.make_server("user")
+        seen = {}
+
+        def fake_main(argv):
+            seen["argv"] = list(argv)
+            print("no matches")
+            return 0
+
+        with patch.object(godot_agent_mcp.agent_bridge, "main", fake_main):
+            self.call(server, "search", query="player",
+                      max_results=10 ** 6)
+        argv = seen["argv"]
+        self.assertEqual(argv[argv.index("--max") + 1],
+                         str(godot_agent_mcp.MAX_MATCHES))
+
+    def test_list_inputs_are_limited(self):
+        """functions.names и check.paths сверх предела — usage-ответ."""
+        server = self.make_server("user")
+        names = ["n%d" % i for i in range(godot_agent_mcp.MAX_NAMES + 1)]
+        result = self.call(server, "functions", path="res://src/player.gd",
+                           names=names)
+        self.assertTrue(getattr(result, "is_error", False), self.text_of(result))
+        self.assertIn("предел", self.text_of(result))
+        result = self.call(
+            server, "check",
+            paths=["res://src/player.gd"] * (godot_agent_mcp.MAX_PATHS + 1))
+        self.assertTrue(getattr(result, "is_error", False), self.text_of(result))
+        self.assertIn("предел", self.text_of(result))
+
+    def test_text_arguments_are_limited(self):
+        """Длинные строки аргументов не уходят в argv моста."""
+        server = self.make_server("user")
+        long = "x" * (godot_agent_mcp.MAX_ARG_TEXT + 1)
+        result = self.call(server, "search", query=long)
+        self.assertTrue(getattr(result, "is_error", False), self.text_of(result))
+        self.assertIn("query", self.text_of(result))
+        result = self.call(server, "analyze_rename", kind="function",
+                           declaration="res://src/player.gd",
+                           old_name="take_damage", new_name=long)
+        self.assertTrue(getattr(result, "is_error", False), self.text_of(result))
+        self.assertIn("new_name", self.text_of(result))
+
+    def test_every_tool_response_stays_within_max_text(self):
+        """Перебор всех tools профиля user: ответ ≤ MAX_TEXT, structured пуст.
+
+        Живой прогон 98: один ответ поиска в 2.1 МБ раздувал историю агента
+        на каждом шаге. Рубеж — общий _clip; здесь он проверяется на ВСЕХ
+        опубликованных инструментах, включая структурные поля результата.
+        """
+        import asyncio
+
+        def fake_main(argv):
+            print("X" * 200000)
+            return 0
+
+        arguments = {
+            "status": {},
+            "engine": {},
+            "api": {"class_name": "Node"},
+            "ask": {"query": "player"},
+            "search": {"query": "player"},
+            "read": {"path": "res://src/player.gd"},
+            "scene": {"path": "res://src/player.gd"},
+            "functions": {"path": "res://src/player.gd"},
+            "usages": {"declaration": "res://src/player.gd",
+                       "name": "take_damage"},
+            "analyze_rename": {"kind": "function",
+                               "declaration": "res://src/player.gd",
+                               "old_name": "take_damage", "new_name": "hit"},
+            "context": {"request": {"text": "player"}},
+            "check": {"paths": ["res://src/player.gd"]},
+            "check_action": {"request": {"text": "player"}},
+            "paths_preview": {"old_path": "res://src/player.gd",
+                              "new_path": "res://src/player_hit.gd"},
+        }
+        server = self.make_server("user")
+        published = {tool.name for tool in asyncio.run(server.list_tools())}
+        self.assertTrue(set(arguments) <= published, published)
+        with patch.object(godot_agent_mcp.agent_bridge, "main", fake_main):
+            for tool_name, kwargs in arguments.items():
+                result = self.call(server, tool_name, **kwargs)
+                text = self.text_of(result)
+                self.assertLessEqual(
+                    len(text), godot_agent_mcp.MAX_TEXT,
+                    "%s: %d символов" % (tool_name, len(text)))
+                self.assertIn("обрезано: всего", text)
+                self.assertIsNone(
+                    getattr(result, "structured_content", None))
+
     def test_ask_and_context_and_check_work_through_mcp(self):
         server = self.make_server("user")
         self.assertTrue(self.text_of(self.call(server, "ask", query="player")))
@@ -277,6 +402,20 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("plan_id", text)
         self.assertIn('name="Child"', scene.read_text(encoding="utf-8"))
 
+    def test_split_scan_via_mcp_reports_refs(self):
+        donor = self.agent_dir / "python" / "probe_split.py"
+        donor.write_text("def mcp_probe_one():\n    return 1\n",
+                         encoding="utf-8")
+        server = self.make_server("agent-dev")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            result = self.call(server, "split_scan", file=(
+                "res://addons/Godot_agent/godot_agent/python/probe_split.py"))
+        text = self.text_of(result)
+        self.assertIn("refs: import=", text)
+        self.assertEqual(donor.read_text(encoding="utf-8"),
+                         "def mcp_probe_one():\n    return 1\n")
+
     def test_write_is_not_reachable_in_user_profile(self):
         """Инструмента записи в профиле user нет — вызов обязан честно упасть."""
         import asyncio
@@ -300,6 +439,7 @@ class McpServerTests(unittest.TestCase):
                          "write_preview", "write_apply", "write_rollback",
                          "node_rename_preview", "node_reparent_preview",
                          "node_delete_preview",
+                         "split_scan", "split_plan",
                          "paths_preview"):
             self.assertIn(expected, names)
 

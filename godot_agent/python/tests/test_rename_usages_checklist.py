@@ -54,6 +54,7 @@ class UsagesChecklist(unittest.TestCase):
         # подготовленную транзакцию, и следующий получал чужое состояние.
         for key in ("pending_action", "pending_refactor", "pending_validation",
                     "pending_transaction", "pending_file_refactor",
+                    "pending_split_gd",
                     "pending_node_refactor", "pending_plan"):
             STATE.pop(key, None)
         STATE.update({"project_root": self.root, "pending_action": None,
@@ -202,6 +203,49 @@ class UsagesChecklist(unittest.TestCase):
         result = (response.get_json() if not isinstance(response, tuple)
                   else response[0].get_json())
         self.assertIn("arena.gd", result["answer"])
+
+    # --- Этап 2: exclude-запись БЕЗ номера строки — явный отказ ---
+    def test_path_only_exclude_is_refused(self):
+        """Запись без :строки не принимается молча за «весь файл».
+
+        Адрес снятого места разбирает ЯДРО (exclude_place): у записи без
+        номера строки точечного места нет, поэтому _with_exclude отдаёт её
+        дальше как есть, а _excluded_places отвергает её RenameError — ДО
+        регистрации правок. Панель видит 409 с причиной, файлы не тронуты.
+        """
+        self._package(self._action(mode="probable"))
+        before_player = self._read("src/player.gd")
+        before_arena = self._read("src/arena.gd")
+        with main.app.test_request_context(
+                "/chat/confirm_action", method="POST",
+                json={"approved": True, "exclude": ["res://src/player.gd"]}):
+            response = main.confirm_action()
+        result = (response.get_json() if not isinstance(response, tuple)
+                  else response[0].get_json())
+        status = response[1] if isinstance(response, tuple) else response.status_code
+        self.assertEqual(status, 409)
+        self.assertIn("без номера строки", result["error"])
+        self.assertEqual(self._read("src/player.gd"), before_player)
+        self.assertEqual(self._read("src/arena.gd"), before_arena)
+
+    # --- Этап 2: мусор в exclude игнорируется, ренейм не падает ---
+    def test_junk_exclude_entry_is_ignored(self):
+        """Не-адрес в exclude — это шум, а не «место».
+
+        Разбор адреса один на проект (_exclude_place_kind): мусорная строка
+        не задевает ни одного места и не отменяет переименование. Иначе
+        опечатка в id ломала бы подтверждение целиком.
+        """
+        self._package(self._action(mode="probable"))
+        with main.app.test_request_context(
+                "/chat/confirm_action", method="POST",
+                json={"approved": True, "exclude": ["мусор", "!!!", "   "]}):
+            response = main.confirm_action()
+        result = (response.get_json() if not isinstance(response, tuple)
+                  else response[0].get_json())
+        self.assertNotIn("error", result, result)
+        self.assertIn("class_name Avatar", self._read("src/player.gd"))
+        self.assertEqual(symbol_refactor._excluded_places(["мусор", "!!!"]), set())
 
 
 def history_storage():

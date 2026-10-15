@@ -35,12 +35,18 @@ class AnalyzeAndApply(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
         self._write("project.godot", "config_version=5\n")
         self._write("src/player.gd", PLAYER)
+        # Две ссылки на Player, а не одна: снятие ЕДИНСТВЕННОЙ ссылки теперь
+        # отвергается целиком (P2, tests/test_rename_const_exclude_last_usage.py),
+        # а здесь проверяется ЧАСТИЧНОЕ применение — снимаем одно место из двух.
         self._write("src/arena.gd", """extends Node
 
 var unit: Player
 
 func hit() -> int:
 \treturn unit.take_damage(2)
+
+func spawn() -> Player:
+\treturn Player.new()
 """)
         self._reindex()
 

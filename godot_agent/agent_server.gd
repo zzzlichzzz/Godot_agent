@@ -76,6 +76,9 @@ const ROUTES := {
 	"/project/refactor/file/post_move_sync": "refactor_file_post_move_sync",
 	"/project/refactor/file/preview": "refactor_file_preview",
 	"/project/send_log_errors": "send_log_errors",
+	"/project/split_gd/apply": "split_gd_apply",
+	"/project/split_gd/plan": "split_gd_plan",
+	"/project/split_gd/scan": "split_gd_scan",
 	"/project/update_api_cache": "update_api_cache",
 	"/scene/refactor/node/apply": "refactor_node_apply",
 	"/scene/refactor/node/delete/apply": "refactor_node_delete_apply",
@@ -128,6 +131,9 @@ const URL_PROJECT_REFACTOR_FILE_APPLY := BASE + "/project/refactor/file/apply"
 const URL_PROJECT_REFACTOR_FILE_POST_MOVE_SYNC := BASE + "/project/refactor/file/post_move_sync"
 const URL_PROJECT_REFACTOR_FILE_PREVIEW := BASE + "/project/refactor/file/preview"
 const URL_PROJECT_SEND_LOG_ERRORS := BASE + "/project/send_log_errors"
+const URL_PROJECT_SPLIT_GD_APPLY := BASE + "/project/split_gd/apply"
+const URL_PROJECT_SPLIT_GD_PLAN := BASE + "/project/split_gd/plan"
+const URL_PROJECT_SPLIT_GD_SCAN := BASE + "/project/split_gd/scan"
 const URL_PROJECT_UPDATE_API_CACHE := BASE + "/project/update_api_cache"
 const URL_SCENE_REFACTOR_NODE_APPLY := BASE + "/scene/refactor/node/apply"
 const URL_SCENE_REFACTOR_NODE_DELETE_APPLY := BASE + "/scene/refactor/node/delete/apply"

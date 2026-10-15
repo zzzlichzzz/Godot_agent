@@ -1,0 +1,95 @@
+{
+  "artifact_type": "итоговый отчёт по задаче: стабилизация шины v3 + разбор токенов (execution 105)",
+  "ran_at": "2026-10-13T19:30:00",
+  "host_root": "D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent\\godot_agent",
+  "workflow": {
+    "id": "rIwvKxDNhOxodBCc",
+    "name": "Шаблон v3: Эконом + отказоустойчивость",
+    "snapshot": "n8n/schemas/template_v3_economy.json",
+    "nodes_before": 222,
+    "nodes_after": 230,
+    "version_id_after": "22d16508-e423-466d-9e66-d60358a878d3"
+  },
+  "verdict": "YES",
+  "kind": "FINAL",
+  "1_defects_fixed": [
+    {
+      "id": "D1a",
+      "defect": "watchdog мёртв: agg_polls (static) не инкрементировался — cap=75 не срабатывал НИКОГДА",
+      "evidence": "74 прогона «Агрегатор каналов (ждать всех)» в execution 105: agg_polls==1 во всех (13:46:57–14:49:34 — 63 опроса подряд, done=false); волна 1 закрылась только после ручных строк 36/37 оркестратора",
+      "fix": "узел «Агрегатор каналов (ждать всех)» (n8n-nodes-base.code): сторож по ВРЕМЕНИ от метки волны — CAP_MIN=30; счётчик bus_polls и static-запись удалены",
+      "marker": "jsCode: `const CAP_MIN = 30` + `const timeout = waveStart > 0 && (now - waveStart) >= CAP_MIN * 60000`"
+    },
+    {
+      "id": "D1b",
+      "defect": "фильтр волны не работал: wave_start_ms (static) не переживал wait-паузы — волны 2–4 закрывались мгновенно по СТАРЫМ строкам прошлых волн",
+      "evidence": "прогоны 72/73 aggregator: done=true на первом опросе волн 3/4; каналы 4 раза прогоняли один и тот же конвейер",
+      "fix": "метка волны живёт в пакете (execution data): «Шина: стартовый пакет» отдаёт wave_start_ms в json; агрегатор читает `$('Шина: стартовый пакет').last().json.wave_start_ms`; добавлен фильтр свежести строк 45 мин",
+      "marker": "jsCode агрегатора: `$('Шина: стартовый пакет').last().json.wave_start_ms`; стартовый пакет: `wave_start_ms: Date.now()`, без `$getWorkflowStaticData`"
+    },
+    {
+      "id": "D2",
+      "defect": "NULL-строки в шину: «X: отчёт в шину» писал status/summary=null, когда часть ссылочных нод ветки не выполнялась (watchdog-гонки ничего не объясняли — выражения таблицы резолвились в null)",
+      "evidence": "строки id 35 (13:53:54), 38 (15:04:16), 39 (15:55:30): channel заполнен, status/summary=null",
+      "fix": "новый узел «X: отчёт-сбор (код)» ×4 — собирает run_id/status/summary с try/catch и проверкой isExecuted; «X: отчёт в шину» ×4 переведён на простые ссылки `={{ $json.… }}`; входы отчёта перенаправлены: все 4 IF → сбор → отчёт",
+      "marker": "узлы «Браузер/API/Редактор/MCP: отчёт-сбор (код)» (n8n-nodes-base.code), у API финальная нода — «Канал: API-ключи»"
+    },
+    {
+      "id": "D3",
+      "defect": "гонка дзыня: редкие 404/409 при дзыньке в шину (окно wait закрыто)",
+      "evidence": "execution 115: «MCP: дзынь шине (HTTP)» → 409 «The execution has finished already» (поглощено onError)",
+      "fix": "«X: дзынь шине (код)» ×4: resume-URL читается из static ИЛИ из body триггера «Запуск канала: X» (fallback)",
+      "marker": "jsCode дзыней: `$('Запуск канала: Браузер').first().json.body`"
+    },
+    {
+      "id": "D4",
+      "defect": "сбой канала не сообщался: упавшие API/MCP лежали в сбое до ручных действий оркестратора",
+      "evidence": "execution 106/108/109/112/113/116 — ошибки «Max iterations» стадии «3. Фикс», в шину ничего не писали",
+      "fix": "Error Trigger в самом воркфлоу: «Сбой канала: слушать (ошибка)» → «Сбой канала: определить (код)» (канал по lastNodeExecuted; ядровые падения пропускает) → «Сбой канала: в шину (запись)» (строка status=failed) → «Сбой канала: дзынь шине (HTTP)»; «Запуск X: пакет» ×4 пишет bus_run_id для обработчика",
+      "marker": "4 узла «Сбой канала: …», тип n8n-nodes-base.errorTrigger; дзынь сбоя: onError=continueRegularOutput, retryOnFail(max=2)"
+    },
+    {
+      "id": "D5",
+      "defect": "пожиратель токенов: стадия «3. Фикс» зацикливалась (maxIterations=24) и retryOnFail(max=2) УДВАИВАЛ весь цикл — до 48 вызовов агента на прогон (maxTries=2 = до 2 попыток по 24 итерации, ~30–56K prompt каждая)",
+      "evidence": "постфактум токен-сводка execution 105: 12 исполнений, ~45.6M prompt; 108 (API): 115 вызовов × 55 999 токенов; 110 (Редактор): 8.16M",
+      "fix": "снят retryOnFail у «X: 3. Фикс» ×4 (setNodeSettings retryOnFail=false); maxIterations=24 оставлен",
+      "marker": "узлы «Браузер/API/Редактор/MCP: 3. Фикс» — без retryOnFail"
+    }
+  ],
+  "2_how_to_run": {
+    "apply_procedure": [
+      "python -B scripts/mcp_invoke.py update_workflow @_tmp/ops_fixN.json (из n8n/)",
+      "python -B scripts/export_workflow.py --workflow-id rIwvKxDNhOxodBCc --out schemas/template_v3_economy.json",
+      "python -B scripts/verify_snapshot.py --workflow-id rIwvKxDNhOxodBCc --file schemas/template_v3_economy.json",
+      "python -B scripts/check_no_secrets.py"
+    ],
+    "ran_fact": {
+      "ops_fix1_bus": "appliedOperations=2 (nodeCount 222)",
+      "ops_fix2_error": "appliedOperations=16 (nodeCount 226, +4 узла сбоя)",
+      "ops_fix3_ding": "appliedOperations=4 (nodeCount 226)",
+      "ops_fix4_report": "appliedOperations=44 (nodeCount 230, +4 узла сбора)",
+      "verify_snapshot": "Совпадает: schemas/template_v3_economy.json == текущая база n8n (230 узлов, versionId 22d16508)",
+      "check_no_secrets": "Итог: ошибок 0 (предупреждения — только временный дамп _tmp/exec105_agg2.json)",
+      "postcheck": "python -B scripts/_tmp_postcheck.py: OK=60, FAIL=1 — единственный FAIL ложный (чекер искал подстроку без учёта скобки; строка таймаута проверена глазами: `(now - waveStart) >= CAP_MIN * 60000`)"
+    }
+  },
+  "3_checks": {
+    "bus_graph": "«X: отчёт-сбор (код)» получает 4 входа (Ещё этапы?[1], Есть работа?[1], Продолжать этап?[1], Куда вернуться?[0]) и отдаёт 1 в «X: отчёт в шину»; у отчёта ровно 1 вход; отчёт→дзынь не тронут — проверено на всех 4 каналах",
+    "wave_marker_consumers": "`$('Шина: стартовый пакет')` встречается ТОЛЬКО в агрегаторе (полный поиск по узлам)",
+    "error_chain": "слушать → определить → в шину → дзынь (проверены связи и параметры всех 4 узлов)",
+    "escapes": "jsCode сгенерирован через json.dump — экранирование \\n корректно (repr-проверка)",
+    "API_final_node": "в «API: отчёт-сбор (код)» финальная нода «Канал: API-ключи» (не «Канал: API») — проверено"
+  },
+  "4_limits": [
+    "Живого полного прогона нового цикла НЕ было: проверка статическая (снапшот == база + 60 проверок postcheck). Первый боевой запуск — за владельцем (F5 будет нужен для отображения свежих узлов в UI).",
+    "Error Trigger впервые в этой схеме: сработку цепочки сбоя нужно увидеть в первом же прогоне волны (наблюдение: строка status=failed + событие дзыня).",
+    "Сбой-цепочка читает run_id из global static (запись «Запуск X: пакет» в канальном исполнении): если n8n не сохраняет static упавшего исполнения — строка сбоя не попадёт в выборку волны (в summary останется маркер «run_id не определён»), и тогда волну закроет сторож ≤30 мин. Проверяется первым же сбоем в бою.",
+    "Рекомендации не выполнены (вне задачи): maxIterations 24→16, обязательный path в схемах инструментов рук :8010/:8000, обрезка истории агентов, ринг-лимит статики (та же болезнь, что у bus_polls), чистка таблицы «Шина каналов» по run_id; retryOnFail оставлен у «X: 4. Прогон тестов» (16 итераций × до 2 попыток) — снять при первом признаке зацикливания."
+  ],
+  "debt": [
+    {"id": "ring static", "why": "«Счётчик кругов (лимит 3)» и «Аудитор: парсер вердикта» используют тот же static-паттерн, что умирал у bus_polls — лимит кругов может не срабатывать", "next": "отдельная задача: ринг из числа прогонов «Сборщика информации (4 канала)» в текущем исполнении"},
+    {"id": "maxIterations=24", "why": "завышен для стадий фикса/тестов, провоцирует долгий самоотказ", "next": "снизить до 16 после наблюдения первого прогона"},
+    {"id": "инструменты рук", "why": "агенты молотят ошибки путей (функции без path, res:\\…)", "next": "схемы/описания MCP :8010/:8000 — path обязателен"},
+    {"id": "_tmp", "why": "в n8n/_tmp лежат одноразовые дампы и ops (в репозиторий не коммитить)", "next": "gitignore или удалить после ревью владельцем"}
+  ]
+}

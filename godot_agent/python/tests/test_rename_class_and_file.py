@@ -19,6 +19,36 @@ from godot_tools import symbol_refactor
 from minilich import ml_project_index
 
 
+def _patch_internal(name, replacement):
+    """Подмена внутренней функции во всех загруженных модулях «пилы».
+
+    symbol_refactor после разбиения — фасад: вынесенные функции вызывают
+    собственные копии-импорты, и патч только фасада до них не долетает.
+    Патчим все модули с этим префиксом; возвращаем (module, name, original),
+    чтобы finally вернул всё назад.
+    """
+    # Модуль грузится и как `symbol_refactor`, и как
+    # `godot_tools.symbol_refactor` (зависит от импорта теста), а части
+    # «пилы» — всегда top-level: сверяем по последнему компоненту имени.
+    stem = symbol_refactor.__name__.rsplit(".", 1)[-1]
+    patched = []
+    for module_name, module in list(sys.modules.items()):
+        if module is None:
+            continue
+        tail = module_name.rsplit(".", 1)[-1]
+        if tail != stem and not tail.startswith(stem + "_"):
+            continue
+        if hasattr(module, name):
+            patched.append((module, name, getattr(module, name)))
+            setattr(module, name, replacement)
+    return patched
+
+
+def _restore_patched(patched):
+    for module, name, original in patched:
+        setattr(module, name, original)
+
+
 class ClassNameAndFile(unittest.TestCase):
 
     def setUp(self):
@@ -127,12 +157,12 @@ class ClassNameAndFile(unittest.TestCase):
                 raise OSError("injected move failure")
             return original_replace(source, destination)
 
-        symbol_refactor._replace_file = fail_once_on_uid
+        patched = _patch_internal("_replace_file", fail_once_on_uid)
         try:
             with self.assertRaises(OSError):
                 symbol_refactor.apply_prepared_rename(self.root, prepared)
         finally:
-            symbol_refactor._replace_file = original_replace
+            _restore_patched(patched)
         # Скрипт вернулся на старое место и с прежним содержимым.
         self.assertTrue(self._exists("src/player.gd"))
         self.assertIn("class_name Player", self._read("src/player.gd"))
@@ -202,14 +232,15 @@ class ClassNameAndFile(unittest.TestCase):
         # Подменяем именно в symbol_refactor: он импортирует функцию
         # по имени при загрузке модуля, и правка project_tools не влияет.
         original = symbol_refactor.can_write_project_path
-        symbol_refactor.can_write_project_path = (
+        patched = _patch_internal(
+            "can_write_project_path",
             lambda path, *a, **k: False if str(path).endswith("hero.tscn")
             else original(path, *a, **k))
         try:
             with self.assertRaises(symbol_refactor.RenameError) as ctx:
                 symbol_refactor.prepare_rename(self.root, self._action())
         finally:
-            symbol_refactor.can_write_project_path = original
+            _restore_patched(patched)
         self.assertIn("hero.tscn", str(ctx.exception))
         self.assertTrue(self._exists("src/player.gd"))
         self.assertFalse(self._exists("src/avatar.gd"))

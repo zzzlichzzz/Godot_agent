@@ -155,7 +155,20 @@ def _ext_priority(rel):
 # имена по префиксу "signal:" в индексе), словарь подсказок при опечатках
 # терял эти идентификаторы, а MAP переставал видеть их в скоринге.
 # Ровно те файлы, где справка нужнее всего, отдавали её хуже прочих.
-MAX_SYMBOLS = 60
+#
+# L5 (15.10.2026): лимит 60 резал реальный проект, а не только патологию.
+# Замер на полигоне (131 .gd, 3665 объявлений в сумме): при 60 в индексе
+# 3082 символа, то есть 583 объявления (16 %) не находились поиском ВООБЩЕ,
+# и это были не только редкие категории — в больших скриптах пропадали и
+# функции. Качество на golden-set (150 запросов, см. docs/librarian_search_plan.md
+# §3.1): hit@8 0.860 → 0.993, mrr@8 0.757 → 0.907; ведро `capped` 0.400 → 1.000,
+# `rare_func` 0.816 → 1.000. Цена снятия лимита: индекс 90 → 104 КБ (+15 %),
+# сборка 3.0 → 2.3 с, поиск не изменился (150 запросов: 0.12 с).
+# Значение 400 оставлено предохранителем от СГЕНЕРИРОВАННЫХ файлов: самый
+# большой живой скрипт полигона (< 300 объявлений) под него не попадает,
+# то есть на нормальном проекте лимит не срабатывает вообще, а индекс
+# остаётся ограниченным по размеру.
+MAX_SYMBOLS = 400
 
 # Порядок раздачи квот. Сигналы/константы/классы в реальных скриптах
 # немногочисленны, но ценны для поиска, а функций бывают сотни — поэтому
@@ -214,6 +227,7 @@ def _cap_symbols(symbols, limit=MAX_SYMBOLS):
 # mtime не из паранойи: на Windows/FAT гранулярность mtime грубая, и две
 # записи подряд могут получить одинаковую метку.
 _MEM_CACHE = {}  # abs_root -> {"stamp": (mtime, size), "data": dict}
+_SEM_MEM_CACHE = {}  # v105.16 (L7): см. _MEM_CACHE — семантический индекс
 _PROJECT_LOCKS = {}
 _PROJECT_LOCKS_GUARD = threading.Lock()
 
@@ -252,6 +266,17 @@ def _cache_store(project_root, data):
             _MEM_CACHE[_cache_key(project_root)] = {"stamp": stamp, "data": data}
     except Exception:
         _MEM_CACHE.pop(_cache_key(project_root), None)  # лучше без кэша, чем с враньём
+
+
+def _sem_cache_store(project_root, data):
+    """То же для семантического индекса (v105.16, L7: его читает карточка
+    символа на каждый запрос-одиночку — парсить файл заново нельзя)."""
+    try:
+        stamp = _index_stamp(_semantic_index_path(project_root))
+        if stamp is not None:
+            _SEM_MEM_CACHE[_cache_key(project_root)] = {"stamp": stamp, "data": data}
+    except Exception:
+        _SEM_MEM_CACHE.pop(_cache_key(project_root), None)
 
 
 def _index_path(project_root):
@@ -376,6 +401,27 @@ def _save(project_root, data):
 
 
 def _read_semantic_index(project_root):
+    # v105.16 (L7): карточка символа читает семантический индекс на КАЖДЫЙ
+    # запрос-одиночку, а файл крупный (все объявления, ссылки и строки
+    # проекта). Кэш в памяти — по тому же образцу, что _MEM_CACHE основного
+    # индекса: отпечаток (mtime, size) решает, можно ли верить записи.
+    key = _cache_key(project_root)
+    stamp = _index_stamp(_semantic_index_path(project_root))
+    if stamp is not None:
+        cached = _SEM_MEM_CACHE.get(key)
+        if isinstance(cached, dict) and cached.get("stamp") == stamp:
+            return cached.get("data")
+    data = _read_semantic_index_raw(project_root)
+    if data is None:
+        _SEM_MEM_CACHE.pop(key, None)  # лучше без кэша, чем со старьём
+        return None
+    stamp = _index_stamp(_semantic_index_path(project_root))
+    if stamp is not None:
+        _SEM_MEM_CACHE[key] = {"stamp": stamp, "data": data}
+    return data
+
+
+def _read_semantic_index_raw(project_root):
     try:
         with open(_semantic_index_path(project_root), "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -394,6 +440,7 @@ def _save_semantic_index(project_root, data):
         with open(tmp, "w", encoding="utf-8") as handle:
             json.dump(data, handle, ensure_ascii=False, separators=(",", ":"))
         os.replace(tmp, path)
+        _sem_cache_store(project_root, data)  # v105.16 (L7): см. _cache_store
     except Exception:
         try:
             os.remove(tmp)
@@ -481,14 +528,24 @@ def _build_index_locked(project_root):
         old = _read_index_raw(project_root)
         # Чужой индекс («мозг в папке плагина») переиспользовать нельзя:
         # там записи ДРУГОГО проекта с такими же относительными путями.
-        if isinstance(old, dict) and old.get("root") == root:
+        # L5: индекс, собранный с ДРУГИМ лимитом символов, тоже не годится —
+        # штампы mtime/size не менялись, поэтому переиспользование вернуло бы
+        # старые урезанные записи и фикс не доехал бы до проекта.
+        if isinstance(old, dict) and old.get("root") == root \
+                and old.get("sym_limit") == MAX_SYMBOLS:
             for e in old.get("files", []):
                 if isinstance(e, dict) and e.get("path"):
                     prev[e["path"]] = e
     except Exception:
         prev = {}  # без переиспользования пересборка просто станет полной
     entries = [_reuse_or_build(root, rel, prev) for rel in rels]
-    data = {"built": time.time(), "root": root, "files": entries}
+    # L5: лимит символов — часть формата индекса (см. проверки в блоке
+    # переиспользования выше и в _load_index). Без этой метки поднятие
+    # лимита не доехало бы до уже построенных индексов: записи со штампом
+    # (mtime, size) переиспользовались бы вместе с урезанными символами.
+    data = {"sym_limit": MAX_SYMBOLS, "built": time.time(), "root": root,
+            "files": entries}
+
     if skipped:
         # Индекс — единственное место, где факт усечения известен. Ключи
         # добавляются ТОЛЬКО при усечении: на обычном проекте формат
@@ -555,6 +612,12 @@ def _load_index(project_root, auto_build=True):
     # всех проектов живут в ОДНОМ файле. Сверяем root: чужой индекс считаем
     # отсутствующим, иначе проект B получит карту проекта A.
     if data is not None and data.get("root") != os.path.abspath(project_root or "."):
+        data = None
+    # L5: индекс, собранный с ДРУГИМ лимитом символов, считаем устаревшим.
+    # Иначе он живёт ещё STALE_SEC и отдаёт поиску записи, из которых имена
+    # уже выброшены лимитом, — то есть фикс приходил бы с задержкой и не
+    # сразу после пересборки.
+    if data is not None and data.get("sym_limit") != MAX_SYMBOLS:
         data = None
     if data is not None and time.time() - float(data.get("built", 0)) < STALE_SEC:
         return data
@@ -669,6 +732,58 @@ def _tokens(text):
     return out
 
 
+def _phrase_key(query):
+    """Запрос как имя объявления: «act completed» -> «act_completed» (L4)."""
+    text = re.sub(r"\W+", "_", str(query or "").strip().lower(), flags=re.U)
+    return text.strip("_")
+
+
+def _phrase_keys(query, min_words=1):
+    """Ключи признака `phrase_name`: склейки подряд идущих слов запроса.
+
+    Вторая форма (без подчёркиваний) нужна для camelCase-объявлений:
+    `class:BossChest` и запрос «boss chest» должны встретиться, хотя
+    подчёркивания в имени нет.
+
+    `min_words` отсекает короткие склейки. Признаку в индексе (L4) нужны и
+    одиночные слова — запрос «sprite» это имя `var:sprite`, — а бонусу за
+    путь (L4c) только склейки от двух слов: по одному слову запрос
+    «slow motion effect» находил бы файл с именем `motion` и вытеснял верный
+    ответ (замер на golden-set: `rare_words` 0.867 -> 0.847).
+
+    Склейки ВСЕХ слов запроса без подчёркиваний даёт `_phrase_key`.
+    """
+    words = [w for w in re.split(r"\W+", str(query or "").lower(), flags=re.U) if w]
+    keys = []
+    for i in range(len(words)):
+        for j in range(i + min_words, len(words) + 1):
+            base = "_".join(words[i:j])
+            keys.append(base)
+            flat = base.replace("_", "")
+            if flat != base:
+                keys.append(flat)
+    return tuple(dict.fromkeys(keys))
+
+
+def _path_keys(query):
+    """Ключи бонуса за путь (L4c): запрос как есть плюс склейки слов.
+
+    Путь в проекте пишется подчёркиваниями, а запрос приходит с пробелами:
+    «boss chest» должен узнавать `.../boss_chest.tscn`, иначе верный скрипт
+    обгоняет его собственная сцена. Одиночные слова сюда НЕ берём — иначе
+    «slow motion effect» находил бы файл по слову `motion`.
+
+    Замер на golden-set полигона (150 запросов, срез `index`): mrr@8
+    0.986 -> 0.993, `intent` 0.873 -> 0.941, остальные вёдра 1.000.
+    """
+    ql = str(query or "").lower()
+    keys = [ql] if ql else []
+    for k in _phrase_keys(query, min_words=2):
+        if k not in keys:
+            keys.append(k)
+    return tuple(keys)
+
+
 # Служебные префиксы символов .gd (см. _build_entry) — НЕ токены поиска:
 # из-за них запрос со словом «class»/«func»/«var» совпадал с почти каждым
 # .gd проекта и MAP набирал шумной хвост. Багфикс v105.9 (пункт 2).
@@ -686,6 +801,76 @@ def _symbol_search_text(sym):
     return s
 
 
+# --- L4 (P2): структурный тай-брейк вместо алфавитного ---------------------
+# Было: `scored.sort(key=lambda s: (-s[0], s[1]["path"]))` — при равном score
+# порядок задавал алфавит пути, то есть релевантность подменялась сортировкой
+# строк. Замер на golden-set полигона (150 запросов, срез `index`, план §3.3)
+# показал, что так решается исход 8 промахов из 10 в слое `intent`:
+# `save_manager.gd` уступал `achievement_manager.gd`, `boss_chest.gd` — своей
+# же сцене `boss_chest.tscn`, `damage_number_pool.gd` — `base_enemy.gd`.
+# Для запроса `sprite` вперёд уходили 17 сцен с узлом `Sprite`, а четыре
+# скрипта с `var:sprite` стояли на местах 19-23.
+#
+# Тай-брейк — упорядоченный список признаков ЗАПИСИ, каждый ориентирован
+# «меньше значит раньше», поэтому ключ сортировки — просто их tuple:
+#   kind_rank  — .gd раньше .tscn и прочих: та же политика, что у слоя MAP
+#                (`librarian._KIND_WEIGHT`, `_FRAG_KIND_RANK`), и та же
+#                причина: сцена ПРИМЕНЯЕТ структуру, скрипт её ОБЪЯВЛЯЕТ.
+#                Именно поэтому признак первый: у равных по score скрипта и
+#                сцены («boss chest» -> `boss_chest.gd` против одноимённой
+#                `boss_chest.tscn`) порядок обязан решать в пользу кода;
+#   phrase_name — запрос целиком склеивается в имя объявления (`act completed`
+#                -> `act_completed`) и ищется как ОДНО имя: так запрос,
+#                собранный из слов имени, узнаёт СВОЁ объявление, а не первое
+#                совпадение по отдельному слову. 0 — имя объявлено в коде,
+#                1 — только у сцены/ресурса, 2 (`_TIE_MISS`) — точного имени
+#                нет;
+#   name_hits  — сколько токенов запроса есть в ИМЕНИ файла: файл, названный
+#                по запросу, идёт раньше того, который его лишь упоминает
+#                (`bomber_enemy.gd` против `base_enemy.gd` при равном score).
+# Последним в ключе всегда идёт путь — выдача обязана быть детерминированной,
+# а не зависеть от порядка обхода каталогов.
+#
+# Набор и порядок признаков выбраны ЗАМЕРОМ, а не на вкус: 18 вариантов на
+# том же golden-set (срез `index`, mrr@8 всего). Плато .986 держат
+# «kind_rank, phrase_name, name_hits» и все надмножества вплоть до
+# «kind_rank, phrase_name, exact_name, name_hits, path_hits, class_decl»,
+# поэтому признаки `exact_name` (совпадение с целым именем объявления),
+# `path_hits` (токены пути с папками) и `class_decl` (файл объявляет класс)
+# ИЗЪЯТЫ: замера они не дают, а кода и памяти требуют. Признак `shallow`
+# (менее вложенный файл раньше) не просто не помогал, а ВРЕДИЛ (.982): на
+# `act completed` он поднимал `scripts/main.gd` над верным
+# `scripts/autoload/map_manager.gd`. Порядок тоже из замера: «phrase_name»
+# первым даёт .979 (на «boss chest» выигрывает сцена), «name_hits» перед
+# «phrase_name» — .974 (теряются запросы-фразы).
+#
+# Признаки стоят ПОСЛЕ score и только разбивают равенство: сам скоринг
+# (сколько разных токенов совпало) L4 не трогает — это работа L3 (IDF).
+_TIE_BREAK = ("kind_rank", "phrase_name", "name_hits")
+
+# Значение признака для записей, которых он не коснулся: у счётчиков — 0,
+# у точного имени — 2 (см. `phrase_name` в комментарии выше).
+_TIE_MISS = {"phrase_name": 2}
+
+# .gd раньше .tscn и прочих: код — источник структуры, сцена — её применение.
+_KIND_RANK = {"gd": 0, "gdshader": 0, "shader": 0,
+              "tscn": 1, "scn": 1, "tres": 1, "godot": 1, "cfg": 1}
+
+
+def _post_add(index, token, i):
+    """Добавить номер записи в постинг-лист токена (без дублей).
+
+    Дубль в постинге сломал бы контракт score («сколько РАЗНЫХ токенов
+    запроса встретилось»), поэтому запись кладётся не больше одного раза
+    на токен: списки строятся по порядку записей, достаточно сверить хвост.
+    """
+    lst = index.get(token)
+    if lst is None:
+        index[token] = [i]
+    elif lst[-1] != i:
+        lst.append(i)
+
+
 # v105.15: инвертированный индекс в памяти процесса.
 # Было: search() на КАЖДЫЙ вызов заново токенизировал путь и все символы
 # каждой записи — два re.split на файл, причём второй по длинной склейке
@@ -698,26 +883,50 @@ def _symbol_search_text(sym):
 # поэтому смена содержимого всегда меняет id. Ссылку на files держим в
 # записи кэша, иначе сборщик мог бы освободить список, а его адрес занял
 # бы другой объект — и проверка по id совпала бы ложно.
-_SEARCH_MAPS = {}  # abs_root -> {"files_id", "len", "postings", "paths_low", "files"}
+_SEARCH_MAPS = {}  # abs_root -> {"files_id", "len", "maps", "files"}
 
 
 def _build_search_maps(files):
-    """postings: токен -> [номера записей]; paths_low: пути в нижнем регистре."""
+    """Карты поиска одной версии индекса.
+
+    postings — токен -> [номера записей] по пути и символам (скоринг);
+    paths_low — пути в нижнем регистре (бонус за подстроку в пути);
+    phrase_post/name_post — постинги признаков тай-брейка L4 (целое имя
+    объявления для запроса-фразы и токены имени файла);
+    static — признаки тай-брейка, не зависящие от запроса.
+
+    Признаки записи от запроса не зависят, поэтому считаются здесь один раз
+    на версию индекса: search() на них не тратит ни токенизации, ни регулярок.
+    """
     postings = {}
+    phrase_post = {}
+    name_post = {}
     paths_low = []
+    kind_rank = []
     for i, e in enumerate(files):
         path = e.get("path", "") if isinstance(e, dict) else ""
+        kind = str(e.get("kind", "")).lower() if isinstance(e, dict) else ""
         paths_low.append(path.lower())
+        kind_rank.append(_KIND_RANK.get(kind, 2))
         syms = e.get("symbols", []) if isinstance(e, dict) else []
         hay = _tokens(path) | _tokens(
             " ".join(_symbol_search_text(s) for s in syms))
         for t in hay:
-            lst = postings.get(t)
-            if lst is None:
-                postings[t] = [i]
-            else:
-                lst.append(i)
-    return postings, paths_low
+            _post_add(postings, t, i)
+        # Имена объявлений — для `phrase_name`: запрос-фраза склеивается в
+        # имя и ищется как одно имя, поэтому в постинге лежит имя целиком.
+        for s in syms:
+            name = _symbol_search_text(s).strip().lower()
+            if name:
+                _post_add(phrase_post, name, i)
+                flat = name.replace("_", "")
+                if flat != name:
+                    _post_add(phrase_post, flat, i)
+        for t in _tokens(os.path.basename(path)):
+            _post_add(name_post, t, i)
+    return {"postings": postings, "paths_low": paths_low,
+            "phrase_post": phrase_post, "name_post": name_post,
+            "static": {"kind_rank": kind_rank}}
 
 
 def _search_maps(project_root, files):
@@ -726,41 +935,76 @@ def _search_maps(project_root, files):
     ent = _SEARCH_MAPS.get(key)
     if (ent is not None and ent.get("files_id") == id(files)
             and ent.get("len") == len(files)):
-        return ent["postings"], ent["paths_low"]
-    postings, paths_low = _build_search_maps(files)
+        return ent["maps"]
+    maps = _build_search_maps(files)
     _SEARCH_MAPS[key] = {"files_id": id(files), "len": len(files),
-                         "postings": postings, "paths_low": paths_low,
-                         "files": files}
-    return postings, paths_low
+                         "maps": maps, "files": files}
+    return maps
 
 
 def search(project_root, query, limit=8):
-    """Ищет файлы/символы по запросу. Возвращает список записей с score."""
+    """Ищет файлы/символы по запросу. Возвращает список записей с score.
+
+    Порядок при РАВНОМ score задаёт структурный тай-брейк L4 (`_TIE_BREAK`),
+    а не алфавит пути; сам score (сколько разных токенов запроса совпало)
+    остаётся прежним.
+    """
     data = _load_index(project_root)
     q = _tokens(query or "")
     if not q:
         return []
     files = data.get("files", [])
-    postings, paths_low = _search_maps(project_root, files)
+    maps = _search_maps(project_root, files)
+    postings = maps["postings"]
+    paths_low = maps["paths_low"]
+    static = maps["static"]
     # score = сколько РАЗНЫХ токенов запроса встретилось в записи. В
     # постингах каждая запись лежит не больше одного раза на токен (они
     # строятся из множества), поэтому счётчик даёт ровно len(q & hay) —
     # то же число, что считал прежний полный перебор.
     counts = {}
+    # Признак `name_hits` считается тем же проходом по постингам: отдельной
+    # токенизации записей на каждый поиск не нужно. Значения сразу
+    # ориентированы «меньше значит раньше» (со знаком минус), поэтому
+    # отсутствие записи в словаре означает ровно ноль признака.
+    name_hits = {}
     for t in q:
         for i in postings.get(t, ()):
             counts[i] = counts.get(i, 0) + 1
+        for i in maps["name_post"].get(t, ()):
+            name_hits[i] = name_hits.get(i, 0) - 1
+    # Запрос целиком как имя объявления: 0 — имя объявлено в КОДЕ, 1 — имя
+    # есть только у сцены/ресурса, 2 (см. _TIE_MISS) — точного имени нет.
+    phrase_hits = {}
+    for pk in _phrase_keys(query):
+        for i in maps["phrase_post"].get(pk, ()):
+            phrase_hits[i] = 0 if static["kind_rank"][i] == 0 else 1
     # Бонус за подстроку в пути. Отдельным проходом, потому что он может
     # вытащить запись, у которой НИ ОДНОГО токена не совпало: раньше такая
-    # получала score=2 и попадала в выдачу — поведение сохраняем.
-    ql = (query or "").lower()
-    if ql:
+    # получала score=2 и попадала в выдачу — поведение сохраняем. С L4c
+    # ключей несколько: сам запрос и склейки его слов (см. _path_keys).
+    path_keys = _path_keys(query)
+    if path_keys:
         for i, pl in enumerate(paths_low):
-            if ql in pl:
+            if any(k in pl for k in path_keys):
                 counts[i] = counts.get(i, 0) + 2
-    scored = [(sc, files[i]) for i, sc in counts.items() if sc > 0]
-    scored.sort(key=lambda s: (-s[0], s[1]["path"]))
-    return [dict(e, score=sc) for sc, e in scored[:limit]]
+    dyn = {"phrase_name": phrase_hits, "name_hits": name_hits}
+
+    def _tie_key(i):
+        """Признаки тай-брейка записи, «меньше значит раньше», затем путь."""
+        parts = []
+        for name in _TIE_BREAK:
+            by_entry = dyn.get(name)
+            if by_entry is None:
+                parts.append(static[name][i])
+            else:
+                parts.append(by_entry.get(i, _TIE_MISS.get(name, 0)))
+        parts.append(files[i].get("path", ""))
+        return tuple(parts)
+
+    scored = [(sc, i) for i, sc in counts.items() if sc > 0]
+    scored.sort(key=lambda s: (-s[0], _tie_key(s[1])))
+    return [dict(files[i], score=sc) for sc, i in scored[:limit]]
 
 
 def semantic_snapshot(project_root, refresh=False):

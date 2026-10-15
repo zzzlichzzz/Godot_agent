@@ -1,0 +1,85 @@
+{
+  "branch": "Ветка 3 (Редактор)",
+  "channel": "editor",
+  "artifact_type": "аудит-2 канала EDITOR по чек-листу ветки (перечень взят из src/refactor_lab/CHECKLIST.md)",
+  "ran_at": "2026-10-13T18:45:00",
+  "host_root": "D:\\vajno\\Godot\\тест-плагина-ии",
+  "engine": "Godot 4.6.3-stable",
+  "verdict": "PARTIAL",
+  "checklist_source": "src/refactor_lab/CHECKLIST.md, 351 строка: Шаг 0 (стр. 36), Шаг 1 (52), Шаг 2 (72), Шаг 2.1 (95), Шаг 3 (121), Шаг 4 (148), Шаг 5 (173), Шаг 6 (191), Шаг 7 (228), Шаг 8 (242), Шаг 9 (260), Шаг 10 (274), Шаг 11 (293), Форма отчёта о находке (312-320), Если что-то пошло не так (326-351)",
+  "artifacts_from_checklist": [
+    {"step": "Шаг 0", "artifact": "команда проверки целостности: headless-прогон редактора + Select-String по 'SCRIPT ERROR|Parse Error'", "checklist_lines": "36-50"},
+    {"step": "Шаг 1", "artifact": "разведка без изменений: переименование класса LabConstants -> LabTuning; ожидается 4 файла, 0 правок на диске", "checklist_lines": "52-70"},
+    {"step": "Шаг 2", "artifact": "первое переименование с карточкой диффа: class_name LabTuning, LabTuning.BASE_HEALTH, LabTuning.speed_cap()", "checklist_lines": "72-93"},
+    {"step": "Шаг 2.1", "artifact": "класс + два вида строк: ClassDB.class_exists(LabEntity) правится, class_name_text в lab_dynamic_caller.gd:19 не трогается и попадает в отчёт", "checklist_lines": "95-119"},
+    {"step": "Шаг 3", "artifact": "затенение: Faction.TRACKING -> SEARCHING, Fsm.State.TRACKING не тронут", "checklist_lines": "121-146"},
+    {"step": "Шаг 4", "artifact": "super + недоказуемые ссылки: take_damage -> apply_damage, entity.call(name_id)", "checklist_lines": "148-171"},
+    {"step": "Шаг 5", "artifact": "сигнал health_changed -> hp_changed в 4 местах, включая [connection signal=...] в lab_root.tscn", "checklist_lines": "173-189"},
+    {"step": "Шаг 6", "artifact": "узлы — три механизма: %Unique, get_node(Panel/Stats), $PlayerPanel + parent=", "checklist_lines": "191-226"},
+    {"step": "Шаг 7", "artifact": "перемещение и удаление узла: reparent Muzzle, удаление TurretB с предупреждением о ссылках", "checklist_lines": "228-240"},
+    {"step": "Шаг 8", "artifact": "переименование файла lab_entity.gd -> lab_unit.gd: preload в lab_registry.gd:20 + строка ENTITY_SCRIPT в lab_dynamic_caller.gd:15", "checklist_lines": "242-258"},
+    {"step": "Шаг 9", "artifact": "отмена: Ctrl+Z (одна запись истории) и кнопка отката на карточке (журнал .agent_history)", "checklist_lines": "260-272"},
+    {"step": "Шаг 10", "artifact": "честность на пустом изменении: lab_constants.gd -> lab_tuning.gd без правок в .gd", "checklist_lines": "274-291"},
+    {"step": "Шаг 11", "artifact": "настройки строгости: strict/probable + галочка недоказанных ссылок, перевод RU/EN", "checklist_lines": "293-309"},
+    {"step": "Форма отчёта о находке", "artifact": "ШАГ / ЧТО СДЕЛАЛ / ЧТО ОЖИДАЛ / ЧТО ПОЛУЧИЛ / ВЫВОД ШАГА 0", "checklist_lines": "312-320"},
+    {"step": "Карта симптом -> где искать", "artifact": "таблица симптомов и полный сброс лаборатории", "checklist_lines": "326-351"}
+  ],
+  "artifacts_named_by_task_not_in_checklist": {
+    "note": "Эти четыре файла задание называет проверяемыми артефактами ветки EDITOR. В самом CHECKLIST.md они НЕ перечислены: упоминаний каталога reports/ в src/refactor_lab/CHECKLIST.md нет (0 совпадений), а все res://-ссылки чек-листа — только res://src/refactor_lab/scenes/lab_root.tscn и res://src/refactor_lab/scripts/lab_constants.gd. Свои пункты в перечень не добавлялись: файлы проверены отдельным блоком как артефакты ветки.",
+    "files": [
+      {"path": "addons/Godot_agent/godot_agent/reports/BRANCH3_EDITOR_NODE_OPS.json", "exists": true, "structure_ok": true, "verdict_field": "NO", "key_fields": "branch, artifact_type, ran_at, host_root, engine, verdict, node_operations[3], facts, why_no, checks"},
+      {"path": "addons/Godot_agent/godot_agent/reports/NODE_RENAME_GRANDCHILD_REPORT.md", "exists": true, "structure_ok": true, "verdict_field": "нет поля verdict (markdown), статус в шапке: канал в scope", "key_fields": "1. Что было сломано; 2. Фикс (plan_id 826d411729e91fe09ee1d292 / entry_id dd614bd3cb2b); 3. Точки перехвата; 4. Команды, rc, результат; 5. Границы; 6. Идентификаторы журнала"},
+      {"path": "addons/Godot_agent/godot_agent/reports/THREE_CHANNEL_AUDIT.md", "exists": true, "structure_ok": true, "verdict_field": "нет поля verdict (markdown), 7 разделов", "key_fields": "1. Три канала; 2. Что требует редактор; 3. Матрица; 4. Несоответствия A-D; 5. План (4 задачи); 6. Приоритеты; 7. Что проверено и чем"},
+      {"path": "addons/Godot_agent/godot_agent/docs/limitations/editor_panel_ui_headless.md", "exists": true, "structure_ok": true, "verdict_field": "нет поля verdict (документ-ограничение), метка LIMITATION", "key_fields": "метка LIMITATION; компенсационные проверки; живой прогон HTTP-контракта 2026-10-12; требование перезапуска редактора"}
+    ]
+  },
+  "facts": {
+    "checklist_steps_total": 12,
+    "checklist_steps_covered_by_runs": 12,
+    "runs_total": 14,
+    "runs_rc_zero": 14,
+    "runs_nonzero": 0,
+    "runs_impossible": 0,
+    "live_ui_clicked": false,
+    "live_ui_reason": "Живой UI-прогон панели невозможен в окружении конвейера (headless/CLI, нет интерактивного дисплея) — зафиксировано в docs/limitations/editor_panel_ui_headless.md. Пункты 9а (Ctrl+Z) и 9б (кнопка отката) проверены со стороны механизма журнала, а не живым кликом.",
+    "node_ops_cross_check": "reports/BRANCH3_EDITOR_NODE_OPS.json: node_operations=3, available_in_editor=1, unavailable_in_editor=2, verdict=NO. Повторно сверено по коду GDScript: URL_SCENE_REFACTOR_NODE_REPARENT_PREVIEW/APPLY и URL_SCENE_REFACTOR_NODE_DELETE_PREVIEW/APPLY встречаются только в agent_server.gd:133-137 (по одному вхождению); в agent_panel.gd вызываются только REFACTOR_NODE_PREVIEW_URL (agent_panel.gd:45,5155,5554) и REFACTOR_NODE_APPLY_URL (agent_panel.gd:46,5334,5593). Ключи safe_node_reparent_* (agent_locale.gd:466-469,912-915) и safe_node_delete_* (agent_locale.gd:470-473,916-919) объявлены, вызовов _t() с ними нет.",
+    "godot_check_3_of_3_in_checklist": false,
+    "godot_check_3_of_3_note": "Строки 'Godot_check' и '3/3' в src/refactor_lab/CHECKLIST.md отсутствуют (grep: 0 совпадений). Ближайший пункт чек-листа — Шаг 0 (headless-прогон, стр. 36-50). Отдельно зафиксирован фактический вызов инструмента check по трём файлам: 'checked: 3/3'."
+  },
+  "checks": [
+    {"step": "Шаг 0", "command": "& 'D:\\vajno\\Godot\\Godot v4.6.3\\Godot_v4.6.3-stable_win64_console.exe' --headless --editor --quit-after 250 > chk.txt 2>&1; $rc=$LASTEXITCODE; Select-String -Path chk.txt -Pattern 'SCRIPT ERROR|Parse Error'", "cwd": "D:\\vajno\\Godot\\тест-плагина-ии", "rc": 0, "output": "RC=0; HITS=0 — строк SCRIPT ERROR / Parse Error нет; в хвосте вывода 'Макет редактора готов.' / '[ DONE ] loading_editor_layout'"},
+    {"step": "Шаг 1", "command": "python -B python/tests/test_rename_analyze_split.py", "rc": 0, "output": "Ran 9 tests in 0.517s — OK"},
+    {"step": "Шаг 2", "command": "python -B python/tests/test_rename_symbol.py", "rc": 0, "output": "All rename_symbol tests passed: 7"},
+    {"step": "Шаг 2.1", "command": "python -B python/tests/test_rename_class_name_strings.py", "rc": 0, "output": "Ran 11 tests in 0.626s — OK"},
+    {"step": "Шаг 3", "command": "python -B python/tests/test_rename_shadowing.py", "rc": 0, "output": "Ran 10 tests in 0.418s — OK"},
+    {"step": "Шаг 4", "command": "python -B python/tests/test_rename_symbol_overrides.py", "rc": 0, "output": "Ran 11 tests in 0.717s — OK"},
+    {"step": "Шаг 4 (probable)", "command": "python -B python/tests/test_probable_access.py", "rc": 0, "output": "Ran 14 tests in 0.357s — OK"},
+    {"step": "Шаг 5", "command": "python -B python/tests/test_rename_scene_connections.py", "rc": 0, "output": "Ran 9 tests in 0.647s — OK"},
+    {"step": "Шаг 6 (узлы)", "command": "python -B python/tests/test_node_refactor.py", "rc": 0, "output": "Ran 9 tests in 0.591s — OK"},
+    {"step": "Шаг 6 (перехват ручного rename)", "command": "python -B python/tests/test_node_rename_intercept.py", "rc": 0, "output": "СТАТИКА: 39 проверок, 0 провалов"},
+    {"step": "Шаг 7", "command": "python -B python/tests/test_move_safety.py", "rc": 0, "output": "Ran 24 tests in 0.858s — OK (skipped=3)"},
+    {"step": "Шаг 8", "command": "python -B python/tests/test_file_refactor.py", "rc": 0, "output": "Ran 5 tests in 0.642s — OK"},
+    {"step": "Шаг 9", "command": "python -B python/tests/test_rollback_by_entry.py", "rc": 0, "output": "Ran 1 test in 0.000s — OK (откат по entry_id журнала; живой Ctrl+Z/кнопка не выполнялись — см. facts.live_ui_reason)"},
+    {"step": "Шаг 10", "command": "python -B python/tests/test_usage_checklist_honesty.py", "rc": 0, "output": "Ran 6 tests in 0.378s — OK"},
+    {"step": "Шаг 11", "command": "python -B python/tests/test_rename_policy_default.py", "rc": 0, "output": "Ran 15 tests in 0.378s — OK"}
+  ],
+  "godot_check_3_of_3": {
+    "tool": "Godot_check",
+    "command": "Godot_check(paths=[addons/Godot_agent/godot_agent/reports/BRANCH3_EDITOR_NODE_OPS.json, addons/Godot_agent/godot_agent/python/godot_tools/node_refactor.py, tools/n8n_hands/n8n_hands_mcp.py])",
+    "rc": 0,
+    "output": "checked: true x3 (auto_fixable=false, truncated=false, headless=not-applicable) — итог 'checked: 3/3'"
+  },
+  "notes_on_runs": {
+    "cwd": "addons/Godot_agent/godot_agent (форма команды из задания: python -B python/tests/<файл>.py)",
+    "interpreter": "Python 3.14.6, subprocess с encoding=utf-8, errors=replace",
+    "skipped_3_in_step7": "skipped=3 — пропуски внутри test_move_safety.py (skip-условия теста, не отказ прогона); rc при этом 0"
+  },
+  "bus_record": {
+    "endpoint": "POST http://127.0.0.1:8010/notify",
+    "receiver": "tools/n8n_hands/n8n_hands_mcp.py (record = _append_event(payload), порт 8010)",
+    "journal": "tools/n8n_hands/artifacts/cycle_events.jsonl",
+    "recorded": true,
+    "fields": {"run_id": "channel-editor", "channel": "editor", "status": "done", "summary": "непустой; содержит команды, rc и вывод, включая Godot_check 3/3"}
+  },
+  "why_no": "Вердикт PARTIAL, а не YES, по трём причинам, каждая — факт. (1) Перечень проверяемых артефактов из CHECKLIST.md — это шаги 0-11 лаборатории (lab_root.tscn + скрипты lab_*.gd), а не четыре BRANCH/THREE_CHANNEL-файла из задания: упоминаний каталога reports/ в чек-листе нет (0 совпадений), все res://-ссылки чек-листа ведут в src/refactor_lab. Поэтому перечень проверенных артефактов разделён на два блока: пункты чек-листа и отдельно артефакты ветки — вторые проверены по факту наличия и структуры, но это не пункты чек-листа. (2) Пункта 'Godot_check 3/3' в чек-листе нет (grep 'Godot_check' и '3/3' — 0 совпадений), поэтому его точная команда взята из фактического вызова инструмента check по трём файлам, rc зафиксирован отдельно. (3) Живые UI-пункты 9а (Ctrl+Z) и 9б (кнопка отката) в окружении конвейера невыполнимы — подтверждено docs/limitations/editor_panel_ui_headless.md; закрыты со стороны механизма журнала (test_rollback_by_entry.py, rc=0), это компенсация, а не живое доказательство. Все 14 фактических прогонов дали rc=0, отказов прогона нет."
+}

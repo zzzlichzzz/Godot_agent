@@ -158,6 +158,7 @@ PROVIDER_MAP = {
 # деле про него забыли здесь.
 NOT_IN_CATALOG = {
     "agentrouter": u"в каталоге models.dev такой записи нет вовсе",
+    "clinepass": u"в каталоге models.dev записи clinepass нет: это подписочный API Cline, а не вендор моделей",
     "custom": u"свой адрес — что за ним, знает только пользователь",
 }
 

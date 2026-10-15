@@ -12,6 +12,36 @@ import symbol_refactor
 from minilich import ml_project_index
 
 
+def _patch_internal(name, replacement):
+    """Подмена внутренней функции во всех загруженных модулях «пилы».
+
+    symbol_refactor после разбиения — фасад: вынесенные функции вызывают
+    собственные копии-импорты, и патч только фасада до них не долетает.
+    Патчим все модули с этим префиксом; возвращаем (module, name, original),
+    чтобы finally вернул всё назад.
+    """
+    # Модуль грузится и как `symbol_refactor`, и как
+    # `godot_tools.symbol_refactor` (зависит от импорта теста), а части
+    # «пилы» — всегда top-level: сверяем по последнему компоненту имени.
+    stem = symbol_refactor.__name__.rsplit(".", 1)[-1]
+    patched = []
+    for module_name, module in list(sys.modules.items()):
+        if module is None:
+            continue
+        tail = module_name.rsplit(".", 1)[-1]
+        if tail != stem and not tail.startswith(stem + "_"):
+            continue
+        if hasattr(module, name):
+            patched.append((module, name, getattr(module, name)))
+            setattr(module, name, replacement)
+    return patched
+
+
+def _restore_patched(patched):
+    for module, name, original in patched:
+        setattr(module, name, original)
+
+
 def _write(root, rel, text):
     path = os.path.join(root, *rel.split("/"))
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -191,7 +221,7 @@ def test_mid_write_failure_restores_all_files():
                 raise OSError("injected replace failure")
             return original_replace(source, destination)
 
-        symbol_refactor._replace_file = fail_second
+        patched = _patch_internal("_replace_file", fail_second)
         try:
             symbol_refactor.apply_prepared_rename(root, prepared)
             assert False, "injected failure must abort the transaction"
@@ -202,7 +232,7 @@ def test_mid_write_failure_restores_all_files():
             with open(absolute, "rb") as handle:
                 assert handle.read() == expected
     finally:
-        symbol_refactor._replace_file = original_replace
+        _restore_patched(patched)
         shutil.rmtree(root, ignore_errors=True)
 
 

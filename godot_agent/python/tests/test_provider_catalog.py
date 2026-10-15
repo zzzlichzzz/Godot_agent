@@ -523,8 +523,8 @@ check(u"маска ключа при этом на месте",
 import catalog as CAT
 
 CAT.forget()
-check(u"без кэша каталога список провайдеров прежний — семь разобранных",
-      len(P.provider_ids()) == 7 and P.catalog_records() == {})
+check(u"без кэша каталога список провайдеров прежний — восемь разобранных",
+      len(P.provider_ids()) == 8 and P.catalog_records() == {})
 
 FAKE_API = {
     # Наши: реестр обязан выиграть, каталожная копия в список не попадает.
@@ -595,8 +595,8 @@ check(u"несколько переменных окружения помече�
 CAT._save({"version": 1, "at": time.time(), "etag": "", "error": "",
            "try_at": 0.0, "providers": CAT._compact(FAKE_API),
            "catalog_providers": meta})
-check(u"пока полный список выключен, провайдеров по-прежнему семь",
-      api_keys.catalog_enabled() is False and len(P.provider_ids()) == 7)
+check(u"пока полный список выключен, провайдеров по-прежнему восемь",
+      api_keys.catalog_enabled() is False and len(P.provider_ids()) == 8)
 api_keys.set_catalog_enabled(True)
 ids = P.provider_ids()
 check(u"с включённым списком добавились только ЧУЖИЕ пригодные записи",
@@ -655,8 +655,8 @@ check(u"предупреждение о нескольких значениях 
 api_keys.set_key("nano-like", "")
 api_keys.set_key("two-secrets", "")
 api_keys.set_catalog_enabled(False)
-check(u"после удаления ключей и выключения список снова из семи",
-      len(P.provider_ids()) == 7)
+check(u"после удаления ключей и выключения список снова из восьми",
+      len(P.provider_ids()) == 8)
 check(u"СЫРОГО ключа каталожных записей в списке провайдеров нет",
       "TESTVALUE" not in json.dumps(P.list_providers(), ensure_ascii=False))
 CAT.forget()

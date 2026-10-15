@@ -201,7 +201,7 @@ def _file_of(err):
     return m.group(1) if m else ""
 
 
-def format_report(report):
+def format_log_report(report):
     """Полное сообщение для модели с контекстом кода.
 
     ПРО СТРАТЕГИЮ ИСПРАВЛЕНИЯ. Раньше здесь стояло «исправляй ПО ОДНОЙ,

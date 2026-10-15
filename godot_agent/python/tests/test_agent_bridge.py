@@ -222,6 +222,30 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertIn("results truncated at 10", out)
         self.assertNotIn("Traceback", out + err)
 
+    def test_search_long_minified_line_is_clipped(self):
+        # minified-файл держит весь документ одной строкой: без обрезки один
+        # ответ поиска раздувался до мегабайтов (в живом прогоне — 2.1 МБ в
+        # одном сообщении, ~780к токенов в промпте одного вызова модели).
+        # Строка обязана обрезаться, а пометка — называть полную длину.
+        long_line = '{"k": "bridge_minified_marker' + 'x' * 5000 + '"}'
+        Path(self.root, "src", "cache.json").write_text(
+            long_line + "\n", encoding="utf-8")
+
+        rc, out, err = run_bridge(
+            self.base + ["search", "bridge_minified_marker"])
+
+        self.assertEqual(rc, 0, err)
+        self.assertIn("cache.json", out)
+        self.assertIn("bridge_minified_marker", out)
+        self.assertIn("строка обрезана, всего %d символов" % len(long_line), out)
+        self.assertNotIn("x" * 400, out)
+        self.assertLess(len(out), 2000)
+        # Короткие строки не трогаются: пометки обрезки в обычной выдаче нет.
+        rc, out, err = run_bridge(self.base + ["search", "take_damage"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("hp -= amount", out)
+        self.assertNotIn("строка обрезана", out)
+
     # --- ask (библиотекарь) -------------------------------------------------
 
     def test_ask_exit0_librarian_answer(self):
@@ -1798,6 +1822,235 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertIn("function: heal", out)
         self.assertIn("missing: absent_fn", out)
         self.assertIn("## Комментарий к функции.", out)
+
+    # --- пила .py: split_refactor через мост ---------------------------------
+
+    SPLIT_DONOR = ("def split_probe_alpha():\n    return 1\n\n"
+                   "def split_probe_beta():\n    return 2\n\n"
+                   "def split_probe_gamma():\n    return 3\n")
+
+    def make_split_donor(self):
+        donor = self.agent_dir / "python" / "split_probe.py"
+        donor.write_text(self.SPLIT_DONOR, encoding="utf-8")
+        return donor
+
+    def split_path(self):
+        return "res://addons/Godot_agent/godot_agent/python/split_probe.py"
+
+    def split_payload(self):
+        return {"action": "split_refactor", "file": self.split_path(),
+                "groups": [{"module": "split_probe_part1",
+                            "symbols": ["split_probe_alpha",
+                                        "split_probe_beta"]}]}
+
+    def test_split_scan_reports_refs_and_writes_nothing(self):
+        donor = self.make_split_donor()
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split", "scan", self.split_path()])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("file: python/split_probe.py", out)
+        self.assertIn("refs: import=", out)
+        self.assertIn("hard_files (", out)
+        self.assertEqual(donor.read_text(encoding="utf-8"), self.SPLIT_DONOR)
+
+    def test_split_requires_agent_dev_access(self):
+        self.make_split_donor()
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("addon") + [
+                "split", "scan", self.split_path()])
+        self.assertEqual(rc, 2, out)
+        self.assertIn("agent-dev", out + err)
+
+    def test_split_plan_only_reads(self):
+        donor = self.make_split_donor()
+        request = self.request_file(self.split_payload(), "split_plan.json")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split", "plan", "--request", request])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("module: python/split_probe_part1.py", out)
+        self.assertIn("groups:", out)
+        self.assertEqual(donor.read_text(encoding="utf-8"), self.SPLIT_DONOR)
+        self.assertFalse(
+            (self.agent_dir / "python" / "split_probe_part1.py").exists())
+
+    def test_split_refuses_non_python_and_foreign_files(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split", "scan",
+                "res://addons/Godot_agent/godot_agent/agent.gd"])
+            self.assertEqual(rc, 2, out)
+            self.assertIn(".py", out + err)
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split", "scan", "res://src/tool.py"])
+            self.assertEqual(rc, 2, out)
+
+    def test_split_preview_apply_and_rollback_roundtrip(self):
+        donor = self.make_split_donor()
+        request = self.request_file(self.split_payload(), "split_apply.json")
+        module = self.agent_dir / "python" / "split_probe_part1.py"
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "--validation", "off", "write", "preview",
+                "--request", request])
+            self.assertEqual(rc, 0, out + err)
+            self.assertIn("donor:", out)
+            plan = self.plan_id(out)
+            self.assertRegex(plan, r"^[0-9a-f]{24}$")
+            self.assertEqual(donor.read_text(encoding="utf-8"),
+                             self.SPLIT_DONOR)
+            self.assertFalse(module.exists())
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "--validation", "off", "write", "apply",
+                "--request", request, "--plan-id", plan])
+            self.assertEqual(rc, 0, out + err)
+            entry = self.entry_id(out)
+            self.assertRegex(entry, r"^[0-9a-f]{12}$")
+            self.assertTrue(module.exists())
+            module_text = module.read_text(encoding="utf-8")
+            self.assertIn("def split_probe_alpha", module_text)
+            self.assertIn("def split_probe_beta", module_text)
+            facade = donor.read_text(encoding="utf-8")
+            self.assertIn("from split_probe_part1 import", facade)
+            self.assertIn("def split_probe_gamma", facade)
+            self.assertNotIn("def split_probe_alpha", facade)
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "write", "rollback", "--entry-id", entry])
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(donor.read_text(encoding="utf-8"), self.SPLIT_DONOR)
+        self.assertFalse(module.exists())
+
+
+    # --- пила .gd: split_gd через мост ---------------------------------------
+
+    SPLIT_GD_DONOR = ("extends Node\n"
+                      "\n"
+                      "\n"
+                      "func split_gd_probe_alpha() -> int:\n"
+                      "\treturn 1\n"
+                      "\n"
+                      "\n"
+                      "func split_gd_probe_beta() -> int:\n"
+                      "\treturn 2\n"
+                      "\n"
+                      "\n"
+                      "func split_gd_probe_gamma() -> int:\n"
+                      "\treturn 3\n")
+
+    def make_split_gd_donor(self):
+        donor = self.agent_dir / "split_gd_probe.gd"
+        donor.write_text(self.SPLIT_GD_DONOR, encoding="utf-8")
+        return donor
+
+    def split_gd_path(self):
+        return "res://addons/Godot_agent/godot_agent/split_gd_probe.gd"
+
+    def split_gd_module(self):
+        return self.agent_dir / "split_gd_probe_part1.gd"
+
+    def split_gd_payload(self):
+        return {"action": "split_gd", "file": self.split_gd_path(),
+                "groups": [{"module": "split_gd_probe_part1",
+                            "funcs": ["split_gd_probe_alpha",
+                                      "split_gd_probe_beta"]}]}
+
+    def test_split_gd_scan_reports_refs_and_writes_nothing(self):
+        donor = self.make_split_gd_donor()
+        caller = self.agent_dir / "split_gd_caller.gd"
+        caller.write_text("extends Node\n"
+                          "\n"
+                          "\n"
+                          "func call_it() -> void:\n"
+                          "\tpanel.split_gd_probe_alpha()\n",
+                          encoding="utf-8")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split_gd", "scan", self.split_gd_path()])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("donor: split_gd_probe.gd", out)
+        self.assertIn("refs: path=", out)
+        self.assertIn("call=1", out)
+        self.assertIn("split_gd_caller.gd", out)
+        self.assertEqual(donor.read_text(encoding="utf-8"), self.SPLIT_GD_DONOR)
+
+    def test_split_gd_requires_agent_dev_access(self):
+        self.make_split_gd_donor()
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("addon") + [
+                "split_gd", "scan", self.split_gd_path()])
+        self.assertEqual(rc, 2, out)
+        self.assertIn("agent-dev", out + err)
+
+    def test_split_gd_refuses_python_and_foreign_files(self):
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split_gd", "scan", self.split_path()])
+            self.assertEqual(rc, 2, out)
+            self.assertIn(".gd", out + err)
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split_gd", "scan", "res://src/player.gd"])
+            self.assertEqual(rc, 2, out)
+
+    def test_split_gd_plan_only_reads(self):
+        donor = self.make_split_gd_donor()
+        request = self.request_file(self.split_gd_payload(),
+                                    "split_gd_plan.json")
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "split_gd", "plan", "--request", request])
+        self.assertEqual(rc, 0, out + err)
+        self.assertIn("module: split_gd_probe_part1.gd", out)
+        self.assertIn("groups:", out)
+        self.assertEqual(donor.read_text(encoding="utf-8"), self.SPLIT_GD_DONOR)
+        self.assertFalse(self.split_gd_module().exists())
+
+    def test_split_gd_preview_apply_and_rollback_roundtrip(self):
+        donor = self.make_split_gd_donor()
+        request = self.request_file(self.split_gd_payload(),
+                                    "split_gd_apply.json")
+        module = self.split_gd_module()
+        with patch.object(agent_bridge, "_discover_bridge_agent_dir",
+                          return_value=str(self.agent_dir)):
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "--validation", "off", "write", "preview",
+                "--request", request])
+            self.assertEqual(rc, 0, out + err)
+            self.assertIn("donor:", out)
+            plan = self.plan_id(out)
+            self.assertRegex(plan, r"^[0-9a-f]{24}$")
+            self.assertEqual(donor.read_text(encoding="utf-8"),
+                             self.SPLIT_GD_DONOR)
+            self.assertFalse(module.exists())
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "--validation", "off", "write", "apply",
+                "--request", request, "--plan-id", plan])
+            self.assertEqual(rc, 0, out + err)
+            entry = self.entry_id(out)
+            self.assertRegex(entry, r"^[0-9a-f]{12}$")
+            self.assertTrue(module.exists())
+            module_text = module.read_text(encoding="utf-8")
+            self.assertIn("static func split_gd_probe_alpha", module_text)
+            self.assertIn("static func split_gd_probe_beta", module_text)
+            donor_text = donor.read_text(encoding="utf-8")
+            self.assertIn("const SplitGdProbePart1 = preload("
+                          "\"split_gd_probe_part1.gd\")", donor_text)
+            self.assertIn("func split_gd_probe_gamma", donor_text)
+            self.assertNotIn("return 1", donor_text)
+            rc, out, err = run_bridge(self.access_base("agent-dev") + [
+                "write", "rollback", "--entry-id", entry])
+        self.assertEqual(rc, 0, out + err)
+        self.assertEqual(donor.read_text(encoding="utf-8"), self.SPLIT_GD_DONOR)
+        self.assertFalse(module.exists())
 
 
 if __name__ == "__main__":

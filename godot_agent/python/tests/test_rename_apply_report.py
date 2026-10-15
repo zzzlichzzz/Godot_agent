@@ -70,6 +70,7 @@ class ApplyReport(unittest.TestCase):
         build_index(self.root)
         for key in ("pending_action", "pending_refactor", "pending_validation",
                     "pending_transaction", "pending_file_refactor",
+                    "pending_split_gd",
                     "pending_node_refactor", "pending_plan"):
             STATE.pop(key, None)
         STATE.update({"project_root": self.root, "pending_action": None,

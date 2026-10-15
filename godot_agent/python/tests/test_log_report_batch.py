@@ -2,7 +2,7 @@
 import os as _os0, sys as _sys0  # v104-restructure: tests/ -> python/
 _sys0.path.insert(0, _os0.path.abspath(_os0.path.join(_os0.path.dirname(_os0.path.abspath(__file__)), _os0.pardir)))
 import _bootstrap  # noqa: E402,F401
-"""Тесты пакетного отчёта об ошибках запуска игры (log_reader.format_report).
+"""Тесты пакетного отчёта об ошибках запуска игры (log_reader.format_log_report).
 
 Что изменилось и почему. Раньше модели предписывалось «исправляй ПО ОДНОЙ,
 начиная с первой». Причина была верной (сообщения 2..N часто следствие
@@ -48,7 +48,7 @@ REPORT = {
     "input_actions": ["jump", "move_left"],
 }
 
-text = LR.format_report(REPORT)
+text = LR.format_log_report(REPORT)
 
 # ---------------------------------------------------------------------------
 # 1) Новая стратегия исправления
@@ -110,12 +110,12 @@ check(u"мусорный location -> пустая строка",
 # ---------------------------------------------------------------------------
 # 5) Пустой и вырожденный отчёт не ломают форматирование
 # ---------------------------------------------------------------------------
-empty = LR.format_report({"log_time": "1", "errors": [], "total_unique": 0,
+empty = LR.format_log_report({"log_time": "1", "errors": [], "total_unique": 0,
                           "input_actions": None})
 check(u"отчёт без ошибок собирается", isinstance(empty, str) and len(empty) > 0)
 check(u"в пустом отчёте нет подписей групп", u"--- Файл" not in empty)
 
-one = LR.format_report({"log_time": "1", "total_unique": 1,
+one = LR.format_log_report({"log_time": "1", "total_unique": 1,
                         "errors": [err(u"E", u"at: f (res://a.gd:1)")],
                         "input_actions": []})
 check(u"одна ошибка — без подписи группы", u"--- Файл" not in one)

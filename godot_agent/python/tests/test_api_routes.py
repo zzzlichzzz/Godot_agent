@@ -166,7 +166,11 @@ def post(path, body=None):
 st, j = post("/api/providers")
 ids = [p["id"] for p in j["providers"]]
 check(u"/api/providers отвечает 200", st == 200)
-check(u"OpenRouter первым в списке", ids and ids[0] == "openrouter")
+import providers as _PR0  # noqa: E402
+check(u"ClinePass первым в списке", ids and ids[0] == "clinepass")
+check(u"OpenRouter остаётся в списке и остаётся провайдером по умолчанию",
+      "openrouter" in ids and _PR0.DEFAULT_PROVIDER_ID == "openrouter"
+      and _PR0.DEFAULT_PROVIDER_ID in ids)
 check(u"AgentRouter добавлен в список", "agentrouter" in ids)
 agentrouter_rec = [p for p in j["providers"] if p["id"] == "agentrouter"][0]
 check(u"AgentRouter предлагает GPT 5.6 Sol по умолчанию",
@@ -719,7 +723,7 @@ st, j = post("/api/providers")
 check(u"по умолчанию полный список выключен",
       (j.get("catalog") or {}).get("show_all") is False)
 _base_ids = [p["id"] for p in j["providers"]]
-check(u"и провайдеров ровно семь разобранных", len(_base_ids) == 7)
+check(u"и провайдеров ровно восемь разобранных", len(_base_ids) == 8)
 check(u"панель знает, сколько записей добавит включение",
       int((j.get("catalog") or {}).get("known_providers", 0)) >= 1)
 
@@ -766,7 +770,7 @@ check(u"СЫРОГО ключа каталожного провайдера в �
 st, j = post("/api/settings/set", {"catalog": {"enabled": False}})
 ids_off = [p["id"] for p in j["providers"]]
 check(u"после выключения списка настроенный каталожный остаётся видимым",
-      "stranger-ai" in ids_off and len(ids_off) == 8)
+      "stranger-ai" in ids_off and len(ids_off) == 9)
 st, j = post("/api/settings/set", {"provider": "stranger-ai", "key": "",
                                    "model": ""})
 check(u"а без ключа и модели исчезает",

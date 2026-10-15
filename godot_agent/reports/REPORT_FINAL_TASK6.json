@@ -1,0 +1,128 @@
+{
+  "plugin_version": "0.8.11",
+  "engine": "Godot 4.6.3-stable",
+  "artifact_type": "итоговый отчёт по задаче №6 (провайдер ClinePass в реестре плагина)",
+  "ran_at": "2026-10-13T18:47:34",
+  "host_root": "D:\\vajno\\Godot\\тест-плагина-ии",
+  "verdict": "YES",
+  "kind": "FINAL",
+  "1_changed": {
+    "task_source": "tasks/TASK_6_CLINEPASS_PROVIDER.md",
+    "status": "выполнено",
+    "items": [
+      {
+        "what": "провайдер ClinePass добавлен в реестр PROVIDERS — первым в рекомендованном ряду",
+        "where": "python/api/providers.py:87-116",
+        "detail": "id=\"clinepass\", name=\"ClinePass\", base_url=\"https://api.cline.bot/api/v1\", needs_key=True, env_names=(\"CLINE_API_KEY\",), models_path=\"/models\", models=[], default_model=\"\", extra_headers={}. Список моделей намеренно пустой (тянется с /models): пустой список здесь значит «мы его не знаем», а не «моделей нет». Бесплатный уровень не обещан (платная подписка)."
+      },
+      {
+        "what": "openrouter подтверждён в том же ряду и остаётся провайдером по умолчанию",
+        "where": "python/api/providers.py:120-125 (запись openrouter), python/api/providers.py:282 (DEFAULT_PROVIDER_ID)",
+        "detail": "base_url=\"https://openrouter.ai/api/v1\", env_names=(\"OPENROUTER_API_KEY\",); DEFAULT_PROVIDER_ID = \"openrouter\" — значение не менялось."
+      },
+      {
+        "what": "версия плагина поднята по конвенции",
+        "where": "plugin.cfg:6",
+        "detail": "version=\"0.8.11\""
+      },
+      {
+        "what": "статусный слой MCP-обёртки: код 2 — честный ответ, а не сбой; ответ обрезается через _clip",
+        "where": "python/tools/godot_agent_mcp.py:156 (def _tool_result); :71 (_ERROR_CODES = (RC_ERROR, RC_USAGE)); :140 (def _clip)",
+        "detail": "is_error=code in _ERROR_CODES: код 2 («запрошенного не существует») НЕ помечается isError — модель видит штатный ответ и не повторяет вызов. Обрезка длинного текста — _clip (голова+пометка+хвост). Вызовы _tool_result: строки 214, 251, 259, 281, 311, 331."
+      }
+    ],
+    "secrets": "Ключ ClinePass в репозиторий не попадал: отчёт и код содержат только координаты, имена env-переменных (CLINE_API_KEY / OPENROUTER_API_KEY) и метаданные. Значений ключей нет."
+  },
+  "2_how_to_run": {
+    "cwd": "addons/Godot_agent/godot_agent (для selfcheck — addons/Godot_agent/godot_agent/python: selfcheck.py лежит в python/, из корня аддона команда — python -B python/selfcheck.py)",
+    "commands": [
+      "python -B python/tests/test_api_routes.py",
+      "python -B python/selfcheck.py",
+      "python -B python/selfcheck.py --full"
+    ],
+    "ran_fact": {
+      "test_api_routes": "python -B python/tests/test_api_routes.py (cwd addons/Godot_agent/godot_agent), exit 0: строка ClinePass первым в списке -> OK; ИТОГО: 143/143",
+      "selfcheck": "python -B selfcheck.py (cwd addons/Godot_agent/godot_agent/python), exit 0: === RESULT: 185 passed, 0 failed ==="
+    },
+    "notes": "Профильный тест провайдеров — test_api_routes.py (строка 170: ids[0] == \"clinepass\"). Полная самопроверка печатает итог в формате \"=== RESULT: N passed, M failed ===\" (python/selfcheck.py:3695) и выходит с кодом 0/1."
+  },
+  "3_checks": {
+    "markers": [
+      {"what": "запись ClinePass в реестре провайдеров", "where": "python/api/providers.py:87", "value": "\"id\": \"clinepass\""},
+      {"what": "адрес Cline API", "where": "python/api/providers.py:102", "value": "https://api.cline.bot/api/v1"},
+      {"what": "имя переменной ключа ClinePass", "where": "python/api/providers.py:111", "value": "env_names=('CLINE_API_KEY',)"},
+      {"what": "пустой список моделей (живой /models)", "where": "python/api/providers.py:116", "value": "\"models\": []"},
+      {"what": "запись openrouter", "where": "python/api/providers.py:120-125", "value": "\"id\": \"openrouter\""},
+      {"what": "провайдер по умолчанию", "where": "python/api/providers.py:282", "value": "DEFAULT_PROVIDER_ID = \"openrouter\""},
+      {"what": "версия плагина", "where": "plugin.cfg:6", "value": "version=\"0.8.11\""},
+      {"what": "определение _tool_result", "where": "python/tools/godot_agent_mcp.py:156", "value": "def _tool_result(code, text)"},
+      {"what": "коды-ошибки (код 2 в них НЕ входит)", "where": "python/tools/godot_agent_mcp.py:71", "value": "_ERROR_CODES = (agent_bridge.RC_ERROR, agent_bridge.RC_USAGE)"},
+      {"what": "обрезка ответа", "where": "python/tools/godot_agent_mcp.py:140", "value": "def _clip(text, limit=MAX_TEXT)"},
+      {"what": "вызовы _tool_result", "where": "python/tools/godot_agent_mcp.py:214,251,259,281,311,331", "value": "return _tool_result(...)"},
+      {"what": "итог самопроверки", "where": "python/selfcheck.py:3695", "value": "=== RESULT: %d passed, %d failed ==="},
+      {"what": "проверка порядка провайдеров в тесте", "where": "python/tests/test_api_routes.py:170", "value": "check(u\"ClinePass первым в списке\", ids and ids[0] == \"clinepass\")"},
+      {"what": "постановка задачи №6", "where": "tasks/TASK_6_CLINEPASS_PROVIDER.md", "value": "найден, статус «отправлено в цикл»"}
+    ],
+    "grep_summary": "Все маркеры таблицы подтверждены grep-выводом по каталогу addons/Godot_agent/godot_agent (см. выше координаты file:line). Секретов в отчёте нет.",
+    "honest_gap": {
+      "marker": "Max iterations",
+      "found_in_repo": 0,
+      "grep_result": "нет совпадений (Godot_search \"Max iterations\" -> no matches)",
+      "note": "Маркер «Max iterations» в репозитории не найден НИ РАЗУ. Ближайшие аналоги лимита итераций:",
+      "analogs": [
+        {"where": "n8n/schemas/template_v2_core_4_channels.json:22,113,160,207,254,3991,4056,4149,4816,4981", "value": "maxIterations (80 / 100 / 200 / 50)"},
+        {"where": "n8n/schemas/template_v3_economy.json:1134,1238", "value": "$json.cycle_limit"},
+        {"where": "n8n/schemas/template_v2_core_4_channels.json:1494,1507,1520,1533", "value": "счётчик петель этапа канала (лимит 3)"},
+        {"where": "reports/BRANCH4_MCP_NODE_OPS_iterations.json", "value": "cycle_limit=3 как эталон лимита итераций"}
+      ]
+    },
+    "other_checks": {
+      "reports_dir_is_single": "glob addons/Godot_agent/**/reports/*.json -> единственный каталог reports (godot_agent/reports); создан ровно один новый файл REPORT_FINAL_TASK6.json"
+    }
+  },
+  "4_limits": [
+    "Отчёт координатный (file:line); фактические прогоны зафиксированы в 2_how_to_run.ran_fact (selfcheck 185 passed/0 failed, test_api_routes 143/143), но полный режим --full в этой сессии НЕ гонялся.",
+    "Живой обмен с api.cline.bot (реальный ключ, /models, /chat/completions) не выполнялся: поле verified у провайдера не выставлено сознательно (см. providers.py — комментарий у PROVIDERS).",
+    "models_public / live_pricing для ClinePass не выставлены — только после живой проверки именно этих полей.",
+    "Маркер «Max iterations» в репозитории отсутствует: требование либо переформулировать, либо закрепить аналоги (maxIterations, cycle_limit=3) — см. долг №6.",
+    "Проверка порядка провайдеров опирается на оффлайн-тест с локальным сервером; живого сервера плагина при этой проверке не было."
+  ],
+  "debt": [
+    {
+      "id": "executions 106/108/109/112/113",
+      "source": "n8n-прогоны цикла",
+      "why": "незакрытые прогоны n8n — нет итогового подтверждения по камере MCP",
+      "next": "дождаться/выгрузить финальный статус каждого execution и зафиксировать вердикт по каналу MCP"
+    },
+    {
+      "id": "reports/BRANCH3_EDITOR_AUDIT2.json",
+      "source": "reports/BRANCH3_EDITOR_AUDIT2.json (verdict: PARTIAL)",
+      "why": "кросс-проверка не доведена; связь с reports/BRANCH3_EDITOR_NODE_OPS.json (verdict: NO) не закрыта",
+      "next": "довести кросс-проверку до итогового вердикта (YES/NO) и записать его в отчёт"
+    },
+    {
+      "id": "reports/BRANCH4_BROWSER_STAGE4_FACT_REPORT.json",
+      "source": "reports/BRANCH4_BROWSER_STAGE4_FACT_REPORT.json",
+      "why": "verdict: FACT-ONLY (runs[]/checks[]/file_line[]/why_no) — без перехода в YES",
+      "next": "дособрать факты до состояния, допускающего вердикт YES, либо зафиксировать NO с причиной"
+    },
+    {
+      "id": "plan_id=35b4387429063aa5ecb87214 / entry_id=beab11c55d27",
+      "source": "журнал моста записи",
+      "why": "запись плана/входа не закрыта (нет подтверждения apply/rollback)",
+      "next": "проверить состояние плана/входа и закрыть запись (apply либо write_rollback по entry_id)"
+    },
+    {
+      "id": "python/selfcheck.py",
+      "source": "python/selfcheck.py:3695",
+      "why": "прогон самопроверки не зафиксирован в отчёте — нет выписки \"=== RESULT: N passed, M failed ===\"",
+      "next": "прогнать python -B selfcheck.py из addons/Godot_agent/godot_agent и вписать строку итога в отчёт"
+    },
+    {
+      "id": "Max iterations",
+      "source": "поиск по репозиторию",
+      "why": "маркер отсутствует в репозитории (0 совпадений)",
+      "next": "либо переформулировать требование, либо закрепить аналоги (maxIterations, cycle_limit=3) как эталон лимита итераций"
+    }
+  ]
+}

@@ -143,7 +143,7 @@ def _script_context_requested(user_prompt):
 
 def snapshot_for_prompt(user_prompt, snapshot):
     """Keep high-value live state while omitting unrelated open editor code."""
-    clean = normalize_snapshot(snapshot)
+    clean = normalize_editor_snapshot(snapshot)
     if not clean:
         return {}
     scene = clean.get("scene")
@@ -187,7 +187,7 @@ def _run_block(value):
     return ["Run state: " + ("playing" if value["playing"] else "stopped")]
 
 
-def normalize_snapshot(value):
+def normalize_editor_snapshot(value):
     """Return a bounded primitive-only schema-v1 snapshot for later local tools."""
     if not isinstance(value, dict) or value.get("schema_version") != SCHEMA_VERSION:
         return {}
@@ -307,9 +307,9 @@ def normalize_snapshot(value):
     return out if len(out) > 1 else {}
 
 
-def format_snapshot(value, max_chars=DEFAULT_MAX_CHARS):
+def format_editor_snapshot(value, max_chars=DEFAULT_MAX_CHARS):
     """Return (prompt block, section character counts), dropping malformed data."""
-    value = normalize_snapshot(value)
+    value = normalize_editor_snapshot(value)
     if not value:
         return "", {}
     try:
@@ -349,7 +349,7 @@ def format_snapshot(value, max_chars=DEFAULT_MAX_CHARS):
 
 
 def attach_to_prompt(user_prompt, snapshot, max_chars=DEFAULT_MAX_CHARS):
-    block, stats = format_snapshot(
+    block, stats = format_editor_snapshot(
         snapshot_for_prompt(user_prompt, snapshot), max_chars=max_chars)
     if not block:
         return user_prompt, stats

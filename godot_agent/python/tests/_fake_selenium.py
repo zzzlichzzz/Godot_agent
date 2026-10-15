@@ -56,6 +56,23 @@ def install():
     sel_keys.Keys = Keys
     sel_ac.ActionChains = ActionChains
 
+    class Service(object):
+        """Заглушка selenium.webdriver.chrome.service.Service (импорт браузера)."""
+
+        def __init__(self, *args, **kwargs):
+            self.path = kwargs.get("path") or (args[0] if args else None)
+            self.service_args = kwargs.get("service_args") or []
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+    sel_wd_chrome = types.ModuleType("selenium.webdriver.chrome")
+    sel_wd_chrome_service = types.ModuleType("selenium.webdriver.chrome.service")
+    sel_wd_chrome_service.Service = Service
+
     sys.modules["selenium"] = sel
     sys.modules["selenium.common"] = sel_common
     sys.modules["selenium.common.exceptions"] = sel_exc
@@ -63,3 +80,5 @@ def install():
     sys.modules["selenium.webdriver.common"] = sel_wd_common
     sys.modules["selenium.webdriver.common.keys"] = sel_keys
     sys.modules["selenium.webdriver.common.action_chains"] = sel_ac
+    sys.modules["selenium.webdriver.chrome"] = sel_wd_chrome
+    sys.modules["selenium.webdriver.chrome.service"] = sel_wd_chrome_service

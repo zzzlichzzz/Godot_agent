@@ -5,6 +5,7 @@ import subprocess
 import urllib.request
 
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 # Стартовый адрес браузера. РАНЬШЕ здесь сразу открывался AI Studio —
 # теперь браузер стартует на пустой странице, а конкретный сайт/чат
@@ -147,6 +148,11 @@ def setup_browser():
         print("1. Обнаружен уже запущенный браузер агента — подключаюсь к нему.")
     else:
         print("1. Запускаю выделенный браузер...")
+        # ВАЖНО (13.10.2026): close_fds=True — иначе Chrome наследует хендлы
+        # сервера, включая слушающий сокет :5000 (werkzeug объявляет его
+        # наследуемым ради перезагрузчика). Живая копия сокета в чужом
+        # процессе держит порт даже после смерти сервера — панель тогда
+        # «не соединяется» (реальный случай: осиротевший chromedriver).
         subprocess.Popen([
             chrome_path,
             '--remote-debugging-port=9222',
@@ -161,14 +167,21 @@ def setup_browser():
             # и дополнительно троттлит рендер — отключаем эту эвристику.
             '--disable-features=CalculateNativeWinOcclusion',
             START_URL
-        ])
+        ], close_fds=True)
         print("2. Жду готовности remote-debugging порта...")
         if not _wait_for_debug_port(9222, timeout=20.0):
             print("⚠ Порт отладки Chrome не ответил вовремя, пробую подключиться всё равно...")
     print("3. Подключаю управление...")
     options = webdriver.ChromeOptions()
     options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
-    driver = webdriver.Chrome(options=options)
+    # ВАЖНО (13.10.2026): selenium на Windows запускает chromedriver с
+    # наследованием хендлов (close_fds=False по умолчанию), и chromedriver
+    # получает копию слушающего сокета сервера :5000. После смерти сервера
+    # осиротевший chromedriver держит порт — панель «не соединяется».
+    # Сервис с popen_kw={"close_fds": True} отключает наследование; путь к
+    # драйверу по-прежнему находит Selenium Manager (ChromiumDriver.__init__).
+    service = ChromeService(popen_kw={"close_fds": True})
+    driver = webdriver.Chrome(options=options, service=service)
     # v105: спуф видимости БОЛЬШЕ НЕ ставится вслепую при старте браузера.
     # Раньше он вешался здесь на стартовую вкладку (about:blank), а
     # Page.addScriptToEvaluateOnNewDocument живёт до закрытия вкладки — значит

@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "map_version": 3,
+  "note": "Карта архитектуры агента. Правило: функциональность живёт в ядре (core_dir); потребители (панель, сервер, browser, api, backends, tools) вызывают ядро и добавляют только тонкую проводку в своей сфере. Гейт моста (agent_bridge, режим agent-dev) читает эту карту при создании НОВЫХ .py-файлов агента: имя из ядра — отказ; зона-потребитель или зона вне карты — предупреждение; зона deny — отказ. Зоны с check_names:false сверяются только по зоне, без имён (тесты, скрипты n8n, per-site парсеры — одноимённые локальные помощники там нормальны). Подробности — docs/ARCHITECTURE.md. Чистота проекта: limits задаёт лимиты строк на файл (line_max — жёсткий, line_warn — предупреждение); новый файл сверх лимита — отказ гейта, близкий к лимиту — строка «arch:». Корневая зона *.py: python-код в корне аддона — не место (код живёт в python/).",
+  "core_dir": "python/godot_tools",
+  "limits": {
+    "line_warn": 1500,
+    "line_max": 2000,
+    "line_exts": [".py", ".gd"],
+    "line_exempt_roles": ["workflow", "generated", "tasks", "reports"]
+  },
+  "name_stoplist": [
+    "main",
+    "run",
+    "build",
+    "prepare",
+    "apply",
+    "load",
+    "save",
+    "read",
+    "write",
+    "parse",
+    "test",
+    "check",
+    "setup",
+    "teardown",
+    "start",
+    "stop",
+    "process",
+    "handle",
+    "install",
+    "status",
+    "payload",
+    "log",
+    "mask"
+  ],
+  "zones": [
+    {
+      "glob": "python/godot_tools/**",
+      "role": "core",
+      "new_files": "allow",
+      "hint": "ЯДРО: вся новая функциональность агента живёт здесь; потребители вызывают её, а не копируют"
+    },
+    {
+      "glob": "python/tests/**",
+      "role": "tests",
+      "new_files": "allow",
+      "check_names": false,
+      "hint": "тесты: файлы самодостаточны, одноимённые фикстуры — норма; на новую функцию ядра — тест в этом же коммите"
+    },
+    {
+      "glob": "python/tools/**",
+      "role": "consumer",
+      "new_files": "warn",
+      "hint": "мосты (agent_bridge, MCP-обёртка) и операторские скрипты: только проводка, логика — в ядре"
+    },
+    {
+      "glob": "python/server/**",
+      "role": "consumer",
+      "new_files": "warn",
+      "hint": "сервер панели — потребитель ядра: новое действие оформляй в python/godot_tools и вызывай"
+    },
+    {
+      "glob": "python/browser/**",
+      "role": "consumer",
+      "new_files": "warn",
+      "hint": "браузер — потребитель: минимум собственной логики, максимум вызовов ядра"
+    },
+    {
+      "glob": "python/api/**",
+      "role": "consumer",
+      "new_files": "warn",
+      "hint": "API-слой — потребитель ядра"
+    },
+    {
+      "glob": "python/backends/**",
+      "role": "consumer",
+      "new_files": "warn",
+      "hint": "бэкенды — потребители ядра"
+    },
+    {
+      "glob": "python/parsers/**",
+      "role": "consumer",
+      "new_files": "allow",
+      "check_names": false,
+      "hint": "новый парсер сайта — по образцу parser_base; общая логика — в parser_base, а не копией"
+    },
+    {
+      "glob": "python/minilich/**",
+      "role": "subsystem",
+      "new_files": "allow",
+      "check_names": false,
+      "hint": "ML-подсистема minilich"
+    },
+    {
+      "glob": "python/*",
+      "role": "root",
+      "new_files": "warn",
+      "check_names": false,
+      "hint": "новый файл в корне python/ — нетипично: точка входа одна (main.py), ядро — в godot_tools"
+    },
+    {
+      "glob": "docs/**",
+      "role": "docs",
+      "new_files": "allow",
+      "check_names": false,
+      "hint": "документация: решения, правила, карта архитектуры"
+    },
+    {
+      "glob": "n8n/**",
+      "role": "workflow",
+      "new_files": "allow",
+      "check_names": false,
+      "hint": "схемы и скрипты n8n-фабрики"
+    },
+    {
+      "glob": "tasks/**",
+      "role": "tasks",
+      "new_files": "allow",
+      "check_names": false
+    },
+    {
+      "glob": "reports/**",
+      "role": "reports",
+      "new_files": "allow",
+      "check_names": false
+    },
+    {
+      "glob": "agent_api_cache/**",
+      "role": "generated",
+      "new_files": "deny",
+      "hint": "кэш ClassDB генерируется экспортёром в редакторе — файлы здесь не создаём"
+    },
+    {
+      "glob": "minilich_brain/**",
+      "role": "generated",
+      "new_files": "deny",
+      "hint": "датасеты и чекпоинты обновляет только тренер"
+    },
+    {
+      "glob": "python/dist/**",
+      "role": "generated",
+      "new_files": "deny",
+      "hint": "сборка exe — генерируется build_server_exe.bat"
+    },
+    {
+      "glob": "python/parser_corpus/**",
+      "role": "generated",
+      "new_files": "deny"
+    },
+    {
+      "glob": "**/__pycache__/**",
+      "role": "generated",
+      "new_files": "deny"
+    },
+    {
+      "glob": "*.py",
+      "role": "root-stray",
+      "new_files": "warn",
+      "check_names": false,
+      "hint": "python-код в корне аддона не живёт: код — в python/ (ядро — python/godot_tools); перенеси файл в свою зону"
+    },
+    {
+      "glob": "*.gd",
+      "role": "godot-side",
+      "new_files": "warn",
+      "check_names": false,
+      "hint": "панельная логика: расширяй существующие executor/panel-файлы; общая функциональность — в ядро python/godot_tools"
+    },
+    {
+      "glob": "*.tscn",
+      "role": "godot-side",
+      "new_files": "warn",
+      "check_names": false
+    },
+    {
+      "glob": "**",
+      "role": "unknown",
+      "new_files": "warn",
+      "hint": "зона не описана в карте — обнови docs/architecture_map.json осознанно"
+    }
+  ]
+}

@@ -427,8 +427,18 @@ class PanelSettingDefault(unittest.TestCase):
                          "agent_panel.gd")
 
     def setUp(self):
+        # Тела методов вынесены «пилой» split_gd в agent_panel_part*.gd:
+        # для проверок исходник панели — это части вместе с донором.
+        addon_dir = os.path.dirname(self.PANEL)
+        sources = []
+        for name in sorted(os.listdir(addon_dir)):
+            if name.startswith("agent_panel_part") and name.endswith(".gd"):
+                with open(os.path.join(addon_dir, name), "r",
+                          encoding="utf-8") as handle:
+                    sources.append(handle.read())
         with open(self.PANEL, "r", encoding="utf-8") as handle:
-            self.source = handle.read()
+            sources.append(handle.read())
+        self.source = "\n".join(sources)
 
     def test_panel_has_unverified_toggle_defaulting_to_true(self):
         self.assertRegex(
@@ -446,7 +456,7 @@ class PanelSettingDefault(unittest.TestCase):
         """Отсутствие файла настроек = включено. Иначе первое же открытие
         проекта молча выставило бы strict вопреки «галочка стоит по стандарту»."""
         match = re.search(
-            r"func\s+_load_rename_unverified_setting.*?\n\nfunc", self.source, re.S)
+            r"func\s+_load_rename_unverified_setting.*?\n\n(?:static )?func", self.source, re.S)
         self.assertIsNotNone(match, "не найден загрузчик настройки")
         body = match.group(0)
         self.assertRegex(body, r"file_exists\([^)]*\)\s*:\s*\n?\s*return\s+true")
@@ -454,9 +464,95 @@ class PanelSettingDefault(unittest.TestCase):
     def test_panel_sends_the_flag_in_policy_body(self):
         """Флаг обязан уезжать тем же каналом, что allow_addons, иначе сервер
         не узнает о снятой галочке и поведёт себя по умолчанию."""
-        match = re.search(r"func\s+_policy_body.*?\n\nfunc", self.source, re.S)
+        match = re.search(r"func\s+_policy_body.*?\n\n(?:static )?func", self.source, re.S)
         self.assertIsNotNone(match, "не найдена _policy_body")
         self.assertIn("rename_unverified", match.group(0))
+
+
+class ExcludeEntryKind(unittest.TestCase):
+    """Этап 2: НЕРАЗОБРАННАЯ exclude-запись — поведение зафиксировано.
+
+    Разбор адреса снятого места один на проект (`_exclude_place_kind`), и у него
+    три исхода:
+      * ("place", res://путь.gd, строка) — точечное место;
+      * ("path",  res://путь.gd, None)   — адрес файла без номера строки;
+      * ("invalid", None, None)          — не адрес вовсе (мусор).
+    Раньше первый из этих исходов неявно означал «весь файл», а третий просто
+    пропадал. Здесь оба закреплены.
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="rename_exclude_kind_")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self._write("project.godot", "config_version=5\n")
+        self._write("src/player.gd", PLAYER)
+        self._write("src/typed.gd", TYPED)
+        self._reindex()
+
+    def _write(self, rel, text):
+        path = os.path.join(self.root, *rel.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+
+    def _read(self, rel):
+        with open(os.path.join(self.root, *rel.split("/")), "r", encoding="utf-8") as handle:
+            return handle.read()
+
+    def _reindex(self):
+        ml_project_index._MEM_CACHE.clear()
+        ml_project_index.build_index(self.root)
+
+    def _action(self, exclude):
+        return {"action": "rename_symbol", "kind": "class_name",
+                "declaration": "res://src/player.gd:1",
+                "old_name": "Player", "new_name": "Avatar",
+                "allow_unverified": True, "exclude": exclude}
+
+    # --- (a) запись без номера строки: явный отказ ---
+    def test_path_only_exclude_is_refused(self):
+        """Запись без :строки не поддержана — RenameError ДО регистрации правок.
+
+        Семантика «весь файл» была скрытой: она снимала все места файла, а
+        объявление переименовывалось всё равно — DECL RENAMED и USAGE STALE.
+        Один детерминированный исход честнее: отказать и не трогать файл.
+        """
+        before = self._read("src/player.gd")
+        with self.assertRaises(symbol_refactor.RenameError) as ctx:
+            symbol_refactor.prepare_rename(
+                self.root, self._action(["res://src/player.gd"]))
+        self.assertIn("без номера строки", str(ctx.exception))
+        self.assertIn("res://src/player.gd", str(ctx.exception))
+        # Отказ приходит ДО регистрации правок: файл проекта байт-в-байт тот же.
+        self.assertEqual(self._read("src/player.gd"), before)
+        self.assertIn("class_name Player", before)
+
+    # --- (б) мусорная запись: игнор, ренейм НЕ падает ---
+    def test_junk_exclude_entry_is_ignored(self):
+        """Не-адрес в exclude — шум: ни одного места не снимает.
+
+        Иначе опечатка в id ломала бы подтверждение целиком, а пользователь
+        терял бы и ту часть правки, которую он не снимал.
+        """
+        for junk in ("мусор", "", "   ", "::", "5"):
+            self.assertEqual(symbol_refactor._exclude_place_kind(junk),
+                             ("invalid", None, None), junk)
+            self.assertEqual(symbol_refactor.exclude_place(junk), "", junk)
+        action = self._action(["мусор", "", "   ", "::"])
+        # Мусор отбрасывается целиком: множество снятых мест пусто —
+        # ровно как при отсутствии exclude.
+        self.assertEqual(symbol_refactor._excluded_places(action["exclude"]), set())
+        prepared = symbol_refactor.prepare_rename(self.root, action)
+        symbol_refactor.apply_prepared_rename(self.root, prepared)
+        self.assertIn("class_name Avatar", self._read("src/player.gd"))
+        self.assertIn("var unit: Avatar", self._read("src/typed.gd"))
+
+    # --- (в) мусор рядом с настоящим адресом не мешает точечному снятию ---
+    def test_junk_does_not_cancel_valid_exclude(self):
+        self.assertEqual(
+            symbol_refactor._excluded_places(
+                ["мусор", "res://src/player.gd:7", ""]),
+            {("res://src/player.gd", 7)})
 
 
 if __name__ == "__main__":

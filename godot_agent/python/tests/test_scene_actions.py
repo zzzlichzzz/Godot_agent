@@ -32,7 +32,15 @@ def fixture():
     write(root, "project.godot", "config_version=5\n")
     write(root, "scenes/main.tscn", '[gd_scene format=3]\n\n[node name="Main" type="Node"]\n')
     write(root, "src/hud.gd", "extends CanvasLayer\n")
+    # Политика аддонов fail-closed: без серверного addon_dir доступ к addons
+    # запрещён, поэтому фикстура даёт валидный «свой» аддон.
+    write(root, "addons/Godot_agent/godot_agent/agent.gd", "extends Node\n")
     return root
+
+
+def agent_dir(root):
+    """Абсолютный путь текущего агента для проверок политики аддонов."""
+    return os.path.join(root, "addons", "Godot_agent", "godot_agent")
 
 
 def test_full_schema_and_digest_are_deterministic():
@@ -103,7 +111,7 @@ def test_sequence_and_addon_policy_are_conservative():
         scene_actions.normalize_action(root, {
             "action": "edit_scene", "scene": "res://addons/demo/tool.tscn",
             "operations": [{"op": "add_node", "parent": ".", "name": "N", "type": "Node"}],
-        }, allow_addons=True)
+        }, allow_addons=True, addon_dir=agent_dir(root))
         raises(lambda: scene_actions.normalize_action(root, {
             "action": "edit_scene", "scene": "res://scenes/main.tscn",
             "operations": [
