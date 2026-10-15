@@ -468,17 +468,38 @@ def _owner_shadows_name(owner, name, declarations):
                for item in declarations)
 
 def _get_script_parent(text, file_path):
-    """Return (parent_path, parent_class) for a script's extends clause."""
+    """Return (parent_path, parent_class) for a script's extends clause.
+    file_path — res://-путь или абсолютный; относительный extends разрешается
+    от папки файла и возвращается в ТОМ ЖЕ виде, что и file_path (res:// →
+    res://, abs → abs), иначе вызывающие не смогут сравнить пути напрямую.
+    Берётся первый extends: по правилам GDScript extends файла обязан стоять
+    до любых членов, поэтому первый extends — верхнеуровневый; extends внутри
+    inner class (class Inner extends X) идёт позже токена class и отсекается."""
     tokens = gd_semantic_parser.tokenize(text)
+    seen_class_kw = False
     for i, t in enumerate(tokens):
-        if t.get("value") == "extends" and i + 1 < len(tokens):
+        val = t.get("value")
+        if val == "class":
+            seen_class_kw = True
+            continue
+        if val == "extends" and i + 1 < len(tokens):
+            if seen_class_kw:
+                # extends inner class — родителем файла быть не может
+                return None, None
             nxt = tokens[i + 1]
             if nxt.get("kind") == "string":
-                val = _exact_string_value(nxt.get("value", ""))
-                if val.startswith("res://"):
-                    return val, None
+                val2 = _exact_string_value(nxt.get("value", ""))
+                if val2.startswith("res://"):
+                    return val2, None
+                if file_path.startswith("res://"):
+                    import posixpath
+                    rest = file_path[len("res://"):]
+                    rel_dir = rest.rsplit("/", 1)[0] if "/" in rest else ""
+                    joined = posixpath.normpath(
+                        (rel_dir + "/" + val2) if rel_dir else val2)
+                    return "res://" + joined, None
                 base_dir = os.path.dirname(file_path)
-                norm = os.path.normpath(os.path.join(base_dir, val)).replace("\\", "/")
+                norm = os.path.normpath(os.path.join(base_dir, val2)).replace("\\", "/")
                 return norm, None
             elif nxt.get("kind") == "identifier":
                 return None, nxt.get("value")
