@@ -1,6 +1,7 @@
 import errno
 import os
 import shutil
+import stat
 import tempfile
 
 from text_sanitize import sanitize_llm_text
@@ -156,17 +157,18 @@ def build_project_tree(project_root, max_depth=8, only_exts=None, max_entries=No
     lines = []
     count = 0
     truncated = False
+    ctx = _ScanPolicyContext(project_root, addon_dir)
     for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = sorted(
             d for d in dirnames
             if (d not in EXCLUDED_DIRS
                 or _excluded_dir_allowed_by_policy(
                     d, dirpath, project_root, allow_addons,
-                    allow_self_edit, addon_dir))
+                    allow_self_edit, addon_dir, ctx))
             and not d.startswith('.'))
         _filter_project_scan_entries(
             dirnames, filenames, dirpath, project_root,
-            allow_addons, allow_self_edit, addon_dir)
+            allow_addons, allow_self_edit, addon_dir, ctx=ctx)
         rel = os.path.relpath(dirpath, base)
         depth = 0 if rel == '.' else rel.count(os.sep) + 1
         if depth > max_depth:
@@ -313,16 +315,9 @@ def is_agent_path(path, project_root, addon_dir=None):
             or absolute_identity.startswith(agent_identity + os.sep))
 
 
-def classify_project_path(path, project_root, addon_dir=None):
-    """Classify a path by resolved, case-insensitive project identity.
-
-    The returned mapping is JSON-friendly and intentionally contains no
-    capability flags.  Access decisions are made separately by
-    ``can_read/write/reference_project_path`` so ``allow_addons`` and
-    ``allow_self_edit`` remain independent.
-    """
-    original = "" if path is None else str(path)
-    result = {
+def _classification_skeleton(original):
+    """Пустая классификация в том же JSON-виде, что отдаёт публичный API."""
+    return {
         "path": original.replace("\\", "/"),
         "absolute_path": "",
         "kind": "invalid",
@@ -333,31 +328,33 @@ def classify_project_path(path, project_root, addon_dir=None):
         "is_project_settings": False,
         "error": None,
     }
-    try:
-        root, absolute, canonical = _resolved_project_path(project_root, path)
-    except _PathOutsideError as exc:
-        result.update(kind="outside", error=str(exc))
-        return result
-    except (OSError, TypeError, ValueError) as exc:
-        result.update(error=str(exc))
-        return result
 
-    rel = os.path.relpath(absolute, root).replace(os.sep, "/")
+
+def _classify_resolved(original, absolute, canonical, root,
+                       project_file_identity, agent_dir_identity,
+                       agent_root_valid, addon_dir, agent_error=None,
+                       rel=None):
+    """Решения политики для уже разрешённого пути внутри проекта.
+
+    Единая точка правды: и ``classify_project_path`` (разрешает путь сам), и
+    обходчик (берёт канонический путь из кэша) принимают решения здесь —
+    оптимизация обхода поэтому не может разойтись с публичным классификатором.
+    ``rel`` — res-относительный путь, если обходчик уже вывел его лексически;
+    иначе он считается здесь, как и раньше.
+    """
+    result = _classification_skeleton(original)
+    if rel is None:
+        rel = os.path.relpath(absolute, root).replace(os.sep, "/")
     rel_folded = rel.casefold()
     history_folded = HISTORY_DIR_NAME.casefold()
-    is_history = rel_folded == history_folded or rel_folded.startswith(history_folded + "/")
-    project_file = os.path.realpath(os.path.join(root, "project.godot"))
-    is_settings = os.path.normcase(absolute) == os.path.normcase(project_file)
+    is_history = (rel_folded == history_folded
+                  or rel_folded.startswith(history_folded + "/"))
+    is_settings = os.path.normcase(absolute) == project_file_identity
     is_addon = rel_folded == "addons" or rel_folded.startswith("addons/")
-
-    agent_error = None
-    is_agent = False
-    if addon_dir:
-        try:
-            _validated_agent_addon_dir(root, addon_dir)
-            is_agent = is_agent_path(canonical, root, addon_dir)
-        except (OSError, TypeError, ValueError) as exc:
-            agent_error = str(exc)
+    identity = os.path.normcase(absolute)
+    is_agent = bool(agent_dir_identity) and (
+        identity == agent_dir_identity
+        or identity.startswith(agent_dir_identity + os.sep))
 
     if is_history:
         kind = "history"
@@ -376,12 +373,49 @@ def classify_project_path(path, project_root, addon_dir=None):
         in_project=True,
         is_addon=is_addon,
         is_agent=is_agent,
-        agent_root_valid=bool(addon_dir and agent_error is None),
+        agent_root_valid=bool(addon_dir and agent_root_valid),
         is_history=is_history,
         is_project_settings=is_settings,
         error=agent_error,
     )
     return result
+
+
+def classify_project_path(path, project_root, addon_dir=None):
+    """Classify a path by resolved, case-insensitive project identity.
+
+    The returned mapping is JSON-friendly and intentionally contains no
+    capability flags.  Access decisions are made separately by
+    ``can_read/write/reference_project_path`` so ``allow_addons`` and
+    ``allow_self_edit`` remain independent.
+    """
+    original = "" if path is None else str(path)
+    result = _classification_skeleton(original)
+    try:
+        root, absolute, canonical = _resolved_project_path(project_root, path)
+    except _PathOutsideError as exc:
+        result.update(kind="outside", error=str(exc))
+        return result
+    except (OSError, TypeError, ValueError) as exc:
+        result.update(error=str(exc))
+        return result
+
+    project_file_identity = os.path.normcase(
+        os.path.realpath(os.path.join(root, "project.godot")))
+    agent_dir_identity = None
+    agent_root_valid = False
+    agent_error = None
+    if addon_dir:
+        try:
+            _root, agent_dir, _wrapper = _validated_agent_addon_dir(
+                root, addon_dir)
+            agent_dir_identity = os.path.normcase(os.path.realpath(agent_dir))
+            agent_root_valid = True
+        except (OSError, TypeError, ValueError) as exc:
+            agent_error = str(exc)
+    return _classify_resolved(
+        original, absolute, canonical, root, project_file_identity,
+        agent_dir_identity, agent_root_valid, addon_dir, agent_error)
 
 
 
@@ -428,79 +462,282 @@ def can_reference_project_path(path, project_root, allow_addons=False,
         "reference", allow_addons, allow_self_edit)
 
 
-def _scan_res_path(project_root, absolute_path):
-    """Return a scan candidate as ``res://...`` or None when lexically outside."""
-    root = os.path.realpath(project_root)
-    absolute = os.path.abspath(absolute_path)
-    rel = os.path.relpath(absolute, root).replace(os.sep, "/")
+def _relative_scan_rel(path, root):
+    """Путь ``path`` относительно корня проекта (``/``) или None, если вне его."""
+    try:
+        rel = os.path.relpath(os.path.abspath(path), root).replace(os.sep, "/")
+    except (OSError, ValueError):
+        # Разные тома: os.path.relpath на Windows бросает ValueError.
+        return None
     if rel == os.curdir:
-        return "res://"
+        return ""
     if rel == os.pardir or rel.startswith(os.pardir + "/"):
         return None
-    return "res://" + rel
+    return rel
+
+
+def _scan_res_path_with_root(root, absolute_path):
+    """``_scan_res_path`` с уже канонизированным корнем проекта."""
+    rel = _relative_scan_rel(absolute_path, root)
+    return None if rel is None else "res://" + rel
+
+
+def _scan_res_path(project_root, absolute_path):
+    """Return a scan candidate as ``res://...`` or None when lexically outside."""
+    return _scan_res_path_with_root(os.path.realpath(project_root), absolute_path)
+
+
+#: Сентинел «res-относительный путь каталога ещё не вычислялся».
+_UNKNOWN_REL = object()
+
+
+class _ScanPolicyContext:
+    """Идентичность политики, посчитанная ОДИН раз на обход.
+
+    ``os.walk`` обходит каждую запись проекта, а политике для всех них нужны
+    одни и те же инварианты: канонический корень, идентичность
+    ``project.godot`` и текущий wrapper агента. Их пересчёт на каждую запись
+    стоил ``os.path.realpath`` (на Windows — ``GetFinalPathNameByHandle`` с
+    открытием handle) и ``os.lstat``: ~22 системных вызова на запись, из-за
+    чего ``search_project_text`` на редком шаблоне работал в 127 раз медленнее,
+    чем в 0.8.0 (2.7 с против 21 мс на проекте из 6.5 тысяч записей).
+
+    Решения не меняются: правила классификации те же (``_classify_resolved``).
+    Кэшируются инварианты, канонические и res-относительные пути каталогов, а
+    признак reparse-точки берётся из одного ``os.scandir`` на каталог
+    (``DirEntry.stat(follow_symlinks=False)`` handle не открывает): 22 мс на
+    весь проект против 246 мс, которые стоил бы ``os.lstat`` на каждую запись.
+    """
+
+    __slots__ = ("root", "root_identity", "project_file_identity",
+                 "agent_dir_identity", "agent_root_valid", "agent_error",
+                 "addon_dir", "_canonical_dirs", "_rel_dirs", "_reparse",
+                 "_last_dir", "_last_key")
+
+    def __init__(self, project_root, addon_dir=None):
+        self.root = os.path.realpath(project_root)
+        self.root_identity = os.path.normcase(self.root)
+        self.project_file_identity = os.path.normcase(
+            os.path.realpath(os.path.join(self.root, "project.godot")))
+        self.addon_dir = addon_dir
+        self.agent_dir_identity = None
+        self.agent_root_valid = False
+        self.agent_error = None
+        if addon_dir:
+            try:
+                _root, agent_dir, _wrapper = _validated_agent_addon_dir(
+                    self.root, addon_dir)
+                self.agent_dir_identity = os.path.normcase(
+                    os.path.realpath(agent_dir))
+                self.agent_root_valid = True
+            except (OSError, TypeError, ValueError) as exc:
+                self.agent_error = str(exc)
+        # Каталоги с уже известным каноническим путём. Ключ — путь в том виде,
+        # в каком его отдаёт os.walk (abspath, не realpath).
+        self._canonical_dirs = {}
+        for alias in (project_root, os.path.abspath(project_root), self.root):
+            self._canonical_dirs[os.path.normcase(alias)] = self.root
+        # res-относительный путь каталога ("" у корня проекта) и карта
+        # reparse-точек каталога, посчитанные по одному разу на каталог.
+        self._rel_dirs = {self.root_identity: ""}
+        self._reparse = {}
+        # Кэш normcase на один каталог: обход идёт каталогами, поэтому
+        # normcase(dirpath) считается один раз на каталог, а не на запись.
+        self._last_dir = None
+        self._last_key = None
+
+    def _dir_key(self, dirpath):
+        """``normcase`` каталога с кэшем на один каталог (обход идёт каталогами)."""
+        if dirpath == self._last_dir:
+            return self._last_key
+        key = os.path.normcase(dirpath)
+        self._last_dir = dirpath
+        self._last_key = key
+        return key
+
+    def _reparse_map(self, dirpath):
+        """{имя: reparse-точка?} для каталога — один ``os.scandir`` вместо lstat."""
+        key = self._dir_key(dirpath)
+        cached = self._reparse.get(key)
+        if cached is not None:
+            return cached
+        found = {}
+        try:
+            with os.scandir(dirpath) as entries:
+                for entry in entries:
+                    try:
+                        info = entry.stat(follow_symlinks=False)
+                    except OSError:
+                        found[entry.name] = True
+                        continue
+                    found[entry.name] = bool(
+                        stat.S_ISLNK(info.st_mode)
+                        or getattr(info, "st_reparse_tag", 0))
+        except OSError:
+            pass
+        self._reparse[key] = found
+        return found
+
+    def _is_reparse_point(self, dirpath, name):
+        """Симлинк/junction/иная reparse-точка; lstat — только для неизвестных."""
+        known = self._reparse_map(dirpath)
+        if name in known:
+            return known[name]
+        # Запись появилась после os.scandir — единственный случай, когда нужен
+        # отдельный системный вызов.
+        try:
+            info = os.lstat(os.path.join(dirpath, name))
+        except OSError:
+            return True
+        return bool(stat.S_ISLNK(info.st_mode)
+                    or getattr(info, "st_reparse_tag", 0))
+
+    def rel_dir(self, dirpath):
+        """res-относительный путь каталога обхода; None — каталог вне проекта."""
+        key = self._dir_key(dirpath)
+        known = self._rel_dirs.get(key, _UNKNOWN_REL)
+        if known is not _UNKNOWN_REL:
+            return known
+        parent = os.path.dirname(dirpath)
+        rel = None
+        outside_link = False
+        if parent and parent != dirpath:
+            parent_rel = self.rel_dir(parent)
+            if parent_rel is not None:
+                name = os.path.basename(dirpath)
+                if self._is_reparse_point(parent, name):
+                    # Каталог-ссылка: путь по цели, как в 0.8.11. Иначе файлы
+                    # за junction классифицировались бы по месту ссылки, а не
+                    # по цели (junction для os.walk — обычный каталог).
+                    rel = _relative_scan_rel(os.path.realpath(dirpath),
+                                             self.root)
+                    outside_link = rel is None
+                elif parent_rel:
+                    rel = parent_rel + "/" + name
+                else:
+                    rel = name
+        if rel is None and not outside_link:
+            # Цепочка родителей не дошла до корня проекта (обход начат вне его
+            # или корень задан ссылкой) — считаем как в 0.8.11.
+            rel = _relative_scan_rel(dirpath, self.root)
+        self._rel_dirs[key] = rel
+        return rel
+
+    def lookup(self, dirpath, name, is_dir=False):
+        """``(res://-кандидат, канонический путь, res-относительный путь)``.
+
+        None — запись лексически вне проекта, обход её пропускает. Всё
+        остальное выводится из уже известного пути каталога, поэтому на
+        обычную запись не приходится ни одного системного вызова.
+        ``is_dir`` — канонический путь каталога запоминается, чтобы спуск в
+        него не стоил ни одного вызова.
+        """
+        parent_rel = self.rel_dir(dirpath)
+        if parent_rel is None:
+            return None
+        lexical = os.path.join(dirpath, name)
+        rel = (parent_rel + "/" + name) if parent_rel else name
+        if self._is_reparse_point(dirpath, name):
+            # Ссылка: и путь, и классификация — по цели, как в 0.8.11.
+            canonical = os.path.realpath(lexical)
+            target_rel = _relative_scan_rel(canonical, self.root)
+            if target_rel is not None:
+                rel = target_rel
+        else:
+            parent_key = self._dir_key(dirpath)
+            parent_canonical = self._canonical_dirs.get(parent_key)
+            if parent_canonical is None:
+                # Обход начат не с корня проекта (подкаталог): канонизируем
+                # каталог один раз, а не на каждую его запись.
+                parent_canonical = os.path.realpath(dirpath)
+                self._canonical_dirs[parent_key] = parent_canonical
+            canonical = os.path.join(parent_canonical, name)
+        if is_dir:
+            # Канонический путь каталога понадобится при спуске в него.
+            self._canonical_dirs.setdefault(
+                os.path.normcase(lexical), canonical)
+        return "res://" + rel, canonical, rel
+
+    def classify(self, res_path, absolute, rel=None):
+        """Классификация записи обхода — ровно то же, что ``classify_project_path``."""
+        identity = os.path.normcase(absolute)
+        if (identity != self.root_identity
+                and not identity.startswith(self.root_identity + os.sep)):
+            result = _classification_skeleton(res_path)
+            result.update(kind="outside",
+                          error="Путь вне проекта отклонен: %s" % res_path)
+            return result
+        if rel is None:
+            rel = _relative_scan_rel(absolute, self.root)
+            if rel is None:
+                result = _classification_skeleton(res_path)
+                result.update(kind="outside",
+                              error="Путь вне проекта отклонен: %s" % res_path)
+                return result
+        return _classify_resolved(
+            res_path, absolute, "res://" + rel, self.root,
+            self.project_file_identity, self.agent_dir_identity,
+            self.agent_root_valid, self.addon_dir, self.agent_error, rel)
 
 
 def _filter_project_scan_entries(dirnames, filenames, dirpath, project_root,
                                  allow_addons, allow_self_edit, addon_dir,
-                                 access="read"):
-    """Drop excluded and physically out-of-policy entries before os.walk descends."""
+                                 access="read", ctx=None):
+    """Drop excluded and physically out-of-policy entries before os.walk descends.
+
+    ``ctx`` — общий на весь обход ``_ScanPolicyContext``: он снимает пересчёт
+    канонических путей с каждой записи (см. класс). Без него контекст
+    создаётся на один вызов, поэтому внешние вызовы не меняются.
+    """
+    if ctx is None:
+        ctx = _ScanPolicyContext(project_root, addon_dir)
     kept_dirs = []
     for name in dirnames:
-        candidate = _scan_res_path(project_root, os.path.join(dirpath, name))
-        if candidate is None:
+        entry = ctx.lookup(dirpath, name, True)
+        if entry is None:
             continue
-        classification = classify_project_path(
-            candidate, project_root, addon_dir)
-        allowed = (can_read_project_path(candidate, project_root, allow_addons,
-                                        allow_self_edit, addon_dir)
-                   if access == "read" else
-                   can_write_project_path(candidate, project_root, allow_addons,
-                                          allow_self_edit, addon_dir))
+        classification = ctx.classify(entry[0], entry[1], entry[2])
+        allowed = _path_access_allowed(
+            classification, access, allow_addons, allow_self_edit)
         if not allowed and allow_self_edit and classification.get("is_addon"):
             # ``res://addons`` itself is not the agent path, but the walker must
             # be allowed to descend through that neutral container to reach a
             # renamed self wrapper.
-            try:
-                _root, agent_dir, _wrapper = _validated_agent_addon_dir(
-                    project_root, addon_dir)
-                parent = os.path.normcase(os.path.realpath(
-                    classification["absolute_path"]))
-                agent_identity = os.path.normcase(os.path.realpath(agent_dir))
-                allowed = agent_identity.startswith(parent + os.sep)
-            except (OSError, TypeError, ValueError):
-                allowed = False
+            parent = os.path.normcase(classification["absolute_path"])
+            if ctx.agent_dir_identity:
+                allowed = ctx.agent_dir_identity.startswith(parent + os.sep)
         if allowed:
             kept_dirs.append(name)
     dirnames[:] = sorted(kept_dirs)
 
     kept_files = []
     for name in filenames:
-        candidate = _scan_res_path(project_root, os.path.join(dirpath, name))
-        if candidate is None:
+        entry = ctx.lookup(dirpath, name)
+        if entry is None:
             continue
-        allowed = (can_read_project_path(candidate, project_root, allow_addons,
-                                         allow_self_edit, addon_dir)
-                   if access == "read" else
-                   can_write_project_path(candidate, project_root, allow_addons,
-                                          allow_self_edit, addon_dir))
-        if allowed:
+        classification = ctx.classify(entry[0], entry[1], entry[2])
+        if _path_access_allowed(classification, access, allow_addons,
+                                allow_self_edit):
             kept_files.append(name)
     filenames[:] = sorted(kept_files)
 
 
 def _excluded_dir_allowed_by_policy(name, dirpath, project_root,
-                                    allow_addons, allow_self_edit, addon_dir):
+                                    allow_addons, allow_self_edit, addon_dir,
+                                    ctx=None):
     """Let an enabled add-on/self policy override legacy noise exclusions."""
     if name not in _POLICY_CONTROLLED_EXCLUDES:
         return False
-    candidate = _scan_res_path(project_root, os.path.join(dirpath, name))
-    if candidate is None:
+    if ctx is None:
+        ctx = _ScanPolicyContext(project_root, addon_dir)
+    entry = ctx.lookup(dirpath, name, True)
+    if entry is None:
         return False
-    classification = classify_project_path(candidate, project_root, addon_dir)
+    classification = ctx.classify(entry[0], entry[1], entry[2])
     if not (classification.get("is_addon") or classification.get("is_agent")):
         return False
-    return can_read_project_path(
-        candidate, project_root, allow_addons, allow_self_edit, addon_dir)
+    return _path_access_allowed(
+        classification, "read", allow_addons, allow_self_edit)
 
 
 def policy_snapshot(allow_addons=False, allow_self_edit=False, addon_dir=None):
@@ -946,17 +1183,18 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
     # mode, и этот выбор не должен зависеть от того, куда зашёл обход.
     search_exts = search_extensions_for(allow_self_edit, addon_dir)
     agent_py_allowed = bool(AGENT_ONLY_SEARCH_EXTS) and allow_self_edit and addon_dir
+    ctx = _ScanPolicyContext(project_root_abs, addon_dir)
     for dirpath, dirnames, filenames in os.walk(project_root_abs):
         dirnames[:] = sorted(
             d for d in dirnames
             if (d not in EXCLUDED_DIRS
                 or _excluded_dir_allowed_by_policy(
                     d, dirpath, project_root_abs, allow_addons,
-                    allow_self_edit, addon_dir))
+                    allow_self_edit, addon_dir, ctx))
             and not d.startswith('.'))
         _filter_project_scan_entries(
             dirnames, filenames, dirpath, project_root_abs,
-            allow_addons, allow_self_edit, addon_dir)
+            allow_addons, allow_self_edit, addon_dir, ctx=ctx)
         for fname in sorted(filenames):
             ext = os.path.splitext(fname)[1].lower()
             if ext not in search_exts:
@@ -969,10 +1207,9 @@ def search_project_text(project_root, query, max_results=30, context_lines=2,
                 # по классификации пути, а не по факту входа в addons/.
                 if not agent_py_allowed:
                     continue
-                candidate = _scan_res_path(project_root_abs,
-                                           os.path.join(dirpath, fname))
-                if candidate is None or not classify_project_path(
-                        candidate, project_root_abs, addon_dir).get("is_agent"):
+                entry = ctx.lookup(dirpath, fname)
+                if entry is None or not ctx.classify(
+                        entry[0], entry[1], entry[2]).get("is_agent"):
                     continue
             abs_path = os.path.join(dirpath, fname)
             rel = os.path.relpath(abs_path, project_root_abs).replace(os.sep, '/')
@@ -1216,17 +1453,18 @@ def build_project_overview(project_root, only_exts=None, max_entries=None,
     много — сводка по папкам. Возвращает (текст, is_compact)."""
     project_root = os.path.abspath(project_root)
     total = 0
+    ctx = _ScanPolicyContext(project_root, addon_dir)
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(
             d for d in dirnames
             if (d not in EXCLUDED_DIRS
                 or _excluded_dir_allowed_by_policy(
                     d, dirpath, project_root, allow_addons,
-                    allow_self_edit, addon_dir))
+                    allow_self_edit, addon_dir, ctx))
             and not d.startswith('.'))
         _filter_project_scan_entries(
             dirnames, filenames, dirpath, project_root,
-            allow_addons, allow_self_edit, addon_dir)
+            allow_addons, allow_self_edit, addon_dir, ctx=ctx)
         for f in filenames:
             if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue
@@ -1243,17 +1481,18 @@ def build_project_overview(project_root, only_exts=None, max_entries=None,
     # Компактная сводка: папки (до 3 уровней) и счётчики файлов по расширениям.
     per_dir = {}
     root_files = []
+    ctx = _ScanPolicyContext(project_root, addon_dir)
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(
             d for d in dirnames
             if (d not in EXCLUDED_DIRS
                 or _excluded_dir_allowed_by_policy(
                     d, dirpath, project_root, allow_addons,
-                    allow_self_edit, addon_dir))
+                    allow_self_edit, addon_dir, ctx))
             and not d.startswith('.'))
         _filter_project_scan_entries(
             dirnames, filenames, dirpath, project_root,
-            allow_addons, allow_self_edit, addon_dir)
+            allow_addons, allow_self_edit, addon_dir, ctx=ctx)
         rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
         for f in sorted(filenames):
             if f in EXCLUDED_FILES or _is_generated_sidecar(f):
@@ -1413,17 +1652,18 @@ def describe_architecture(project_root, max_dirs=6, allow_addons=False,
         path, project_root, allow_addons=allow_addons,
         allow_self_edit=allow_self_edit, addon_dir=addon_dir)}
     script_dirs, scene_dirs, asset_dirs = {}, {}, {}
+    ctx = _ScanPolicyContext(project_root, addon_dir)
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(
             d for d in dirnames
             if (d not in EXCLUDED_DIRS
                 or _excluded_dir_allowed_by_policy(
                     d, dirpath, project_root, allow_addons,
-                    allow_self_edit, addon_dir))
+                    allow_self_edit, addon_dir, ctx))
             and not d.startswith('.'))
         _filter_project_scan_entries(
             dirnames, filenames, dirpath, project_root,
-            allow_addons, allow_self_edit, addon_dir)
+            allow_addons, allow_self_edit, addon_dir, ctx=ctx)
         rel = os.path.relpath(dirpath, project_root).replace(os.sep, '/')
         key = '(корень res://)' if rel == '.' else '/'.join(rel.split('/')[:2])
         for f in filenames:
@@ -1488,17 +1728,18 @@ def snapshot_files(project_root, prev=None, allow_addons=False,
     project_root = os.path.abspath(project_root)
     prev = prev or {}
     snap = {}
+    ctx = _ScanPolicyContext(project_root, addon_dir)
     for dirpath, dirnames, filenames in os.walk(project_root):
         dirnames[:] = sorted(
             d for d in dirnames
             if (d not in EXCLUDED_DIRS
                 or _excluded_dir_allowed_by_policy(
                     d, dirpath, project_root, allow_addons,
-                    allow_self_edit, addon_dir))
+                    allow_self_edit, addon_dir, ctx))
             and not d.startswith('.'))
         _filter_project_scan_entries(
             dirnames, filenames, dirpath, project_root,
-            allow_addons, allow_self_edit, addon_dir)
+            allow_addons, allow_self_edit, addon_dir, ctx=ctx)
         for f in filenames:
             if f in EXCLUDED_FILES or _is_generated_sidecar(f):
                 continue

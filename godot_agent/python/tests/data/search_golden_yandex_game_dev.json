@@ -1,0 +1,1124 @@
+{
+ "format": 1,
+ "project_hint": "yandex-game-dev",
+ "generated": "2026-10-15",
+ "stats": {
+  "files_gd": 131,
+  "names": 2920,
+  "declarations": 3458
+ },
+ "buckets": {
+  "rare_func": 38,
+  "rare_class": 25,
+  "rare_signal": 20,
+  "rare_words": 25,
+  "ambiguous": 15,
+  "capped": 10,
+  "intent": 17
+ },
+ "queries": [
+  {
+   "q": "acknowledge_tree_pool_update",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "add_artifact",
+   "expect": [
+    "scripts/autoload/artifact_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "add_crystals",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "add_gold",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "add_run_bonus_armor",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "add_run_bonus_click_damage",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "add_xp",
+   "expect": [
+    "scripts/autoload/xp_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "allows_act",
+   "expect": [
+    "scripts/levels/region_definition.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_all_prestige",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_boss_level",
+   "expect": [
+    "scripts/autoload/level_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_crit",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_direct_damage",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_heal",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_loot_gold",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_pending_purchases",
+   "expect": [
+    "scripts/ui/meta_tree/skill_tree_logic.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_pixel_style",
+   "expect": [
+    "scripts/autoload/vfx_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_push",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_room_level",
+   "expect": [
+    "scripts/autoload/level_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_room_transition",
+   "expect": [
+    "scripts/autoload/card_decay_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_settings",
+   "expect": [
+    "scripts/autoload/audio_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_shop_price",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_skill",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_slow",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_specific_level",
+   "expect": [
+    "scripts/autoload/level_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_status_dot",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_stun",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "apply_vortex_pull",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_array_contains",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_dict_has_key",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_eq",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_false",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_ne",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_not_null",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_null",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "assert_true",
+   "expect": [
+    "tests/framework/test_base.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "award_act_complete",
+   "expect": [
+    "scripts/autoload/crystal_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "award_first_clear",
+   "expect": [
+    "scripts/autoload/crystal_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "award_room_clear",
+   "expect": [
+    "scripts/autoload/crystal_manager.gd"
+   ],
+   "bucket": "rare_func"
+  },
+  {
+   "q": "BalanceReport",
+   "expect": [
+    "scripts/debug/balance_report.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BaseArtifact",
+   "expect": [
+    "scripts/base/base_artifact.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BaseDefender",
+   "expect": [
+    "scripts/base/base_defender.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BaseEnemy",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BaseHero",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BaseMasteryPool",
+   "expect": [
+    "scripts/data/mastery/base_mastery_pool.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BasePlatformAdapter",
+   "expect": [
+    "scripts/platform/adapters/base_adapter.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "BaseRegionChunk",
+   "expect": [
+    "scripts/base/base_chunk.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "CardEvolutionManager",
+   "expect": [
+    "scripts/logic/card_evolution_manager.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "CardPickScreen",
+   "expect": [
+    "scripts/ui/card_pick_screen.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "CardView",
+   "expect": [
+    "scripts/ui/card_view.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "ChainLightningArtifact",
+   "expect": [
+    "scripts/artifacts/chain_lightning.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "CombatController",
+   "expect": [
+    "scripts/controllers/combat_controller.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "CombatSimulator",
+   "expect": [
+    "tests/framework/combat_simulator.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "CrusherSpike",
+   "expect": [
+    "scripts/fx/crusher_spike.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "DamageLabel",
+   "expect": [
+    "scripts/damage_label.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "DeathEffectManager",
+   "expect": [
+    "scripts/base/death_effect_manager.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "DifficultyScreen",
+   "expect": [
+    "scripts/ui/difficulty_screen.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "DifficultySelector",
+   "expect": [
+    "scripts/ui/difficulty_selector.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "EnemyPoolManager",
+   "expect": [
+    "scripts/utils/enemy_pool_manager.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "EventScreen",
+   "expect": [
+    "scripts/ui/event_screen.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "HUDController",
+   "expect": [
+    "scripts/controllers/hud_controller.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "KnightMasteryPool",
+   "expect": [
+    "scripts/data/mastery/knight_mastery_pool.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "LevelDefinition",
+   "expect": [
+    "scripts/levels/level_definition.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "LevelEditorView",
+   "expect": [
+    "scripts/debug/level_editor_view.gd"
+   ],
+   "bucket": "rare_class"
+  },
+  {
+   "q": "achievement_unlocked",
+   "expect": [
+    "scripts/autoload/achievement_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "all_waves_done",
+   "expect": [
+    "scripts/controllers/combat_controller.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "armor_changed",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "artifact_added",
+   "expect": [
+    "scripts/autoload/artifact_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "artifact_upgraded",
+   "expect": [
+    "scripts/autoload/artifact_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "back_requested",
+   "expect": [
+    "scripts/ui/difficulty_screen.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "card_picked",
+   "expect": [
+    "scripts/ui/card_pick_screen.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "chaos_buff_changed",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "charges_changed",
+   "expect": [
+    "scripts/autoload/card_utility_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "chest_finished",
+   "expect": [
+    "scripts/environment/boss_chest.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "chest_opened",
+   "expect": [
+    "scripts/autoload/chest_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "chest_requested",
+   "expect": [
+    "scripts/ui/hero_select_screen.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "choice_screen_closed",
+   "expect": [
+    "scripts/ui/skill_choice_screen.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "choices_ready",
+   "expect": [
+    "scripts/autoload/room_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "clicked",
+   "expect": [
+    "scripts/ui/map_node_ui.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "collection_requested",
+   "expect": [
+    "scripts/ui/hero_select_screen.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "combo_changed",
+   "expect": [
+    "scripts/autoload/combo_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "combo_reset",
+   "expect": [
+    "scripts/autoload/combo_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "confirmed",
+   "expect": [
+    "scripts/ui/difficulty_screen.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "content_unlocked",
+   "expect": [
+    "scripts/autoload/content_unlock_manager.gd"
+   ],
+   "bucket": "rare_signal"
+  },
+  {
+   "q": "acknowledge tree pool update",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "act completed",
+   "expect": [
+    "scripts/autoload/map_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "add artifact",
+   "expect": [
+    "scripts/autoload/artifact_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "add crystals",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "add run bonus armor",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "add run bonus click damage",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "allows act",
+   "expect": [
+    "scripts/levels/region_definition.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply all prestige",
+   "expect": [
+    "scripts/autoload/game_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply boss level",
+   "expect": [
+    "scripts/autoload/level_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply crit",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply direct damage",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply heal",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply loot gold",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply pending purchases",
+   "expect": [
+    "scripts/ui/meta_tree/skill_tree_logic.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply pixel style",
+   "expect": [
+    "scripts/autoload/vfx_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply push",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply room level",
+   "expect": [
+    "scripts/autoload/level_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply room transition",
+   "expect": [
+    "scripts/autoload/card_decay_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply settings",
+   "expect": [
+    "scripts/autoload/audio_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply shop price",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply skill",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply slow",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply specific level",
+   "expect": [
+    "scripts/autoload/level_manager.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply status dot",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "apply stun",
+   "expect": [
+    "scripts/base/base_enemy.gd"
+   ],
+   "bucket": "rare_words"
+  },
+  {
+   "q": "get_hero_id",
+   "expect": [
+    "scripts/data/mastery/base_mastery_pool.gd",
+    "scripts/data/mastery/knight_mastery_pool.gd",
+    "scripts/data/mastery/mage_mastery_pool.gd",
+    "scripts/data/mastery/mecha_misha_mastery_pool.gd",
+    "scripts/data/mastery/rogue_mastery_pool.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "get_left_key",
+   "expect": [
+    "scripts/data/mastery/base_mastery_pool.gd",
+    "scripts/data/mastery/knight_mastery_pool.gd",
+    "scripts/data/mastery/mage_mastery_pool.gd",
+    "scripts/data/mastery/mecha_misha_mastery_pool.gd",
+    "scripts/data/mastery/rogue_mastery_pool.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "get_level_description",
+   "expect": [
+    "scripts/artifacts/chain_lightning.gd",
+    "scripts/artifacts/fire_ring.gd",
+    "scripts/artifacts/paladin_shield.gd",
+    "scripts/artifacts/unbreakable_armor.gd",
+    "scripts/base/base_artifact.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "get_right_key",
+   "expect": [
+    "scripts/data/mastery/base_mastery_pool.gd",
+    "scripts/data/mastery/knight_mastery_pool.gd",
+    "scripts/data/mastery/mage_mastery_pool.gd",
+    "scripts/data/mastery/mecha_misha_mastery_pool.gd",
+    "scripts/data/mastery/rogue_mastery_pool.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "resolve_hero_id",
+   "expect": [
+    "scripts/base/base_hero.gd",
+    "scripts/heroes/knight_hero.gd",
+    "scripts/heroes/mage_hero.gd",
+    "scripts/heroes/meha_misha_hero.gd",
+    "scripts/heroes/rogue_hero.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "API_VERSION",
+   "expect": [
+    "scripts/autoload/card_decay_manager.gd",
+    "scripts/autoload/chest_manager.gd",
+    "scripts/autoload/hero_mastery_manager.gd",
+    "scripts/autoload/shop_stock_manager.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "BG_COLOR",
+   "expect": [
+    "scripts/ui/card_pick_screen.gd",
+    "scripts/ui/difficulty_screen.gd",
+    "scripts/ui/event_screen.gd",
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "SCREEN_LAYER",
+   "expect": [
+    "scripts/ui/card_pick_screen.gd",
+    "scripts/ui/event_screen.gd",
+    "scripts/ui/hit_feedback.gd",
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "TARGET_SCENE_PATH",
+   "expect": [
+    "tests/framework/combat_simulator.gd",
+    "tests/suites/test_card_fusion.gd",
+    "tests/suites/test_card_fusion_aoe.gd",
+    "tests/suites/test_card_fusion_armor.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "get_gold_multiplier",
+   "expect": [
+    "scripts/autoload/artifact_manager.gd",
+    "scripts/autoload/difficulty_manager.gd",
+    "scripts/base/base_artifact.gd",
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "on_click_hit",
+   "expect": [
+    "scripts/artifacts/chain_lightning.gd",
+    "scripts/artifacts/fire_ring.gd",
+    "scripts/autoload/artifact_manager.gd",
+    "scripts/base/base_artifact.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "on_wave_started",
+   "expect": [
+    "scripts/artifacts/fire_ring.gd",
+    "scripts/artifacts/paladin_shield.gd",
+    "scripts/autoload/artifact_manager.gd",
+    "scripts/base/base_artifact.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "sprite",
+   "expect": [
+    "scripts/base/base_defender.gd",
+    "scripts/base/base_enemy.gd",
+    "scripts/base/base_hero.gd",
+    "scripts/environment/boss_chest.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "verbose_log",
+   "expect": [
+    "scripts/autoload/card_decay_manager.gd",
+    "scripts/autoload/crystal_manager.gd",
+    "scripts/autoload/event_manager.gd",
+    "scripts/autoload/shop_stock_manager.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "FEATURES",
+   "expect": [
+    "scripts/platform/adapters/google_play_adapter.gd",
+    "scripts/platform/adapters/steam_adapter.gd",
+    "scripts/platform/adapters/yandex_adapter.gd"
+   ],
+   "bucket": "ambiguous"
+  },
+  {
+   "q": "CONTENT_WIDTH",
+   "expect": [
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "FOOTER_HEIGHT",
+   "expect": [
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "GOODS_SIZE",
+   "expect": [
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "HEAL_POWER_MULT",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "RELIC_SIZE",
+   "expect": [
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "SHOP_PRICE_MULT",
+   "expect": [
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "TOP_ROW_CARDS",
+   "expect": [
+    "scripts/ui/shop_screen.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "accuracy_bonus",
+   "expect": [
+    "scripts/autoload/skill_manager.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "act_offset",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "act_rotation",
+   "expect": [
+    "scripts/base/base_hero.gd"
+   ],
+   "bucket": "capped"
+  },
+  {
+   "q": "chain lightning artifact",
+   "expect": [
+    "scripts/artifacts/chain_lightning.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "save game progress",
+   "expect": [
+    "scripts/autoload/save_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "shop stock restock",
+   "expect": [
+    "scripts/autoload/shop_stock_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "chest opening reward",
+   "expect": [
+    "scripts/autoload/chest_manager.gd",
+    "scripts/ui/chest_screen.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "boss chest",
+   "expect": [
+    "scripts/environment/boss_chest.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "enemy pool spawn",
+   "expect": [
+    "scripts/utils/enemy_pool_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "skill tree node upgrade",
+   "expect": [
+    "scripts/ui/meta_tree/skill_tree_logic.gd",
+    "scripts/ui/meta_tree/upgrade_node.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "difficulty selection",
+   "expect": [
+    "scripts/ui/difficulty_screen.gd",
+    "scripts/autoload/difficulty_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "card evolution",
+   "expect": [
+    "scripts/logic/card_evolution_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "floating damage number",
+   "expect": [
+    "scripts/utils/damage_number_pool.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "yandex platform adapter",
+   "expect": [
+    "scripts/platform/adapters/yandex_adapter.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "achievement unlocked",
+   "expect": [
+    "scripts/autoload/achievement_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "knight mastery pool",
+   "expect": [
+    "scripts/data/mastery/knight_mastery_pool.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "event pool act one",
+   "expect": [
+    "scripts/events/event_pool_act_1.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "hit feedback shake",
+   "expect": [
+    "scripts/ui/hit_feedback.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "slow motion effect",
+   "expect": [
+    "scripts/autoload/slow_mo_manager.gd"
+   ],
+   "bucket": "intent"
+  },
+  {
+   "q": "map node selection",
+   "expect": [
+    "scripts/ui/map_node_ui.gd",
+    "scripts/autoload/map_manager.gd"
+   ],
+   "bucket": "intent"
+  }
+ ]
+}

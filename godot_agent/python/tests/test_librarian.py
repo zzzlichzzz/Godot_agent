@@ -1383,7 +1383,13 @@ def test_symbol_cap_keeps_rare_kinds():
     пачками (class -> func -> signal -> var -> const -> вложенные), поэтому
     срез [:60] у скрипта с 60+ функциями убивал ВСЕ signal/var/const.
     Следствие было тихим: слой SIGNALS ищет имена по префиксу "signal:"
-    в индексе, значит у больших скриптов он просто пропадал."""
+    в индексе, значит у больших скриптов он просто пропадал.
+
+    L5: лимит поднят 60 → 400, поэтому проверяются два утверждения:
+    (1) файл-переросток (86 объявлений) лимит не задевает ВООБЩЕ — именно
+    этого не хватало на полигоне, где 583 объявления не находились поиском;
+    (2) механизм круглой раздачи жив: на ЯВНОМ лимите 60 редкие категории
+    по-прежнему выживают целиком."""
     lines = [u"class_name BigBoss", u"extends Node",
              u"signal boss_died", u"signal phase_changed",
              u"const MAX_HP = 999", u"var current_hp := 999"]
@@ -1395,19 +1401,35 @@ def test_symbol_cap_keeps_rare_kinds():
     _write(root, "src/ui.gd",
            u"extends Node\nfunc _ready():\n\tboss.boss_died.connect(_on_died)\n")
 
+    text = u"\n".join(lines) + u"\n"
+    declared = sum(len(rx.findall(text)) for rx in (
+        ml_project_index._CLASS_RE, ml_project_index._FUNC_RE,
+        ml_project_index._SIGNAL_RE, ml_project_index._VAR_RE,
+        ml_project_index._CONST_RE))
     syms = ml_project_index._build_entry(root, "src/boss.gd")["symbols"]
-    assert len(syms) == ml_project_index.MAX_SYMBOLS, len(syms)
+    assert declared > 60, declared        # файл-переросток: старый лимит его резал
+    assert len(syms) == declared, (len(syms), declared)   # L5: не урезан вообще
+    # Имя, объявленное последним: при лимите 60 круговая раздача его выбрасывала.
+    assert "func:kill" in syms, syms
     # Редкие категории обязаны выжить целиком — их единицы, а польза высока.
     assert "signal:boss_died" in syms, syms
     assert "signal:phase_changed" in syms, syms
     assert "const:MAX_HP" in syms, syms
     assert "var:current_hp" in syms, syms
     assert "class:BigBoss" in syms, syms
-    # Функции забирают остаток, а не всё подряд.
-    assert sum(1 for s in syms if s.startswith("func:")) >= 50, syms
     # Порядок — исходный (файл читают сверху вниз, тасовать нельзя).
     assert syms == sorted(syms, key=lambda s: syms.index(s)), syms
     assert syms[0] == "class:BigBoss", syms[:3]
+
+    # Механизм квот жив: на ЯВНОМ лимите 60 редкие категории остаются,
+    # функции забирают остаток, порядок сохраняется.
+    capped = ml_project_index._cap_symbols(syms, 60)
+    assert len(capped) == 60, len(capped)
+    for keep in ("signal:boss_died", "signal:phase_changed", "const:MAX_HP",
+                 "var:current_hp", "class:BigBoss"):
+        assert keep in capped, capped
+    assert sum(1 for s in capped if s.startswith("func:")) >= 50, capped
+    assert capped[0] == "class:BigBoss", capped[:3]
 
     # И главное — слой SIGNALS вернулся для большого скрипта.
     ml_project_index.build_index(root)
@@ -1508,24 +1530,48 @@ def test_index_save_is_thread_safe():
 
 
 def _search_bruteforce(project_root, query, limit=8):
-    """Прежний полный перебор — эталон для сверки инвертированного индекса."""
+    """Полный перебор — эталон для сверки инвертированного индекса.
+
+    Считает score и признаки тай-брейка L4 «в лоб», по каждой записи, не
+    пользуясь картами search(): смысл сверки в том, что быстрый путь и
+    медленный обязаны совпасть ПОЛНОСТЬЮ — составом, score и порядком.
+    Ключи бонуса за путь берутся у самого индекса (`_path_keys`, L4c):
+    иначе эталон разошёлся бы с ним на склейках слов.
+    """
     data = ml_project_index._load_index(project_root)
     q = ml_project_index._tokens(query or "")
     if not q:
         return []
+    path_keys = ml_project_index._path_keys(query)
     scored = []
     for e in data.get("files", []):
-        hay = ml_project_index._tokens(e.get("path", "")) | ml_project_index._tokens(
-            " ".join(ml_project_index._symbol_search_text(s)
-                     for s in e.get("symbols", [])))
+        path = e.get("path", "")
+        syms = e.get("symbols", [])
+        texts = [ml_project_index._symbol_search_text(s) for s in syms]
+        hay = ml_project_index._tokens(path) | ml_project_index._tokens(
+            " ".join(texts))
         score = len(q & hay)
-        ql = (query or "").lower()
-        if ql and ql in e.get("path", "").lower():
+        if any(k in path.lower() for k in path_keys):
             score += 2
-        if score > 0:
-            scored.append((score, e))
-    scored.sort(key=lambda s: (-s[0], s[1]["path"]))
-    return [dict(e, score=sc) for sc, e in scored[:limit]]
+        if score <= 0:
+            continue
+        names = set(t.strip().lower() for t in texts if t.strip())
+        phrase_names = set(names) | set(n.replace("_", "") for n in names)
+        phrase_keys = ml_project_index._phrase_keys(query)
+        matched = any(pk in phrase_names for pk in phrase_keys)
+        kind_rank = ml_project_index._KIND_RANK.get(
+            str(e.get("kind", "")).lower(), 2)
+        feats = {
+            # 0 — имя объявлено в коде, 1 — только у сцены/ресурса, 2 — нет
+            "phrase_name": (0 if kind_rank == 0 else 1) if matched else 2,
+            "name_hits": -len(q & ml_project_index._tokens(
+                os.path.basename(path))),
+            "kind_rank": kind_rank,
+        }
+        key = tuple(feats[k] for k in ml_project_index._TIE_BREAK)
+        scored.append((score, key, path, e))
+    scored.sort(key=lambda s: (-s[0], s[1], s[2]))
+    return [dict(e, score=sc) for sc, _k, _p, e in scored[:limit]]
 
 
 def test_search_matches_bruteforce():
@@ -1752,6 +1798,146 @@ def test_ask_librarian_action_normalized():
           % len(variants))
 
 
+# --- v105.16 (L7): карточка символа ------------------------------------------
+
+CARD_GD = '''extends Node
+class_name Combat
+
+var current_hero
+var damage_log := []
+
+func take_damage(damage, source):
+\tvar final_damage = damage - 1
+\tcurrent_hero.on_damage(final_damage)
+\tdamage_log.append(final_damage)
+\theal_hero(final_damage)
+
+func heal_hero(amount):
+\tpass
+'''
+
+
+def _make_card_project():
+    root = tempfile.mkdtemp()
+    _write(root, "src/combat.gd", CARD_GD)
+    _write(root, "src/caller.gd",
+           "extends Node\n\nfunc on_hit():\n\ttake_damage(5, null)\n")
+    _write(root, "src/member_caller.gd",
+           "extends Node\n\nfunc hit(target):\n\ttarget.take_damage(10, self)\n")
+    _write(root, "project.godot", 'config_version=5\n')
+    return root
+
+
+def _card_sec(ans):
+    """Только строки секции SYMBOL (карточки), без следующих секций ответа."""
+    assert "SYMBOL (" in ans, ans
+    lines = ans.split("SYMBOL (", 1)[1].splitlines()
+    keep = [lines[0]]            # хвост заголовка карточки
+    for ln in lines[1:]:
+        if ln[:1] not in ("-", " "):
+            break                # началась следующая секция (STRUCTURE/…)
+        keep.append(ln)
+    return "\n".join(keep)
+
+
+def test_symbol_card_layers():
+    """L7 (§5 плана): ОДИН запрос-имя даёт объявление + параметры + локальные
+    переменные + затрагиваемые члены + все ссылки по проекту. Данные — из
+    семантического индекса, который не урезан MAX_SYMBOLS."""
+    root = _make_card_project()
+    ans = librarian.answer(root, "take_damage")
+    assert "SYMBOL (" in ans, ans
+    sec = _card_sec(ans)
+    # Точный формат: объявление с путём и строкой, параметры, локальные с L,
+    # члены — по обращению, ссылки с видом (call — первыми).
+    assert 'SYMBOL ("take_damage": 1 declaration, 2 references in 2 files' \
+        in ans, ans
+    assert "- decl function res://src/combat.gd:7" in sec, sec
+    assert "params: damage, source" in sec, sec
+    assert "locals: final_damage (L8)" in sec, sec
+    assert "uses: append, current_hero, damage_log, heal_hero, on_damage" in sec, sec
+    assert "- call res://src/caller.gd:4" in sec, sec
+    assert "- member res://src/member_caller.gd:4" in sec, sec
+    assert len(ans) <= librarian.CHAR_BUDGET + 200, len(ans)
+    print("OK: карточка символа — объявление, параметры, локальные, члены, ссылки")
+
+
+def test_symbol_card_exact_name_and_kind_prefixes():
+    """§5: карточка не даёт ложных срабатываний (хвост take_damage_from_enemy
+    не сосед по имени), понимает явный вид func:/signal:/param: и не запускается
+    многословным запросом или слабым именем без префикса."""
+    root = _make_card_project()
+    _write(root, "src/other.gd",
+           "extends Node\n\nfunc take_damage_from_enemy():\n\tpass\n")
+    _write(root, "src/fsm.gd",
+           "extends Node\n\nclass State:\n\tfunc enter():\n\t\tpass\n")
+    ans = librarian.answer(root, "take_damage")
+    sec = _card_sec(ans)
+    assert "take_damage_from_enemy" not in sec, sec   # только точное имя
+    # Явный вид: func: — карточка та же; signal: с таким именем нет — карточки нет.
+    ans2 = librarian.answer(root, "func:take_damage")
+    assert 'SYMBOL ("take_damage": 1 declaration' in ans2, ans2
+    ans3 = librarian.answer(root, "signal:take_damage")
+    assert "SYMBOL (" not in ans3, ans3
+    # Многословный запрос карточку не запускает: имя неотличимо от слова.
+    assert "SYMBOL (" not in librarian.answer(root, "take damage"), "card in words"
+    # «damage» — параметр (слабое объявление): без префикса не карточка...
+    assert "SYMBOL (" not in librarian.answer(root, "damage"), "weak name card"
+    # ...а с префиксом param: — карточка, и в ней именно параметр.
+    ans6 = librarian.answer(root, "param:damage")
+    assert 'SYMBOL ("damage": 1 declaration' in ans6, ans6
+    assert "decl parameter res://src/combat.gd:7" in ans6, ans6
+    # Метод внутри вложенного класса называет свой класс.
+    ans7 = librarian.answer(root, "enter")
+    sec7 = _card_sec(ans7)
+    assert "(in class State)" in sec7, sec7
+    print("OK: карточка — точное имя, виды func:/signal:/param:, класс владельца")
+
+
+def test_symbol_card_caps_are_honest():
+    """Карточка не раздувается: лишние объявления — счётчиком, а не молчаливым
+    обрезанием (та же честность, что у _pick_members)."""
+    root = tempfile.mkdtemp()
+    for i in range(6):
+        _write(root, "src/mod_%d.gd" % i,
+               "extends Node\n\nfunc dup():\n\tpass\n")
+    _write(root, "project.godot", 'config_version=5\n')
+    ans = librarian.answer(root, "dup")
+    sec = _card_sec(ans)
+    assert "6 declarations" in sec, sec
+    assert sec.count("- decl function") == librarian.CARD_MAX_DECLS, sec
+    assert "+2 more declarations" in sec, sec
+    print("OK: карточка честно считает хвост (%d из 6 объявлений + счётчик)"
+          % librarian.CARD_MAX_DECLS)
+
+def test_symbol_card_uses_hide_keywords():
+    """В «членах» карточки нет ключевых слов GDScript: if/return/not приходят
+    из парсера как identifier, но связями функции не являются (§5)."""
+    root = tempfile.mkdtemp()
+    _write(root, "src/guard.gd",
+           "extends Node\n"
+           "var shield := 0\n"
+           "\n"
+           "func absorb(hit: int) -> int:\n"
+           "\tif hit < 0:\n"
+           "\t\treturn 0\n"
+           "\tshield -= hit\n"
+           "\treturn shield\n")
+    _write(root, "project.godot", 'config_version=5\n')
+    ans = librarian.answer(root, "absorb")
+    sec = _card_sec(ans)
+    uses_line = [ln for ln in sec.splitlines()
+                 if ln.strip().startswith("uses:")]
+    assert uses_line, sec
+    names = uses_line[0].split("uses:", 1)[1].split("…")[0]
+    named = {n.strip() for n in names.split(",") if n.strip()}
+    assert "shield" in named, sec
+    assert not (named & {"if", "return", "not", "true", "false"}), sec
+    print("OK: карточка не выдаёт ключевые слова за связи функции")
+
+
+
+
 if __name__ == "__main__":
     test_subtokens_find_snake_case()
     test_answer_layers_and_budget()
@@ -1822,4 +2008,9 @@ if __name__ == "__main__":
     test_search_does_not_retokenize()
     test_index_rebuild_is_incremental()
     test_index_rebuild_ignores_foreign_index()
+    # v105.16 (L7): карточка символа
+    test_symbol_card_layers()
+    test_symbol_card_exact_name_and_kind_prefixes()
+    test_symbol_card_caps_are_honest()
+    test_symbol_card_uses_hide_keywords()
     print("ВСЕ ТЕСТЫ ПРОШЛИ")
