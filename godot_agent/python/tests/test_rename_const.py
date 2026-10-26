@@ -68,6 +68,31 @@ class ConstRename(unittest.TestCase):
         self.assertIn("return MAX_HEALTH", unit)
         self.assertNotIn("MAX_HP", unit)
 
+    def test_preloaded_scene_const_method_call(self):
+        """Const, перед которой вызывают метод, — тоже доказанная ссылка."""
+        self._write("src/unit.gd", """class_name Unit
+extends Node
+
+const TURRET_SCENE := preload("res://src/lab_turret.tscn")
+
+func spawn_turret() -> Node2D:
+\tvar turret: Node2D = TURRET_SCENE.instantiate()
+\treturn turret
+""")
+        self._write("src/lab_turret.tscn",
+                    '[gd_scene format=3]\n\n[node name="Turret" type="Node2D"]\n')
+        self._reindex()
+
+        prepared = self._rename(new="TURRET_SCENES", old="TURRET_SCENE")
+
+        unit = self._read("src/unit.gd")
+        self.assertIn('const TURRET_SCENES := preload("res://src/lab_turret.tscn")', unit)
+        self.assertIn("var turret: Node2D = TURRET_SCENES.instantiate()", unit)
+        self.assertNotIn("const TURRET_SCENE :=", unit)
+        self.assertNotIn("TURRET_SCENE.instantiate()", unit)
+        self.assertEqual(prepared["renamed_count"], 2)
+        self.assertEqual(prepared["reference_count"], 1)
+
     # --- Этап 1: запись exclude БЕЗ номера строки — явный отказ ---
     def test_path_only_exclude_is_refused(self):
         """Полный путь без :строка не принимается молча за «весь файл».
