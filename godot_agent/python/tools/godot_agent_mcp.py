@@ -185,11 +185,27 @@ def _request_file(payload):
 
 # --- сборка сервера ---------------------------------------------------
 
+_REFACTOR_RULE = (
+    "Разбиение и рефакторинг файлов делай ТОЛЬКО по явной просьбе "
+    "пользователя в текущем диалоге: без неё не предлагай их, не вызывай "
+    "split-инструменты и не включай их в план. Превышение лимита строк в "
+    "готовом файле — повод сообщить об этом одной строкой, а не действовать."
+)
+
+# То же правило, но в описании самой пилы. `instructions` доходят до модели не
+# у всех MCP-клиентов (Cline, например, передаёт модели только описания tools),
+# а описание инструмента клиент отдаёт ВСЕГДА. Без этой строки императив
+# «разбивай» снова начнёт жить в одном канале — и в клиентах, которые его
+# вырезают, модель опять предложит рефакторинг без просьбы.
+_SPLIT_TOOL_HINT = (" Вызывать только по явной просьбе пользователя разбить "
+                    "этот файл: без неё не предлагать и не включать в план.")
+
 _USER_INSTRUCTIONS = (
     "Godot Agent MCP: ответы по проекту из тех же источников, что и встроенный "
     "агент. Перед использованием любого класса Godot сверяй сигнатуры через api: "
     "твоя память о Godot API может устареть, а мост отвечает из кэша этого "
-    "движка. Код 2 означает «запрошенного не существует» — это ответ, не сбой."
+    "движка. Код 2 означает «запрошенного не существует» — это ответ, не сбой. "
+    + _REFACTOR_RULE
 )
 
 _DEV_INSTRUCTIONS = (
@@ -197,13 +213,13 @@ _DEV_INSTRUCTIONS = (
     "исходник агента, включая .py, и доступны инструменты записи. write "
     "двухфазный: сначала write_preview возвращает plan_id и НЕ меняет файлы, "
     "затем write_apply с тем же plan_id. Переименование файлов применяй через "
-    "панель агента: paths_preview только читает. Большой .py агента (>2000 "
-    "строк) разбивай пилой: split_scan → split_plan (его groups) → "
-    "write_preview {action: split_refactor, file, groups} → write_apply. "
-    "Большой .gd агента (>2000 строк) — так же, через split_gd_scan → "
-    "split_gd_plan → write_preview {action: split_gd, file, groups} → "
-    "write_apply: тела методов уезжают в модули, а в доноре остаются "
-    "обёртки, поэтому внешние ссылки не ломаются."
+    "панель агента: paths_preview только читает. "
+    + _REFACTOR_RULE +
+    " Если пользователь попросил разбить: .py — split_scan → split_plan "
+    "(его groups) → write_preview {action: split_refactor, file, groups} → "
+    "write_apply; .gd — split_gd_scan → split_gd_plan → write_preview "
+    "{action: split_gd, file, groups} → write_apply: тела методов уезжают в "
+    "модули, а в доноре остаются обёртки, поэтому внешние ссылки не ломаются."
 )
 
 
@@ -250,8 +266,10 @@ def build_server(profile="user", root=None, udd=None, name=None):
     def ask(query: str) -> CallToolResult:
         return call(["ask", query])
 
-    @server.tool(description="Поиск подстроки по проекту. Возвращает путь, номер "
-                            "строки и фрагмент.")
+    @server.tool(description="Поиск подстроки по проекту (НЕ регулярное "
+                            "выражение). Возвращает путь, номер строки и фрагмент. "
+                            "Несколько подстрок можно перечислить через | — они "
+                            "ищутся за один проход, квота max_results на каждую.")
     def search(query: str, max_results: int = 30) -> CallToolResult:
         if len(str(query)) > MAX_ARG_TEXT:
             return _tool_result(
@@ -421,13 +439,15 @@ def build_server(profile="user", root=None, udd=None, name=None):
 
         @server.tool(description="Пила .py, шаг 1: карта ссылок на файл агента — "
                                 "кто им пользуется и что поедет при разбиении. "
-                                "Только чтение.")
+                                "Только чтение."
+                                + _SPLIT_TOOL_HINT)
         def split_scan(file: str) -> CallToolResult:
             return call(["split", "scan", str(file)])
 
         @server.tool(description="Пила .py, шаг 2: план разбиения файла агента "
                                 "(модули, фасад, groups для write_preview с "
-                                "action split_refactor). Только чтение.")
+                                "action split_refactor). Только чтение."
+                                + _SPLIT_TOOL_HINT)
         def split_plan(file: str, groups: list = [],
                        target_lines: int = 0) -> CallToolResult:
             request = {"file": str(file)}
@@ -439,13 +459,15 @@ def build_server(profile="user", root=None, udd=None, name=None):
 
         @server.tool(description="Пила .gd, шаг 1: карта ссылок на .gd файл агента — "
                                 "кто им пользуется и что поедет при разбиении "
-                                "(path/call/doc/source_read/mention). Только чтение.")
+                                "(path/call/doc/source_read/mention). Только чтение."
+                                + _SPLIT_TOOL_HINT)
         def split_gd_scan(file: str) -> CallToolResult:
             return call(["split_gd", "scan", str(file)])
 
         @server.tool(description="Пила .gd, шаг 2: план разбиения .gd файла агента "
                                 "(модули, обёртки, groups для write_preview с "
-                                "action split_gd). Только чтение.")
+                                "action split_gd). Только чтение."
+                                + _SPLIT_TOOL_HINT)
         def split_gd_plan(file: str, groups: list = [],
                           target_lines: int = 0) -> CallToolResult:
             request = {"file": str(file)}

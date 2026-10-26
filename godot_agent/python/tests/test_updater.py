@@ -150,6 +150,19 @@ def make_test_zip(entries):
     return buf.getvalue()
 
 
+RUNTIME_DIRS = (".agent_history/", "minilich_brain/", "parser_corpus/", "__pycache__/")
+
+
+def is_runtime_path(rel):
+    """Имитация _is_runtime_path из agent_updater.gd.
+
+    Данные ЗАПУЩЕННОГО проекта (журнал откатов, обученная модель, дампы
+    парсера) принадлежат проекту, а не релизу: перезаписывать их нельзя.
+    """
+    rel = rel.replace("\\", "/")
+    return any(rel.startswith(p) or ("/" + p) in rel for p in RUNTIME_DIRS)
+
+
 def simulate_extraction(zip_bytes, target_dir):
     """Имитация логики verify_and_install_zip из agent_updater.gd."""
     buf = io.BytesIO(zip_bytes)
@@ -202,6 +215,9 @@ def simulate_extraction(zip_bytes, target_dir):
 
         base_name = _os0.path.basename(rel)
         if base_name in user_preserve_files:
+            continue
+
+        if is_runtime_path(rel):
             continue
 
         dest = _os0.path.join(target_base, rel)
@@ -282,6 +298,41 @@ finally:
 corrupt_bytes = b"not a zip file definitely"
 res_corrupt = simulate_extraction(corrupt_bytes, temp_bad)
 check("Повреждённый zip-файл отклонён", res_corrupt.get("ok") is False)
+
+
+# Тест 3.5: Данные запущенного проекта обновление не перезаписывает
+runtime_zip_data = make_test_zip({
+    "godot_agent/plugin.cfg": "[plugin]\nversion=\"0.8.0\"\n",
+    "godot_agent/.agent_history/journal.json": "remote_journal",
+    "godot_agent/minilich_brain/ckpt.npz": "remote_weights",
+    "godot_agent/parser_corpus/fail_remote.txt": "remote_corpus",
+    "godot_agent/agent_panel.gd": "# panel\n",
+})
+
+temp_runtime = tempfile.mkdtemp(prefix="agent_runtime_")
+try:
+    godot_agent_dir3 = _os0.path.join(temp_runtime, "godot_agent")
+    for sub, name in ((".agent_history", "journal.json"),
+                      ("minilich_brain", "ckpt.npz"),
+                      ("parser_corpus", "fail_remote.txt")):
+        folder = _os0.path.join(godot_agent_dir3, sub)
+        _os0.makedirs(folder, exist_ok=True)
+        with open(_os0.path.join(folder, name), "w", encoding="utf-8") as f:
+            f.write("user_data")
+    res3 = simulate_extraction(runtime_zip_data, godot_agent_dir3)
+    check("Распаковка с runtime-каталогами: успешна", res3.get("ok") is True)
+    for sub, name in ((".agent_history", "journal.json"),
+                      ("minilich_brain", "ckpt.npz"),
+                      ("parser_corpus", "fail_remote.txt")):
+        with open(_os0.path.join(godot_agent_dir3, sub, name),
+                  "r", encoding="utf-8") as f:
+            kept = f.read()
+        check("Данные проекта не перезаписаны: %s/%s" % (sub, name),
+              kept == "user_data")
+    check("Счётчик обновлённых файлов не считает данные проекта",
+          res3.get("updated_files") == 2)
+finally:
+    shutil.rmtree(temp_runtime, ignore_errors=True)
 
 
 # --- 4) Проверка маршрута /server/shutdown в main.py ---

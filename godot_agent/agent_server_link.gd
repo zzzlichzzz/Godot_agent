@@ -496,7 +496,7 @@ func _launch_server_process() -> bool:
 			var manual := lf.get_as_text().strip_edges()
 			lf.close()
 			if manual != "" and FileAccess.file_exists(manual):
-				var pidm := OS.create_process(manual, [], true)
+				var pidm := _spawn_server(manual)
 				if pidm > 0:
 					print("[agent] Запустил сервер (по server_path.txt): " + manual)
 					return true
@@ -506,7 +506,7 @@ func _launch_server_process() -> bool:
 	# 0) Сначала пробуем запомненное расположение exe — это быстрее всего.
 	var cached := _prefer_onedir(_load_cached_server_path())
 	if cached != "" and FileAccess.file_exists(cached):
-		var pidc := OS.create_process(cached, [], true)
+		var pidc := _spawn_server(cached)
 		if pidc > 0:
 			print("[agent] Запустил сервер (по запомненному ранее пути): " + cached)
 			_save_cached_server_path(cached)  # путь мог обновиться на быструю onedir-сборку
@@ -523,7 +523,7 @@ func _launch_server_process() -> bool:
 	]
 	for pth in priority_paths:
 		if FileAccess.file_exists(String(pth)):
-			var pid0 := OS.create_process(String(pth), [], true)
+			var pid0 := _spawn_server(String(pth))
 			if pid0 > 0:
 				print("[agent] Запустил сервер: " + String(pth))
 				_save_cached_server_path(String(pth))
@@ -533,7 +533,7 @@ func _launch_server_process() -> bool:
 	var addons_root := ProjectSettings.globalize_path("res://addons")
 	var exe := _prefer_onedir(_find_server_file(addons_root, "godot_agent_server.exe", 0))
 	if exe != "":
-		var pid := OS.create_process(exe, [], true)
+		var pid := _spawn_server(exe)
 		if pid > 0:
 			print("[agent] Запустил сервер: " + exe)
 			_save_cached_server_path(exe)
@@ -544,7 +544,7 @@ func _launch_server_process() -> bool:
 	for n in ["dist/godot_agent_server/godot_agent_server.exe", "python/dist/godot_agent_server/godot_agent_server.exe", "godot_agent_server.exe", "server/godot_agent_server.exe", "dist/godot_agent_server.exe", "python/dist/godot_agent_server.exe"]:
 		var p: String = project_root.path_join(String(n))
 		if FileAccess.file_exists(p):
-			var pid2 := OS.create_process(p, [], true)
+			var pid2 := _spawn_server(p)
 			if pid2 > 0:
 				print("[agent] Запустил сервер: " + p)
 				_save_cached_server_path(p)
@@ -560,11 +560,24 @@ func _launch_server_process() -> bool:
 				break
 	if py_path != "":
 		for interp in ["python", "py"]:
-			var pid3 := OS.create_process(interp, [py_path], true)
+			var pid3 := _spawn_server(interp, [py_path])
 			if pid3 > 0:
 				print("[agent] Запустил сервер: " + str(interp) + " " + py_path)
 				return true
 	return false
+
+
+## Запускает сервер и запоминает его PID.
+##
+## PID нужен обновлению (agent_updater.gd): перед перезаписью файлов оно
+## гасит сервер, и «погасить» обязано означать ИМЕННО свой процесс. Раньше
+## там стоял taskkill /IM godot_agent_server.exe — он убивал серверы всех
+## открытых проектов, включая чужой редактор.
+func _spawn_server(executable: String, args: Array = []) -> int:
+	var pid := OS.create_process(executable, args, true)
+	if pid > 0:
+		AgentServer.save_server_pid(pid)
+	return pid
 
 
 func _find_server_file(dir_path: String, file_name: String, depth: int) -> String:

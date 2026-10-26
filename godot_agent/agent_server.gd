@@ -31,6 +31,11 @@ const BASE := "http://" + HOST
 # это не защищает: файл читается тем же пользователем.
 const TOKEN_FILE := "user://godot_agent_token.txt"
 const TOKEN_HEADER := "X-Agent-Token"
+# PID сервера, которого запустил ИМЕННО этот проект. Нужен обновлению: перед
+# перезаписью файлов оно гасит сервер, и «погасить» должно означать свой
+# процесс, а не все godot_agent_server.exe на машине. Файл лежит в user://,
+# то есть у каждого проекта свой.
+const PID_FILE := "user://godot_agent_server.pid"
 const CONTENT_TYPE := "Content-Type: application/json"
 
 # Пути маршрутов. Ключ — путь на сервере, значение — то, чем панель этот
@@ -225,3 +230,17 @@ static func json_headers(require_token: bool = true) -> PackedStringArray:
 	if token.is_empty():
 		return PackedStringArray([CONTENT_TYPE])
 	return PackedStringArray([CONTENT_TYPE, TOKEN_HEADER + ": " + token])
+
+
+## Запоминает PID запущенного сервера — его читает agent_updater.gd, чтобы
+## погасить только свой процесс перед обновлением файлов. Путь (а не готовое
+## число) передаётся обновлению намеренно: сервер мог перезапуститься после
+## того, как панель подключила подсистему обновления.
+static func save_server_pid(pid: int) -> void:
+	if pid <= 0:
+		return
+	var f := FileAccess.open(PID_FILE, FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(str(pid))
+	f.close()

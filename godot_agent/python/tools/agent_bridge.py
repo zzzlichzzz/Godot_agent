@@ -304,7 +304,15 @@ def _http_post(opts, path, payload):
             except Exception:
                 return resp.status, None, None
     except urllib.error.HTTPError as e:
-        return e.code, None, None
+        # Тело 4xx не выбрасываем: в 403 сервер пишет, к какому проекту он
+        # привязан. Без него status мог сказать только «вероятно, другой
+        # проект», хотя сервер отвечает это прямым текстом.
+        data = None
+        try:
+            data = json.loads(e.read().decode("utf-8", "replace"))
+        except Exception:
+            data = None
+        return e.code, data, None
     except Exception as e:
         return 0, None, "%s: %s" % (type(e).__name__, e)
 
@@ -329,29 +337,52 @@ def _engine_line(root, opts):
     return True
 
 def cmd_status(opts, args):
-    """Сервер жив и принимает наш токен? Плюс локальное состояние кэшей."""
+    """Сервер жив и он НАШ? Плюс локальное состояние кэшей.
+
+    Ответ строится по opts["root"] — тому проекту, для которого запущен этот
+    мост. Порт :5000 общий на машину, поэтому «сервер отвечает» и «сервер
+    наш» — два разных утверждения: чужой редактор держит тот же порт и
+    отклоняет наш токен (server_auth.py). Раньше обе вещи печатались подряд
+    без различения, и status читался как «сервер обслуживает этот проект».
+    """
     root = _find_project_root(opts.get("root"))
     udd = opts.get("udd") or (_user_data_dir(root) if root else "")
     if not opts.get("token"):
         opts["token"] = _read_token(udd)
+    server = "http://%s:%d" % (opts["host"], int(opts["port"]))
+    # Проект печатаем ДО опроса сервера: это ответ про наш --root, а не про
+    # того, кто занял порт.
+    if root:
+        _out("project_root: %s" % root)
+    else:
+        _out("project_root: NOT FOUND (нет project.godot выше рабочей папки; "
+             "передайте --root)")
     code, data, err = _http_post(opts, "/browser/status", {"user_data_dir": udd})
     if err:
-        _out("server: DOWN (%s)" % err)
+        _out("server: DOWN (%s) на %s" % (err, server))
         _out("offline: engine/api/ask/search/read/paths preview/write работают "
              "и без сервера — напрямую с файлами проекта и кэшами.")
         return _finish(RC_ERROR, "server unreachable; offline commands still available")
     if code in (401, 403):
-        _out("server: UP, но отклонил наш токен/user_data_dir (HTTP %d) — "
-             "вероятно, привязан к другому проекту или редактор перезапущен." % code)
-        return _finish(RC_ERROR, "server rejected auth (HTTP %d)" % code)
+        owner = ""
+        if isinstance(data, dict):
+            owner = str(data.get("error") or "").strip()
+        _out("server: UP на %s, но это сервер ДРУГОГО проекта — наш токен "
+             "отклонён." % server)
+        if owner:
+            _out("server_says: %s" % owner)
+        _out("verdict: порт занят редактором другого проекта. Панельный сервер "
+             "и браузерный чат этого проекта сейчас недоступны; файлы, поиск, "
+             "API-справка и проверки работают offline.")
+        return _finish(RC_ERROR, "server on %s belongs to another project" % server)
     if code != 200:
+        _out("server: UP на %s, но ответил HTTP %s." % (server, code))
         return _finish(RC_ERROR, "unexpected HTTP %s from server" % code)
-    _out("server: UP (http://%s:%d)" % (opts["host"], int(opts["port"])))
+    _out("server: UP на %s (наш проект: токен принят)" % server)
     _out("browser: %s" % json.dumps(data or {}, ensure_ascii=False))
     if root:
-        _out("project_root: %s" % root)
         _engine_line(root, opts)
-    return _finish(RC_OK, "server is up")
+    return _finish(RC_OK, "server is up and belongs to this project")
 
 def cmd_engine(opts, args):
     """Версия Godot по кэшу API — актуальная информация о движке проекта."""
@@ -649,6 +680,51 @@ def cmd_ask(opts, args):
         return _finish(RC_NOT_FOUND, "nothing relevant found")
     return _finish(RC_OK, "librarian answer")
 
+
+# Запрос вида "a|b|c" — перечисление подстрок, а не регулярное выражение:
+# search ищет ПОДСТРОКУ целиком. Живой случай (профиль agent-dev, реальный
+# проект): запрос "OS.create_process|_start_server|exe_path" вернул «no
+# matches in access=agent-dev», и это было прочитано как «в проекте такого
+# нет» — при том что все три подстроки в файлах есть. Ядро
+# (search_project_text) уже умеет искать список needles за ОДИН обход диска,
+# поэтому перечисление разворачивается здесь, а не гоняет проект по разу на
+# каждую подстроку.
+SEARCH_MAX_ALTERNATIVES = 12
+
+# Признаки регулярного синтаксиса в запросе. Точка и одиночные скобки сюда НЕ
+# входят: "OS.create_process" и "arr[0]" — обычные подстроки кода, и подсказка
+# на них была бы шумом.
+_SEARCH_REGEX_MARKERS = (".*", "\\b", "\\w", "\\s", "\\d", "[^", "(?:", "(?=",
+                         "+?", "*?", "^", "$")
+
+
+def _search_alternatives(query):
+    """``a|b|c`` -> список подстрок; иначе None (одиночная подстрока)."""
+    if "|" not in query:
+        return None
+    parts = [part.strip() for part in query.split("|")]
+    if len(parts) < 2 or len(parts) > SEARCH_MAX_ALTERNATIVES:
+        return None
+    if any(not part for part in parts):
+        return None  # "a||b" — опечатка, а не перечисление: ищем как есть
+    return parts
+
+
+def _search_syntax_hint(query):
+    """Подсказка для запроса, написанного как регулярка. Иначе None.
+
+    Печатается ТОЛЬКО когда совпадений нет: на успешном поиске она была бы
+    шумом. Смысл тот же, что у предупреждения о деградации access-режима:
+    модель не должна прочитать «no matches» как «в проекте этого нет».
+    """
+    for marker in _SEARCH_REGEX_MARKERS:
+        if marker in query:
+            return ("подсказка: search ищет ПОДСТРОКУ целиком, регулярные "
+                    "выражения не поддерживаются (в запросе есть %r); "
+                    "несколько подстрок перечисляй через |" % marker)
+    return None
+
+
 def cmd_search(opts, args):
     """Поиск подстроки по проекту с доступом текущего CLI-режима."""
     max_results = 30
@@ -682,15 +758,31 @@ def cmd_search(opts, args):
     except BridgeRefused as exc:
         _out("refused: %s" % exc)
         return _finish(_refusal_code(exc), str(exc))
+    needles = _search_alternatives(query)
     results, truncated = project_tools.search_project_text(
-        root, query, max_results=max_results, **_access_kwargs(policy))
+        root, query, max_results=max_results, needles=needles,
+        **_access_kwargs(policy))
     if not results:
-        _out("no matches in access=%s" % policy["mode"])
+        if needles:
+            _out("no matches in access=%s: перечисление из %d подстрок, ни одна "
+                 "не найдена" % (policy["mode"], len(needles)))
+        else:
+            _out("no matches in access=%s" % policy["mode"])
+        hint = _search_syntax_hint(query)
+        if hint:
+            _out(hint)
         return _finish(RC_NOT_FOUND, "no matches")
     for row in results:
         _out("%s:%d" % (row.get("path", "?"), int(row.get("line", 0))))
+        if row.get("needle"):
+            # Какая подстрока перечисления совпала: без метки строка выглядит
+            # как совпадение всего запроса целиком.
+            _out("(совпало: %s)" % row["needle"])
         _out(row.get("snippet", ""))
         _out("---")
+    if needles:
+        _out("(перечисление из %d подстрок; квота %d на каждую)"
+             % (len(needles), max_results))
     if truncated:
         _out("(results truncated at %d; уточни запрос)" % max_results)
     return _finish(RC_OK, "%d match groups" % len(results))

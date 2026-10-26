@@ -184,6 +184,33 @@ class McpServerTests(unittest.TestCase):
         self.assertFalse(getattr(result, "is_error", False), self.text_of(result))
         self.assertIn("no matches", self.text_of(result))
 
+    def test_search_alternation_finds_every_needle(self):
+        """Запрос "a|b" — это перечисление подстрок, а не регулярка.
+
+        Модель пишет так по привычке к grep; раньше мост искал всю строку с
+        "|" целиком и отвечал «no matches» при том, что обе подстроки в
+        проекте есть (живой случай в профиле agent-dev на реальном проекте).
+        """
+        server = self.make_server("user")
+        result = self.call(server, "search",
+                           query="take_damage|extends Node")
+        text = self.text_of(result)
+        self.assertFalse(getattr(result, "is_error", False), text)
+        self.assertIn("player.gd", text)
+        self.assertIn("(совпало: take_damage)", text)
+        self.assertIn("(совпало: extends Node)", text)
+        self.assertIn("(перечисление из 2 подстрок", text)
+
+    def test_search_regex_query_explains_substring_semantics(self):
+        """«no matches» на регулярку обязано объяснять, что поиск подстрочный."""
+        server = self.make_server("user")
+        result = self.call(server, "search", query="take_.*damage\\b")
+        text = self.text_of(result)
+        self.assertFalse(getattr(result, "is_error", False), text)
+        self.assertIn("no matches", text)
+        self.assertIn("подсказка", text)
+        self.assertIn("ПОДСТРОКУ", text)
+
     def test_usage_error_is_reported_as_error(self):
         server = self.make_server("user")
         # Пустой запрос — настоящий usage-код моста (4), а не «не найдено».
@@ -452,6 +479,29 @@ class McpServerTests(unittest.TestCase):
                        "node_rename_preview", "node_reparent_preview",
                        "node_delete_preview"):
             self.assertNotIn(hidden, names)
+
+    def test_refactor_only_on_explicit_user_request(self):
+        """MCP не просит разбивать файлы без явной просьбы пользователя."""
+        for profile in ("user", "agent-dev"):
+            text = self.make_server(profile).instructions
+            self.assertIn("ТОЛЬКО по явной просьбе", text, profile)
+            self.assertNotIn("разбивай", text, profile)
+
+    def test_split_tools_carry_the_rule_in_their_descriptions(self):
+        """То же правило — в описаниях пил, а не только в instructions.
+
+        `instructions` MCP доходят до модели не во всех клиентах (Cline отдаёт
+        модели только описания инструментов), а описание tool клиент передаёт
+        ВСЕГДА. Поэтому запрет дублируется у самой пилы: без него в таких
+        клиентах правило не существует и разбиение снова предлагают «от себя».
+        """
+        import asyncio
+        server = self.make_server("agent-dev")
+        tools = {tool.name: (tool.description or "")
+                 for tool in asyncio.run(server.list_tools())}
+        for name in ("split_scan", "split_plan", "split_gd_scan", "split_gd_plan"):
+            self.assertIn(name, tools)
+            self.assertIn("только по явной просьбе", tools[name].lower(), name)
 
     def test_import_does_not_start_transport(self):
         self.assertTrue(callable(godot_agent_mcp.main))

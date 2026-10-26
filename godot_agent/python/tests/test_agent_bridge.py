@@ -177,6 +177,63 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertEqual(rc, 2, err)
         self.assertNotIn("Traceback", out + err)
 
+    def test_search_alternation_finds_each_needle(self):
+        # "a|b" — перечисление подстрок, а не регулярка. По привычке к grep
+        # модель пишет именно так, а поиск подстроки искал всю строку целиком
+        # и отвечал «no matches» (живой случай: "OS.create_process|
+        # _start_server|exe_path" в профиле agent-dev на реальном проекте).
+        rc, out, err = run_bridge(
+            self.base + ["search", "take_damage|class_name Player"])
+
+        self.assertEqual(rc, 0, err)
+        self.assertIn("player.gd", out)
+        self.assertIn("(совпало: take_damage)", out)
+        self.assertIn("(совпало: class_name Player)", out)
+        self.assertIn("(перечисление из 2 подстрок", out)
+        # Каждая подстрока даёт свою строку выдачи, склейки между ними нет.
+        self.assertEqual(out.count("\n---\n"), 2)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_alternation_all_missing_exit2(self):
+        rc, out, err = run_bridge(
+            self.base + ["search", "zzz_aaa_zzz|zzz_bbb_zzz"])
+
+        self.assertEqual(rc, 2, err)
+        self.assertIn("перечисление из 2 подстрок", out)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_empty_alternative_is_not_alternation(self):
+        # "take_damage|" — опечатка, а не перечисление: ищем подстроку целиком,
+        # а не выдаём все совпадения первой половины.
+        rc, out, err = run_bridge(self.base + ["search", "take_damage|"])
+
+        self.assertEqual(rc, 2, err)
+        self.assertNotIn("player.gd", out)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_regex_like_query_gets_hint(self):
+        # Точка в запросе — ещё не регулярка (OS.create_process), а вот ".*" и
+        # "\b" — повод честно сказать, что regex не поддерживается: иначе
+        # «no matches» читается как «в проекте этого нет».
+        rc, out, err = run_bridge(self.base + ["search", "take_.*damage\\b"])
+
+        self.assertEqual(rc, 2, err)
+        self.assertIn("подсказка: search ищет ПОДСТРОКУ", out)
+        self.assertNotIn("Traceback", out + err)
+
+    def test_search_dotted_substring_has_no_hint(self):
+        # Регресс-страховка на живой запрос: "OS.create_process" — обычная
+        # подстрока, точка не повод ни искать regex, ни печатать подсказку.
+        Path(self.root, "src", "link.gd").write_text(
+            "var pid := OS.create_process(exe, [], true)\n", encoding="utf-8")
+
+        rc, out, err = run_bridge(self.base + ["search", "OS.create_process"])
+
+        self.assertEqual(rc, 0, err)
+        self.assertIn("link.gd", out)
+        self.assertNotIn("подсказка", out)
+        self.assertNotIn("Traceback", out + err)
+
     def test_search_missing_max_is_usage(self):
         rc, out, err = run_bridge(self.base + ["search", "--max"])
         self.assertEqual(rc, 4, err)
@@ -1400,6 +1457,62 @@ class AgentBridgeTests(unittest.TestCase):
         self.assertNotIn("Traceback", out + err)
         # пользователь должен понять, что офлайн-команды всё равно доступны
         self.assertIn("offline", (out + err).lower())
+
+    def _stub_status_server(self, code, body):
+        """Локальный сервер-заглушка: отвечает заданным кодом и JSON."""
+        import threading
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+        payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802 - имя задаёт http.server
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass  # тишина в выводе теста
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return server.server_port
+
+    def test_status_foreign_project_is_named_not_guessed(self):
+        """Порт занят сервером ДРУГОГО проекта: status обязан сказать это прямо.
+
+        Регрессия: сервер отвечает 403 с объяснением и путём проекта-хозяина,
+        но мост выбрасывал тело HTTPError и печатал «вероятно, привязан к
+        другому проекту». Плюс project_root печатался ПОСЛЕ строки server,
+        поэтому ответ читался как «сервер обслуживает этот проект».
+        """
+        owner = "C:\\vajno\\Godot\\other-game"
+        port = self._stub_status_server(403, {
+            "error": "Токен запроса не совпал. Сервер обслуживает %s." % owner})
+        rc, out, err = run_bridge(self.base + ["--port", str(port),
+                                               "--timeout", "5", "status"])
+        self.assertEqual(rc, 3, err)
+        self.assertIn("ДРУГОГО проекта", out)
+        # имя проекта-хозяина пришло из тела ответа, а не додумано мостом
+        self.assertIn(owner, out)
+        self.assertNotIn("вероятно", out)
+        self.assertNotIn("Traceback", out + err)
+        # наш проект назван раньше, чем состояние сервера
+        self.assertLess(out.index("project_root:"), out.index("server:"))
+
+    def test_status_own_server_says_whose_project(self):
+        port = self._stub_status_server(200, {"ready": True, "state": "complete",
+                                              "url": "https://example.com"})
+        rc, out, err = run_bridge(self.base + ["--port", str(port),
+                                               "--timeout", "5", "status"])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("наш проект", out)
+        self.assertIn("project_root: %s" % self.root, out)
+        self.assertLess(out.index("project_root:"), out.index("server:"))
 
     # --- токен / user_data_dir ----------------------------------------------
 

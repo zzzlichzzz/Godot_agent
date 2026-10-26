@@ -688,6 +688,11 @@ func _ready() -> void:
 				_updater.name = "AgentUpdater"
 				add_child(_updater)
 		if _updater:
+			# Адрес сервера и файл с его PID — из AgentServer: это
+			# единственное место, где плагин знает про локальный сервер.
+			# Без этих двух значений обновление не гасит процессы вовсе.
+			_updater.server_shutdown_url = AgentServer.URL_SERVER_SHUTDOWN
+			_updater.server_pid_file = AgentServer.PID_FILE
 			if not _updater.update_available.is_connected(_on_updater_available):
 				_updater.update_available.connect(_on_updater_available)
 			if not _updater.update_progress.is_connected(_on_updater_progress):

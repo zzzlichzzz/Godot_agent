@@ -23,7 +23,20 @@ const CACHE_FILE := "user://godot_agent_update_check.json"
 const TEMP_ZIP_FILE := "user://godot_agent_update_temp.zip"
 const CACHE_TTL_SECONDS := 86400 # 24 часа
 
+# Каталоги, которые принадлежат ЗАПУЩЕННОМУ проекту, а не релизу: журнал
+# откатов (.agent_history) — история правок пользователя, minilich_brain/ —
+# обученная модель, parser_corpus/ — диагностические дампы парсера.
+# В архиве релиза их быть не должно (они в .gitignore), но если появятся —
+# перезаписывать их чужой копией нельзя: это потеря данных, а не обновление.
+const RUNTIME_DIRS := [".agent_history/", "minilich_brain/", "parser_corpus/", "__pycache__/"]
+
 var releases_url: String = DEFAULT_API_URL
+# Заполняет панель значениями из AgentServer (единственное место, где плагин
+# знает про локальный сервер). Пустая строка = «гасить нечего»: обновление
+# тогда не трогает процессы вообще — так agent_updater.gd остаётся работоспособным
+# и в одиночной песочнице (живой тест кладёт его в пустой проект).
+var server_shutdown_url: String = ""
+var server_pid_file: String = ""
 var _check_http: HTTPRequest = null
 var _download_http: HTTPRequest = null
 var _progress_timer: Timer = null
@@ -361,6 +374,12 @@ func verify_and_install_zip(zip_path: String) -> Dictionary:
 		if base_name in user_preserve_files:
 			continue
 
+		# Пропускаем данные ЗАПУЩЕННОГО проекта (журнал откатов, обученная
+		# модель, дампы парсера): в архиве релиза их быть не должно, а
+		# перезапись означала бы потерю истории правок пользователя.
+		if _is_runtime_path(rel):
+			continue
+
 		var dest_res := target_base.path_join(rel)
 		var dest_global := ProjectSettings.globalize_path(dest_res)
 
@@ -397,6 +416,14 @@ func verify_and_install_zip(zip_path: String) -> Dictionary:
 	return {"ok": true, "updated_files": updated_count}
 
 
+func _is_runtime_path(rel: String) -> bool:
+	# rel — путь внутри аддона через "/" (например ".agent_history/j.json").
+	for prefix in RUNTIME_DIRS:
+		if rel.begins_with(prefix) or rel.contains("/" + prefix):
+			return true
+	return false
+
+
 func _json_headers() -> PackedStringArray:
 	var token_file := "user://godot_agent_token.txt"
 	var token := ""
@@ -412,20 +439,74 @@ func _json_headers() -> PackedStringArray:
 
 
 func shutdown_server() -> void:
-	# 1. Посылаем запрос на завершение работы локального сервера
-	var http := HTTPRequest.new()
-	add_child(http)
-	var headers := _json_headers()
-	http.request("http://127.0.0.1:5000/server/shutdown", headers, HTTPClient.METHOD_POST, "{}")
+	# 1. Просим сервер завершиться сам — он гасит chromedriver до выхода.
+	if server_shutdown_url != "":
+		var http := HTTPRequest.new()
+		add_child(http)
+		var headers := _json_headers()
+		http.request(server_shutdown_url, headers, HTTPClient.METHOD_POST, "{}")
+		# Удаляем временный узел через 1 секунду
+		var timer := get_tree().create_timer(1.0)
+		timer.timeout.connect(http.queue_free)
 
-	# 2. На Windows: короткая пауза, чтобы сервер сам погасил chromedriver, затем taskkill — страховка.
-	if OS.get_name() == "Windows":
+	# 2. На Windows: короткая пауза и страховка на случай, если процесс не
+	#    успел выйти сам. Убиваем ТОЛЬКО свой PID.
+	#
+	#    Раньше здесь стоял taskkill /F /IM godot_agent_server.exe — он сносил
+	#    серверы ВСЕХ открытых проектов: обновление плагина в одном редакторе
+	#    гасило агента в другом. PID своего сервера запоминает
+	#    agent_server_link.gd при запуске (AgentServer.PID_FILE).
+	if OS.get_name() == "Windows" and server_pid_file != "":
 		OS.delay_msec(900)
-		OS.execute("taskkill", ["/F", "/IM", "godot_agent_server.exe"], [], false, true)
+		_kill_own_server()
 
-	# Удаляем временный узел через 1 секунду
-	var timer := get_tree().create_timer(1.0)
-	timer.timeout.connect(http.queue_free)
+
+func _kill_own_server() -> void:
+	var pid := _read_server_pid()
+	if pid <= 0:
+		# PID неизвестен (сервер запускали не мы) — не трогаем ничего.
+		return
+	if not _is_agent_server_process(pid):
+		# Номер уже принадлежит другому процессу: файл PID устарел.
+		_forget_server_pid()
+		return
+	# /T — вместе с дочерними: chromedriver держит сокет сервера, и без него
+	# порт остался бы «призраком» (см. python/server/port_guard.py).
+	OS.execute("taskkill", ["/F", "/T", "/PID", str(pid)], [], false, true)
+	_forget_server_pid()
+
+
+func _read_server_pid() -> int:
+	if server_pid_file == "" or not FileAccess.file_exists(server_pid_file):
+		return 0
+	var f := FileAccess.open(server_pid_file, FileAccess.READ)
+	if f == null:
+		return 0
+	var text := f.get_as_text().strip_edges()
+	f.close()
+	if text == "" or not text.is_valid_int():
+		return 0
+	return int(text)
+
+
+func _forget_server_pid() -> void:
+	if server_pid_file == "":
+		return
+	if FileAccess.file_exists(server_pid_file):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(server_pid_file))
+
+
+func _is_agent_server_process(pid: int) -> bool:
+	# Проверяем, что за этим PID всё ещё стоит ИМЕННО сервер агента: после
+	# перезапуска номер мог достаться чужому процессу, и убивать его нельзя.
+	var out: Array = []
+	OS.execute("tasklist", ["/FI", "PID eq %d" % pid,
+		"/FI", "IMAGENAME eq godot_agent_server.exe", "/NH", "/FO", "CSV"],
+		out, false, true)
+	for line in out:
+		if String(line).to_lower().contains("godot_agent_server.exe"):
+			return true
+	return false
 
 
 func restart_editor() -> void:

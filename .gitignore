@@ -80,3 +80,11 @@ godot_agent/python/tests/_probe_*.py
 *.pfx
 api_keys.json
 secrets/
+
+# Рантайм-кэш API, созданный запуском из ИСХОДНИКОВ: путь считается от sys.argv[0],
+# поэтому рядом с python/ появляется своя копия вшитого справочника. Это данные
+# прогона, а не исходник (сам вшитый кэш лежит в godot_agent/agent_api_cache/).
+godot_agent/python/agent_api_cache/
+
+# Выгрузка godot_agent/python/tools/arch_audit.py по текущему дереву.
+arch_audit_out.txt
