@@ -240,13 +240,19 @@ static func _clear_runtime_check_state(panel) -> void:
 	if panel._runtime_timeout_timer:
 		panel._runtime_timeout_timer.stop()
 
+# Локализация — через preload, а НЕ через load() по вычисленному пути: словарь
+# обязан существовать уже к моменту загрузки панели и не может оказаться null.
+# Раньше при сбое load() возвращал null, _t() отдавала голый ключ («log_auto_ok»),
+# и первый же вызов вида _t("...") % value падал в рантайме с «not all arguments
+# converted during string formatting»: ошибка выглядела случайной строкой панели
+# и прятала настоящую причину. Теперь сломанный agent_locale.gd виден сразу и по
+# имени файла, а не через падение в произвольном месте.
+const LOCALE_SCRIPT := preload("agent_locale.gd")
+
+
 static func _locale(panel):
 	if panel._loc == null:
-		var sc = panel.get_script() as Script
-		if sc:
-			var lp = sc.resource_path.get_base_dir() + "/agent_locale.gd"
-			if FileAccess.file_exists(lp):
-				panel._loc = load(lp)
+		panel._loc = LOCALE_SCRIPT
 	return panel._loc
 
 static func _t(panel, key: String) -> String:
@@ -809,7 +815,7 @@ static func _on_send_pressed(panel) -> void:
 	panel._clear_chat_input(true)
 	panel._rollback_force_next = false
 	panel._view.add_user_message(panel._escape_bbcode(user_text))
-	panel._view.add_system(panel._t("analyzing"))
+	panel._view.add_pending_system(panel._t("analyzing"))
 	panel._send_chat_raw(user_text, false)
 
 static func _send_chat_raw(panel, prompt: String, ignore_mismatch: bool) -> void:

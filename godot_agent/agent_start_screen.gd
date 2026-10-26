@@ -67,6 +67,9 @@ var _spin_timer: Timer = null
 var _spin_idx: int = 0
 var _return_view: String = "home"
 var _loc = null
+# Словарь надписей — через preload: он не может не загрузиться, и значит _t()
+# никогда не вернёт голый ключ, на котором падает форматирование «%».
+const LOCALE_SCRIPT := preload("agent_locale.gd")
 # Коды языков в том порядке, в каком они стоят в переключателе. Держим отдельно
 # от подписей: подпись показывается человеку, а на сервер и в файл уходит код.
 var _lang_codes: Array = []
@@ -264,12 +267,10 @@ func _ready() -> void:
 # ---------------- Локализация ----------------
 
 func _locale():
+	# preload, а не load(): словарь не может не загрузиться, поэтому _t() не
+	# вернёт голый ключ и форматирование «%» не упадёт в рантайме.
 	if _loc == null:
-		var sc := get_script() as Script
-		if sc:
-			var lp := sc.resource_path.get_base_dir() + "/agent_locale.gd"
-			if FileAccess.file_exists(lp):
-				_loc = load(lp)
+		_loc = LOCALE_SCRIPT
 	return _loc
 
 

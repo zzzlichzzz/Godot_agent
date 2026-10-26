@@ -910,6 +910,12 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 		await panel.get_tree().process_frame
 	else:
 		if kind == "chat":
+			# Неудачная отправка (таймаут, сервер не ответил, не-200 ответ):
+			# снимаем «Агент анализирует проект...» и сообщаем об ошибке, иначе
+			# строка висит вечно и выглядит как бесконечный коннект (v107).
+			if panel._view:
+				panel._view.clear_pending_system()
+				panel._view.add_system(panel._t("err_send"))
 			panel._restore_chat_draft()
 		if kind == "runtime_check_bind":
 			panel._send_runtime_check_result("bridge_unavailable", {})

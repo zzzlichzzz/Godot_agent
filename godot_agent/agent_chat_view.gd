@@ -108,14 +108,13 @@ var _battle_scope_bar: PanelContainer = null
 var _battle_scope_active: bool = false
 var _root_vbox: VBoxContainer = null
 var _loc = null
+# Словарь надписей грузится через preload: он не может оказаться null, и значит
+# _t() никогда не вернёт голый ключ, на котором ломается форматирование «%».
+const LOCALE_SCRIPT := preload("agent_locale.gd")
 
 func _locale():
 	if _loc == null:
-		var sc := get_script() as Script
-		if sc:
-			var lp := sc.resource_path.get_base_dir() + "/agent_locale.gd"
-			if FileAccess.file_exists(lp):
-				_loc = load(lp)
+		_loc = LOCALE_SCRIPT
 	return _loc
 
 
@@ -223,6 +222,8 @@ func clear() -> void:
 	# Карточки-вопросы удаляются вместе с содержимым чата — иначе в словаре
 	# остались бы ссылки на освобождённые узлы.
 	_question_cards.clear()
+	# Строка ожидания ответа тоже ушла вместе с чатом (v107).
+	_pending_note = null
 	if _chat_container:
 		for child in _chat_container.get_children():
 			_chat_container.remove_child(child)
@@ -323,6 +324,25 @@ func add_system(text: String) -> void:
 	if _chat_container:
 		_chat_container.add_child(_make_note_label(text, _color("dim")))
 		_scroll_to_bottom()
+
+
+# v107: ожидание ответа. Строку «Агент анализирует проект...» при неудачной
+# отправке нужно уметь снять — после таймаута или не-200 ответа сервера она
+# висела бы вечно, и пользователь видел бы бесконечный «коннект» без ошибки.
+var _pending_note: Control = null
+
+
+func add_pending_system(text: String) -> void:
+	add_system(text)
+	_pending_note = (_chat_container.get_child(_chat_container.get_child_count() - 1)
+			if _chat_container and _chat_container.get_child_count() > 0 else null)
+
+
+func clear_pending_system() -> void:
+	if _pending_note != null and _pending_note.get_parent() == _chat_container:
+		_chat_container.remove_child(_pending_note)
+		_pending_note.queue_free()
+	_pending_note = null
 
 
 func add_hint(text: String) -> void:
