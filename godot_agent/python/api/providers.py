@@ -103,18 +103,48 @@ PROVIDERS = [
         # всю подписку (app.cline.bot → Settings → API Keys). Поэтому имя
         # переменной одно, без второго варианта, как у gemini.
         "env_names": ("CLINE_API_KEY",),
-        "models_path": "/models",
-        # Список моделей ЖИВОЙ и меняется без предупреждения, поэтому он не
-        # зашит: панель тянет его с /models. Пустой список здесь означает
-        # «мы его не знаем», а не «моделей нет».
-        "models": [],
-        "default_model": "",
+        # ЖИВОЙ /models ПОДПИСОЧНЫЕ МОДЕЛИ НЕ ПЕРЕЧИСЛЯЕТ. Замерено 22.10.2026:
+        # /models отвечает 472 записями (одинаково с ключом и без), и ни одна
+        # не начинается на cline-pass/ — подписочный список этим эндпоинтом не
+        # отдаётся вовсе. Поэтому зашитый перечень здесь — ЕДИНСТВЕННЫЙ
+        # источник, а не подстраховка, как у остальных провайдеров. Состав
+        # сверён с документацией (docs.cline.bot/getting-started/clinepass),
+        # где слаги перечислены явно; снимаемые с подписки модели (как
+        # GLM-5.2 и Kimi K2.6) убираются отсюда руками, вместе с новой версией
+        # документа. Модели без префикса cline-pass/ (anthropic/…, openai/…)
+        # тарифицируются за токены ОТДЕЛЬНО от подписки, и под этой карточкой
+        # им места нет.
+        "models": [
+            "cline-pass/glm-5.3",
+            "cline-pass/glm-5.3-flash",
+            "cline-pass/kimi-k3",
+            "cline-pass/deepseek-v4-pro",
+            "cline-pass/deepseek-v4.1-flash",
+            "cline-pass/mimo-v2.5",
+            "cline-pass/mimo-v2.5-pro",
+            "cline-pass/minimax-m3",
+            "cline-pass/muse-spark-1.3-contributor",
+            "cline-pass/qwen3.8-max",
+            "cline-pass/qwen3.7-max",
+            "cline-pass/qwen3.7-plus",
+        ],
+        # По умолчанию — флагман таблицы из документации: первый же запрос
+        # пользователя должен идти на модель, точно входящую в подписку.
+        "default_model": "cline-pass/glm-5.3",
         "extra_headers": {},
+        # ПРОВЕРКА ПОДКЛЮЧЕНИЯ — ТОЛЬКО ПОТОКОМ. Замерено 22.10.2026 живым ключом:
+        # любой НЕ-потоковый запрос к подписочным моделям cline-pass/* отвечается
+        # HTTP 500 «empty response content» (на стороне Cline), и при этом тот же
+        # запрос потоком возвращает нормальный ответ за секунды. Обычная проверка
+        # показывала бы «Сервис недоступен» на рабочем ключе. Как и у AgentRouter
+        # (шлюз отвечает 504 от своего nginx), поток ближе и к боевому режиму:
+        # чат работает именно стримом.
+        "test_with_stream": True,
         # Бесплатного уровня у ClinePass нет: это платная подписка.
         # Обещать «бесплатно» нельзя — пользователь упрётся в 402 и решит,
         # что плагин соврал.
-        "note_ru": "Подписка Cline: повышенные лимиты на кодинг-модели (GLM, Kimi, DeepSeek, Qwen, MiniMax) по одному ключу. Требуется подписка ClinePass, бесплатного уровня нет.",
-        "note_en": "A Cline subscription: higher limits on coding models (GLM, Kimi, DeepSeek, Qwen, MiniMax) behind one key. A ClinePass subscription is required; there is no free tier.",
+        "note_ru": "Подписка Cline: повышенные лимиты (окна 5 часов / неделя / месяц) на открытые кодинг-модели по одному ключу. Список моделей зашит по документации ClinePass — живой /models подписочные модели не перечисляет: GLM, Kimi, DeepSeek, MiMo, MiniMax, Qwen со слагами cline-pass/*. Остальные модели Cline API тарифицируются за токены отдельно. Требуется подписка ClinePass, бесплатного уровня нет.",
+        "note_en": "A Cline subscription: higher limits (5-hour / weekly / monthly windows) on open coding models behind one key. The model list is pinned to the ClinePass documentation — the live /models endpoint does not list subscription models: GLM, Kimi, DeepSeek, MiMo, MiniMax, Qwen with cline-pass/ slugs. Other Cline API models are billed per token separately. A ClinePass subscription is required; there is no free tier.",
     },
     {
         "id": "openrouter",
@@ -495,6 +525,18 @@ def models_url(provider_id):
     if not base or not path:
         return ""
     return base + path
+
+
+def registry_models(provider_id):
+    u"""Зашитый в реестр перечень моделей провайдера (обычно пустой).
+
+    У большинства провайдеров перечень пуст намеренно: живой /models —
+    первичная правда. Непуст он там, где живого источника нет или тот
+    перечисляет не то: у ClinePass /models не содержит подписочных
+    cline-pass/* (замерено), у agentrouter сервис недоступен без внесения
+    в свой список клиентов.
+    """
+    return list((get_provider(provider_id) or {}).get("models") or [])
 
 
 def headers_for(provider_id):

@@ -81,6 +81,42 @@ check(u"мусор вместо ответа не роняет разбор",
       P.parse_models_detailed(None) == [] and P.parse_models_detailed({"data": 5}) == [])
 
 # ---------------------------------------------------------------------------
+# 1в) ЗАШИТЫЙ СПИСОК ПОДПИСКИ CLINEPASS
+#
+# ЖИВОЙ /models ПОДПИСОЧНЫЕ МОДЕЛИ НЕ ПЕРЕЧИСЛЯЕТ. Замерено 22.10.2026:
+# api.cline.bot/api/v1/models отвечает 472 записями (одинаково с ключом и
+# без), и ни одна не начинается на cline-pass/. Единственный источник
+# подписочного перечня — документация (docs.cline.bot/getting-started/
+# clinepass), где слаги перечислены явно. Показывать под карточкой ClinePass
+# usage-billing модели (anthropic/…, openai/…) нельзя: пользователь выбрал бы
+# модель, за которую платит поверх подписки.
+# ---------------------------------------------------------------------------
+CP = P.get_provider("clinepass") or {}
+cp_models = P.registry_models("clinepass")
+check(u"у ClinePass зашит перечень моделей подписки", len(cp_models) == 12)
+check(u"все модели ClinePass — слаги cline-pass/*",
+      bool(cp_models) and all(m.startswith("cline-pass/") for m in cp_models))
+check(u"слаги из документации на месте",
+      "cline-pass/glm-5.3" in cp_models
+      and "cline-pass/kimi-k3" in cp_models
+      and "cline-pass/deepseek-v4.1-flash" in cp_models
+      and "cline-pass/qwen3.7-max" in cp_models)
+check(u"дублей в зашитом перечне нет", len(set(cp_models)) == len(cp_models))
+check(u"модель по умолчанию ClinePass входит в перечень",
+      (CP.get("default_model") or "") in cp_models)
+check(u"у ClinePass нет живого источника списка — иначе он перебил бы зашитый",
+      P.models_url("clinepass") == "")
+check(u"проверка подключения ClinePass идёт потоком (не-стрим у Cline отвечает 500)",
+      P.test_with_stream("clinepass") is True)
+check(u"перечень ClinePass проходит разбор без потерь",
+      len(P.parse_models_detailed(
+          {"data": [{"id": m} for m in cp_models]},
+          provider_id="clinepass")) == len(cp_models))
+check(u"у прочих провайдеров с живым источником зашитых перечней нет",
+      [p["id"] for p in P.all_records()
+       if p["id"] != "clinepass" and p.get("models")] == ["agentrouter"])
+
+# ---------------------------------------------------------------------------
 # 1б) ЧИСЛА ИЗ ЖИВОГО ОТВЕТА ПРОВАЙДЕРА — первичные, каталог им не нужен
 #
 # Замерено (OpenRouter, 19.08.2026): pricing есть у всех 416 записей,

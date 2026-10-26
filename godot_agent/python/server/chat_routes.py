@@ -279,6 +279,15 @@ def _fetch_models(pid, connect_timeout=None):
         return [], u"неизвестный провайдер «%s»" % pid
     url = providers.models_url(pid)
     if not url:
+        # Живого источника списка у провайдера может не быть вовсе — тогда
+        # единственная правда это зашитый в реестр перечень (ClinePass: живой
+        # /models подписочные модели не перечисляет; agentrouter: сервис
+        # недоступен). Отдаём его как обычный ответ: кнопка «Обновить» и
+        # автообновление работают одинаково, записи попадают в кэш и индекс
+        # поиска, а панель не видит разницы между источниками.
+        static = providers.registry_models(pid)
+        if static:
+            return [{"id": m, "free": False} for m in static], ""
         return [], u"не задан адрес списка моделей"
     blocked = providers.unavailable_reason(pid)
     if blocked:
@@ -413,6 +422,16 @@ def _models_index():
     только заполняет отсутствующие поля.
     """
     idx = model_cache.index()
+    # Провайдеры без живого источника списка держат перечень в реестре
+    # (providers.registry_models). Кэш для них мог остаться от прежней версии
+    # сервера — например, с моделями общего эндпоинта, не входящими в тариф, —
+    # а верить надо реестру: перекрываем ДО дополнения каталогом, чтобы в
+    # поиске по всем провайдерам не всплывали модели, которых у тарифа нет.
+    for p in providers.all_records():
+        if not providers.models_url(p["id"]):
+            static = providers.registry_models(p["id"])
+            if static:
+                idx[p["id"]] = [{"id": m, "free": False} for m in static]
     return {pid: _enrich(pid, recs) for pid, recs in idx.items()}
 
 
@@ -420,18 +439,26 @@ def _models_index():
 def api_models_refresh():
     """Список моделей с самого сервиса.
 
-    В реестре списки пустые намеренно: идентификаторы моделей меняются
-    постоянно, и зашитый в код перечень начал бы врать пользователю. Поэтому
-    он тянется отсюда, а поле модели в панели остаётся редактируемым — можно
-    вписать любой идентификатор руками.
+    У большинства провайдеров списки в реестре пустые намеренно:
+    идентификаторы моделей меняются постоянно, и зашитый в код перечень начал
+    бы врать пользователю. Поэтому он тянется отсюда, а поле модели в панели
+    остаётся редактируемым — можно вписать любой идентификатор руками.
+
+    Исключение — провайдеры без живого источника списка: у ClinePass живой
+    /models подписочные модели не перечисляет вовсе, у AgentRouter сервис
+    недоступен. Их перечень зашит в реестре и возвращается отсюда как обычный
+    ответ (см. _fetch_models).
     """
     data = request.json or {}
     pid = (data.get("provider") or "").strip()
     provider = providers.get_provider(pid)
     if provider is None:
         return jsonify({"error": u"Неизвестный провайдер «%s»." % pid}), 400
-    if not providers.models_url(pid):
-        return jsonify({"error": u"У «%s» не задан адрес списка моделей."
+    # Провайдер без живого источника, но с зашитым перечнем, тоже обновляем:
+    # перечень возвращается как обычный ответ (см. _fetch_models).
+    if not providers.models_url(pid) and not providers.registry_models(pid):
+        return jsonify({"error": u"У «%s» не задан ни адрес списка моделей, "
+                                 u"ни зашитый перечень."
                                  % provider["name"]}), 400
     blocked = providers.unavailable_reason(pid)
     if blocked:
