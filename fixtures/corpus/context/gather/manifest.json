@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/context/gather",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/gather_context.py:validate_request (модель секций)",
+    "sha256": "061a6e9a6bd561a56ea53b0df2677251a9ba214e7b208728cafa134c03150648"
+  },
+  "fixture_root": "fixtures/projects",
+  "provides_tools": [
+    "context"
+  ],
+  "cases": [
+    {
+      "id": "001-all-sections",
+      "file": "001-all-sections.json",
+      "fixture": "minimal",
+      "sha256": "c25232cdfec9de71a1941970c642b7c74968a071a0f07c7479d1de4f8af12491"
+    },
+    {
+      "id": "002-project-only",
+      "file": "002-project-only.json",
+      "fixture": "minimal",
+      "sha256": "d2befdd5a6150187113db853d34c2c05ef69bc9bb4b67bc4b17000d540472152"
+    },
+    {
+      "id": "003-unknown-section",
+      "file": "003-unknown-section.json",
+      "fixture": "minimal",
+      "sha256": "3d8314ef24f8d53a40f3cfdaaef280e9d1a72a01cf6d2c7429b1983f4f357881"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "id": "c24-theme_set_item",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "theme_set_item",
+        "data_type": "stylebox",
+        "theme_type": "Button",
+        "name": "probe_style",
+        "value": {
+          "type": "NewSubresource",
+          "class": "StyleBoxFlat",
+          "properties": [
+            {
+              "property": "bg_color",
+              "value": {
+                "type": "Color",
+                "value": [
+                  0.2,
+                  0.3,
+                  0.4,
+                  1.0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IlRoZW1lIiBsb2FkX3N0ZXBzPTIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTIiXQ0KDQo7IGtlZXAgc3BhY2luZyBhbmQgY29tbWVudCBpbiBwcm9wb3NlZCB0ZXh0dWFsIHZhcmlhbnQNCltleHRfcmVzb3VyY2UgdHlwZT0iVGV4dHVyZTJEIiBwYXRoPSJyZXM6Ly9vbGQudHJlcyIgaWQ9Im9sZF90ZXh0dXJlIl0NCg0KW3Jlc291cmNlXQ0KZGVmYXVsdF9mb250X3NpemUgPSAxNg0KQnV0dG9uL2ljb25zL3Byb2JlX2ljb24gPSBFeHRSZXNvdXJjZSgib2xkX3RleHR1cmUiKQ0K"
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IlRoZW1lIiBsb2FkX3N0ZXBzPTMgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTIiXQ0KDQo7IGtlZXAgc3BhY2luZyBhbmQgY29tbWVudCBpbiBwcm9wb3NlZCB0ZXh0dWFsIHZhcmlhbnQNCltleHRfcmVzb3VyY2UgdHlwZT0iVGV4dHVyZTJEIiBwYXRoPSJyZXM6Ly9vbGQudHJlcyIgaWQ9Im9sZF90ZXh0dXJlIl0NCg0KW3N1Yl9yZXNvdXJjZSB0eXBlPSJTdHlsZUJveEZsYXQiIGlkPSJhZ2VudF8xIl0NCg0KYmdfY29sb3IgPSBDb2xvcigwLjIsIDAuMywgMC40LCAxLjApDQpbcmVzb3VyY2VdDQpkZWZhdWx0X2ZvbnRfc2l6ZSA9IDE2DQpCdXR0b24vaWNvbnMvcHJvYmVfaWNvbiA9IEV4dFJlc291cmNlKCJvbGRfdGV4dHVyZSIpDQpCdXR0b24vc3R5bGVzL3Byb2JlX3N0eWxlID0gU3ViUmVzb3VyY2UoImFnZW50XzEiKQ0K",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_execute": "theme_set_item-native.output.json",
+    "generated_load": "theme_set_item-generated.output.json",
+    "projection_sha256": "090be19e45c18732d4219a9e216ce21001d5f5b6236349dda5f5e4e32ee71ad5",
+    "semantic_hash": "a25508de4d93d61cac11eff42b28184ea82f345d0000277264d86605789d700b",
+    "proof_sha256": "9885f724f3b4458b25ba7dc9f872cf785c585ed9871e23ce591f5f7fc4e97d5f",
+    "decision": "D18"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "7383ea5b4be2834fb82b22c1095cf91ca21ac675153c594953ce672a4b907d4f",
+      "after_hash": "e17d05044b01155f6254ec6f11f49d282c10bf699171720a2b18baa189c4bdb0",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

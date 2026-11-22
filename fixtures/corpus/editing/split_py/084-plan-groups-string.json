@@ -1,0 +1,20 @@
+{
+  "id": "084-plan-groups-string",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_groups-string",
+  "args": {
+    "path": "res://donor.py",
+    "groups": "bad"
+  },
+  "reference_result": null,
+  "reference_error": {
+    "ok": false,
+    "exception": "AttributeError",
+    "message": "'str' object has no attribute 'get'"
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

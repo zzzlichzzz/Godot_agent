@@ -1,0 +1,23 @@
+{
+  "id": "021-lone_cr_scene",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\r[node name=\"Root\" type=\"Node\"]\r"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\r[node name=\"Root\" type=\"Node\"]\r",
+      "changed": false,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\r[node name=\"Root\" type=\"Node\"]\r",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

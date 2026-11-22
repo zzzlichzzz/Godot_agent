@@ -1,0 +1,45 @@
+{
+  "id": "075-only_api_no_extends",
+  "tool": "verify",
+  "fixture": "corpus/verification/check/api",
+  "args": {
+    "path": "res://no_extends.gd",
+    "kinds": [
+      "api"
+    ]
+  },
+  "reference_result": {
+    "path": "res://no_extends.gd",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "reference_lint": [],
+  "reference_api": [],
+  "contract_boundary": "C.13: kinds/availability projection; actual-old lint+API observations retained",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://no_extends.gd",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [
+        "api"
+      ],
+      "unavailable": [
+        {
+          "kind": "source",
+          "reason": "no_extends"
+        }
+      ],
+      "unchecked_reason": "ни одна проверка расширения .gd не выполнена (no_extends) — файл НЕ проверен"
+    }
+  }
+}

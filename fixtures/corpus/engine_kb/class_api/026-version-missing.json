@@ -1,0 +1,46 @@
+{
+  "id": "026-version-missing",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/no-version",
+  "args": {
+    "class_name": "Known"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Known",
+      "found": true,
+      "cache_version": "",
+      "inherits": [
+        "Known"
+      ],
+      "methods": [],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Known",
+  "reference_result": {
+    "has_cache": true,
+    "version": "",
+    "record": {
+      "inherits": null
+    },
+    "chain": [
+      "Known"
+    ],
+    "members": [
+      {},
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

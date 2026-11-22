@@ -1,0 +1,52 @@
+{
+  "id": "expanded-wait_for_import0",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ],
+    "wait_for_import": null
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "int",
+              "value": 2
+            }
+          }
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "13e75bd677d254563bedd074692cea67e07d99bcf972eb9015ea2c6ef7653875"
+}

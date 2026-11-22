@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "q3-direct-import",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://asset.png.import",
+    "new_path": "res://other.import",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "asset.png": {
+        "bytes_b64": "iVBORw0KAP8=",
+        "bytes": 8,
+        "sha256": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed"
+      },
+      "asset.png.import": {
+        "bytes_b64": "77u/W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL2Fzc2V0LnBuZyINdWlkPSJ1aWQ6Ly9rZWVwIgo=",
+        "bytes": 59,
+        "sha256": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01"
+      },
+      "asset.png.uid": {
+        "bytes_b64": "dWlkOi8vYXNzZXQNCg==",
+        "bytes": 13,
+        "sha256": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "native_ok": false,
+  "native_result": null,
+  "native_exception": {
+    "type": "FileRefactorError",
+    "text": "Не следует переименовывать файл .import напрямую. Переименуйте сам ассет (res://asset.png), и его .import обновится автоматически."
+  },
+  "native_original_raw_sha256": "0b549ce218be8d980a71c653e0cda56035eeae314df3c1a4646ebbe5c5dbc3b7"
+}

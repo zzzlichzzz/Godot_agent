@@ -1,0 +1,13 @@
+{
+  "id": "039-missing",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/absent.tscn"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл не найден: res://scenes/absent.tscn"
+  }
+}

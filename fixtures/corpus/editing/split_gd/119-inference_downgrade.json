@@ -1,0 +1,662 @@
+{
+  "id": "119-inference_downgrade",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/inference_downgrade",
+  "args": {
+    "path": "res://donor.gd",
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ]
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": {
+    "schema": 1,
+    "kind": "split_gd",
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\119-inference_downgrade",
+    "project_root": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\119-inference_downgrade",
+    "donor": "donor.gd",
+    "donor_abs": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\119-inference_downgrade\\donor.gd",
+    "donor_sha256": "9ada4026297b1f00ed7cb96def2eda477eb37bc381c4ea07214951f9586899ae",
+    "newline": "\n",
+    "target_lines": 1100,
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "rel": "part_one.gd",
+        "const": "PartOne",
+        "funcs": [
+          "alpha"
+        ],
+        "content": "@tool\nextends RefCounted\n\n# Модуль part_one: методы вынесены «пилой» split_gd из donor.gd.\n# Реализация живёт ЗДЕСЬ; в доноре на месте метода — тонкая обёртка,\n# поэтому connect()/call() по исходным именам продолжают работать.\n# Тело работает через параметр panel: к членам донора — panel.<член>,\n# к другим методам донора — panel.<метод> (через его обёртку).\n\nstatic func alpha(panel):\n\tvar first = panel.get_tree()\n\tvar second = first\n\tvar third = [\n\t\tsecond,\n\t\tpanel\n\t]\n\tvar safe := 1\n\treturn third\n",
+        "lines": 19
+      }
+    ],
+    "donor_content": "extends Control\n\n# --- части (вынесены «пилой» split_gd) ---\nconst PartOne = preload(\"part_one.gd\")\nvar state = 2\n# split_gd: тело — part_one.gd\nfunc alpha():\n\tPartOne.alpha(self)\n",
+    "wrappers": [
+      {
+        "name": "alpha",
+        "module": "part_one",
+        "await": false
+      }
+    ],
+    "warnings": [],
+    "stats": {
+      "moved": 1,
+      "modules": 1,
+      "donor_before": 11,
+      "donor_after": 9
+    }
+  },
+  "reference_public": {
+    "schema": 1,
+    "kind": "split_gd",
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\119-inference_downgrade",
+    "project_root": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\119-inference_downgrade",
+    "donor": "donor.gd",
+    "donor_abs": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\119-inference_downgrade\\donor.gd",
+    "donor_sha256": "9ada4026297b1f00ed7cb96def2eda477eb37bc381c4ea07214951f9586899ae",
+    "newline": "\n",
+    "target_lines": 1100,
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "rel": "part_one.gd",
+        "const": "PartOne",
+        "funcs": [
+          "alpha"
+        ],
+        "lines": 19
+      }
+    ],
+    "donor_content": null,
+    "wrappers": [
+      {
+        "name": "alpha",
+        "module": "part_one",
+        "await": false
+      }
+    ],
+    "warnings": [],
+    "stats": {
+      "moved": 1,
+      "modules": 1,
+      "donor_before": 11,
+      "donor_after": 9
+    }
+  },
+  "reference_error": null,
+  "contract_refusal": null,
+  "expect": {
+    "ok": true,
+    "result": {
+      "schema": 1,
+      "kind": "split_gd",
+      "donor": "donor.gd",
+      "donor_sha256": "9ada4026297b1f00ed7cb96def2eda477eb37bc381c4ea07214951f9586899ae",
+      "newline": "\n",
+      "target_lines": 1100,
+      "groups": [
+        {
+          "module": "part_one",
+          "funcs": [
+            "alpha"
+          ]
+        }
+      ],
+      "modules": [
+        {
+          "rel": "part_one.gd",
+          "const": "PartOne",
+          "funcs": [
+            "alpha"
+          ],
+          "lines": 19
+        }
+      ],
+      "wrappers": [
+        {
+          "name": "alpha",
+          "module": "part_one",
+          "await": false
+        }
+      ],
+      "warnings": [],
+      "stats": {
+        "moved": 1,
+        "modules": 1,
+        "donor_before": 11,
+        "donor_after": 9
+      }
+    }
+  },
+  "reference_inventory": {
+    "extends": "Control",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [],
+    "vars": [
+      {
+        "name": "state",
+        "line": 2
+      }
+    ],
+    "funcs": [
+      {
+        "name": "alpha",
+        "sig_start": 3,
+        "start": 3,
+        "block_start": 3,
+        "sig_lines": [
+          "func alpha():"
+        ],
+        "sig_text": "func alpha():",
+        "body_start": 4,
+        "end": 11,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 11
+  },
+  "reference_tokens": [
+    {
+      "kind": "identifier",
+      "value": "extends",
+      "start": 0,
+      "end": 7,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "Control",
+      "start": 8,
+      "end": 15,
+      "line": 1
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 15,
+      "end": 16,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 16,
+      "end": 19,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "state",
+      "start": 20,
+      "end": 25,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 26,
+      "end": 27,
+      "line": 2
+    },
+    {
+      "kind": "number",
+      "value": "2",
+      "start": 28,
+      "end": 29,
+      "line": 2
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 29,
+      "end": 30,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 30,
+      "end": 34,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "alpha",
+      "start": 35,
+      "end": 40,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 40,
+      "end": 41,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 41,
+      "end": 42,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 42,
+      "end": 43,
+      "line": 3
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 43,
+      "end": 44,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 45,
+      "end": 48,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "first",
+      "start": 49,
+      "end": 54,
+      "line": 4
+    },
+    {
+      "kind": "symbol",
+      "value": ":=",
+      "start": 55,
+      "end": 57,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "get_tree",
+      "start": 58,
+      "end": 66,
+      "line": 4
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 66,
+      "end": 67,
+      "line": 4
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 67,
+      "end": 68,
+      "line": 4
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 68,
+      "end": 69,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 70,
+      "end": 73,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "second",
+      "start": 74,
+      "end": 80,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": ":=",
+      "start": 81,
+      "end": 83,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "first",
+      "start": 84,
+      "end": 89,
+      "line": 5
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 89,
+      "end": 90,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 91,
+      "end": 94,
+      "line": 6
+    },
+    {
+      "kind": "identifier",
+      "value": "third",
+      "start": 95,
+      "end": 100,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": ":=",
+      "start": 101,
+      "end": 103,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": "[",
+      "start": 104,
+      "end": 105,
+      "line": 6
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 105,
+      "end": 106,
+      "line": 6
+    },
+    {
+      "kind": "identifier",
+      "value": "second",
+      "start": 108,
+      "end": 114,
+      "line": 7
+    },
+    {
+      "kind": "symbol",
+      "value": ",",
+      "start": 114,
+      "end": 115,
+      "line": 7
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 115,
+      "end": 116,
+      "line": 7
+    },
+    {
+      "kind": "identifier",
+      "value": "self",
+      "start": 118,
+      "end": 122,
+      "line": 8
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 122,
+      "end": 123,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": "]",
+      "start": 124,
+      "end": 125,
+      "line": 9
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 125,
+      "end": 126,
+      "line": 9
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 127,
+      "end": 130,
+      "line": 10
+    },
+    {
+      "kind": "identifier",
+      "value": "safe",
+      "start": 131,
+      "end": 135,
+      "line": 10
+    },
+    {
+      "kind": "symbol",
+      "value": ":=",
+      "start": 136,
+      "end": 138,
+      "line": 10
+    },
+    {
+      "kind": "number",
+      "value": "1",
+      "start": 139,
+      "end": 140,
+      "line": 10
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 140,
+      "end": 141,
+      "line": 10
+    },
+    {
+      "kind": "identifier",
+      "value": "return",
+      "start": 142,
+      "end": 148,
+      "line": 11
+    },
+    {
+      "kind": "identifier",
+      "value": "third",
+      "start": 149,
+      "end": 154,
+      "line": 11
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 154,
+      "end": 155,
+      "line": 11
+    }
+  ],
+  "reference_locals": {
+    "alpha": [
+      "first",
+      "safe",
+      "second",
+      "third"
+    ]
+  },
+  "reference_engine": {
+    "methods": [
+      "accept_event",
+      "add_child",
+      "add_theme_color_override",
+      "add_theme_constant_override",
+      "add_theme_font_override",
+      "add_theme_font_size_override",
+      "add_theme_stylebox_override",
+      "add_to_group",
+      "call",
+      "call_deferred",
+      "connect",
+      "disconnect",
+      "duplicate",
+      "emit_signal",
+      "find_child",
+      "force_update_transform",
+      "get",
+      "get_child",
+      "get_child_count",
+      "get_children",
+      "get_class",
+      "get_index",
+      "get_meta",
+      "get_node",
+      "get_node_or_null",
+      "get_parent",
+      "get_path",
+      "get_scene_file_path",
+      "get_script",
+      "get_theme_color",
+      "get_theme_constant",
+      "get_theme_default_font",
+      "get_theme_default_font_size",
+      "get_theme_font",
+      "get_theme_font_size",
+      "get_theme_stylebox",
+      "get_tree",
+      "get_viewport",
+      "get_window",
+      "grab_focus",
+      "has_focus",
+      "has_meta",
+      "has_method",
+      "has_node",
+      "has_theme_color",
+      "has_theme_constant",
+      "has_theme_font",
+      "has_theme_font_size",
+      "has_theme_stylebox",
+      "hide",
+      "is_class",
+      "is_connected",
+      "is_in_group",
+      "is_inside_tree",
+      "is_node_ready",
+      "is_visible_in_tree",
+      "move_child",
+      "move_to_front",
+      "notification",
+      "notify_property_list_changed",
+      "queue_free",
+      "release_focus",
+      "remove_child",
+      "remove_from_group",
+      "remove_meta",
+      "remove_theme_color_override",
+      "remove_theme_constant_override",
+      "remove_theme_font_override",
+      "remove_theme_font_size_override",
+      "remove_theme_stylebox_override",
+      "set",
+      "set_deferred",
+      "set_meta",
+      "set_physics_process",
+      "set_process",
+      "set_process_input",
+      "set_process_unhandled_input",
+      "set_script",
+      "show"
+    ],
+    "properties": [
+      "alignment",
+      "anchor_bottom",
+      "anchor_left",
+      "anchor_right",
+      "anchor_top",
+      "anchors_preset",
+      "autowrap_mode",
+      "bbcode_enabled",
+      "button_pressed",
+      "clip_contents",
+      "context_menu_enabled",
+      "custom_minimum_size",
+      "disabled",
+      "editable",
+      "flat",
+      "focus_mode",
+      "icon",
+      "layout_mode",
+      "modulate",
+      "mouse_filter",
+      "name",
+      "offset_bottom",
+      "offset_left",
+      "offset_right",
+      "offset_top",
+      "owner",
+      "pivot_offset",
+      "placeholder_text",
+      "position",
+      "pressed",
+      "rotation",
+      "scale",
+      "scroll_following",
+      "selection_enabled",
+      "self_modulate",
+      "size",
+      "size_flags_horizontal",
+      "size_flags_vertical",
+      "text",
+      "theme_type_variation",
+      "tooltip_text",
+      "top_level",
+      "visible",
+      "wrap_mode"
+    ]
+  },
+  "capture_tree": {
+    "files": {
+      "donor.gd": {
+        "bytes": 155,
+        "sha256": "9ada4026297b1f00ed7cb96def2eda477eb37bc381c4ea07214951f9586899ae"
+      },
+      "plugin.cfg": {
+        "bytes": 28,
+        "sha256": "b1f19cfdd95c7ac7092291eae8d46885b97fc6b1253180b554545405dda4cda1"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  }
+}

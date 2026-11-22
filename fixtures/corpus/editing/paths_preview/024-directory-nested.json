@@ -1,0 +1,14 @@
+{
+  "id": "024-directory-nested",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://assets",
+    "new_path": "res://assets/nested"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "Нельзя переместить папку внутрь самой себя: res://assets -> res://assets/nested"
+}

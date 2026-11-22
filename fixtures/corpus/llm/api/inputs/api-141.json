@@ -1,0 +1,17 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "_clean_model",
+  "args": [
+    {
+      "limit": {
+        "context": 8192,
+        "output": 16
+      },
+      "tool_call": true,
+      "status": "deprecated"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-141"
+}

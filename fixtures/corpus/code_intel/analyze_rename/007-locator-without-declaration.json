@@ -1,0 +1,16 @@
+{
+  "id": "007-locator-without-declaration",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Locator верный, объявления на этой строке нет",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/lab_entity.gd:3"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  }
+}

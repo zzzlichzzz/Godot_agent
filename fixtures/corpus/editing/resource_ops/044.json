@@ -1,0 +1,51 @@
+{
+  "id": "variant-Nil",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "Nil",
+          "value": null
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "Nil",
+              "value": null
+            }
+          }
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "0aa51ea18e7733ccfea8d7b001f58d56a9c67ca7528a9868f72f0f66d2d4b5f4"
+}

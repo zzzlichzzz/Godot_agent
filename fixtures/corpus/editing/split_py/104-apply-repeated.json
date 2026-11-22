@@ -1,0 +1,44 @@
+{
+  "id": "104-apply-repeated",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_explicit",
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": {
+    "first": {
+      "donor": "donor.py",
+      "written": [
+        "part.py"
+      ],
+      "moved": [
+        "fn"
+      ],
+      "facade_lines": 3
+    },
+    "second_exception": "StaleSplitError"
+  },
+  "expect": {
+    "first_ok": true,
+    "second_kind": "stale_plan",
+    "second_tree_unchanged": true,
+    "ok": false,
+    "kind": "stale_plan"
+  },
+  "scenario": "split_plan_apply_twice"
+}

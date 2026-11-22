@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/code_intel/analyze_rename",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/symbol_refactor.py:analyze_rename",
+    "sha256": "4889c9b118cad3b072375eb0b0f35710efc87851dc2bbb7d921b1d98b87677a4"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001-all-proven",
+      "file": "001-all-proven.json",
+      "fixture": "usages",
+      "sha256": "58d9ce6f62bb0a93e9194f01049e7393d4b04b340a95d11d192dc95699dccc55"
+    },
+    {
+      "id": "002-affected-paths-dedup",
+      "file": "002-affected-paths-dedup.json",
+      "fixture": "usages",
+      "sha256": "9d93e770cd1ee1832047f0aacd856f8b0b36a5a79ad231c8e7ec9d6234e252cc"
+    },
+    {
+      "id": "003-dynamic-string-risk",
+      "file": "003-dynamic-string-risk.json",
+      "fixture": "usages",
+      "sha256": "3913438da98c6e9f503ad732b74569e5414ab9ed7572a64885e38e75dd2535b7"
+    },
+    {
+      "id": "004-probable-risk",
+      "file": "004-probable-risk.json",
+      "fixture": "usages",
+      "sha256": "ec6a714d59160d149e75d38414f4824d98adf72741ebdf6fbaf66f9f9784bde3"
+    },
+    {
+      "id": "005-missing-new-name",
+      "file": "005-missing-new-name.json",
+      "fixture": "usages",
+      "sha256": "b4e567f478bdc5633cd9e6f09a1e6b26e2776b7a2501db5e76642a348ceb7a0f"
+    },
+    {
+      "id": "006-bad-locator",
+      "file": "006-bad-locator.json",
+      "fixture": "usages",
+      "sha256": "f576340799bec327a7dc93cc183b791b885994b651ff8ce17c60a7a16166321a"
+    },
+    {
+      "id": "007-locator-without-declaration",
+      "file": "007-locator-without-declaration.json",
+      "fixture": "usages",
+      "sha256": "9cd201c3df05da945ae738afceb151bde684a1737be46752707c7549b6e3157a"
+    },
+    {
+      "id": "008-mode-strict",
+      "file": "008-mode-strict.json",
+      "fixture": "usages",
+      "sha256": "fae7c95238fa735c9bfb6e99b055a2cdf95f512195edfbd887874856b5e36579"
+    },
+    {
+      "id": "009-mode-probable",
+      "file": "009-mode-probable.json",
+      "fixture": "usages",
+      "sha256": "358efc6de488bfed68f53f20dfcf66958363749e54bed92a571089d42588b0bc"
+    },
+    {
+      "id": "010-allow-unverified",
+      "file": "010-allow-unverified.json",
+      "fixture": "usages",
+      "sha256": "bd8b36c9fa8f1d73951db3409152c4d72d0d0308a7b3c84558d3f0520feef6b0"
+    },
+    {
+      "id": "011-path-outside",
+      "file": "011-path-outside.json",
+      "fixture": "usages",
+      "sha256": "d61700ec7453d30135b8160c044b23355c0e246afc074c4b542fc59f9826501c"
+    },
+    {
+      "id": "012-addon-hidden",
+      "file": "012-addon-hidden.json",
+      "fixture": "usages",
+      "sha256": "6fd4429ddd828a63117fcfe2c42c1affd3d7bbece631ce3ab22aa16745269f38"
+    },
+    {
+      "id": "013-class-name-hierarchy",
+      "file": "013-class-name-hierarchy.json",
+      "fixture": "usages",
+      "sha256": "3399a852bcee210ccdbed309fa2f7e01ac2904714d44ab32c9efbf1d111b1c94"
+    }
+  ]
+}

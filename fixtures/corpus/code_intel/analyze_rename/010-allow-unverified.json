@@ -1,0 +1,86 @@
+{
+  "id": "010-allow-unverified",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Флаг проходит в отчёт полем allow_unverified; на предпросмотр эталона не влияет",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/lab_entity.gd:12",
+    "allow_unverified": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "take_damage",
+      "new_name": "apply_damage",
+      "declaration": "res://src/lab_entity.gd:12",
+      "allow_unverified": true,
+      "mode": "strict",
+      "affected_paths": [
+        "res://src/lab_entity.gd",
+        "res://src/lab_turret.gd"
+      ],
+      "risks": [
+        "res://src/lab_root.gd:6 [member, probable] — не удалось доказать тип ресивера «entity»: добавь аннотацию типа, и ссылка переименуется сама",
+        "res://src/lab_root.gd:8 [string, dynamic] — call() по имени",
+        "res://src/lab_turret.gd:4 [member, probable] — не удалось доказать тип ресивера «super»: добавь аннотацию типа, и ссылка переименуется сама"
+      ],
+      "declaration_path": "res://src/lab_entity.gd",
+      "declaration_line": 12,
+      "usages": [
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 12,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_root.gd",
+          "line": 6,
+          "column": 9,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «entity»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/lab_root.gd",
+          "line": 8,
+          "column": 14,
+          "link": "string",
+          "confidence": "dynamic",
+          "note": "call() по имени"
+        },
+        {
+          "path": "res://src/lab_turret.gd",
+          "line": 4,
+          "column": 15,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «super»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/lab_turret.gd",
+          "line": 7,
+          "column": 2,
+          "link": "call",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 2,
+        "string": 1,
+        "call": 1
+      },
+      "proven_count": 2,
+      "probable_count": 2,
+      "dynamic_count": 1
+    }
+  }
+}

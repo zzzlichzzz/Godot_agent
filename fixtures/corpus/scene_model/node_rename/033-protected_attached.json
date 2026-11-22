@@ -1,0 +1,246 @@
+{
+  "id": "033-protected_attached",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/033-protected_attached",
+  "note": "protected_attached",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Arm",
+      "new_name": "LongArm",
+      "old_path": "Arm",
+      "new_path": "LongArm",
+      "target_node_path": "Arm",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "542edb7bd723fa04ab12d1d8c2368ff3e6a63e0720a4b59b392bcab0406a0d6e",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL2FkZG9ucy9tYWluLmdkIiBpZD0iMSJdCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly90aXAuZ2QiIGlkPSIyIl0KW3N1Yl9yZXNvdXJjZSB0eXBlPSJBbmltYXRpb24iIGlkPSJBIl0KdHJhY2tzLzAvcGF0aCA9IE5vZGVQYXRoKCJBcm0vVGlwOnBvc2l0aW9uOngiKQp0cmFja3MvMS9wYXRoID0gTm9kZVBhdGgoIiVBcm06cm90YXRpb24iKQpbbm9kZSBuYW1lPSJNYWluIiB0eXBlPSJOb2RlMkQiXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCltub2RlIG5hbWU9IkFybSIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKW25vZGUgbmFtZT0iVGlwIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iQXJtIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjIiKQpbbm9kZSBuYW1lPSJHbG93IiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iQXJtL1RpcCJdCltub2RlIG5hbWU9IldpbmciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iQXJtIiB0bz0iQXJtL1RpcCIgbWV0aG9kPSJyZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209IldpbmciIHRvPSJBcm0iIG1ldGhvZD0icmVhZHkiXQo=",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL2FkZG9ucy9tYWluLmdkIiBpZD0iMSJdCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly90aXAuZ2QiIGlkPSIyIl0KW3N1Yl9yZXNvdXJjZSB0eXBlPSJBbmltYXRpb24iIGlkPSJBIl0KdHJhY2tzLzAvcGF0aCA9IE5vZGVQYXRoKCJMb25nQXJtL1RpcDpwb3NpdGlvbjp4IikKdHJhY2tzLzEvcGF0aCA9IE5vZGVQYXRoKCIlTG9uZ0FybTpyb3RhdGlvbiIpCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iTG9uZ0FybSIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKW25vZGUgbmFtZT0iVGlwIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iTG9uZ0FybSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIyIikKW25vZGUgbmFtZT0iR2xvdyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9IkxvbmdBcm0vVGlwIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJMb25nQXJtIiB0bz0iTG9uZ0FybS9UaXAiIG1ldGhvZD0icmVhZHkiXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJXaW5nIiB0bz0iTG9uZ0FybSIgbWV0aG9kPSJyZWFkeSJdCg==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                2,
+                2,
+                "@@ -2,15 +2,15 @@"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "[ext_resource type=\"Script\" path=\"res://addons/main.gd\" id=\"1\"]"
+              ],
+              [
+                " ",
+                3,
+                3,
+                "[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"2\"]"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "[sub_resource type=\"Animation\" id=\"A\"]"
+              ],
+              [
+                "-",
+                5,
+                null,
+                "tracks/0/path = NodePath(\"Arm/Tip:position:x\")"
+              ],
+              [
+                "-",
+                6,
+                null,
+                "tracks/1/path = NodePath(\"%Arm:rotation\")"
+              ],
+              [
+                "+",
+                null,
+                5,
+                "tracks/0/path = NodePath(\"LongArm/Tip:position:x\")"
+              ],
+              [
+                "+",
+                null,
+                6,
+                "tracks/1/path = NodePath(\"%LongArm:rotation\")"
+              ],
+              [
+                " ",
+                7,
+                7,
+                "[node name=\"Main\" type=\"Node2D\"]"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "[node name=\"Arm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "+",
+                null,
+                9,
+                "[node name=\"LongArm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "unique_name_in_owner = true"
+              ],
+              [
+                "-",
+                11,
+                null,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"Arm\"]"
+              ],
+              [
+                "+",
+                null,
+                11,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"LongArm\"]"
+              ],
+              [
+                " ",
+                12,
+                12,
+                "script = ExtResource(\"2\")"
+              ],
+              [
+                "-",
+                13,
+                null,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"Arm/Tip\"]"
+              ],
+              [
+                "+",
+                null,
+                13,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"LongArm/Tip\"]"
+              ],
+              [
+                " ",
+                14,
+                14,
+                "[node name=\"Wing\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "-",
+                15,
+                null,
+                "[connection signal=\"ready\" from=\"Arm\" to=\"Arm/Tip\" method=\"ready\"]"
+              ],
+              [
+                "-",
+                16,
+                null,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"Arm\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                15,
+                "[connection signal=\"ready\" from=\"LongArm\" to=\"LongArm/Tip\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                16,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"LongArm\" method=\"ready\"]"
+              ]
+            ],
+            "added": 7,
+            "removed": 7,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 7
+        },
+        {
+          "action": "patch_file",
+          "path": "res://tip.gd",
+          "before_hash": "91f60317125d8372ed8fe4d9902658d21079316ea71674d08bf8fff2d1271bd1",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlMkQKZnVuYyByZWFkeSgpOgogICAgZmluZF9jaGlsZCgiQXJtIikKICAgIGdldF9ub2RlKCIuLi9UaXAiKQo=",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlMkQKZnVuYyByZWFkeSgpOgogICAgZmluZF9jaGlsZCgiTG9uZ0FybSIpCiAgICBnZXRfbm9kZSgiLi4vLi4vTG9uZ0FybS9UaXAiKQo=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,4 +1,4 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node2D"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "func ready():"
+              ],
+              [
+                "-",
+                3,
+                null,
+                "    find_child(\"Arm\")"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "    get_node(\"../Tip\")"
+              ],
+              [
+                "+",
+                null,
+                3,
+                "    find_child(\"LongArm\")"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "    get_node(\"../../LongArm/Tip\")"
+              ]
+            ],
+            "added": 2,
+            "removed": 2,
+            "truncated": false,
+            "path": "res://tip.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 2
+        }
+      ],
+      "reference_count": 9,
+      "affected_paths": [
+        "res://main.tscn",
+        "res://tip.gd"
+      ],
+      "scripts_only": false,
+      "previous_name": ""
+    }
+  }
+}

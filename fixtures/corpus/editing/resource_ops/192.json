@@ -1,0 +1,60 @@
+{
+  "id": "limits-relative-dot",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://./data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "int",
+          "value": 1
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://./data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "x",
+            "value": {
+              "type": "int",
+              "value": 1
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://texture.png"
+        ],
+        "summary": "description"
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "8f2db5ce1041dc8a1cfc99e02a808deafcc7aff1c4499427f1d6e1036613c4c4"
+}

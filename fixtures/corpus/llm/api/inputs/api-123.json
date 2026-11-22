@@ -1,0 +1,16 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "models_stale",
+  "args": [
+    "fixture"
+  ],
+  "kwargs": {
+    "stats": {
+      "models_error": "synthetic",
+      "models_try_at": 100
+    },
+    "now": 700
+  },
+  "id": "api-123"
+}

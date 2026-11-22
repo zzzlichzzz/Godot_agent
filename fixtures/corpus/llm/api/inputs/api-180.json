@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "kind_from_status",
+  "args": [
+    429
+  ],
+  "kwargs": {},
+  "id": "api-180"
+}

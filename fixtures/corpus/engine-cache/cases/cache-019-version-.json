@@ -1,0 +1,103 @@
+{
+  "id": "cache-019-version-",
+  "input": {
+    "group": "cache",
+    "action": "read",
+    "version": ""
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "version": "",
+      "has_cache": true,
+      "class": {
+        "inherits": "Object",
+        "methods": {
+          "zero": 0,
+          "one": 1,
+          "ranged": [
+            1,
+            2
+          ]
+        },
+        "properties": [
+          "position"
+        ],
+        "signals": [
+          "ready"
+        ],
+        "method_signatures": {
+          "one": "one(value: int) -> void"
+        }
+      },
+      "chain": [
+        "Node",
+        "Object"
+      ],
+      "members": [
+        {
+          "zero": 0,
+          "one": 1,
+          "ranged": [
+            1,
+            2
+          ],
+          "base": 0
+        },
+        [
+          "position"
+        ],
+        [
+          "ready"
+        ]
+      ],
+      "signatures": {}
+    },
+    "after": {
+      "files": {
+        "project/.agent_history/godot_api_cache.json": {
+          "bytes": 310,
+          "sha256": "c258fec6c679ca0acf4e39b29409797469c09c8b79bd5cd2fae796fa005a81b8"
+        },
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "addon",
+        "config",
+        "project",
+        "project/.agent_history",
+        "project/.agent_history/snapshots"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "kind": "call",
+  "module": "anthropic_compat",
+  "function": "_body",
+  "args": [
+    "fixture",
+    [
+      {
+        "role": "system",
+        "content": "rules"
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "ёж"
+          }
+        ]
+      }
+    ]
+  ],
+  "kwargs": {},
+  "id": "api-104"
+}

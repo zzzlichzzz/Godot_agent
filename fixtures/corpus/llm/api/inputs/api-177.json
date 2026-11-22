@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "sleep_seconds",
+  "args": [
+    0
+  ],
+  "kwargs": {
+    "kind": "outage",
+    "retry_after": 301
+  },
+  "id": "api-177"
+}

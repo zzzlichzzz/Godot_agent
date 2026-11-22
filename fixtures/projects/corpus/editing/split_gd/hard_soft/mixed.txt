@@ -1,0 +1,2 @@
+.ping()
+donor.gd read_text

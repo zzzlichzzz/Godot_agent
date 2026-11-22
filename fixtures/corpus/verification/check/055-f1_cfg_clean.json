@@ -1,0 +1,29 @@
+{
+  "id": "055-f1_cfg_clean",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://clean.cfg"
+  },
+  "reference_result": {
+    "path": "res://clean.cfg",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.cfg",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "cfg"
+      ],
+      "unavailable": []
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

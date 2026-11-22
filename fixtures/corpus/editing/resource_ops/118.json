@@ -1,0 +1,39 @@
+{
+  "id": "expanded-op2-missing-path",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "animation_add_value_track",
+        "keys": [
+          {
+            "time": 0,
+            "value": {
+              "type": "float",
+              "value": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: path",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "5a057b4df93b9aa605acc05b56b976e9de8f4a9abd16ede23e4c82e96093006e"
+}

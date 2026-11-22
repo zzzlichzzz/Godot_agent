@@ -1,0 +1,66 @@
+{
+  "id": "003-root-null",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/chain",
+  "args": {
+    "class_name": "Object"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Object",
+      "found": true,
+      "cache_version": "4.6.3",
+      "inherits": [
+        "Object"
+      ],
+      "methods": [
+        {
+          "name": "free",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        }
+      ],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Object",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6.3",
+    "record": {
+      "inherits": null,
+      "methods": {
+        "free": [
+          0,
+          0
+        ]
+      },
+      "properties": [],
+      "signals": []
+    },
+    "chain": [
+      "Object"
+    ],
+    "members": [
+      {
+        "free": [
+          0,
+          0
+        ]
+      },
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

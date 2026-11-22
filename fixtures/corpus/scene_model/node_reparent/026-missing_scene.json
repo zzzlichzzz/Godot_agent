@@ -1,0 +1,16 @@
+{
+  "id": "026-missing_scene",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/026-missing_scene",
+  "note": "actual-old prepare-only: missing_scene",
+  "args": {
+    "path": "res://absent.tscn",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл сцены не найден: res://absent.tscn"
+  }
+}

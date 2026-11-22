@@ -1,0 +1,27 @@
+{
+  "id": "042-root_collision_shape",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"CollisionShape2D\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"CollisionShape2D\"]\n",
+      "changed": false,
+      "problems": [
+        "узел «Root» (CollisionShape2D) — корень сцены: у формы коллизии нет родителя-физического тела, коллизия работать НЕ будет. Сделай корнем физическое тело или перенеси форму под него."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"CollisionShape2D\"]\n",
+    "changed": false,
+    "problems": [
+      "узел «Root» (CollisionShape2D) — корень сцены: у формы коллизии нет родителя-физического тела, коллизия работать НЕ будет. Сделай корнем физическое тело или перенеси форму под него."
+    ]
+  },
+  "reference_api_classes": null
+}

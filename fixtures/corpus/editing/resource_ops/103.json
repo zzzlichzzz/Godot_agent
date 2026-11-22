@@ -1,0 +1,36 @@
+{
+  "id": "expanded-value11",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "NodePath",
+          "value": "/Node"
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "value.value должен быть путём относительно корня сцены",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "84d2c5d3e411a6c70173e3da6f846b79323e73f4d524a5efc10d33a0e7a5c745"
+}

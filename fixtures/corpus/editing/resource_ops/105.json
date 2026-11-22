@@ -1,0 +1,35 @@
+{
+  "id": "expanded-op0-missing-target",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: target",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "9a9c4f11a000a50d3d512a39ecda1d63972b4cabc244d3a89402dbdf50fa53b6"
+}

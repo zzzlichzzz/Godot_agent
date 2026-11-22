@@ -1,0 +1,12 @@
+{
+  "direct": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"A direct explanation.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "read_file_then_answer": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Read project settings.\\n```agent_action\\n{\\\"action\\\":\\\"read_file\\\",\\\"paths\\\":[\\\"res://project.godot\\\"]}\\n```\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}, {"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Project inspected.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "unknown_action": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Unknown request.\\n```agent_action\\n{\\\"action\\\":\\\"invented\\\"}\\n```\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}, {"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Action unavailable.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "write_refusal": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Create a file.\\n```agent_action\\n{\\\"action\\\":\\\"create_file\\\",\\\"path\\\":\\\"res://new.gd\\\",\\\"content\\\":\\\"extends Node\\\\n\\\"}\\n```\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "DONE": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Finished.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "SSE_error": [{"error": "service_unavailable"}, {"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Recovered from stream error.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "truncated_stream": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"An incomplete response\"}}]}\n\n", "truncated": true}, {"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Recovered from truncation.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "key_rotation": [{"error": "rate_limit"}, {"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Second candidate worked.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "budget_truncation": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Budget-limited explanation.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}],
+  "low_judge_retry": [{"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Unfinished explanation.\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}, {"sse": "data: {\"choices\":[{\"delta\":{\"content\":\"Complete explanation.\\n===DONE===\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"}]
+}

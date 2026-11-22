@@ -1,0 +1,17 @@
+{
+  "id": "030-paren_indent_free",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "paren_indent_free",
+  "args": {
+    "path": "res://scripts/paren_indent_free.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 23
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "id": "018-unicode.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/unicode.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Игрок🙂 (Node)\n  - Оружие",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Игрок🙂",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Оружие",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": ".",
+          "path": "Оружие"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

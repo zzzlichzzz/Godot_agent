@@ -1,0 +1,946 @@
+{
+  "cases": [
+    {
+      "id": "kind-function",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "kind-class_name",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1"
+      }
+    },
+    {
+      "id": "kind-signal",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "signal",
+        "old_name": "injured",
+        "new_name": "hurt",
+        "declaration": "res://src/combatant.gd:3"
+      }
+    },
+    {
+      "id": "kind-variable",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "variable",
+        "old_name": "health",
+        "new_name": "vitality",
+        "declaration": "res://src/combatant.gd:4"
+      }
+    },
+    {
+      "id": "kind-const",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "const",
+        "old_name": "LIMIT",
+        "new_name": "CAPACITY",
+        "declaration": "res://src/combatant.gd:5"
+      }
+    },
+    {
+      "id": "kind-enum",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "enum",
+        "old_name": "Phase",
+        "new_name": "Stage",
+        "declaration": "res://src/combatant.gd:6"
+      }
+    },
+    {
+      "id": "kind-enum_member",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "enum_member",
+        "old_name": "WAIT",
+        "new_name": "PAUSE",
+        "declaration": "res://src/combatant.gd:6"
+      }
+    },
+    {
+      "id": "search-without-new",
+      "operation": "find_references",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "search-comments",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\n# receive health Combatant\n"
+      }
+    },
+    {
+      "id": "unknown-receiver",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/unknown.gd": "extends Node\nfunc invoke(target):\n\ttarget.receive(3)\n"
+      }
+    },
+    {
+      "id": "unknown-probable-False",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": "probable",
+        "allow_unverified": false
+      },
+      "files": {
+        "src/unknown.gd": "extends Node\nfunc invoke(target):\n\ttarget.receive(3)\n"
+      }
+    },
+    {
+      "id": "unknown-strict-True",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": "strict",
+        "allow_unverified": true
+      },
+      "files": {
+        "src/unknown.gd": "extends Node\nfunc invoke(target):\n\ttarget.receive(3)\n"
+      }
+    },
+    {
+      "id": "unknown-probable-True",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": "probable",
+        "allow_unverified": true
+      },
+      "files": {
+        "src/unknown.gd": "extends Node\nfunc invoke(target):\n\ttarget.receive(3)\n"
+      }
+    },
+    {
+      "id": "dynamic-strict",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": "strict"
+      },
+      "files": {
+        "src/reflect.gd": "extends Node\nfunc invoke(target):\n\ttarget.call(\"receive\", 2)\n"
+      }
+    },
+    {
+      "id": "dynamic-probable",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": "probable"
+      },
+      "files": {
+        "src/reflect.gd": "extends Node\nfunc invoke(target):\n\ttarget.call(\"receive\", 2)\n"
+      }
+    },
+    {
+      "id": "class-API-string",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1"
+      },
+      "files": {
+        "src/instantiate.gd": "extends Node\nfunc make():\n\treturn ClassDB.instantiate(\"Combatant\")\n"
+      }
+    },
+    {
+      "id": "class-ordinary-string",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1"
+      },
+      "files": {
+        "src/message.gd": "extends Node\nfunc report():\n\tprint(\"Combatant\")\n"
+      }
+    },
+    {
+      "id": "dictionary-not-typed",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/dict.gd": "extends Node\nfunc invoke(target):\n\tvar data = {target: Combatant}\n\ttarget.receive(3)\n"
+      }
+    },
+    {
+      "id": "override",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn amount\n"
+      }
+    },
+    {
+      "id": "override-self-call",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn self.receive(amount)\n"
+      }
+    },
+    {
+      "id": "grandchild",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn amount\n",
+        "src/grandchild.gd": "extends Apprentice\nfunc receive(amount: int) -> int:\n\treturn amount\n"
+      }
+    },
+    {
+      "id": "subclass-typed",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn amount\n",
+        "src/other.gd": "extends Node\nvar apprentice: Apprentice\nfunc invoke():\n\tapprentice.receive(3)\n"
+      }
+    },
+    {
+      "id": "relative-extends",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/child.gd": "class_name Apprentice\nextends \"./combatant.gd\"\nfunc receive(amount: int) -> int:\n\treturn amount\n"
+      }
+    },
+    {
+      "id": "hidden-addon-override",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "addons/other/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn amount\n"
+      }
+    },
+    {
+      "id": "allowed-addon-override",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "addons/other/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn amount\n"
+      },
+      "kwargs": {
+        "allow_addons": true
+      }
+    },
+    {
+      "id": "hidden-own-addon-override",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "addons/godot_agent/child.gd": "class_name Apprentice\nextends Combatant\nfunc receive(amount: int) -> int:\n\treturn amount\n"
+      },
+      "kwargs": {
+        "allow_addons": true
+      }
+    },
+    {
+      "id": "subclass-wrong-kind",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/child.gd": "extends Combatant\nvar receive = 0\n"
+      }
+    },
+    {
+      "id": "nested-foreign-scope",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\nclass Inner:\n\tfunc invoke():\n\t\treceive(2)\n"
+      }
+    },
+    {
+      "id": "variable-shadow",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "variable",
+        "old_name": "health",
+        "new_name": "vitality",
+        "declaration": "res://src/combatant.gd:4"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\nfunc local():\n\tvar health = 2\n\treturn health\n"
+      }
+    },
+    {
+      "id": "local-variable",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "variable",
+        "old_name": "temporary",
+        "new_name": "remaining",
+        "declaration": "res://src/combatant.gd:14"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\nfunc local():\n\tvar temporary = 2\n\treturn temporary\n"
+      }
+    },
+    {
+      "id": "nested-member",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "inner",
+        "new_name": "changed",
+        "declaration": "res://src/combatant.gd:14"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\nclass Inner:\n\tfunc inner():\n\t\tinner()\n"
+      }
+    },
+    {
+      "id": "same-space-collision",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\nfunc accept():\n\tpass\n"
+      }
+    },
+    {
+      "id": "global-class-collision",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1"
+      },
+      "files": {
+        "src/warrior.gd": "class_name Warrior\nextends Node\n"
+      }
+    },
+    {
+      "id": "engine-class-collision",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "Node",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "autoload-collision",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "Manager",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "project.godot": "config_version=5\n[autoload]\nManager=\"*res://src/control.gd\"\n"
+      }
+    },
+    {
+      "id": "input-collision",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "jump",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "project.godot": "config_version=5\n[input]\njump={}\n"
+      }
+    },
+    {
+      "id": "class-foreign-local-warning",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1"
+      },
+      "files": {
+        "src/foreign.gd": "extends Node\nfunc f():\n\tvar Warrior = 1\n\treturn Warrior\n"
+      }
+    },
+    {
+      "id": "class-duplicate",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1"
+      },
+      "files": {
+        "src/duplicate.gd": "class_name Combatant\nextends Node\n"
+      }
+    },
+    {
+      "id": "class-file-move",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1",
+        "rename_file": true
+      }
+    },
+    {
+      "id": "class-file-collision",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "class_name",
+        "old_name": "Combatant",
+        "new_name": "Warrior",
+        "declaration": "res://src/combatant.gd:1",
+        "rename_file": true
+      },
+      "files": {
+        "src/warrior.gd": "extends Node\n"
+      }
+    },
+    {
+      "id": "variable-instanced-scene",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "variable",
+        "old_name": "health",
+        "new_name": "vitality",
+        "declaration": "res://src/combatant.gd:4"
+      },
+      "files": {
+        "instance.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"PackedScene\" path=\"res://fight.tscn\" id=\"1\"]\n[node name=\"Instance\" instance=ExtResource(\"1\")]\nhealth = 5\n"
+      }
+    },
+    {
+      "id": "CRLF",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/combatant.gd": "class_name Combatant\r\nextends Node\r\nsignal injured\r\n@export var health: int = 10\r\nconst LIMIT = 20\r\nenum Phase { WAIT, ACTIVE }\r\nfunc receive(amount: int) -> int:\r\n\tinjured.emit()\r\n\thealth -= amount\r\n\treturn health\r\nfunc loop_call() -> int:\r\n\treturn self.receive(1)\r\n",
+        "fight.tscn": "[gd_scene load_steps=2 format=3]\r\n[ext_resource type=\"Script\" path=\"res://src/combatant.gd\" id=\"1\"]\r\n[node name=\"FightRoot\" type=\"Node\"]\r\nscript = ExtResource(\"1\")\r\nhealth = 14\r\n[node name=\"Peer\" type=\"Node\" parent=\".\"]\r\nscript = ExtResource(\"1\")\r\nhealth = 9\r\n[node name=\"Foreign\" type=\"Node\" parent=\".\"]\r\n[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"receive\"]\r\n[connection signal=\"injured\" from=\".\" to=\"Foreign\" method=\"receive\"]\r\n"
+      }
+    },
+    {
+      "id": "BOM",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/combatant.gd": {
+          "base64": "77u/Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+        },
+        "fight.tscn": {
+          "base64": "77u/W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10NCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIiBpZD0iMSJdDQpbbm9kZSBuYW1lPSJGaWdodFJvb3QiIHR5cGU9Ik5vZGUiXQ0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQ0KaGVhbHRoID0gMTQNCltub2RlIG5hbWU9IlBlZXIiIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdDQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpDQpoZWFsdGggPSA5DQpbbm9kZSBuYW1lPSJGb3JlaWduIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQ0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0NCltjb25uZWN0aW9uIHNpZ25hbD0iaW5qdXJlZCIgZnJvbT0iLiIgdG89IkZvcmVpZ24iIG1ldGhvZD0icmVjZWl2ZSJdDQo="
+        }
+      }
+    },
+    {
+      "id": "invalid-UTF8",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      },
+      "files": {
+        "src/combatant.gd": {
+          "base64": "//4="
+        }
+      }
+    },
+    {
+      "id": "missing-source",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/missing.gd:1"
+      }
+    },
+    {
+      "id": "locator-wrong-line",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:99"
+      }
+    },
+    {
+      "id": "locator-wrong-column",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7:99"
+      }
+    },
+    {
+      "id": "locator-correct-column",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7:6"
+      }
+    },
+    {
+      "id": "escape",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://../outside.gd:1"
+      }
+    },
+    {
+      "id": "excluded-declaration",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "exclude": [
+          "res://src/combatant.gd:7:6"
+        ]
+      }
+    },
+    {
+      "id": "excluded-one-usage",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "exclude": [
+          "res://src/control.gd:4:15"
+        ]
+      }
+    },
+    {
+      "id": "excluded-all-usages",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "exclude": [
+          "res://src/control.gd:4",
+          "res://src/combatant.gd:12"
+        ]
+      }
+    },
+    {
+      "id": "excluded-path-only",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "exclude": [
+          "res://src/control.gd"
+        ]
+      }
+    },
+    {
+      "id": "excluded-bad-tail",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "exclude": [
+          "res://src/control.gd:void"
+        ]
+      }
+    },
+    {
+      "id": "excluded-invalid",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "exclude": [
+          "garbage"
+        ]
+      }
+    },
+    {
+      "id": "schema-bad-kind",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "parameter",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "schema-bad-name",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "3bad",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "schema-keyword",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "for",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "schema-same-name",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "receive",
+        "declaration": "res://src/combatant.gd:7"
+      }
+    },
+    {
+      "id": "schema-bad-mode",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": "relaxed"
+      }
+    },
+    {
+      "id": "schema-coerced-mode",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "mode": " PROBABLE "
+      }
+    },
+    {
+      "id": "schema-rename-file-wrong-kind",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "rename_file": true
+      }
+    },
+    {
+      "id": "schema-string-boolean",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "allow_unverified": "false"
+      }
+    },
+    {
+      "id": "schema-integer-boolean",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "allow_unverified": 1
+      }
+    },
+    {
+      "id": "schema-nullable-boolean",
+      "operation": "bundle",
+      "input": {
+        "action": "rename_symbol",
+        "kind": "function",
+        "old_name": "receive",
+        "new_name": "accept",
+        "declaration": "res://src/combatant.gd:7",
+        "allow_unverified": null
+      }
+    },
+    {
+      "id": "exclude-parser-0",
+      "operation": "exclude_place",
+      "input": "res://src/control.gd:4:15"
+    },
+    {
+      "id": "exclude-parser-1",
+      "operation": "exclude_place",
+      "input": "res://src/control.gd:4"
+    },
+    {
+      "id": "exclude-parser-2",
+      "operation": "exclude_place",
+      "input": "res://src/control.gd"
+    },
+    {
+      "id": "exclude-parser-3",
+      "operation": "exclude_place",
+      "input": "res://src/control.gd:void"
+    },
+    {
+      "id": "exclude-parser-4",
+      "operation": "exclude_place",
+      "input": "res://src/control.gd:0"
+    },
+    {
+      "id": "exclude-parser-5",
+      "operation": "exclude_place",
+      "input": "res://"
+    },
+    {
+      "id": "exclude-parser-6",
+      "operation": "exclude_place",
+      "input": "wrong"
+    },
+    {
+      "id": "exclude-parser-7",
+      "operation": "exclude_place",
+      "input": ""
+    },
+    {
+      "id": "exclude-parser-8",
+      "operation": "exclude_place",
+      "input": "res://src\\control.gd:4:15"
+    },
+    {
+      "id": "locator-parser-0",
+      "operation": "_parse_locator",
+      "input": "res://src/combatant.gd:7"
+    },
+    {
+      "id": "locator-parser-1",
+      "operation": "_parse_locator",
+      "input": "res://src/combatant.gd:7:6"
+    },
+    {
+      "id": "locator-parser-2",
+      "operation": "_parse_locator",
+      "input": "res://src/combatant.gd:0"
+    },
+    {
+      "id": "locator-parser-3",
+      "operation": "_parse_locator",
+      "input": "res://src/combatant.gd:7:0"
+    },
+    {
+      "id": "locator-parser-4",
+      "operation": "_parse_locator",
+      "input": "src/combatant.gd:7"
+    },
+    {
+      "id": "locator-parser-5",
+      "operation": "_parse_locator",
+      "input": "res://x.tscn:1"
+    }
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-03",
+  "reference": {
+    "source": "godot_tools/project_tools.py",
+    "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877"
+  },
+  "projection": "D20: native tuple/text -> typed read/root node; transport clip/ASCII marker omitted",
+  "cases": [
+    {
+      "id": "001-plain",
+      "file": "001-plain.json",
+      "sha256": "0a2554d0a8a26712c923033136d529d713c1242eae07996ef70ddfc1c0cca961"
+    },
+    {
+      "id": "002-empty",
+      "file": "002-empty.json",
+      "sha256": "3c9808433940d0490a5128d3b0f5dcd96dc718c377344de10db7d604b211f48a"
+    },
+    {
+      "id": "003-bom-crlf",
+      "file": "003-bom-crlf.json",
+      "sha256": "abb18ce2a9705210fb928cd0972d93a8359768ee75374cf783a35efc1868cd37"
+    },
+    {
+      "id": "004-lone-cr",
+      "file": "004-lone-cr.json",
+      "sha256": "93d0f6958ace2ae9ba0736e42abe8393b814160ce23a2fa5e274d7d84b110850"
+    },
+    {
+      "id": "005-mixed",
+      "file": "005-mixed.json",
+      "sha256": "f23bad3b63d7e34a9a35a7b8ad9b990283a7c11f3be219d047c15faddd2e0430"
+    },
+    {
+      "id": "006-binary",
+      "file": "006-binary.json",
+      "sha256": "d5f95a1537f452bcfb153f573f636d6299c08d33a54e5ec11c90561642d389c4"
+    },
+    {
+      "id": "007-unicode",
+      "file": "007-unicode.json",
+      "sha256": "b86420642c3acc3fabca18be839e6e6de3d6a5e9dbe6fec83cff54fd5a82e936"
+    },
+    {
+      "id": "008-settings",
+      "file": "008-settings.json",
+      "sha256": "7e2bc30342064d2f238d86bd80d580e0499669650e4970b7dc9c59bb57846373"
+    },
+    {
+      "id": "009-plugin",
+      "file": "009-plugin.json",
+      "sha256": "9e3360f63c2178af4c8c49bcdf1a35720eb2e3459d6767f122b35dff7094961d"
+    },
+    {
+      "id": "010-hidden",
+      "file": "010-hidden.json",
+      "sha256": "df2474262c3d0acfbabbde2dd111df8df018328a6ab31364ed30e4aa4aa75ce6"
+    },
+    {
+      "id": "011-import",
+      "file": "011-import.json",
+      "sha256": "63d30476eb3afaad5c030b2280dbd7aab9abe4d955496b1752f3f6fd5671a2b2"
+    },
+    {
+      "id": "012-history",
+      "file": "012-history.json",
+      "sha256": "18dd8c8881722c6f21c412f698aba1129760b59cb2450a72b688b152c3613a0e"
+    },
+    {
+      "id": "013-history-upper",
+      "file": "013-history-upper.json",
+      "sha256": "24ffd6123a59bb17f79f941f1bf44072220d5ca49b97190110ec2ee9319f1617"
+    },
+    {
+      "id": "014-addon",
+      "file": "014-addon.json",
+      "sha256": "3d05815c12360931fa1e2c06cbd466d1da67a2f32d1e7dfc2de7da3045519b15"
+    },
+    {
+      "id": "015-addon-upper",
+      "file": "015-addon-upper.json",
+      "sha256": "5977a930bd48f1fe3b360eecf5104a8e054f340f61dd51ea60bd249638343a4d"
+    },
+    {
+      "id": "016-agent",
+      "file": "016-agent.json",
+      "sha256": "a22fb75d112e25ed77009c484c4aac3c697d75067427c5aae38303fd688e3776"
+    },
+    {
+      "id": "017-missing",
+      "file": "017-missing.json",
+      "sha256": "fc35f3f8b2abe58235d61985a942e1e267f2ea04673483fd32d02fe9b1a557e8"
+    },
+    {
+      "id": "018-directory",
+      "file": "018-directory.json",
+      "sha256": "709390efef9b19dd7b9713108c914dc4892f3e4e19f7e00b2f7b7e386e2ec397"
+    },
+    {
+      "id": "019-escape",
+      "file": "019-escape.json",
+      "sha256": "319fd0058efd3890c162ec3d5c3d26adb7cecabef1f8ae2df9c524aea114ab6f"
+    },
+    {
+      "id": "020-safe-dotdot",
+      "file": "020-safe-dotdot.json",
+      "sha256": "2834caa53116f0313d7fca16643fe294ff1103fc1a210d354f84e5ec221c0301"
+    },
+    {
+      "id": "021-quota-1",
+      "file": "021-quota-1.json",
+      "sha256": "b8e3e25d310cf780a8db52e0f10055e002ed71d2be2a0b46a32d7fd04a83095c"
+    },
+    {
+      "id": "022-quota-10",
+      "file": "022-quota-10.json",
+      "sha256": "01cbe7c88d317b118b433aaba1d5978d47364bceaceb893f11964fe6b5be8b88"
+    },
+    {
+      "id": "023-quota-11",
+      "file": "023-quota-11.json",
+      "sha256": "b0ae3ba9f6d90e27f32ab515745a524fb106bbd6185d9601dff1354eb4b46cfe"
+    },
+    {
+      "id": "024-quota-12",
+      "file": "024-quota-12.json",
+      "sha256": "fd73e3d9a0d1626d021bcaf17281eaba163de60d5607877f31256c8896c0b873"
+    },
+    {
+      "id": "025-vendor-flags-24",
+      "file": "025-vendor-flags-24.json",
+      "sha256": "63305aea082488c5e6659abadcf3254cf23daa4b2969c3227df9710cd4cb7069"
+    },
+    {
+      "id": "026-agent-flags-25",
+      "file": "026-agent-flags-25.json",
+      "sha256": "15ae0f711c8532416855b6867b70465da4a57109212535dae63a99b96eee5670"
+    },
+    {
+      "id": "027-wrapper-flags-26",
+      "file": "027-wrapper-flags-26.json",
+      "sha256": "b727cd74b49fbbcca65e45727f3547b8ae57c1abd5c0009f77808d4e4cf8fdba"
+    },
+    {
+      "id": "028-vendor-flags-27",
+      "file": "028-vendor-flags-27.json",
+      "sha256": "f6e964af456b4db420c378e30920aafd1e73efe74541eb1ceacd301f496e2d65"
+    },
+    {
+      "id": "029-agent-flags-28",
+      "file": "029-agent-flags-28.json",
+      "sha256": "8af5075b88085b6efdccde5efded23f44f3bf45aebe9119f2bcaa2230df1bfec"
+    },
+    {
+      "id": "030-wrapper-flags-29",
+      "file": "030-wrapper-flags-29.json",
+      "sha256": "b9450285d0c88226ba41133abc357545b4601462ce6094a1b9bb2c2bc65f8771"
+    },
+    {
+      "id": "031-vendor-flags-30",
+      "file": "031-vendor-flags-30.json",
+      "sha256": "d29c0aeb15dd9f57803d6884714ee245fb0a05d53da64ee8d5bbce220be4a6e4"
+    },
+    {
+      "id": "032-agent-flags-31",
+      "file": "032-agent-flags-31.json",
+      "sha256": "1430fb1892fd1ca5924a2365741f86487eed9343071e7a4b0d168224d8d84662"
+    },
+    {
+      "id": "033-wrapper-flags-32",
+      "file": "033-wrapper-flags-32.json",
+      "sha256": "df2d23c08251f752e290ac734e47dc05720f9b0af644b8aa453ba0fcc7d7a845"
+    },
+    {
+      "id": "034-big-default",
+      "file": "034-big-default.json",
+      "sha256": "441cdf38f12c57ef2d82be6e33f781e5a6bc7216192b283d8092a2925f268ae3"
+    },
+    {
+      "id": "035-big-200000",
+      "file": "035-big-200000.json",
+      "sha256": "eaddc40a2723cbfc8e970af36b080c1fcb02c56653727dd0200e2429fd9d5bbe"
+    }
+  ]
+}

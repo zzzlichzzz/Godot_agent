@@ -1,0 +1,7 @@
+{
+  "id": "wait-finished",
+  "op": "wait",
+  "answer": {
+    "text": "complete"
+  }
+}

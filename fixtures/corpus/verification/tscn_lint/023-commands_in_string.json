@@ -1,0 +1,23 @@
+{
+  "id": "023-commands_in_string",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\nmetadata/note = \"eval(1); __import__(\\\"os\\\").system(\\\"never-execute\\\")\"\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\nmetadata/note = \"eval(1); __import__(\\\"os\\\").system(\\\"never-execute\\\")\"\n",
+      "changed": false,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\nmetadata/note = \"eval(1); __import__(\\\"os\\\").system(\\\"never-execute\\\")\"\n",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

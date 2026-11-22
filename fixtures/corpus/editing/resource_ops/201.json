@@ -1,0 +1,41 @@
+{
+  "id": "limits-float0",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "float",
+          "value": false
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "float требует конечное число",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "12ade905820f1cb3cd6391a57265f9aa6f08564112a25237cc95d796d05d7fd4"
+}

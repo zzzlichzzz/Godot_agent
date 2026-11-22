@@ -1,0 +1,20 @@
+{
+  "id": "expanded-hash-mixed",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "bytes-mixed",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "43c6f28970df0b6bddfbfd1ceefdc52243dc907cb0a77cb4c6ef6fa8c638b8f9"
+  },
+  "oracle": "native",
+  "raw_sha256": "490960e90ceae2fe872aa9d9c9045c54c54ecd698487a1b33f5d5e8e9051f3d6"
+}

@@ -1,0 +1,9 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://scripts/root.gd" id="root"]
+[ext_resource type="Script" path="res://scripts/child.gd" id="child"]
+[node name="Root" type="Node"]
+script = ExtResource("root")
+[node name="Child" type="Node" parent="."]
+script = ExtResource('child')
+[node name="Missing" type="Node" parent="."]
+script = ExtResource("unknown")

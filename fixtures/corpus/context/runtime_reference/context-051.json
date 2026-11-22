@@ -1,0 +1,30 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "normalize_action",
+    "args": [
+      {
+        "action": "inspect_runtime",
+        "sections": [
+          "tree",
+          "metrics",
+          "errors"
+        ],
+        "max_age_ms": "bad"
+      }
+    ],
+    "kwargs": {},
+    "id": "context-051"
+  },
+  "expect": {
+    "error": "RuntimeDebugError",
+    "message": "max_age_ms must be an integer"
+  },
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "normalize_action",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

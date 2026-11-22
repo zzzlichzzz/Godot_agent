@@ -1,0 +1,36 @@
+{
+  "id": "expanded-resource3",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://wrong.txt",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "resource имеет неподдерживаемое расширение",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "8b2445c5c8d7649bd7324e987525f24776ebb62d85d33494f6d06ff9aa593787"
+}

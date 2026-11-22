@@ -1,0 +1,32 @@
+{
+  "id": "011-json_syntax",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://syntax.json"
+  },
+  "reference_result": {
+    "path": "res://syntax.json",
+    "problems": [
+      "json syntax: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+    ],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://syntax.json",
+      "problems": [
+        "json syntax: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "json"
+      ],
+      "unavailable": []
+    }
+  }
+}

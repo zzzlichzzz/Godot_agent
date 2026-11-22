@@ -1,0 +1,5 @@
+{
+  "id": "sanitize-3",
+  "op": "sanitize",
+  "text": "a\r\nb\rc\u0085d\u2028e\u2029"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "sites-flags-hosts",
+  "kind": "sites",
+  "native_case_source": "test_v105_spoof_per_site.py + native sites.py registry/host",
+  "ids": [
+    "aistudio",
+    "deepseek",
+    "qwen",
+    "kimi",
+    "arena",
+    "arena_battle",
+    "unknown"
+  ],
+  "urls": [
+    "https://aistudio.google.com/prompts/new_chat",
+    "https://www.chat.qwen.ai/x",
+    "https://child.qwen.ai/x",
+    "https://qwen.ai.attacker.invalid/x",
+    "https://chat.qwen.ai:443/x",
+    "https://arena.ai/text",
+    "invalid"
+  ],
+  "pairs": [
+    [
+      "https://chat.qwen.ai/x",
+      "https://qwen.ai/y"
+    ],
+    [
+      "https://same.invalid/x",
+      "https://same.invalid/y"
+    ],
+    [
+      "https://qwen.ai",
+      "https://kimi.com"
+    ]
+  ]
+}

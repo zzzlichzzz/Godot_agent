@@ -1,0 +1,311 @@
+{
+  "id": "155-empty_body",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/empty_body",
+  "args": {
+    "path": "res://donor.gd",
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ]
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": {
+    "type": "SplitGdError",
+    "message": "метод alpha: пустое тело — нечего выносить"
+  },
+  "contract_refusal": null,
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "метод alpha: пустое тело — нечего выносить",
+  "reference_inventory": {
+    "extends": "Node",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [],
+    "vars": [
+      {
+        "name": "state",
+        "line": 3
+      }
+    ],
+    "funcs": [
+      {
+        "name": "alpha",
+        "sig_start": 2,
+        "start": 2,
+        "block_start": 2,
+        "sig_lines": [
+          "func alpha():"
+        ],
+        "sig_text": "func alpha():",
+        "body_start": 3,
+        "end": 2,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 3
+  },
+  "reference_tokens": [
+    {
+      "kind": "identifier",
+      "value": "extends",
+      "start": 0,
+      "end": 7,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "Node",
+      "start": 8,
+      "end": 12,
+      "line": 1
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 12,
+      "end": 13,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 13,
+      "end": 17,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "alpha",
+      "start": 18,
+      "end": 23,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 23,
+      "end": 24,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 24,
+      "end": 25,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 25,
+      "end": 26,
+      "line": 2
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 26,
+      "end": 27,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 27,
+      "end": 30,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "state",
+      "start": 31,
+      "end": 36,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 37,
+      "end": 38,
+      "line": 3
+    },
+    {
+      "kind": "number",
+      "value": "1",
+      "start": 39,
+      "end": 40,
+      "line": 3
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 40,
+      "end": 41,
+      "line": 3
+    }
+  ],
+  "reference_locals": {
+    "alpha": []
+  },
+  "reference_engine": {
+    "methods": [
+      "accept_event",
+      "add_child",
+      "add_theme_color_override",
+      "add_theme_constant_override",
+      "add_theme_font_override",
+      "add_theme_font_size_override",
+      "add_theme_stylebox_override",
+      "add_to_group",
+      "call",
+      "call_deferred",
+      "connect",
+      "disconnect",
+      "duplicate",
+      "emit_signal",
+      "find_child",
+      "force_update_transform",
+      "get",
+      "get_child",
+      "get_child_count",
+      "get_children",
+      "get_class",
+      "get_index",
+      "get_meta",
+      "get_node",
+      "get_node_or_null",
+      "get_parent",
+      "get_path",
+      "get_scene_file_path",
+      "get_script",
+      "get_theme_color",
+      "get_theme_constant",
+      "get_theme_default_font",
+      "get_theme_default_font_size",
+      "get_theme_font",
+      "get_theme_font_size",
+      "get_theme_stylebox",
+      "get_tree",
+      "get_viewport",
+      "get_window",
+      "grab_focus",
+      "has_focus",
+      "has_meta",
+      "has_method",
+      "has_node",
+      "has_theme_color",
+      "has_theme_constant",
+      "has_theme_font",
+      "has_theme_font_size",
+      "has_theme_stylebox",
+      "hide",
+      "is_class",
+      "is_connected",
+      "is_in_group",
+      "is_inside_tree",
+      "is_node_ready",
+      "is_visible_in_tree",
+      "move_child",
+      "move_to_front",
+      "notification",
+      "notify_property_list_changed",
+      "queue_free",
+      "release_focus",
+      "remove_child",
+      "remove_from_group",
+      "remove_meta",
+      "remove_theme_color_override",
+      "remove_theme_constant_override",
+      "remove_theme_font_override",
+      "remove_theme_font_size_override",
+      "remove_theme_stylebox_override",
+      "set",
+      "set_deferred",
+      "set_meta",
+      "set_physics_process",
+      "set_process",
+      "set_process_input",
+      "set_process_unhandled_input",
+      "set_script",
+      "show"
+    ],
+    "properties": [
+      "alignment",
+      "anchor_bottom",
+      "anchor_left",
+      "anchor_right",
+      "anchor_top",
+      "anchors_preset",
+      "autowrap_mode",
+      "bbcode_enabled",
+      "button_pressed",
+      "clip_contents",
+      "context_menu_enabled",
+      "custom_minimum_size",
+      "disabled",
+      "editable",
+      "flat",
+      "focus_mode",
+      "icon",
+      "layout_mode",
+      "modulate",
+      "mouse_filter",
+      "name",
+      "offset_bottom",
+      "offset_left",
+      "offset_right",
+      "offset_top",
+      "owner",
+      "pivot_offset",
+      "placeholder_text",
+      "position",
+      "pressed",
+      "rotation",
+      "scale",
+      "scroll_following",
+      "selection_enabled",
+      "self_modulate",
+      "size",
+      "size_flags_horizontal",
+      "size_flags_vertical",
+      "text",
+      "theme_type_variation",
+      "tooltip_text",
+      "top_level",
+      "visible",
+      "wrap_mode"
+    ]
+  },
+  "capture_tree": {
+    "files": {
+      "donor.gd": {
+        "bytes": 41,
+        "sha256": "3ea8814b96d000b311063ff6437d8f1a7fbe2d4588234958383ea059857a8b2c"
+      },
+      "plugin.cfg": {
+        "bytes": 28,
+        "sha256": "b1f19cfdd95c7ac7092291eae8d46885b97fc6b1253180b554545405dda4cda1"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  }
+}

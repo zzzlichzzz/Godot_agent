@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "module_id": "scene_model.scene_deps",
+  "capability_id": "scene_model.scene_deps",
+  "tool_name": "scene_deps",
+  "description": "Анализ неподключённых _on_*: .tscn/.scn возвращает предложенный text, added и notes; .gd возвращает text=null, added=[], notes. Не записывает текст, не обходит граф ресурсов и не валидирует циклы. Скан .gd/.tscn рекурсивный; 512KiB только для скана, основной/привязанный скрипт — max_file_bytes.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "added": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "notes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "text",
+      "added",
+      "notes"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "heavy",
+  "limits": {
+    "max_file_bytes": 4194304,
+    "project_scan_max_file_bytes": 524288
+  }
+}

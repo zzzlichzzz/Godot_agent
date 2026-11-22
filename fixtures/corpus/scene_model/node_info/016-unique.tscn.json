@@ -1,0 +1,15 @@
+{
+  "id": "016-unique.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "unique.tscn: '%Nonunique'",
+  "args": {
+    "path": "res://scenes/unique.tscn",
+    "node": "%Nonunique"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Уникальный узел %Nonunique не найден в сцене"
+  }
+}

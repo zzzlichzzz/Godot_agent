@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "q4-import-only",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://empty",
+    "new_path": "res://new",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "empty/only.import": {
+        "bytes_b64": "c291cmNlX2ZpbGU9InJlczovL2VtcHR5L29ubHkiCg==",
+        "bytes": 31,
+        "sha256": "14a48c208c8eea7e3bfad53228483748d77454eb2c714dad0ae234e44806d4f5"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "empty"
+    ]
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "is_directory": true,
+    "old_path": "res://empty",
+    "new_path": "res://new",
+    "moved_files": {},
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://empty/only.import",
+        "dest": "res://new/only.import",
+        "absolute": "<PROJECT>\\empty\\only.import",
+        "dest_absolute": "<PROJECT>\\new\\only.import",
+        "before_hash": "14a48c208c8eea7e3bfad53228483748d77454eb2c714dad0ae234e44806d4f5",
+        "before_bytes": {
+          "$bytes_base64": "c291cmNlX2ZpbGU9InJlczovL2VtcHR5L29ubHkiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "c291cmNlX2ZpbGU9InJlczovL25ldy9vbmx5Igo="
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл импорта (.import) перемещён в res://new/only.import"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "source_file=\"res://empty/only\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "source_file=\"res://new/only\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://empty/only.import",
+          "dest": "res://new/only.import"
+        },
+        "occurrences": 1,
+        "is_companion": true
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://new/only.import"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "2c57c50341cb14c06d0329091a87d3b126e573f042cb257901012555d928c95c"
+}

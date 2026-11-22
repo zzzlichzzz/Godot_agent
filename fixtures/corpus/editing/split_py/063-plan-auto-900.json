@@ -1,0 +1,228 @@
+{
+  "id": "063-plan-auto-900",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_auto-900",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_result": {
+    "schema": 1,
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c18-split-py-plan-20261101-resume\\corpus-staging\\plan_auto-900",
+    "donor": "donor.py",
+    "donor_sha256": "a296575c32417c6bcf48285bec2732c8b57ed4a5df400f777f7cd971a262e382",
+    "donor_lines": 1004,
+    "target_lines": 900,
+    "auto_groups": true,
+    "modules": [
+      {
+        "module": "donor_part1",
+        "rel": "donor_part1.py",
+        "names": [
+          "f0",
+          "f1",
+          "f2"
+        ],
+        "lines": 762,
+        "text": "# -*- coding: utf-8 -*-\n\n\"\"\"donor_part1 — часть donor.py (вынесено split_refactor).\n\nФасад и точка входа — donor.py: он реэкспортирует имена модуля.\n\"\"\"\n\ndef f0():\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    return x\n\ndef f1():\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    return x\n\ndef f2():\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    return x\n"
+      },
+      {
+        "module": "donor_part2",
+        "rel": "donor_part2.py",
+        "names": [
+          "f3"
+        ],
+        "lines": 258,
+        "text": "# -*- coding: utf-8 -*-\n\n\"\"\"donor_part2 — часть donor.py (вынесено split_refactor).\n\nФасад и точка входа — donor.py: он реэкспортирует имена модуля.\n\"\"\"\n\ndef f3():\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    x = 1\n    return x\n"
+      }
+    ],
+    "facade": {
+      "rel": "donor.py",
+      "text": "# --- фасад: код разнесён по модулям (split_refactor) ---\nfrom donor_part1 import f0, f1, f2\nfrom donor_part2 import f3\n__all__ = [\"f0\", \"f1\", \"f2\", \"f3\"]\n",
+      "lines": 4,
+      "reexports": [
+        {
+          "module": "donor_part1",
+          "names": [
+            "f0",
+            "f1",
+            "f2"
+          ]
+        },
+        {
+          "module": "donor_part2",
+          "names": [
+            "f3"
+          ]
+        }
+      ]
+    },
+    "moved_names": [
+      "f0",
+      "f1",
+      "f2",
+      "f3"
+    ],
+    "errors": [],
+    "warnings": [
+      "группы черновые (авто, ~900 строк на модуль): проверь состав перед apply",
+      "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+      "donor_part1.py: зона ? (unknown)",
+      "donor_part2.py: зона ? (unknown)"
+    ],
+    "inventory": {
+      "symbols": [
+        {
+          "name": "f0",
+          "kind": "def",
+          "lines": 251,
+          "is_public": true,
+          "state": false
+        },
+        {
+          "name": "f1",
+          "kind": "def",
+          "lines": 251,
+          "is_public": true,
+          "state": false
+        },
+        {
+          "name": "f2",
+          "kind": "def",
+          "lines": 251,
+          "is_public": true,
+          "state": false
+        },
+        {
+          "name": "f3",
+          "kind": "def",
+          "lines": 251,
+          "is_public": true,
+          "state": false
+        }
+      ],
+      "imports": 0,
+      "other": 0,
+      "docstring": false
+    },
+    "refs": {
+      "counts": {
+        "import": 0,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 0,
+        "doc": 0
+      },
+      "hard_files": [],
+      "soft_files": [],
+      "truncated": false
+    }
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "donor_sha256": "a296575c32417c6bcf48285bec2732c8b57ed4a5df400f777f7cd971a262e382",
+      "donor_lines": 1004,
+      "target_lines": 900,
+      "auto_groups": true,
+      "moved_names": [
+        "f0",
+        "f1",
+        "f2",
+        "f3"
+      ],
+      "errors": [],
+      "warnings": [
+        "группы черновые (авто, ~900 строк на модуль): проверь состав перед apply",
+        "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+        "donor_part1.py: зона ? (unknown)",
+        "donor_part2.py: зона ? (unknown)"
+      ],
+      "inventory": {
+        "symbols": [
+          {
+            "name": "f0",
+            "kind": "def",
+            "lines": 251,
+            "is_public": true,
+            "state": false
+          },
+          {
+            "name": "f1",
+            "kind": "def",
+            "lines": 251,
+            "is_public": true,
+            "state": false
+          },
+          {
+            "name": "f2",
+            "kind": "def",
+            "lines": 251,
+            "is_public": true,
+            "state": false
+          },
+          {
+            "name": "f3",
+            "kind": "def",
+            "lines": 251,
+            "is_public": true,
+            "state": false
+          }
+        ],
+        "imports": 0,
+        "other": 0,
+        "docstring": false
+      },
+      "refs": {
+        "counts": {
+          "import": 0,
+          "source_read": 0,
+          "patch": 0,
+          "mention": 0,
+          "doc": 0
+        },
+        "hard_files": [],
+        "soft_files": [],
+        "truncated": false
+      },
+      "modules": [
+        {
+          "rel": "donor_part1.py",
+          "names": [
+            "f0",
+            "f1",
+            "f2"
+          ],
+          "lines": 762
+        },
+        {
+          "rel": "donor_part2.py",
+          "names": [
+            "f3"
+          ],
+          "lines": 258
+        }
+      ],
+      "facade": {
+        "rel": "donor.py",
+        "lines": 4,
+        "reexports": [
+          {
+            "module": "donor_part1",
+            "names": [
+              "f0",
+              "f1",
+              "f2"
+            ]
+          },
+          {
+            "module": "donor_part2",
+            "names": [
+              "f3"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "input": {
+    "id": "routing132",
+    "label": "retry state single consumption",
+    "kind": "rate_state",
+    "status": 503,
+    "retry_after": 7
+  },
+  "expect": {
+    "result": [
+      503,
+      null,
+      7,
+      null
+    ],
+    "stdout": ""
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "rate_state",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

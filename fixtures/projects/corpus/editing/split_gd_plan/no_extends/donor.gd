@@ -1,0 +1,2 @@
+func alpha():
+	pass

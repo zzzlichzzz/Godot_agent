@@ -1,0 +1,49 @@
+{
+  "id": "020-out_of_order.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/out_of_order.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "      - Child\n- Root (Node)\n  - Sibling",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 3,
+          "name": "Child",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "Missing/Deep",
+          "path": "Missing/Deep/Child"
+        },
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Sibling",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": ".",
+          "path": "Sibling"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

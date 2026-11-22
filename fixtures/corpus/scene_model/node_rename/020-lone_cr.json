@@ -1,0 +1,67 @@
+{
+  "id": "020-lone_cr",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/020-lone_cr",
+  "note": "lone_cr",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm",
+    "update_scripts": false
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Arm",
+      "new_name": "LongArm",
+      "old_path": "Arm",
+      "new_path": "LongArm",
+      "target_node_path": "Arm",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "fa935f02e2accd69d09e7f8a72f45e42244e5071d102dc8b853a228908025992",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10NW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0NW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQ1bc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQ10cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXA6cG9zaXRpb246eCIpDXRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiJUFybTpyb3RhdGlvbiIpDVtub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdDXNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikNW25vZGUgbmFtZT0iQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdDXVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQ1bbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0iXQ1zY3JpcHQgPSBFeHRSZXNvdXJjZSgiMiIpDVtub2RlIG5hbWU9Ikdsb3ciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0vVGlwIl0NW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQ1bY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwIiBtZXRob2Q9InJlYWR5Il0NW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iV2luZyIgdG89IkFybSIgbWV0aG9kPSJyZWFkeSJdDQ==",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10NW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0NW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQ1bc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQ10cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkxvbmdBcm0vVGlwOnBvc2l0aW9uOngiKQ10cmFja3MvMS9wYXRoID0gTm9kZVBhdGgoIiVMb25nQXJtOnJvdGF0aW9uIikNW25vZGUgbmFtZT0iTWFpbiIgdHlwZT0iTm9kZTJEIl0Nc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQ1bbm9kZSBuYW1lPSJMb25nQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdDXVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQ1bbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJMb25nQXJtIl0Nc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjIiKQ1bbm9kZSBuYW1lPSJHbG93IiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iTG9uZ0FybS9UaXAiXQ1bbm9kZSBuYW1lPSJXaW5nIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdDVtjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209IkxvbmdBcm0iIHRvPSJMb25nQXJtL1RpcCIgbWV0aG9kPSJyZWFkeSJdDVtjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209IldpbmciIHRvPSJMb25nQXJtIiBtZXRob2Q9InJlYWR5Il0N",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,1 +1,1 @@"
+              ],
+              [
+                "-",
+                1,
+                null,
+                "[gd_scene load_steps=4 format=3]\r[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"1\"]\r[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"2\"]\r[sub_resource type=\"Animation\" id=\"A\"]\rtracks/0/path = NodePath(\"Arm/Tip:position:x\")\rtracks/1/path = NodePath(\"%Arm:rotation\")\r[node name=\"Main\" type=\"Node2D\"]\rscript = ExtResource(\"1\")\r[node name=\"Arm\" type=\"Node2D\" parent=\".\"]\runique_name_in_owner = true\r[node name=\"Tip\" type=\"Node2D\" parent=\"Arm\"]\rscript = ExtResource(\"2\")\r[node name=\"Glow\" type=\"Node2D\" parent=\"Arm/Tip\"]\r[node name=\"Wing\" type=\"Node2D\" parent=\".\"]\r[connection signal=\"ready\" from=\"Arm\" to=\"Arm/Tip\" method=\"ready\"]\r[connection signal=\"ready\" from=\"Wing\" to=\"Arm\" method=\"ready\"]\r"
+              ],
+              [
+                "+",
+                null,
+                1,
+                "[gd_scene load_steps=4 format=3]\r[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"1\"]\r[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"2\"]\r[sub_resource type=\"Animation\" id=\"A\"]\rtracks/0/path = NodePath(\"LongArm/Tip:position:x\")\rtracks/1/path = NodePath(\"%LongArm:rotation\")\r[node name=\"Main\" type=\"Node2D\"]\rscript = ExtResource(\"1\")\r[node name=\"LongArm\" type=\"Node2D\" parent=\".\"]\runique_name_in_owner = true\r[node name=\"Tip\" type=\"Node2D\" parent=\"LongArm\"]\rscript = ExtResource(\"2\")\r[node name=\"Glow\" type=\"Node2D\" parent=\"LongArm/Tip\"]\r[node name=\"Wing\" type=\"Node2D\" parent=\".\"]\r[connection signal=\"ready\" from=\"LongArm\" to=\"LongArm/Tip\" method=\"ready\"]\r[connection signal=\"ready\" from=\"Wing\" to=\"LongArm\" method=\"ready\"]\r"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 7
+        }
+      ],
+      "reference_count": 7,
+      "affected_paths": [
+        "res://main.tscn"
+      ],
+      "scripts_only": false,
+      "previous_name": ""
+    }
+  }
+}

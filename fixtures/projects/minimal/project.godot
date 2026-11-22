@@ -1,0 +1,18 @@
+; Engine configuration file.
+; Мини-проект для корпуса поиска (R-07). Не открывать в редакторе: он допишет
+; свои секции и сдвинет строки, на которые опирается эталон.
+config_version=5
+
+[application]
+
+config/name="Godot Agent Minimal Fixture"
+config/features=PackedStringArray("4.6")
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

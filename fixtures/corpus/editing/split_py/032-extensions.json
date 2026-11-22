@@ -1,0 +1,219 @@
+{
+  "id": "032-extensions",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 0,
+      "source_read": 1,
+      "patch": 0,
+      "mention": 10,
+      "doc": 1
+    },
+    "occurrences": [
+      {
+        "rel": "ref.bat",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.cfg",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.cmd",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.gdshader",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.godot",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.json",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.md",
+        "line": 1,
+        "kind": "doc",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.py",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.tres",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.tscn",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "ref.txt",
+        "line": 1,
+        "kind": "mention",
+        "text": "donor.py"
+      },
+      {
+        "rel": "upper.PY",
+        "line": 1,
+        "kind": "source_read",
+        "text": "open(\"donor.py\")"
+      }
+    ],
+    "hard_files": [
+      "upper.PY"
+    ],
+    "soft_files": [
+      "ref.bat",
+      "ref.cfg",
+      "ref.cmd",
+      "ref.gdshader",
+      "ref.godot",
+      "ref.json",
+      "ref.md",
+      "ref.py",
+      "ref.tres",
+      "ref.tscn",
+      "ref.txt"
+    ],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/extensions",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 0,
+        "source_read": 1,
+        "patch": 0,
+        "mention": 10,
+        "doc": 1
+      },
+      "occurrences": [
+        {
+          "file": "ref.bat",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.cfg",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.cmd",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.gdshader",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.godot",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.json",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.md",
+          "line": 1,
+          "kind": "doc",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.py",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.tres",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.tscn",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "ref.txt",
+          "line": 1,
+          "kind": "mention",
+          "text": "donor.py"
+        },
+        {
+          "file": "upper.PY",
+          "line": 1,
+          "kind": "source_read",
+          "text": "open(\"donor.py\")"
+        }
+      ],
+      "hard_files": [
+        "upper.PY"
+      ],
+      "soft_files": [
+        "ref.bat",
+        "ref.cfg",
+        "ref.cmd",
+        "ref.gdshader",
+        "ref.godot",
+        "ref.json",
+        "ref.md",
+        "ref.py",
+        "ref.tres",
+        "ref.tscn",
+        "ref.txt"
+      ],
+      "truncated": false
+    }
+  }
+}

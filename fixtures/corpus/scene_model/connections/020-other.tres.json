@@ -1,0 +1,15 @@
+{
+  "id": "020-other.tres",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "other.tres",
+  "args": {
+    "path": "res://other.tres"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "list_scene работает только со сценами .tscn: res://other.tres",
+    "reference_exception": "ValueError"
+  }
+}

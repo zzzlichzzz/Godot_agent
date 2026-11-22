@@ -1,0 +1,63 @@
+{
+  "id": "034-rel_substring",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "pkg/donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 0,
+      "source_read": 0,
+      "patch": 0,
+      "mention": 1,
+      "doc": 0
+    },
+    "occurrences": [
+      {
+        "rel": "ref.txt",
+        "line": 1,
+        "kind": "mention",
+        "text": "x-pkg/donor.pyX"
+      }
+    ],
+    "hard_files": [],
+    "soft_files": [
+      "ref.txt"
+    ],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/rel_substring",
+  "args": {
+    "path": "res://pkg/donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "pkg/donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "pkg/donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 0,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 1,
+        "doc": 0
+      },
+      "occurrences": [
+        {
+          "file": "ref.txt",
+          "line": 1,
+          "kind": "mention",
+          "text": "x-pkg/donor.pyX"
+        }
+      ],
+      "hard_files": [],
+      "soft_files": [
+        "ref.txt"
+      ],
+      "truncated": false
+    }
+  }
+}

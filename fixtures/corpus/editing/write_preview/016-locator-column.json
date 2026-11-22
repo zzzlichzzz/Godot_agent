@@ -1,0 +1,52 @@
+{
+  "id": "016-locator-column",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Locator с колонкой: тот же план, другой digest",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/hero.gd:6:6",
+    "mode": "probable",
+    "allow_unverified": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "take_damage",
+      "new_name": "apply_damage",
+      "declaration": "res://src/hero.gd:6:6",
+      "mode": "probable",
+      "allow_unverified": true,
+      "state": "PREPARED",
+      "steps": [
+        {
+          "path": "res://src/enemy.gd",
+          "edits": 3
+        },
+        {
+          "path": "res://src/hero.gd",
+          "edits": 2
+        },
+        {
+          "path": "res://src/party.gd",
+          "edits": 1
+        }
+      ],
+      "steps_count": 3,
+      "affected_paths": [
+        "res://src/enemy.gd",
+        "res://src/hero.gd",
+        "res://src/party.gd"
+      ],
+      "stats": {
+        "files": 3,
+        "edits": 6,
+        "dynamic": 1
+      },
+      "excluded": 0
+    }
+  }
+}

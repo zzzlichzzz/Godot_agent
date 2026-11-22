@@ -1,0 +1,3 @@
+[gd_scene format=3]
+[node name="Root" type="Node"]
+[node name="Kid" parent="." instance_placeholder="res://unknown.tscn"]

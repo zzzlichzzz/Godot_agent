@@ -1,0 +1,18 @@
+{
+  "id": "007",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "новое имя занято в целевом файле: конфликт",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "strike",
+    "new_name": "take_damage",
+    "declaration": "res://src/hero.gd:10",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

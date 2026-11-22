@@ -1,0 +1,19 @@
+{
+  "id": "014-ambiguous_sources",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/014-ambiguous_sources",
+  "note": "ambiguous_sources",
+  "args": {
+    "path": "res://main.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"s\"]\n[node name=\"Root\" type=\"Node\"]\nscript = ExtResource(\"s\")\n[node name=\"Wall-North\" type=\"Button\" parent=\".\"]\n[node name=\"Wall_North\" type=\"Button\" parent=\".\"]\n",
+      "added": [],
+      "notes": [
+        "обработчик _on_wall_north_pressed в res://main.gd нигде не подключен, но подходят несколько источников (Wall-North.pressed, Wall_North.pressed) — добавь [connection] вручную для нужного"
+      ]
+    }
+  }
+}

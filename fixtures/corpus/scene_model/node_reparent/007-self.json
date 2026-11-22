@@ -1,0 +1,16 @@
+{
+  "id": "007-self",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/007-self",
+  "note": "actual-old prepare-only: self",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "Old"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Нельзя переместить узел в самого себя"
+  }
+}

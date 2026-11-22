@@ -1,0 +1,57 @@
+{
+  "id": "variant-Vector2",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "Vector2",
+          "value": [
+            1,
+            2
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "Vector2",
+              "value": [
+                1.0,
+                2.0
+              ]
+            }
+          }
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "980887ceb03ecf36bd887acaf11e06bff849a6f512741584802740904eb319e6"
+}

@@ -1,0 +1,28 @@
+{
+  "id": "009-encoding",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "encoding",
+  "args": {
+    "path": "res://scripts/encoding.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "damaged_encoding",
+          "line": null,
+          "message": "в коде символ повреждённой кодировки (\\ufffd) — текст побился"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 2,
+          "message": "строка 2: лишняя закрывающая скобка «)»"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 30
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "expanded-operation-refusal-4",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "animation_add_value_track",
+        "path": "Node:position",
+        "keys": []
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "keys должен содержать от 1 до 512 ключей",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "66da66e6d065fbbe0a3eb2ec9a35be8c58d8723af658ffefc0d6be0b999c9d5e"
+}

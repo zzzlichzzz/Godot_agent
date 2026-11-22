@@ -1,0 +1,41 @@
+{
+  "id": "expanded-op4-missing-op",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "data_type": "color",
+        "theme_type": "Button",
+        "name": "font_color",
+        "value": {
+          "type": "Color",
+          "value": [
+            1,
+            0.5,
+            0,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестная операция ресурса: None",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "e4cf5d76848f1bcd306677a7708873288636830edeed256eceb5a61e43d4a065"
+}

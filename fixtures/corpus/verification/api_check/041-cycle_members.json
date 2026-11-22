@@ -1,0 +1,21 @@
+{
+  "id": "041-cycle_members",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/cycle",
+  "note": "cycle_members",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends A\nself.a()\nself.b\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "A",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

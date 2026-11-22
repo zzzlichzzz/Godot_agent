@@ -1,0 +1,105 @@
+{
+  "id": "025-signature-filter-and-empty",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/signatures",
+  "args": {
+    "class_name": "S"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "S",
+      "found": true,
+      "cache_version": "4.6",
+      "inherits": [
+        "S",
+        "P"
+      ],
+      "methods": [
+        {
+          "name": "bad",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": "bad() -> void"
+        },
+        {
+          "name": "empty",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "fallback",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": "fallback() -> bool"
+        }
+      ],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "S",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6",
+    "record": {
+      "inherits": "P",
+      "methods": {
+        "bad": [
+          0,
+          0
+        ],
+        "empty": [
+          0,
+          0
+        ],
+        "fallback": [
+          0,
+          0
+        ]
+      },
+      "signatures": {
+        "bad": 12,
+        "empty": "",
+        "fallback": null,
+        "ghost": "ghost()"
+      }
+    },
+    "chain": [
+      "S",
+      "P"
+    ],
+    "members": [
+      {
+        "bad": [
+          0,
+          0
+        ],
+        "empty": [
+          0,
+          0
+        ],
+        "fallback": [
+          0,
+          0
+        ]
+      },
+      [],
+      []
+    ],
+    "signatures": {
+      "empty": "",
+      "ghost": "ghost()",
+      "bad": "bad() -> void",
+      "fallback": "fallback() -> bool"
+    }
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

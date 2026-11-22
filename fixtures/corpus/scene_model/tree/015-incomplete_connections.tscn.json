@@ -1,0 +1,38 @@
+{
+  "id": "015-incomplete_connections.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/incomplete_connections.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n\nСигналы ([connection]):\n- <root>.go -> <root>.a()",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [
+        {
+          "from": ".",
+          "to": ".",
+          "signal": "go",
+          "method": "a"
+        }
+      ],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

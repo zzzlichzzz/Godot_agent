@@ -1,0 +1,6 @@
+{
+  "id": "incomplete-3",
+  "op": "incomplete",
+  "raw": "{\"action\":\"write_file\",\"content_ref\":\"A\",\"search_ref\":\"B\",\"replace_ref\":\"A\"}",
+  "text": "===END_A===\n===END_B===\n===DONE==="
+}

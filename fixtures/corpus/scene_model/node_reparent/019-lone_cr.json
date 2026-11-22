@@ -1,0 +1,136 @@
+{
+  "id": "019-lone_cr",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/019-lone_cr",
+  "note": "actual-old prepare-only: lone_cr",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "reparent_node",
+      "scene": "res://main.tscn",
+      "target_node": "Old",
+      "old_path": "Old",
+      "new_parent": "New",
+      "new_path": "New/Old",
+      "target_node_path": "Old",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "3763c9a2d18436f7fc176cb50acde37caa05521d26af2e28ff2eff2ff40031ff",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NSBmb3JtYXQ9M10NDVtleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9yb290LmdkIiBpZD0icm9vdCJdDVtleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9icmFuY2guZ2QiIGlkPSJicmFuY2giXQ1bZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vdGlwLmdkIiBpZD0idGlwIl0NDVtzdWJfcmVzb3VyY2UgdHlwZT0iQW5pbWF0aW9uIiBpZD0iQW5pbWF0aW9uX2EiXQ10cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIk9sZC9UaXA6cG9zaXRpb246eCIpDXRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiT2xkOnJvdGF0aW9uIikNdHJhY2tzLzIvcGF0aCA9IE5vZGVQYXRoKCIlVGlwOnNjYWxlIikNdHJhY2tzLzMvcGF0aCA9IE5vZGVQYXRoKCJPbGQvVGlwL0VuZDpwb3NpdGlvbiIpDXRyYWNrcy80L3BhdGggPSBOb2RlUGF0aCgiT2xkaXNoOnBvc2l0aW9uIikNDVtub2RlIG5hbWU9IlJvb3QiIHR5cGU9Ik5vZGUiXQ1zY3JpcHQgPSBFeHRSZXNvdXJjZSgicm9vdCIpDQ1bbm9kZSBuYW1lPSJOZXciIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdDXNjcmlwdCA9IEV4dFJlc291cmNlKCJicmFuY2giKQ0NW25vZGUgbmFtZT0iT2xkIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQ11bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUNc2NyaXB0ID0gRXh0UmVzb3VyY2UoInRpcCIpDQ1bbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUiIHBhcmVudD0iT2xkIl0NdW5pcXVlX25hbWVfaW5fb3duZXIgPSB0cnVlDQ1bbm9kZSBuYW1lPSJFbmQiIHR5cGU9Ik5vZGUiIHBhcmVudD0iT2xkL1RpcCJdDQ1bbm9kZSBuYW1lPSJPbGRpc2giIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdDQ1bY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJPbGQiIHRvPSJPbGQvVGlwIiBtZXRob2Q9Il9yZWFkeSJdDVtjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZC9UaXAiIHRvPSJOZXciIG1ldGhvZD0iX3JlYWR5Il0NW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iTmV3IiB0bz0iT2xkIiBtZXRob2Q9Il9yZWFkeSJdDVtjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZGlzaCIgdG89Ik5ldyIgbWV0aG9kPSJfcmVhZHkiXQ0=",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NSBmb3JtYXQ9M10NDVtleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9yb290LmdkIiBpZD0icm9vdCJdDVtleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9icmFuY2guZ2QiIGlkPSJicmFuY2giXQ1bZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vdGlwLmdkIiBpZD0idGlwIl0NDVtzdWJfcmVzb3VyY2UgdHlwZT0iQW5pbWF0aW9uIiBpZD0iQW5pbWF0aW9uX2EiXQ10cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIk5ldy9PbGQvVGlwOnBvc2l0aW9uOngiKQ10cmFja3MvMS9wYXRoID0gTm9kZVBhdGgoIk5ldy9PbGQ6cm90YXRpb24iKQ10cmFja3MvMi9wYXRoID0gTm9kZVBhdGgoIiVUaXA6c2NhbGUiKQ10cmFja3MvMy9wYXRoID0gTm9kZVBhdGgoIk5ldy9PbGQvVGlwL0VuZDpwb3NpdGlvbiIpDXRyYWNrcy80L3BhdGggPSBOb2RlUGF0aCgiT2xkaXNoOnBvc2l0aW9uIikNDVtub2RlIG5hbWU9IlJvb3QiIHR5cGU9Ik5vZGUiXQ1zY3JpcHQgPSBFeHRSZXNvdXJjZSgicm9vdCIpDQ1bbm9kZSBuYW1lPSJOZXciIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdDXNjcmlwdCA9IEV4dFJlc291cmNlKCJicmFuY2giKQ0NW25vZGUgbmFtZT0iT2xkIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ik5ldyJdDXVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQ1zY3JpcHQgPSBFeHRSZXNvdXJjZSgidGlwIikNDVtub2RlIG5hbWU9IlRpcCIgdHlwZT0iTm9kZSIgcGFyZW50PSJOZXcvT2xkIl0NdW5pcXVlX25hbWVfaW5fb3duZXIgPSB0cnVlDQ1bbm9kZSBuYW1lPSJFbmQiIHR5cGU9Ik5vZGUiIHBhcmVudD0iTmV3L09sZC9UaXAiXQ0NW25vZGUgbmFtZT0iT2xkaXNoIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQ0NW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iTmV3L09sZCIgdG89Ik5ldy9PbGQvVGlwIiBtZXRob2Q9Il9yZWFkeSJdDVtjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik5ldy9PbGQvVGlwIiB0bz0iTmV3IiBtZXRob2Q9Il9yZWFkeSJdDVtjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik5ldyIgdG89Ik5ldy9PbGQiIG1ldGhvZD0iX3JlYWR5Il0NW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iT2xkaXNoIiB0bz0iTmV3IiBtZXRob2Q9Il9yZWFkeSJdDQ==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,1 +1,1 @@"
+              ],
+              [
+                "-",
+                1,
+                null,
+                "[gd_scene load_steps=5 format=3]\r\r[ext_resource type=\"Script\" path=\"res://root.gd\" id=\"root\"]\r[ext_resource type=\"Script\" path=\"res://branch.gd\" id=\"branch\"]\r[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"tip\"]\r\r[sub_resource type=\"Animation\" id=\"Animation_a\"]\rtracks/0/path = NodePath(\"Old/Tip:position:x\")\rtracks/1/path = NodePath(\"Old:rotation\")\rtracks/2/path = NodePath(\"%Tip:scale\")\rtracks/3/path = NodePath(\"Old/Tip/End:position\")\rtracks/4/path = NodePath(\"Oldish:position\")\r\r[node name=\"Root\" type=\"Node\"]\rscript = ExtResource(\"root\")\r\r[node name=\"New\" type=\"Node\" parent=\".\"]\rscript = ExtResource(\"branch\")\r\r[node name=\"Old\" type=\"Node\" parent=\".\"]\runique_name_in_owner = true\rscript = ExtResource(\"tip\")\r\r[node name=\"Tip\" type=\"Node\" parent=\"Old\"]\runique_name_in_owner = true\r\r[node name=\"End\" type=\"Node\" parent=\"Old/Tip\"]\r\r[node name=\"Oldish\" type=\"Node\" parent=\".\"]\r\r[connection signal=\"ready\" from=\"Old\" to=\"Old/Tip\" method=\"_ready\"]\r[connection signal=\"ready\" from=\"Old/Tip\" to=\"New\" method=\"_ready\"]\r[connection signal=\"ready\" from=\"New\" to=\"Old\" method=\"_ready\"]\r[connection signal=\"ready\" from=\"Oldish\" to=\"New\" method=\"_ready\"]\r"
+              ],
+              [
+                "+",
+                null,
+                1,
+                "[gd_scene load_steps=5 format=3]\r\r[ext_resource type=\"Script\" path=\"res://root.gd\" id=\"root\"]\r[ext_resource type=\"Script\" path=\"res://branch.gd\" id=\"branch\"]\r[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"tip\"]\r\r[sub_resource type=\"Animation\" id=\"Animation_a\"]\rtracks/0/path = NodePath(\"New/Old/Tip:position:x\")\rtracks/1/path = NodePath(\"New/Old:rotation\")\rtracks/2/path = NodePath(\"%Tip:scale\")\rtracks/3/path = NodePath(\"New/Old/Tip/End:position\")\rtracks/4/path = NodePath(\"Oldish:position\")\r\r[node name=\"Root\" type=\"Node\"]\rscript = ExtResource(\"root\")\r\r[node name=\"New\" type=\"Node\" parent=\".\"]\rscript = ExtResource(\"branch\")\r\r[node name=\"Old\" type=\"Node\" parent=\"New\"]\runique_name_in_owner = true\rscript = ExtResource(\"tip\")\r\r[node name=\"Tip\" type=\"Node\" parent=\"New/Old\"]\runique_name_in_owner = true\r\r[node name=\"End\" type=\"Node\" parent=\"New/Old/Tip\"]\r\r[node name=\"Oldish\" type=\"Node\" parent=\".\"]\r\r[connection signal=\"ready\" from=\"New/Old\" to=\"New/Old/Tip\" method=\"_ready\"]\r[connection signal=\"ready\" from=\"New/Old/Tip\" to=\"New\" method=\"_ready\"]\r[connection signal=\"ready\" from=\"New\" to=\"New/Old\" method=\"_ready\"]\r[connection signal=\"ready\" from=\"Oldish\" to=\"New\" method=\"_ready\"]\r"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 9
+        },
+        {
+          "action": "patch_file",
+          "path": "res://root.gd",
+          "before_hash": "7f5a15b9da738247dc84722bc0a7b4873cfab14e29e496b7e255180362278d4f",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlDUBvbnJlYWR5IHZhciBpdGVtID0gJE9sZA1Ab25yZWFkeSB2YXIgdGlwID0gJCJPbGQvVGlwIg1Ab25yZWFkeSB2YXIgZW5kID0gZ2V0X25vZGVfb3JfbnVsbCgnT2xkL1RpcC9FbmQnKQ1Ab25yZWFkeSB2YXIgdW5pcXVlID0gJU9sZA1mdW5jIF9yZWFkeSgpOg0gICAgdmFyIGEgPSBnZXRfbm9kZSgiT2xkIikNICAgIHZhciBiID0gaGFzX25vZGUoJ09sZC9UaXAnKQ0gICAgdmFyIGMgPSBmaW5kX2NoaWxkKCJPbGQiKQ0gICAgIyAkT2xkIHN0YXlzIGEgbGl0ZXJhbCByZWZlcmVuY2UgZXZlbiBpbiB0aGlzIGNvbW1lbnQgZHVyaW5nIHJlcGFyZW50Lg0=",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlDUBvbnJlYWR5IHZhciBpdGVtID0gJE5ldy9PbGQNQG9ucmVhZHkgdmFyIHRpcCA9ICQiTmV3L09sZC9UaXAiDUBvbnJlYWR5IHZhciBlbmQgPSBnZXRfbm9kZV9vcl9udWxsKCdOZXcvT2xkL1RpcC9FbmQnKQ1Ab25yZWFkeSB2YXIgdW5pcXVlID0gJU9sZA1mdW5jIF9yZWFkeSgpOg0gICAgdmFyIGEgPSBnZXRfbm9kZSgiTmV3L09sZCIpDSAgICB2YXIgYiA9IGhhc19ub2RlKCdOZXcvT2xkL1RpcCcpDSAgICB2YXIgYyA9IGZpbmRfY2hpbGQoIk9sZCIpDSAgICAjICROZXcvT2xkIHN0YXlzIGEgbGl0ZXJhbCByZWZlcmVuY2UgZXZlbiBpbiB0aGlzIGNvbW1lbnQgZHVyaW5nIHJlcGFyZW50Lg0=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,1 +1,1 @@"
+              ],
+              [
+                "-",
+                1,
+                null,
+                "extends Node\r@onready var item = $Old\r@onready var tip = $\"Old/Tip\"\r@onready var end = get_node_or_null('Old/Tip/End')\r@onready var unique = %Old\rfunc _ready():\r    var a = get_node(\"Old\")\r    var b = has_node('Old/Tip')\r    var c = find_child(\"Old\")\r    # $Old stays a literal reference even in this comment during reparent.\r"
+              ],
+              [
+                "+",
+                null,
+                1,
+                "extends Node\r@onready var item = $New/Old\r@onready var tip = $\"New/Old/Tip\"\r@onready var end = get_node_or_null('New/Old/Tip/End')\r@onready var unique = %Old\rfunc _ready():\r    var a = get_node(\"New/Old\")\r    var b = has_node('New/Old/Tip')\r    var c = find_child(\"Old\")\r    # $New/Old stays a literal reference even in this comment during reparent.\r"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://root.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 6
+        },
+        {
+          "action": "patch_file",
+          "path": "res://branch.gd",
+          "before_hash": "d8a24183bdd3156856e6fc4b5fb1f36643a154e4dc02f9814fc564cc42d4a89e",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlDUBvbnJlYWR5IHZhciBpdGVtID0gJCIuLi9PbGQiDUBvbnJlYWR5IHZhciB0aXAgPSBnZXRfbm9kZSgiLi4vT2xkL1RpcCIpDUBvbnJlYWR5IHZhciBlbmQgPSBnZXRfbm9kZV9vcl9udWxsKCIuLi9PbGQvVGlwL0VuZCIpDQ==",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlDUBvbnJlYWR5IHZhciBpdGVtID0gJCJPbGQiDUBvbnJlYWR5IHZhciB0aXAgPSBnZXRfbm9kZSgiT2xkL1RpcCIpDUBvbnJlYWR5IHZhciBlbmQgPSBnZXRfbm9kZV9vcl9udWxsKCJPbGQvVGlwL0VuZCIpDQ==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,1 +1,1 @@"
+              ],
+              [
+                "-",
+                1,
+                null,
+                "extends Node\r@onready var item = $\"../Old\"\r@onready var tip = get_node(\"../Old/Tip\")\r@onready var end = get_node_or_null(\"../Old/Tip/End\")\r"
+              ],
+              [
+                "+",
+                null,
+                1,
+                "extends Node\r@onready var item = $\"Old\"\r@onready var tip = get_node(\"Old/Tip\")\r@onready var end = get_node_or_null(\"Old/Tip/End\")\r"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://branch.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 3
+        }
+      ],
+      "reference_count": 18,
+      "affected_paths": [
+        "res://main.tscn",
+        "res://root.gd",
+        "res://branch.gd"
+      ]
+    }
+  }
+}

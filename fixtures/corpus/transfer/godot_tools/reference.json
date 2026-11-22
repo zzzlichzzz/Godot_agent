@@ -1,0 +1,1078 @@
+{
+  "source": "native T1 targets; accepted corrected-native dependency closure; offline",
+  "cases": [
+    {
+      "id": "functions-0",
+      "module": "gd_functions",
+      "method": "list_functions",
+      "args": [
+        "extends Node\nclass_name T1Hero\nconst MAX_HEALTH = 10\nvar health = 10\n# exact body\nfunc hit(amount: int = 1):\n\thealth -= amount\n\treturn health\n\nstatic func helper():\n\treturn 2\n"
+      ]
+    },
+    {
+      "id": "functions-1",
+      "module": "gd_functions",
+      "method": "extract_functions",
+      "args": [
+        "extends Node\nclass_name T1Hero\nconst MAX_HEALTH = 10\nvar health = 10\n# exact body\nfunc hit(amount: int = 1):\n\thealth -= amount\n\treturn health\n\nstatic func helper():\n\treturn 2\n",
+        [
+          "hit",
+          "absent",
+          "helper"
+        ]
+      ]
+    },
+    {
+      "id": "functions-2",
+      "module": "gd_functions",
+      "method": "extract_functions",
+      "args": [
+        "# comment\n@rpc\nfunc f():\n\tpass\nfunc f():\n\treturn 2\n",
+        [
+          "f"
+        ]
+      ]
+    },
+    {
+      "id": "functions-3",
+      "module": "gd_functions",
+      "method": "list_functions",
+      "args": [
+        null
+      ]
+    },
+    {
+      "id": "gather-0",
+      "module": "gather_context",
+      "method": "validate_request",
+      "args": [
+        null
+      ]
+    },
+    {
+      "id": "gather-1",
+      "module": "gather_context",
+      "method": "validate_request",
+      "args": [
+        {}
+      ]
+    },
+    {
+      "id": "gather-2",
+      "module": "gather_context",
+      "method": "validate_request",
+      "args": [
+        {
+          "query": "  hero  ",
+          "symbols": [
+            "hit",
+            null
+          ],
+          "godot_api": [
+            "Node",
+            "bad class"
+          ],
+          "max_chars": 999999
+        }
+      ]
+    },
+    {
+      "id": "gather-3",
+      "module": "gather_context",
+      "method": "validate_request",
+      "args": [
+        {
+          "editor": false,
+          "active_scene": false,
+          "diagnostics": false
+        }
+      ]
+    },
+    {
+      "id": "gather-4",
+      "module": "gather_context",
+      "method": "validate_request",
+      "args": [
+        {
+          "max_chars": "bad"
+        }
+      ]
+    },
+    {
+      "id": "arch-0",
+      "module": "arch_map",
+      "method": "public_names",
+      "args": [
+        "\"\"\"T1 native case.\"\"\"\nCONST = 3\n\ndef alpha():\n    return CONST\n\ndef beta():\n    return alpha()\n"
+      ]
+    },
+    {
+      "id": "arch-1",
+      "module": "arch_map",
+      "method": "public_names",
+      "args": [
+        "def broken("
+      ]
+    },
+    {
+      "id": "arch-2",
+      "module": "arch_map",
+      "method": "count_lines",
+      "args": [
+        "a\nb\n"
+      ]
+    },
+    {
+      "id": "arch-3",
+      "module": "arch_map",
+      "method": "line_policy",
+      "args": [
+        {
+          "limits": {
+            "line_warn": 100,
+            "line_max": 1,
+            "line_exts": [
+              ".GD",
+              "bad"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "arch-4",
+      "module": "arch_map",
+      "method": "line_policy",
+      "args": [
+        {
+          "limits": {
+            "line_warn": "broken",
+            "line_max": -1
+          }
+        }
+      ]
+    },
+    {
+      "id": "split-gd-inventory",
+      "module": "split_gd",
+      "method": "file_inventory",
+      "args": [
+        "extends Node\nclass_name T1Hero\nconst MAX_HEALTH = 10\nvar health = 10\n# exact body\nfunc hit(amount: int = 1):\n\thealth -= amount\n\treturn health\n\nstatic func helper():\n\treturn 2\n"
+      ]
+    },
+    {
+      "id": "split-gd-scan",
+      "module": "split_gd",
+      "method": "scan_refs",
+      "args": [
+        "$project",
+        "hero.gd"
+      ]
+    },
+    {
+      "id": "split-gd-plan",
+      "module": "split_gd",
+      "method": "plan_split",
+      "args": [
+        "$project",
+        "hero.gd"
+      ]
+    },
+    {
+      "id": "split-py-inventory",
+      "module": "split_refactor",
+      "method": "file_inventory",
+      "args": [
+        "\"\"\"T1 native case.\"\"\"\nCONST = 3\n\ndef alpha():\n    return CONST\n\ndef beta():\n    return alpha()\n"
+      ]
+    },
+    {
+      "id": "split-py-broken",
+      "module": "split_refactor",
+      "method": "file_inventory",
+      "args": [
+        "def broken("
+      ]
+    },
+    {
+      "id": "split-py-scan",
+      "module": "split_refactor",
+      "method": "scan_refs",
+      "args": [
+        "$project",
+        "target.py"
+      ]
+    },
+    {
+      "id": "split-py-plan",
+      "module": "split_refactor",
+      "method": "plan_split",
+      "args": [
+        "$project",
+        "target.py"
+      ]
+    },
+    {
+      "id": "node-parse",
+      "module": "node_refactor",
+      "method": "parse_tscn_structure",
+      "args": [
+        "[gd_scene format=3]\n\n[node name=\"Root\" type=\"Node\"]\n\n[node name=\"Hero\" type=\"Node\" parent=\".\"]\nunique_name_in_owner = true\n\n[node name=\"Weapon\" type=\"Node\" parent=\"Hero\"]\n"
+      ]
+    },
+    {
+      "id": "node-rename",
+      "module": "node_refactor",
+      "method": "prepare_node_rename",
+      "args": [
+        "$project",
+        "res://level.tscn",
+        "%Hero",
+        "Player"
+      ]
+    },
+    {
+      "id": "node-reparent",
+      "module": "node_refactor",
+      "method": "prepare_node_reparent",
+      "args": [
+        "$project",
+        "res://level.tscn",
+        "Hero/Weapon",
+        "."
+      ]
+    },
+    {
+      "id": "node-delete",
+      "module": "node_refactor",
+      "method": "prepare_node_deletion",
+      "args": [
+        "$project",
+        "res://level.tscn",
+        "Hero/Weapon"
+      ]
+    },
+    {
+      "id": "node-missing",
+      "module": "node_refactor",
+      "method": "prepare_node_rename",
+      "args": [
+        "$project",
+        "res://level.tscn",
+        "Absent",
+        "Player"
+      ]
+    },
+    {
+      "id": "card",
+      "module": "function_card",
+      "method": "build_function_card",
+      "args": [
+        "$project",
+        "res://hero.gd",
+        "hit"
+      ]
+    },
+    {
+      "id": "card-missing",
+      "module": "function_card",
+      "method": "build_function_card",
+      "args": [
+        "$project",
+        "res://hero.gd",
+        "absent"
+      ]
+    },
+    {
+      "id": "log-input",
+      "module": "log_reader",
+      "method": "list_input_actions",
+      "args": [
+        "$project"
+      ]
+    }
+  ],
+  "observations": {
+    "functions-0": {
+      "value": [
+        "hit",
+        "helper"
+      ]
+    },
+    "functions-1": {
+      "value": [
+        [
+          {
+            "name": "hit",
+            "snippet": "# exact body\nfunc hit(amount: int = 1):\n\thealth -= amount\n\treturn health",
+            "start_line": 5,
+            "end_line": 8
+          },
+          {
+            "name": "helper",
+            "snippet": "static func helper():\n\treturn 2",
+            "start_line": 10,
+            "end_line": 11
+          }
+        ],
+        [
+          "absent"
+        ]
+      ]
+    },
+    "functions-2": {
+      "value": [
+        [
+          {
+            "name": "f",
+            "snippet": "# comment\n@rpc\nfunc f():\n\tpass",
+            "start_line": 1,
+            "end_line": 4
+          }
+        ],
+        []
+      ]
+    },
+    "functions-3": {
+      "value": []
+    },
+    "gather-0": {
+      "value": [
+        {},
+        [
+          "gather_context action must be an object"
+        ]
+      ]
+    },
+    "gather-1": {
+      "value": [
+        {
+          "query": "",
+          "symbols": [],
+          "godot_api": [],
+          "editor": true,
+          "active_scene": true,
+          "dependencies": true,
+          "diagnostics": true,
+          "project_settings": true,
+          "max_chars": 12000
+        },
+        []
+      ]
+    },
+    "gather-2": {
+      "value": [
+        {
+          "query": "hero",
+          "symbols": [
+            "hit"
+          ],
+          "godot_api": [
+            "Node"
+          ],
+          "editor": true,
+          "active_scene": true,
+          "dependencies": true,
+          "diagnostics": true,
+          "project_settings": true,
+          "max_chars": 20000
+        },
+        []
+      ]
+    },
+    "gather-3": {
+      "value": [
+        {
+          "query": "",
+          "symbols": [],
+          "godot_api": [],
+          "editor": false,
+          "active_scene": false,
+          "dependencies": true,
+          "diagnostics": false,
+          "project_settings": true,
+          "max_chars": 12000
+        },
+        [
+          "gather_context has no context selectors"
+        ]
+      ]
+    },
+    "gather-4": {
+      "value": [
+        {
+          "query": "",
+          "symbols": [],
+          "godot_api": [],
+          "editor": true,
+          "active_scene": true,
+          "dependencies": true,
+          "diagnostics": true,
+          "project_settings": true,
+          "max_chars": 12000
+        },
+        []
+      ]
+    },
+    "arch-0": {
+      "value": [
+        [
+          "alpha",
+          "def"
+        ],
+        [
+          "beta",
+          "def"
+        ]
+      ]
+    },
+    "arch-1": {
+      "value": null
+    },
+    "arch-2": {
+      "value": 2
+    },
+    "arch-3": {
+      "value": {
+        "warn": 100,
+        "max": 100,
+        "exts": [
+          ".gd"
+        ],
+        "exempt_roles": [
+          "workflow",
+          "generated",
+          "tasks",
+          "reports"
+        ]
+      }
+    },
+    "arch-4": {
+      "value": {
+        "warn": 1500,
+        "max": 2000,
+        "exts": [
+          ".py",
+          ".gd"
+        ],
+        "exempt_roles": [
+          "workflow",
+          "generated",
+          "tasks",
+          "reports"
+        ]
+      }
+    },
+    "split-gd-inventory": {
+      "value": {
+        "extends": "Node",
+        "class_name": "T1Hero",
+        "header_end": 2,
+        "consts": [
+          {
+            "name": "MAX_HEALTH",
+            "start": 3,
+            "end": 3,
+            "block_start": 3,
+            "text": "const MAX_HEALTH = 10"
+          }
+        ],
+        "vars": [
+          {
+            "name": "health",
+            "line": 4
+          }
+        ],
+        "funcs": [
+          {
+            "name": "hit",
+            "sig_start": 6,
+            "start": 6,
+            "block_start": 5,
+            "sig_lines": [
+              "func hit(amount: int = 1):"
+            ],
+            "sig_text": "func hit(amount: int = 1):",
+            "body_start": 7,
+            "end": 8,
+            "params": [
+              {
+                "name": "amount",
+                "default": "1"
+              }
+            ],
+            "ret": "",
+            "has_await": false,
+            "anns": []
+          },
+          {
+            "name": "helper",
+            "sig_start": 10,
+            "start": 10,
+            "block_start": 10,
+            "sig_lines": [
+              "static func helper():"
+            ],
+            "sig_text": "static func helper():",
+            "body_start": 11,
+            "end": 11,
+            "params": [],
+            "ret": "",
+            "has_await": false,
+            "anns": []
+          }
+        ],
+        "errors": [],
+        "lines": 11
+      }
+    },
+    "split-gd-scan": {
+      "value": {
+        "schema": 1,
+        "donor": "hero.gd",
+        "lines": 11,
+        "extends": "Node",
+        "class_name": "T1Hero",
+        "funcs": 2,
+        "consts": 1,
+        "vars": 1,
+        "public_methods": [
+          "helper",
+          "hit"
+        ],
+        "counts": {
+          "path": 0,
+          "source_read": 0,
+          "call": 0,
+          "doc": 0,
+          "mention": 0
+        },
+        "occurrences": [],
+        "truncated": false,
+        "hard_files": [],
+        "soft_files": []
+      }
+    },
+    "split-gd-plan": {
+      "error": "SplitGdError",
+      "message": "не найден корень проекта (project.godot рядом с addons); укажите --project"
+    },
+    "split-py-inventory": {
+      "value": {
+        "docstring": "T1 native case.",
+        "docstring_end": 1,
+        "lines": 8,
+        "imports": [],
+        "symbols": [
+          {
+            "name": "CONST",
+            "kind": "assign",
+            "lineno": 2,
+            "end_lineno": 2,
+            "line_start": 2,
+            "lines": 1,
+            "is_public": true,
+            "state": false,
+            "node": {
+              "AST": "Assign(targets=[Name(id='CONST', ctx=Store(), lineno=2, col_offset=0, end_lineno=2, end_col_offset=5)], value=Constant(value=3, lineno=2, col_offset=8, end_lineno=2, end_col_offset=9), lineno=2, col_offset=0, end_lineno=2, end_col_offset=9)"
+            }
+          },
+          {
+            "name": "alpha",
+            "kind": "def",
+            "lineno": 4,
+            "end_lineno": 5,
+            "line_start": 4,
+            "lines": 2,
+            "is_public": true,
+            "state": false,
+            "node": {
+              "AST": "FunctionDef(name='alpha', args=arguments(), body=[Return(value=Name(id='CONST', ctx=Load(), lineno=5, col_offset=11, end_lineno=5, end_col_offset=16), lineno=5, col_offset=4, end_lineno=5, end_col_offset=16)], lineno=4, col_offset=0, end_lineno=5, end_col_offset=16)"
+            }
+          },
+          {
+            "name": "beta",
+            "kind": "def",
+            "lineno": 7,
+            "end_lineno": 8,
+            "line_start": 7,
+            "lines": 2,
+            "is_public": true,
+            "state": false,
+            "node": {
+              "AST": "FunctionDef(name='beta', args=arguments(), body=[Return(value=Call(func=Name(id='alpha', ctx=Load(), lineno=8, col_offset=11, end_lineno=8, end_col_offset=16), lineno=8, col_offset=11, end_lineno=8, end_col_offset=18), lineno=8, col_offset=4, end_lineno=8, end_col_offset=18)], lineno=7, col_offset=0, end_lineno=8, end_col_offset=18)"
+            }
+          }
+        ],
+        "other": []
+      }
+    },
+    "split-py-broken": {
+      "error": "SplitError",
+      "message": "не разобрал .py: '(' was never closed (<unknown>, line 1)"
+    },
+    "split-py-scan": {
+      "value": {
+        "rel": "target.py",
+        "stem": "target",
+        "counts": {
+          "import": 1,
+          "source_read": 0,
+          "patch": 0,
+          "mention": 1,
+          "doc": 0
+        },
+        "occurrences": [
+          {
+            "rel": "consumer.py",
+            "line": 1,
+            "kind": "import",
+            "text": "import target"
+          },
+          {
+            "rel": "consumer.py",
+            "line": 2,
+            "kind": "mention",
+            "text": "TAG=\"target.py\""
+          }
+        ],
+        "hard_files": [
+          "consumer.py"
+        ],
+        "soft_files": [
+          "consumer.py"
+        ],
+        "truncated": false
+      }
+    },
+    "split-py-plan": {
+      "value": {
+        "schema": 1,
+        "addon_dir": "<sandbox>\\project",
+        "donor": "target.py",
+        "donor_sha256": "ddfc46c343b40ecc0e05228e471a11239874afbecf672e7ca5423cee9e282b76",
+        "donor_lines": 8,
+        "target_lines": 900,
+        "auto_groups": true,
+        "modules": [
+          {
+            "module": "target_part1",
+            "rel": "target_part1.py",
+            "names": [
+              "CONST",
+              "alpha",
+              "beta"
+            ],
+            "lines": 14,
+            "text": "# -*- coding: utf-8 -*-\n\n\"\"\"target_part1 — часть target.py (вынесено split_refactor).\n\nФасад и точка входа — target.py: он реэкспортирует имена модуля.\n\"\"\"\n\nCONST = 3\n\ndef alpha():\n    return CONST\n\ndef beta():\n    return alpha()\n"
+          }
+        ],
+        "facade": {
+          "rel": "target.py",
+          "text": "\"\"\"T1 native case.\"\"\"\n# --- фасад: код разнесён по модулям (split_refactor) ---\nfrom target_part1 import CONST, alpha, beta\n__all__ = [\"CONST\", \"alpha\", \"beta\"]\n",
+          "lines": 4,
+          "reexports": [
+            {
+              "module": "target_part1",
+              "names": [
+                "CONST",
+                "alpha",
+                "beta"
+              ]
+            }
+          ]
+        },
+        "moved_names": [
+          "CONST",
+          "alpha",
+          "beta"
+        ],
+        "errors": [],
+        "warnings": [
+          "группы черновые (авто, ~900 строк на модуль): проверь состав перед apply",
+          "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+          "target_part1.py: зона ? (unknown)"
+        ],
+        "inventory": {
+          "symbols": [
+            {
+              "name": "CONST",
+              "kind": "assign",
+              "lines": 1,
+              "is_public": true,
+              "state": false
+            },
+            {
+              "name": "alpha",
+              "kind": "def",
+              "lines": 2,
+              "is_public": true,
+              "state": false
+            },
+            {
+              "name": "beta",
+              "kind": "def",
+              "lines": 2,
+              "is_public": true,
+              "state": false
+            }
+          ],
+          "imports": 0,
+          "other": 0,
+          "docstring": true
+        },
+        "refs": {
+          "counts": {
+            "import": 1,
+            "source_read": 0,
+            "patch": 0,
+            "mention": 1,
+            "doc": 0
+          },
+          "hard_files": [
+            "consumer.py"
+          ],
+          "soft_files": [
+            "consumer.py"
+          ],
+          "truncated": false
+        }
+      }
+    },
+    "node-parse": {
+      "value": [
+        {},
+        [
+          {
+            "name": "Root",
+            "parent": null,
+            "type": "Node",
+            "path": ".",
+            "unique_name": false,
+            "script_id": null,
+            "header_span": [
+              21,
+              51
+            ],
+            "body_span": [
+              51,
+              53
+            ]
+          },
+          {
+            "name": "Hero",
+            "parent": ".",
+            "type": "Node",
+            "path": "Hero",
+            "unique_name": true,
+            "script_id": null,
+            "header_span": [
+              53,
+              94
+            ],
+            "body_span": [
+              94,
+              124
+            ]
+          },
+          {
+            "name": "Weapon",
+            "parent": "Hero",
+            "type": "Node",
+            "path": "Hero/Weapon",
+            "unique_name": false,
+            "script_id": null,
+            "header_span": [
+              124,
+              170
+            ],
+            "body_span": [
+              170,
+              171
+            ]
+          }
+        ],
+        [],
+        []
+      ]
+    },
+    "node-rename": {
+      "value": {
+        "action": "rename_node",
+        "scene": "res://level.tscn",
+        "scene_res": "res://level.tscn",
+        "old_name": "Hero",
+        "new_name": "Player",
+        "old_path": "Hero",
+        "new_path": "Player",
+        "target_node_path": "Hero",
+        "files": [
+          {
+            "action": "patch_file",
+            "path": "res://level.tscn",
+            "absolute": "<sandbox>\\project\\level.tscn",
+            "before_hash": "b5ddf87a434b277efc9a7fcea55a9fcdfdb406901ee66b8a18ae721b9b44d3ec",
+            "before_bytes": {
+              "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSJIZXJvIl0K"
+            },
+            "after_bytes": {
+              "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJQbGF5ZXIiIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQoKW25vZGUgbmFtZT0iV2VhcG9uIiB0eXBlPSJOb2RlIiBwYXJlbnQ9IlBsYXllciJdCg=="
+            },
+            "diff": {
+              "lines": [
+                [
+                  "@",
+                  2,
+                  2,
+                  "@@ -2,7 +2,7 @@"
+                ],
+                [
+                  " ",
+                  2,
+                  2,
+                  ""
+                ],
+                [
+                  " ",
+                  3,
+                  3,
+                  "[node name=\"Root\" type=\"Node\"]"
+                ],
+                [
+                  " ",
+                  4,
+                  4,
+                  ""
+                ],
+                [
+                  "-",
+                  5,
+                  null,
+                  "[node name=\"Hero\" type=\"Node\" parent=\".\"]"
+                ],
+                [
+                  "+",
+                  null,
+                  5,
+                  "[node name=\"Player\" type=\"Node\" parent=\".\"]"
+                ],
+                [
+                  " ",
+                  6,
+                  6,
+                  "unique_name_in_owner = true"
+                ],
+                [
+                  " ",
+                  7,
+                  7,
+                  ""
+                ],
+                [
+                  "-",
+                  8,
+                  null,
+                  "[node name=\"Weapon\" type=\"Node\" parent=\"Hero\"]"
+                ],
+                [
+                  "+",
+                  null,
+                  8,
+                  "[node name=\"Weapon\" type=\"Node\" parent=\"Player\"]"
+                ]
+              ],
+              "added": 2,
+              "removed": 2,
+              "truncated": false,
+              "path": "res://level.tscn",
+              "action": "patch_file"
+            },
+            "occurrences": 2
+          }
+        ],
+        "reference_count": 2,
+        "affected_paths": [
+          "res://level.tscn"
+        ],
+        "scripts_only": false,
+        "previous_name": ""
+      }
+    },
+    "node-reparent": {
+      "value": {
+        "action": "reparent_node",
+        "scene": "res://level.tscn",
+        "scene_res": "res://level.tscn",
+        "target_node": "Weapon",
+        "old_path": "Hero/Weapon",
+        "new_parent": ".",
+        "new_path": "Weapon",
+        "target_node_path": "Hero/Weapon",
+        "files": [
+          {
+            "action": "patch_file",
+            "path": "res://level.tscn",
+            "absolute": "<sandbox>\\project\\level.tscn",
+            "before_hash": "b5ddf87a434b277efc9a7fcea55a9fcdfdb406901ee66b8a18ae721b9b44d3ec",
+            "before_bytes": {
+              "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSJIZXJvIl0K"
+            },
+            "after_bytes": {
+              "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0K"
+            },
+            "diff": {
+              "lines": [
+                [
+                  "@",
+                  5,
+                  5,
+                  "@@ -5,4 +5,4 @@"
+                ],
+                [
+                  " ",
+                  5,
+                  5,
+                  "[node name=\"Hero\" type=\"Node\" parent=\".\"]"
+                ],
+                [
+                  " ",
+                  6,
+                  6,
+                  "unique_name_in_owner = true"
+                ],
+                [
+                  " ",
+                  7,
+                  7,
+                  ""
+                ],
+                [
+                  "-",
+                  8,
+                  null,
+                  "[node name=\"Weapon\" type=\"Node\" parent=\"Hero\"]"
+                ],
+                [
+                  "+",
+                  null,
+                  8,
+                  "[node name=\"Weapon\" type=\"Node\" parent=\".\"]"
+                ]
+              ],
+              "added": 1,
+              "removed": 1,
+              "truncated": false,
+              "path": "res://level.tscn",
+              "action": "patch_file"
+            },
+            "occurrences": 1
+          }
+        ],
+        "reference_count": 1,
+        "affected_paths": [
+          "res://level.tscn"
+        ]
+      }
+    },
+    "node-delete": {
+      "value": {
+        "action": "delete_node",
+        "scene": "res://level.tscn",
+        "scene_res": "res://level.tscn",
+        "target_node": "Weapon",
+        "target_node_path": "Hero/Weapon",
+        "deleted_nodes": [
+          "Hero/Weapon"
+        ],
+        "files": [
+          {
+            "action": "patch_file",
+            "path": "res://level.tscn",
+            "absolute": "<sandbox>\\project\\level.tscn",
+            "before_hash": "b5ddf87a434b277efc9a7fcea55a9fcdfdb406901ee66b8a18ae721b9b44d3ec",
+            "before_bytes": {
+              "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSJIZXJvIl0K"
+            },
+            "after_bytes": {
+              "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCg=="
+            },
+            "diff": {
+              "lines": [
+                [
+                  "@",
+                  5,
+                  5,
+                  "@@ -5,4 +5,3 @@"
+                ],
+                [
+                  " ",
+                  5,
+                  5,
+                  "[node name=\"Hero\" type=\"Node\" parent=\".\"]"
+                ],
+                [
+                  " ",
+                  6,
+                  6,
+                  "unique_name_in_owner = true"
+                ],
+                [
+                  " ",
+                  7,
+                  7,
+                  ""
+                ],
+                [
+                  "-",
+                  8,
+                  null,
+                  "[node name=\"Weapon\" type=\"Node\" parent=\"Hero\"]"
+                ]
+              ],
+              "added": 0,
+              "removed": 1,
+              "truncated": false,
+              "path": "res://level.tscn",
+              "action": "patch_file"
+            },
+            "occurrences": 1
+          }
+        ],
+        "reference_count": 1,
+        "affected_paths": [
+          "res://level.tscn"
+        ],
+        "warnings": []
+      }
+    },
+    "node-missing": {
+      "error": "NodeRefactorError",
+      "message": "Узел 'Absent' не найден в сцене"
+    },
+    "card": {
+      "value": {
+        "lines": [
+          "FUNC CARD func:hit — res://hero.gd:5-8 (class T1Hero, rev=sha1:76af021c)",
+          "[BODY]",
+          "# exact body\nfunc hit(amount: int = 1):\n\thealth -= amount\n\treturn health",
+          "[SYMBOLS]",
+          "  params: amount",
+          "  members: health (L4, ×2)",
+          "[CALLERS] (0 proven, 0 probable в 0 файлах)",
+          "[INHERITS] (chain up)",
+          "  Node — нет кэша ClassDB: встроенность не проверить (соберите кэш в панели агента)"
+        ]
+      }
+    },
+    "card-missing": {
+      "value": {
+        "error": "func-not-found: absent в res://hero.gd"
+      }
+    },
+    "log-input": {
+      "value": [
+        "jump"
+      ]
+    }
+  }
+}

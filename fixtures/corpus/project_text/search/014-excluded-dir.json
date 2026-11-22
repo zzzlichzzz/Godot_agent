@@ -1,0 +1,16 @@
+{
+  "id": "014-excluded-dir",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "шумовой каталог .godot/ не сканируется",
+  "args": {
+    "query": "editor_noise_token"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "007-cyrillic",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://кириллица/донор.gd",
+    "new_path": "res://other/донор.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://кириллица/донор.gd",
+      "new_path": "res://other/донор.gd",
+      "is_directory": false,
+      "file_count": 2,
+      "reference_count": 1,
+      "files": [
+        {
+          "path": "res://кириллица/ref.gd",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        }
+      ],
+      "source_text": "extends Node\n"
+    }
+  }
+}

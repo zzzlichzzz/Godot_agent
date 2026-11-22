@@ -1,0 +1,23 @@
+{
+  "id": "015-bool_string",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "bool_string",
+  "args": {
+    "path": "res://scripts/bool_string.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "type_mismatch",
+          "line": 1,
+          "message": "строка 1: переменной типа bool присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 21
+    }
+  }
+}

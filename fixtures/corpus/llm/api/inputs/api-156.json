@@ -1,0 +1,72 @@
+{
+  "kind": "state",
+  "operations": [
+    {
+      "module": "catalog",
+      "function": "_save",
+      "args": [
+        {
+          "version": 1,
+          "at": 1000,
+          "etag": "fixture-etag",
+          "error": "",
+          "try_at": 1000,
+          "providers": {
+            "openrouter": {
+              "a": {
+                "cost_in": 0,
+                "cost_out": 0,
+                "context": 8192
+              }
+            }
+          },
+          "catalog_providers": {}
+        }
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "catalog",
+      "function": "get",
+      "args": [
+        "openrouter"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "catalog",
+      "function": "enrich",
+      "args": [
+        "openrouter",
+        [
+          {
+            "id": "a",
+            "cost_in": 7
+          }
+        ]
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "catalog",
+      "function": "is_stale",
+      "args": [],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "clock": 700000
+    },
+    {
+      "module": "catalog",
+      "function": "is_stale",
+      "args": [],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-156"
+}

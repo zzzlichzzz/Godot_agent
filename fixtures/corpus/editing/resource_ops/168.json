@@ -1,0 +1,72 @@
+{
+  "id": "expanded-depth5",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "NewSubresource",
+          "class": "Gradient",
+          "properties": [
+            {
+              "property": "child",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient",
+                "properties": [
+                  {
+                    "property": "child",
+                    "value": {
+                      "type": "NewSubresource",
+                      "class": "Gradient",
+                      "properties": [
+                        {
+                          "property": "child",
+                          "value": {
+                            "type": "NewSubresource",
+                            "class": "Gradient",
+                            "properties": [
+                              {
+                                "property": "child",
+                                "value": {
+                                  "type": "NewSubresource",
+                                  "class": "Gradient"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "NewSubresource глубже 4 уровней запрещён",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "e1b5e710b47d1d5ab086e504be6000bb4c8db6d1b981dc8a8c88d52c29b85f92"
+}

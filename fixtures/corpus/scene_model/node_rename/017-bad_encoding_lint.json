@@ -1,0 +1,17 @@
+{
+  "id": "017-bad_encoding_lint",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/017-bad_encoding_lint",
+  "note": "bad_encoding_lint",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "После обновления узла в скрипте res://main.gd обнаружена синтаксическая ошибка: в коде символ повреждённой кодировки (\\ufffd) — текст побился",
+    "reference_exception": "NodeRefactorError"
+  }
+}

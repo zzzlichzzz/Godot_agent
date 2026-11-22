@@ -1,0 +1,20 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "extract_delta",
+  "args": [
+    {
+      "choices": [
+        {
+          "delta": {
+            "content": "ёж",
+            "reasoning_content": "Ω"
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  ],
+  "kwargs": {},
+  "id": "api-060"
+}

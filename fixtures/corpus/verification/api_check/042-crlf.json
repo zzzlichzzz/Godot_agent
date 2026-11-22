@@ -1,0 +1,25 @@
+{
+  "id": "042-crlf",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "crlf",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\r\nfunc run():\r\n\tself.nope()\r\n"
+  },
+  "reference_result": [
+    "строка 3: self.nope — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 3: self.nope — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

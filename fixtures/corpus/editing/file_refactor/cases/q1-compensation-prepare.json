@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "q1-compensation-prepare",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://item.bin",
+    "new_path": "res://dest/item.bin",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "item.bin": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/",
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "item.bin.uid": {
+        "bytes_b64": "dWlkOi8veAo=",
+        "bytes": 8,
+        "sha256": "4be879dfbce5d2057c25377690aafe696ae2751bfc4fe807f283b6d180729b6c"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "old_path": "res://item.bin",
+    "new_path": "res://dest/item.bin",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://item.bin",
+        "dest": "res://dest/item.bin",
+        "absolute": "<PROJECT>\\item.bin",
+        "dest_absolute": "<PROJECT>\\dest\\item.bin",
+        "before_hash": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "before_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "diff": {
+          "path": "res://item.bin",
+          "action": "move_file",
+          "dest": "res://dest/item.bin",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://dest/item.bin"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://dest/item.bin"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "392e09b997d021ec93daa4d791ca31226e44b08b1f9b00cb005542fc6dfa56b6"
+}

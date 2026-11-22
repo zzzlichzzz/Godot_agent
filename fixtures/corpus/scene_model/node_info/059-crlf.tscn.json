@@ -1,0 +1,44 @@
+{
+  "id": "059-crlf.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "crlf.tscn: '.'",
+  "args": {
+    "path": "res://scenes/crlf.tscn",
+    "node": "."
+  },
+  "reference_node": {
+    "name": "Root",
+    "parent": null,
+    "type": "Node2D",
+    "path": ".",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      21,
+      53
+    ],
+    "body_span": [
+      53,
+      55
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Root",
+      "type": "Node2D",
+      "parent": null,
+      "path": ".",
+      "depth": 0,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": null,
+      "children": [
+        "Main",
+        "Later"
+      ]
+    }
+  }
+}

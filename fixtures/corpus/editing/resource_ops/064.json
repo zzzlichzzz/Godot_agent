@@ -1,0 +1,22 @@
+{
+  "id": "expanded-action-list",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": [],
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Операция ресурса должна быть JSON-объектом",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "a3b26e45895ebfb859f423e42d5b1588947209bb6a7c4439e8508d104736b20c"
+}

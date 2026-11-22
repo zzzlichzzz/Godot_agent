@@ -1,0 +1,20 @@
+{
+  "id": "expanded-hash-big",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "bytes-big",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "8d3d3c04baadfd31cbebf771836900097b5f36cc142b74e40747c7b372beab8b"
+  },
+  "oracle": "native",
+  "raw_sha256": "ff9bfd1a866b629dc56069f86c3f5753d32bcdfb8b7e7a3407836cdb4fbe3eab"
+}

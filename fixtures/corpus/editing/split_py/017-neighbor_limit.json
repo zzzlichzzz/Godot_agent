@@ -1,0 +1,63 @@
+{
+  "id": "017-neighbor_limit",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 0,
+      "source_read": 0,
+      "patch": 0,
+      "mention": 1,
+      "doc": 0
+    },
+    "occurrences": [
+      {
+        "rel": "ref.py",
+        "line": 1,
+        "kind": "mention",
+        "text": "# donor.py"
+      }
+    ],
+    "hard_files": [],
+    "soft_files": [
+      "ref.py"
+    ],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/neighbor_limit",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 0,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 1,
+        "doc": 0
+      },
+      "occurrences": [
+        {
+          "file": "ref.py",
+          "line": 1,
+          "kind": "mention",
+          "text": "# donor.py"
+        }
+      ],
+      "hard_files": [],
+      "soft_files": [
+        "ref.py"
+      ],
+      "truncated": false
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "transport_for_npm",
+  "args": [
+    "unknown"
+  ],
+  "kwargs": {},
+  "id": "api-154"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "unknown-field",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ],
+    "extra": 1
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестные поля: extra",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "9ef037596bca18dc6695e6db8aafdbff515594dae6678dc54c20eedf4ec5c5dd"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "ready-qwen_parser-no-baseline",
+  "op": "ready",
+  "parser": "qwen_parser",
+  "answer_count": 4,
+  "sent_count": 999,
+  "before": null,
+  "alive": true,
+  "finished": true,
+  "status": "MESSAGE_STATUS_COMPLETED"
+}

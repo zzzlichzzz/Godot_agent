@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.split_gd",
+  "capability_id": "editing.split_gd",
+  "tool_name": "split_gd_plan",
+  "description": "План разбиения .gd агента: модули, обёртки, строки донора. Только чтение.",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "groups": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "module",
+            "funcs"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1
+            },
+            "funcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "target_lines": {
+        "type": "integer"
+      }
+    }
+  },
+  "result_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "schema",
+      "kind",
+      "donor",
+      "donor_sha256",
+      "newline",
+      "target_lines",
+      "groups",
+      "modules",
+      "wrappers",
+      "warnings",
+      "stats"
+    ],
+    "properties": {
+      "schema": {
+        "type": "integer",
+        "enum": [
+          1
+        ]
+      },
+      "kind": {
+        "type": "string",
+        "enum": [
+          "split_gd"
+        ]
+      },
+      "donor": {
+        "type": "string",
+        "minLength": 1
+      },
+      "donor_sha256": {
+        "type": "string",
+        "minLength": 64,
+        "maxLength": 64
+      },
+      "newline": {
+        "type": "string",
+        "enum": [
+          "\n",
+          "\r\n",
+          "\r"
+        ]
+      },
+      "target_lines": {
+        "type": "integer"
+      },
+      "groups": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "module",
+            "funcs"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1
+            },
+            "funcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "modules": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "rel",
+            "const",
+            "funcs",
+            "lines"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "rel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "const": {
+              "type": "string",
+              "minLength": 1
+            },
+            "funcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "lines": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "wrappers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "name",
+            "module",
+            "await"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "module": {
+              "type": "string"
+            },
+            "await": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "stats": {
+        "type": "object",
+        "required": [
+          "moved",
+          "modules",
+          "donor_before",
+          "donor_after"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "moved": {
+            "type": "integer"
+          },
+          "modules": {
+            "type": "integer"
+          },
+          "donor_before": {
+            "type": "integer"
+          },
+          "donor_after": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

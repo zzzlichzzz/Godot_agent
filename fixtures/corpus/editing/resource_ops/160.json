@@ -1,0 +1,45 @@
+{
+  "id": "expanded-operation-refusal-17",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": -1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "source_id должен быть неотрицательным целым",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "9d5795ecbf8c60e8b3c8f5bf4f076706da08c17f84c3f6abaf85def88312f033"
+}

@@ -1,0 +1,906 @@
+{
+  "id": "115-multiline_defaults_export_lambda",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/multiline_defaults_export_lambda",
+  "args": {
+    "path": "res://donor.gd",
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ]
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": {
+    "type": "SplitGdError",
+    "message": "метод alpha: аннотации @export var state: int = 3 не поддерживаются v1"
+  },
+  "contract_refusal": null,
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "метод alpha: аннотации @export var state: int = 3 не поддерживаются v1",
+  "reference_inventory": {
+    "extends": "Control",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [
+      {
+        "name": "DEFAULT",
+        "start": 2,
+        "end": 2,
+        "block_start": 2,
+        "text": "const DEFAULT = {\"a\": [1, 2]}"
+      }
+    ],
+    "vars": [
+      {
+        "name": "state",
+        "line": 3
+      }
+    ],
+    "funcs": [
+      {
+        "name": "alpha",
+        "sig_start": 4,
+        "start": 4,
+        "block_start": 3,
+        "sig_lines": [
+          "func alpha(",
+          "\tx: Dictionary[String, int] = DEFAULT,",
+          "\ty = [1, 2]",
+          ") -> int:"
+        ],
+        "sig_text": "func alpha( x: Dictionary[String, int] = DEFAULT, y = [1, 2] ) -> int:",
+        "body_start": 8,
+        "end": 11,
+        "params": [
+          {
+            "name": "x",
+            "default": "DEFAULT"
+          },
+          {
+            "name": "y",
+            "default": "[1, 2]"
+          }
+        ],
+        "ret": "int",
+        "has_await": false,
+        "anns": [
+          "@export var state: int = 3"
+        ]
+      }
+    ],
+    "errors": [],
+    "lines": 11
+  },
+  "reference_tokens": [
+    {
+      "kind": "identifier",
+      "value": "extends",
+      "start": 0,
+      "end": 7,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "Control",
+      "start": 8,
+      "end": 15,
+      "line": 1
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 15,
+      "end": 16,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "const",
+      "start": 16,
+      "end": 21,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "DEFAULT",
+      "start": 22,
+      "end": 29,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 30,
+      "end": 31,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "{",
+      "start": 32,
+      "end": 33,
+      "line": 2
+    },
+    {
+      "kind": "string",
+      "value": "\"a\"",
+      "start": 33,
+      "end": 36,
+      "line": 2,
+      "closed": true
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 36,
+      "end": 37,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "[",
+      "start": 38,
+      "end": 39,
+      "line": 2
+    },
+    {
+      "kind": "number",
+      "value": "1",
+      "start": 39,
+      "end": 40,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ",",
+      "start": 40,
+      "end": 41,
+      "line": 2
+    },
+    {
+      "kind": "number",
+      "value": "2",
+      "start": 42,
+      "end": 43,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "]",
+      "start": 43,
+      "end": 44,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "}",
+      "start": 44,
+      "end": 45,
+      "line": 2
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 45,
+      "end": 46,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "@",
+      "start": 46,
+      "end": 47,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "export",
+      "start": 47,
+      "end": 53,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 54,
+      "end": 57,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "state",
+      "start": 58,
+      "end": 63,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 63,
+      "end": 64,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "int",
+      "start": 65,
+      "end": 68,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 69,
+      "end": 70,
+      "line": 3
+    },
+    {
+      "kind": "number",
+      "value": "3",
+      "start": 71,
+      "end": 72,
+      "line": 3
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 72,
+      "end": 73,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 73,
+      "end": 77,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "alpha",
+      "start": 78,
+      "end": 83,
+      "line": 4
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 83,
+      "end": 84,
+      "line": 4
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 84,
+      "end": 85,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "x",
+      "start": 86,
+      "end": 87,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 87,
+      "end": 88,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "Dictionary",
+      "start": 89,
+      "end": 99,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": "[",
+      "start": 99,
+      "end": 100,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "String",
+      "start": 100,
+      "end": 106,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": ",",
+      "start": 106,
+      "end": 107,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "int",
+      "start": 108,
+      "end": 111,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": "]",
+      "start": 111,
+      "end": 112,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 113,
+      "end": 114,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "DEFAULT",
+      "start": 115,
+      "end": 122,
+      "line": 5
+    },
+    {
+      "kind": "symbol",
+      "value": ",",
+      "start": 122,
+      "end": 123,
+      "line": 5
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 123,
+      "end": 124,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "y",
+      "start": 125,
+      "end": 126,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 127,
+      "end": 128,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": "[",
+      "start": 129,
+      "end": 130,
+      "line": 6
+    },
+    {
+      "kind": "number",
+      "value": "1",
+      "start": 130,
+      "end": 131,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": ",",
+      "start": 131,
+      "end": 132,
+      "line": 6
+    },
+    {
+      "kind": "number",
+      "value": "2",
+      "start": 133,
+      "end": 134,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": "]",
+      "start": 134,
+      "end": 135,
+      "line": 6
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 135,
+      "end": 136,
+      "line": 6
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 136,
+      "end": 137,
+      "line": 7
+    },
+    {
+      "kind": "symbol",
+      "value": "->",
+      "start": 138,
+      "end": 140,
+      "line": 7
+    },
+    {
+      "kind": "identifier",
+      "value": "int",
+      "start": 141,
+      "end": 144,
+      "line": 7
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 144,
+      "end": 145,
+      "line": 7
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 145,
+      "end": 146,
+      "line": 7
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 147,
+      "end": 150,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "f",
+      "start": 151,
+      "end": 152,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 153,
+      "end": 154,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 155,
+      "end": 159,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 159,
+      "end": 160,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "state",
+      "start": 160,
+      "end": 165,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 165,
+      "end": 166,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "int",
+      "start": 167,
+      "end": 170,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": ",",
+      "start": 170,
+      "end": 171,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "other",
+      "start": 172,
+      "end": 177,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": "=",
+      "start": 178,
+      "end": 179,
+      "line": 8
+    },
+    {
+      "kind": "number",
+      "value": "0",
+      "start": 180,
+      "end": 181,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 181,
+      "end": 182,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 182,
+      "end": 183,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "return",
+      "start": 184,
+      "end": 190,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "state",
+      "start": 191,
+      "end": 196,
+      "line": 8
+    },
+    {
+      "kind": "symbol",
+      "value": "+",
+      "start": 197,
+      "end": 198,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "other",
+      "start": 199,
+      "end": 204,
+      "line": 8
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 204,
+      "end": 205,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "for",
+      "start": 206,
+      "end": 209,
+      "line": 9
+    },
+    {
+      "kind": "identifier",
+      "value": "index",
+      "start": 210,
+      "end": 215,
+      "line": 9
+    },
+    {
+      "kind": "identifier",
+      "value": "in",
+      "start": 216,
+      "end": 218,
+      "line": 9
+    },
+    {
+      "kind": "identifier",
+      "value": "y",
+      "start": 219,
+      "end": 220,
+      "line": 9
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 220,
+      "end": 221,
+      "line": 9
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 221,
+      "end": 222,
+      "line": 9
+    },
+    {
+      "kind": "identifier",
+      "value": "state",
+      "start": 224,
+      "end": 229,
+      "line": 10
+    },
+    {
+      "kind": "symbol",
+      "value": "+=",
+      "start": 230,
+      "end": 232,
+      "line": 10
+    },
+    {
+      "kind": "identifier",
+      "value": "index",
+      "start": 233,
+      "end": 238,
+      "line": 10
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 238,
+      "end": 239,
+      "line": 10
+    },
+    {
+      "kind": "identifier",
+      "value": "return",
+      "start": 240,
+      "end": 246,
+      "line": 11
+    },
+    {
+      "kind": "identifier",
+      "value": "f",
+      "start": 247,
+      "end": 248,
+      "line": 11
+    },
+    {
+      "kind": "symbol",
+      "value": ".",
+      "start": 248,
+      "end": 249,
+      "line": 11
+    },
+    {
+      "kind": "identifier",
+      "value": "call",
+      "start": 249,
+      "end": 253,
+      "line": 11
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 253,
+      "end": 254,
+      "line": 11
+    },
+    {
+      "kind": "identifier",
+      "value": "x",
+      "start": 254,
+      "end": 255,
+      "line": 11
+    },
+    {
+      "kind": "symbol",
+      "value": ".",
+      "start": 255,
+      "end": 256,
+      "line": 11
+    },
+    {
+      "kind": "identifier",
+      "value": "size",
+      "start": 256,
+      "end": 260,
+      "line": 11
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 260,
+      "end": 261,
+      "line": 11
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 261,
+      "end": 262,
+      "line": 11
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 262,
+      "end": 263,
+      "line": 11
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 263,
+      "end": 264,
+      "line": 11
+    }
+  ],
+  "reference_locals": {
+    "alpha": [
+      "f",
+      "index",
+      "other",
+      "state"
+    ]
+  },
+  "reference_engine": {
+    "methods": [
+      "accept_event",
+      "add_child",
+      "add_theme_color_override",
+      "add_theme_constant_override",
+      "add_theme_font_override",
+      "add_theme_font_size_override",
+      "add_theme_stylebox_override",
+      "add_to_group",
+      "call",
+      "call_deferred",
+      "connect",
+      "disconnect",
+      "duplicate",
+      "emit_signal",
+      "find_child",
+      "force_update_transform",
+      "get",
+      "get_child",
+      "get_child_count",
+      "get_children",
+      "get_class",
+      "get_index",
+      "get_meta",
+      "get_node",
+      "get_node_or_null",
+      "get_parent",
+      "get_path",
+      "get_scene_file_path",
+      "get_script",
+      "get_theme_color",
+      "get_theme_constant",
+      "get_theme_default_font",
+      "get_theme_default_font_size",
+      "get_theme_font",
+      "get_theme_font_size",
+      "get_theme_stylebox",
+      "get_tree",
+      "get_viewport",
+      "get_window",
+      "grab_focus",
+      "has_focus",
+      "has_meta",
+      "has_method",
+      "has_node",
+      "has_theme_color",
+      "has_theme_constant",
+      "has_theme_font",
+      "has_theme_font_size",
+      "has_theme_stylebox",
+      "hide",
+      "is_class",
+      "is_connected",
+      "is_in_group",
+      "is_inside_tree",
+      "is_node_ready",
+      "is_visible_in_tree",
+      "move_child",
+      "move_to_front",
+      "notification",
+      "notify_property_list_changed",
+      "queue_free",
+      "release_focus",
+      "remove_child",
+      "remove_from_group",
+      "remove_meta",
+      "remove_theme_color_override",
+      "remove_theme_constant_override",
+      "remove_theme_font_override",
+      "remove_theme_font_size_override",
+      "remove_theme_stylebox_override",
+      "set",
+      "set_deferred",
+      "set_meta",
+      "set_physics_process",
+      "set_process",
+      "set_process_input",
+      "set_process_unhandled_input",
+      "set_script",
+      "show"
+    ],
+    "properties": [
+      "alignment",
+      "anchor_bottom",
+      "anchor_left",
+      "anchor_right",
+      "anchor_top",
+      "anchors_preset",
+      "autowrap_mode",
+      "bbcode_enabled",
+      "button_pressed",
+      "clip_contents",
+      "context_menu_enabled",
+      "custom_minimum_size",
+      "disabled",
+      "editable",
+      "flat",
+      "focus_mode",
+      "icon",
+      "layout_mode",
+      "modulate",
+      "mouse_filter",
+      "name",
+      "offset_bottom",
+      "offset_left",
+      "offset_right",
+      "offset_top",
+      "owner",
+      "pivot_offset",
+      "placeholder_text",
+      "position",
+      "pressed",
+      "rotation",
+      "scale",
+      "scroll_following",
+      "selection_enabled",
+      "self_modulate",
+      "size",
+      "size_flags_horizontal",
+      "size_flags_vertical",
+      "text",
+      "theme_type_variation",
+      "tooltip_text",
+      "top_level",
+      "visible",
+      "wrap_mode"
+    ]
+  },
+  "capture_tree": {
+    "files": {
+      "donor.gd": {
+        "bytes": 264,
+        "sha256": "022065af0bbe147d3d39fecf8ce0b4c36f07d66e7472359399c6b462f53f6656"
+      },
+      "plugin.cfg": {
+        "bytes": 28,
+        "sha256": "b1f19cfdd95c7ac7092291eae8d46885b97fc6b1253180b554545405dda4cda1"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "023-tres",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/023-tres",
+  "note": "tres",
+  "args": {
+    "path": "res://scene.tres",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "scene должен быть res:// путём к .tscn: res://scene.tres",
+    "reference_exception": "NodeRefactorError"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "id": "sanitize-4",
+  "op": "sanitize",
+  "text": "a\u00a0b\u1680c\u2000d\u202fe\u3000f"
+}

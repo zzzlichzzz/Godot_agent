@@ -1,0 +1,38 @@
+{
+  "id": "019-comment_header.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/comment_header.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)  [скрипт: res://scripts/comment.gd]\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=1 ?: res://scripts/comment.gd",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/comment.gd",
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "?",
+            "path": "res://scripts/comment.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

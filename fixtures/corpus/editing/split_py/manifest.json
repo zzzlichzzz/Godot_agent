@@ -1,0 +1,2316 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-01",
+  "module": "editing.split_py",
+  "reference": {
+    "file": "godot_agent/python/godot_tools/split_refactor.py",
+    "function": "scan_refs:127-199 (prompt:127-202)",
+    "bytes": 44114,
+    "sha256": "87cb4d5209c070f2f65ad45c16086e7c99b561ce677c6f8b1d1fd57b545526e7"
+  },
+  "capture_script": {
+    "bytes": 11667,
+    "sha256": "e94127882aa73550aa3d41f4f64a6a45a160f972179af97f50036dda9c13cbec"
+  },
+  "apply_capture": {
+    "reference": "apply_prepared_split:718-767",
+    "external_artifact_bytes": 31701,
+    "external_artifact_sha256": "921c9184c83a9c338a5364cf32a2660b0d924268e300aa3147c9c462be6b378d",
+    "cases": "097-105 actual native; 106-108 C.20 funnel/path boundaries",
+    "inputs": [
+      "corpus/editing/split_py/apply_two/donor.py",
+      "corpus/editing/split_py/apply_two/plugin.cfg"
+    ]
+  },
+  "fixture_base": "fixtures/projects",
+  "capture": "Actual native scan_refs twice on isolated byte-frozen copies; no old tests or plan/write calls.",
+  "projection": "rel -> donor; occurrences[].rel -> file; all other fields unchanged. Actual raw has NO schema (user confirmed).",
+  "clarifications": [
+    "All23 existing cards frozen; final24.",
+    "Procedural stages1-6 authorized; stage7 auditor only."
+  ],
+  "contract_refusals": {
+    "035-missing.json": {
+      "kind": "not_found",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "036-non_py.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "037-no_addon.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "038-donor_over_limit.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "039-addons.json": {
+      "kind": "denied",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "040-not_res.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "041-empty.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "042-not_string.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "043-missing_arg.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "044-extra_arg.json": {
+      "kind": "invalid_input",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "045-traversal.json": {
+      "kind": "denied",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "046-absolute.json": {
+      "kind": "denied",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    },
+    "047-nul_path.json": {
+      "kind": "denied",
+      "reason": "New path/schema/policy/4MiB/plugin.cfg boundary; not a native scan refusal except missing.",
+      "message_policy": "Only missing expected_message is exact live native text. Other boundaries compare kind, no absolute paths."
+    }
+  },
+  "cases": {
+    "001-no_refs.json": {
+      "bytes": 840,
+      "sha256": "aea5b7e5593a606475f959c93183291d97f8e02b1f2f4d5375eaf1026627cef2"
+    },
+    "002-doc.json": {
+      "bytes": 1135,
+      "sha256": "de55eca079d61729363654bdb95603bcad89f96d5fd4f6bfeb5ec27f24f8cf90"
+    },
+    "003-from_import.json": {
+      "bytes": 1167,
+      "sha256": "f6f320ec49ab1f7e151acfff9415a84213545b215c625e5292e5b787b92667d9"
+    },
+    "004-alias_import.json": {
+      "bytes": 1171,
+      "sha256": "e446e6668927062d02d3ca41b4f469491d578ec5f10fc58b6e657c24e61612f8"
+    },
+    "005-tail_import.json": {
+      "bytes": 1452,
+      "sha256": "34afbed91e300bf6e487563e36c1eeef7ca42b214894a8ae5fb01365ef3e4f6b"
+    },
+    "006-import_quirks.json": {
+      "bytes": 1709,
+      "sha256": "ef902e1df43bba16331348b7413bb7a973d9ca5c1ab42d51572ba82fe2818587"
+    },
+    "007-lookalikes.json": {
+      "bytes": 1199,
+      "sha256": "d38d3b224901740145a54522d3d47d986880c0c9747b3a164262d70c60491a81"
+    },
+    "008-patch.json": {
+      "bytes": 1422,
+      "sha256": "6b07c69042b7d7d30daeef1ebecdab66f4c07e8b56bbcafccb95c03a3c6976e2"
+    },
+    "009-setattr.json": {
+      "bytes": 1444,
+      "sha256": "8c0e9fb5ffdea4a9b29ff64ef58fec1663025fb26cabf00980d96a47b475d375"
+    },
+    "010-augmented_patch.json": {
+      "bytes": 1414,
+      "sha256": "c4997f2f107836960c5ddde105ca3b52a124a6282bce878a6a6e613f1fa794d5"
+    },
+    "011-non_patch.json": {
+      "bytes": 844,
+      "sha256": "17bbed512b36fa2e5ee823cd2bf2ded7b8d480c33ad1154449448a8a5ce3f32e"
+    },
+    "012-source_markers.json": {
+      "bytes": 1733,
+      "sha256": "9179adb12289c8e5dadf3f51c685e425486b5a95c8fc19d754eb7275074f211b"
+    },
+    "013-mention.json": {
+      "bytes": 1159,
+      "sha256": "ba37c1639c4cf15f6659d5f9026469cfd7298b36979b35ab02429e1a4ddb7522"
+    },
+    "014-hard_soft_overlap.json": {
+      "bytes": 1753,
+      "sha256": "3dee1d91f1f57dc48ea9ac1659143b707d7777b9fcac79dac3b25e2c2c7a8141"
+    },
+    "015-branch_priority.json": {
+      "bytes": 2391,
+      "sha256": "b77b304b5281dab43a2ad4764446ddd2b00db6625c2011f0bf0c697960b42b5c"
+    },
+    "016-skip_dirs.json": {
+      "bytes": 1167,
+      "sha256": "05f32992c58b7b5c6899a447aff198fa16a58a4462e8662288fa118e04e8cb50"
+    },
+    "017-neighbor_limit.json": {
+      "bytes": 1155,
+      "sha256": "21ba5150143c04e93cf627391df22370740ac37f93930295c73a837036b68527"
+    },
+    "018-big_neighbor.json": {
+      "bytes": 850,
+      "sha256": "c2e7a84f4883474c2a693f6d8adfcbf0278d45bdf73c61aa4a984ccc60e56b99"
+    },
+    "019-donor_limit.json": {
+      "bytes": 1151,
+      "sha256": "0effe8c751503033d14f4ff0495ee7cf5c58e3e64f7b03a98800e647e565d345"
+    },
+    "020-limit_1000.json": {
+      "bytes": 253692,
+      "sha256": "4a4301b18ababfa2bbc8437626e55cbbc6e7f7b2f5197a792861aa8e5af427fc"
+    },
+    "021-limit_1001.json": {
+      "bytes": 253690,
+      "sha256": "489bfff2e5edaba8556d374b324e1249a3650dd8bf5c3a41c58799ae7879c98e"
+    },
+    "022-retained_sets.json": {
+      "bytes": 245694,
+      "sha256": "4b89d8a223b1ec1680fe8dccb6bce0cbb9ebe644e04307d0ecb37bca4a5f1a0e"
+    },
+    "023-text_200.json": {
+      "bytes": 1901,
+      "sha256": "ee68c2a066faf0ffd86aecaf71baa11d90d7e7d495079b01e82ca0b9d1d6a848"
+    },
+    "024-bom.json": {
+      "bytes": 1135,
+      "sha256": "805b6866195d1dd9cd6acba6842405402b54878a5433fc1dca69c7bbf8ecbcb2"
+    },
+    "025-double_bom.json": {
+      "bytes": 1165,
+      "sha256": "be267b267ea90c5494e01950d0fe0279a1eb6ad3fa29e3922a958a1654f7bc50"
+    },
+    "026-crlf.json": {
+      "bytes": 1446,
+      "sha256": "858d956b48f70a8b120f78d527c1766b3938b5b98f393dbf45e68816d80d4f58"
+    },
+    "027-lone_cr.json": {
+      "bytes": 1452,
+      "sha256": "6db3a5738731a2458d6dcc39dadc1c95cc463c89dc6c886edcd36a0e23c61ebe"
+    },
+    "028-partial_bom.json": {
+      "bytes": 1141,
+      "sha256": "e8123d2882353c4e5c1fc9e9caecca925c2b36ed765021bd589e29542802fb16"
+    },
+    "029-invalid_utf8.json": {
+      "bytes": 1159,
+      "sha256": "d2e2b490dd87c856dc5d3789a07eb789ec52d7aa49e11192113b5cda4d7865ae"
+    },
+    "030-walk_order.json": {
+      "bytes": 2273,
+      "sha256": "bf60d340f885e6c3b7e6fcb3ae6aa25b6e634f0e6352ec647ab456c3187ed512"
+    },
+    "031-nested_root.json": {
+      "bytes": 1178,
+      "sha256": "f49d46617fa4207d94d1a9f1d9ab8159776563f6147e3df4e053d25a88aea784"
+    },
+    "032-extensions.json": {
+      "bytes": 4306,
+      "sha256": "e8e7f3842275da1719397ec57b97f9850c92d0e0c8e6f4a3f7903a9455e7fb5c"
+    },
+    "033-coding_comment.json": {
+      "bytes": 1420,
+      "sha256": "5676a0c2fa9fb6dc4c93f218f72f4fd292efdf8ffe04d574138dffa3b9952e6a"
+    },
+    "034-rel_substring.json": {
+      "bytes": 1183,
+      "sha256": "7c0da47bad16c8597e2913b345ea0bf5e035e7ce715db6e94b24862d181936f9"
+    },
+    "035-missing.json": {
+      "bytes": 460,
+      "sha256": "23c31fc2f347c60120a6efd6e8c011997c719fc507b13bd639c5e8a115f16a89"
+    },
+    "036-non_py.json": {
+      "bytes": 607,
+      "sha256": "c3b4867d3690805a4fc66258eb7676fb8f2dd66c588a2557974780036c31527f"
+    },
+    "037-no_addon.json": {
+      "bytes": 608,
+      "sha256": "18a12aaa2a9edb96b021a49a2b3b864be4205141652a9b1a61112e2bc8bc3225"
+    },
+    "038-donor_over_limit.json": {
+      "bytes": 624,
+      "sha256": "9f01052005e7bc26454c1efb8f2e5a04620b0f576334fd6df10c35632baa9042"
+    },
+    "039-addons.json": {
+      "bytes": 613,
+      "sha256": "65dc06ec01dfdeea0eb1d4cedcf46d2b20d731d8d3833cab38f7909fe669f2e5"
+    },
+    "040-not_res.json": {
+      "bytes": 270,
+      "sha256": "df97c7e1f18c05f162abb05e200a802887bdae3fa12dd0be8120012672904f95"
+    },
+    "041-empty.json": {
+      "bytes": 258,
+      "sha256": "eefde5b001a86d8ebdbbaedf772ca4b232a88de614099680514a49d4d686e669"
+    },
+    "042-not_string.json": {
+      "bytes": 267,
+      "sha256": "2aa74c128a244cedb654b8923d67ec82278cd56292acd6a1e09b430d9029e3fc"
+    },
+    "043-missing_arg.json": {
+      "bytes": 252,
+      "sha256": "748a79d00c294abd9f661be459c43ea4311f2117d3220ae6069e8476f07cdbe1"
+    },
+    "044-extra_arg.json": {
+      "bytes": 299,
+      "sha256": "a07bddcd81c8e540809b4a12a9270a2f1ff2675b3c1972fc4f01f331344ceb0a"
+    },
+    "045-traversal.json": {
+      "bytes": 269,
+      "sha256": "4e96875231cf93b56fcb8f3ac96e4b98362e38cba440f6b829a115898166a0d1"
+    },
+    "046-absolute.json": {
+      "bytes": 267,
+      "sha256": "34434c02d4f251d2043dc527d1158e3993ef7fdb6c36d47e519e341fede16aec"
+    },
+    "047-nul_path.json": {
+      "bytes": 270,
+      "sha256": "e6739829bd088a03e9cfaec2ebba0b0f029925fb071a9fe14d40a7944a43c1f1"
+    },
+    "048-plan-missing-no-addon.json": {
+      "bytes": 494,
+      "sha256": "b28105417e51004f15d3354eecba1ad0a4df0e9047a5dfafe47e48b5c1e395b3"
+    },
+    "049-plan-auto.json": {
+      "bytes": 3768,
+      "sha256": "7f09ce1a8f3c7f0e54f250c4e739dc6d235fbc266d28fb8713737897b082358d"
+    },
+    "050-plan-explicit.json": {
+      "bytes": 3566,
+      "sha256": "585c860307c04aa11a8ae37e064ad8119d79a8a7b3fd38e53c7122d991e2d14c"
+    },
+    "051-plan-inventory-doc-private-all.json": {
+      "bytes": 6005,
+      "sha256": "5f27e977ff181506264a968112e51da674d8d296ac7a5cfe82ffd5eee0e2fcbf"
+    },
+    "052-plan-imports-other.json": {
+      "bytes": 3754,
+      "sha256": "fc9dc7092bf2142f488a3f77000af278958e5c9ec84934cab3af2d2771e6e7fb"
+    },
+    "053-plan-cycle.json": {
+      "bytes": 5146,
+      "sha256": "b1be259dfc5cc0b1371d7a15709b588203ec35d4edaf42471a500d0878be18e4"
+    },
+    "054-plan-duplicate.json": {
+      "bytes": 4608,
+      "sha256": "f2b5c3ff3c5f5e50bd429c646a2ffef4e720364413600a02885b0575c6fcb9e6"
+    },
+    "055-plan-unknown.json": {
+      "bytes": 3291,
+      "sha256": "f31c70478e9416572cf98caa355d3240ae7e07535cf5699a69ff4a89697b5d00"
+    },
+    "056-plan-donor-module.json": {
+      "bytes": 3922,
+      "sha256": "d9543efb46bddc1c9563f172ff47f9bff81463eda94320eb40daad8014e57a08"
+    },
+    "057-plan-invalid-module.json": {
+      "bytes": 3283,
+      "sha256": "5335371113addf0dfe958a902df50a1db9f45db9d9852d69d17d6d27ca00128d"
+    },
+    "058-plan-empty-groups.json": {
+      "bytes": 2940,
+      "sha256": "2668435c7f5cc626576888d9e6e7b63ff1b69b1223955bb9f3e72421ab3c4344"
+    },
+    "059-plan-empty-symbols.json": {
+      "bytes": 3542,
+      "sha256": "72c97884ea91742fa1ccf12e99db05650e8f16bb8bc7dd7e99bc250c63f1473f"
+    },
+    "060-plan-leftover-cycle.json": {
+      "bytes": 4537,
+      "sha256": "2eeb2a90dfe17f63b48158d0fde963f0d70fac2fdeb3dc8d12165b01cc3497e7"
+    },
+    "061-plan-shared-state-error.json": {
+      "bytes": 5687,
+      "sha256": "fe347457ea5c3abab1dc1d1cd949fdd2416624e0ab3a76d0e92d9d0b3233dd54"
+    },
+    "062-plan-shared-state-owner.json": {
+      "bytes": 6610,
+      "sha256": "afeaa78024c5ca4a51c6c76c421b702eca5f553b0d2fe4f12688f75abc49096f"
+    },
+    "063-plan-auto-900.json": {
+      "bytes": 16885,
+      "sha256": "7f9de0f4296d797e08567ecfa4659d59408b890a2c7b59e2725bf3d5b689d330"
+    },
+    "064-plan-auto-100.json": {
+      "bytes": 18498,
+      "sha256": "91be644555ce715c49748c5835eaaa5814b13986ad7316d46d9135ad4c5b4775"
+    },
+    "065-plan-target-499.json": {
+      "bytes": 3811,
+      "sha256": "cf664974926d4be2dbdd51436d3f3f75b7b589f4c8d337c2c2a4aee1b51c8e26"
+    },
+    "066-plan-target-0.json": {
+      "bytes": 2587,
+      "sha256": "95c32ee7692380882df034d564486b554d82eb1da1dbf0e2ee49f57dfd6b8588"
+    },
+    "067-plan-target-5001.json": {
+      "bytes": 2602,
+      "sha256": "8a0934e4dce628d29ea4dc6bad63b3337a97a80f07168b37adee30f60c3a529a"
+    },
+    "068-plan-target-garbage.json": {
+      "bytes": 1089,
+      "sha256": "237c8dc1341ef70e1f97b56d00b7f3dc95e6620e0b07543f160cb9b331d38673"
+    },
+    "069-plan-target-string.json": {
+      "bytes": 3535,
+      "sha256": "d42e90dff5bf3e98580c495f0739b2164391acf7e1344bc5e8faa23d9b0476e9"
+    },
+    "070-plan-compile-module.json": {
+      "bytes": 4344,
+      "sha256": "aa16874a4ac396002e22f56d9d4941805af4f391580897fbbceab5256a7bb1bb"
+    },
+    "071-plan-compile-facade.json": {
+      "bytes": 3848,
+      "sha256": "57aaa93453ef6502f5552ae2214c82c591f83146cf0ba5797e6d941471c8546e"
+    },
+    "072-plan-refs-null.json": {
+      "bytes": 3683,
+      "sha256": "2ca6837af0e55154a2a00472d7fb139ed14effa4991cf252db86e0671d298d1d"
+    },
+    "073-plan-refs-truncated.json": {
+      "bytes": 3640,
+      "sha256": "9e8c66ab68b9e5f5704a3c44031eb7259dbbe08fb81442e68bdcd94159c6ff3a"
+    },
+    "074-plan-refs-patch.json": {
+      "bytes": 4242,
+      "sha256": "a65f7a6a6bc9955174169106c39b08c46f129fc9267cc614a07b4c0f94621816"
+    },
+    "075-plan-bom-crlf.json": {
+      "bytes": 3566,
+      "sha256": "4822a313ee13852ae08cc97668ea49703d90cea8ec7b27bae86ac402706aeffa"
+    },
+    "076-plan-lone-cr.json": {
+      "bytes": 3563,
+      "sha256": "ee58c2b52d33222225a5295c7563f46264f2a779b5959939e48973069eb6fa38"
+    },
+    "077-plan-occupied-file.json": {
+      "bytes": 3733,
+      "sha256": "5ec2ca485809f8ce96b956ecb9a85e2facfb94e72a23ee1ca7bf1de034632a5c"
+    },
+    "078-plan-occupied-directory.json": {
+      "bytes": 3748,
+      "sha256": "8c9f617fa7c22f0e45e6b3f68583b3dac102dacbbbc19824c2c145807d452e55"
+    },
+    "079-plan-denied-addons.json": {
+      "bytes": 2450,
+      "sha256": "8e4562a9a8fe480feed9ea65310278eab847d69fc801c61d349266403f568538"
+    },
+    "080-plan-non-py.json": {
+      "bytes": 517,
+      "sha256": "c34c984acc9bf8e0734d7a441e24d9963d2f35082605eea1f782b7f6e3617f8e"
+    },
+    "081-plan-over-limit.json": {
+      "bytes": 4196626,
+      "sha256": "4bca27834c70f32161f0b4de0a23ffd7a9c23b790399b5c072c15f4bd039567d"
+    },
+    "082-plan-broken-parse.json": {
+      "bytes": 538,
+      "sha256": "78207410dd5c79d58f7d2bfd63c1ef4e587f5ea568c0b5e2cce789b6a7466e71"
+    },
+    "083-plan-no-symbols.json": {
+      "bytes": 594,
+      "sha256": "e4cdc2babcb4ddeee1d6c112bc386296f2840788a95b310ef5fa1e232d468751"
+    },
+    "084-plan-groups-string.json": {
+      "bytes": 452,
+      "sha256": "a0cb38f2ff17df2f980c2c43160423ab6f27d57277db3cdbdcec3e77db44452e"
+    },
+    "085-plan-groups-nonobject.json": {
+      "bytes": 468,
+      "sha256": "a7d257326da3615cbb4fda312d1264e30db9d6d57f50ef3ccfa966527decf04f"
+    },
+    "086-plan-groups-empty-module.json": {
+      "bytes": 1978,
+      "sha256": "0e0a47f7db04760b11a0e3b368529957378f5783555ea5281bd9a6f96625bb12"
+    },
+    "087-plan-map-missing.json": {
+      "bytes": 3575,
+      "sha256": "39e21dbef7942c8efd34b436f4acee3f4671d4562474ec97c7582eb979b04f3a"
+    },
+    "088-plan-map-broken.json": {
+      "bytes": 3572,
+      "sha256": "dab7d8ddd1db60b5598c72d652432509ccbc411b7cff1ff230953184368ed15c"
+    },
+    "089-plan-map-invalid.json": {
+      "bytes": 3575,
+      "sha256": "8dafbe18e7be56bc5b770a8895908ecb12d0fc1729d5cebf0907db395cd0bb41"
+    },
+    "090-plan-map-line-limit.json": {
+      "bytes": 3504,
+      "sha256": "b363b4731433b88e59b9b18ff2fcc594e828849613adcf8cb9f72b3cc4eec3de"
+    },
+    "091-plan-map-near-limit.json": {
+      "bytes": 3362,
+      "sha256": "a493a7f41d8a3a7580fe3a08e44274e7f1e25ace4f3582b61923b79e6e4c1443"
+    },
+    "092-plan-map-generated-only.json": {
+      "bytes": 3456,
+      "sha256": "913dfae8160b8aa421d6f88944f50c90fb8278e2fc43ed5b7937b08f88e087c9"
+    },
+    "093-plan-map-core-duplicate.json": {
+      "bytes": 3546,
+      "sha256": "31c7636abdcaab60a3656cf4f57341f037f19ab0b8031d9342d5caec7b1e8712"
+    },
+    "094-plan-map-check-names-false.json": {
+      "bytes": 3239,
+      "sha256": "a9e3bf63b4cc99270b7fff115ac0bbfcfd6986652560a71ab466859410ccdbfa"
+    },
+    "095-plan-map-consumer-duplicate.json": {
+      "bytes": 3548,
+      "sha256": "18f3dd09e1f5da410d8d5e7241df3b00e95d1a52294aafe77b98fa00b712028a"
+    },
+    "096-plan-map-stoplist.json": {
+      "bytes": 3212,
+      "sha256": "3cb8051f26f6a480ce50b578804e5913709c8b00439043f58e4103cfc0a8dd34"
+    },
+    "097-apply-two-modules.json": {
+      "bytes": 1398,
+      "sha256": "be9fd0c61372cdfc032687fa8156476da2a38886270f2f8585b761a9f4e45bea"
+    },
+    "098-apply-plan-errors.json": {
+      "bytes": 656,
+      "sha256": "9286037ac6a0ee173f01f081e8b8b7c4f49c948627f46109980d55269f69f908"
+    },
+    "099-apply-missing-donor.json": {
+      "bytes": 718,
+      "sha256": "9952d6da813dc44f332f0038f7d7aae329a06e7e6e4fd5b80925d2e6055b0fc2"
+    },
+    "100-apply-stale-donor.json": {
+      "bytes": 780,
+      "sha256": "4450cfdde5eee8a583ae8d1477b75e572dc03420c5fba9b8c07c6f9ea00305e1"
+    },
+    "101-apply-module-compile.json": {
+      "bytes": 752,
+      "sha256": "7b45f60d172ef2cb3baba60fc23e72141c68df414566153e9e10b20c012e6739"
+    },
+    "102-apply-facade-compile.json": {
+      "bytes": 787,
+      "sha256": "de53761cca2abbb2cc21ab4f72bd3670508926fb2c6747f6a9e70aae2f588903"
+    },
+    "103-apply-occupied-create.json": {
+      "bytes": 758,
+      "sha256": "55ce9bfa017e2bb110da54d70d509e6a06965ae83f8193064455cec49bb1d859"
+    },
+    "104-apply-repeated.json": {
+      "bytes": 831,
+      "sha256": "9ebbd361980a44855dd1422a757b76d20347f26e163c59ad2c2b2672f6411fd5"
+    },
+    "105-apply-bom-crlf.json": {
+      "bytes": 902,
+      "sha256": "9f41af75147a0a4a32d14e9c2a59a20dd2c6c94dc39a65a3a2472b639438bce0"
+    },
+    "106-apply-second-write-failure.json": {
+      "bytes": 1071,
+      "sha256": "c4168c650752804adff53b3d2a5ad08af82d9221e13e11a935755965f1824f9e"
+    },
+    "107-delete-directory-refused.json": {
+      "bytes": 389,
+      "sha256": "8bb8d7098b40be8d63f3f149ae1716c85c1c6ab1be31120a0fa0078acc2ffce6"
+    },
+    "108-apply-not-res.json": {
+      "bytes": 558,
+      "sha256": "3906d002860683d98bccbf11fa9353a513dd9cd30b3352c25bb77eaca9107139"
+    }
+  },
+  "inputs": {
+    "corpus/editing/split_py/absolute/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/absolute/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/apply_two/donor.py": {
+      "bytes": 52,
+      "sha256": "854d5c95c53c01074ee1a2b97babdc9cb23dd6d03098f6758a6667a27bdee848"
+    },
+    "corpus/editing/split_py/apply_two/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/addons/addons/demo/donor.py": {
+      "bytes": 8,
+      "sha256": "5be934ff066fe179382ed121f1736d060ee0bdb493d1a7c52f89336635095d70"
+    },
+    "corpus/editing/split_py/addons/addons/demo/plugin.cfg": {
+      "bytes": 21,
+      "sha256": "c6c262a2888e5e87201b071276bb34247afe1ca6026b7546e9bc6efe4099a2fa"
+    },
+    "corpus/editing/split_py/addons/plugin.cfg": {
+      "bytes": 24,
+      "sha256": "57d9ecd872be33bbb6e39d6e3ddd4b3b7eab3dcb51b4a3136a0254cece05353d"
+    },
+    "corpus/editing/split_py/alias_import/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/alias_import/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/alias_import/ref.py": {
+      "bytes": 35,
+      "sha256": "9b9ddb0052ec65f1bbf4e8fd10f05f79475765f65bc862a143c9d783c5242fdb"
+    },
+    "corpus/editing/split_py/augmented_patch/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/augmented_patch/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/augmented_patch/ref.py": {
+      "bytes": 31,
+      "sha256": "0726edd75aefe6f266ecd416fa552d9149d86d75efd8fd13de803dbf0ee95504"
+    },
+    "corpus/editing/split_py/big_neighbor/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/big_neighbor/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/big_neighbor/ref.py": {
+      "bytes": 1048589,
+      "sha256": "1b67638376d0bbaa3ea69374c4f97057da4eaa0fbebd0d8c854ee33a7e5d621b"
+    },
+    "corpus/editing/split_py/bom/donor.py": {
+      "bytes": 14,
+      "sha256": "841e1eda474c8897d0c0663d4fb54b2e64f2462f2c3eaa3af5c0901e50f370d9"
+    },
+    "corpus/editing/split_py/bom/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/bom/ref.py": {
+      "bytes": 16,
+      "sha256": "40c6033e1a7732ecffb7bbca6a6cd442196ef43be8bcd6dadd7a736743d53232"
+    },
+    "corpus/editing/split_py/branch_priority/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/branch_priority/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/branch_priority/ref.md": {
+      "bytes": 69,
+      "sha256": "7b9c9dca3befff67a9cf9fddd881f4cc92523fd06a544977864449f30c607e6a"
+    },
+    "corpus/editing/split_py/branch_priority/ref.py": {
+      "bytes": 76,
+      "sha256": "d5a61f71fb9d357dd4ee4b89c7a1fb24ad006e450c67b51ad3ae12557565bf0d"
+    },
+    "corpus/editing/split_py/coding_comment/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/coding_comment/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/coding_comment/ref.py": {
+      "bytes": 31,
+      "sha256": "350a3ffca1bae20dbf99bc3a2ece2a00effc1f4d221d4f02780e15961bdc198d"
+    },
+    "corpus/editing/split_py/crlf/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/crlf/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/crlf/ref.py": {
+      "bytes": 33,
+      "sha256": "d95a98a1d67ef05d2fd022d658d5fbd7ac2e65c38390cb3f7e0627bcefe04e63"
+    },
+    "corpus/editing/split_py/doc/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/doc/note.md": {
+      "bytes": 14,
+      "sha256": "1f7edce7b320dbf01b9980dc607a498dcbe3ee01d7889a353132546f7405dfb9"
+    },
+    "corpus/editing/split_py/doc/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/donor_limit/donor.py": {
+      "bytes": 4194304,
+      "sha256": "85d4a5996ae7257da1a757aafc1abda6d586387c545507098ae3e8da4edac54e"
+    },
+    "corpus/editing/split_py/donor_limit/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/donor_limit/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/donor_over_limit/donor.py": {
+      "bytes": 4194305,
+      "sha256": "8d3d3c04baadfd31cbebf771836900097b5f36cc142b74e40747c7b372beab8b"
+    },
+    "corpus/editing/split_py/donor_over_limit/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/double_bom/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/double_bom/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/double_bom/ref.py": {
+      "bytes": 37,
+      "sha256": "f65dcb57ac1767307b3af24edd957d7f3c7a111b72264ea76a15939ebfd16dc9"
+    },
+    "corpus/editing/split_py/empty/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/empty/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/extensions/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/extensions/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/extensions/ref.bat": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.bin": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/extensions/ref.cfg": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.cmd": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.gdshader": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.godot": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.json": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.md": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.py": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.tres": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.tscn": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/ref.txt": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/extensions/upper.PY": {
+      "bytes": 17,
+      "sha256": "09cca268d0d3cd3271c96003ae881c99efd385bd5acb3a0cadef1a941bd20bf6"
+    },
+    "corpus/editing/split_py/extra_arg/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/extra_arg/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/from_import/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/from_import/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/from_import/ref.py": {
+      "bytes": 21,
+      "sha256": "ec296d9fba73aaa725a38f128cf9975cd13df7a65f2c817efa6ba3e807409b21"
+    },
+    "corpus/editing/split_py/hard_soft_overlap/both.py": {
+      "bytes": 31,
+      "sha256": "a3172d278e49de36a7ebc6ec11eb96c2ff1a3218b75fe1e0d61ae174f93cb030"
+    },
+    "corpus/editing/split_py/hard_soft_overlap/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/hard_soft_overlap/note.md": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/hard_soft_overlap/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/import_quirks/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/import_quirks/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/import_quirks/ref.py": {
+      "bytes": 66,
+      "sha256": "e2b03a62abeba6c999a73e8ff02376f0d44662f35aa81ac54d4ff6233e38590e"
+    },
+    "corpus/editing/split_py/invalid_utf8/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/invalid_utf8/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/invalid_utf8/ref.py": {
+      "bytes": 13,
+      "sha256": "80492724d11bb90015277d38567c7ba99b3597d1fa828628f859c107ce3f5ff1"
+    },
+    "corpus/editing/split_py/limit_1000/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/limit_1000/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/limit_1000/ref.py": {
+      "bytes": 13000,
+      "sha256": "55db34a13f6ba89dcfac100936da65089f3069fb93b76b7bd07e1ccb0f55ac5a"
+    },
+    "corpus/editing/split_py/limit_1001/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/limit_1001/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/limit_1001/ref.py": {
+      "bytes": 13013,
+      "sha256": "dcebb50b7ba062fdc76d507168dc8a7144e7e7afa56fea4ec5355b6e41e39f6c"
+    },
+    "corpus/editing/split_py/lone_cr/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/lone_cr/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/lone_cr/ref.py": {
+      "bytes": 31,
+      "sha256": "5b4c41564f73312a0988b4938fb17ff7d2836db02455efe3e71aafdd1a39822e"
+    },
+    "corpus/editing/split_py/lookalikes/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/lookalikes/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/lookalikes/ref.py": {
+      "bytes": 56,
+      "sha256": "4fb5cabf28dad1a5df3e60042f09fcdc88df9fc8e933ab1e63d7eb9f17a0779a"
+    },
+    "corpus/editing/split_py/mention/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/mention/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/mention/ref.py": {
+      "bytes": 18,
+      "sha256": "45138b1bcb2c902389d84dda58f481d3d3741599c5e8cdcd607ae5796f4f468c"
+    },
+    "corpus/editing/split_py/missing/plugin.cfg": {
+      "bytes": 24,
+      "sha256": "57d9ecd872be33bbb6e39d6e3ddd4b3b7eab3dcb51b4a3136a0254cece05353d"
+    },
+    "corpus/editing/split_py/missing_arg/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/missing_arg/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/neighbor_limit/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/neighbor_limit/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/neighbor_limit/ref.py": {
+      "bytes": 1048576,
+      "sha256": "c304fab7e46a0a819e89f1235c923e7031c287e7a725738fb66e10698e62c150"
+    },
+    "corpus/editing/split_py/nested_root/inner/pkg/donor.py": {
+      "bytes": 15,
+      "sha256": "7a153d8cb6f08805797d89ae979d5776dce1f1736f75bceb2d40e4cd5d6df578"
+    },
+    "corpus/editing/split_py/nested_root/inner/plugin.cfg": {
+      "bytes": 22,
+      "sha256": "70d4e62e6f3d6f3f1aa8519c51fd63911bf6806f39879dc6ae85861963f834a1"
+    },
+    "corpus/editing/split_py/nested_root/inner/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/nested_root/outside.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/nested_root/plugin.cfg": {
+      "bytes": 22,
+      "sha256": "86e4ef9110262600a3e7fddeee446d6de45e943ba5e31cc82b19186c9bfa101a"
+    },
+    "corpus/editing/split_py/no_addon/donor.py": {
+      "bytes": 8,
+      "sha256": "5be934ff066fe179382ed121f1736d060ee0bdb493d1a7c52f89336635095d70"
+    },
+    "corpus/editing/split_py/no_refs/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/no_refs/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/no_refs/quiet.py": {
+      "bytes": 22,
+      "sha256": "fa80531254df35991a73d2625e399e8bcb20522f716dacc39e1b91c569438588"
+    },
+    "corpus/editing/split_py/non_patch/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/non_patch/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/non_patch/ref.py": {
+      "bytes": 61,
+      "sha256": "8324ff823e2075ef3a3a09e04159061f760e75ffe11b54515f52ddd0d263aa1d"
+    },
+    "corpus/editing/split_py/non_py/donor.txt": {
+      "bytes": 10,
+      "sha256": "0d680e45800310fcead320d679c7e43230fdc2ebcfbc57a93ba064b7a0bd705b"
+    },
+    "corpus/editing/split_py/non_py/plugin.cfg": {
+      "bytes": 24,
+      "sha256": "57d9ecd872be33bbb6e39d6e3ddd4b3b7eab3dcb51b4a3136a0254cece05353d"
+    },
+    "corpus/editing/split_py/not_res/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/not_res/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/not_string/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/not_string/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/nul_path/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/nul_path/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/partial_bom/donor.py": {
+      "bytes": 2,
+      "sha256": "f257f0501a5e137710e26f1c35ddd32ce2b5752f20274a648cb6d0347849a5a9"
+    },
+    "corpus/editing/split_py/partial_bom/note.md": {
+      "bytes": 9,
+      "sha256": "1e372489fb72a650b9a9beb3aa8517cbae963f9a6efc21971910269f2f6b2d3c"
+    },
+    "corpus/editing/split_py/partial_bom/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/partial_bom/ref.py": {
+      "bytes": 2,
+      "sha256": "f257f0501a5e137710e26f1c35ddd32ce2b5752f20274a648cb6d0347849a5a9"
+    },
+    "corpus/editing/split_py/patch/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/patch/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/patch/ref.py": {
+      "bytes": 43,
+      "sha256": "988c2dc78a9f221c52d9484d0829494b5015658068a99e09054a12dbbfca8ef1"
+    },
+    "corpus/editing/split_py/rel_substring/pkg/donor.py": {
+      "bytes": 8,
+      "sha256": "5be934ff066fe179382ed121f1736d060ee0bdb493d1a7c52f89336635095d70"
+    },
+    "corpus/editing/split_py/rel_substring/plugin.cfg": {
+      "bytes": 24,
+      "sha256": "57d9ecd872be33bbb6e39d6e3ddd4b3b7eab3dcb51b4a3136a0254cece05353d"
+    },
+    "corpus/editing/split_py/rel_substring/ref.txt": {
+      "bytes": 16,
+      "sha256": "cc52e39480603fea2173b299bc6be1e391c3bc841a172645f6d69605e23b29c0"
+    },
+    "corpus/editing/split_py/retained_sets/a.txt": {
+      "bytes": 9000,
+      "sha256": "3a02bddd2ce37628f575341f368454971281000907acb0caa299e68f06913992"
+    },
+    "corpus/editing/split_py/retained_sets/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/retained_sets/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/retained_sets/z.py": {
+      "bytes": 13,
+      "sha256": "d4a709765cc08ad7da7dce54a1fc052422ee55b78b06daca8ecc355297f7b6ff"
+    },
+    "corpus/editing/split_py/setattr/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/setattr/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/setattr/ref.py": {
+      "bytes": 50,
+      "sha256": "4cb6e09c23dfcbcc3456473a75668ff4d3efdd832356f791a5b4c498e0fbee5f"
+    },
+    "corpus/editing/split_py/skip_dirs/.agent_history/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/.git/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/.godot/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/.hidden/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/.import/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/.venv/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/__pycache__/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/_tmp/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/agent_api_cache/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/build/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/dist/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/skip_dirs/keep/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/minilich_brain/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/node_modules/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/parser_corpus/ref.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/skip_dirs/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/source_markers/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/source_markers/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/source_markers/ref.py": {
+      "bytes": 74,
+      "sha256": "f8ba9cb637f7475df1dc099b34b2b8577656125ede6121c0dc81f5ac73557944"
+    },
+    "corpus/editing/split_py/tail_import/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/tail_import/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/tail_import/ref.py": {
+      "bytes": 52,
+      "sha256": "7cc640c3cdfba1936b5835ac302ba6040387bf9f93e6db1f4620fcf8bea72fe2"
+    },
+    "corpus/editing/split_py/text_200/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/text_200/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/text_200/ref.py": {
+      "bytes": 476,
+      "sha256": "84f555a959babc3a10b90f126228ca46e5883f6632c2a0b4a7e5c3bee22be6f5"
+    },
+    "corpus/editing/split_py/traversal/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/traversal/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/walk_order/a/a/x.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/walk_order/a/x.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/walk_order/b/x.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/walk_order/b.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/walk_order/donor.py": {
+      "bytes": 20,
+      "sha256": "be870e39637eb5ac16a7951722142a8bb4883bfca83ab03703ac7b934c6d5f57"
+    },
+    "corpus/editing/split_py/walk_order/plugin.cfg": {
+      "bytes": 28,
+      "sha256": "9dd63d228587a65bb11fa8442314b28786bac553b0e5e36feb8282c43b5d033b"
+    },
+    "corpus/editing/split_py/walk_order/z.py": {
+      "bytes": 13,
+      "sha256": "098c9dbbbe083a072816ae566e5fbdf8136bf49cfbc5b9ef1409bc053d93b58f"
+    },
+    "corpus/editing/split_py/plan_missing-no-addon/README.md": {
+      "bytes": 46,
+      "sha256": "24a1de8c8ce1a5ca401331bc51af9ae148405ddc8176bbe785b1573b1e24e242"
+    },
+    "corpus/editing/split_py/plan_auto/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_auto/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_explicit/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_explicit/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_inventory-doc-private-all/donor.py": {
+      "bytes": 251,
+      "sha256": "944d2106324273648440f1b22c42771db204850e7485c31feace97f9aae843a0"
+    },
+    "corpus/editing/split_py/plan_inventory-doc-private-all/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_imports-other/donor.py": {
+      "bytes": 123,
+      "sha256": "d6f806c74932efea5b5aab36a9e91fbe1e7dc54c2711ba61cbef31dd08d86d8f"
+    },
+    "corpus/editing/split_py/plan_imports-other/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_cycle/donor.py": {
+      "bytes": 48,
+      "sha256": "9c1f3ca431d1a1b6a624382b74214cbb8902b88f0f6df99b9cf53fb875f6cb15"
+    },
+    "corpus/editing/split_py/plan_cycle/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_duplicate/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_duplicate/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_unknown/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_unknown/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_donor-module/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_donor-module/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_invalid-module/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_invalid-module/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_empty-groups/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_empty-groups/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_empty-symbols/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_empty-symbols/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_leftover-cycle/donor.py": {
+      "bytes": 38,
+      "sha256": "51fb307f74da24ce2c39d6328969bd4bacaf6b1b2c1c2ad2674c9d8ed222a343"
+    },
+    "corpus/editing/split_py/plan_leftover-cycle/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_shared-state-error/donor.py": {
+      "bytes": 63,
+      "sha256": "851485e4b567f0f28e5e5a876660fc78c1fff3970475ef2986df286129d50a25"
+    },
+    "corpus/editing/split_py/plan_shared-state-error/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_shared-state-owner/donor.py": {
+      "bytes": 63,
+      "sha256": "851485e4b567f0f28e5e5a876660fc78c1fff3970475ef2986df286129d50a25"
+    },
+    "corpus/editing/split_py/plan_shared-state-owner/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_auto-900/donor.py": {
+      "bytes": 10052,
+      "sha256": "a296575c32417c6bcf48285bec2732c8b57ed4a5df400f777f7cd971a262e382"
+    },
+    "corpus/editing/split_py/plan_auto-900/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_auto-100/donor.py": {
+      "bytes": 10052,
+      "sha256": "a296575c32417c6bcf48285bec2732c8b57ed4a5df400f777f7cd971a262e382"
+    },
+    "corpus/editing/split_py/plan_auto-100/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_target-499/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_target-499/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_target-0/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_target-0/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_target-5001/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_target-5001/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_target-garbage/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_target-garbage/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_target-string/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_target-string/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_compile-module/donor.py": {
+      "bytes": 81,
+      "sha256": "ccc560f90d3c57550ce7be1abd6ceb4e06816f8dbf654e8eba36e07908db8e8c"
+    },
+    "corpus/editing/split_py/plan_compile-module/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_compile-facade/donor.py": {
+      "bytes": 32,
+      "sha256": "c30bb91632513380f3c7030bd5a50c5868c9ffd9d101c9a093bb8f439daf47b9"
+    },
+    "corpus/editing/split_py/plan_compile-facade/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_refs-null/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_refs-null/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_refs-truncated/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_refs-truncated/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_refs-truncated/ref.py": {
+      "bytes": 13026,
+      "sha256": "39ca999e5bfaeef937217efd9feeb2585e512cef13e9aa3060644a2e8879f180"
+    },
+    "corpus/editing/split_py/plan_refs-patch/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_refs-patch/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_refs-patch/ref.py": {
+      "bytes": 50,
+      "sha256": "71c6d0190380ec5b467c53a552156d54ed1998dea7fb41ac49911f69f33482fb"
+    },
+    "corpus/editing/split_py/plan_bom-crlf/donor.py": {
+      "bytes": 28,
+      "sha256": "55e3bf934643d44d5a8d471bbf11b8f046063a345a1a42ba8a5129692df56cef"
+    },
+    "corpus/editing/split_py/plan_bom-crlf/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_lone-cr/donor.py": {
+      "bytes": 23,
+      "sha256": "d015ec9c927803f64bff175d87f3b5335d8401d486030c778daf91d3139e508d"
+    },
+    "corpus/editing/split_py/plan_lone-cr/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_occupied-file/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_occupied-file/part.py": {
+      "bytes": 11,
+      "sha256": "49a59785d0bfe5bb9f82e39b647c54409dd6b81080301bfbd7bc6f7acccc1703"
+    },
+    "corpus/editing/split_py/plan_occupied-file/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_occupied-directory/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_occupied-directory/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_denied-addons/addons/sample/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_denied-addons/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_non-py/donor.txt": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_non-py/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_over-limit/donor.py": {
+      "bytes": 4194329,
+      "sha256": "29a0eded47f4da445bf115bea48d5f12abcac6b0da4cc33f5271ed67d9157c5a"
+    },
+    "corpus/editing/split_py/plan_over-limit/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_broken-parse/donor.py": {
+      "bytes": 13,
+      "sha256": "e5c39b5d9e483c96898f2970978fee4d8e5a3814e685d9ab37365a5aa333b5ad"
+    },
+    "corpus/editing/split_py/plan_broken-parse/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_no-symbols/donor.py": {
+      "bytes": 13,
+      "sha256": "5ec5898c0717e0a5bc7a9688bcea6d9f693d788609d9fc62087fae1312bd6962"
+    },
+    "corpus/editing/split_py/plan_no-symbols/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_groups-string/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_groups-string/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_groups-nonobject/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_groups-nonobject/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_groups-empty-module/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_groups-empty-module/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-missing/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-missing/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-broken/docs/architecture_map.json": {
+      "bytes": 7,
+      "sha256": "be302461cda285db3ed2d45fb767b23e08ca8808b35a638009937df22b332d73"
+    },
+    "corpus/editing/split_py/plan_map-broken/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-broken/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-invalid/docs/architecture_map.json": {
+      "bytes": 12,
+      "sha256": "8ea91eb3457316704abcb185f03fcc32ac1e5e4d269f11ce0f7438ad7f7f1191"
+    },
+    "corpus/editing/split_py/plan_map-invalid/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-invalid/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-line-limit/docs/architecture_map.json": {
+      "bytes": 113,
+      "sha256": "e5c3acc218c79c3fbbaa0fe2542611ea8331b858f1bcc177fbe786625f4e79aa"
+    },
+    "corpus/editing/split_py/plan_map-line-limit/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-line-limit/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-near-limit/docs/architecture_map.json": {
+      "bytes": 114,
+      "sha256": "2387441139fcbd73e1555658de8a76530f3c5854a8fc6e5d1f662b3135161bf9"
+    },
+    "corpus/editing/split_py/plan_map-near-limit/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-near-limit/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-generated-only/docs/architecture_map.json": {
+      "bytes": 143,
+      "sha256": "ace75fcce51d4743a786ef3e85837c9795c6aa6035795e611ad74f29c8ec22e8"
+    },
+    "corpus/editing/split_py/plan_map-generated-only/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-generated-only/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-core-duplicate/docs/architecture_map.json": {
+      "bytes": 70,
+      "sha256": "50e1098342b95696fac44716d6422310768603369debaf910af207bb503dc1ee"
+    },
+    "corpus/editing/split_py/plan_map-core-duplicate/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-core-duplicate/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-core-duplicate/python/godot_tools/neighbor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-check-names-false/docs/architecture_map.json": {
+      "bytes": 111,
+      "sha256": "5d57bb65b39199f1c3de2651f2ccb40a5ed066e990db2a1a0bbe9392257e08e4"
+    },
+    "corpus/editing/split_py/plan_map-check-names-false/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-check-names-false/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-check-names-false/python/godot_tools/neighbor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-consumer-duplicate/docs/architecture_map.json": {
+      "bytes": 96,
+      "sha256": "a3d068b2e5d6e43de42798ea107638def618c0d71d907843c8ca70df4f19ca66"
+    },
+    "corpus/editing/split_py/plan_map-consumer-duplicate/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-consumer-duplicate/other/neighbor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-consumer-duplicate/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-stoplist/docs/architecture_map.json": {
+      "bytes": 79,
+      "sha256": "ea108851b20e857bc3cf795bb3fc82a8416ce289b9ca18a70bebcca8036f4a31"
+    },
+    "corpus/editing/split_py/plan_map-stoplist/donor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    },
+    "corpus/editing/split_py/plan_map-stoplist/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "corpus/editing/split_py/plan_map-stoplist/python/godot_tools/neighbor.py": {
+      "bytes": 23,
+      "sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"
+    }
+  },
+  "c18_recut": {
+    "reference": {
+      "file": "godot_agent/python/godot_tools/split_refactor.py",
+      "function": "plan_split:407-655; arch_map:49-267",
+      "bytes": 44114,
+      "sha256": "87cb4d5209c070f2f65ad45c16086e7c99b561ce677c6f8b1d1fd57b545526e7"
+    },
+    "capture_script": {
+      "bytes": 12919,
+      "sha256": "f523c5e6e40fb48289f4ad4487d4951283f1ac0043d5b984770a1e1c73b7c400"
+    },
+    "fixture_base": "fixtures/projects",
+    "projection": "remove schema/addon_dir/module/text/facade.text only; native bool/object/SHA; refusal boundaries explicit",
+    "write_helpers_blocked": true,
+    "oracle_unchanged": true,
+    "target_occupied": "native ok:true/errors; user clarification",
+    "captured_at": "2026-11-01",
+    "cases": [
+      "048-plan-missing-no-addon.json",
+      "049-plan-auto.json",
+      "050-plan-explicit.json",
+      "051-plan-inventory-doc-private-all.json",
+      "052-plan-imports-other.json",
+      "053-plan-cycle.json",
+      "054-plan-duplicate.json",
+      "055-plan-unknown.json",
+      "056-plan-donor-module.json",
+      "057-plan-invalid-module.json",
+      "058-plan-empty-groups.json",
+      "059-plan-empty-symbols.json",
+      "060-plan-leftover-cycle.json",
+      "061-plan-shared-state-error.json",
+      "062-plan-shared-state-owner.json",
+      "063-plan-auto-900.json",
+      "064-plan-auto-100.json",
+      "065-plan-target-499.json",
+      "066-plan-target-0.json",
+      "067-plan-target-5001.json",
+      "068-plan-target-garbage.json",
+      "069-plan-target-string.json",
+      "070-plan-compile-module.json",
+      "071-plan-compile-facade.json",
+      "072-plan-refs-null.json",
+      "073-plan-refs-truncated.json",
+      "074-plan-refs-patch.json",
+      "075-plan-bom-crlf.json",
+      "076-plan-lone-cr.json",
+      "077-plan-occupied-file.json",
+      "078-plan-occupied-directory.json",
+      "079-plan-denied-addons.json",
+      "080-plan-non-py.json",
+      "081-plan-over-limit.json",
+      "082-plan-broken-parse.json",
+      "083-plan-no-symbols.json",
+      "084-plan-groups-string.json",
+      "085-plan-groups-nonobject.json",
+      "086-plan-groups-empty-module.json",
+      "087-plan-map-missing.json",
+      "088-plan-map-broken.json",
+      "089-plan-map-invalid.json",
+      "090-plan-map-line-limit.json",
+      "091-plan-map-near-limit.json",
+      "092-plan-map-generated-only.json",
+      "093-plan-map-core-duplicate.json",
+      "094-plan-map-check-names-false.json",
+      "095-plan-map-consumer-duplicate.json",
+      "096-plan-map-stoplist.json"
+    ],
+    "inputs": [
+      "corpus/editing/split_py/plan_missing-no-addon/README.md",
+      "corpus/editing/split_py/plan_auto/donor.py",
+      "corpus/editing/split_py/plan_auto/plugin.cfg",
+      "corpus/editing/split_py/plan_explicit/donor.py",
+      "corpus/editing/split_py/plan_explicit/plugin.cfg",
+      "corpus/editing/split_py/plan_inventory-doc-private-all/donor.py",
+      "corpus/editing/split_py/plan_inventory-doc-private-all/plugin.cfg",
+      "corpus/editing/split_py/plan_imports-other/donor.py",
+      "corpus/editing/split_py/plan_imports-other/plugin.cfg",
+      "corpus/editing/split_py/plan_cycle/donor.py",
+      "corpus/editing/split_py/plan_cycle/plugin.cfg",
+      "corpus/editing/split_py/plan_duplicate/donor.py",
+      "corpus/editing/split_py/plan_duplicate/plugin.cfg",
+      "corpus/editing/split_py/plan_unknown/donor.py",
+      "corpus/editing/split_py/plan_unknown/plugin.cfg",
+      "corpus/editing/split_py/plan_donor-module/donor.py",
+      "corpus/editing/split_py/plan_donor-module/plugin.cfg",
+      "corpus/editing/split_py/plan_invalid-module/donor.py",
+      "corpus/editing/split_py/plan_invalid-module/plugin.cfg",
+      "corpus/editing/split_py/plan_empty-groups/donor.py",
+      "corpus/editing/split_py/plan_empty-groups/plugin.cfg",
+      "corpus/editing/split_py/plan_empty-symbols/donor.py",
+      "corpus/editing/split_py/plan_empty-symbols/plugin.cfg",
+      "corpus/editing/split_py/plan_leftover-cycle/donor.py",
+      "corpus/editing/split_py/plan_leftover-cycle/plugin.cfg",
+      "corpus/editing/split_py/plan_shared-state-error/donor.py",
+      "corpus/editing/split_py/plan_shared-state-error/plugin.cfg",
+      "corpus/editing/split_py/plan_shared-state-owner/donor.py",
+      "corpus/editing/split_py/plan_shared-state-owner/plugin.cfg",
+      "corpus/editing/split_py/plan_auto-900/donor.py",
+      "corpus/editing/split_py/plan_auto-900/plugin.cfg",
+      "corpus/editing/split_py/plan_auto-100/donor.py",
+      "corpus/editing/split_py/plan_auto-100/plugin.cfg",
+      "corpus/editing/split_py/plan_target-499/donor.py",
+      "corpus/editing/split_py/plan_target-499/plugin.cfg",
+      "corpus/editing/split_py/plan_target-0/donor.py",
+      "corpus/editing/split_py/plan_target-0/plugin.cfg",
+      "corpus/editing/split_py/plan_target-5001/donor.py",
+      "corpus/editing/split_py/plan_target-5001/plugin.cfg",
+      "corpus/editing/split_py/plan_target-garbage/donor.py",
+      "corpus/editing/split_py/plan_target-garbage/plugin.cfg",
+      "corpus/editing/split_py/plan_target-string/donor.py",
+      "corpus/editing/split_py/plan_target-string/plugin.cfg",
+      "corpus/editing/split_py/plan_compile-module/donor.py",
+      "corpus/editing/split_py/plan_compile-module/plugin.cfg",
+      "corpus/editing/split_py/plan_compile-facade/donor.py",
+      "corpus/editing/split_py/plan_compile-facade/plugin.cfg",
+      "corpus/editing/split_py/plan_refs-null/donor.py",
+      "corpus/editing/split_py/plan_refs-null/plugin.cfg",
+      "corpus/editing/split_py/plan_refs-truncated/donor.py",
+      "corpus/editing/split_py/plan_refs-truncated/plugin.cfg",
+      "corpus/editing/split_py/plan_refs-truncated/ref.py",
+      "corpus/editing/split_py/plan_refs-patch/donor.py",
+      "corpus/editing/split_py/plan_refs-patch/plugin.cfg",
+      "corpus/editing/split_py/plan_refs-patch/ref.py",
+      "corpus/editing/split_py/plan_bom-crlf/donor.py",
+      "corpus/editing/split_py/plan_bom-crlf/plugin.cfg",
+      "corpus/editing/split_py/plan_lone-cr/donor.py",
+      "corpus/editing/split_py/plan_lone-cr/plugin.cfg",
+      "corpus/editing/split_py/plan_occupied-file/donor.py",
+      "corpus/editing/split_py/plan_occupied-file/part.py",
+      "corpus/editing/split_py/plan_occupied-file/plugin.cfg",
+      "corpus/editing/split_py/plan_occupied-directory/donor.py",
+      "corpus/editing/split_py/plan_occupied-directory/plugin.cfg",
+      "corpus/editing/split_py/plan_denied-addons/addons/sample/donor.py",
+      "corpus/editing/split_py/plan_denied-addons/plugin.cfg",
+      "corpus/editing/split_py/plan_non-py/donor.txt",
+      "corpus/editing/split_py/plan_non-py/plugin.cfg",
+      "corpus/editing/split_py/plan_over-limit/donor.py",
+      "corpus/editing/split_py/plan_over-limit/plugin.cfg",
+      "corpus/editing/split_py/plan_broken-parse/donor.py",
+      "corpus/editing/split_py/plan_broken-parse/plugin.cfg",
+      "corpus/editing/split_py/plan_no-symbols/donor.py",
+      "corpus/editing/split_py/plan_no-symbols/plugin.cfg",
+      "corpus/editing/split_py/plan_groups-string/donor.py",
+      "corpus/editing/split_py/plan_groups-string/plugin.cfg",
+      "corpus/editing/split_py/plan_groups-nonobject/donor.py",
+      "corpus/editing/split_py/plan_groups-nonobject/plugin.cfg",
+      "corpus/editing/split_py/plan_groups-empty-module/donor.py",
+      "corpus/editing/split_py/plan_groups-empty-module/plugin.cfg",
+      "corpus/editing/split_py/plan_map-missing/donor.py",
+      "corpus/editing/split_py/plan_map-missing/plugin.cfg",
+      "corpus/editing/split_py/plan_map-broken/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-broken/donor.py",
+      "corpus/editing/split_py/plan_map-broken/plugin.cfg",
+      "corpus/editing/split_py/plan_map-invalid/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-invalid/donor.py",
+      "corpus/editing/split_py/plan_map-invalid/plugin.cfg",
+      "corpus/editing/split_py/plan_map-line-limit/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-line-limit/donor.py",
+      "corpus/editing/split_py/plan_map-line-limit/plugin.cfg",
+      "corpus/editing/split_py/plan_map-near-limit/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-near-limit/donor.py",
+      "corpus/editing/split_py/plan_map-near-limit/plugin.cfg",
+      "corpus/editing/split_py/plan_map-generated-only/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-generated-only/donor.py",
+      "corpus/editing/split_py/plan_map-generated-only/plugin.cfg",
+      "corpus/editing/split_py/plan_map-core-duplicate/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-core-duplicate/donor.py",
+      "corpus/editing/split_py/plan_map-core-duplicate/plugin.cfg",
+      "corpus/editing/split_py/plan_map-core-duplicate/python/godot_tools/neighbor.py",
+      "corpus/editing/split_py/plan_map-check-names-false/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-check-names-false/donor.py",
+      "corpus/editing/split_py/plan_map-check-names-false/plugin.cfg",
+      "corpus/editing/split_py/plan_map-check-names-false/python/godot_tools/neighbor.py",
+      "corpus/editing/split_py/plan_map-consumer-duplicate/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-consumer-duplicate/donor.py",
+      "corpus/editing/split_py/plan_map-consumer-duplicate/other/neighbor.py",
+      "corpus/editing/split_py/plan_map-consumer-duplicate/plugin.cfg",
+      "corpus/editing/split_py/plan_map-stoplist/docs/architecture_map.json",
+      "corpus/editing/split_py/plan_map-stoplist/donor.py",
+      "corpus/editing/split_py/plan_map-stoplist/plugin.cfg",
+      "corpus/editing/split_py/plan_map-stoplist/python/godot_tools/neighbor.py"
+    ],
+    "native_calls": 102,
+    "paired_refs_capture": {
+      "case": "072-plan-refs-null.json",
+      "native_calls": 2,
+      "capture_script": {
+        "bytes": 2315,
+        "sha256": "f163c0c10dde787772b64bddd512f293be433a9779700e7b8c724443b40e42bb"
+      },
+      "same_reply_twice": true,
+      "tree_unchanged": true,
+      "oracle_unchanged": true,
+      "choice": "user-approved ordinary native refs in snapshot; original hooked raw refs:null and strict domain/Agent tests retained"
+    },
+    "publication_script": {
+      "bytes": 3919,
+      "sha256": "b09089e3a6c8476ff4043be9f9dc457cf1294bc425555d9a28ff950ccb7136d8"
+    },
+    "corrections": [
+      {
+        "id": "080-plan-non-py",
+        "native_calls": 2,
+        "reply": {
+          "ok": false,
+          "exception": "SplitError",
+          "message": "пила работает только с .py: donor.txt"
+        }
+      }
+    ],
+    "records": [
+      {
+        "id": "048-plan-missing-no-addon",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "SplitError",
+          "message": "файл не найден: missing.py"
+        },
+        "boundary": "not_found"
+      },
+      {
+        "id": "049-plan-auto",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "050-plan-explicit",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "051-plan-inventory-doc-private-all",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "052-plan-imports-other",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "053-plan-cycle",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "054-plan-duplicate",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "055-plan-unknown",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "056-plan-donor-module",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "057-plan-invalid-module",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "058-plan-empty-groups",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "059-plan-empty-symbols",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "060-plan-leftover-cycle",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "061-plan-shared-state-error",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "062-plan-shared-state-owner",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "063-plan-auto-900",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "064-plan-auto-100",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "065-plan-target-499",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "066-plan-target-0",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "067-plan-target-5001",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "068-plan-target-garbage",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "ValueError",
+          "message": "invalid literal for int() with base 10: 'garbage'"
+        },
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "069-plan-target-string",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "070-plan-compile-module",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "071-plan-compile-facade",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "072-plan-refs-null",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "073-plan-refs-truncated",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "074-plan-refs-patch",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "075-plan-bom-crlf",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "076-plan-lone-cr",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "077-plan-occupied-file",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "078-plan-occupied-directory",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "079-plan-denied-addons",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "denied"
+      },
+      {
+        "id": "080-plan-non-py",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "SplitError",
+          "message": "пила работает только с .py: donor.gd"
+        },
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "081-plan-over-limit",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "082-plan-broken-parse",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "SplitError",
+          "message": "не разобрал .py: invalid syntax (<unknown>, line 1)"
+        },
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "083-plan-no-symbols",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "SplitError",
+          "message": "в файле нет символов верхнего уровня для переноса"
+        },
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "084-plan-groups-string",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "AttributeError",
+          "message": "'str' object has no attribute 'get'"
+        },
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "085-plan-groups-nonobject",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": {
+          "ok": false,
+          "exception": "AttributeError",
+          "message": "'int' object has no attribute 'get'"
+        },
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "086-plan-groups-empty-module",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "087-plan-map-missing",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "088-plan-map-broken",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "089-plan-map-invalid",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "090-plan-map-line-limit",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "091-plan-map-near-limit",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "092-plan-map-generated-only",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "093-plan-map-core-duplicate",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "094-plan-map-check-names-false",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "095-plan-map-consumer-duplicate",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "096-plan-map-stoplist",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": null
+      },
+      {
+        "id": "097-apply-two-modules",
+        "same_reply_twice": false,
+        "tree_unchanged": false,
+        "native_error": null,
+        "boundary": "write"
+      },
+      {
+        "id": "098-apply-plan-errors",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": "SplitError",
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "099-apply-missing-donor",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": "StaleSplitError",
+        "boundary": "not_found"
+      },
+      {
+        "id": "100-apply-stale-donor",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": "StaleSplitError",
+        "boundary": "stale_plan"
+      },
+      {
+        "id": "101-apply-module-compile",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": "SplitError",
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "102-apply-facade-compile",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": "SplitError",
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "103-apply-occupied-create",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": "StaleSplitError",
+        "boundary": "stale_plan"
+      },
+      {
+        "id": "104-apply-repeated",
+        "same_reply_twice": false,
+        "tree_unchanged": false,
+        "native_error": "StaleSplitError on second call",
+        "boundary": "stale_plan"
+      },
+      {
+        "id": "105-apply-bom-crlf",
+        "same_reply_twice": false,
+        "tree_unchanged": false,
+        "native_error": null,
+        "boundary": "style_preserved"
+      },
+      {
+        "id": "106-apply-second-write-failure",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "rollback"
+      },
+      {
+        "id": "107-delete-directory-refused",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      },
+      {
+        "id": "108-apply-not-res",
+        "same_reply_twice": true,
+        "tree_unchanged": true,
+        "native_error": null,
+        "boundary": "invalid_input"
+      }
+    ]
+  }
+}

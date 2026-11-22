@@ -1,0 +1,41 @@
+{
+  "id": "031-instance.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "instance.tscn: 'Weapon/Muzzle'",
+  "args": {
+    "path": "res://scenes/instance.tscn",
+    "node": "Weapon/Muzzle"
+  },
+  "reference_node": {
+    "name": "Muzzle",
+    "parent": "Weapon",
+    "type": "",
+    "path": "Weapon/Muzzle",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      333,
+      369
+    ],
+    "body_span": [
+      369,
+      370
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Muzzle",
+      "type": "",
+      "parent": "Weapon",
+      "path": "Weapon/Muzzle",
+      "depth": 2,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{"stream_error": "method not supported"}
+{"post": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"body": "\u0442\u0435\u043b\u043e \u043e\u0442\u0432\u0435\u0442\u0430\nDONE\n"}
+{"response": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", 200, "text/event-stream"]}
+{"wait_done": "r1"}
+{"finish": "r1"}

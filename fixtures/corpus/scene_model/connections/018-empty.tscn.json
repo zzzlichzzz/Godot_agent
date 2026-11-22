@@ -1,0 +1,15 @@
+{
+  "id": "018-empty.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "empty.tscn",
+  "args": {
+    "path": "res://empty.tscn"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "В файле не найдено ни одного узла [node].",
+    "reference_exception": "ValueError"
+  }
+}

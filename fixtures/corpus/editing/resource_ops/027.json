@@ -1,0 +1,36 @@
+{
+  "id": "upper-history-dependency",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "ResourcePath",
+          "value": "res://.AGENT_HISTORY/data.tres"
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "9f0024ba39885d471f885332a9b6b900472db8264b2d312d13a274fcea5bcfb1"
+}

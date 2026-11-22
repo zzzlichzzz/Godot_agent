@@ -1,0 +1,22 @@
+{
+  "id": "015-cyrillic-path",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "кириллический путь в поле path ответа",
+  "args": {
+    "query": "Полоса здоровья"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://notes/здоровье.md",
+          "line": 4,
+          "snippet": "2: \n3: Здоровье игрока — целое число от 0 до 100.\n4: Полоса здоровья обновляется по сигналу HealthChanged.\n5: Ниже нуля здоровье не опускается.\n6: "
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

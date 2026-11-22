@@ -1,0 +1,14 @@
+{
+  "id": "017-addon",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://addons/other/source.gd",
+    "new_path": "res://next/item.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  },
+  "expected_message": "Путь защищён текущей политикой доступа: res://addons/other/source.gd"
+}

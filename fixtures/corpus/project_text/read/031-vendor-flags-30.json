@@ -1,0 +1,117 @@
+{
+  "id": "031-vendor-flags-30",
+  "fixture": {
+    "dirs": [
+      "empty",
+      "src/empty",
+      "src/deep/next",
+      "addons/agent/nested",
+      "addons/vendor",
+      ".godot",
+      ".import",
+      ".agent_history",
+      ".hidden",
+      "node_modules",
+      "minilich_brain"
+    ],
+    "files": {
+      "plain.txt": {
+        "text": "alpha\nbeta\n"
+      },
+      "empty.txt": {
+        "text": ""
+      },
+      "bom.txt": {
+        "b64": "77u/YWxwaGENCmJldGENCg=="
+      },
+      "cr.txt": {
+        "text": "a\rb\r"
+      },
+      "mixed.txt": {
+        "text": "a\r\nb\rc\n"
+      },
+      "binary.bin": {
+        "b64": "AP/+YQ=="
+      },
+      "тест # [x].txt": {
+        "text": "кириллица 🐉\n"
+      },
+      "project.godot": {
+        "text": "config_version=5\n"
+      },
+      "plugin.cfg": {
+        "text": "[plugin]\n"
+      },
+      "src/a.gd": {
+        "text": "extends Node\n"
+      },
+      "src/B.GD": {
+        "text": "extends Node\n"
+      },
+      "src/deep/next/a.txt": {
+        "text": "deep\n"
+      },
+      ".DS_Store": {
+        "text": "noise"
+      },
+      "a.gd.UID": {
+        "text": "uid"
+      },
+      ".godot/cache.txt": {
+        "text": "cache"
+      },
+      ".import/a.txt": {
+        "text": "cache"
+      },
+      ".agent_history/a.txt": {
+        "text": "history"
+      },
+      ".hidden/a.txt": {
+        "text": "hidden"
+      },
+      "node_modules/a.txt": {
+        "text": "noise"
+      },
+      "minilich_brain/a.txt": {
+        "text": "noise"
+      },
+      "addons/vendor/a.txt": {
+        "text": "vendor"
+      },
+      "addons/agent/nested/a.py": {
+        "text": "agent"
+      },
+      "addons/agent/plugin.cfg": {
+        "text": "wrapper"
+      }
+    }
+  },
+  "args": {
+    "path": "res://addons/vendor/a.txt"
+  },
+  "policy": {
+    "allow_addons": true,
+    "allow_self_edit": true
+  },
+  "agent_rel": "addons/agent/nested",
+  "native_result": [
+    "vendor",
+    false
+  ],
+  "native_exception": null,
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://addons/vendor/a.txt",
+      "content": "vendor",
+      "truncated": false,
+      "chars": 6
+    }
+  },
+  "native_non_effect": true,
+  "internal_call": {
+    "module_id": "project_text.read",
+    "entrypoint": "call",
+    "client": "project_text"
+  }
+}

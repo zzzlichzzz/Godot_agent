@@ -1,0 +1,2983 @@
+[
+  {
+    "id": "plain-done",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Need to clarify the movement requirement.\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 74,
+        "acceptable": true,
+        "vote_eligible": false,
+        "blocking": [],
+        "warnings": [
+          {
+            "severity": "warning",
+            "category": "protocol",
+            "message": "answer has no agent_action"
+          }
+        ],
+        "evidence": [],
+        "action": null,
+        "structural_score": [
+          1,
+          1,
+          0,
+          0,
+          1,
+          41,
+          52
+        ]
+      }
+    }
+  },
+  {
+    "id": "plain-unfinished",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "First inspect the project before editing."
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 37,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "protocol",
+            "message": "plain answer is missing ===DONE==="
+          }
+        ],
+        "warnings": [
+          {
+            "severity": "warning",
+            "category": "protocol",
+            "message": "answer has no agent_action"
+          }
+        ],
+        "evidence": [],
+        "action": null,
+        "structural_score": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          41,
+          41
+        ]
+      }
+    }
+  },
+  {
+    "id": "plain-marker-only",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 67,
+        "acceptable": false,
+        "vote_eligible": false,
+        "blocking": [],
+        "warnings": [
+          {
+            "severity": "warning",
+            "category": "protocol",
+            "message": "answer has no agent_action"
+          }
+        ],
+        "evidence": [],
+        "action": null,
+        "structural_score": [
+          1,
+          1,
+          0,
+          0,
+          1,
+          0,
+          10
+        ]
+      }
+    }
+  },
+  {
+    "id": "broken-fence",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "```agent_action\n{\"action\":\"read_file\"}\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 74,
+        "acceptable": true,
+        "vote_eligible": false,
+        "blocking": [],
+        "warnings": [
+          {
+            "severity": "warning",
+            "category": "protocol",
+            "message": "answer has no agent_action"
+          }
+        ],
+        "evidence": [],
+        "action": null,
+        "structural_score": [
+          0,
+          1,
+          0,
+          0,
+          1,
+          38,
+          49
+        ]
+      }
+    }
+  },
+  {
+    "id": "broken-json",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "```agent_action\n{\"action\":\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "unknown action: "
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": ""
+        },
+        "structural_score": [
+          1,
+          1,
+          0,
+          1,
+          1,
+          0,
+          41
+        ]
+      }
+    }
+  },
+  {
+    "id": "incomplete-ref",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content_ref\": \"SCRIPT\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 0,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "protocol",
+            "message": "action transfer is incomplete"
+          },
+          {
+            "severity": "blocking",
+            "category": "protocol",
+            "message": "agent_action cannot be parsed: не найдено тело для метки(ок) SCRIPT — ожидался блок ===МЕТКА===...===END_МЕТКА=== внутри того же блока agent_action, после JSON"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": null,
+        "structural_score": [
+          1,
+          0,
+          0,
+          1,
+          1,
+          22,
+          128
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-exact",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://project.godot\"]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 84,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Exact project file exists: res://project.godot"
+        ],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://project.godot"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          111
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-gd",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://src/combatant.gd\"]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 84,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Exact project file exists: res://src/combatant.gd"
+        ],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://src/combatant.gd"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          114
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-missing",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://missing.gd\"]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "path",
+            "message": "requested file does not exist",
+            "path": "res://missing.gd"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://missing.gd"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          108
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-escape",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://../secret\"]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "policy",
+            "message": "path is blocked by access policy",
+            "path": "res://../secret"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://../secret"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          107
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-addon",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://addons/other/helper.gd\"]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "policy",
+            "message": "path is blocked by access policy",
+            "path": "res://addons/other/helper.gd"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://addons/other/helper.gd"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          120
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-no-paths",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "read_file has no path"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "read_file"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          77
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-wrong-paths",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": \"res://project.godot\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 84,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Exact project file exists: res://project.godot"
+        ],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://project.godot"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          109
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-function",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_function\", \"path\": \"res://src/combatant.gd\", \"functions\": [\"receive\"]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 84,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Exact project file exists: res://src/combatant.gd"
+        ],
+        "action": {
+          "action": "read_function",
+          "path": "res://src/combatant.gd",
+          "functions": [
+            "receive"
+          ],
+          "paths": [
+            "res://src/combatant.gd"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          141
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-function-names",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_function\", \"path\": \"res://src/combatant.gd\", \"functions\": \"receive\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 84,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Exact project file exists: res://src/combatant.gd"
+        ],
+        "action": {
+          "action": "read_function",
+          "path": "res://src/combatant.gd",
+          "functions": "receive",
+          "paths": [
+            "res://src/combatant.gd"
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          139
+        ]
+      }
+    }
+  },
+  {
+    "id": "librarian-hits",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"ask_librarian\", \"query\": \"Combatant receive health\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 100,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Librarian found 1 relevant project entries"
+        ],
+        "action": {
+          "action": "ask_librarian",
+          "query": "Combatant receive health"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          118
+        ]
+      }
+    }
+  },
+  {
+    "id": "librarian-no-hits",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"ask_librarian\", \"query\": \"qxz absent unlikely needle\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 79,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [
+          {
+            "severity": "warning",
+            "category": "librarian",
+            "message": "Librarian query has no project hits"
+          }
+        ],
+        "evidence": [],
+        "action": {
+          "action": "ask_librarian",
+          "query": "qxz absent unlikely needle"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          120
+        ]
+      }
+    }
+  },
+  {
+    "id": "librarian-empty",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"ask_librarian\", \"query\": \"\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 45,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "ask_librarian requires a non-empty query"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "ask_librarian",
+          "query": ""
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          94
+        ]
+      }
+    }
+  },
+  {
+    "id": "gather-context",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"query\": \"Combatant receive\", \"symbols\": [\"Combatant.receive\"], \"godot_api\": [\"Node\"], \"max_chars\": 12000}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 95,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "One bounded read-only pass replaces multiple context actions"
+        ],
+        "action": {
+          "action": "gather_context",
+          "query": "Combatant receive",
+          "symbols": [
+            "Combatant.receive"
+          ],
+          "godot_api": [
+            "Node"
+          ],
+          "max_chars": 12000
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          189
+        ]
+      }
+    }
+  },
+  {
+    "id": "gather-context-lower",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"max_chars\": 2000}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 95,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "One bounded read-only pass replaces multiple context actions"
+        ],
+        "action": {
+          "action": "gather_context",
+          "max_chars": 2000
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          101
+        ]
+      }
+    }
+  },
+  {
+    "id": "gather-context-upper",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"max_chars\": 20000}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 95,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "One bounded read-only pass replaces multiple context actions"
+        ],
+        "action": {
+          "action": "gather_context",
+          "max_chars": 20000
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          102
+        ]
+      }
+    }
+  },
+  {
+    "id": "gather-context-wrong",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"symbols\": \"Combatant.receive\", \"max_chars\": 50000}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 0,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "gather_context symbols must contain at most 8 strings"
+          },
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "gather_context max_chars must be 2000..20000"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "gather_context",
+          "symbols": "Combatant.receive",
+          "max_chars": 50000
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          134
+        ]
+      }
+    }
+  },
+  {
+    "id": "gather-context-bool",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"max_chars\": true}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "gather_context max_chars must be 2000..20000"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "gather_context",
+          "max_chars": true
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          101
+        ]
+      }
+    }
+  },
+  {
+    "id": "inspect-runtime",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"inspect_runtime\", \"sections\": [\"tree\", \"metrics\", \"errors\"], \"max_age_ms\": 1000}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 98,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "One bounded read-only runtime snapshot validates 3 sections and 0 properties"
+        ],
+        "action": {
+          "action": "inspect_runtime",
+          "sections": [
+            "tree",
+            "metrics",
+            "errors"
+          ],
+          "max_age_ms": 1000
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          146
+        ]
+      }
+    }
+  },
+  {
+    "id": "inspect-runtime-bad",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"inspect_runtime\", \"sections\": [\"properties\"], \"properties\": [{\"node\": \"../Outside\", \"names\": [\"health\"]}], \"set_property\": true}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "runtime",
+            "message": "unknown inspect_runtime fields: set_property"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "inspect_runtime",
+          "sections": [
+            "properties"
+          ],
+          "properties": [
+            {
+              "node": "../Outside",
+              "names": [
+                "health"
+              ]
+            }
+          ],
+          "set_property": true
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          194
+        ]
+      }
+    }
+  },
+  {
+    "id": "run-check",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"run_check\", \"scene\": \"res://fight.tscn\", \"steps\": [{\"op\": \"wait_frames\", \"frames\": 2}, {\"op\": \"assert_node\", \"node\": \".\", \"exists\": true}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 99,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "One deterministic local game check validates 2 bounded steps"
+        ],
+        "action": {
+          "action": "run_check",
+          "scene": "res://fight.tscn",
+          "steps": [
+            {
+              "op": "wait_frames",
+              "frames": 2
+            },
+            {
+              "op": "assert_node",
+              "node": ".",
+              "exists": true
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          205
+        ]
+      }
+    }
+  },
+  {
+    "id": "run-check-bad",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"run_check\", \"scene\": \"res://fight.tscn\", \"steps\": [{\"op\": \"assert_property\", \"node\": \"../Outside\", \"property\": \"health\", \"operator\": \"eq\", \"expected\": 0}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "runtime_check",
+            "message": "node path contains an unsafe segment"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "run_check",
+          "scene": "res://fight.tscn",
+          "steps": [
+            {
+              "op": "assert_property",
+              "node": "../Outside",
+              "property": "health",
+              "operator": "eq",
+              "expected": 0
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          221
+        ]
+      }
+    }
+  },
+  {
+    "id": "list-scenes",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"list_scene\", \"scene\": \"res://fight.tscn\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "path",
+            "message": "scene does not exist"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "list_scene",
+          "scene": "res://fight.tscn"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          107
+        ]
+      }
+    }
+  },
+  {
+    "id": "list-scene-missing",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"list_scene\", \"scene\": \"res://missing.tscn\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "path",
+            "message": "scene does not exist"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "list_scene",
+          "scene": "res://missing.tscn"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          109
+        ]
+      }
+    }
+  },
+  {
+    "id": "list-files",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"list_files\", \"path\": \"res://\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 72,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "list_files",
+          "path": "res://"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          96
+        ]
+      }
+    }
+  },
+  {
+    "id": "search",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"search_project\", \"query\": \"health\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 70,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "search_project",
+          "query": "health"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          101
+        ]
+      }
+    }
+  },
+  {
+    "id": "search-empty",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"search_project\", \"query\": \"\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 25,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "search_project has no query"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "search_project",
+          "query": ""
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          95
+        ]
+      }
+    }
+  },
+  {
+    "id": "unknown",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"do_not_execute\", \"payload\": {\"arbitrary_key\": \"inert data\"}}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 28,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "unknown action: do_not_execute"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "do_not_execute",
+          "payload": {
+            "arbitrary_key": "inert data"
+          }
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          126
+        ]
+      }
+    }
+  },
+  {
+    "id": "read-extra-data",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://project.godot\"], \"extra\": {\"arbitrary_key\": 123}}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 84,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Exact project file exists: res://project.godot"
+        ],
+        "action": {
+          "action": "read_file",
+          "paths": [
+            "res://project.godot"
+          ],
+          "extra": {
+            "arbitrary_key": 123
+          }
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          144
+        ]
+      }
+    }
+  },
+  {
+    "id": "patch-good",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 93,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual patch applies uniquely: res://src/combatant.gd"
+        ],
+        "action": {
+          "action": "patch_file",
+          "path": "res://src/combatant.gd",
+          "search": "health: int = 10",
+          "replace": "health: int = 20"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          173
+        ]
+      }
+    }
+  },
+  {
+    "id": "patch-missing",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"not present\", \"replace\": \"health: int = 20\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "patch",
+            "message": "patch search occurs 0 times, expected exactly 1",
+            "path": "res://src/combatant.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "patch_file",
+          "path": "res://src/combatant.gd",
+          "search": "not present",
+          "replace": "health: int = 20"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          168
+        ]
+      }
+    }
+  },
+  {
+    "id": "patch-crlf",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://notes/crlf.txt\", \"search\": \"one\\r\\ntwo\", \"replace\": \"three\\r\\nfour\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 93,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual patch applies uniquely: res://notes/crlf.txt"
+        ],
+        "action": {
+          "action": "patch_file",
+          "path": "res://notes/crlf.txt",
+          "search": "one\r\ntwo",
+          "replace": "three\r\nfour"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          162
+        ]
+      }
+    }
+  },
+  {
+    "id": "patch-no-search",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"replace\": \"x\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "patch_file requires search and replace",
+            "path": "res://src/combatant.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "patch_file",
+          "path": "res://src/combatant.gd",
+          "replace": "x"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          128
+        ]
+      }
+    }
+  },
+  {
+    "id": "patch-multiple",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health\", \"replace\": \"hp\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "patch",
+            "message": "patch search occurs 3 times, expected exactly 1",
+            "path": "res://src/combatant.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "patch_file",
+          "path": "res://src/combatant.gd",
+          "search": "health",
+          "replace": "hp"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          149
+        ]
+      }
+    }
+  },
+  {
+    "id": "create-valid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\r\\n\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 93,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual create succeeds: res://new.gd"
+        ],
+        "action": {
+          "action": "create_file",
+          "path": "res://new.gd",
+          "content": "extends Node\r\n"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          134
+        ]
+      }
+    }
+  },
+  {
+    "id": "create-broken",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\nfunc broken(\\n\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "gdscript",
+            "message": "строка 2: скобка «(» не закрыта",
+            "path": "res://new.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [
+          "Virtual create succeeds: res://new.gd"
+        ],
+        "action": {
+          "action": "create_file",
+          "path": "res://new.gd",
+          "content": "extends Node\nfunc broken(\n"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          146
+        ]
+      }
+    }
+  },
+  {
+    "id": "create-content-wrong",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": false}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "create_file has no text content",
+            "path": "res://new.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "create_file",
+          "path": "res://new.gd",
+          "content": false
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          121
+        ]
+      }
+    }
+  },
+  {
+    "id": "create-escape",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://../new.gd\", \"content\": \"x\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "path",
+            "message": "Путь вне проекта отклонен: res://../new.gd",
+            "path": "res://../new.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "create_file",
+          "path": "res://../new.gd",
+          "content": "x"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          122
+        ]
+      }
+    }
+  },
+  {
+    "id": "move-valid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"move_file\", \"path\": \"res://src/combatant.gd\", \"dest\": \"res://src/moved.gd\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 93,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual move succeeds: res://src/combatant.gd -> res://src/moved.gd"
+        ],
+        "action": {
+          "action": "move_file",
+          "path": "res://src/combatant.gd",
+          "dest": "res://src/moved.gd"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          141
+        ]
+      }
+    }
+  },
+  {
+    "id": "move-conflict",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"move_file\", \"path\": \"res://src/combatant.gd\", \"dest\": \"res://src/control.gd\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "path",
+            "message": "move destination already exists",
+            "path": "res://src/control.gd",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "move_file",
+          "path": "res://src/combatant.gd",
+          "dest": "res://src/control.gd"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          143
+        ]
+      }
+    }
+  },
+  {
+    "id": "scene-raw-create",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://raw.tscn\", \"content\": \"x\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "scene",
+            "message": "new .tscn must use create_scene",
+            "path": "res://raw.tscn",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "create_file",
+          "path": "res://raw.tscn",
+          "content": "x"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          121
+        ]
+      }
+    }
+  },
+  {
+    "id": "scene-raw-patch",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://fight.tscn\", \"search\": \"Root\", \"replace\": \"Other\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "scene",
+            "message": "existing .tscn must use edit_scene",
+            "path": "res://fight.tscn",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "patch_file",
+          "path": "res://fight.tscn",
+          "search": "Root",
+          "replace": "Other"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          144
+        ]
+      }
+    }
+  },
+  {
+    "id": "scene-raw-move",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"move_file\", \"path\": \"res://fight.tscn\", \"dest\": \"res://moved.tscn\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "scene",
+            "message": ".tscn paths must use create_scene/edit_scene",
+            "path": "res://fight.tscn",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "move_file",
+          "path": "res://fight.tscn",
+          "dest": "res://moved.tscn"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          133
+        ]
+      }
+    }
+  },
+  {
+    "id": "scene-edit",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_scene\", \"scene\": \"res://fight.tscn\", \"operations\": [{\"op\": \"add_node\", \"parent\": \".\", \"name\": \"HUD\", \"type\": \"CanvasLayer\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 98,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Structural scene action validates 1 operations"
+        ],
+        "action": {
+          "action": "edit_scene",
+          "scene": "res://fight.tscn",
+          "operations": [
+            {
+              "op": "add_node",
+              "parent": ".",
+              "name": "HUD",
+              "type": "CanvasLayer"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          196
+        ]
+      }
+    }
+  },
+  {
+    "id": "scene-bad-node",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_scene\", \"scene\": \"res://fight.tscn\", \"operations\": [{\"op\": \"set_node_property\", \"node\": \"../Outside\", \"property\": \"visible\", \"value\": {\"type\": \"bool\", \"value\": true}}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "scene",
+            "message": "node содержит запрещённый сегмент"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "edit_scene",
+          "scene": "res://fight.tscn",
+          "operations": [
+            {
+              "op": "set_node_property",
+              "node": "../Outside",
+              "property": "visible",
+              "value": {
+                "type": "bool",
+                "value": true
+              }
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          239
+        ]
+      }
+    }
+  },
+  {
+    "id": "scene-create",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_scene\", \"scene\": \"res://new.tscn\", \"root\": {\"name\": \"New\", \"type\": \"Node\"}, \"operations\": []}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 98,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Structural scene action validates 0 operations"
+        ],
+        "action": {
+          "action": "create_scene",
+          "scene": "res://new.tscn",
+          "root": {
+            "name": "New",
+            "type": "Node"
+          },
+          "operations": []
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          166
+        ]
+      }
+    }
+  },
+  {
+    "id": "settings-valid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_project_settings\", \"operations\": [{\"op\": \"add_input_action\", \"name\": \"jump\", \"deadzone\": 0.2}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 98,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "ProjectSettings edit validates 1 operations"
+        ],
+        "action": {
+          "action": "edit_project_settings",
+          "operations": [
+            {
+              "op": "add_input_action",
+              "name": "jump",
+              "deadzone": 0.2
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          166
+        ]
+      }
+    }
+  },
+  {
+    "id": "settings-invalid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_project_settings\", \"operations\": [{\"op\": \"set_display_settings\", \"renderer\": \"unknown\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "project_settings",
+            "message": "Неизвестные поля: renderer"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "edit_project_settings",
+          "operations": [
+            {
+              "op": "set_display_settings",
+              "renderer": "unknown"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          160
+        ]
+      }
+    }
+  },
+  {
+    "id": "resource-valid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_resource\", \"resource\": \"res://data/resource.tres\", \"operations\": [{\"op\": \"set_property\", \"target\": [], \"property\": \"value\", \"value\": {\"type\": \"int\", \"value\": 1}}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 98,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Structural resource edit validates 1 operations"
+        ],
+        "action": {
+          "action": "edit_resource",
+          "resource": "res://data/resource.tres",
+          "operations": [
+            {
+              "op": "set_property",
+              "target": [],
+              "property": "value",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          234
+        ]
+      }
+    }
+  },
+  {
+    "id": "resource-invalid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_resource\", \"resource\": \"res://data/resource.tres\", \"operations\": [{\"op\": \"set_property\", \"target\": \"root\", \"property\": \"value\", \"value\": {\"type\": \"int\", \"value\": 1}}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "resource",
+            "message": "target должен быть массивом до 8 свойств"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "edit_resource",
+          "resource": "res://data/resource.tres",
+          "operations": [
+            {
+              "op": "set_property",
+              "target": "root",
+              "property": "value",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          238
+        ]
+      }
+    }
+  },
+  {
+    "id": "transaction-valid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\n\"}, {\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 100,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Atomic transaction validates 2 operations in 2 files"
+        ],
+        "action": {
+          "action": "transaction",
+          "operations": [
+            {
+              "action": "create_file",
+              "path": "res://new.gd",
+              "content": "extends Node\n"
+            },
+            {
+              "action": "patch_file",
+              "path": "res://src/combatant.gd",
+              "search": "health: int = 10",
+              "replace": "health: int = 20"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          296
+        ]
+      }
+    }
+  },
+  {
+    "id": "transaction-protected",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://project.godot\", \"content\": \"x\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "transaction",
+            "message": "Некорректный или запрещённый путь: res://project.godot"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "transaction",
+          "operations": [
+            {
+              "action": "create_file",
+              "path": "res://project.godot",
+              "content": "x"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          169
+        ]
+      }
+    }
+  },
+  {
+    "id": "transaction-noop",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://src/combatant.gd\", \"content\": \"class_name Combatant\\nextends Node\\nsignal injured\\n@export var health: int = 10\\nconst LIMIT = 20\\nenum Phase { WAIT, ACTIVE }\\nfunc receive(amount: int) -> int:\\n\\tinjured.emit()\\n\\thealth -= amount\\n\\treturn health\\nfunc loop_call() -> int:\\n\\treturn self.receive(1)\\n\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 100,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Atomic transaction is already satisfied locally"
+        ],
+        "action": {
+          "action": "transaction",
+          "operations": [
+            {
+              "action": "create_file",
+              "path": "res://src/combatant.gd",
+              "content": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\n"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          442
+        ]
+      }
+    }
+  },
+  {
+    "id": "transaction-noop-check",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://src/combatant.gd\", \"content\": \"class_name Combatant\\nextends Node\\nsignal injured\\n@export var health: int = 10\\nconst LIMIT = 20\\nenum Phase { WAIT, ACTIVE }\\nfunc receive(amount: int) -> int:\\n\\tinjured.emit()\\n\\thealth -= amount\\n\\treturn health\\nfunc loop_call() -> int:\\n\\treturn self.receive(1)\\n\"}], \"checks\": [{\"type\": \"parse_script\", \"path\": \"res://src/combatant.gd\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 100,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Atomic transaction is already satisfied locally"
+        ],
+        "action": {
+          "action": "transaction",
+          "operations": [
+            {
+              "action": "create_file",
+              "path": "res://src/combatant.gd",
+              "content": "class_name Combatant\nextends Node\nsignal injured\n@export var health: int = 10\nconst LIMIT = 20\nenum Phase { WAIT, ACTIVE }\nfunc receive(amount: int) -> int:\n\tinjured.emit()\n\thealth -= amount\n\treturn health\nfunc loop_call() -> int:\n\treturn self.receive(1)\n"
+            }
+          ],
+          "checks": [
+            {
+              "type": "parse_script",
+              "path": "res://src/combatant.gd"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          514
+        ]
+      }
+    }
+  },
+  {
+    "id": "transaction-overlay",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\nvar hp = 1\\n\"}, {\"action\": \"patch_file\", \"path\": \"res://new.gd\", \"search\": \"hp = 1\", \"replace\": \"hp = 2\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 100,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Atomic transaction validates 2 operations in 1 files"
+        ],
+        "action": {
+          "action": "transaction",
+          "operations": [
+            {
+              "action": "create_file",
+              "path": "res://new.gd",
+              "content": "extends Node\nvar hp = 1\n"
+            },
+            {
+              "action": "patch_file",
+              "path": "res://new.gd",
+              "search": "hp = 1",
+              "replace": "hp = 2"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          278
+        ]
+      }
+    }
+  },
+  {
+    "id": "rename-valid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"function\", \"declaration\": \"res://src/combatant.gd:7\", \"old_name\": \"receive\", \"new_name\": \"accept\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 99,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Safe rename resolves 3 references in 3 files",
+          "rename will change res://fight.tscn (1)",
+          "rename will change res://src/combatant.gd (2)",
+          "rename will change res://src/control.gd (1)"
+        ],
+        "action": {
+          "action": "rename_symbol",
+          "kind": "function",
+          "declaration": "res://src/combatant.gd:7",
+          "old_name": "receive",
+          "new_name": "accept"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          189
+        ]
+      }
+    }
+  },
+  {
+    "id": "rename-locator",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"function\", \"declaration\": \"res://src/combatant.gd:99\", \"old_name\": \"receive\", \"new_name\": \"accept\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "refactor",
+            "message": "В res://src/combatant.gd:99 нет объявления вида function с именем receive. Объявления этого скрипта: ACTIVE, Combatant, LIMIT, Phase, WAIT, amount, health, injured, loop_call, receive. Возьми точную строку объявления из gather_context или read_function."
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "rename_symbol",
+          "kind": "function",
+          "declaration": "res://src/combatant.gd:99",
+          "old_name": "receive",
+          "new_name": "accept"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          190
+        ]
+      }
+    }
+  },
+  {
+    "id": "rename-class_name",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"class_name\", \"declaration\": \"res://src/combatant.gd:1\", \"old_name\": \"Combatant\", \"new_name\": \"Fighter\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 99,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Safe rename resolves 1 references in 2 files",
+          "rename will change res://src/combatant.gd (1)",
+          "rename will change res://src/control.gd (1)"
+        ],
+        "action": {
+          "action": "rename_symbol",
+          "kind": "class_name",
+          "declaration": "res://src/combatant.gd:1",
+          "old_name": "Combatant",
+          "new_name": "Fighter"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          194
+        ]
+      }
+    }
+  },
+  {
+    "id": "rename-signal",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"signal\", \"declaration\": \"res://src/combatant.gd:3\", \"old_name\": \"injured\", \"new_name\": \"hit\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 99,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Safe rename resolves 2 references in 2 files",
+          "rename will change res://fight.tscn (1)",
+          "rename will change res://src/combatant.gd (2)"
+        ],
+        "action": {
+          "action": "rename_symbol",
+          "kind": "signal",
+          "declaration": "res://src/combatant.gd:3",
+          "old_name": "injured",
+          "new_name": "hit"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          184
+        ]
+      }
+    }
+  },
+  {
+    "id": "rename-variable",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"variable\", \"declaration\": \"res://src/combatant.gd:4\", \"old_name\": \"health\", \"new_name\": \"hp\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 99,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Safe rename resolves 4 references in 2 files",
+          "rename will change res://fight.tscn (2)",
+          "rename will change res://src/combatant.gd (3)"
+        ],
+        "action": {
+          "action": "rename_symbol",
+          "kind": "variable",
+          "declaration": "res://src/combatant.gd:4",
+          "old_name": "health",
+          "new_name": "hp"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          184
+        ]
+      }
+    }
+  },
+  {
+    "id": "high-atomic",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"atomic_files\", \"operations\": [{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}]}}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 100,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "High-level atomic_files deterministically compiles to transaction",
+          "Atomic transaction validates 1 operations in 1 files"
+        ],
+        "action": {
+          "action": "project_command",
+          "command": {
+            "type": "atomic_files",
+            "operations": [
+              {
+                "action": "patch_file",
+                "path": "res://src/combatant.gd",
+                "search": "health: int = 10",
+                "replace": "health: int = 20"
+              }
+            ]
+          }
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          257
+        ]
+      }
+    }
+  },
+  {
+    "id": "high-invalid",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"atomic_files\", \"operations\": [{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"absent\", \"replace\": \"health: int = 20\"}]}}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "transaction",
+            "message": "patch_file должен иметь одно точное совпадение: res://src/combatant.gd"
+          }
+        ],
+        "warnings": [],
+        "evidence": [
+          "High-level atomic_files deterministically compiles to transaction"
+        ],
+        "action": {
+          "action": "project_command",
+          "command": {
+            "type": "atomic_files",
+            "operations": [
+              {
+                "action": "patch_file",
+                "path": "res://src/combatant.gd",
+                "search": "absent",
+                "replace": "health: int = 20"
+              }
+            ]
+          }
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          247
+        ]
+      }
+    }
+  },
+  {
+    "id": "high-component",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"create_scene_component\", \"scene\": \"res://fight.tscn\", \"parent\": \".\", \"name\": \"HUD\", \"node_type\": \"CanvasLayer\"}}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 98,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "High-level create_scene_component deterministically compiles to edit_scene",
+          "Structural scene action validates 1 operations"
+        ],
+        "action": {
+          "action": "project_command",
+          "command": {
+            "type": "create_scene_component",
+            "scene": "res://fight.tscn",
+            "parent": ".",
+            "name": "HUD",
+            "node_type": "CanvasLayer"
+          }
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          217
+        ]
+      }
+    }
+  },
+  {
+    "id": "high-unknown",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"unknown\"}}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 15,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "project_command",
+            "message": "Неизвестная высокоуровневая команда: unknown"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "project_command",
+          "command": {
+            "type": "unknown"
+          }
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          115
+        ]
+      }
+    }
+  },
+  {
+    "id": "plan-overlay",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"plan\", \"steps\": [{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\nvar hp = 1\\n\"}, {\"action\": \"patch_file\", \"path\": \"res://new.gd\", \"search\": \"hp = 1\", \"replace\": \"hp = 2\"}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 91,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual create succeeds: res://new.gd",
+          "Virtual patch applies uniquely: res://new.gd"
+        ],
+        "action": {
+          "action": "plan",
+          "steps": [
+            {
+              "action": "create_file",
+              "path": "res://new.gd",
+              "content": "extends Node\nvar hp = 1\n"
+            },
+            {
+              "action": "patch_file",
+              "path": "res://new.gd",
+              "search": "hp = 1",
+              "replace": "hp = 2"
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          266
+        ]
+      }
+    }
+  },
+  {
+    "id": "plan-missing",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"plan\", \"steps\": []}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 28,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "plan has no steps"
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "plan",
+          "steps": []
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          85
+        ]
+      }
+    }
+  },
+  {
+    "id": "plan-wrong-step",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"plan\", \"steps\": [{\"action\": \"read_file\", \"paths\": [\"res://project.godot\"]}]}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 58,
+        "acceptable": false,
+        "vote_eligible": true,
+        "blocking": [
+          {
+            "severity": "blocking",
+            "category": "schema",
+            "message": "unsupported plan action: read_file",
+            "step": 1
+          }
+        ],
+        "warnings": [],
+        "evidence": [],
+        "action": {
+          "action": "plan",
+          "steps": [
+            {
+              "action": "read_file",
+              "paths": [
+                "res://project.godot"
+              ]
+            }
+          ]
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          22,
+          142
+        ]
+      }
+    }
+  },
+  {
+    "id": "content-ref",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content_ref\": \"SCRIPT\", \"content_ref_lines\": 1}\n```\n===SCRIPT===\nextends Node\n===END_SCRIPT===\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 93,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual create succeeds: res://new.gd"
+        ],
+        "action": {
+          "action": "create_file",
+          "path": "res://new.gd",
+          "content": "extends Node"
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          42,
+          172
+        ]
+      }
+    }
+  },
+  {
+    "id": "multi-fences",
+    "tool": "judge",
+    "fixture": "../corpus/assistant/judge/project",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\n\"}\n```\n===DONE===\nReviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}\n```\n===DONE==="
+    },
+    "expect": {
+      "ok": true,
+      "result": {
+        "score": 91,
+        "acceptable": true,
+        "vote_eligible": true,
+        "blocking": [],
+        "warnings": [],
+        "evidence": [
+          "Virtual create succeeds: res://new.gd",
+          "Virtual patch applies uniquely: res://src/combatant.gd"
+        ],
+        "action": {
+          "action": "plan",
+          "steps": [
+            {
+              "action": "create_file",
+              "path": "res://new.gd",
+              "content": "extends Node\n"
+            },
+            {
+              "action": "patch_file",
+              "path": "res://src/combatant.gd",
+              "search": "health: int = 10",
+              "replace": "health: int = 20"
+            }
+          ],
+          "total": 2
+        },
+        "structural_score": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          47,
+          306
+        ]
+      }
+    }
+  }
+]

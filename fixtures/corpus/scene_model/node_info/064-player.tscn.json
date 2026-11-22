@@ -1,0 +1,41 @@
+{
+  "id": "064-player.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "player.tscn: 'Sprite'",
+  "args": {
+    "path": "res://scenes/player.tscn",
+    "node": "Sprite"
+  },
+  "reference_node": {
+    "name": "Sprite",
+    "parent": ".",
+    "type": "Sprite2D",
+    "path": "Sprite",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      194,
+      241
+    ],
+    "body_span": [
+      241,
+      271
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Sprite",
+      "type": "Sprite2D",
+      "parent": ".",
+      "path": "Sprite",
+      "depth": 1,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

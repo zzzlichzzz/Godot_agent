@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/project_text/search",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/project_tools.py:search_project_text",
+    "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001-happy-path",
+      "file": "001-happy-path.json",
+      "fixture": "minimal",
+      "sha256": "f8d2c8d5c92e7bbcd880e7dc47d01a18747e6fb7a17e129e68243fb6b0d3dc50"
+    },
+    {
+      "id": "002-empty-result",
+      "file": "002-empty-result.json",
+      "fixture": "minimal",
+      "sha256": "39f80aad476807ef4233f3320feb1102393072352151554dca34349deee49dc4"
+    },
+    {
+      "id": "003-cyrillic",
+      "file": "003-cyrillic.json",
+      "fixture": "minimal",
+      "sha256": "60c629b226378c47458e89af5ae3ad38782bea34a54cae7f1244421cd9ecc60d"
+    },
+    {
+      "id": "004-case-insensitive",
+      "file": "004-case-insensitive.json",
+      "fixture": "minimal",
+      "sha256": "f9f9a317ca02ae6919215fc203be2d2e5ecdc43a8cf6eeb46b2a49b9951d042a"
+    },
+    {
+      "id": "005-exclude-prefixes",
+      "file": "005-exclude-prefixes.json",
+      "fixture": "minimal",
+      "sha256": "f0d3c0ebd233b4f88ddf2ded36e48349bc97f3e6b3b615fd4bd790aa223e876f"
+    },
+    {
+      "id": "006-max-results-1",
+      "file": "006-max-results-1.json",
+      "fixture": "minimal",
+      "sha256": "d91a8cb636d218994e648ea5877ba544d1fe60c5318d9bc64d63f5fa020ec7a5"
+    },
+    {
+      "id": "007-bom",
+      "file": "007-bom.json",
+      "fixture": "minimal",
+      "sha256": "d55fdd0b18acbd94698e7893c0e60c8e7819a1755aa1e177ab46f92c587daf14"
+    },
+    {
+      "id": "008-crlf",
+      "file": "008-crlf.json",
+      "fixture": "minimal",
+      "sha256": "3bd9cd95b2f9cc869994c6718f4dae48256c26f2d60a451e3e38eccbabe2cdb0"
+    },
+    {
+      "id": "009-unlisted-ext-py",
+      "file": "009-unlisted-ext-py.json",
+      "fixture": "minimal",
+      "sha256": "3d3c7a2843259278aadefee93ba7edb141f918dbb4ac7798cca5805f8862939a"
+    },
+    {
+      "id": "010-long-line-clipped",
+      "file": "010-long-line-clipped.json",
+      "fixture": "minimal",
+      "sha256": "d8275bccb37de9a910ce7585ab66ab0c7467261e0033a645c03fcc59619d9a70"
+    },
+    {
+      "id": "011-addon-hidden",
+      "file": "011-addon-hidden.json",
+      "fixture": "minimal",
+      "sha256": "ca9a6acecbc34d5ebdeefb17bf0d2347f3e021b85dca391ba2ad9ff65254631a"
+    },
+    {
+      "id": "012-context-zero",
+      "file": "012-context-zero.json",
+      "fixture": "minimal",
+      "sha256": "6548ed3d09c07dacbc1f07c2f55d6c5fc63c4b3ac5fd80eddf06b8d0222e4d64"
+    },
+    {
+      "id": "013-empty-query",
+      "file": "013-empty-query.json",
+      "fixture": "minimal",
+      "sha256": "8b8ac9745aced62523c2f34c7d1637cbd1208a93022432a8a9af0f75745f0ecb"
+    },
+    {
+      "id": "014-excluded-dir",
+      "file": "014-excluded-dir.json",
+      "fixture": "minimal",
+      "sha256": "6df424af090a339810aa34e327fad172906831c57598c677db80fecd3198c9ff"
+    },
+    {
+      "id": "015-cyrillic-path",
+      "file": "015-cyrillic-path.json",
+      "fixture": "minimal",
+      "sha256": "b90da6c711fe52b9bad0839b91ba5b7eab6d939d96e932e0fa3cbd95cdeb6c7a"
+    },
+    {
+      "id": "016-unlisted-ext-png",
+      "file": "016-unlisted-ext-png.json",
+      "fixture": "minimal",
+      "sha256": "d17b629ef12e754349c19748dd456c01ecfcdcb4faa91e57c6b622949e122cae"
+    }
+  ]
+}

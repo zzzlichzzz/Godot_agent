@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; connect-src http://127.0.0.1:*">
+<title>B recorded-site oracle</title>
+<textarea id="chat-input"></textarea>
+<script>
+// Fixture code, not a provider page, visibility patch or automation camouflage.
+const port = new URLSearchParams(location.hash.slice(1)).get('port');
+if (!/^[0-9]{1,5}$/.test(port || '') || +port < 1 || +port > 65535) {
+  throw new Error('invalid local fixture port');
+}
+const paths = {
+  ai: '/MakerSuiteService/GenerateContent',
+  qwen: '/api/v2/chat/completions'
+};
+window.oracle = {received: {}, errors: {}, sent: [], inputEvents: [], keys: []};
+window.replay = async function(kind) {
+  if (!Object.hasOwn(paths, kind)) throw new Error('unknown recorded response');
+  try {
+    const response = await fetch('http://127.0.0.1:' + port + paths[kind], {
+      method: 'POST', body: 'synthetic local request', cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('recorded HTTP ' + response.status);
+    const reader = response.body.getReader();
+    let size = 0;
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      size += chunk.value.byteLength;
+    }
+    oracle.received[kind] = size;
+  } catch (error) {
+    oracle.errors[kind] = String(error);
+  }
+};
+const field = document.querySelector('textarea');
+field.addEventListener('input', event => {
+  oracle.inputEvents.push({trusted: event.isTrusted, value: field.value});
+});
+field.addEventListener('keydown', event => {
+  oracle.keys.push({key: event.key, shift: event.shiftKey, trusted: event.isTrusted});
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    oracle.sent.push(field.value);
+    field.value = '';
+  }
+});
+</script>

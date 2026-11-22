@@ -1,0 +1,50 @@
+{
+  "id": "lint-045-syntax-44",
+  "input": {
+    "group": "lint",
+    "content": "var value: float = unknown()\n"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": [],
+    "after": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    }
+  }
+}

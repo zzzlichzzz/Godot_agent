@@ -1,0 +1,79 @@
+{
+  "id": "027-lone_cr",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 1,
+      "source_read": 0,
+      "patch": 0,
+      "mention": 1,
+      "doc": 0
+    },
+    "occurrences": [
+      {
+        "rel": "ref.py",
+        "line": 1,
+        "kind": "import",
+        "text": "import donor"
+      },
+      {
+        "rel": "ref.py",
+        "line": 2,
+        "kind": "mention",
+        "text": "print(\"donor.py\")"
+      }
+    ],
+    "hard_files": [
+      "ref.py"
+    ],
+    "soft_files": [
+      "ref.py"
+    ],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/lone_cr",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 1,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 1,
+        "doc": 0
+      },
+      "occurrences": [
+        {
+          "file": "ref.py",
+          "line": 1,
+          "kind": "import",
+          "text": "import donor"
+        },
+        {
+          "file": "ref.py",
+          "line": 2,
+          "kind": "mention",
+          "text": "print(\"donor.py\")"
+        }
+      ],
+      "hard_files": [
+        "ref.py"
+      ],
+      "soft_files": [
+        "ref.py"
+      ],
+      "truncated": false
+    }
+  }
+}

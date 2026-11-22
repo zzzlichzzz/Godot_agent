@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/editing/write_apply",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/symbol_refactor.py:prepare_rename+apply_prepared_rename",
+    "sha256": "93f8c8923703020fdf5a2dc31cc8e18654fa05f7833a86415a29a436758425b7"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001",
+      "file": "001.json",
+      "fixture": "rename",
+      "sha256": "9979e9113d13193d96eb98ab494fc1781b3ac10e59d5943e78bb0096efab35c1"
+    },
+    {
+      "id": "002",
+      "file": "002.json",
+      "fixture": "rename",
+      "sha256": "94a5eb31bd3a99896114f141ae2b8a25e86d4287aaf75293f38137b3d7bfb3e5"
+    },
+    {
+      "id": "003",
+      "file": "003.json",
+      "fixture": "rename",
+      "sha256": "199c5c68a24752ffab7bec68ca3b4e2da0596e57b0c6043e62f6fc996b16db2c"
+    },
+    {
+      "id": "004",
+      "file": "004.json",
+      "fixture": "rename",
+      "sha256": "61ea5ccd23c0ca77439517da262714c9fd401f54f43512bc2f46f5c2f6b7bfdd"
+    },
+    {
+      "id": "005",
+      "file": "005.json",
+      "fixture": "rename",
+      "sha256": "4ca7dc92da427ab2d40a141991400ec347878f561df7e25686593e86b403fadf"
+    },
+    {
+      "id": "006",
+      "file": "006.json",
+      "fixture": "rename",
+      "sha256": "a374efe7e20b3c80035a3ec2d1a281f9b943e67b5f9257b74a07189064a01ee6"
+    },
+    {
+      "id": "007",
+      "file": "007.json",
+      "fixture": "rename",
+      "sha256": "2d367b1a14fb6804b1a4d732e746a361edf9206419e804103eeead2904958f00"
+    },
+    {
+      "id": "008",
+      "file": "008.json",
+      "fixture": "rename",
+      "sha256": "5d7adf3abbbd97fb9b41183b7636b5765b3a777afc3cae59624ebac5e30d6752"
+    },
+    {
+      "id": "009",
+      "file": "009.json",
+      "fixture": "rename",
+      "sha256": "8c4f05679619cb707f419fdac59287ba2e5f63d54abf95d8c66fb99b3e115b21"
+    },
+    {
+      "id": "010",
+      "file": "010.json",
+      "fixture": "rename",
+      "sha256": "dacb7eea89c249fd92cb5bd6229d68d77e6cfa349723c3852bdd4e12797d79a4"
+    },
+    {
+      "id": "011",
+      "file": "011.json",
+      "fixture": "rename",
+      "sha256": "79b84dd43d4603f633292348ebe1ac483eaca98ad41586bc26d00a3088d8c148"
+    },
+    {
+      "id": "012",
+      "file": "012.json",
+      "fixture": "rename",
+      "sha256": "5bab55ed3e7b66390348d028b60a8f61179b41c9237f7eb85353e755e36196d2"
+    },
+    {
+      "id": "013",
+      "file": "013.json",
+      "fixture": "rename",
+      "sha256": "d7b1271e825a4c762547fc66956a48b33ef08ba54e1c2edc1ce0fb56403ad5a3"
+    },
+    {
+      "id": "014",
+      "file": "014.json",
+      "fixture": "rename",
+      "sha256": "178f9cec2bd6b60fca20c8f9c7bcb401b48703940c96fc13e1407af42e1dfeda"
+    },
+    {
+      "id": "015-reapply-after-rollback",
+      "file": "015-reapply-after-rollback.json",
+      "fixture": "rename",
+      "sha256": "86c275ab6c1d8937e257757d3729a13aca0d5a169f6fdd064f2406140b18122c"
+    }
+  ]
+}

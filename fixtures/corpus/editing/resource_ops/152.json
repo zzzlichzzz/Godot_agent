@@ -1,0 +1,41 @@
+{
+  "id": "expanded-operation-refusal-9",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "idle",
+        "fps": false,
+        "loop": true,
+        "frames": [
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "fps должен быть конечным числом",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "7e764dd6033df03224bb5b410b90ee157cb1d357aa64c04069d6c22cf3656227"
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_keys",
+  "function": "validate_base_url",
+  "args": [
+    "http://127.0.0.1:1/v1"
+  ],
+  "kwargs": {},
+  "id": "api-032"
+}

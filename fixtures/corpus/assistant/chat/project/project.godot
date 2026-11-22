@@ -1,0 +1,5 @@
+; Synthetic K1 read-only corpus fixture.
+config_version=5
+
+[application]
+config/name="K1 offline"

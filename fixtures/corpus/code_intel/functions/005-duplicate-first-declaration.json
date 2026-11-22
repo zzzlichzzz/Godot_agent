@@ -1,0 +1,27 @@
+{
+  "id": "005-duplicate-first-declaration",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Имя объявлено дважды: берётся первое объявление, сниппет — из него",
+  "args": {
+    "path": "res://scripts/func_lab.gd",
+    "names": [
+      "duplicated"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/func_lab.gd",
+      "functions": [
+        {
+          "name": "duplicated",
+          "snippet": "# func fake() -> void:\n# \tpass\nfunc duplicated() -> String:\n\treturn \"first\"",
+          "start_line": 40,
+          "end_line": 43
+        }
+      ],
+      "missing": []
+    }
+  }
+}

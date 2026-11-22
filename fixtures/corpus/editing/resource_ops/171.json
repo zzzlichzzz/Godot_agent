@@ -1,0 +1,53 @@
+{
+  "id": "expanded-missing-allowed",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://missing.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {
+    "require_exists": false
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://missing.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "int",
+              "value": 2
+            }
+          }
+        ]
+      },
+      "target": "res://missing.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "91c089c7c14303de9afb1c8ac43628743e07ffff56daa7d124f2a07e5ed9f39e"
+}

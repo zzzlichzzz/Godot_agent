@@ -1,0 +1,7 @@
+{
+  "id": "kimi-dom-failure",
+  "op": "dom",
+  "parser": "kimi_parser",
+  "dom": "",
+  "failure": true
+}

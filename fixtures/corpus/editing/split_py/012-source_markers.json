@@ -1,0 +1,87 @@
+{
+  "id": "012-source_markers",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 0,
+      "source_read": 3,
+      "patch": 0,
+      "mention": 0,
+      "doc": 0
+    },
+    "occurrences": [
+      {
+        "rel": "ref.py",
+        "line": 1,
+        "kind": "source_read",
+        "text": "open(\"donor.py\")"
+      },
+      {
+        "rel": "ref.py",
+        "line": 2,
+        "kind": "source_read",
+        "text": "# donor.py __file__"
+      },
+      {
+        "rel": "ref.py",
+        "line": 3,
+        "kind": "source_read",
+        "text": "read_text(\"donor.py\")"
+      }
+    ],
+    "hard_files": [
+      "ref.py"
+    ],
+    "soft_files": [],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/source_markers",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 0,
+        "source_read": 3,
+        "patch": 0,
+        "mention": 0,
+        "doc": 0
+      },
+      "occurrences": [
+        {
+          "file": "ref.py",
+          "line": 1,
+          "kind": "source_read",
+          "text": "open(\"donor.py\")"
+        },
+        {
+          "file": "ref.py",
+          "line": 2,
+          "kind": "source_read",
+          "text": "# donor.py __file__"
+        },
+        {
+          "file": "ref.py",
+          "line": 3,
+          "kind": "source_read",
+          "text": "read_text(\"donor.py\")"
+        }
+      ],
+      "hard_files": [
+        "ref.py"
+      ],
+      "soft_files": [],
+      "truncated": false
+    }
+  }
+}

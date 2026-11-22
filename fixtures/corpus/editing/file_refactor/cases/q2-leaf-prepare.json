@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "id": "q2-leaf-prepare",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://chars/hero.gd",
+    "new_path": "res://chars/Hero.gd",
+    "update_references": false
+  },
+  "native_kwargs": {
+    "update_references": false
+  },
+  "fixture": {
+    "files": {
+      "chars/hero.gd": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/",
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "chars/hero.gd.uid": {
+        "bytes_b64": "dWlkOi8vY2FzZQo=",
+        "bytes": 11,
+        "sha256": "3d7caf15d41a80f6ba85cf33aad19dcc8006a94d95a3ddc7eea6cca2edf85588"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "chars"
+    ]
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "old_path": "res://chars/hero.gd",
+    "new_path": "res://chars/Hero.gd",
+    "companion_script": null,
+    "update_references": false,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://chars/hero.gd",
+        "dest": "res://chars/Hero.gd",
+        "absolute": "<PROJECT>\\chars\\hero.gd",
+        "dest_absolute": "<PROJECT>\\chars\\hero.gd",
+        "before_hash": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "before_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "diff": {
+          "path": "res://chars/hero.gd",
+          "action": "move_file",
+          "dest": "res://chars/Hero.gd",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://chars/Hero.gd"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://chars/Hero.gd"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "160d3876a436d6617abb4a0566d119d7609d70f7721d76415cda82dce9e031b6"
+}

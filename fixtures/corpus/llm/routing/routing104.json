@@ -1,0 +1,21 @@
+{
+  "input": {
+    "id": "routing104",
+    "label": "_fmt_num",
+    "function": "_fmt_num",
+    "args": [
+      -1234
+    ]
+  },
+  "expect": {
+    "result": "1 234",
+    "stdout": ""
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "_fmt_num",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

@@ -1,0 +1,1187 @@
+{
+  "schema_version": 1,
+  "strategy": "byte-exact verbatim references",
+  "sources": {
+    "runtime_debug": {
+      "source": "godot_tools/runtime_debug.py",
+      "target": "python.substrate.editor.references.runtime_debug",
+      "bytes": 12251,
+      "sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+      "LF": 295,
+      "CRLF": 0
+    },
+    "editor_context": {
+      "source": "server/editor_context.py",
+      "target": "python.substrate.editor.references.editor_context",
+      "bytes": 14161,
+      "sha256": "32613d28449674134888ecf8e1b9088ff9b30f30c9baeecacf1fe799f6349362",
+      "LF": 365,
+      "CRLF": 0
+    }
+  },
+  "cases": [
+    {
+      "file": "context-001.json",
+      "id": "context-001",
+      "bytes": 557,
+      "sha256": "80bd5f96984e347fedc56c819a07f2520b7a66b3c419379260d63b14d1bc4b6f",
+      "LF": 23,
+      "CRLF": 0
+    },
+    {
+      "file": "context-002.json",
+      "id": "context-002",
+      "bytes": 581,
+      "sha256": "9002338b16a14de7d55cc0fdad2dcec068b0463993c88be9971473379340d0ca",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-003.json",
+      "id": "context-003",
+      "bytes": 554,
+      "sha256": "92e0828e8e96ce36ce5e0400327a365a3c78f2aab1a3eda60954cf0a94b31946",
+      "LF": 23,
+      "CRLF": 0
+    },
+    {
+      "file": "context-004.json",
+      "id": "context-004",
+      "bytes": 593,
+      "sha256": "fe5597dd41d014c53cdcc41c14ee0a7572afd8b2b3b3fbc97dee9815134b93b5",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-005.json",
+      "id": "context-005",
+      "bytes": 587,
+      "sha256": "b110f994e21dc03e24e858ff39b325a6c214bac998436ad79057c5154ab5b0ce",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "file": "context-006.json",
+      "id": "context-006",
+      "bytes": 611,
+      "sha256": "0f6a03202df93493b897731b3c46be6ffd9e1707df3f194c8ec2b3b24fb05d71",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "file": "context-007.json",
+      "id": "context-007",
+      "bytes": 988,
+      "sha256": "32e972c22ee511c7f22de6bc822dbac2fc0a4eee40846cc48695d4e84aa90d43",
+      "LF": 43,
+      "CRLF": 0
+    },
+    {
+      "file": "context-008.json",
+      "id": "context-008",
+      "bytes": 816,
+      "sha256": "fa6994725f63286d3b297f2e4a659a81b54b2b9d5a8635c813318c5da05ba3c7",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "file": "context-009.json",
+      "id": "context-009",
+      "bytes": 8511,
+      "sha256": "5c88d5622f216cb74ea8eee9007c9a3780af64a8a4f47c759baed230895d8ef7",
+      "LF": 415,
+      "CRLF": 0
+    },
+    {
+      "file": "context-010.json",
+      "id": "context-010",
+      "bytes": 5845,
+      "sha256": "4c52a7876d70ef8b2240c96e9b03d5ea6ec81ddd8462ef8c6462063e262607e0",
+      "LF": 266,
+      "CRLF": 0
+    },
+    {
+      "file": "context-011.json",
+      "id": "context-011",
+      "bytes": 965,
+      "sha256": "da9cb65534d0f2d764e583383269c0881afb4456a6c1650ebbe767c77abb57fe",
+      "LF": 42,
+      "CRLF": 0
+    },
+    {
+      "file": "context-012.json",
+      "id": "context-012",
+      "bytes": 816,
+      "sha256": "e4b7c484a827e038b140514f05ab73207844911f901d16abb0b2f90b1a8dac6d",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "file": "context-013.json",
+      "id": "context-013",
+      "bytes": 991,
+      "sha256": "61453659e8678937d3b2f3eb9de7e8c84f9b276a2e8422cb91802a05efb0023b",
+      "LF": 43,
+      "CRLF": 0
+    },
+    {
+      "file": "context-014.json",
+      "id": "context-014",
+      "bytes": 827,
+      "sha256": "6def374b2d357ea69cfdca5e09d098d6ff0ffa53fe5997ab46568bf2e790e463",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "file": "context-015.json",
+      "id": "context-015",
+      "bytes": 486,
+      "sha256": "511a5d7854f37739e5ecd3e9182cf70df13b5392ae771c7a88a04385d107bc73",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-016.json",
+      "id": "context-016",
+      "bytes": 498,
+      "sha256": "496156536fc53c2095fc960a94c1cc51ef12653b8ff4bd042ed3d49484299aa0",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-017.json",
+      "id": "context-017",
+      "bytes": 506,
+      "sha256": "b7a753c90fdb884d589fef93360697d9d7989d156761fd98efc7444aeeb8493f",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-018.json",
+      "id": "context-018",
+      "bytes": 560,
+      "sha256": "9a420021712065202bedbdaeeb5ed609a3e669bfcda853a2279c167304224ae3",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-019.json",
+      "id": "context-019",
+      "bytes": 569,
+      "sha256": "6e40cb0ba1eb5eb1f497858104b1b0d8d4582511b857f998e7536484a3a4d6f5",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-020.json",
+      "id": "context-020",
+      "bytes": 567,
+      "sha256": "a45af1b3ef94ade7decfe52225e9e792988f551587e5be9cc3ccd7b5b533bab0",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-021.json",
+      "id": "context-021",
+      "bytes": 840,
+      "sha256": "bbde340f476b4ee8212e94b35bb611a53e6520924012261b54778b98815f7e20",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-022.json",
+      "id": "context-022",
+      "bytes": 888,
+      "sha256": "e8443fdaeefd6cca02c5146e4fe6a9cb66ec257049befe0a2fb6b128517d38bc",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-023.json",
+      "id": "context-023",
+      "bytes": 885,
+      "sha256": "6f4521d5ba82295d93127f1e5e3bd0fb43fbbc6c6e030f7568b5018a87133df7",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-024.json",
+      "id": "context-024",
+      "bytes": 825,
+      "sha256": "4e51c183ee4f5c6fce276aaac801e047d940f8ec3b1d33305a6306d8b24d11c8",
+      "LF": 33,
+      "CRLF": 0
+    },
+    {
+      "file": "context-025.json",
+      "id": "context-025",
+      "bytes": 615,
+      "sha256": "cd3791cd14d603cf7eaacb091126e4c6ec9a817eadc93c4708389cac3005edaa",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "file": "context-026.json",
+      "id": "context-026",
+      "bytes": 604,
+      "sha256": "edb3e9bcc276a71b5410623349b0510eb291e90e61fe8eb119375dde2d06fc31",
+      "LF": 23,
+      "CRLF": 0
+    },
+    {
+      "file": "context-027.json",
+      "id": "context-027",
+      "bytes": 938,
+      "sha256": "e128dc6606b17e0431c4a3e120fba094657143f5a695d0e91bdf9c3a6ea407fd",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-028.json",
+      "id": "context-028",
+      "bytes": 1014,
+      "sha256": "260d1c516e0f8d6d55015f1038a8173314d95bbd7ee840dbb64c0808b6f01199",
+      "LF": 43,
+      "CRLF": 0
+    },
+    {
+      "file": "context-029.json",
+      "id": "context-029",
+      "bytes": 582,
+      "sha256": "856e296a1ee6fbee0ceaf01e022da10e45728c2038bc6b206b109cfb59aeebd9",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-030.json",
+      "id": "context-030",
+      "bytes": 577,
+      "sha256": "f60569af00c8b730b3beaf0255e7b1391d545e975d476a1daffb6f9723d6d75f",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-031.json",
+      "id": "context-031",
+      "bytes": 820,
+      "sha256": "7d4190f7332ade3c63ba1b8d7af3375ca70fe957761893a97e71bbedfde15025",
+      "LF": 37,
+      "CRLF": 0
+    },
+    {
+      "file": "context-032.json",
+      "id": "context-032",
+      "bytes": 742,
+      "sha256": "98e1d4feea1f44227779afe971b93dbc6e20e56f7be79ba4d188867dfdbe9037",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-033.json",
+      "id": "context-033",
+      "bytes": 701,
+      "sha256": "523c5794ca22b9239e62c7a468d66ce9e1b4eaede8d00080578edacc06035731",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "file": "context-034.json",
+      "id": "context-034",
+      "bytes": 647,
+      "sha256": "448029d26fc47729877deab97792ef80d05f718f76ac7c1060a5ac9d06e55fb4",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "file": "context-035.json",
+      "id": "context-035",
+      "bytes": 651,
+      "sha256": "4152775c223927622d7e279658bef73b123893fe3b5c43fa5fd31efa24c69f4d",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "file": "context-036.json",
+      "id": "context-036",
+      "bytes": 675,
+      "sha256": "12667ced266977ad76dba51f19b063e5e6dd7fe5c4bf491344247e52cc2b8ec4",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "file": "context-037.json",
+      "id": "context-037",
+      "bytes": 802,
+      "sha256": "5da7f8498d8f575838d027be330cde25c287be9ccef6e2f78de9a3f588dd068b",
+      "LF": 36,
+      "CRLF": 0
+    },
+    {
+      "file": "context-038.json",
+      "id": "context-038",
+      "bytes": 738,
+      "sha256": "aa31c0b7454ec59fded466007643786157e74df90fd321fc656a243b651ae560",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-039.json",
+      "id": "context-039",
+      "bytes": 739,
+      "sha256": "faa3d1a4626f7da88fa1f0f04315eec9f207483f682b5d050d2b81b0d401bee6",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-040.json",
+      "id": "context-040",
+      "bytes": 845,
+      "sha256": "5031a83917930a5b85e67ab49036a4f2bafa1dacf7ae4aafdb5a2dc1e5733457",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-041.json",
+      "id": "context-041",
+      "bytes": 844,
+      "sha256": "9f615da2909e8e5e97dcfc4881d5ee4871290abe10c8afe9e62866dbf4ec5701",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-042.json",
+      "id": "context-042",
+      "bytes": 852,
+      "sha256": "97a71a46f7d7d08178366bae991bb73e04c2c62c87d16557ff911eb89fd70b1f",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-043.json",
+      "id": "context-043",
+      "bytes": 843,
+      "sha256": "aaecda215aa8d02e93f263672da4fe9443b304646cf53144bbd5c891a46eedab",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-044.json",
+      "id": "context-044",
+      "bytes": 721,
+      "sha256": "5f69310b843a308b25c212fdaa7f9c4c17e72686ed86eba87809b9c8ce36e17e",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-045.json",
+      "id": "context-045",
+      "bytes": 1041,
+      "sha256": "36a18d9641953cd26dda0e7bdf0373a0aa05de70454d8263f1815137078daae5",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-046.json",
+      "id": "context-046",
+      "bytes": 733,
+      "sha256": "6c41e8a3084ddb11d1fd656862a6822744c2e24c18fdd437bb2c4929416f8e29",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-047.json",
+      "id": "context-047",
+      "bytes": 842,
+      "sha256": "69e4e491f5a568c6459095188c9912ee478802ac00ee32c4b54d3c4337d8d9f3",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-048.json",
+      "id": "context-048",
+      "bytes": 848,
+      "sha256": "76695efd8ea5522b3de4feacf62e1191ae94ae5d73489f11622c627e512d9ead",
+      "LF": 38,
+      "CRLF": 0
+    },
+    {
+      "file": "context-049.json",
+      "id": "context-049",
+      "bytes": 735,
+      "sha256": "eab8e2c3b7196281ca7805af809274e671357e0aae3b38a96b46a4495d215348",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-050.json",
+      "id": "context-050",
+      "bytes": 738,
+      "sha256": "0b95154012d4ec0b39e78154cf0bf3d0b7c0fbbd9eb3f6a23a5f65fdd5dc7764",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-051.json",
+      "id": "context-051",
+      "bytes": 739,
+      "sha256": "2cb803a37664fd8e7df693310b35688b0f16c808e23edbe211f4a718a5bed38c",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-052.json",
+      "id": "context-052",
+      "bytes": 1062,
+      "sha256": "76bdb74b4ba7d4814fcc903718cef5c4ae0b457a983b0e155dff9da4744546f1",
+      "LF": 51,
+      "CRLF": 0
+    },
+    {
+      "file": "context-053.json",
+      "id": "context-053",
+      "bytes": 882,
+      "sha256": "9092c91dd8f0c8985c7b39fd1364403da9a15fae4972d9989149f23325620599",
+      "LF": 37,
+      "CRLF": 0
+    },
+    {
+      "file": "context-054.json",
+      "id": "context-054",
+      "bytes": 718,
+      "sha256": "ad8610b54310bc60e0537c8fffaea1e49fbd882ad1664331745dc0ff3b94ad87",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "file": "context-055.json",
+      "id": "context-055",
+      "bytes": 718,
+      "sha256": "dfed0f5ef365b72402cb2beadb7fb5ff038a1c42c461d9d425c3d887d69f2544",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "file": "context-056.json",
+      "id": "context-056",
+      "bytes": 2136,
+      "sha256": "5f33ff896af7f4c09c28c3d62b46dbc716cf501e328799f759f8e2f625f6c5d9",
+      "LF": 101,
+      "CRLF": 0
+    },
+    {
+      "file": "context-057.json",
+      "id": "context-057",
+      "bytes": 745,
+      "sha256": "2402c6cec5bb00828d8a105a6f50948412b9684ac935219fdfd5fd671c199a08",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-058.json",
+      "id": "context-058",
+      "bytes": 798,
+      "sha256": "314b2b46c35902040bbe8e818bd52a9c4a7e9a6effa8f9ce8ddb84f83bb803ff",
+      "LF": 33,
+      "CRLF": 0
+    },
+    {
+      "file": "context-059.json",
+      "id": "context-059",
+      "bytes": 1951,
+      "sha256": "ebf31308a2fbb2f8233249af6d5c7a1e9c9a0b56bfe96cc2380668003ab595b3",
+      "LF": 94,
+      "CRLF": 0
+    },
+    {
+      "file": "context-060.json",
+      "id": "context-060",
+      "bytes": 984,
+      "sha256": "251da391565b2f75a354fed7a0aedef001ee22dade0076b46eeb3038c13067c5",
+      "LF": 48,
+      "CRLF": 0
+    },
+    {
+      "file": "context-061.json",
+      "id": "context-061",
+      "bytes": 988,
+      "sha256": "8f15cf0cd138204256a48e89b35368f706a323bb43f525d9ead8209f8e472c47",
+      "LF": 48,
+      "CRLF": 0
+    },
+    {
+      "file": "context-062.json",
+      "id": "context-062",
+      "bytes": 838,
+      "sha256": "85a09a80990676698fbf33a698741b20781ebdca0771e6b97c6181f4d06f9a48",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-063.json",
+      "id": "context-063",
+      "bytes": 840,
+      "sha256": "05805d515e4c3b2acbea10db8169448619f538b69f1ddb4c1f9bb4d744c617a4",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-064.json",
+      "id": "context-064",
+      "bytes": 843,
+      "sha256": "12a5f99aaa6a9dfcd129b1b32b0dd172cedc33943995f036aaf534c7126634a9",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-065.json",
+      "id": "context-065",
+      "bytes": 840,
+      "sha256": "838f2c67e8e5279ed6c3dd9a0d9297f50a2971c1e3179004d7946cc41e37f614",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-066.json",
+      "id": "context-066",
+      "bytes": 838,
+      "sha256": "6753c91ce2db4bbb68c973c92416c7e06847fb749d519030a730d7addf0289fe",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-067.json",
+      "id": "context-067",
+      "bytes": 835,
+      "sha256": "a199ecafcffb2d188ee2c3c7a25a8ea5cc3ff832165588a1561e79b2b94f1c3d",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-068.json",
+      "id": "context-068",
+      "bytes": 834,
+      "sha256": "2f5ca488771fc73b8dc986e37d097715e8d53873d663d7f73498ca7ff0f932aa",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-069.json",
+      "id": "context-069",
+      "bytes": 1086,
+      "sha256": "914fef496d5b35eadfb8e5db328d9902e37a4e53622558fa15e59a85a531cfbd",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-070.json",
+      "id": "context-070",
+      "bytes": 994,
+      "sha256": "0a2d2aece7827052e747b0ecba7cf610f86ff4f5bd5f80e67a1eeb83eb63a2fe",
+      "LF": 48,
+      "CRLF": 0
+    },
+    {
+      "file": "context-071.json",
+      "id": "context-071",
+      "bytes": 840,
+      "sha256": "5027595efb38b1c8690c7d4d6f5a186baa9904f22013b4c57c2d4e2c65656283",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-072.json",
+      "id": "context-072",
+      "bytes": 839,
+      "sha256": "1972c4dc1349b73473007737a7cbb8f5e5a3163a67ba8f7b800fb264d7411480",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-073.json",
+      "id": "context-073",
+      "bytes": 839,
+      "sha256": "cb5bd9f9bf391a3655d15bb58313899c3a2c62a43890c3d4b2e9172a189001b0",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-074.json",
+      "id": "context-074",
+      "bytes": 839,
+      "sha256": "626e4806672e9ef3ed46e634df113c709bdb117910c025ec5f0b2801a0c94739",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-075.json",
+      "id": "context-075",
+      "bytes": 929,
+      "sha256": "bb89d73a1863908b322e9ffd9dd34c91aed47da59467c27cb34ea39985bc5b4b",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-076.json",
+      "id": "context-076",
+      "bytes": 817,
+      "sha256": "818a92b9be5b7cc81bbd1c5d15c40ece24c1f573515b91323566dde9bd81a68a",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-077.json",
+      "id": "context-077",
+      "bytes": 2939,
+      "sha256": "f39fe78084f5caf6369294c10b00483dbfdf439b75214cf8037c466a4c4ca4b4",
+      "LF": 117,
+      "CRLF": 0
+    },
+    {
+      "file": "context-078.json",
+      "id": "context-078",
+      "bytes": 2948,
+      "sha256": "e93a8576ae609b9c8bc089d30aeeca946ffb87ba326cd42096fc2fd7f20c53d5",
+      "LF": 117,
+      "CRLF": 0
+    },
+    {
+      "file": "context-079.json",
+      "id": "context-079",
+      "bytes": 2948,
+      "sha256": "a8661f02e2de76fca516272a6fe994a6a87eb0cb90ee082f6d0f3a8ca497a956",
+      "LF": 117,
+      "CRLF": 0
+    },
+    {
+      "file": "context-080.json",
+      "id": "context-080",
+      "bytes": 587,
+      "sha256": "10deed55c85cb48434a39c2b0714e2909ab5fc0c77964c505cd3b5133aa3b7d9",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-081.json",
+      "id": "context-081",
+      "bytes": 585,
+      "sha256": "111c2f253ee2ce2642af8ff3dd52f90e877cf70b7768fa3d0b172ede1a1f0913",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-082.json",
+      "id": "context-082",
+      "bytes": 614,
+      "sha256": "a4c8619b8612534903e4a86d754b8c50eb53a43bc2e6e7f8014333547a196240",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "file": "context-083.json",
+      "id": "context-083",
+      "bytes": 622,
+      "sha256": "a50f153ff0ab1ad0acc3392c788f273fad78e226ead1beeafd6c2dfc56f83395",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "file": "context-084.json",
+      "id": "context-084",
+      "bytes": 604,
+      "sha256": "8f3cccdd39b890c2f84ba1b049d600db4c5301ff264c95ab241fef78ab460d68",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "file": "context-085.json",
+      "id": "context-085",
+      "bytes": 211792,
+      "sha256": "8e7c4f02ff4a4bd9425ae6d170e68f1e32eb449dbf042f006b91b54cdd638c0b",
+      "LF": 98,
+      "CRLF": 0
+    },
+    {
+      "file": "context-086.json",
+      "id": "context-086",
+      "bytes": 1903,
+      "sha256": "e180a6d609ad5f32d018ba204194371aa03b4ce2491255e461ed13a61d94c0f8",
+      "LF": 100,
+      "CRLF": 0
+    },
+    {
+      "file": "context-087.json",
+      "id": "context-087",
+      "bytes": 932,
+      "sha256": "d2cdfaebffce5650518a496f2e8c96f111495682c4e2b37461b397ae2bc3e302",
+      "LF": 48,
+      "CRLF": 0
+    },
+    {
+      "file": "context-088.json",
+      "id": "context-088",
+      "bytes": 100633,
+      "sha256": "5d76c8b9f4ab6a810e324ab7324abd973eb0e86a8b5f5395fa37b3d5f9ae82c6",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "file": "context-089.json",
+      "id": "context-089",
+      "bytes": 604,
+      "sha256": "1c316ca3ffbb0727e0e2facd0b2db886ca94193f47f44d2bc92b675dfe690a1a",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "file": "context-090.json",
+      "id": "context-090",
+      "bytes": 729,
+      "sha256": "f024ec38f53f229d2947b6f1c0a875a728c167c67c10ba0ca735be21ee1154b2",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-091.json",
+      "id": "context-091",
+      "bytes": 733,
+      "sha256": "ce73ec4b292d23196052e5ce0ed747a894283b41ec2479975b066a76eb224ff0",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "file": "context-092.json",
+      "id": "context-092",
+      "bytes": 917,
+      "sha256": "3d35c91708f109588326ac3234e6864333ccef5ce8d94a3cc9cf8a6d10b742a0",
+      "LF": 39,
+      "CRLF": 0
+    },
+    {
+      "file": "context-093.json",
+      "id": "context-093",
+      "bytes": 961,
+      "sha256": "194d8f15986d1718d5166a47024310a9820401c04addad887e5d8317177ddad6",
+      "LF": 44,
+      "CRLF": 0
+    },
+    {
+      "file": "context-094.json",
+      "id": "context-094",
+      "bytes": 705,
+      "sha256": "c8f217e24e05da2a44dd67538397d1941972174f16174d00e7667c854dd59f0f",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "file": "context-095.json",
+      "id": "context-095",
+      "bytes": 734,
+      "sha256": "39de0312f8c2fdc8364d25d3f2ca31b398013d3928889a85f79050ff143f76bb",
+      "LF": 31,
+      "CRLF": 0
+    },
+    {
+      "file": "context-096.json",
+      "id": "context-096",
+      "bytes": 734,
+      "sha256": "0bc5ffb4b709f2f150fcee8cd0ffb8eab208b47f44de3a39a9ffcb5883df5b5b",
+      "LF": 31,
+      "CRLF": 0
+    },
+    {
+      "file": "context-097.json",
+      "id": "context-097",
+      "bytes": 42591,
+      "sha256": "6bbaf87681f01cf4b6139acd7b6a3bac8a17cc9c944167b3c739977eded4f558",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-098.json",
+      "id": "context-098",
+      "bytes": 510,
+      "sha256": "f5f656d1502baf1eb2b6d167ac395afc0cb367b159ccf85e2af7cc3800ea375e",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-099.json",
+      "id": "context-099",
+      "bytes": 522,
+      "sha256": "f1bd6d6956e3ced096eb862bd18ed28e85ae6efd91b5c0ab6f18e9cb064f6213",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-100.json",
+      "id": "context-100",
+      "bytes": 508,
+      "sha256": "7be811e0681561a758141a7d6958aad230f04c9498e00841cfca7e20f20a0b14",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-101.json",
+      "id": "context-101",
+      "bytes": 520,
+      "sha256": "7fe5d2d3c06a374fecd11beecf10c73ac7f3c765d441391aaf66e00e8d899cf0",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-102.json",
+      "id": "context-102",
+      "bytes": 508,
+      "sha256": "d22fee1f3e634a6dbaac26ab03d1c49fa3f5eb8a9df49a3cec267a7a99f8a81a",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-103.json",
+      "id": "context-103",
+      "bytes": 520,
+      "sha256": "02494068ab96871b9d40e44ecf284264ee40b6ab982eb5f850e305484de5ec32",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "file": "context-104.json",
+      "id": "context-104",
+      "bytes": 543,
+      "sha256": "932c74696124505f2b8592ddfc0da469942d1e68e8022c2185db9f98c230201b",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "file": "context-105.json",
+      "id": "context-105",
+      "bytes": 555,
+      "sha256": "cfe927b9524b952791fc8928610d10252b142a0056501da4bf6a948bc2076def",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "file": "context-106.json",
+      "id": "context-106",
+      "bytes": 543,
+      "sha256": "2cd137cfd8af4f407dae6dc3edb43fcbbae3d78a8ee6778ffa4a9d0eb8662de0",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "file": "context-107.json",
+      "id": "context-107",
+      "bytes": 555,
+      "sha256": "86df612534e19165970d6b7419c65019f456ba7c6aff278162731055e11cb8b8",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "file": "context-108.json",
+      "id": "context-108",
+      "bytes": 2768,
+      "sha256": "5b1fd7583be5a7d6f1818c9fb4e5d3777405d89489b588a17959f87e3e96bd88",
+      "LF": 127,
+      "CRLF": 0
+    },
+    {
+      "file": "context-109.json",
+      "id": "context-109",
+      "bytes": 2403,
+      "sha256": "98d9054dafca353d75e0f284e0f1fa486497f61da86e5ada98f39bf3e4608559",
+      "LF": 86,
+      "CRLF": 0
+    },
+    {
+      "file": "context-110.json",
+      "id": "context-110",
+      "bytes": 785,
+      "sha256": "340ba403846ebf661026dcb989a71af7a25f9e97f68f675ed00fdea5d11b271e",
+      "LF": 35,
+      "CRLF": 0
+    },
+    {
+      "file": "context-111.json",
+      "id": "context-111",
+      "bytes": 892,
+      "sha256": "75cb60c1925f714a96354ac597d6a8916f3b151dc186423cead641d3a6ef93de",
+      "LF": 36,
+      "CRLF": 0
+    },
+    {
+      "file": "context-112.json",
+      "id": "context-112",
+      "bytes": 1591,
+      "sha256": "ca59d8bb3e87ee93c75f51bcb40fcbc9f757ac0e396bd9b3426cce7810a5e179",
+      "LF": 74,
+      "CRLF": 0
+    },
+    {
+      "file": "context-113.json",
+      "id": "context-113",
+      "bytes": 1430,
+      "sha256": "14d7b8787a5a11bb3619e1d8bad35d6bf18c29889044af03049e06fc440e63e6",
+      "LF": 56,
+      "CRLF": 0
+    },
+    {
+      "file": "context-114.json",
+      "id": "context-114",
+      "bytes": 5552,
+      "sha256": "520aba46e3ae5cae4a24054724b11501538b49b15aeb6563f45abb50d3488c86",
+      "LF": 79,
+      "CRLF": 0
+    },
+    {
+      "file": "context-115.json",
+      "id": "context-115",
+      "bytes": 5590,
+      "sha256": "ec6d6a2d696f1bf769c5a5143ef652d88f266aa0b9e9aa0738808e6d485d210b",
+      "LF": 73,
+      "CRLF": 0
+    },
+    {
+      "file": "context-116.json",
+      "id": "context-116",
+      "bytes": 2678,
+      "sha256": "795e5a513c549eeaa4f432583c7c01976b7632e644ad45850afe3bd9939d0077",
+      "LF": 122,
+      "CRLF": 0
+    },
+    {
+      "file": "context-117.json",
+      "id": "context-117",
+      "bytes": 2386,
+      "sha256": "eae5508e30189277ff0a13f3545abbcf5f0abd9f8d85e0c6b8206d67e7ff54cd",
+      "LF": 87,
+      "CRLF": 0
+    },
+    {
+      "file": "context-118.json",
+      "id": "context-118",
+      "bytes": 2682,
+      "sha256": "b46c453c18a29484bef5a38d12ccaf471fafbe84fafd063f05874ae29aa708ab",
+      "LF": 122,
+      "CRLF": 0
+    },
+    {
+      "file": "context-119.json",
+      "id": "context-119",
+      "bytes": 2398,
+      "sha256": "cae1f6560cb94649f1fa0f5414a0b760beae74e188f4bcfa0c7c626a6bbe989c",
+      "LF": 87,
+      "CRLF": 0
+    },
+    {
+      "file": "context-120.json",
+      "id": "context-120",
+      "bytes": 2707,
+      "sha256": "b625b8f85ef7dc7998a55614dc6e5a2bbb42fa600cb61b264290743778974455",
+      "LF": 122,
+      "CRLF": 0
+    },
+    {
+      "file": "context-121.json",
+      "id": "context-121",
+      "bytes": 2473,
+      "sha256": "cb466278f4aabd44ff2ea8afeabb6e8a9a072df7973dbb9e56395665d82fb421",
+      "LF": 87,
+      "CRLF": 0
+    },
+    {
+      "file": "context-122.json",
+      "id": "context-122",
+      "bytes": 2667,
+      "sha256": "00b4ca4acc1b02a25f3a286200edf4aa59ad52de88d0e3712d5449b2d0934430",
+      "LF": 122,
+      "CRLF": 0
+    },
+    {
+      "file": "context-123.json",
+      "id": "context-123",
+      "bytes": 2357,
+      "sha256": "a05d64ae7cae6828a51feddabbab6a40ed17369fc574d029b1c6ceb0387399c9",
+      "LF": 87,
+      "CRLF": 0
+    },
+    {
+      "file": "context-124.json",
+      "id": "context-124",
+      "bytes": 2280,
+      "sha256": "4b9283eb10177f29ab9088a419239f196b0eb1d2379c46c50c735fc1920cb645",
+      "LF": 104,
+      "CRLF": 0
+    },
+    {
+      "file": "context-125.json",
+      "id": "context-125",
+      "bytes": 2106,
+      "sha256": "ba91dfb572e1762c4892363738e6ccd280c3dca398c3453df662a3f3a2b50b71",
+      "LF": 81,
+      "CRLF": 0
+    },
+    {
+      "file": "context-126.json",
+      "id": "context-126",
+      "bytes": 2500,
+      "sha256": "4f83aec3113aa5fe26c61624e97fe4741f27faa9c19d15bc82fbfffbe9345643",
+      "LF": 115,
+      "CRLF": 0
+    },
+    {
+      "file": "context-127.json",
+      "id": "context-127",
+      "bytes": 2255,
+      "sha256": "43e80f7e830208ec9a0de8c1d2efceb7459dd01ad57b21e718dec89d1bc63dc3",
+      "LF": 82,
+      "CRLF": 0
+    },
+    {
+      "file": "context-128.json",
+      "id": "context-128",
+      "bytes": 2525,
+      "sha256": "3f697a2999dc7fb2de9a10e6ad8f5570ff68023f6ff5b9cc90bf08b0e613c1d8",
+      "LF": 115,
+      "CRLF": 0
+    },
+    {
+      "file": "context-129.json",
+      "id": "context-129",
+      "bytes": 2330,
+      "sha256": "1ea1f644fc24c9cae9b06337deb2002f589067df5a597c3657ad49e800d57077",
+      "LF": 82,
+      "CRLF": 0
+    },
+    {
+      "file": "context-130.json",
+      "id": "context-130",
+      "bytes": 2269,
+      "sha256": "4a39f794fed6624fa6d51340f83a40ee472500a644b38ae3a2bc67e89f7b64e6",
+      "LF": 104,
+      "CRLF": 0
+    },
+    {
+      "file": "context-131.json",
+      "id": "context-131",
+      "bytes": 2077,
+      "sha256": "2377f426b49238fed9ef71f5c9dd254cf66dedcf3e613e75a0ef290aaf9459ec",
+      "LF": 81,
+      "CRLF": 0
+    },
+    {
+      "file": "context-132.json",
+      "id": "context-132",
+      "bytes": 13653,
+      "sha256": "16854980e0cdab07a0c8bc65c79491c09a523505725f1638a1f2df364fc8c59f",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-133.json",
+      "id": "context-133",
+      "bytes": 13655,
+      "sha256": "e2599b2e5865ff03d39059cb2c3282a118d514748a50c15cc3c04d1edd35aa91",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-134.json",
+      "id": "context-134",
+      "bytes": 13757,
+      "sha256": "ce9342143ca08dd4e4657f4f90e044d0afb992e549a29478796d54c63b5bfe18",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-135.json",
+      "id": "context-135",
+      "bytes": 19736,
+      "sha256": "478daf935a99d54f3abaf270d5413af9148e54b3c643632d299f729cde1fb1e6",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-136.json",
+      "id": "context-136",
+      "bytes": 22888,
+      "sha256": "a9de4ddae8c1ebbcdff0b94897413eb4beb336c01bed48f3cb53d6a65ac63874",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-137.json",
+      "id": "context-137",
+      "bytes": 22888,
+      "sha256": "215636389ae14dde87827fc858a6fad56fc85e2bbf97d9420be98b1723f8a034",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-138.json",
+      "id": "context-138",
+      "bytes": 19736,
+      "sha256": "35b3c1d79f5bc5ac9eeff9d529fcf1461364894ab9f707c1d478e95b46b78091",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-139.json",
+      "id": "context-139",
+      "bytes": 19737,
+      "sha256": "bac849e0c9f5818efb253660e692e2825b35fb5d8dc87a512dfdff8c122a1767",
+      "LF": 142,
+      "CRLF": 0
+    },
+    {
+      "file": "context-140.json",
+      "id": "context-140",
+      "bytes": 516,
+      "sha256": "ff0c14b4fdb395ca821b233797e0334ae76a8b0f6c815c0f73c9c9f93776c754",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-141.json",
+      "id": "context-141",
+      "bytes": 526,
+      "sha256": "5a45ec056f23aeeb50ca67c04706231de1b6b779e8ed0ab9ff54c3d4b9262edf",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-142.json",
+      "id": "context-142",
+      "bytes": 668,
+      "sha256": "7f4682f39b6f62b2aed9941aa5aaaee9c871f7bcb9d8d41eee4b5a80b9315d15",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-143.json",
+      "id": "context-143",
+      "bytes": 655,
+      "sha256": "79357a903aea7528d1379813746c7bf66dfffe6488178284be3f3c403f11bd5b",
+      "LF": 19,
+      "CRLF": 0
+    },
+    {
+      "file": "context-144.json",
+      "id": "context-144",
+      "bytes": 746,
+      "sha256": "c776a2c2538820df41b78c8560dcd2846a9ca5c87d4bb6cefa9ffd6c7aef32a8",
+      "LF": 19,
+      "CRLF": 0
+    }
+  ],
+  "determinism": {
+    "time": 1000.0,
+    "token_hex": "a5 repeated n times",
+    "network": "denied",
+    "capture_passes": 2
+  },
+  "deferred": [
+    "HTTP runtime result token/replay/concurrency/TTL",
+    "MODULE integration",
+    "live game bridge"
+  ]
+}

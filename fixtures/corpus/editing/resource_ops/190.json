@@ -1,0 +1,41 @@
+{
+  "id": "limits-dependency-root-res",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "ResourcePath",
+          "value": "res://"
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Ресурс не найден: res://",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "44e18685c9d76f123b1ad4c450a1f18f6f72daff49a2a9f6f1a5e5dac41c6a00"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "wait-silence-empty",
+  "op": "wait",
+  "answer": {
+    "text": ""
+  },
+  "count": 1,
+  "length": 0,
+  "ready": true,
+  "timeout": 60
+}

@@ -1,0 +1,32 @@
+{
+  "id": "008-py_syntax",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://e.py"
+  },
+  "reference_result": {
+    "path": "res://e.py",
+    "problems": [
+      "python syntax: invalid syntax (res://e.py, line 1)"
+    ],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://e.py",
+      "problems": [
+        "python syntax: invalid syntax (res://e.py, line 1)"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "py"
+      ],
+      "unavailable": []
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "kind": "call",
+  "module": "model_cache",
+  "function": "_clean_records",
+  "args": [
+    [
+      {
+        "id": "a",
+        "cost_out": 1.2,
+        "tool_call": false,
+        "created": 100
+      }
+    ]
+  ],
+  "kwargs": {},
+  "id": "api-134"
+}

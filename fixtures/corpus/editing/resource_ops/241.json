@@ -1,0 +1,69 @@
+{
+  "id": "c24-tileset_add_atlas_source",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 7,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://new.tres"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IlRpbGVTZXQiIGZvcm1hdD0zIHVpZD0idWlkOi8vYzI0cHJvYmU0Il0KCltyZXNvdXJjZV0K"
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IlRpbGVTZXQiIGZvcm1hdD0zIHVpZD0idWlkOi8vYzI0cHJvYmU0Il0KCltleHRfcmVzb3VyY2UgdHlwZT0iVGV4dHVyZTJEIiBwYXRoPSJyZXM6Ly9uZXcudHJlcyIgaWQ9ImFnZW50XzEiXQoKW3N1Yl9yZXNvdXJjZSB0eXBlPSJUaWxlU2V0QXRsYXNTb3VyY2UiIGlkPSJhZ2VudF8yIl0KCnRleHR1cmUgPSBFeHRSZXNvdXJjZSgiYWdlbnRfMSIpCnRleHR1cmVfcmVnaW9uX3NpemUgPSBWZWN0b3IyaSgxNiwgMTYpCjA6MC8wID0gMAoxOjAvMCA9IDAKW3Jlc291cmNlXQpzb3VyY2VzLzcgPSBTdWJSZXNvdXJjZSgiYWdlbnRfMiIpCg==",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_execute": "tileset_add_atlas_source-native.output.json",
+    "generated_load": "tileset_add_atlas_source-generated.output.json",
+    "projection_sha256": "21dc4a19f7794ccd8f050934c1b323cc84e46f64fa515053902baae532fe19a7",
+    "semantic_hash": "e8a763784846c7281abde85c1f0ec17366bc59e28a101f75e934d39249bb7123",
+    "proof_sha256": "9885f724f3b4458b25ba7dc9f872cf785c585ed9871e23ce591f5f7fc4e97d5f",
+    "decision": "D18"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "e808afa3007bb73b05ca03ec5a53897d9bd52a86bd7f058db9de1e5bc99cf778",
+      "after_hash": "5762ca5ac99eeed1497c9609e208c64ed5e14e42f3f867fbebffce7c9a8e275c",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

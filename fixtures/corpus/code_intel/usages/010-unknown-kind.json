@@ -1,0 +1,15 @@
+{
+  "id": "010-unknown-kind",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "kind вне списка семи видов: invalid_input",
+  "args": {
+    "kind": "method",
+    "old_name": "take_damage",
+    "declaration": "res://src/lab_entity.gd:12"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

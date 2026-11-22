@@ -1,0 +1,53 @@
+{
+  "id": "mirror-callback-failures",
+  "kind": "mirror",
+  "native_case_source": "test_v88_11_live_input.py:callback/seq/busy/error cases; new sequences",
+  "steps": [
+    {
+      "seq": 1,
+      "settings": {
+        "no_driver": true
+      }
+    },
+    {
+      "seq": 2,
+      "settings": {
+        "driver_error": true
+      }
+    },
+    {
+      "seq": 3,
+      "settings": {
+        "no_parser": true
+      }
+    },
+    {
+      "seq": 4,
+      "settings": {
+        "parser_error": true
+      }
+    },
+    {
+      "seq": 5,
+      "settings": {
+        "prefer_error": true
+      }
+    },
+    {
+      "seq": 6,
+      "settings": {
+        "apply_error": true
+      }
+    },
+    {
+      "seq": 7,
+      "settings": {
+        "applied": false
+      }
+    },
+    {
+      "seq": 8,
+      "text": "восстановлен"
+    }
+  ]
+}

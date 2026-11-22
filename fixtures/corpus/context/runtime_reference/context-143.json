@@ -1,0 +1,19 @@
+{
+  "input": {
+    "module": "editor_context",
+    "function": "user_prompt_without_context",
+    "args": [
+      "[Godot editor context v1; snapshot at send time, user request has priority]\nx\n[/Godot editor context]\n\n=== USER REQUEST ===\nrequest"
+    ],
+    "kwargs": {},
+    "id": "context-143"
+  },
+  "expect": "request",
+  "provenance": {
+    "source": "server/editor_context.py",
+    "source_sha256": "32613d28449674134888ecf8e1b9088ff9b30f30c9baeecacf1fe799f6349362",
+    "function": "user_prompt_without_context",
+    "case_source": "test_editor_context.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "049-unused_sub_resource",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\n",
+      "changed": false,
+      "problems": [
+        "[sub_resource id=\"a\"] объявлен, но нигде не используется через SubResource(\"a\") — Godot удалит его при пересохранении сцены. Сошлись на него в свойстве узла/ресурса или убери объявление."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\n",
+    "changed": false,
+    "problems": [
+      "[sub_resource id=\"a\"] объявлен, но нигде не используется через SubResource(\"a\") — Godot удалит его при пересохранении сцены. Сошлись на него в свойстве узла/ресурса или убери объявление."
+    ]
+  },
+  "reference_api_classes": null
+}

@@ -1,0 +1,21 @@
+{
+  "id": "017-rigidbody_note",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/017-rigidbody_note",
+  "note": "rigidbody_note",
+  "args": {
+    "path": "res://main.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"s\"]\n[node name=\"Root\" type=\"Node\"]\nscript = ExtResource(\"s\")\n[node name=\"Body\" type=\"RigidBody2D\" parent=\".\"]\n\n[connection signal=\"body_entered\" from=\"Body\" to=\".\" method=\"_on_body_body_entered\"]\n",
+      "added": [
+        "body_entered: Body -> .._on_body_body_entered"
+      ],
+      "notes": [
+        "для сигнала body_entered у Body (RigidBody) нужны contact_monitor = true и max_contacts_reported > 0, иначе сигнал не будет срабатывать"
+      ]
+    }
+  }
+}

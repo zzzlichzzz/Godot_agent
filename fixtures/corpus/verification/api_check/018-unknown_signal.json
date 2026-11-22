@@ -1,0 +1,25 @@
+{
+  "id": "018-unknown_signal",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "unknown_signal",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tconnect(\"unknown\", Callable())\n"
+  },
+  "reference_result": [
+    "строка 3: connect(\"unknown\", ...) — сигнала «unknown» нет у Node2D и он не объявлен в этом скрипте"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 3: connect(\"unknown\", ...) — сигнала «unknown» нет у Node2D и он не объявлен в этом скрипте"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

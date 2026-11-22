@@ -1,0 +1,47 @@
+{
+  "id": "001-player.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/player.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Player (CharacterBody2D)  [скрипт: res://scripts/player.gd]\n  - Sprite (Sprite2D)\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=1_player Script: res://scripts/player.gd",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Player",
+          "type": "CharacterBody2D",
+          "script": "res://scripts/player.gd",
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Sprite",
+          "type": "Sprite2D",
+          "script": null,
+          "instance": null,
+          "parent": ".",
+          "path": "Sprite"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1_player",
+            "type": "Script",
+            "path": "res://scripts/player.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

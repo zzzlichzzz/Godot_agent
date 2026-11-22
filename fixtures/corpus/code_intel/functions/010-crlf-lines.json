@@ -1,0 +1,27 @@
+{
+  "id": "010-crlf-lines",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Файл с CRLF: splitlines и универсальные переводы строк — номера строк и snippet не съезжают",
+  "args": {
+    "path": "res://scripts/crlf_line.gd",
+    "names": [
+      "_ready"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/crlf_line.gd",
+      "functions": [
+        {
+          "name": "_ready",
+          "snippet": "# Файл сохранён с CRLF: проверяем нормализацию переводов строк.\nfunc _ready() -> void:\n\tprint(\"crlf ok\")",
+          "start_line": 3,
+          "end_line": 5
+        }
+      ],
+      "missing": []
+    }
+  }
+}

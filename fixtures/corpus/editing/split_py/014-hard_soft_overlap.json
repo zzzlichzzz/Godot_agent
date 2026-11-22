@@ -1,0 +1,93 @@
+{
+  "id": "014-hard_soft_overlap",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 1,
+      "source_read": 0,
+      "patch": 0,
+      "mention": 1,
+      "doc": 1
+    },
+    "occurrences": [
+      {
+        "rel": "both.py",
+        "line": 1,
+        "kind": "import",
+        "text": "import donor"
+      },
+      {
+        "rel": "both.py",
+        "line": 2,
+        "kind": "mention",
+        "text": "print(\"donor.py\")"
+      },
+      {
+        "rel": "note.md",
+        "line": 1,
+        "kind": "doc",
+        "text": "donor.py"
+      }
+    ],
+    "hard_files": [
+      "both.py"
+    ],
+    "soft_files": [
+      "both.py",
+      "note.md"
+    ],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/hard_soft_overlap",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 1,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 1,
+        "doc": 1
+      },
+      "occurrences": [
+        {
+          "file": "both.py",
+          "line": 1,
+          "kind": "import",
+          "text": "import donor"
+        },
+        {
+          "file": "both.py",
+          "line": 2,
+          "kind": "mention",
+          "text": "print(\"donor.py\")"
+        },
+        {
+          "file": "note.md",
+          "line": 1,
+          "kind": "doc",
+          "text": "donor.py"
+        }
+      ],
+      "hard_files": [
+        "both.py"
+      ],
+      "soft_files": [
+        "both.py",
+        "note.md"
+      ],
+      "truncated": false
+    }
+  }
+}

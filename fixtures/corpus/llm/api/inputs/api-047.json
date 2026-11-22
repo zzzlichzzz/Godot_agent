@@ -1,0 +1,14 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "classify_http_error",
+  "args": [
+    401,
+    "{\"error\": {\"message\": \"invalid key\"}}",
+    {
+      "Retry-After": "120"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-047"
+}

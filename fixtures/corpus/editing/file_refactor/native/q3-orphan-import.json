@@ -1,0 +1,84 @@
+{
+  "id": "q3-orphan-import",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://orphan.import",
+      "res://other.import"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "files": {
+      "orphan.import": {
+        "bytes": 8,
+        "sha256": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://orphan.import",
+    "new_path": "res://other.import",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://orphan.import",
+        "dest": "res://other.import",
+        "absolute": "<PROJECT>\\orphan.import",
+        "dest_absolute": "<PROJECT>\\other.import",
+        "before_hash": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210",
+        "before_bytes": {
+          "$bytes_base64": "b3JwaGFuDQo="
+        },
+        "after_bytes": {
+          "$bytes_base64": "b3JwaGFuDQo="
+        },
+        "diff": {
+          "path": "res://orphan.import",
+          "action": "move_file",
+          "dest": "res://other.import",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://other.import"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://other.import"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "orphan.import": {
+        "bytes": 8,
+        "sha256": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "project_byte_tree_unchanged": true
+}

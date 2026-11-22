@@ -1,0 +1,5 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://scripts/main.gd" id="s"]
+[node name="Root" type="Node"]
+script = ExtResource("s")
+[node name="Button" type="Button" parent="."]

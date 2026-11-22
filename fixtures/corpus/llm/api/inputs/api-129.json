@@ -1,0 +1,70 @@
+{
+  "kind": "state",
+  "operations": [
+    {
+      "module": "api_keys",
+      "function": "set_base_url",
+      "args": [
+        "custom",
+        "http://127.0.0.1:1/v1"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "set_model",
+      "args": [
+        "custom",
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "providers",
+      "function": "readiness",
+      "args": [
+        "custom"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "providers",
+      "function": "readiness_code",
+      "args": [
+        "missing"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "providers",
+      "function": "readiness_code",
+      "args": [
+        "agentrouter"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "set_defaults",
+      "args": [
+        "custom",
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "get_defaults",
+      "args": [],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-129"
+}

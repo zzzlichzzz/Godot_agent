@@ -1,0 +1,17 @@
+{
+  "id": "037-valid_literals",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "valid_literals",
+  "args": {
+    "path": "res://scripts/valid_literals.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 116
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "004-path-traversal",
+  "tool": "assistant_plan",
+  "args": {
+    "action": {
+      "action": "create_file",
+      "path": "res://../outside.gd",
+      "content": "extends Node\n"
+    }
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

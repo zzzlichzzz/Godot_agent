@@ -1,0 +1,28 @@
+{
+  "input": {
+    "id": "routing054",
+    "label": "parse_action",
+    "function": "parse_action",
+    "args": [
+      "<tool_call><action><tool_name>x</tool_name><arguments>{bad}</arguments></action></tool_call>"
+    ]
+  },
+  "expect": {
+    "result": [
+      {
+        "action": "parse_error",
+        "raw": "<tool_call><action><tool_name>x</tool_name><arguments>{bad}</arguments></action></tool_call>",
+        "error": "в XML arguments ожидался JSON-объект: неизвестная ошибка"
+      },
+      ""
+    ],
+    "stdout": "[parser_base] JSON разобран только внешним json_repair (итого: сразу=0, починкой=0, json_repair=1, провал=0)\n[api_backend] XML tool call не разобран: в XML arguments ожидался JSON-объект: неизвестная ошибка\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "parse_action",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

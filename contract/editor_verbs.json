@@ -1,0 +1,387 @@
+{
+  "schema_version": 1,
+  "verbs_version": 3,
+  "_status": "contract",
+  "_note": "Словарь примитивов моста редактора (R-14). Источник правды для Python-клиента и GDScript-сервера; обработчик в GDScript помечается строкой `# verb: <name>`, сверка — tools/gen_contract.py --check.",
+  "_change_policy": "Добавление примитива — verbs_version + 1, аддитивно: старый клиент продолжает работать, новый клиент на старом сервере получает engine_down/verbs_mismatch. Изменение семантики существующего примитива (значение поля, единицы, момент вызова) — +1, и старый сервер считается несовместимым. Изменение только описаний и схем без изменения поведения — версию не меняем. Правило «добавил примитив — поднял версию» машинно не проверяется: бамп и запись в ADR обязательны по этой политике.",
+  "frame": {
+    "encoding": "4-byte big-endian length + UTF-8 JSON",
+    "max_bytes": 1048576,
+    "handshake": "первый кадр: {hello: {protocol, verbs_version, godot, project_hash, token}}"
+  },
+  "verbs": [
+    {
+      "name": "editor_ping",
+      "effects": "read",
+      "thread": "main",
+      "result": ["godot", "verbs_version", "protocol", "open_scenes", "uptime_s"],
+      "result_schema": {
+        "type": "object",
+        "properties": {
+          "godot": {
+            "type": "string",
+            "description": "Версия движка, например \"4.6\"."
+          },
+          "verbs_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Версия словаря, которую обслуживает сервер."
+          },
+          "protocol": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Версия кадра и handshake (ADR-0007)."
+          },
+          "open_scenes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Сколько сцен открыто в редакторе."
+          },
+          "uptime_s": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Секунды с запуска моста."
+          }
+        },
+        "required": ["godot", "verbs_version", "protocol", "open_scenes", "uptime_s"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "editor_state",
+      "effects": "read",
+      "thread": "main",
+      "result": ["open_scenes", "active_scene", "project_hash"],
+      "result_schema": {
+        "type": "object",
+        "properties": {
+          "open_scenes": {
+            "type": "array",
+            "description": "Открытые сцены: корни EditorInterface.get_open_scenes(), не все загруженные Node.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Путь сцены: res://... ."
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Счётчик редактора, не mtime файла; в части B станет expected_revision."
+                },
+                "dirty": {
+                  "type": "boolean",
+                  "description": "Есть несохранённые правки."
+                },
+                "active": {
+                  "type": "boolean",
+                  "description": "Сцена активна в редакторе."
+                },
+                "unsaved_changes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Сколько правок не сохранено."
+                }
+              },
+              "required": ["path", "revision", "dirty", "active", "unsaved_changes"],
+              "additionalProperties": false
+            }
+          },
+          "active_scene": {
+            "type": ["string", "null"],
+            "description": "Путь активной сцены; null, если открытых сцен нет."
+          },
+          "project_hash": {
+            "type": "string",
+            "description": "Отпечаток проекта; чужой project_hash — engine_down/wrong_project."
+          }
+        },
+        "required": ["open_scenes", "active_scene", "project_hash"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "editor_selection",
+      "effects": "read",
+      "thread": "main",
+      "result": ["node_path", "scene", "properties", "script"],
+      "result_schema": {
+        "type": "object",
+        "properties": {
+          "node_path": {
+            "type": ["string", "null"],
+            "description": "Путь выбранного узла от корня сцены; null без выделения."
+          },
+          "scene": {
+            "type": ["string", "null"],
+            "description": "Путь сцены выделения: res://...; null без выделения."
+          },
+          "properties": {
+            "type": "array",
+            "description": "Свойства выбранного узла; пустой массив без выделения.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Имя свойства."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Тип значения, например \"int\"."
+                },
+                "value": {
+                  "description": "Значение как JSON; форма — по полю type, а не строка на все случаи."
+                }
+              },
+              "required": ["name", "type", "value"],
+              "additionalProperties": false
+            }
+          },
+          "script": {
+            "type": ["string", "null"],
+            "description": "Скрипт узла: res://...; null, если скрипта нет."
+          }
+        },
+        "required": ["node_path", "scene", "properties", "script"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "editor_scene_plan",
+      "effects": "write",
+      "thread": "main",
+      "result": [
+        "scene",
+        "revision",
+        "plan_digest",
+        "steps",
+        "would_change",
+        "warnings"
+      ],
+      "result_schema": {
+        "type": "object",
+        "properties": {
+          "scene": {
+            "type": "string",
+            "description": "Путь сцены: res://... ."
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Ревизия редактора на момент плана."
+          },
+          "plan_digest": {
+            "type": "string",
+            "description": "sha256 канонического запроса: сцена, ревизия, операции."
+          },
+          "steps": {
+            "type": "array",
+            "description": "Шаги плана в порядке операций.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Номер шага с нуля."
+                },
+                "op": {
+                  "type": "string",
+                  "description": "Имя операции."
+                },
+                "target_node": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Узел-цель; null для add_node."
+                },
+                "preview": {
+                  "type": "string",
+                  "description": "Что изменится, коротко."
+                }
+              },
+              "required": [
+                "index",
+                "op",
+                "target_node",
+                "preview"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "would_change": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Узлы и поля, которые изменятся (dry-run)."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Некритичные замечания плана."
+          }
+        },
+        "required": [
+          "scene",
+          "revision",
+          "plan_digest",
+          "steps",
+          "would_change",
+          "warnings"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "editor_scene_apply",
+      "effects": "write",
+      "thread": "main",
+      "result": [
+        "scene",
+        "applied_revision",
+        "undo_label",
+        "receipts",
+        "changes"
+      ],
+      "result_schema": {
+        "type": "object",
+        "properties": {
+          "scene": {
+            "type": "string",
+            "description": "Путь сцены: res://... ."
+          },
+          "applied_revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Ревизия после применения батча."
+          },
+          "undo_label": {
+            "type": "string",
+            "description": "Имя единственного undo-шага."
+          },
+          "receipts": {
+            "type": "array",
+            "description": "Квитанции по шагам.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "step_id": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Номер шага."
+                },
+                "op": {
+                  "type": "string",
+                  "description": "Имя операции."
+                },
+                "node_path": {
+                  "type": "string",
+                  "description": "Узел шага."
+                },
+                "applied": {
+                  "type": "boolean",
+                  "description": "Шаг выполнен."
+                }
+              },
+              "required": [
+                "step_id",
+                "op",
+                "node_path",
+                "applied"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "changes": {
+            "type": "array",
+            "description": "Что фактически изменилось.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "node_path": {
+                  "type": "string",
+                  "description": "Узел."
+                },
+                "field": {
+                  "type": "string",
+                  "description": "Поле или свойство."
+                },
+                "before": {
+                  "description": "Значение до."
+                },
+                "after": {
+                  "description": "Значение после."
+                }
+              },
+              "required": [
+                "node_path",
+                "field",
+                "before",
+                "after"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "scene",
+          "applied_revision",
+          "undo_label",
+          "receipts",
+          "changes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "editor_scene_undo",
+      "effects": "write",
+      "thread": "main",
+      "result": ["revision", "undone", "undo_label", "history_version_before",
+                   "history_version"],
+      "result_schema": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Ревизия сцены после отката: счётчик моста вырос на 1."
+          },
+          "undone": {
+            "type": "boolean",
+            "description": "История откатила ровно одно действие (батч apply = один undo-шаг)."
+          },
+          "undo_label": {
+            "type": "string",
+            "description": "Имя отменённого действия undo-истории."
+          },
+          "history_version_before": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Версия истории сцены до отката: батч apply поднял её на 1."
+          },
+          "history_version": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Версия истории после отката: ровно на 1 меньше, чем было."
+          }
+        },
+        "required": [
+          "revision",
+          "undone",
+          "undo_label",
+          "history_version_before",
+          "history_version"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
+

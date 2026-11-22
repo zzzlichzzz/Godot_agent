@@ -1,0 +1,44 @@
+{
+  "kind": "state",
+  "files": {
+    "config/api_keys.json": {
+      "providers": {
+        "fixture": {
+          "key": "fixture-alpha-key-000000000001",
+          "model": "legacy"
+        }
+      }
+    }
+  },
+  "operations": [
+    {
+      "module": "api_keys",
+      "function": "usable_keys",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "get_model",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "add_key",
+      "args": [
+        "fixture",
+        "fixture-beta-key-000000000002"
+      ],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-128"
+}

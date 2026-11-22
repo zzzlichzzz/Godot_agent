@@ -1,0 +1,17 @@
+{
+  "id": "001-clean",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "clean",
+  "args": {
+    "path": "res://scripts/clean.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 59
+    }
+  }
+}

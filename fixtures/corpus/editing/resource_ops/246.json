@@ -1,0 +1,69 @@
+{
+  "id": "c24-track-mixed-first-tie-EOL",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "animation_add_value_track",
+        "path": "Node:position",
+        "keys": [
+          {
+            "time": 0.0,
+            "value": {
+              "type": "Vector2",
+              "value": [
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "time": 1.0,
+            "value": {
+              "type": "Vector2",
+              "value": [
+                2.0,
+                3.0
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0KCjsgaW5wdXQgY29tbWVudCBtdXN0IG5vdCBiZSBtaXN0YWtlbiBmb3IgYW4gb3BlcmF0aW9uDQpbcmVzb3VyY2VdDXJlc291cmNlX25hbWUgPSAiUHJlc2VydmUgdGhpcyBuYW1lIgpsZW5ndGggPSAxLjA="
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0KCjsgaW5wdXQgY29tbWVudCBtdXN0IG5vdCBiZSBtaXN0YWtlbiBmb3IgYW4gb3BlcmF0aW9uDQpbcmVzb3VyY2VdDXJlc291cmNlX25hbWUgPSAiUHJlc2VydmUgdGhpcyBuYW1lIgpsZW5ndGggPSAxLjANCnRyYWNrcy8wL3R5cGUgPSAidmFsdWUiDQp0cmFja3MvMC9pbXBvcnRlZCA9IGZhbHNlDQp0cmFja3MvMC9lbmFibGVkID0gdHJ1ZQ0KdHJhY2tzLzAvcGF0aCA9IE5vZGVQYXRoKCJOb2RlOnBvc2l0aW9uIikNCnRyYWNrcy8wL2ludGVycCA9IDENCnRyYWNrcy8wL2xvb3Bfd3JhcCA9IHRydWUNCnRyYWNrcy8wL2tleXMgPSB7InRpbWVzIjogUGFja2VkRmxvYXQzMkFycmF5KDAuMCwgMS4wKSwgInRyYW5zaXRpb25zIjogUGFja2VkRmxvYXQzMkFycmF5KDEuMCwgMS4wKSwgInVwZGF0ZSI6IDAsICJ2YWx1ZXMiOiBbVmVjdG9yMigwLjAsIDAuMCksIFZlY3RvcjIoMi4wLCAzLjApXX0=",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "decision": "D18/SEC-24",
+    "source_sha256": "edef33817b0f5e9a9885dae55648b2c0c01fa2a8f908c07b10007fa1ff7fbbc5"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "cfd440c4ae775e53b56c7adb4b67d950e24d29b4eec3110a502636335f509017",
+      "after_hash": "a31f1eaeac42636120f011de53121a82ff4cfd06c08401fe78a46400a9f9162e",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

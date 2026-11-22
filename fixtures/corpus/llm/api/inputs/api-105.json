@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "anthropic_compat",
+  "function": "_usage",
+  "args": [
+    {
+      "input_tokens": 12,
+      "output_tokens": 3
+    }
+  ],
+  "kwargs": {},
+  "id": "api-105"
+}

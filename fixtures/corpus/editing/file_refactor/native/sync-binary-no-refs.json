@@ -1,0 +1,90 @@
+{
+  "id": "sync-binary-no-refs",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://src/a.bin",
+    "new_path": "res://dst/a.bin",
+    "is_directory": false
+  },
+  "fixture": {
+    "dirs": [
+      "dst",
+      "src"
+    ],
+    "files": {
+      "dst/a.bin": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      }
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.bin": {
+      "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/"
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "entry_id": "8de220ab78e6",
+    "old_path": "res://src/a.bin",
+    "new_path": "res://dst/a.bin",
+    "is_directory": false,
+    "changed_paths": [],
+    "reference_count": 0,
+    "file_count": 1,
+    "ok": true
+  },
+  "native_effects": {
+    "dst/a.bin": {
+      "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "rollback_result": {
+    "$tuple": [
+      true,
+      "Откачено: rename_file (1 файлов)",
+      false,
+      [
+        "res://src/a.bin"
+      ],
+      null
+    ]
+  },
+  "inverse_files": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.bin": {
+      "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+    }
+  },
+  "inverse_byte_exact": true,
+  "stdout": "",
+  "native_prepared": [
+    {
+      "files": [
+        {
+          "action": "external_move_record",
+          "path": "res://src/a.bin",
+          "dest": "res://dst/a.bin",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\binary-no-refs\\src\\a.bin",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\binary-no-refs\\dst\\a.bin",
+          "is_directory": false
+        }
+      ],
+      "old_path": "res://src/a.bin",
+      "new_path": "res://dst/a.bin",
+      "is_directory": false,
+      "reference_count": 0
+    }
+  ]
+}

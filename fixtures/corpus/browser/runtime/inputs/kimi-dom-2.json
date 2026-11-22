@@ -1,0 +1,6 @@
+{
+  "id": "kimi-dom-2",
+  "op": "dom",
+  "parser": "kimi_parser",
+  "dom": "\u041e\u0442\u0432\u0435\u0442\n```agent_action\n{\"action\":\"done\"}\n```\n===DONE==="
+}

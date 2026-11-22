@@ -1,0 +1,13 @@
+{
+  "id": "015-absolute-path",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Абсолютный путь: политика путей отказывает -> denied",
+  "args": {
+    "path": "/etc/absolute.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

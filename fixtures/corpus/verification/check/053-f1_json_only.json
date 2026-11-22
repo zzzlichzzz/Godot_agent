@@ -1,0 +1,33 @@
+{
+  "id": "053-f1_json_only",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://only.json"
+  },
+  "reference_result": {
+    "path": "res://only.json",
+    "problems": [
+      "json syntax: Expecting value: line 1 column 1 (char 0)"
+    ],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://only.json",
+      "problems": [
+        "json syntax: Expecting value: line 1 column 1 (char 0)"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "json"
+      ],
+      "unavailable": []
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

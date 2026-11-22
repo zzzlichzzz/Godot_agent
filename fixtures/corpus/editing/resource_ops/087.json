@@ -1,0 +1,36 @@
+{
+  "id": "expanded-target1",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": {},
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "target должен быть массивом до 8 свойств",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "39b958e8df8461cbaddc6d32d91e6f0a75ef31650487c524ad26b8248c5f5383"
+}

@@ -1,0 +1,65 @@
+{
+  "id": "004-probable-risk",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Вероятная ссылка (ресивер без типа) попадает в risks с причиной в note",
+  "args": {
+    "kind": "function",
+    "old_name": "hit",
+    "new_name": "strike",
+    "declaration": "res://src/lab_dynamic.gd:3"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "hit",
+      "new_name": "strike",
+      "declaration": "res://src/lab_dynamic.gd:3",
+      "allow_unverified": false,
+      "mode": "strict",
+      "affected_paths": [
+        "res://src/lab_dynamic.gd"
+      ],
+      "risks": [
+        "res://src/lab_dynamic.gd:4 [member, probable] — не удалось доказать тип ресивера «target»: добавь аннотацию типа, и ссылка переименуется сама",
+        "res://src/lab_dynamic.gd:7 [member, probable] — не удалось доказать тип ресивера «unknown»: добавь аннотацию типа, и ссылка переименуется сама"
+      ],
+      "declaration_path": "res://src/lab_dynamic.gd",
+      "declaration_line": 3,
+      "usages": [
+        {
+          "path": "res://src/lab_dynamic.gd",
+          "line": 3,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_dynamic.gd",
+          "line": 4,
+          "column": 9,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «target»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/lab_dynamic.gd",
+          "line": 7,
+          "column": 10,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «unknown»: добавь аннотацию типа, и ссылка переименуется сама"
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 2
+      },
+      "proven_count": 1,
+      "probable_count": 2,
+      "dynamic_count": 0
+    }
+  }
+}

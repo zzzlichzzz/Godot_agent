@@ -1,0 +1,42 @@
+{
+  "id": "expanded-op3-extra",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "idle",
+        "fps": 8,
+        "loop": true,
+        "frames": [
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          }
+        ],
+        "extra": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестные поля: extra",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "e0c53a140286fb5cfc4636a92903949acccc1dd1be7a886fc804ca0642e82e02"
+}

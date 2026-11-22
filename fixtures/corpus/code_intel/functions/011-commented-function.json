@@ -1,0 +1,22 @@
+{
+  "id": "011-commented-function",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Закомментированная функция (# func fake():) не находится -> missing",
+  "args": {
+    "path": "res://scripts/func_lab.gd",
+    "names": [
+      "fake"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/func_lab.gd",
+      "functions": [],
+      "missing": [
+        "fake"
+      ]
+    }
+  }
+}

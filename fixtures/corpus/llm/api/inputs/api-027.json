@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "md_to_bbcode",
+  "function": "to_bbcode",
+  "args": [
+    "```agent_action\n{\"action\":\"fixture\"}\n```"
+  ],
+  "kwargs": {},
+  "id": "api-027"
+}

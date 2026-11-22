@@ -1,0 +1,29 @@
+{
+  "id": "003-many.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "many.tscn",
+  "args": {
+    "path": "res://many.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_pressed"
+        },
+        {
+          "signal": "toggled",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_toggled"
+        }
+      ],
+      "text": "- Button.pressed -> <root>._on_button_pressed()\n- Button.toggled -> <root>._on_button_toggled()"
+    }
+  }
+}

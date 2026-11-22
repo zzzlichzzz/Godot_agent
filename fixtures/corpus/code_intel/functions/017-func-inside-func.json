@@ -1,0 +1,30 @@
+{
+  "id": "017-func-inside-func",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "func, объявленный внутри тела другой функции: в names (режим списка) он виден, а тело по запросу не извлекается — nested_outer отдаётся, nested_inner попадает в missing. Запрос только nested_outer проверяется домен-тестом и probe",
+  "args": {
+    "path": "res://scripts/nested_func.gd",
+    "names": [
+      "nested_outer",
+      "nested_inner"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/nested_func.gd",
+      "functions": [
+        {
+          "name": "nested_outer",
+          "snippet": "# Вложенная функция: видна в списке имён, тело по запросу не извлекается.\nfunc nested_outer() -> int:\n\tvar total := 0\n\tfunc nested_inner() -> int:\n\t\treturn 1\n\ttotal += 1\n\treturn total",
+          "start_line": 3,
+          "end_line": 9
+        }
+      ],
+      "missing": [
+        "nested_inner"
+      ]
+    }
+  }
+}

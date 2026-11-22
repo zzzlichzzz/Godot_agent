@@ -1,0 +1,112 @@
+{
+  "id": "digest-reordered-fields",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "canonical_digest"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "canonical_digest"
+  },
+  "fixture": "schema",
+  "input": {
+    "summary": "description",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://old.tres",
+      "res://new.tres"
+    ],
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      },
+      {
+        "op": "replace_reference",
+        "target": [],
+        "old": "res://old.tres",
+        "new": "res://new.tres",
+        "expected_count": 1
+      },
+      {
+        "op": "animation_add_value_track",
+        "path": "Node:position",
+        "keys": [
+          {
+            "time": 0.0,
+            "value": {
+              "type": "float",
+              "value": 0.0
+            },
+            "transition": 1.0
+          }
+        ],
+        "interpolation": "linear",
+        "update_mode": "continuous"
+      },
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "idle",
+        "fps": 8.0,
+        "loop": true,
+        "frames": [
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            },
+            "duration": 1.0
+          }
+        ]
+      },
+      {
+        "op": "theme_set_item",
+        "data_type": "color",
+        "theme_type": "Button",
+        "name": "font_color",
+        "overwrite": false,
+        "value": {
+          "type": "Color",
+          "value": [
+            1.0,
+            0.5,
+            0.0,
+            1.0
+          ]
+        }
+      },
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ],
+    "resource": "res://data.tres",
+    "action": "edit_resource"
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "2b32bd67eb7d2616de40e543375ef964e7d2323089ecbad897df2fca85d9f559"
+  },
+  "oracle": "native",
+  "raw_sha256": "0a8ce78552de88d52f9d756763c681140dc9e555cdb31b42d5eb804e7048a141"
+}

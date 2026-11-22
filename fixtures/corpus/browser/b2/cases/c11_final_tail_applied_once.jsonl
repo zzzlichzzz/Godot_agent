@@ -1,0 +1,7 @@
+{"flag": ["accept_tail", true]}
+{"post": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"response": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", 200, "text/event-stream"]}
+{"wait_stream": "r1"}
+{"chunk": ["r1", "0L7RgtCy0LXRggpET05F"]}
+{"finish": "r1"}
+{"loading_failed": ["r1", "late failure", false]}

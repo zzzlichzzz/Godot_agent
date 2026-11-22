@@ -1,0 +1,84 @@
+{
+  "id": "q3-orphan-uid",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://orphan.uid",
+      "res://other.uid"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "files": {
+      "orphan.uid": {
+        "bytes": 8,
+        "sha256": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://orphan.uid",
+    "new_path": "res://other.uid",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://orphan.uid",
+        "dest": "res://other.uid",
+        "absolute": "<PROJECT>\\orphan.uid",
+        "dest_absolute": "<PROJECT>\\other.uid",
+        "before_hash": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210",
+        "before_bytes": {
+          "$bytes_base64": "b3JwaGFuDQo="
+        },
+        "after_bytes": {
+          "$bytes_base64": "b3JwaGFuDQo="
+        },
+        "diff": {
+          "path": "res://orphan.uid",
+          "action": "move_file",
+          "dest": "res://other.uid",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://other.uid"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://other.uid"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "orphan.uid": {
+        "bytes": 8,
+        "sha256": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "project_byte_tree_unchanged": true
+}

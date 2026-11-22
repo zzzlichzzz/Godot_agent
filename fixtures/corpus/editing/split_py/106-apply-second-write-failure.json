@@ -1,0 +1,50 @@
+{
+  "id": "106-apply-second-write-failure",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/apply_two",
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "one",
+          "symbols": [
+            "alpha"
+          ]
+        },
+        {
+          "module": "two",
+          "symbols": [
+            "beta"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "test_hook": {
+    "writer_fails_on_effect": 2
+  },
+  "native_capture": null,
+  "expect": {
+    "ok": false,
+    "kind": "internal",
+    "tree_unchanged": true,
+    "wal_states": [
+      "PREPARED",
+      "APPLYING",
+      "EFFECT_INTENT",
+      "RECEIPT",
+      "EFFECT_INTENT",
+      "ROLLING_BACK",
+      "RESTORED",
+      "ROLLED_BACK"
+    ]
+  },
+  "comment": "Второй intent принадлежит шагу, чей эффект упал; receipt отсутствует по конструкции.",
+  "scenario": "split_plan_apply"
+}

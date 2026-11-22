@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "parse_sse_line",
+  "args": [
+    "data: [DONE]"
+  ],
+  "kwargs": {},
+  "id": "api-042"
+}

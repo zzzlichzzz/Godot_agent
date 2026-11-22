@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "q3-orphan-import",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://orphan.import",
+    "new_path": "res://other.import",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "orphan.import": {
+        "bytes_b64": "b3JwaGFuDQo=",
+        "bytes": 8,
+        "sha256": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "old_path": "res://orphan.import",
+    "new_path": "res://other.import",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://orphan.import",
+        "dest": "res://other.import",
+        "absolute": "<PROJECT>\\orphan.import",
+        "dest_absolute": "<PROJECT>\\other.import",
+        "before_hash": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210",
+        "before_bytes": {
+          "$bytes_base64": "b3JwaGFuDQo="
+        },
+        "after_bytes": {
+          "$bytes_base64": "b3JwaGFuDQo="
+        },
+        "diff": {
+          "path": "res://orphan.import",
+          "action": "move_file",
+          "dest": "res://other.import",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://other.import"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://other.import"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "3a387325e1f405bfb4694c3b35cc70f2a7f6423e1e8eb8121d1ef32439f75395"
+}

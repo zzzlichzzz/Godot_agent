@@ -1,0 +1,34 @@
+{
+  "kind": "state",
+  "operations": [
+    {
+      "module": "api_keys",
+      "function": "set_key",
+      "args": [
+        "fixture",
+        ""
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "has_key",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "keys_state",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-125"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "012-triple_strings",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "triple_strings",
+  "args": {
+    "path": "res://scripts/triple_strings.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 51
+    }
+  }
+}

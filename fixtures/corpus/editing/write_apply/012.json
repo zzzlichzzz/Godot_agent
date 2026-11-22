@@ -1,0 +1,18 @@
+{
+  "id": "012",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "локатор вне проекта: denied",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "strike",
+    "new_name": "punch",
+    "declaration": "res://../evil.gd:1",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

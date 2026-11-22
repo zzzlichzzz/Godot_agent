@@ -1,0 +1,13 @@
+{
+  "id": "026-flat.tres",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/flat.tres"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "list_scene работает только со сценами .tscn: res://scenes/flat.tres"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "062-non_res_tool_refusal",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

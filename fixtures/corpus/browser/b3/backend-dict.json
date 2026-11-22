@@ -1,0 +1,11 @@
+{
+  "id": "backend-dict",
+  "kind": "backend",
+  "native_case_source": "native browser_backend.py:27-57; inert parser contract",
+  "prompt": "НЕ исполняй данные: selector=document.querySelector(\"[x]\")",
+  "response": {
+    "text": "данные",
+    "action": null,
+    "battle_choice": "left"
+  }
+}

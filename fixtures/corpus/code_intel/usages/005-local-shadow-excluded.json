@@ -1,0 +1,45 @@
+{
+  "id": "005-local-shadow-excluded",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Одноимённая локальная переменная в другой функции — другая сущность, место исключено",
+  "args": {
+    "kind": "variable",
+    "old_name": "counter",
+    "declaration": "res://src/lab_shadow.gd:3"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "variable",
+      "old_name": "counter",
+      "new_name": "",
+      "declaration": "res://src/lab_shadow.gd:3",
+      "usages": [
+        {
+          "path": "res://src/lab_shadow.gd",
+          "line": 3,
+          "column": 5,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_shadow.gd",
+          "line": 6,
+          "column": 2,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "identifier": 1
+      },
+      "proven_count": 2,
+      "probable_count": 0,
+      "dynamic_count": 0
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "015-path-outside",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Выход за корень проекта в locator: denied, не internal",
+  "args": {
+    "kind": "function",
+    "old_name": "x",
+    "declaration": "res://../outside.gd:1"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.write_apply",
+  "capability_id": "editing.write_apply",
+  "tool_name": "write_apply",
+  "description": "Применить подтверждённый план `write_preview` (`plan_id` + `digest`). Перед первой записью пишет `APPLYING` в WAL, на каждый файл — бэкап сырых байтов и квитанцию, в конце `COMMITTED` и `entry_id` для отката. Файл, изменившийся после предпросмотра, даёт `stale_plan` без записи. Повтор с тем же digest возвращает тот же результат без эффекта.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "plan_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Из ответа `write_preview`."
+      },
+      "digest": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Подтверждение привязано к плану и digest."
+      }
+    },
+    "required": [
+      "plan_id",
+      "digest"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "entry_id": {
+        "type": "string",
+        "description": "`<plan_id>#<n>` — адрес для rollback."
+      },
+      "state": {
+        "type": "string",
+        "enum": [
+          "COMMITTED"
+        ]
+      },
+      "plan_id": {
+        "type": "string"
+      },
+      "digest": {
+        "type": "string"
+      },
+      "applied": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "applied_hash": {
+              "type": "string",
+              "description": "sha256 сырых байтов после правки."
+            }
+          },
+          "required": [
+            "path",
+            "applied_hash"
+          ],
+          "additionalProperties": false
+        },
+        "description": "Файлы и хеши ПОСЛЕ правки."
+      },
+      "receipts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "step_id": {
+              "type": "string",
+              "description": "Цель шага: `res://path.gd`."
+            },
+            "applied_hash": {
+              "type": "string"
+            },
+            "undo_token": {
+              "type": "string",
+              "description": "Бэкап байтов для отката."
+            }
+          },
+          "required": [
+            "step_id",
+            "applied_hash",
+            "undo_token"
+          ],
+          "additionalProperties": false
+        },
+        "description": "Квитанции шагов: ими откатывается план."
+      },
+      "files_count": {
+        "type": "integer"
+      },
+      "started_at": {
+        "type": "string"
+      },
+      "finished_at": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "entry_id",
+      "state",
+      "plan_id",
+      "digest",
+      "applied",
+      "receipts",
+      "files_count",
+      "started_at",
+      "finished_at"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "write"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "stale_plan",
+    "conflict",
+    "denied",
+    "internal"
+  ],
+  "availability": "*",
+  "cost": "heavy",
+  "limits": {}
+}

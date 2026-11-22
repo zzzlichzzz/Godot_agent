@@ -1,0 +1,38 @@
+{
+  "id": "005-tscn_fixable",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://steps.tscn"
+  },
+  "reference_result": {
+    "path": "res://steps.tscn",
+    "problems": [],
+    "auto_fixable": true,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://steps.tscn",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": true,
+      "kinds": [
+        "tscn"
+      ],
+      "unavailable": [
+        {
+          "kind": "headless",
+          "reason": ".tscn проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

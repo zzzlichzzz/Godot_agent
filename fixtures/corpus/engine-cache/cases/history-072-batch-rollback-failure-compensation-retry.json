@@ -1,0 +1,96 @@
+{
+  "id": "history-072-batch-rollback-failure-compensation-retry",
+  "input": {
+    "group": "history",
+    "action": "batch_failure",
+    "storage": "user"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "first": [
+        false,
+        "Пакетный откат не выполнен: [Errno 13] synthetic second rollback replace failure",
+        false,
+        [],
+        null
+      ],
+      "retained": {
+        "journal_preserved": true,
+        "A": {
+          "base64": "YWZ0ZXIgQQo="
+        },
+        "B": {
+          "base64": "YWZ0ZXIgQgo="
+        }
+      },
+      "retry": [
+        true,
+        "Откачено: batch (2 файлов)",
+        false,
+        [
+          "res://A.txt",
+          "res://B.txt"
+        ],
+        null
+      ],
+      "A": {
+        "base64": "77u/YmVmb3JlIEENClVuaWNvZGU6IM67DQo="
+      },
+      "B": {
+        "base64": "YmVmb3JlIEINCg=="
+      },
+      "journal": []
+    },
+    "after": {
+      "files": {
+        "project/.agent_rollback_<owned>": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/journal.json": {
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

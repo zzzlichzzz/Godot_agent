@@ -1,0 +1,9 @@
+{
+  "id": "wait-cancel",
+  "op": "wait",
+  "answer": {
+    "text": "partial"
+  },
+  "generating_until": 100,
+  "cancel_at": 1
+}

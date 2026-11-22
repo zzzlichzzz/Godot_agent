@@ -1,0 +1,17 @@
+{
+  "id": "050-invalid_content_type",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "invalid_content_type",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": 7
+  },
+  "reference_error": {
+    "type": "TypeError"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

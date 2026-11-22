@@ -1,0 +1,18 @@
+{
+  "id": "146-non_gd",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/non_gd",
+  "args": {
+    "path": "res://donor.txt"
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.txt",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: non_gd",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

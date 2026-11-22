@@ -1,0 +1,29 @@
+{
+  "id": "005",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "переменная в двух файлах, исключено место party.gd:6",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "variable",
+    "old_name": "hp",
+    "new_name": "health",
+    "declaration": "res://src/hero.gd:4",
+    "mode": "probable",
+    "allow_unverified": true,
+    "exclude": [
+      "res://src/party.gd:6"
+    ],
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "files": {
+        "src/enemy.gd": "1397340dcc3131da87a0d1e664c49279dc101d76ee83e26ea3765f1eb0c79da6",
+        "src/hero.gd": "909179542610eac7e7eeef35cd28f65135bb09179e2685d730209e496baba9c5",
+        "src/party.gd": "8e16c787757ba45be3bd65b6f7c1aa2cd5660254ddd89ff8fe48cb46bfd346d7"
+      }
+    }
+  }
+}

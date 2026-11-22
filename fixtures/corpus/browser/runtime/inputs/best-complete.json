@@ -1,0 +1,14 @@
+{
+  "id": "best-complete",
+  "op": "best",
+  "variants": [
+    [
+      "long",
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ],
+    [
+      "action",
+      "```agent_action\n{\"action\":\"done\"}\n```\n===DONE==="
+    ]
+  ]
+}

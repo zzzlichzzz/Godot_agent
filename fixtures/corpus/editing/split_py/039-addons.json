@@ -1,0 +1,32 @@
+{
+  "id": "039-addons",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 0,
+      "source_read": 0,
+      "patch": 0,
+      "mention": 0,
+      "doc": 0
+    },
+    "occurrences": [],
+    "hard_files": [],
+    "soft_files": [],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/addons",
+  "args": {
+    "path": "res://addons/demo/donor.py"
+  },
+  "reference_args": {
+    "addon_root": "addons/demo",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  },
+  "contract_boundary": "denied"
+}

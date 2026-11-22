@@ -1,0 +1,6 @@
+{"response": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", 429, "text/html"]}
+{"pin": {"pop_http_error": 429}}
+{"response": ["r2", "https://chat.qwen.ai/api/v2/chat/completions", 200, "application/json"]}
+{"pin": {"pop_http_error": null}}
+{"response": ["r3", "https://chat.qwen.ai/static/logo.png", 429, "text/html"]}
+{"pin": {"pop_http_error": null}}

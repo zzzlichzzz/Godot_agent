@@ -1,0 +1,52 @@
+{
+  "id": "c24-set-CRLF",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "length",
+        "value": {
+          "type": "float",
+          "value": 2.0
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0KDQo7IGlucHV0IGNvbW1lbnQgbXVzdCBub3QgYmUgbWlzdGFrZW4gZm9yIGFuIG9wZXJhdGlvbg0KW3Jlc291cmNlXQ0KcmVzb3VyY2VfbmFtZSA9ICJQcmVzZXJ2ZSB0aGlzIG5hbWUiDQpsZW5ndGggPSAxLjANCg=="
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0KDQo7IGlucHV0IGNvbW1lbnQgbXVzdCBub3QgYmUgbWlzdGFrZW4gZm9yIGFuIG9wZXJhdGlvbg0KW3Jlc291cmNlXQ0KcmVzb3VyY2VfbmFtZSA9ICJQcmVzZXJ2ZSB0aGlzIG5hbWUiDQpsZW5ndGggPSAyLjANCg==",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "decision": "D18/SEC-24",
+    "source_sha256": "edef33817b0f5e9a9885dae55648b2c0c01fa2a8f908c07b10007fa1ff7fbbc5"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "0d626777b5ef8e3891d345d06aa92f8e194cd0cd4ddc0757dd1e40f13ef978f8",
+      "after_hash": "1ada2610c6e381cc36d45cb95311d471c15e471162a6b4bb5c3708623c1726e5",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

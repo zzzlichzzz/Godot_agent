@@ -1,0 +1,16 @@
+{
+  "id": "013-missing-file",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Несуществующий .gd: запись разрешена политикой, файла нет -> not_found",
+  "args": {
+    "path": "res://scripts/nope.gd",
+    "names": [
+      "f"
+    ]
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  }
+}

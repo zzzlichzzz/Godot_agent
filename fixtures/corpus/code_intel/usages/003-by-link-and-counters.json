@@ -1,0 +1,45 @@
+{
+  "id": "003-by-link-and-counters",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "by_link и три счётчика сходятся с содержимым usages (константа парсера — constant, инструмент зовёт её const)",
+  "args": {
+    "kind": "const",
+    "old_name": "MAX_HP",
+    "declaration": "res://src/lab_entity.gd:6"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "const",
+      "old_name": "MAX_HP",
+      "new_name": "",
+      "declaration": "res://src/lab_entity.gd:6",
+      "usages": [
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 6,
+          "column": 7,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 18,
+          "column": 7,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "identifier": 1
+      },
+      "proven_count": 2,
+      "probable_count": 0,
+      "dynamic_count": 0
+    }
+  }
+}

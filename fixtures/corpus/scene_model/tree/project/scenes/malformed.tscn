@@ -1,0 +1,3 @@
+[node name="Open" type="Node"
+script=ExtResource("missing")
+[connection signal="lost" from="." to="."]

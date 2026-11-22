@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "module_id": "scene_model.node_rename",
+  "capability_id": "scene_model.node_rename",
+  "tool_name": "node_rename_preview",
+  "description": "Read-only prepare_node_rename projection: scene and attached-script diffs, no apply/undo. before_bytes/after_bytes are lossless base64 ASCII; scene_res duplicate and host absolute paths omitted. Optional update_scripts=true, scripts_only=false, previous_name=\"\". Structured diff context=3, max600 rows. Diff rows retain native [kind,old_line|null,new_line|null,text] order; .tscn and textual .scn supported.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "node": {
+        "type": "string"
+      },
+      "new_name": {
+        "type": "string"
+      },
+      "update_scripts": {
+        "type": "boolean"
+      },
+      "scripts_only": {
+        "type": "boolean"
+      },
+      "previous_name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "path",
+      "node",
+      "new_name"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "rename_node"
+        ]
+      },
+      "scene": {
+        "type": "string"
+      },
+      "old_name": {
+        "type": "string"
+      },
+      "new_name": {
+        "type": "string"
+      },
+      "old_path": {
+        "type": "string"
+      },
+      "new_path": {
+        "type": "string"
+      },
+      "target_node_path": {
+        "type": "string"
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "patch_file"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "before_hash": {
+              "type": "string"
+            },
+            "before_bytes": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            },
+            "after_bytes": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            },
+            "diff": {
+              "type": "object",
+              "properties": {
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "minItems": 4,
+                    "maxItems": 4,
+                    "items": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "added": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "removed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "truncated": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "patch_file"
+                  ]
+                }
+              },
+              "required": [
+                "lines",
+                "added",
+                "removed",
+                "truncated",
+                "path",
+                "action"
+              ],
+              "additionalProperties": false
+            },
+            "occurrences": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "action",
+            "path",
+            "before_hash",
+            "before_bytes",
+            "after_bytes",
+            "diff",
+            "occurrences"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "reference_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "affected_paths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "scripts_only": {
+        "type": "boolean"
+      },
+      "previous_name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "action",
+      "scene",
+      "old_name",
+      "new_name",
+      "old_path",
+      "new_path",
+      "target_node_path",
+      "files",
+      "reference_count",
+      "affected_paths",
+      "scripts_only",
+      "previous_name"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

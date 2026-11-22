@@ -1,0 +1,117 @@
+{
+  "id": "sync-internal",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://player.gd",
+    "new_path": "res://sub/player.gd",
+    "is_directory": false
+  },
+  "fixture": {
+    "dirs": [
+      "sub"
+    ],
+    "files": {
+      "base.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "sub/player.gd": {
+        "bytes_b64": "ZXh0ZW5kcyAiLi9iYXNlLmdkIg0K"
+      }
+    }
+  },
+  "original": {
+    "base.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "player.gd": {
+      "bytes_b64": "ZXh0ZW5kcyAiLi9iYXNlLmdkIg0K"
+    },
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "entry_id": "f6e48f07930a",
+    "old_path": "res://player.gd",
+    "new_path": "res://sub/player.gd",
+    "is_directory": false,
+    "changed_paths": [
+      "res://sub/player.gd"
+    ],
+    "reference_count": 1,
+    "file_count": 2,
+    "ok": true
+  },
+  "native_effects": {
+    "base.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "sub/player.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCg=="
+    }
+  },
+  "rollback_result": {
+    "$tuple": [
+      true,
+      "Откачено: rename_file (2 файлов)",
+      false,
+      [
+        "res://sub/player.gd",
+        "res://player.gd"
+      ],
+      null
+    ]
+  },
+  "inverse_files": {
+    "base.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "player.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyAiLi9iYXNlLmdkIg0K"
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "inverse_byte_exact": true,
+  "stdout": "",
+  "native_prepared": [
+    {
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://sub/player.gd",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\internal\\sub\\player.gd",
+          "before_hash": "bd21bb36708d828056a9df60e2a0d5f71693a0852bf5b38a547fb95fce3dfc41",
+          "before_bytes": {
+            "$bytes_base64": "ZXh0ZW5kcyAiLi9iYXNlLmdkIg0K"
+          },
+          "after_bytes": {
+            "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCg=="
+          },
+          "occurrences": 1
+        },
+        {
+          "action": "external_move_record",
+          "path": "res://player.gd",
+          "dest": "res://sub/player.gd",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\internal\\player.gd",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\internal\\sub\\player.gd",
+          "is_directory": false
+        }
+      ],
+      "old_path": "res://player.gd",
+      "new_path": "res://sub/player.gd",
+      "is_directory": false,
+      "reference_count": 1
+    }
+  ]
+}

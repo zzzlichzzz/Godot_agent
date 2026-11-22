@@ -1,0 +1,14 @@
+{
+  "id": "042-not_string",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/not_string",
+  "args": {
+    "path": 7
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

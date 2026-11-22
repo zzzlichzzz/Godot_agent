@@ -1,0 +1,19 @@
+{
+  "id": "026-skip_import",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/026-skip_import",
+  "note": "skip_import",
+  "args": {
+    "path": "res://main.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"s\"]\n[node name=\"Root\" type=\"Node\"]\nscript = ExtResource(\"s\")\n[node name=\"Button\" type=\"Button\" parent=\".\"]\n\n[connection signal=\"pressed\" from=\"Button\" to=\".\" method=\"_on_button_pressed\"]\n",
+      "added": [
+        "pressed: Button -> .._on_button_pressed"
+      ],
+      "notes": []
+    }
+  }
+}

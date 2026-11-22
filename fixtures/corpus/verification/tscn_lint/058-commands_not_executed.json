@@ -1,0 +1,29 @@
+{
+  "id": "058-commands_not_executed",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\neval(\"never-execute\")\n__import__(\"os\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\neval(\"never-execute\")\n__import__(\"os\")\n",
+      "changed": false,
+      "problems": [
+        "строка 3: нет знака '=' между именем свойства и значением («eval(\"never-execute\")»). Godot упадёт с «Parse Error» при загрузке сцены. Пиши: свойство = значение.",
+        "строка 4: нет знака '=' между именем свойства и значением («__import__(\"os\")»). Godot упадёт с «Parse Error» при загрузке сцены. Пиши: свойство = значение."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\neval(\"never-execute\")\n__import__(\"os\")\n",
+    "changed": false,
+    "problems": [
+      "строка 3: нет знака '=' между именем свойства и значением («eval(\"never-execute\")»). Godot упадёт с «Parse Error» при загрузке сцены. Пиши: свойство = значение.",
+      "строка 4: нет знака '=' между именем свойства и значением («__import__(\"os\")»). Godot упадёт с «Parse Error» при загрузке сцены. Пиши: свойство = значение."
+    ]
+  },
+  "reference_api_classes": null
+}

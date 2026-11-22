@@ -1,0 +1,38 @@
+{
+  "id": "q6-addon-flag-no-trusted-root",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://addons/foreign/a.bin",
+      "res://new.bin"
+    ]
+  },
+  "kwargs": {
+    "allow_addons": true
+  },
+  "before": {
+    "a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "addons/foreign/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "addons/godot_agent/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "occupied.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+    "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+  },
+  "apply_argument_observations": [],
+  "ok": false,
+  "exception": {
+    "type": "FileRefactorError",
+    "text": "Путь защищён текущей политикой доступа: res://addons/foreign/a.bin"
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "addons/foreign/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "addons/godot_agent/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+    "occupied.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+    "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+  },
+  "observation": "sys.setprofile observes only actual apply argument; never replaces native call",
+  "byte_files_unchanged": true
+}

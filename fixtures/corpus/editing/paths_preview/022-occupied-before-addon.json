@@ -1,0 +1,14 @@
+{
+  "id": "022-occupied-before-addon",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://addons/other/source.gd",
+    "new_path": "res://assets/item.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  },
+  "expected_message": "Целевой файл уже существует: res://assets/item.gd"
+}

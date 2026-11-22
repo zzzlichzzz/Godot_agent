@@ -1,0 +1,44 @@
+{
+  "id": "058-f1_tscn_clean",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://clean.tscn"
+  },
+  "reference_result": {
+    "path": "res://clean.tscn",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.tscn",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "tscn"
+      ],
+      "unavailable": [
+        {
+          "kind": "headless",
+          "reason": ".tscn проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports",
+  "candidate_content": "﻿[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n",
+  "candidate_reference_result": [
+    "﻿[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n",
+    []
+  ]
+}

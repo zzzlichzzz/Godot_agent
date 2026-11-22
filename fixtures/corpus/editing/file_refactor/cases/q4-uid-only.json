@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "q4-uid-only",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://empty",
+    "new_path": "res://new",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "empty/only.uid": {
+        "bytes_b64": "dWlkOi8veAo=",
+        "bytes": 8,
+        "sha256": "4be879dfbce5d2057c25377690aafe696ae2751bfc4fe807f283b6d180729b6c"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "empty"
+    ]
+  },
+  "native_ok": false,
+  "native_result": null,
+  "native_exception": {
+    "type": "FileRefactorError",
+    "text": "Папка res://empty не содержит подходящих файлов для перемещения"
+  },
+  "native_original_raw_sha256": "8b4aca001d8f4b5fa53cec169d8803f2830e900da095175206fd4fc515586368"
+}

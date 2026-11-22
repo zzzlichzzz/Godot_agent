@@ -1,0 +1,8 @@
+[ext_resource id=1 path="res://scripts/a.gd" type="Script"]
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+[resource]
+script=ExtResource(1)
+[node name="Child" parent="."]
+tracks/0/path=NodePath("Child")
+script=ExtResource(1)

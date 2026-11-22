@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.split_py",
+  "capability_id": "editing.split_py",
+  "tool_name": "split_apply",
+  "description": "Применить подтверждённый split_plan через WAL с квитанциями.",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "path",
+      "plan"
+    ],
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "plan": {
+        "type": "object",
+        "required": [
+          "donor",
+          "donor_sha256",
+          "donor_lines",
+          "target_lines",
+          "auto_groups",
+          "modules",
+          "facade",
+          "moved_names",
+          "errors",
+          "warnings",
+          "inventory",
+          "refs"
+        ],
+        "properties": {
+          "donor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "donor_sha256": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "donor_lines": {
+            "type": "integer"
+          },
+          "target_lines": {
+            "type": "integer"
+          },
+          "auto_groups": {
+            "type": "boolean"
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "rel",
+                "names",
+                "lines"
+              ],
+              "properties": {
+                "rel": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "names": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "lines": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "facade": {
+            "type": "object",
+            "required": [
+              "rel",
+              "lines",
+              "reexports"
+            ],
+            "properties": {
+              "rel": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lines": {
+                "type": "integer"
+              },
+              "reexports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "module",
+                    "names"
+                  ],
+                  "properties": {
+                    "module": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "names": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "moved_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inventory": {
+            "type": "object",
+            "required": [
+              "symbols",
+              "imports",
+              "other",
+              "docstring"
+            ],
+            "properties": {
+              "symbols": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "kind",
+                    "lines",
+                    "is_public",
+                    "state"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "lines": {
+                      "type": "integer"
+                    },
+                    "is_public": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "imports": {
+                "type": "integer"
+              },
+              "other": {
+                "type": "integer"
+              },
+              "docstring": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "refs": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "required": [
+      "donor",
+      "written",
+      "moved",
+      "facade_lines",
+      "receipts"
+    ],
+    "properties": {
+      "donor": {
+        "type": "string",
+        "minLength": 1
+      },
+      "written": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "moved": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "facade_lines": {
+        "type": "integer"
+      },
+      "receipts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "step_id",
+            "applied_hash",
+            "undo_token"
+          ],
+          "properties": {
+            "step_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "applied_hash": {
+              "type": "string"
+            },
+            "undo_token": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "effects": [
+    "write"
+  ],
+  "idempotent": false,
+  "requires_preview": true,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied",
+    "stale_plan",
+    "conflict",
+    "internal"
+  ],
+  "availability": "*",
+  "cost": "heavy",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

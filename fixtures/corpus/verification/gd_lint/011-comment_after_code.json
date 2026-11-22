@@ -1,0 +1,17 @@
+{
+  "id": "011-comment_after_code",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "comment_after_code",
+  "args": {
+    "path": "res://scripts/comment_after_code.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 28
+    }
+  }
+}

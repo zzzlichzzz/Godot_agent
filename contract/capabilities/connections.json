@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "module_id": "scene_model.connections",
+  "capability_id": "scene_model.connections",
+  "tool_name": "connections",
+  "description": "Связи .tscn/.scn: connections — raw parse_scene; text — только строки describe_scene с <root>. Пустые атрибуты остаются в raw; display требует signal/method. Не проверяет существование функции, не пишет файлы.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "connections": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "signal": {
+              "type": "string"
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "method": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "signal",
+            "from",
+            "to",
+            "method"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "text": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "connections",
+      "text"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

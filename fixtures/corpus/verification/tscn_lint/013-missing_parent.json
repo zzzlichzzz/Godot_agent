@@ -1,0 +1,29 @@
+{
+  "id": "013-missing_parent",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Child\" type=\"Node\" parent=\"Ghost\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Child\" type=\"Node\" parent=\"Ghost\"]\n",
+      "changed": false,
+      "problems": [
+        "[node name=\"Child\"]: parent=\"Ghost\" — такого узла в сцене нет, Godot не сможет построить дерево. Родителя объявляй ВЫШЕ по файлу и указывай его ПУТЬ от корня (parent=\".\" для детей корня, parent=\"A/B\" для вложенных).",
+        "узел «Child»: parent=\"Ghost\" не найден среди уже объявленных выше узлов"
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Child\" type=\"Node\" parent=\"Ghost\"]\n",
+    "changed": false,
+    "problems": [
+      "[node name=\"Child\"]: parent=\"Ghost\" — такого узла в сцене нет, Godot не сможет построить дерево. Родителя объявляй ВЫШЕ по файлу и указывай его ПУТЬ от корня (parent=\".\" для детей корня, parent=\"A/B\" для вложенных).",
+      "узел «Child»: parent=\"Ghost\" не найден среди уже объявленных выше узлов"
+    ]
+  },
+  "reference_api_classes": null
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/editing/rollback",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/symbol_refactor.py:prepare_rename (before_bytes)",
+    "sha256": "93f8c8923703020fdf5a2dc31cc8e18654fa05f7833a86415a29a436758425b7"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001",
+      "file": "001.json",
+      "fixture": "rename",
+      "sha256": "874088fbee074a28c939f8df94e314ff39cf007926495ec8532eece186264d5e"
+    },
+    {
+      "id": "002",
+      "file": "002.json",
+      "fixture": "rename",
+      "sha256": "38df842a6bc7165163e76adf96938d2162b1297a92eb45edee38cbc38af07b71"
+    },
+    {
+      "id": "003",
+      "file": "003.json",
+      "fixture": "rename",
+      "sha256": "304313ce635ada615d67e31cadf7cb53e5df9135907500b9a5a1e73bac2a3d54"
+    },
+    {
+      "id": "004",
+      "file": "004.json",
+      "fixture": "rename",
+      "sha256": "7a7865e615061548529328abd34a90e0abc3139dc945165c5a48cd66e5d297d6"
+    }
+  ]
+}

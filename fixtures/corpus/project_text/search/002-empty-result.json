@@ -1,0 +1,16 @@
+{
+  "id": "002-empty-result",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "пустой результат: ни одного совпадения, truncated=false",
+  "args": {
+    "query": "zzz_no_such_token_anywhere"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

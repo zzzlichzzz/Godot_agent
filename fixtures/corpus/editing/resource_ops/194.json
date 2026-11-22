@@ -1,0 +1,41 @@
+{
+  "id": "limits-empty-class",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "NewSubresource",
+          "class": ""
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "class должен быть строкой до 120 символов",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "c5cd74caf8e58c0222dd990d5af7d788f93bfd4651130dec0246ceec651e320d"
+}

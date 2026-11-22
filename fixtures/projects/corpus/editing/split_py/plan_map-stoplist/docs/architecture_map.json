@@ -1,0 +1,1 @@
+{"zones": [{"glob": "**/*.py", "new_files": "allow"}], "name_stoplist": ["fn"]}

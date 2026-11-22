@@ -1,0 +1,23 @@
+{
+  "id": "020-triple_unclosed",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "triple_unclosed",
+  "args": {
+    "path": "res://scripts/triple_unclosed.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "unclosed_triple_string",
+          "line": 1,
+          "message": "строка 1: незакрытая тройная кавычка"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 25
+    }
+  }
+}

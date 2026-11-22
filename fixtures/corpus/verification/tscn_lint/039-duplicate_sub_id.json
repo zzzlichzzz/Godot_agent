@@ -1,0 +1,27 @@
+{
+  "id": "039-duplicate_sub_id",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\n[sub_resource type=\"Resource\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\n[sub_resource type=\"Resource\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+      "changed": false,
+      "problems": [
+        "строка 3: id=\"a\" у sub_resource уже используется на строке 2 — id должны быть уникальны"
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\n[sub_resource type=\"Resource\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+    "changed": false,
+    "problems": [
+      "строка 3: id=\"a\" у sub_resource уже используется на строке 2 — id должны быть уникальны"
+    ]
+  },
+  "reference_api_classes": null
+}

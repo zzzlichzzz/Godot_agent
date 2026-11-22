@@ -1,0 +1,8 @@
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+[node name="Main" type="Node2D" parent="."]
+[node name="Arm" type="Node2D" parent="Main"]
+[node name="End" type="Marker2D" parent="Main/Arm"]
+[node name="Tip" type="Marker2D" parent="Main/Arm/End"]
+[node name="Side" type="Node2D" parent="Main"]
+[node name="Later" type="Node" parent="."]

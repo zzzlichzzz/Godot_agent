@@ -1,0 +1,65 @@
+{
+  "id": "expanded-op3-success",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "idle",
+        "fps": 8,
+        "loop": true,
+        "frames": [
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "sprite_frames_add_animation",
+            "name": "idle",
+            "fps": 8.0,
+            "loop": true,
+            "frames": [
+              {
+                "texture": {
+                  "type": "ResourcePath",
+                  "value": "res://texture.png"
+                },
+                "duration": 1.0
+              }
+            ]
+          }
+        ],
+        "wait_for_import": [
+          "res://texture.png"
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "79b2afe47d5020d710270dca55dda5346b6291db1e252584ed33c2041f7764e9"
+}

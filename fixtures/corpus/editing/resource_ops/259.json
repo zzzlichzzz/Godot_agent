@@ -1,0 +1,44 @@
+{
+  "id": "c24-target-HISTORY",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://.AGENT_HISTORY/bad.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "length",
+        "value": {
+          "type": "float",
+          "value": 2.0
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQoKOyBpbnB1dCBjb21tZW50IG11c3Qgbm90IGJlIG1pc3Rha2VuIGZvciBhbiBvcGVyYXRpb24KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSIKbGVuZ3RoID0gMS4w"
+    }
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "decision": "D18/SEC-24",
+    "source_sha256": "edef33817b0f5e9a9885dae55648b2c0c01fa2a8f908c07b10007fa1ff7fbbc5"
+  },
+  "expect": {
+    "kind": "denied",
+    "message": "Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа",
+    "hint": "",
+    "ok": false
+  }
+}

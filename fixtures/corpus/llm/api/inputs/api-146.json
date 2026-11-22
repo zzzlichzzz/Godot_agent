@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "is_free",
+  "args": [
+    {
+      "cost_in": 0,
+      "cost_out": 1
+    }
+  ],
+  "kwargs": {},
+  "id": "api-146"
+}

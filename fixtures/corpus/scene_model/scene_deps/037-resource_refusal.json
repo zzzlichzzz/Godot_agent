@@ -1,0 +1,15 @@
+{
+  "id": "037-resource_refusal",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/037-resource_refusal",
+  "note": "resource_refusal",
+  "args": {
+    "path": "res://other.tres"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "list_scene работает только со сценами .tscn: res://other.tres",
+    "reference_exception": "ValueError"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "029-structural_skips_lines",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "structural_skips_lines",
+  "args": {
+    "path": "res://scripts/structural_skips_lines.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "unclosed_bracket",
+          "line": 1,
+          "message": "строка 1: скобка «(» не закрыта"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 45
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "012-hierarchy.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "hierarchy.tscn: 'Main/Side'",
+  "args": {
+    "path": "res://scenes/hierarchy.tscn",
+    "node": "Main/Side"
+  },
+  "reference_node": {
+    "name": "Side",
+    "parent": "Main",
+    "type": "Node2D",
+    "path": "Main/Side",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      251,
+      297
+    ],
+    "body_span": [
+      297,
+      298
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Side",
+      "type": "Node2D",
+      "parent": "Main",
+      "path": "Main/Side",
+      "depth": 2,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

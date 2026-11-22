@@ -1,0 +1,31 @@
+{
+  "id": "base-independent-http-pop-once",
+  "kind": "pop",
+  "native_case_source": "test_rate_limit_sleep.py:151-155; plus 503/foreign companion",
+  "steps": [
+    "pop",
+    {
+      "url": "https://example.invalid/api/v2/chat/completions",
+      "status": 429
+    },
+    "pop",
+    "pop",
+    "pop",
+    {
+      "url": "https://example.invalid/api/v2/chat/completions",
+      "status": 503
+    },
+    "pop",
+    "pop",
+    {
+      "url": "https://example.invalid/api/v2/chat/completions",
+      "status": 200
+    },
+    "pop",
+    {
+      "url": "https://example.invalid/static/x",
+      "status": 429
+    },
+    "pop"
+  ]
+}

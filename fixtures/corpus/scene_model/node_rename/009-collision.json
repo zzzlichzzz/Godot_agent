@@ -1,0 +1,17 @@
+{
+  "id": "009-collision",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/009-collision",
+  "note": "collision",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "Wing"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Узел с именем 'Wing' уже существует в той же ветке",
+    "reference_exception": "NodeRefactorError"
+  }
+}

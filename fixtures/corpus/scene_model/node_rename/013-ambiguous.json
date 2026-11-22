@@ -1,0 +1,17 @@
+{
+  "id": "013-ambiguous",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/013-ambiguous",
+  "note": "ambiguous",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Same",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Имя узла 'Same' неоднозначно (2 совпадений). Укажите полный путь: Arm/Same, Wing/Same",
+    "reference_exception": "NodeRefactorError"
+  }
+}

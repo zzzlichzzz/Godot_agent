@@ -1,0 +1,26 @@
+{
+  "id": "044-quoted_extends",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "quoted_extends",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends \"res://base.gd\"\nself.nope()\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "",
+      "checked": false,
+      "unavailable": [
+        {
+          "kind": "source",
+          "reason": "no_extends"
+        }
+      ]
+    }
+  }
+}

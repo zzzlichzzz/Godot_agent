@@ -1,0 +1,20 @@
+{
+  "id": "015-exclude-dynamic",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Снятая динамическая ссылка не мешает strict-плану",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/hero.gd:6",
+    "allow_unverified": true,
+    "exclude": [
+      "res://src/party.gd:9"
+    ]
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "extract_delta",
+  "args": [
+    null
+  ],
+  "kwargs": {},
+  "id": "api-058"
+}

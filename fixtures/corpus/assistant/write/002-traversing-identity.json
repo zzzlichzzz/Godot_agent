@@ -1,0 +1,13 @@
+{
+  "id": "002-traversing-identity",
+  "tool": "assistant_confirm",
+  "args": {
+    "plan_id": "../foreign",
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "approved": true
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

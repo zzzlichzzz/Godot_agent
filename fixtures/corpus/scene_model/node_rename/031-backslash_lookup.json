@@ -1,0 +1,270 @@
+{
+  "id": "031-backslash_lookup",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/031-backslash_lookup",
+  "note": "backslash_lookup",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm\\Tip",
+    "new_name": "TipLong"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Tip",
+      "new_name": "TipLong",
+      "old_path": "Arm/Tip",
+      "new_path": "Arm/TipLong",
+      "target_node_path": "Arm/Tip",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "088bc1fea8b1c68dfc0588d60c90b4703b406d786b77844190c4455dd817aba0",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiJUFybTpyb3RhdGlvbiIpCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMiIpCltub2RlIG5hbWU9Ikdsb3ciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0vVGlwIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwIiBtZXRob2Q9InJlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iV2luZyIgdG89IkFybSIgbWV0aG9kPSJyZWFkeSJdCg==",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXBMb25nOnBvc2l0aW9uOngiKQp0cmFja3MvMS9wYXRoID0gTm9kZVBhdGgoIiVBcm06cm90YXRpb24iKQpbbm9kZSBuYW1lPSJNYWluIiB0eXBlPSJOb2RlMkQiXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCltub2RlIG5hbWU9IkFybSIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKW25vZGUgbmFtZT0iVGlwTG9uZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9IkFybSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIyIikKW25vZGUgbmFtZT0iR2xvdyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9IkFybS9UaXBMb25nIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwTG9uZyIgbWV0aG9kPSJyZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209IldpbmciIHRvPSJBcm0iIG1ldGhvZD0icmVhZHkiXQo=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                2,
+                2,
+                "@@ -2,15 +2,15 @@"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"1\"]"
+              ],
+              [
+                " ",
+                3,
+                3,
+                "[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"2\"]"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "[sub_resource type=\"Animation\" id=\"A\"]"
+              ],
+              [
+                "-",
+                5,
+                null,
+                "tracks/0/path = NodePath(\"Arm/Tip:position:x\")"
+              ],
+              [
+                "+",
+                null,
+                5,
+                "tracks/0/path = NodePath(\"Arm/TipLong:position:x\")"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "tracks/1/path = NodePath(\"%Arm:rotation\")"
+              ],
+              [
+                " ",
+                7,
+                7,
+                "[node name=\"Main\" type=\"Node2D\"]"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "[node name=\"Arm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "unique_name_in_owner = true"
+              ],
+              [
+                "-",
+                11,
+                null,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"Arm\"]"
+              ],
+              [
+                "+",
+                null,
+                11,
+                "[node name=\"TipLong\" type=\"Node2D\" parent=\"Arm\"]"
+              ],
+              [
+                " ",
+                12,
+                12,
+                "script = ExtResource(\"2\")"
+              ],
+              [
+                "-",
+                13,
+                null,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"Arm/Tip\"]"
+              ],
+              [
+                "+",
+                null,
+                13,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"Arm/TipLong\"]"
+              ],
+              [
+                " ",
+                14,
+                14,
+                "[node name=\"Wing\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "-",
+                15,
+                null,
+                "[connection signal=\"ready\" from=\"Arm\" to=\"Arm/Tip\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                15,
+                "[connection signal=\"ready\" from=\"Arm\" to=\"Arm/TipLong\" method=\"ready\"]"
+              ],
+              [
+                " ",
+                16,
+                16,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"Arm\" method=\"ready\"]"
+              ]
+            ],
+            "added": 4,
+            "removed": 4,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 4
+        },
+        {
+          "action": "patch_file",
+          "path": "res://main.gd",
+          "before_hash": "1c345a1347fb5482dddcce99b9efaa38cb3bc8577c70cc96e504dd2fdea5207c",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkQXJtCkBvbnJlYWR5IHZhciBiID0gJEFybS9UaXAKQG9ucmVhZHkgdmFyIGMgPSAkIkFybS9UaXAiCkBvbnJlYWR5IHZhciBkID0gJUFybQpmdW5jIHJlYWR5KCk6CiAgICBnZXRfbm9kZSgiQXJtL1RpcCIpCiAgICBnZXRfbm9kZV9vcl9udWxsKCdBcm0nKQogICAgaGFzX25vZGUoIkFybSIpCiAgICBmaW5kX2NoaWxkKCJBcm0iKQo=",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkQXJtCkBvbnJlYWR5IHZhciBiID0gJEFybS9UaXBMb25nCkBvbnJlYWR5IHZhciBjID0gJCJBcm0vVGlwTG9uZyIKQG9ucmVhZHkgdmFyIGQgPSAlQXJtCmZ1bmMgcmVhZHkoKToKICAgIGdldF9ub2RlKCJBcm0vVGlwTG9uZyIpCiAgICBnZXRfbm9kZV9vcl9udWxsKCdBcm0nKQogICAgaGFzX25vZGUoIkFybSIpCiAgICBmaW5kX2NoaWxkKCJBcm0iKQo=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,10 +1,10 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node2D"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "@onready var a = $Arm"
+              ],
+              [
+                "-",
+                3,
+                null,
+                "@onready var b = $Arm/Tip"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "@onready var c = $\"Arm/Tip\""
+              ],
+              [
+                "+",
+                null,
+                3,
+                "@onready var b = $Arm/TipLong"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "@onready var c = $\"Arm/TipLong\""
+              ],
+              [
+                " ",
+                5,
+                5,
+                "@onready var d = %Arm"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "func ready():"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "    get_node(\"Arm/Tip\")"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "    get_node(\"Arm/TipLong\")"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "    get_node_or_null('Arm')"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "    has_node(\"Arm\")"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "    find_child(\"Arm\")"
+              ]
+            ],
+            "added": 3,
+            "removed": 3,
+            "truncated": false,
+            "path": "res://main.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 3
+        }
+      ],
+      "reference_count": 7,
+      "affected_paths": [
+        "res://main.tscn",
+        "res://main.gd"
+      ],
+      "scripts_only": false,
+      "previous_name": ""
+    }
+  }
+}

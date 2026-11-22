@@ -1,0 +1,17 @@
+{
+  "id": "032-protected_addon",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/032-protected_addon",
+  "note": "protected_addon",
+  "args": {
+    "path": "res://addons/main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Сцена защищена текущей политикой доступа",
+    "reference_exception": "NodeRefactorError"
+  }
+}

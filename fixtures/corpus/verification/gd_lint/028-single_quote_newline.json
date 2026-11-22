@@ -1,0 +1,28 @@
+{
+  "id": "028-single_quote_newline",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "single_quote_newline",
+  "args": {
+    "path": "res://scripts/single_quote_newline.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "unclosed_string",
+          "line": 1,
+          "message": "строка 1: незакрытая кавычка (')"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 2,
+          "message": "строка 2: лишняя закрывающая скобка «]»"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 30
+    }
+  }
+}

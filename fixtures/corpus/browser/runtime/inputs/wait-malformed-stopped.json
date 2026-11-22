@@ -1,0 +1,8 @@
+{
+  "id": "wait-malformed-stopped",
+  "op": "wait",
+  "answer": {
+    "text": "stopped",
+    "actionRaw": "{\"action\":"
+  }
+}

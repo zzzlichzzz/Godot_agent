@@ -1,0 +1,28 @@
+{
+  "id": "009-json_clean",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://clean.json"
+  },
+  "reference_result": {
+    "path": "res://clean.json",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.json",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "json"
+      ],
+      "unavailable": []
+    }
+  }
+}

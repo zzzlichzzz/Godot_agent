@@ -1,0 +1,214 @@
+{
+  "input": {
+    "id": "routing192",
+    "label": "all rotating keys refused",
+    "kind": "send",
+    "responses": [
+      {
+        "error": {
+          "type": "RateLimitError",
+          "message": "daily quota",
+          "status": 429,
+          "daily": true
+        }
+      }
+    ],
+    "record": {
+      "provider": "openrouter"
+    },
+    "keys": 2
+  },
+  "expect": {
+    "result": {
+      "reply": {
+        "text": "[Суточный лимит]: у «OpenRouter» закончилась суточная квота запросов (daily quota). Подождите до сброса лимита, выберите другую модель или другого провайдера.\n[color=#c08040]— ключ fixtur...0001 исчерпан (суточная квота), перешёл на ключ fixtur...0002 —[/color]\n",
+        "action": null,
+        "raw": "",
+        "usage": null,
+        "finish_reason": "error",
+        "model": "fixture/model"
+      },
+      "requests": [
+        {
+          "url": "http://127.0.0.1:1/v1/chat/completions",
+          "payload": {
+            "model": "fixture/model",
+            "messages": [
+              {
+                "role": "system",
+                "content": "synthetic system instructions"
+              },
+              {
+                "role": "user",
+                "content": "synthetic user request"
+              }
+            ],
+            "stream": true,
+            "max_tokens": 1000,
+            "temperature": 0.25
+          },
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": "GodotAgent/0.6",
+            "X-Title": "Godot Agent",
+            "Authorization": "<redacted>"
+          },
+          "proxy": null,
+          "accept": "text/event-stream",
+          "timeout": 30.0,
+          "method": "POST",
+          "key_slot": 0
+        },
+        {
+          "url": "http://127.0.0.1:1/v1/chat/completions",
+          "payload": {
+            "model": "fixture/model",
+            "messages": [
+              {
+                "role": "system",
+                "content": "synthetic system instructions"
+              },
+              {
+                "role": "user",
+                "content": "synthetic user request"
+              }
+            ],
+            "stream": true,
+            "max_tokens": 1000,
+            "temperature": 0.25
+          },
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": "GodotAgent/0.6",
+            "X-Title": "Godot Agent",
+            "Authorization": "<redacted>"
+          },
+          "proxy": null,
+          "accept": "text/event-stream",
+          "timeout": 30.0,
+          "method": "POST",
+          "key_slot": 1
+        }
+      ],
+      "deltas": [],
+      "progress": [
+        {
+          "phase": "запрос к OpenRouter",
+          "chars": 0,
+          "elapsed": 0,
+          "stream": ""
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 0,
+          "elapsed": 0,
+          "stream": ""
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 0,
+          "elapsed": 0,
+          "stream": ""
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 0,
+          "elapsed": 0,
+          "stream": ""
+        }
+      ],
+      "messages_built": [
+        {
+          "budget": 16000,
+          "messages": [
+            {
+              "role": "system",
+              "content": "synthetic system instructions"
+            },
+            {
+              "role": "user",
+              "content": "synthetic user request"
+            }
+          ]
+        },
+        {
+          "budget": 16000,
+          "messages": [
+            {
+              "role": "system",
+              "content": "synthetic system instructions"
+            },
+            {
+              "role": "user",
+              "content": "synthetic user request"
+            }
+          ]
+        }
+      ],
+      "saved_messages": [],
+      "files": {
+        "runtime/config/api_keys.json": {
+          "version": 2,
+          "providers": {
+            "openrouter": {
+              "keys": [
+                {
+                  "key": "fixture-routing-key-0001",
+                  "cooldown_until": 0.0,
+                  "cooldown_reason": ""
+                },
+                {
+                  "key": "fixture-routing-key-0002",
+                  "cooldown_until": 0.0,
+                  "cooldown_reason": ""
+                }
+              ],
+              "model": "not-the-chat-model",
+              "base_url": "http://127.0.0.1:1/v1"
+            }
+          },
+          "defaults": {
+            "provider": "",
+            "model": ""
+          },
+          "proxy": {
+            "enabled": false,
+            "host": "",
+            "port": 0,
+            "user": "",
+            "password": ""
+          },
+          "dns": {
+            "enabled": false,
+            "url": ""
+          },
+          "provider_stats": {},
+          "catalog": {
+            "enabled": false
+          },
+          "recent": []
+        }
+      },
+      "rate_status": [
+        null,
+        null
+      ],
+      "retry_after": [
+        null,
+        null
+      ],
+      "usable_key_indices": [],
+      "description": "openrouter / fixture/model"
+    },
+    "stdout": "--> Ключ провайдера openrouter сохранён (fixtur...0001)\n--> Провайдеру openrouter добавлен ключ №2 (fixtur...0002)\n--> Бюджеты токенов для fixture/model: окно 32000 (оценка по умолчанию), история 16000, ответ 1000\n--> Ключ 1 (fixtur...0001) исчерпан до перезапуска сервера: daily quota\n--> API openrouter / fixture/model: ключ fixtur...0001 исчерпан — перехожу на fixtur...0002 (ключ 2 из 2)\n--> Ключ 2 (fixtur...0002) исчерпан до перезапуска сервера: daily quota\n<-- API openrouter / fixture/model: [Суточный лимит]: у «OpenRouter» закончилась суточная квота запросов (daily quota). Подождите до сброса лимита, выберите другую модель или другого провайдера.\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "ApiBackend.send",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

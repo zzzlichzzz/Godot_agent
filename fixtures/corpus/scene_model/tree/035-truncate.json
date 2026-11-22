@@ -1,0 +1,437 @@
+{
+  "id": "035-truncate",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/large.tscn",
+    "max_chars": 80
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n      - Child0 (Node2D)\n      - Child1 (Node2D)\n      - Child2 (\n… (сводка обрезана — сцена очень большая)",
+      "truncated": true,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 3,
+          "name": "Child0",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child0"
+        },
+        {
+          "depth": 3,
+          "name": "Child1",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child1"
+        },
+        {
+          "depth": 3,
+          "name": "Child2",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child2"
+        },
+        {
+          "depth": 3,
+          "name": "Child3",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child3"
+        },
+        {
+          "depth": 3,
+          "name": "Child4",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child4"
+        },
+        {
+          "depth": 3,
+          "name": "Child5",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child5"
+        },
+        {
+          "depth": 3,
+          "name": "Child6",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child6"
+        },
+        {
+          "depth": 3,
+          "name": "Child7",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child7"
+        },
+        {
+          "depth": 3,
+          "name": "Child8",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child8"
+        },
+        {
+          "depth": 3,
+          "name": "Child9",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child9"
+        },
+        {
+          "depth": 3,
+          "name": "Child10",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child10"
+        },
+        {
+          "depth": 3,
+          "name": "Child11",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child11"
+        },
+        {
+          "depth": 3,
+          "name": "Child12",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child12"
+        },
+        {
+          "depth": 3,
+          "name": "Child13",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child13"
+        },
+        {
+          "depth": 3,
+          "name": "Child14",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child14"
+        },
+        {
+          "depth": 3,
+          "name": "Child15",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child15"
+        },
+        {
+          "depth": 3,
+          "name": "Child16",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child16"
+        },
+        {
+          "depth": 3,
+          "name": "Child17",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child17"
+        },
+        {
+          "depth": 3,
+          "name": "Child18",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child18"
+        },
+        {
+          "depth": 3,
+          "name": "Child19",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child19"
+        },
+        {
+          "depth": 3,
+          "name": "Child20",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child20"
+        },
+        {
+          "depth": 3,
+          "name": "Child21",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child21"
+        },
+        {
+          "depth": 3,
+          "name": "Child22",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child22"
+        },
+        {
+          "depth": 3,
+          "name": "Child23",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child23"
+        },
+        {
+          "depth": 3,
+          "name": "Child24",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child24"
+        },
+        {
+          "depth": 3,
+          "name": "Child25",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child25"
+        },
+        {
+          "depth": 3,
+          "name": "Child26",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child26"
+        },
+        {
+          "depth": 3,
+          "name": "Child27",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child27"
+        },
+        {
+          "depth": 3,
+          "name": "Child28",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child28"
+        },
+        {
+          "depth": 3,
+          "name": "Child29",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child29"
+        },
+        {
+          "depth": 3,
+          "name": "Child30",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child30"
+        },
+        {
+          "depth": 3,
+          "name": "Child31",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child31"
+        },
+        {
+          "depth": 3,
+          "name": "Child32",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child32"
+        },
+        {
+          "depth": 3,
+          "name": "Child33",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child33"
+        },
+        {
+          "depth": 3,
+          "name": "Child34",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child34"
+        },
+        {
+          "depth": 3,
+          "name": "Child35",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child35"
+        },
+        {
+          "depth": 3,
+          "name": "Child36",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child36"
+        },
+        {
+          "depth": 3,
+          "name": "Child37",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child37"
+        },
+        {
+          "depth": 3,
+          "name": "Child38",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child38"
+        },
+        {
+          "depth": 3,
+          "name": "Child39",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child39"
+        },
+        {
+          "depth": 3,
+          "name": "Child40",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child40"
+        },
+        {
+          "depth": 3,
+          "name": "Child41",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child41"
+        },
+        {
+          "depth": 3,
+          "name": "Child42",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child42"
+        },
+        {
+          "depth": 3,
+          "name": "Child43",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child43"
+        },
+        {
+          "depth": 3,
+          "name": "Child44",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep",
+          "path": "Branch/Deep/Child44"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

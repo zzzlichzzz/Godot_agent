@@ -1,0 +1,28 @@
+{
+  "id": "003-cyrillic",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "кириллица: и содержимое файла, и путь notes/здоровье.md",
+  "args": {
+    "query": "здоровье",
+    "max_results": 5
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://notes/здоровье.md",
+          "line": 1,
+          "snippet": "1: # Заметки о здоровье\n2: \n3: Здоровье игрока — целое число от 0 до 100."
+        },
+        {
+          "path": "res://notes/здоровье.md",
+          "line": 5,
+          "snippet": "3: Здоровье игрока — целое число от 0 до 100.\n4: Полоса здоровья обновляется по сигналу HealthChanged.\n5: Ниже нуля здоровье не опускается.\n6: "
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

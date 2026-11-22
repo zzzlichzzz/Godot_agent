@@ -1,0 +1,512 @@
+{
+  "id": "limits-properties32",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "NewSubresource",
+          "class": "Resource",
+          "properties": [
+            {
+              "property": "p0",
+              "value": {
+                "type": "int",
+                "value": 0
+              }
+            },
+            {
+              "property": "p1",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "property": "p2",
+              "value": {
+                "type": "int",
+                "value": 2
+              }
+            },
+            {
+              "property": "p3",
+              "value": {
+                "type": "int",
+                "value": 3
+              }
+            },
+            {
+              "property": "p4",
+              "value": {
+                "type": "int",
+                "value": 4
+              }
+            },
+            {
+              "property": "p5",
+              "value": {
+                "type": "int",
+                "value": 5
+              }
+            },
+            {
+              "property": "p6",
+              "value": {
+                "type": "int",
+                "value": 6
+              }
+            },
+            {
+              "property": "p7",
+              "value": {
+                "type": "int",
+                "value": 7
+              }
+            },
+            {
+              "property": "p8",
+              "value": {
+                "type": "int",
+                "value": 8
+              }
+            },
+            {
+              "property": "p9",
+              "value": {
+                "type": "int",
+                "value": 9
+              }
+            },
+            {
+              "property": "p10",
+              "value": {
+                "type": "int",
+                "value": 10
+              }
+            },
+            {
+              "property": "p11",
+              "value": {
+                "type": "int",
+                "value": 11
+              }
+            },
+            {
+              "property": "p12",
+              "value": {
+                "type": "int",
+                "value": 12
+              }
+            },
+            {
+              "property": "p13",
+              "value": {
+                "type": "int",
+                "value": 13
+              }
+            },
+            {
+              "property": "p14",
+              "value": {
+                "type": "int",
+                "value": 14
+              }
+            },
+            {
+              "property": "p15",
+              "value": {
+                "type": "int",
+                "value": 15
+              }
+            },
+            {
+              "property": "p16",
+              "value": {
+                "type": "int",
+                "value": 16
+              }
+            },
+            {
+              "property": "p17",
+              "value": {
+                "type": "int",
+                "value": 17
+              }
+            },
+            {
+              "property": "p18",
+              "value": {
+                "type": "int",
+                "value": 18
+              }
+            },
+            {
+              "property": "p19",
+              "value": {
+                "type": "int",
+                "value": 19
+              }
+            },
+            {
+              "property": "p20",
+              "value": {
+                "type": "int",
+                "value": 20
+              }
+            },
+            {
+              "property": "p21",
+              "value": {
+                "type": "int",
+                "value": 21
+              }
+            },
+            {
+              "property": "p22",
+              "value": {
+                "type": "int",
+                "value": 22
+              }
+            },
+            {
+              "property": "p23",
+              "value": {
+                "type": "int",
+                "value": 23
+              }
+            },
+            {
+              "property": "p24",
+              "value": {
+                "type": "int",
+                "value": 24
+              }
+            },
+            {
+              "property": "p25",
+              "value": {
+                "type": "int",
+                "value": 25
+              }
+            },
+            {
+              "property": "p26",
+              "value": {
+                "type": "int",
+                "value": 26
+              }
+            },
+            {
+              "property": "p27",
+              "value": {
+                "type": "int",
+                "value": 27
+              }
+            },
+            {
+              "property": "p28",
+              "value": {
+                "type": "int",
+                "value": 28
+              }
+            },
+            {
+              "property": "p29",
+              "value": {
+                "type": "int",
+                "value": 29
+              }
+            },
+            {
+              "property": "p30",
+              "value": {
+                "type": "int",
+                "value": 30
+              }
+            },
+            {
+              "property": "p31",
+              "value": {
+                "type": "int",
+                "value": 31
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "x",
+            "value": {
+              "type": "NewSubresource",
+              "class": "Resource",
+              "properties": [
+                {
+                  "property": "p0",
+                  "value": {
+                    "type": "int",
+                    "value": 0
+                  }
+                },
+                {
+                  "property": "p1",
+                  "value": {
+                    "type": "int",
+                    "value": 1
+                  }
+                },
+                {
+                  "property": "p2",
+                  "value": {
+                    "type": "int",
+                    "value": 2
+                  }
+                },
+                {
+                  "property": "p3",
+                  "value": {
+                    "type": "int",
+                    "value": 3
+                  }
+                },
+                {
+                  "property": "p4",
+                  "value": {
+                    "type": "int",
+                    "value": 4
+                  }
+                },
+                {
+                  "property": "p5",
+                  "value": {
+                    "type": "int",
+                    "value": 5
+                  }
+                },
+                {
+                  "property": "p6",
+                  "value": {
+                    "type": "int",
+                    "value": 6
+                  }
+                },
+                {
+                  "property": "p7",
+                  "value": {
+                    "type": "int",
+                    "value": 7
+                  }
+                },
+                {
+                  "property": "p8",
+                  "value": {
+                    "type": "int",
+                    "value": 8
+                  }
+                },
+                {
+                  "property": "p9",
+                  "value": {
+                    "type": "int",
+                    "value": 9
+                  }
+                },
+                {
+                  "property": "p10",
+                  "value": {
+                    "type": "int",
+                    "value": 10
+                  }
+                },
+                {
+                  "property": "p11",
+                  "value": {
+                    "type": "int",
+                    "value": 11
+                  }
+                },
+                {
+                  "property": "p12",
+                  "value": {
+                    "type": "int",
+                    "value": 12
+                  }
+                },
+                {
+                  "property": "p13",
+                  "value": {
+                    "type": "int",
+                    "value": 13
+                  }
+                },
+                {
+                  "property": "p14",
+                  "value": {
+                    "type": "int",
+                    "value": 14
+                  }
+                },
+                {
+                  "property": "p15",
+                  "value": {
+                    "type": "int",
+                    "value": 15
+                  }
+                },
+                {
+                  "property": "p16",
+                  "value": {
+                    "type": "int",
+                    "value": 16
+                  }
+                },
+                {
+                  "property": "p17",
+                  "value": {
+                    "type": "int",
+                    "value": 17
+                  }
+                },
+                {
+                  "property": "p18",
+                  "value": {
+                    "type": "int",
+                    "value": 18
+                  }
+                },
+                {
+                  "property": "p19",
+                  "value": {
+                    "type": "int",
+                    "value": 19
+                  }
+                },
+                {
+                  "property": "p20",
+                  "value": {
+                    "type": "int",
+                    "value": 20
+                  }
+                },
+                {
+                  "property": "p21",
+                  "value": {
+                    "type": "int",
+                    "value": 21
+                  }
+                },
+                {
+                  "property": "p22",
+                  "value": {
+                    "type": "int",
+                    "value": 22
+                  }
+                },
+                {
+                  "property": "p23",
+                  "value": {
+                    "type": "int",
+                    "value": 23
+                  }
+                },
+                {
+                  "property": "p24",
+                  "value": {
+                    "type": "int",
+                    "value": 24
+                  }
+                },
+                {
+                  "property": "p25",
+                  "value": {
+                    "type": "int",
+                    "value": 25
+                  }
+                },
+                {
+                  "property": "p26",
+                  "value": {
+                    "type": "int",
+                    "value": 26
+                  }
+                },
+                {
+                  "property": "p27",
+                  "value": {
+                    "type": "int",
+                    "value": 27
+                  }
+                },
+                {
+                  "property": "p28",
+                  "value": {
+                    "type": "int",
+                    "value": 28
+                  }
+                },
+                {
+                  "property": "p29",
+                  "value": {
+                    "type": "int",
+                    "value": 29
+                  }
+                },
+                {
+                  "property": "p30",
+                  "value": {
+                    "type": "int",
+                    "value": 30
+                  }
+                },
+                {
+                  "property": "p31",
+                  "value": {
+                    "type": "int",
+                    "value": 31
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://texture.png"
+        ],
+        "summary": "description"
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "f898266f205bbc5a6fc6b491935fb5dacd66710e576e82191f1278ac3582e4e6"
+}

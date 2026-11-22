@@ -1,0 +1,45 @@
+{
+  "id": "new-forbidden-property",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "NewSubresource",
+          "class": "Gradient",
+          "properties": [
+            {
+              "property": "script",
+              "value": {
+                "type": "Nil",
+                "value": null
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Недопустимое или повторное свойство NewSubresource: script",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "5dac17c11f0f99ac621a3082a34d500599f5bc3cfbbe2a9a35a254d4721d2cc1"
+}

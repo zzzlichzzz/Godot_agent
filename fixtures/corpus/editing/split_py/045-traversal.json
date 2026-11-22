@@ -1,0 +1,14 @@
+{
+  "id": "045-traversal",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/traversal",
+  "args": {
+    "path": "res://../donor.py"
+  },
+  "contract_boundary": "denied",
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

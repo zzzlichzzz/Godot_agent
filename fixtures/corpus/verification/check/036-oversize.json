@@ -1,0 +1,28 @@
+{
+  "id": "036-oversize",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/large",
+  "args": {
+    "path": "res://large.gd"
+  },
+  "reference_result": {
+    "path": "res://large.gd",
+    "problems": [
+      "частичная проверка: линтер получил только первые 2097152 символов из 4194324, остаток файла НЕ проверен — не считай файл чистым"
+    ],
+    "auto_fixable": false,
+    "truncated": true,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "contract_refusal": "oversize",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

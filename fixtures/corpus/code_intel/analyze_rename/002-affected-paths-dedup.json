@@ -1,0 +1,70 @@
+{
+  "id": "002-affected-paths-dedup",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Несколько proven-ссылок в одном файле: affected_paths без дубликатов",
+  "args": {
+    "kind": "variable",
+    "old_name": "hp",
+    "new_name": "health",
+    "declaration": "res://src/lab_entity.gd:8"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "variable",
+      "old_name": "hp",
+      "new_name": "health",
+      "declaration": "res://src/lab_entity.gd:8",
+      "allow_unverified": false,
+      "mode": "strict",
+      "affected_paths": [
+        "res://src/lab_entity.gd"
+      ],
+      "risks": [],
+      "declaration_path": "res://src/lab_entity.gd",
+      "declaration_line": 8,
+      "usages": [
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 8,
+          "column": 5,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 13,
+          "column": 2,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 15,
+          "column": 9,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 18,
+          "column": 2,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "identifier": 3
+      },
+      "proven_count": 4,
+      "probable_count": 0,
+      "dynamic_count": 0
+    }
+  }
+}

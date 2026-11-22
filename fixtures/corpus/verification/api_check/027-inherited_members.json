@@ -1,0 +1,21 @@
+{
+  "id": "027-inherited_members",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "inherited_members",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.inherited(1)\n\tself.parent_prop\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

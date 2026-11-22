@@ -1,0 +1,59 @@
+{
+  "id": "001-all-sections",
+  "tool": "context",
+  "fixture": "minimal",
+  "note": "все три секции: встроенные project и tools, editor без моста -> unavailable (no_module)",
+  "args": {
+    "sections": ["project", "tools", "editor"]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "sections": {
+        "project": {
+          "root": "<PROJECT>",
+          "project_file": "res://project.godot",
+          "engine": null,
+          "source": "fs"
+        },
+        "tools": {
+          "count": 27,
+          "names": ["analyze_rename", "api", "api_check", "check", "connections", "context", "functions", "gd_lint", "node", "node_delete_preview", "node_rename_preview", "node_reparent_preview", "paths_preview", "read", "scene", "scene_deps", "search", "split_apply", "split_gd_plan", "split_gd_scan", "split_plan", "split_scan", "usages",
+                    "verify", "write_apply", "write_preview", "write_rollback"],
+          "effects": {
+            "analyze_rename": "read",
+            "api": "read",
+            "api_check": "read",
+            "check": "read",
+            "connections": "read",
+            "context": "read",
+            "functions": "read",
+            "gd_lint": "read",
+            "node": "read",
+            "node_delete_preview": "read",
+            "node_rename_preview": "read",
+            "node_reparent_preview": "read",
+            "paths_preview": "read",
+            "read": "read",
+            "scene": "read",
+            "scene_deps": "read",
+            "search": "read",
+            "split_gd_plan": "read",
+            "split_gd_scan": "read",
+            "split_plan": "read",
+            "split_scan": "read",
+            "usages": "read",
+            "verify": "read",
+            "write_apply": "write",
+            "write_preview": "write",
+            "write_rollback": "write",
+            "split_apply": "write"
+          }
+        }
+      },
+      "available": ["project", "tools"],
+      "unavailable": [{"name": "editor", "reason": "no_module"}],
+      "cost": "light"
+    }
+  }
+}

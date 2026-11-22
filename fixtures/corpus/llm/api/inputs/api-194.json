@@ -1,0 +1,11 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "reason_from_text",
+  "args": [
+    "обычный ответ",
+    null
+  ],
+  "kwargs": {},
+  "id": "api-194"
+}

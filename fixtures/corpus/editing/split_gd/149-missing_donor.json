@@ -1,0 +1,18 @@
+{
+  "id": "149-missing_donor",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/missing_donor",
+  "args": {
+    "path": "res://donor.gd"
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: missing_donor",
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  }
+}

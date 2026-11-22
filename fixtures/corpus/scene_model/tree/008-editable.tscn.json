@@ -1,0 +1,38 @@
+{
+  "id": "008-editable.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/editable.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=1 Script: res://scripts/a.gd",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/a.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

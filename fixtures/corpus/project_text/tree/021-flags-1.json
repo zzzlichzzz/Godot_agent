@@ -1,0 +1,244 @@
+{
+  "id": "021-flags-1",
+  "fixture": {
+    "dirs": [
+      "empty",
+      "src/empty",
+      "src/deep/next",
+      "addons/agent/nested",
+      "addons/vendor",
+      ".godot",
+      ".import",
+      ".agent_history",
+      ".hidden",
+      "node_modules",
+      "minilich_brain"
+    ],
+    "files": {
+      "plain.txt": {
+        "text": "alpha\nbeta\n"
+      },
+      "empty.txt": {
+        "text": ""
+      },
+      "bom.txt": {
+        "b64": "77u/YWxwaGENCmJldGENCg=="
+      },
+      "cr.txt": {
+        "text": "a\rb\r"
+      },
+      "mixed.txt": {
+        "text": "a\r\nb\rc\n"
+      },
+      "binary.bin": {
+        "b64": "AP/+YQ=="
+      },
+      "тест # [x].txt": {
+        "text": "кириллица 🐉\n"
+      },
+      "project.godot": {
+        "text": "config_version=5\n"
+      },
+      "plugin.cfg": {
+        "text": "[plugin]\n"
+      },
+      "src/a.gd": {
+        "text": "extends Node\n"
+      },
+      "src/B.GD": {
+        "text": "extends Node\n"
+      },
+      "src/deep/next/a.txt": {
+        "text": "deep\n"
+      },
+      ".DS_Store": {
+        "text": "noise"
+      },
+      "a.gd.UID": {
+        "text": "uid"
+      },
+      ".godot/cache.txt": {
+        "text": "cache"
+      },
+      ".import/a.txt": {
+        "text": "cache"
+      },
+      ".agent_history/a.txt": {
+        "text": "history"
+      },
+      ".hidden/a.txt": {
+        "text": "hidden"
+      },
+      "node_modules/a.txt": {
+        "text": "noise"
+      },
+      "minilich_brain/a.txt": {
+        "text": "noise"
+      },
+      "addons/vendor/a.txt": {
+        "text": "vendor"
+      },
+      "addons/agent/nested/a.py": {
+        "text": "agent"
+      },
+      "addons/agent/plugin.cfg": {
+        "text": "wrapper"
+      }
+    }
+  },
+  "args": {},
+  "policy": {
+    "allow_self_edit": true
+  },
+  "agent_rel": "addons/agent/nested",
+  "native_result": "  binary.bin\n  bom.txt\n  cr.txt\n  empty.txt\n  mixed.txt\n  plain.txt\n  plugin.cfg\n  project.godot\n  тест # [x].txt\n  addons/\n    agent/\n      nested/\n        a.py\n  empty/\n  src/\n    B.GD\n    a.gd\n    deep/\n      next/\n        a.txt\n    empty/",
+  "native_exception": null,
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://",
+      "type": "dir",
+      "children": [
+        {
+          "path": "res://binary.bin",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://bom.txt",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://cr.txt",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://empty.txt",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://mixed.txt",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://plain.txt",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://plugin.cfg",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://project.godot",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://тест # [x].txt",
+          "type": "file",
+          "children": [],
+          "count": 1
+        },
+        {
+          "path": "res://addons",
+          "type": "dir",
+          "children": [
+            {
+              "path": "res://addons/agent",
+              "type": "dir",
+              "children": [
+                {
+                  "path": "res://addons/agent/nested",
+                  "type": "dir",
+                  "children": [
+                    {
+                      "path": "res://addons/agent/nested/a.py",
+                      "type": "file",
+                      "children": [],
+                      "count": 1
+                    }
+                  ],
+                  "count": 1
+                }
+              ],
+              "count": 1
+            }
+          ],
+          "count": 1
+        },
+        {
+          "path": "res://empty",
+          "type": "dir",
+          "children": [],
+          "count": 0
+        },
+        {
+          "path": "res://src",
+          "type": "dir",
+          "children": [
+            {
+              "path": "res://src/B.GD",
+              "type": "file",
+              "children": [],
+              "count": 1
+            },
+            {
+              "path": "res://src/a.gd",
+              "type": "file",
+              "children": [],
+              "count": 1
+            },
+            {
+              "path": "res://src/deep",
+              "type": "dir",
+              "children": [
+                {
+                  "path": "res://src/deep/next",
+                  "type": "dir",
+                  "children": [
+                    {
+                      "path": "res://src/deep/next/a.txt",
+                      "type": "file",
+                      "children": [],
+                      "count": 1
+                    }
+                  ],
+                  "count": 1
+                }
+              ],
+              "count": 1
+            },
+            {
+              "path": "res://src/empty",
+              "type": "dir",
+              "children": [],
+              "count": 0
+            }
+          ],
+          "count": 3
+        }
+      ],
+      "count": 13
+    }
+  },
+  "native_non_effect": true,
+  "internal_call": {
+    "module_id": "project_text.tree",
+    "entrypoint": "build",
+    "client": "project_text"
+  }
+}

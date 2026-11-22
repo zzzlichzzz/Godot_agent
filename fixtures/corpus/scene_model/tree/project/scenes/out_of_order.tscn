@@ -1,0 +1,3 @@
+[node name="Child" parent="Missing/Deep"]
+[node name="Root" type="Node"]
+[node name="Sibling" parent="."]

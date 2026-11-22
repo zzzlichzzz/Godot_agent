@@ -1,0 +1,94 @@
+{
+  "id": "reading-016-outside-scene",
+  "input": {
+    "kind": "read",
+    "function": "describe_scene",
+    "args": [
+      "res://../outside/private.gd"
+    ]
+  },
+  "expected": {
+    "result": {
+      "error": "ValueError",
+      "message": "Путь вне проекта отклонен: res://../outside/private.gd"
+    },
+    "before": {
+      "files": {
+        "outside/private.gd": "9575dd01a606d945732bbc613f585bcc6f77977a97b0ee9fe89959bfa5db47a8",
+        "project-extra/leak.gd": "401a4ec80c84f2fdad50db900e323a2484192fb8c640f1920304ce6363171b8c",
+        "project/.agent_history/private.gd": "861ac469d665865a2634344cf628304095584ac755faeb016cf6c83963b919a7",
+        "project/Addons/RenamedWrapper/core/agent.gd": "68404070153f23c7db9b151b1a7b1a6dc7c9baae3233dcd08d827316537caf37",
+        "project/Addons/RenamedWrapper/core/agent.tscn": "58270921dd18749189e8b499fe843650116e1b2cefdcf51537dde3cfc85f14a0",
+        "project/Addons/RenamedWrapperExtra/extra.gd": "05bc859ba1fb248a133ea6c4120f89c81ee3bad3f38b015fdc15238b155a9366",
+        "project/Addons/other/tool.gd": "965ddab82b27a19e85cf2a86596c77c1e9363f899ae8be338ac14a808e1a0422",
+        "project/Addons/other/tool.tscn": "e2c36f20dd911ccbf16ac7c10d2ee287d18c8a7ddbd7096f1b96f379f01736b8",
+        "project/project.godot": "fad69d6705f77f14d4865c466b8c327d9093fbc94d1c58f55639d4ff9df05a3d",
+        "project/scenes/broken.tscn": "281dce8f157c1e9f9fdddf54ee49f3ea3d0fcfd4be33767f42e37d7e283b87d0",
+        "project/scenes/child.tscn": "c4d79e2973976b3a5f38a7029c2aae9796f01748127cef69eb76b0a44686f711",
+        "project/scenes/empty.tscn": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "project/scenes/main.tscn": "a3c72225d5d250b498e0ea5941b8309757e3a09185e27aa9d3e72db56efd891f",
+        "project/scenes/malformed_node.tscn": "fe91a6299ac6c2ebe7385e6501a1e88602d604650027c4e5f870216234ef86a5",
+        "project/src/nested/child.gd": "42890fd92701cf96730d602e77caf2e88dd93f6a10c4e0c0bbb44696585342b1",
+        "project/src/public.gd": "aca34059e74b08d470e83065742bf4c1960ce21db8fd791edd1bef38887fd55a",
+        "project/src/state.gd": "aaaa3d8b11ba4b9e8d68072293abcf95789de989412e77afec6b7e090b1c38cd",
+        "project/src/Юникод/игрок.gd": "48237899c29abf0a36eec084c3318f1a3788dd06883035c01b4b5c6c9a0fc32a"
+      },
+      "dirs": [
+        "config",
+        "outside",
+        "project",
+        "project-extra",
+        "project/.agent_history",
+        "project/Addons",
+        "project/Addons/RenamedWrapper",
+        "project/Addons/RenamedWrapper/core",
+        "project/Addons/RenamedWrapperExtra",
+        "project/Addons/other",
+        "project/scenes",
+        "project/src",
+        "project/src/nested",
+        "project/src/Юникод"
+      ],
+      "links": []
+    },
+    "after": {
+      "files": {
+        "outside/private.gd": "9575dd01a606d945732bbc613f585bcc6f77977a97b0ee9fe89959bfa5db47a8",
+        "project-extra/leak.gd": "401a4ec80c84f2fdad50db900e323a2484192fb8c640f1920304ce6363171b8c",
+        "project/.agent_history/private.gd": "861ac469d665865a2634344cf628304095584ac755faeb016cf6c83963b919a7",
+        "project/Addons/RenamedWrapper/core/agent.gd": "68404070153f23c7db9b151b1a7b1a6dc7c9baae3233dcd08d827316537caf37",
+        "project/Addons/RenamedWrapper/core/agent.tscn": "58270921dd18749189e8b499fe843650116e1b2cefdcf51537dde3cfc85f14a0",
+        "project/Addons/RenamedWrapperExtra/extra.gd": "05bc859ba1fb248a133ea6c4120f89c81ee3bad3f38b015fdc15238b155a9366",
+        "project/Addons/other/tool.gd": "965ddab82b27a19e85cf2a86596c77c1e9363f899ae8be338ac14a808e1a0422",
+        "project/Addons/other/tool.tscn": "e2c36f20dd911ccbf16ac7c10d2ee287d18c8a7ddbd7096f1b96f379f01736b8",
+        "project/project.godot": "fad69d6705f77f14d4865c466b8c327d9093fbc94d1c58f55639d4ff9df05a3d",
+        "project/scenes/broken.tscn": "281dce8f157c1e9f9fdddf54ee49f3ea3d0fcfd4be33767f42e37d7e283b87d0",
+        "project/scenes/child.tscn": "c4d79e2973976b3a5f38a7029c2aae9796f01748127cef69eb76b0a44686f711",
+        "project/scenes/empty.tscn": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "project/scenes/main.tscn": "a3c72225d5d250b498e0ea5941b8309757e3a09185e27aa9d3e72db56efd891f",
+        "project/scenes/malformed_node.tscn": "fe91a6299ac6c2ebe7385e6501a1e88602d604650027c4e5f870216234ef86a5",
+        "project/src/nested/child.gd": "42890fd92701cf96730d602e77caf2e88dd93f6a10c4e0c0bbb44696585342b1",
+        "project/src/public.gd": "aca34059e74b08d470e83065742bf4c1960ce21db8fd791edd1bef38887fd55a",
+        "project/src/state.gd": "aaaa3d8b11ba4b9e8d68072293abcf95789de989412e77afec6b7e090b1c38cd",
+        "project/src/Юникод/игрок.gd": "48237899c29abf0a36eec084c3318f1a3788dd06883035c01b4b5c6c9a0fc32a"
+      },
+      "dirs": [
+        "config",
+        "outside",
+        "project",
+        "project-extra",
+        "project/.agent_history",
+        "project/Addons",
+        "project/Addons/RenamedWrapper",
+        "project/Addons/RenamedWrapper/core",
+        "project/Addons/RenamedWrapperExtra",
+        "project/Addons/other",
+        "project/scenes",
+        "project/src",
+        "project/src/nested",
+        "project/src/Юникод"
+      ],
+      "links": []
+    }
+  }
+}

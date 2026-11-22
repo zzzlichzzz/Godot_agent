@@ -1,0 +1,17 @@
+{
+  "id": "006-orphan_unknown",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/006-orphan_unknown",
+  "note": "orphan_unknown",
+  "args": {
+    "path": "res://main.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"s\"]\n[node name=\"Root\" type=\"Node\"]\nscript = ExtResource(\"s\")\n[node name=\"Button\" type=\"Button\" parent=\".\"]\n",
+      "added": [],
+      "notes": []
+    }
+  }
+}

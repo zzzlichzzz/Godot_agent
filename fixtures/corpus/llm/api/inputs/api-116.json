@@ -1,0 +1,11 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "transport_for",
+  "args": [
+    "agentrouter",
+    "claude-fixture"
+  ],
+  "kwargs": {},
+  "id": "api-116"
+}

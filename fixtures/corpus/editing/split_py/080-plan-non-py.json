@@ -1,0 +1,20 @@
+{
+  "id": "080-plan-non-py",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_non-py",
+  "args": {
+    "path": "res://donor.txt"
+  },
+  "reference_result": null,
+  "reference_error": {
+    "ok": false,
+    "exception": "SplitError",
+    "message": "пила работает только с .py: donor.txt"
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "пила работает только с .py: donor.txt"
+}

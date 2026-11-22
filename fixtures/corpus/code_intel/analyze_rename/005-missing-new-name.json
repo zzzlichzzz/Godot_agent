@@ -1,0 +1,15 @@
+{
+  "id": "005-missing-new-name",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Мост эталона требовал --new-name и отвечал RC_USAGE",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "declaration": "res://src/lab_entity.gd:12"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

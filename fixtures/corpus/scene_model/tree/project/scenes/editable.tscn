@@ -1,0 +1,5 @@
+[ext_resource type="Script" path="res://scripts/a.gd" id="1"]
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+[editable path="Gun"]
+script=ExtResource("1")

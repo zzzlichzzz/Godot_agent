@@ -1,0 +1,6 @@
+{
+  "id": "split-parser_base-0",
+  "op": "split",
+  "text": "answer\n```agent_action\n{\"action\":\"done\"}\n```\n===DONE===",
+  "parser": "parser_base"
+}

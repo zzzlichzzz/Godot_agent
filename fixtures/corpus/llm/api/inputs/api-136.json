@@ -1,0 +1,34 @@
+{
+  "kind": "state",
+  "files": {
+    "config/models_cache.json": {
+      "providers": {
+        "fixture": {
+          "at": 1,
+          "models": [
+            "old-model"
+          ]
+        }
+      }
+    }
+  },
+  "operations": [
+    {
+      "module": "model_cache",
+      "function": "get",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "model_cache",
+      "function": "_load",
+      "args": [],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-136"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "expanded-hash-lf",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "bytes-lf",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "cf1db828a8f83aa05180a88bcc3777da7845dc5d862132dbbb32e49af5ab473c"
+  },
+  "oracle": "native",
+  "raw_sha256": "0a9bb1ea85a22ebbdcd18e184a45e49e47d7f2a0a5aed6fc839d4f724615d8e9"
+}

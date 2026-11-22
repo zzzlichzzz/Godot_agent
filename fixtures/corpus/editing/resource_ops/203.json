@@ -1,0 +1,41 @@
+{
+  "id": "limits-String0",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "String",
+          "value": 1
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "String требует строку до 4000 символов",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "4b7ed4026e725789ec99dcbc8bd01c57149aadf35ee3f1789735957393b1a0e7"
+}

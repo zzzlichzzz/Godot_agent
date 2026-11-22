@@ -1,0 +1,39 @@
+{
+  "id": "trusted-addon-0-1",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://ADDONS/tool/private.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {
+    "allow_addons": false,
+    "allow_self_edit": true
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа",
+    "hint": ""
+  },
+  "oracle": "D16 trusted addon edits не портированы",
+  "raw_sha256": "d23899996e2ae5e95dd029473d18ce465d7ed74c933ce192601c18f287e308fe"
+}

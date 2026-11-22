@@ -1,0 +1,98 @@
+{
+  "before": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  },
+  "result": {
+    "batch": {
+      "schema_version": 1,
+      "action_kind": "patch_file",
+      "operations": [
+        {
+          "op": "write",
+          "path": "res://player.gd",
+          "content": {
+            "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwcmludCgib2siKQo="
+          }
+        }
+      ],
+      "targets": [
+        "res://player.gd",
+        "res://scenes/main.tscn"
+      ],
+      "required_targets": [],
+      "source_hashes": {
+        "res://player.gd": "a5adc5c3693e8e467caf7acac013556f1432afc70fc9d6ba3826e5609e137ac3"
+      },
+      "candidate_digest": "8272c445b5ff586074b6ea90f6b1d5e37045ba4a74d554da362d71cbb90b8a95"
+    },
+    "receipt": {
+      "schema_version": 1,
+      "candidate_digest": "8272c445b5ff586074b6ea90f6b1d5e37045ba4a74d554da362d71cbb90b8a95",
+      "source_hashes": {
+        "res://player.gd": "a5adc5c3693e8e467caf7acac013556f1432afc70fc9d6ba3826e5609e137ac3",
+        "res://scenes/main.tscn": "a898e358eb032353468ec6481ce6e50a82fbdd0d563c23ba67ee315028309e27"
+      },
+      "report": {
+        "status": "passed",
+        "mode": "required",
+        "blocking": false,
+        "baseline_status": "passed",
+        "candidate_status": "passed",
+        "new_diagnostics": [],
+        "pre_existing_diagnostics": [],
+        "check_diagnostics": [],
+        "duration_ms": "<elapsed_ms>",
+        "timed_out": false,
+        "output_truncated": false
+      }
+    },
+    "project_unchanged": true,
+    "owned_leftovers": [],
+    "verify": {
+      "error": "StaleValidationError",
+      "message": "Файл изменился после проверки Godot: res://scenes/main.tscn"
+    },
+    "message": null,
+    "mismatch": {
+      "error": "StaleValidationError",
+      "message": "Кандидат не совпадает с проверенным Godot вариантом"
+    }
+  },
+  "after": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKIyBleHRlcm5hbCBlZGl0Cg=="
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  }
+}

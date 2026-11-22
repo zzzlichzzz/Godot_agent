@@ -1,0 +1,6 @@
+{"buffered": "YW5zd2VyClJBSVNFCg=="}
+{"post": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"body": "answer\nDONE\n"}
+{"response": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", 200, "text/event-stream"]}
+{"wait_done": "r1"}
+{"finish": "r1"}

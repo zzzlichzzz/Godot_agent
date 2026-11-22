@@ -1,0 +1,36 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "normalize_action",
+    "args": [
+      {
+        "action": "inspect_runtime",
+        "sections": [
+          "tree",
+          "tree",
+          "metrics"
+        ]
+      }
+    ],
+    "kwargs": {},
+    "id": "context-037"
+  },
+  "expect": {
+    "action": "inspect_runtime",
+    "sections": [
+      "tree",
+      "metrics"
+    ],
+    "properties": [],
+    "session_id": null,
+    "max_age_ms": 1000,
+    "reason": ""
+  },
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "normalize_action",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

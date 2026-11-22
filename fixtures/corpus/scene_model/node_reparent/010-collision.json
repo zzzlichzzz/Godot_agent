@@ -1,0 +1,16 @@
+{
+  "id": "010-collision",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/010-collision",
+  "note": "actual-old prepare-only: collision",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Узел с именем 'Old' уже существует в целевом родителе"
+  }
+}

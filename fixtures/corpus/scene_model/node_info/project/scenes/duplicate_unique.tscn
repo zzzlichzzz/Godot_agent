@@ -1,0 +1,8 @@
+[gd_scene format=3]
+[node name="Root" type="Node"]
+[node name="First" type="Node" parent="."]
+[node name="Second" type="Node" parent="."]
+[node name="Unique" type="Node2D" parent="First"]
+unique_name_in_owner = true
+[node name="Unique" type="Marker2D" parent="Second"]
+unique_name_in_owner = true

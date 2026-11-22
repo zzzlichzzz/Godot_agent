@@ -1,0 +1,32 @@
+{
+  "id": "expanded-op0-missing-value",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value"
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: value",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "f655b58b6fc694fe6863a5ef3c742342a66aa3ecf77b00ec5222852dbd194d88"
+}

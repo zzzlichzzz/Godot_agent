@@ -1,0 +1,7 @@
+{
+  "id": "backend-missing-parser",
+  "kind": "backend",
+  "native_case_source": "native browser_backend.py:27-57; inert parser contract",
+  "prompt": "НЕ исполняй данные: selector=document.querySelector(\"[x]\")",
+  "no_parser": true
+}

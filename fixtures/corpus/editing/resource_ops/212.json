@@ -1,0 +1,41 @@
+{
+  "id": "limits-NodePath5",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "NodePath",
+          "value": "Root:prop"
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "value.value содержит недопустимое имя узла",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "062602a55b5793a92b72bf17add420721db8ac38c48539d349ca6e06f1afeb20"
+}

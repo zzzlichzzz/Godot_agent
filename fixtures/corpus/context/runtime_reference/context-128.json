@@ -1,0 +1,115 @@
+{
+  "input": {
+    "module": "editor_context",
+    "function": "snapshot_for_prompt",
+    "args": [
+      "объясни текущий скрипт",
+      {
+        "schema_version": 1,
+        "scene": {
+          "active": "res://main.tscn",
+          "open": [
+            "res://main.tscn",
+            "outside"
+          ]
+        },
+        "selection": {
+          "nodes": [
+            {
+              "path": "Main/Player",
+              "type": "Node2D",
+              "script": "res://player.gd",
+              "groups": [
+                "player"
+              ],
+              "properties": {
+                "hp": 10,
+                "bad": {}
+              }
+            }
+          ]
+        },
+        "script": {
+          "path": "res://player.gd",
+          "dirty": true,
+          "caret": {
+            "line": 10,
+            "column": 2
+          },
+          "caret_context": {
+            "text": "NEAR CURSOR MUST LOSE"
+          },
+          "open": [
+            "res://other.gd"
+          ]
+        },
+        "diagnostics": {
+          "items": [
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            }
+          ]
+        },
+        "run": {
+          "playing": false
+        },
+        "unknown": 1
+      }
+    ],
+    "kwargs": {},
+    "id": "context-128"
+  },
+  "expect": {
+    "schema_version": 1,
+    "scene": {
+      "active": "res://main.tscn"
+    },
+    "selection": {
+      "nodes": [
+        {
+          "path": "Main/Player",
+          "type": "Node2D",
+          "script": "res://player.gd",
+          "groups": [
+            "player"
+          ],
+          "properties": {
+            "hp": 10
+          }
+        }
+      ]
+    },
+    "script": {
+      "path": "res://player.gd",
+      "dirty": true,
+      "caret": {
+        "line": 10,
+        "column": 2
+      },
+      "caret_context": {
+        "text": "NEAR CURSOR MUST LOSE"
+      }
+    },
+    "diagnostics": {
+      "items": [
+        {
+          "message": "synthetic diagnostic",
+          "path": "res://player.gd",
+          "line": 10
+        }
+      ]
+    },
+    "run": {
+      "playing": false
+    }
+  },
+  "provenance": {
+    "source": "server/editor_context.py",
+    "source_sha256": "32613d28449674134888ecf8e1b9088ff9b30f30c9baeecacf1fe799f6349362",
+    "function": "snapshot_for_prompt",
+    "case_source": "test_editor_context.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

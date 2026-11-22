@@ -1,0 +1,21 @@
+{
+  "id": "109-target_above_maximum",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/target_above_maximum",
+  "args": {
+    "path": "res://donor.gd",
+    "target_lines": 5001
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: target_above_maximum",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "target_lines must be between 100 and 5000"
+  },
+  "expected_message": "target_lines must be between 100 and 5000"
+}

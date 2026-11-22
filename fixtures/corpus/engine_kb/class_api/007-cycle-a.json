@@ -1,0 +1,76 @@
+{
+  "id": "007-cycle-a",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/cycle",
+  "args": {
+    "class_name": "A"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "A",
+      "found": true,
+      "cache_version": "4.6",
+      "inherits": [
+        "A",
+        "B"
+      ],
+      "methods": [
+        {
+          "name": "a",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "b",
+          "min_args": 1,
+          "max_args": 1,
+          "signature": ""
+        }
+      ],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "A",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6",
+    "record": {
+      "inherits": "B",
+      "methods": {
+        "a": [
+          0,
+          0
+        ]
+      }
+    },
+    "chain": [
+      "A",
+      "B"
+    ],
+    "members": [
+      {
+        "a": [
+          0,
+          0
+        ],
+        "b": [
+          1,
+          1
+        ]
+      },
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

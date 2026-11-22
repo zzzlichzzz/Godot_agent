@@ -1,0 +1,71 @@
+{
+  "id": "expanded-wait_for_import4",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ],
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "wait_for_import должен быть массивом до 32 путей",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "7615a99cd3b3107ef4029bc515fc3697e979c21e5dec07ac10c35d2f7315a590"
+}

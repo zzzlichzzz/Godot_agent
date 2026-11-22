@@ -1,0 +1,17 @@
+{
+  "id": "015-empty_name",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/015-empty_name",
+  "note": "empty_name",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": " "
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Недопустимое имя узла:  ",
+    "reference_exception": "NodeRefactorError"
+  }
+}

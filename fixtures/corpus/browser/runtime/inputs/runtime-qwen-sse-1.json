@@ -1,0 +1,12 @@
+{
+  "id": "runtime-qwen-sse-1",
+  "op": "b3",
+  "payload": {
+    "id": "qwen-sse-1",
+    "kind": "decode",
+    "native_case_source": "test_v88_6_qwen_net.py:125-165; independent Unicode SSE deltas",
+    "monitor": "qwen",
+    "body_b64": "ZGF0YTogeyJyZXNwb25zZS5jcmVhdGVkIjp7InJlc3BvbnNlX2lkIjoibWFpbiIsInJlc3BvbnNlX2luZGV4IjoiMCJ9fQoKZGF0YTogeyJjaG9pY2VzIjpbeyJkZWx0YSI6eyJwaGFzZSI6InRoaW5raW5nX3N1bW1hcnkiLCJjb250ZW50IjoiIiwic3RhdHVzIjoidHlwaW5nIiwiZXh0cmEiOnsic3VtbWFyeV90aG91Z2h0Ijp7ImNvbnRlbnQiOlsi0KDQsNC30LzRi9GI0LvQtdC90LjQtSAxIl19fX19XSwicmVzcG9uc2VfaWQiOiJtYWluIn0KCmRhdGE6IHsiY2hvaWNlcyI6W3siZGVsdGEiOnsicGhhc2UiOiJ0aGlua2luZ19zdW1tYXJ5IiwiY29udGVudCI6IiIsInN0YXR1cyI6InR5cGluZyIsImV4dHJhIjp7InN1bW1hcnlfdGhvdWdodCI6eyJjb250ZW50IjpbItCg0LDQt9C80YvRiNC70LXQvdC40LUgMSIsItCg0LDQt9C80YvRiNC70LXQvdC40LUgMiJdfX19fV0sInJlc3BvbnNlX2lkIjoibWFpbiJ9CgpkYXRhOiB7ImNob2ljZXMiOlt7ImRlbHRhIjp7InBoYXNlIjoiYW5zd2VyIiwiY29udGVudCI6ItCn0LjRgtCw0Y4gIiwic3RhdHVzIjoidHlwaW5nIn19XSwicmVzcG9uc2VfaWQiOiJtYWluIn0KCmRhdGE6IHsiY2hvaWNlcyI6W3siZGVsdGEiOnsicGhhc2UiOiJhbnN3ZXIiLCJjb250ZW50Ijoi0YHRhtC10L3RgyDwn6aUIiwic3RhdHVzIjoidHlwaW5nIn19XSwicmVzcG9uc2VfaWQiOiJtYWluIn0KCmRhdGE6IHsiY2hvaWNlcyI6W3siZGVsdGEiOnsicGhhc2UiOiJhbnN3ZXIiLCJjb250ZW50IjoiIiwic3RhdHVzIjoiZmluaXNoZWQifX1dLCJyZXNwb25zZV9pZCI6Im1haW4ifQoK",
+    "step": 1
+  }
+}

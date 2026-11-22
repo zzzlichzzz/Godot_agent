@@ -1,0 +1,103 @@
+{
+  "id": "023-extra-argument",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/chain",
+  "args": {
+    "class_name": "Node2D",
+    "path": "res://ignored"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "oracle_class_name": "Node2D",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6.3",
+    "record": {
+      "inherits": "CanvasItem",
+      "methods": {
+        "zebra": [
+          0,
+          0
+        ],
+        "shared": [
+          1,
+          2
+        ],
+        "alpha": [
+          2,
+          3
+        ]
+      },
+      "properties": [
+        "z_index",
+        "position"
+      ],
+      "signals": [
+        "changed"
+      ],
+      "signatures": {
+        "alpha": "alpha(x: int, y: String = \"λ\") -> void",
+        "shared": "shared(child: int) -> bool"
+      }
+    },
+    "chain": [
+      "Node2D",
+      "CanvasItem",
+      "Node",
+      "Object"
+    ],
+    "members": [
+      {
+        "zebra": [
+          0,
+          0
+        ],
+        "shared": [
+          1,
+          2
+        ],
+        "alpha": [
+          2,
+          3
+        ],
+        "draw": [
+          0,
+          1
+        ],
+        "queue_free": [
+          0,
+          0
+        ],
+        "free": [
+          0,
+          0
+        ]
+      },
+      [
+        "name",
+        "position",
+        "visible",
+        "z_index"
+      ],
+      [
+        "changed",
+        "drawn",
+        "ready"
+      ]
+    ],
+    "signatures": {
+      "alpha": "alpha(x: int, y: String = \"λ\") -> void",
+      "shared": "shared(child: int) -> bool",
+      "draw": "draw(width: float = 1.0) -> void"
+    }
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  },
+  "boundary": "New ToolSpec refusal, not a fabricated legacy error; raw library observation retained."
+}

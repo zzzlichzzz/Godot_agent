@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "transport_for_npm",
+  "args": [
+    "@ai-sdk/openai-compatible"
+  ],
+  "kwargs": {},
+  "id": "api-153"
+}

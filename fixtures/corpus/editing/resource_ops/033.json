@@ -1,0 +1,36 @@
+{
+  "id": "invalid-member",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "bad-name",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Недопустимое имя свойства",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "4a608557aa52e141ee43ce25835c4f78e33a894b4fc2827513102b68c83f4499"
+}

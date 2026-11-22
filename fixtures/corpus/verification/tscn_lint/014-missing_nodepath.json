@@ -1,0 +1,27 @@
+{
+  "id": "014-missing_nodepath",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\ntarget = NodePath(\"Ghost\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\ntarget = NodePath(\"Ghost\")\n",
+      "changed": false,
+      "problems": [
+        "узел \"Root\" (Node): target = NodePath(\"Ghost\") указывает на узел «Ghost», которого в сцене НЕТ. Godot откроет сцену, но повесит на узел жёлтое предупреждение, и свойство работать не будет. Укажи путь существующего узла (пути отсчитываются от самого узла: \"../Имя\" — сосед, \"Имя\" — ребёнок) либо добавь недостающий узел в сцену."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\ntarget = NodePath(\"Ghost\")\n",
+    "changed": false,
+    "problems": [
+      "узел \"Root\" (Node): target = NodePath(\"Ghost\") указывает на узел «Ghost», которого в сцене НЕТ. Godot откроет сцену, но повесит на узел жёлтое предупреждение, и свойство работать не будет. Укажи путь существующего узла (пути отсчитываются от самого узла: \"../Имя\" — сосед, \"Имя\" — ребёнок) либо добавь недостающий узел в сцену."
+    ]
+  },
+  "reference_api_classes": null
+}

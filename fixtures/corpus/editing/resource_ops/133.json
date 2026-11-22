@@ -1,0 +1,33 @@
+{
+  "id": "expanded-op4-missing-value",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "theme_set_item",
+        "data_type": "color",
+        "theme_type": "Button",
+        "name": "font_color"
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: value",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "a1dacd56b39523c8e8defced0f14c947120e530dcf40d7e62c0accf04e894e17"
+}

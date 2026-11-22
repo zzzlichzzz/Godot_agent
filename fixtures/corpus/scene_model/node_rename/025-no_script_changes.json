@@ -1,0 +1,186 @@
+{
+  "id": "025-no_script_changes",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/025-no_script_changes",
+  "note": "no_script_changes",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Arm",
+      "new_name": "LongArm",
+      "old_path": "Arm",
+      "new_path": "LongArm",
+      "target_node_path": "Arm",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "088bc1fea8b1c68dfc0588d60c90b4703b406d786b77844190c4455dd817aba0",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiJUFybTpyb3RhdGlvbiIpCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMiIpCltub2RlIG5hbWU9Ikdsb3ciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0vVGlwIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwIiBtZXRob2Q9InJlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iV2luZyIgdG89IkFybSIgbWV0aG9kPSJyZWFkeSJdCg==",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkxvbmdBcm0vVGlwOnBvc2l0aW9uOngiKQp0cmFja3MvMS9wYXRoID0gTm9kZVBhdGgoIiVMb25nQXJtOnJvdGF0aW9uIikKW25vZGUgbmFtZT0iTWFpbiIgdHlwZT0iTm9kZTJEIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpbbm9kZSBuYW1lPSJMb25nQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJMb25nQXJtIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjIiKQpbbm9kZSBuYW1lPSJHbG93IiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iTG9uZ0FybS9UaXAiXQpbbm9kZSBuYW1lPSJXaW5nIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209IkxvbmdBcm0iIHRvPSJMb25nQXJtL1RpcCIgbWV0aG9kPSJyZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209IldpbmciIHRvPSJMb25nQXJtIiBtZXRob2Q9InJlYWR5Il0K",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                2,
+                2,
+                "@@ -2,15 +2,15 @@"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"1\"]"
+              ],
+              [
+                " ",
+                3,
+                3,
+                "[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"2\"]"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "[sub_resource type=\"Animation\" id=\"A\"]"
+              ],
+              [
+                "-",
+                5,
+                null,
+                "tracks/0/path = NodePath(\"Arm/Tip:position:x\")"
+              ],
+              [
+                "-",
+                6,
+                null,
+                "tracks/1/path = NodePath(\"%Arm:rotation\")"
+              ],
+              [
+                "+",
+                null,
+                5,
+                "tracks/0/path = NodePath(\"LongArm/Tip:position:x\")"
+              ],
+              [
+                "+",
+                null,
+                6,
+                "tracks/1/path = NodePath(\"%LongArm:rotation\")"
+              ],
+              [
+                " ",
+                7,
+                7,
+                "[node name=\"Main\" type=\"Node2D\"]"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "[node name=\"Arm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "+",
+                null,
+                9,
+                "[node name=\"LongArm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "unique_name_in_owner = true"
+              ],
+              [
+                "-",
+                11,
+                null,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"Arm\"]"
+              ],
+              [
+                "+",
+                null,
+                11,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"LongArm\"]"
+              ],
+              [
+                " ",
+                12,
+                12,
+                "script = ExtResource(\"2\")"
+              ],
+              [
+                "-",
+                13,
+                null,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"Arm/Tip\"]"
+              ],
+              [
+                "+",
+                null,
+                13,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"LongArm/Tip\"]"
+              ],
+              [
+                " ",
+                14,
+                14,
+                "[node name=\"Wing\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "-",
+                15,
+                null,
+                "[connection signal=\"ready\" from=\"Arm\" to=\"Arm/Tip\" method=\"ready\"]"
+              ],
+              [
+                "-",
+                16,
+                null,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"Arm\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                15,
+                "[connection signal=\"ready\" from=\"LongArm\" to=\"LongArm/Tip\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                16,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"LongArm\" method=\"ready\"]"
+              ]
+            ],
+            "added": 7,
+            "removed": 7,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 7
+        }
+      ],
+      "reference_count": 7,
+      "affected_paths": [
+        "res://main.tscn"
+      ],
+      "scripts_only": false,
+      "previous_name": ""
+    }
+  }
+}

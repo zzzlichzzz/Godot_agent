@@ -1,0 +1,33 @@
+{
+  "id": "049-f1_py_syntax",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://e.py"
+  },
+  "reference_result": {
+    "path": "res://e.py",
+    "problems": [
+      "python syntax: invalid syntax (res://e.py, line 1)"
+    ],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://e.py",
+      "problems": [
+        "python syntax: invalid syntax (res://e.py, line 1)"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "py"
+      ],
+      "unavailable": []
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

@@ -1,0 +1,49 @@
+{
+  "id": "012-missing_attrs.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/missing_attrs.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- ? (Node)\n    - ?\n      - Child",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "?",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 2,
+          "name": "?",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "",
+          "path": "/?"
+        },
+        {
+          "depth": 3,
+          "name": "Child",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "A/",
+          "path": "A//Child"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "014-float_int",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "float_int",
+  "args": {
+    "path": "res://scripts/float_int.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 17
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "023-non_utf8",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://broken_encoding.gd"
+  },
+  "reference_result": {
+    "path": "res://broken_encoding.gd",
+    "problems": [
+      "в коде символ повреждённой кодировки (\\ufffd) — текст побился"
+    ],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://broken_encoding.gd",
+      "problems": [
+        "в коде символ повреждённой кодировки (\\ufffd) — текст побился"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "gd",
+        "api"
+      ],
+      "unavailable": [
+        {
+          "kind": "api_cache",
+          "reason": "no_cache"
+        },
+        {
+          "kind": "headless",
+          "reason": ".gd проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "010",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "объявление в закрытом аддоне: denied",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "pokes",
+    "new_name": "jabs",
+    "declaration": "res://addons/other/plugin.gd:5",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

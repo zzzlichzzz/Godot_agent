@@ -1,0 +1,22 @@
+{
+  "id": "expanded-action-missing",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {},
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: action, operations, resource",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "ffa45e245d7a72ee94c6e9d6afbcec95b8ecafa07d8d7f403e08a72a988bb729"
+}

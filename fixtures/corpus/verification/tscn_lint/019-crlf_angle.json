@@ -1,0 +1,23 @@
+{
+  "id": "019-crlf_angle",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3>\r\n[node name=\"Root\" type=\"Node\"]\r\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\r\n[node name=\"Root\" type=\"Node\"]\r\n",
+      "changed": true,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\r\n[node name=\"Root\" type=\"Node\"]\r\n",
+    "changed": true,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

@@ -1,0 +1,41 @@
+{
+  "id": "053-trailing_parent.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "trailing_parent.tscn: 'Branch/Leaf'",
+  "args": {
+    "path": "res://scenes/trailing_parent.tscn",
+    "node": "Branch/Leaf"
+  },
+  "reference_node": {
+    "name": "Leaf",
+    "parent": "Branch/",
+    "type": "Node",
+    "path": "Branch/Leaf",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      95,
+      142
+    ],
+    "body_span": [
+      142,
+      143
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Leaf",
+      "type": "Node",
+      "parent": "Branch/",
+      "path": "Branch//Leaf",
+      "depth": 3,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

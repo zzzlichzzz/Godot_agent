@@ -1,0 +1,63 @@
+{
+  "id": "004-alias_import",
+  "tool": "split_scan",
+  "reference_result": {
+    "rel": "donor.py",
+    "stem": "donor",
+    "counts": {
+      "import": 1,
+      "source_read": 0,
+      "patch": 0,
+      "mention": 0,
+      "doc": 0
+    },
+    "occurrences": [
+      {
+        "rel": "ref.py",
+        "line": 1,
+        "kind": "import",
+        "text": "import donor as alias"
+      }
+    ],
+    "hard_files": [
+      "ref.py"
+    ],
+    "soft_files": [],
+    "truncated": false
+  },
+  "fixture": "corpus/editing/split_py/alias_import",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_args": {
+    "addon_root": "",
+    "rel_path": "donor.py"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "stem": "donor",
+      "counts": {
+        "import": 1,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 0,
+        "doc": 0
+      },
+      "occurrences": [
+        {
+          "file": "ref.py",
+          "line": 1,
+          "kind": "import",
+          "text": "import donor as alias"
+        }
+      ],
+      "hard_files": [
+        "ref.py"
+      ],
+      "soft_files": [],
+      "truncated": false
+    }
+  }
+}

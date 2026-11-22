@@ -1,0 +1,4415 @@
+{
+  "cases": [
+    {
+      "id": "scene_deps-snake-0",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": "Camera3D"
+    },
+    {
+      "id": "scene_deps-snake-1",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": "XMLParser"
+    },
+    {
+      "id": "scene_deps-snake-2",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": "FireButton"
+    },
+    {
+      "id": "scene_deps-snake-3",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": "HTTP2Server"
+    },
+    {
+      "id": "scene_deps-snake-4",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": " A--B "
+    },
+    {
+      "id": "scene_deps-snake-5",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": "snake_case"
+    },
+    {
+      "id": "scene_deps-snake-6",
+      "group": "scene_deps",
+      "function": "to_snake",
+      "text": ""
+    },
+    {
+      "id": "scene_deps-handlers-dedup",
+      "group": "scene_deps",
+      "function": "extract_handlers",
+      "text": "func _on_fire_button_pressed():\n pass\nfunc _on_fire_button_pressed():\n pass\n"
+    },
+    {
+      "id": "scene_deps-handlers-static",
+      "group": "scene_deps",
+      "function": "extract_handlers",
+      "text": "static func _on_timeout():\n pass\n"
+    },
+    {
+      "id": "scene_deps-handlers-indented",
+      "group": "scene_deps",
+      "function": "extract_handlers",
+      "text": "class Inner:\n func _on_pressed():\n  pass\nfunc ordinary():\n pass\n"
+    },
+    {
+      "id": "scene_deps-parse-basic",
+      "group": "scene_deps",
+      "function": "parse_scene",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+    },
+    {
+      "id": "scene_deps-parse-crlf",
+      "group": "scene_deps",
+      "function": "parse_scene",
+      "text": "[gd_scene load_steps=2 format=3]\r\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\r\n[node name=\"Player\" type=\"Node\"]\r\nscript = ExtResource(\"1\")\r\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\r\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\r\n"
+    },
+    {
+      "id": "scene_deps-parse-empty",
+      "group": "scene_deps",
+      "function": "parse_scene",
+      "text": ""
+    },
+    {
+      "id": "scene_deps-parse-instance",
+      "group": "scene_deps",
+      "function": "parse_scene",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n[node name=\"Instance\" parent=\".\" instance=ExtResource(\"2\")]\n"
+    },
+    {
+      "id": "scene_deps-parse-connection",
+      "group": "scene_deps",
+      "function": "parse_scene",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n[connection signal=\"pressed\" from=\"FireButton\" to=\".\" method=\"_on_pressed\"]\n"
+    },
+    {
+      "id": "scene_deps-scene-unique",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-crlf",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\r\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\r\n[node name=\"Player\" type=\"Node\"]\r\nscript = ExtResource(\"1\")\r\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\r\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\r\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-bom",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "﻿[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-no-handlers",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-existing",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n[connection signal=\"pressed\" from=\"FireButton\" to=\".\" method=\"_on_fire_button_pressed\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-other-method",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n[connection signal=\"pressed\" from=\"FireButton\" to=\".\" method=\"different\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-code-literal",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\nvar callback = \"_on_fire_button_pressed\"\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-code-connect",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\nfunc connect_fixture():\n\tFireButton.pressed.connect(_on_fire_button_pressed)\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-other-scene",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n",
+        "other.tscn": "[connection method=\"_on_fire_button_pressed\"]\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-ambiguous",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n[node name=\"Other\" type=\"Button\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-custom",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nsignal custom_ready\nfunc _on_fire_button_custom_ready():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-unknown",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"CustomButton\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-root-signal",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Button\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-rigid",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"Body\" type=\"RigidBody2D\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_body_body_entered(body):\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-scene-no-script",
+      "group": "scene_deps",
+      "function": "analyze_scene_action",
+      "text": "[gd_scene format=3]\n[node name=\"Only\" type=\"Button\"]\n",
+      "files": {
+        "scripts/player.gd": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+      }
+    },
+    {
+      "id": "scene_deps-script-handler",
+      "group": "scene_deps",
+      "function": "analyze_script_action",
+      "text": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_fire_button_pressed():\n\tpass\n"
+    },
+    {
+      "id": "scene_deps-script-unknown",
+      "group": "scene_deps",
+      "function": "analyze_script_action",
+      "text": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nfunc _on_nothing_unknown():\n\tpass\n"
+    },
+    {
+      "id": "scene_deps-script-custom",
+      "group": "scene_deps",
+      "function": "analyze_script_action",
+      "text": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\nsignal custom_ready\nfunc _on_fire_button_custom_ready():\n\tpass\n"
+    },
+    {
+      "id": "scene_actions-variant-Nil",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Nil",
+        "value": null
+      }
+    },
+    {
+      "id": "scene_actions-variant-bool",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "bool",
+        "value": true
+      }
+    },
+    {
+      "id": "scene_actions-variant-int",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "int",
+        "value": 2
+      }
+    },
+    {
+      "id": "scene_actions-variant-float",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "float",
+        "value": 1
+      }
+    },
+    {
+      "id": "scene_actions-variant-String",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "String",
+        "value": "тест"
+      }
+    },
+    {
+      "id": "scene_actions-variant-StringName",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "StringName",
+        "value": "name"
+      }
+    },
+    {
+      "id": "scene_actions-variant-NodePath",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "NodePath",
+        "value": "."
+      }
+    },
+    {
+      "id": "scene_actions-variant-Vector2",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Vector2",
+        "value": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-Vector2i",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Vector2i",
+        "value": [
+          1.9,
+          2.1
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-Vector3",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Vector3",
+        "value": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-Vector3i",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Vector3i",
+        "value": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-Color",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Color",
+        "value": [
+          1,
+          0.5,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-not-object",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": 2
+    },
+    {
+      "id": "scene_actions-variant-invalid-unknown",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Object",
+        "value": {}
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-extra",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "int",
+        "value": 2,
+        "extra": true
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-missing",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "int"
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-nil-value",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Nil",
+        "value": 0
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-bool-int",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "bool",
+        "value": 1
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-int-bool",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "int",
+        "value": true
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-float-bool",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "float",
+        "value": false
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-string-long",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "String",
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-vector-short",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Vector3",
+        "value": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-invalid-vector-bool",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "Vector2",
+        "value": [
+          1,
+          true
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-variant-nan",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "float",
+        "value": 0
+      },
+      "special_float": "nan"
+    },
+    {
+      "id": "scene_actions-variant-inf",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "float",
+        "value": 0
+      },
+      "special_float": "inf"
+    },
+    {
+      "id": "scene_actions-variant--inf",
+      "group": "scene_actions",
+      "function": "normalize_variant",
+      "variant": {
+        "type": "float",
+        "value": 0
+      },
+      "special_float": "-inf"
+    },
+    {
+      "id": "scene_actions-node-path-0",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "."
+    },
+    {
+      "id": "scene_actions-node-path-1",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "Child"
+    },
+    {
+      "id": "scene_actions-node-path-2",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "A/B"
+    },
+    {
+      "id": "scene_actions-node-path-3",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "A\\B"
+    },
+    {
+      "id": "scene_actions-node-path-4",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "/Root"
+    },
+    {
+      "id": "scene_actions-node-path-5",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "A/"
+    },
+    {
+      "id": "scene_actions-node-path-6",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "A//B"
+    },
+    {
+      "id": "scene_actions-node-path-7",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "A/.."
+    },
+    {
+      "id": "scene_actions-node-path-8",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "../A"
+    },
+    {
+      "id": "scene_actions-node-path-9",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "%Unique"
+    },
+    {
+      "id": "scene_actions-node-path-10",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": "A:B"
+    },
+    {
+      "id": "scene_actions-node-path-11",
+      "group": "scene_actions",
+      "function": "normalize_node_path",
+      "path": ""
+    },
+    {
+      "id": "scene_actions-prepare-add",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-all-operations",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "attach_script",
+            "node": "Child",
+            "script": "res://scripts/player.gd",
+            "replace_existing": false
+          },
+          {
+            "op": "connect_signal",
+            "source": "FireButton",
+            "signal": "pressed",
+            "target": ".",
+            "method": "_on_pressed"
+          },
+          {
+            "op": "reparent_node",
+            "node": "Child",
+            "new_parent": "Timer",
+            "keep_global_transform": false
+          }
+        ],
+        "summary": "  текст  "
+      }
+    },
+    {
+      "id": "scene_actions-create",
+      "group": "scene_actions",
+      "action": {
+        "action": "create_scene",
+        "scene": "res://new.tscn",
+        "root": {
+          "name": "Root",
+          "type": "Node",
+          "script": "res://scripts/player.gd"
+        },
+        "operations": []
+      }
+    },
+    {
+      "id": "scene_actions-reject-empty",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": []
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-too-many",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        ]
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-unknown-field",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ],
+        "extra": true
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-missing-target",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://missing.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-wrong-extension",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scripts/player.gd",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-escape",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://../scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-addon",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://addons/other/scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-blank-summary",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ],
+        "summary": " "
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-summary-type",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ],
+        "summary": 3
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-reject-summary-long",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ],
+        "summary": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "files": {
+        "addons/other/scene.tscn": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n"
+      }
+    },
+    {
+      "id": "scene_actions-duplicate-add",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          },
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-stale-path",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "reparent_node",
+            "node": "Child",
+            "new_parent": "Timer",
+            "keep_global_transform": false
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-root-reparent",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "reparent_node",
+            "node": ".",
+            "new_parent": "Timer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-cycle",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "reparent_node",
+            "node": "A",
+            "new_parent": "A/B"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-unknown-op",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "remove_node",
+            "node": "A"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-missing-script",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "attach_script",
+            "node": ".",
+            "script": "res://missing.gd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-bool-coercion",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "attach_script",
+            "node": ".",
+            "script": "res://scripts/player.gd",
+            "replace_existing": "false"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scene_actions-deferred-target",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://missing.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          }
+        ]
+      },
+      "normalize_only": true,
+      "normalize_options": {
+        "require_target_state": false
+      }
+    },
+    {
+      "id": "scene_actions-create-existing",
+      "group": "scene_actions",
+      "action": {
+        "action": "create_scene",
+        "scene": "res://scene.tscn",
+        "root": {
+          "name": "Root",
+          "type": "Node"
+        },
+        "operations": []
+      }
+    },
+    {
+      "id": "scene_actions-max-operations",
+      "group": "scene_actions",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-set_property",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-replace_reference",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "replace_reference",
+            "target": [],
+            "old": "res://assets/icon.png",
+            "new": "res://assets/new.png",
+            "expected_count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-animation_add_value_track",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "animation_add_value_track",
+            "path": "Player:position",
+            "keys": [
+              {
+                "time": 0,
+                "value": {
+                  "type": "Vector2",
+                  "value": [
+                    0,
+                    1
+                  ]
+                }
+              },
+              {
+                "time": 1,
+                "value": {
+                  "type": "Vector2",
+                  "value": [
+                    2,
+                    3
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-sprite_frames_add_animation",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "sprite_frames_add_animation",
+            "name": "idle",
+            "fps": 12,
+            "loop": true,
+            "frames": [
+              {
+                "texture": {
+                  "type": "ResourcePath",
+                  "value": "res://assets/icon.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-theme_set_item",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "theme_set_item",
+            "data_type": "color",
+            "theme_type": "Button",
+            "name": "font_color",
+            "value": {
+              "type": "Color",
+              "value": [
+                1,
+                0,
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-tileset_add_atlas_source",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "tileset_add_atlas_source",
+            "source_id": 0,
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            },
+            "texture_region_size": [
+              16,
+              16
+            ],
+            "tiles": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-dependency-dedup",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "replace_reference",
+            "target": [],
+            "old": "res://assets/icon.png",
+            "new": "res://assets/new.png",
+            "expected_count": 1
+          },
+          {
+            "op": "animation_add_value_track",
+            "path": "Player:position",
+            "keys": [
+              {
+                "time": 0,
+                "value": {
+                  "type": "Vector2",
+                  "value": [
+                    0,
+                    1
+                  ]
+                }
+              },
+              {
+                "time": 1,
+                "value": {
+                  "type": "Vector2",
+                  "value": [
+                    2,
+                    3
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "op": "sprite_frames_add_animation",
+            "name": "idle",
+            "fps": 12,
+            "loop": true,
+            "frames": [
+              {
+                "texture": {
+                  "type": "ResourcePath",
+                  "value": "res://assets/icon.png"
+                }
+              }
+            ]
+          },
+          {
+            "op": "theme_set_item",
+            "data_type": "color",
+            "theme_type": "Button",
+            "name": "font_color",
+            "value": {
+              "type": "Color",
+              "value": [
+                1,
+                0,
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "op": "tileset_add_atlas_source",
+            "source_id": 0,
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            },
+            "texture_region_size": [
+              16,
+              16
+            ],
+            "tiles": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          }
+        ],
+        "wait_for_import": [
+          "res://assets/new.png",
+          "res://assets/new.png"
+        ],
+        "summary": "  ресурсы  "
+      }
+    },
+    {
+      "id": "resource_actions-nested",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [
+              "style"
+            ],
+            "property": "material",
+            "value": {
+              "type": "NewSubresource",
+              "class": "StandardMaterial3D",
+              "properties": [
+                {
+                  "name": "albedo_texture",
+                  "value": {
+                    "type": "ResourcePath",
+                    "value": "res://assets/icon.png"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-empty",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": []
+      }
+    },
+    {
+      "id": "resource_actions-reject-too-many",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-unknown",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ],
+        "extra": 1
+      }
+    },
+    {
+      "id": "resource_actions-reject-missing",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://missing.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-extension",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-addon-denied",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://addons/other/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-wait-missing",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://absent.png"
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-wait-too-many",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png",
+          "res://assets/icon.png"
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-summary-type",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ],
+        "summary": 1
+      }
+    },
+    {
+      "id": "resource_actions-addon-allowed",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://addons/other/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ]
+      },
+      "options": {
+        "allow_addons": true
+      }
+    },
+    {
+      "id": "resource_actions-missing-deferred",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://missing.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "resource_name",
+            "value": {
+              "type": "String",
+              "value": "changed"
+            }
+          }
+        ]
+      },
+      "normalize_only": true,
+      "normalize_options": {
+        "require_exists": false
+      }
+    },
+    {
+      "id": "resource_actions-max-operations",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          },
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "texture",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-count-bool",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "replace_reference",
+            "target": [],
+            "old": "res://assets/icon.png",
+            "new": "res://assets/new.png",
+            "expected_count": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-count-zero",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "replace_reference",
+            "target": [],
+            "old": "res://assets/icon.png",
+            "new": "res://assets/new.png",
+            "expected_count": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-same-reference",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "replace_reference",
+            "target": [],
+            "old": "res://assets/icon.png",
+            "new": "res://assets/icon.png",
+            "expected_count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-loop-int",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "sprite_frames_add_animation",
+            "name": "idle",
+            "fps": 12,
+            "loop": 1,
+            "frames": [
+              {
+                "texture": {
+                  "type": "ResourcePath",
+                  "value": "res://assets/icon.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-fps-zero",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "sprite_frames_add_animation",
+            "name": "idle",
+            "fps": 0,
+            "loop": true,
+            "frames": [
+              {
+                "texture": {
+                  "type": "ResourcePath",
+                  "value": "res://assets/icon.png"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-frames-empty",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "sprite_frames_add_animation",
+            "name": "idle",
+            "fps": 12,
+            "loop": true,
+            "frames": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-overwrite-int",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "theme_set_item",
+            "data_type": "color",
+            "theme_type": "Button",
+            "name": "font_color",
+            "value": {
+              "type": "Color",
+              "value": [
+                1,
+                0,
+                0,
+                1
+              ]
+            },
+            "overwrite": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-theme-mismatch",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "theme_set_item",
+            "data_type": "color",
+            "theme_type": "Button",
+            "name": "font_color",
+            "value": {
+              "type": "String",
+              "value": "x"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-source-negative",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "tileset_add_atlas_source",
+            "source_id": -1,
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            },
+            "texture_region_size": [
+              16,
+              16
+            ],
+            "tiles": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-region-bool",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "tileset_add_atlas_source",
+            "source_id": 0,
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            },
+            "texture_region_size": [
+              true,
+              16
+            ],
+            "tiles": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-tile-duplicate",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "tileset_add_atlas_source",
+            "source_id": 0,
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://assets/icon.png"
+            },
+            "texture_region_size": [
+              16,
+              16
+            ],
+            "tiles": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-time-duplicate",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "animation_add_value_track",
+            "path": "Player:position",
+            "keys": [
+              {
+                "time": 0,
+                "value": {
+                  "type": "int",
+                  "value": 1
+                }
+              },
+              {
+                "time": 0,
+                "value": {
+                  "type": "int",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reject-mode",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "animation_add_value_track",
+            "path": "Player:position",
+            "keys": [
+              {
+                "time": 0,
+                "value": {
+                  "type": "Vector2",
+                  "value": [
+                    0,
+                    1
+                  ]
+                }
+              },
+              {
+                "time": 1,
+                "value": {
+                  "type": "Vector2",
+                  "value": [
+                    2,
+                    3
+                  ]
+                }
+              }
+            ],
+            "update_mode": "bad"
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-reserved-property",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "NewSubresource",
+              "class": "Resource",
+              "properties": [
+                {
+                  "name": "script",
+                  "value": {
+                    "type": "ResourcePath",
+                    "value": "res://assets/icon.png"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "resource_actions-duplicate-property",
+      "group": "resource_actions",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data/resource.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "NewSubresource",
+              "class": "Resource",
+              "properties": [
+                {
+                  "name": "texture",
+                  "value": {
+                    "type": "ResourcePath",
+                    "value": "res://assets/icon.png"
+                  }
+                },
+                {
+                  "name": "texture",
+                  "value": {
+                    "type": "ResourcePath",
+                    "value": "res://assets/icon.png"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "file_refactor-references",
+      "group": "file_refactor",
+      "function": "find_file_references",
+      "old": "res://scripts/player.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-references-addons",
+      "group": "file_refactor",
+      "function": "find_file_references",
+      "old": "res://scripts/player.gd",
+      "options": {
+        "allow_addons": true
+      }
+    },
+    {
+      "id": "file_refactor-references-self",
+      "group": "file_refactor",
+      "function": "find_file_references",
+      "old": "res://scripts/player.gd",
+      "options": {
+        "allow_self_edit": true
+      }
+    },
+    {
+      "id": "file_refactor-references-missing",
+      "group": "file_refactor",
+      "function": "find_file_references",
+      "old": "res://absent.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-references-escape",
+      "group": "file_refactor",
+      "function": "find_file_references",
+      "old": "res://../scripts/player.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-rename",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://scripts/renamed.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-move",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://moved/player.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-rename-no-references",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://scripts/renamed.gd",
+      "options": {
+        "update_references": false
+      }
+    },
+    {
+      "id": "file_refactor-same",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://scripts/player.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-case-only",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://scripts/Player.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-conflict",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://scripts/helper.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-missing",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://missing.gd",
+      "new": "res://new.gd",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-project",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://project.godot",
+      "new": "res://project2.godot",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-uid-direct",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd.uid",
+      "new": "res://moved.gd.uid",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-import-direct",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://assets/icon.png.import",
+      "new": "res://moved.png.import",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-asset",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://assets/icon.png",
+      "new": "res://assets/moved.png",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-scene",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scene.tscn",
+      "new": "res://moved.tscn",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-directory",
+      "group": "file_refactor",
+      "function": "prepare_directory_relocation",
+      "old": "res://scripts",
+      "new": "res://moved",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-directory-via-file",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts",
+      "new": "res://moved",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-directory-case",
+      "group": "file_refactor",
+      "function": "prepare_directory_relocation",
+      "old": "res://scripts",
+      "new": "res://Scripts",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-directory-nested",
+      "group": "file_refactor",
+      "function": "prepare_directory_relocation",
+      "old": "res://scripts",
+      "new": "res://scripts/sub",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-directory-existing",
+      "group": "file_refactor",
+      "function": "prepare_directory_relocation",
+      "old": "res://scripts",
+      "new": "res://data",
+      "options": {}
+    },
+    {
+      "id": "file_refactor-directory-agent",
+      "group": "file_refactor",
+      "function": "prepare_directory_relocation",
+      "old": "res://addons",
+      "new": "res://moved",
+      "options": {
+        "allow_addons": true,
+        "allow_self_edit": true
+      }
+    },
+    {
+      "id": "file_refactor-rename-crlf",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://new/player.gd",
+      "files": {
+        "scripts/player.gd": "extends Node\r\nvar hp = 10\r\nfunc _ready():\r\n\tpass\r\n"
+      }
+    },
+    {
+      "id": "file_refactor-rename-bom",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://new/player.gd",
+      "files": {
+        "scripts/player.gd": "﻿extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+      }
+    },
+    {
+      "id": "file_refactor-rename-invalid-utf8",
+      "group": "file_refactor",
+      "function": "prepare_file_rename",
+      "old": "res://scripts/player.gd",
+      "new": "res://new/player.gd",
+      "files": {
+        "scripts/player.gd": {
+          "base64": "ZXh0ZW5kcyBOb2RlCiP/Cg=="
+        }
+      }
+    },
+    {
+      "id": "file_refactor-internal-same-dir",
+      "group": "file_refactor",
+      "function": "update_internal_relative_paths",
+      "text": "const A = preload(\"helper.gd\")\n",
+      "old": "res://scripts/player.gd",
+      "new": "res://scripts/new.gd",
+      "moved_files_map": null
+    },
+    {
+      "id": "file_refactor-internal-cross-dir",
+      "group": "file_refactor",
+      "function": "update_internal_relative_paths",
+      "text": "const A = preload(\"./helper.gd\")\n",
+      "old": "res://scripts/player.gd",
+      "new": "res://new/player.gd",
+      "moved_files_map": null
+    },
+    {
+      "id": "file_refactor-internal-missing",
+      "group": "file_refactor",
+      "function": "update_internal_relative_paths",
+      "text": "const A = preload(\"absent.gd\")\n",
+      "old": "res://scripts/player.gd",
+      "new": "res://new/player.gd",
+      "moved_files_map": null
+    },
+    {
+      "id": "file_refactor-internal-uid",
+      "group": "file_refactor",
+      "function": "update_internal_relative_paths",
+      "text": "const A = preload(\"uid://keep\")\n",
+      "old": "res://scripts/player.gd",
+      "new": "res://new/player.gd",
+      "moved_files_map": null
+    },
+    {
+      "id": "file_refactor-internal-mapping",
+      "group": "file_refactor",
+      "function": "update_internal_relative_paths",
+      "text": "const A = preload(\"helper.gd\")\nconst B = preload(\"res://scripts/helper.gd\")\n",
+      "old": "res://scripts/player.gd",
+      "new": "res://moved/player.gd",
+      "moved_files_map": {
+        "res://scripts/helper.gd": "res://moved/helper.gd"
+      }
+    },
+    {
+      "id": "transaction_actions-patch",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-overlay",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://scripts/new.gd",
+            "content": "extends Node\nvar hp = 1\n"
+          },
+          {
+            "action": "patch_file",
+            "path": "res://scripts/new.gd",
+            "search": "hp = 1",
+            "replace": "hp = 2"
+          }
+        ],
+        "checks": [
+          {
+            "type": "parse_script",
+            "path": "res://scripts/new.gd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-move-patch",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "move_file",
+            "path": "res://scripts/player.gd",
+            "dest": "res://moved.gd"
+          },
+          {
+            "action": "patch_file",
+            "path": "res://moved.gd",
+            "search": "hp = 10",
+            "replace": "hp = 11"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-already",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://scripts/player.gd",
+            "content": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-already-check-only",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://scripts/player.gd",
+            "content": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+          }
+        ],
+        "checks": [
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-crlf",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ]
+      },
+      "files": {
+        "scripts/player.gd": "extends Node\r\nvar hp = 10\r\nfunc _ready():\r\n\tpass\r\n"
+      }
+    },
+    {
+      "id": "transaction_actions-bom",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ]
+      },
+      "files": {
+        "scripts/player.gd": "﻿extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+      }
+    },
+    {
+      "id": "transaction_actions-already-crlf",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://scripts/player.gd",
+            "content": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+          }
+        ]
+      },
+      "files": {
+        "scripts/player.gd": "extends Node\r\nvar hp = 10\r\nfunc _ready():\r\n\tpass\r\n"
+      }
+    },
+    {
+      "id": "transaction_actions-already-bom",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://scripts/player.gd",
+            "content": "extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+          }
+        ]
+      },
+      "files": {
+        "scripts/player.gd": "﻿extends Node\nvar hp = 10\nfunc _ready():\n\tpass\n"
+      }
+    },
+    {
+      "id": "transaction_actions-reject-empty",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": []
+      }
+    },
+    {
+      "id": "transaction_actions-reject-too-many",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          },
+          {
+            "action": "create_file",
+            "path": "res://notes.txt",
+            "content": "x"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-scene",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://new.tscn",
+            "content": "x"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-project",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://project.godot",
+            "search": "5",
+            "replace": "4"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-escape",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://../escape.txt",
+            "content": "x"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-addon",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://addons/other/new.txt",
+            "content": "x"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-unknown-kind",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "delete_file",
+            "path": "res://notes.txt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-extra-field",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://new.txt",
+            "content": "x",
+            "extra": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-missing-patch",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://missing.gd",
+            "search": "x",
+            "replace": "y"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-no-match",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://notes.txt",
+            "search": "absent",
+            "replace": "y"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-many-matches",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://notes.txt",
+            "search": "e",
+            "replace": "y"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-empty-search",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://notes.txt",
+            "search": "",
+            "replace": "y"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-move-conflict",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "move_file",
+            "path": "res://scripts/player.gd",
+            "dest": "res://scripts/helper.gd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-move-same",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "move_file",
+            "path": "res://notes.txt",
+            "dest": "res://notes.txt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-move-missing",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "move_file",
+            "path": "res://missing.txt",
+            "dest": "res://new.txt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-reject-script-invalid",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://bad.gd",
+            "content": "extends Node\nfunc broken(\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-max-operations",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://file0.txt",
+            "content": "0"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file1.txt",
+            "content": "1"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file2.txt",
+            "content": "2"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file3.txt",
+            "content": "3"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file4.txt",
+            "content": "4"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file5.txt",
+            "content": "5"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file6.txt",
+            "content": "6"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file7.txt",
+            "content": "7"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file8.txt",
+            "content": "8"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file9.txt",
+            "content": "9"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file10.txt",
+            "content": "10"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file11.txt",
+            "content": "11"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file12.txt",
+            "content": "12"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file13.txt",
+            "content": "13"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file14.txt",
+            "content": "14"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file15.txt",
+            "content": "15"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file16.txt",
+            "content": "16"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file17.txt",
+            "content": "17"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file18.txt",
+            "content": "18"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file19.txt",
+            "content": "19"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file20.txt",
+            "content": "20"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file21.txt",
+            "content": "21"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file22.txt",
+            "content": "22"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file23.txt",
+            "content": "23"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file24.txt",
+            "content": "24"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file25.txt",
+            "content": "25"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file26.txt",
+            "content": "26"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file27.txt",
+            "content": "27"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file28.txt",
+            "content": "28"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file29.txt",
+            "content": "29"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-binary-patch",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://assets/new.png",
+            "search": "A2",
+            "replace": "X"
+          }
+        ]
+      },
+      "files": {
+        "assets/new.png": {
+          "base64": "/0Ey"
+        }
+      }
+    },
+    {
+      "id": "transaction_actions-checks-unknown",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ],
+        "checks": [
+          {
+            "type": "unknown",
+            "path": "res://notes.txt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-checks-wrong-extension",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ],
+        "checks": [
+          {
+            "type": "parse_script",
+            "path": "res://notes.txt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-checks-missing",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ],
+        "checks": [
+          {
+            "type": "parse_script",
+            "path": "res://missing.gd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-checks-too-many",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "patch_file",
+            "path": "res://scripts/player.gd",
+            "search": "hp = 10",
+            "replace": "hp = 20"
+          }
+        ],
+        "checks": [
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          },
+          {
+            "type": "parse_script",
+            "path": "res://scripts/player.gd"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transaction_actions-uid-conflict",
+      "group": "transaction_actions",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "move_file",
+            "path": "res://scripts/player.gd",
+            "dest": "res://new.gd"
+          }
+        ]
+      },
+      "files": {
+        "new.gd.uid": "uid://collision\n"
+      }
+    },
+    {
+      "id": "high_level_actions-component",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node"
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-component-full",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node",
+          "script": "res://scripts/player.gd",
+          "properties": [
+            {
+              "name": "process_mode",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            }
+          ],
+          "signals": [
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            }
+          ]
+        },
+        "summary": "  component  "
+      }
+    },
+    {
+      "id": "high_level_actions-input",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_input_action",
+          "name": "jump",
+          "deadzone": 0.5,
+          "events": []
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-autoload",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "register_autoload",
+          "name": "Globals",
+          "path": "res://scripts/player.gd"
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-rename",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "rename_symbol",
+          "kind": "variable",
+          "declaration": "res://scripts/player.gd:2",
+          "old_name": "hp",
+          "new_name": "health",
+          "mode": "probable",
+          "allow_unverified": false
+        },
+        "summary": "discarded by native rename"
+      }
+    },
+    {
+      "id": "high_level_actions-atomic",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "atomic_files",
+          "operations": [
+            {
+              "action": "create_file",
+              "path": "res://new.txt",
+              "content": "x"
+            }
+          ],
+          "checks": []
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-atomic-defers-invalid-primitive",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "atomic_files",
+          "operations": [
+            {
+              "action": "unsupported",
+              "extra": "native compiler defers downstream validation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-unknown",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "unknown"
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-not-object",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": []
+      }
+    },
+    {
+      "id": "high_level_actions-reject-component-extra",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node",
+          "extra": 1
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-component-missing-script",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node",
+          "script": "res://missing.gd"
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-component-properties-limit",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node",
+          "properties": [
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            },
+            {
+              "name": "x",
+              "value": {
+                "type": "int",
+                "value": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-component-signals-limit",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node",
+          "signals": [
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            },
+            {
+              "signal": "ready",
+              "target": ".",
+              "method": "_on_ready"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-input-limit",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_input_action",
+          "name": "jump",
+          "events": [
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-autoload-missing",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "register_autoload",
+          "name": "Globals",
+          "path": "res://missing.gd"
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-atomic-empty",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "atomic_files",
+          "operations": []
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-atomic-limit",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "atomic_files",
+          "operations": [
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-atomic-check-limit",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "atomic_files",
+          "operations": [
+            {}
+          ],
+          "checks": [
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ]
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-reject-rename-bool",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "rename_symbol",
+          "kind": "variable",
+          "declaration": "file:2",
+          "old_name": "x",
+          "new_name": "y",
+          "allow_unverified": "false"
+        }
+      }
+    },
+    {
+      "id": "high_level_actions-summary-blank",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node"
+        },
+        "summary": " "
+      }
+    },
+    {
+      "id": "high_level_actions-summary-wrong-type",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node"
+        },
+        "summary": 2
+      }
+    },
+    {
+      "id": "high_level_actions-summary-long",
+      "group": "high_level_actions",
+      "action": {
+        "action": "project_command",
+        "command": {
+          "type": "create_scene_component",
+          "scene": "res://scene.tscn",
+          "parent": ".",
+          "name": "Component",
+          "node_type": "Node"
+        },
+        "summary": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  ]
+}

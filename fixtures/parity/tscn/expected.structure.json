@@ -1,0 +1,768 @@
+{
+  "anim.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          296,
+          328
+        ],
+        "body_span": [
+          328,
+          330
+        ]
+      },
+      {
+        "name": "Gun",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Gun",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          330,
+          372
+        ],
+        "body_span": [
+          372,
+          374
+        ]
+      },
+      {
+        "name": "Muzzle",
+        "parent": "Gun",
+        "type": "Marker2D",
+        "path": "Gun/Muzzle",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          374,
+          423
+        ],
+        "body_span": [
+          423,
+          424
+        ]
+      }
+    ],
+    [],
+    [
+      {
+        "full_span": [
+          135,
+          182
+        ],
+        "path_span": [
+          161,
+          180
+        ],
+        "path": "Gun/Muzzle:position"
+      },
+      {
+        "full_span": [
+          207,
+          247
+        ],
+        "path_span": [
+          233,
+          245
+        ],
+        "path": "Gun:rotation"
+      },
+      {
+        "full_span": [
+          248,
+          294
+        ],
+        "path_span": [
+          275,
+          291
+        ],
+        "path": "Gun/Muzzle:scale"
+      }
+    ]
+  ],
+  "basic.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd",
+        "id": "1_player"
+      }
+    },
+    [
+      {
+        "name": "Player",
+        "parent": null,
+        "type": "CharacterBody2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_player",
+        "header_span": [
+          109,
+          152
+        ],
+        "body_span": [
+          152,
+          219
+        ]
+      },
+      {
+        "name": "Gun",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Gun",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          219,
+          261
+        ],
+        "body_span": [
+          261,
+          290
+        ]
+      },
+      {
+        "name": "Muzzle",
+        "parent": "Gun",
+        "type": "Marker2D",
+        "path": "Gun/Muzzle",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          290,
+          339
+        ],
+        "body_span": [
+          339,
+          365
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "bom.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd",
+        "id": "1_player"
+      }
+    },
+    [
+      {
+        "name": "Корень",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_player",
+        "header_span": [
+          110,
+          144
+        ],
+        "body_span": [
+          144,
+          209
+        ]
+      },
+      {
+        "name": "Child",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Child",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          209,
+          253
+        ],
+        "body_span": [
+          253,
+          279
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "bom_crlf.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd",
+        "id": "1_player"
+      }
+    },
+    [
+      {
+        "name": "Корень",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_player",
+        "header_span": [
+          114,
+          148
+        ],
+        "body_span": [
+          148,
+          217
+        ]
+      },
+      {
+        "name": "Child",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Child",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          217,
+          261
+        ],
+        "body_span": [
+          261,
+          289
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "connections.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          21,
+          53
+        ],
+        "body_span": [
+          53,
+          55
+        ]
+      },
+      {
+        "name": "Gun",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Gun",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          55,
+          97
+        ],
+        "body_span": [
+          97,
+          99
+        ]
+      },
+      {
+        "name": "Muzzle",
+        "parent": "Gun",
+        "type": "Marker2D",
+        "path": "Gun/Muzzle",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          99,
+          148
+        ],
+        "body_span": [
+          148,
+          150
+        ]
+      }
+    ],
+    [
+      {
+        "from": "Gun",
+        "to": ".",
+        "signal": "fired",
+        "method": "_on_gun_fired",
+        "span": [
+          150,
+          218
+        ],
+        "raw": "[connection signal=\"fired\" from=\"Gun\" to=\".\" method=\"_on_gun_fired\"]"
+      },
+      {
+        "from": "Gun/Muzzle",
+        "to": "Gun",
+        "signal": "sparked",
+        "method": "_on_sparked",
+        "span": [
+          219,
+          304
+        ],
+        "raw": "[connection signal=\"sparked\" from=\"Gun/Muzzle\" to=\"Gun\" method=\"_on_sparked\" flags=3]"
+      },
+      {
+        "from": ".",
+        "to": "Gun/Muzzle",
+        "signal": "ready",
+        "method": "_on_root_ready",
+        "span": [
+          305,
+          381
+        ],
+        "raw": "[connection signal=\"ready\" from=\".\" to=\"Gun/Muzzle\" method=\"_on_root_ready\"]"
+      }
+    ],
+    []
+  ],
+  "crlf.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd",
+        "id": "1_player"
+      }
+    },
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_player",
+        "header_span": [
+          113,
+          145
+        ],
+        "body_span": [
+          145,
+          213
+        ]
+      },
+      {
+        "name": "Child",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Child",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          213,
+          257
+        ],
+        "body_span": [
+          257,
+          285
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "curve.tres": [
+    {
+      "1_curve": {
+        "type": "Script",
+        "path": "res://scripts/curve.gd",
+        "id": "1_curve"
+      }
+    },
+    [],
+    [],
+    []
+  ],
+  "editable.tscn": [
+    {
+      "1_gun": {
+        "type": "PackedScene",
+        "path": "res://scenes/gun.tscn",
+        "id": "1_gun"
+      }
+    },
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          109,
+          141
+        ],
+        "body_span": [
+          141,
+          143
+        ]
+      },
+      {
+        "name": "Gun",
+        "parent": ".",
+        "type": "",
+        "path": "Gun",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          143,
+          201
+        ],
+        "body_span": [
+          201,
+          228
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "empty.tscn": [
+    {},
+    [],
+    [],
+    []
+  ],
+  "flat.tres": [
+    {},
+    [],
+    [],
+    []
+  ],
+  "instance.tscn": [
+    {
+      "1_gun": {
+        "type": "PackedScene",
+        "path": "res://scenes/gun.tscn",
+        "id": "1_gun"
+      },
+      "2_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd",
+        "id": "2_player"
+      }
+    },
+    [
+      {
+        "name": "Player",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "2_player",
+        "header_span": [
+          183,
+          217
+        ],
+        "body_span": [
+          217,
+          252
+        ]
+      },
+      {
+        "name": "Gun",
+        "parent": ".",
+        "type": "",
+        "path": "Gun",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          252,
+          310
+        ],
+        "body_span": [
+          310,
+          337
+        ]
+      },
+      {
+        "name": "Muzzle",
+        "parent": "Gun",
+        "type": "",
+        "path": "Gun/Muzzle",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          337,
+          380
+        ],
+        "body_span": [
+          380,
+          406
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "player.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd",
+        "id": "1_player"
+      }
+    },
+    [
+      {
+        "name": "Player",
+        "parent": null,
+        "type": "CharacterBody2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_player",
+        "header_span": [
+          113,
+          156
+        ],
+        "body_span": [
+          156,
+          194
+        ]
+      },
+      {
+        "name": "Sprite",
+        "parent": ".",
+        "type": "Sprite2D",
+        "path": "Sprite",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          194,
+          241
+        ],
+        "body_span": [
+          241,
+          271
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "quirks.tscn": [
+    {
+      "1_script": {
+        "type": "Script",
+        "path": "res://last.gd",
+        "id": "1_script"
+      }
+    },
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_script",
+        "header_span": [
+          228,
+          258
+        ],
+        "body_span": [
+          258,
+          293
+        ]
+      },
+      {
+        "name": "Trailing",
+        "parent": "Root/",
+        "type": "",
+        "path": "Root/Trailing",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          293,
+          363
+        ],
+        "body_span": [
+          363,
+          400
+        ]
+      }
+    ],
+    [
+      {
+        "from": ".",
+        "to": "",
+        "signal": "ready",
+        "method": "",
+        "span": [
+          400,
+          436
+        ],
+        "raw": "[connection signal=\"ready\" from=\".\"]"
+      }
+    ],
+    []
+  ],
+  "spans.tscn": [
+    {
+      "1_odd": {
+        "type": "Script",
+        "path": "res://scripts/odd\\",
+        "id": "1_odd"
+      }
+    },
+    [
+      {
+        "name": "Корень",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": "1_odd",
+        "header_span": [
+          96,
+          130
+        ],
+        "body_span": [
+          130,
+          306
+        ]
+      },
+      {
+        "name": "Quoted\\",
+        "parent": "Корень/",
+        "type": "Node2D",
+        "path": "Корень/Quoted\\",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          306,
+          364
+        ],
+        "body_span": [
+          364,
+          391
+        ]
+      },
+      {
+        "name": "",
+        "parent": null,
+        "type": "",
+        "path": ".",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          391,
+          411
+        ],
+        "body_span": [
+          411,
+          467
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "sub.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          113,
+          145
+        ],
+        "body_span": [
+          145,
+          147
+        ]
+      },
+      {
+        "name": "Body",
+        "parent": ".",
+        "type": "CollisionShape2D",
+        "path": "Body",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          147,
+          200
+        ],
+        "body_span": [
+          200,
+          236
+        ]
+      }
+    ],
+    [],
+    []
+  ],
+  "unique.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "parent": null,
+        "type": "Node2D",
+        "path": ".",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          21,
+          53
+        ],
+        "body_span": [
+          53,
+          55
+        ]
+      },
+      {
+        "name": "Gun",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Gun",
+        "unique_name": true,
+        "script_id": null,
+        "header_span": [
+          55,
+          97
+        ],
+        "body_span": [
+          97,
+          127
+        ]
+      },
+      {
+        "name": "Ordinary",
+        "parent": ".",
+        "type": "Node2D",
+        "path": "Ordinary",
+        "unique_name": false,
+        "script_id": null,
+        "header_span": [
+          127,
+          174
+        ],
+        "body_span": [
+          174,
+          204
+        ]
+      }
+    ],
+    [],
+    []
+  ]
+}

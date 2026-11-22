@@ -1,0 +1,65 @@
+{
+  "_status": "skeleton",
+  "_note": "Закреплённые решения браузерной ветки (R-21, docs/security/browser-stealth.md). Значения взяты из старого агента: python/browser/sites.py. Правка значения = отдельное решение с записью в docs/deviations.md, а не 'улучшение'.",
+  "schema_version": 1,
+  "sites": {
+    "aistudio": { "needs_visibility_spoof": true, "reason": "Angular придерживает рендер в свёрнутом окне, ответ читается гибридно (DOM + сеть)" },
+    "deepseek": { "needs_visibility_spoof": true, "reason": "единственный сайт с чистым чтением из DOM" },
+    "qwen": { "needs_visibility_spoof": true, "reason": "extract_answer начинает с DOM, сеть подстраховывает" },
+    "kimi": { "needs_visibility_spoof": false, "reason": "ответ читается целиком из сети (connect+json)" },
+    "arena": { "needs_visibility_spoof": false, "reason": "ответ из сети (Vercel streaming)" },
+    "arena_battle": { "needs_visibility_spoof": false, "reason": "тот же сетевой парсер" }
+  },
+  "launch": {
+    "mode": "plain_process_then_attach",
+    "why": "Chrome запускается обычным процессом (subprocess.Popen) с --remote-debugging-port, selenium только подключается к уже открытому окну через debuggerAddress. Именно поэтому navigator.webdriver остаётся false: браузер не стартовал сессию webdriver. Если Chrome запустит сам selenium/chromedriver, он добавит --enable-automation и navigator.webdriver станет true — это видно защите площадки сразу.",
+    "attach": "debuggerAddress = 127.0.0.1:9222",
+    "required_args": [
+      "--remote-debugging-port=9222",
+      "--user-data-dir=<профиль агента>",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-renderer-backgrounding",
+      "--disable-background-timer-throttling",
+      "--disable-features=CalculateNativeWinOcclusion"
+    ],
+    "forbidden_args": ["--enable-automation", "--headless", "--headless=new", "--disable-blink-features=AutomationControlled"],
+    "selenium_launches_browser": false
+  },
+  "webdriver_flag": {
+    "expected": false,
+    "how_kept": "браузер не запускается selenium'ом; управление подключается по CDP",
+    "spoof_allowed": false,
+    "why_no_spoof": "подмена navigator.webdriver читается через дескриптор и toString() и сама является признаком автоматизации — хуже, чем честный false"
+  },
+  "profile": {
+    "mode": "dedicated",
+    "path": "%LOCALAPPDATA%\\Godot_AI_Profile",
+    "why": "Свой профиль, а не браузер пользователя. Причины: (1) с Chrome 136 --remote-debugging-port игнорируется на стандартном каталоге данных (developer.chrome.com/blog/remote-debugging-port), поэтому подключиться к обычному профилю пользователя технически нельзя; (2) подключение к профилю пользователя дало бы агенту доступ ко всем его залогиненным сессиям — это нарушает SEC-14/R-20; (3) бан на площадке получил бы личный аккаунт пользователя, а не отдельный профиль агента.",
+    "user_profile_refused": true,
+    "decided": "2026-10-27 — решение пользователя: оставляем схему старого агента (отдельный профиль, обычный запуск Chrome + attach через debuggerAddress). Она обкатана и работает как нужно; при переносе не улучшать (R-08 «ported verbatim», R-21).",
+    "reset": "выход из всех сессий = удаление профиля целиком"
+  },
+  "window_policy": {
+    "focus": "no_steal",
+    "method": "subprocess.STARTUPINFO + STARTF_USESHOWWINDOW + SW_SHOWMINNOACTIVE (окно открывается свёрнутым и не забирает фокус); рендер держат флаги из launch.required_args",
+    "tabs": "own_window_only",
+    "why": "Пользователь не должен видеть переключение окон и терять фокус. Свои вкладки агент создаёт через CDP Target.createTarget в своём окне и закрывает за собой; чужие вкладки и буфер обмена не трогает.",
+    "offscreen_position": false,
+    "why_not_offscreen": "окно за пределами экрана даёт ненормальные screenX/screenY — это новый отпечаток. Свёрнутое окно + уже разрешённый спуф visibilityState заметности не добавляет, поэтому выбран этот путь"
+  },
+  "forbidden_paths": ["Google\\Chrome\\User Data", "Google/Chrome/User Data"],
+  "allowed_masking": ["visibilityState", "hidden"],
+  "forbidden_techniques": [
+    "navigator.webdriver",
+    "AutomationControlled",
+    "--enable-automation",
+    "excludeSwitches",
+    "useAutomationExtension",
+    "--headless",
+    "hasFocus",
+    "window.chrome",
+    "navigator.plugins",
+    "toString"
+  ],
+  "raise_spoof_without_proof": false
+}

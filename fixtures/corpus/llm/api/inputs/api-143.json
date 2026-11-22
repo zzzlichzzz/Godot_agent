@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "is_free",
+  "args": [
+    {}
+  ],
+  "kwargs": {},
+  "id": "api-143"
+}

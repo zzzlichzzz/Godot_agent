@@ -1,0 +1,109 @@
+{
+  "id": "058-plan-empty-groups",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_empty-groups",
+  "args": {
+    "path": "res://donor.py",
+    "groups": []
+  },
+  "reference_result": {
+    "schema": 1,
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c18-split-py-plan-20261101-resume\\corpus-staging\\plan_empty-groups",
+    "donor": "donor.py",
+    "donor_sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce",
+    "donor_lines": 2,
+    "target_lines": 900,
+    "auto_groups": false,
+    "modules": [],
+    "facade": {
+      "rel": "donor.py",
+      "text": "# --- фасад: код разнесён по модулям (split_refactor) ---\n__all__ = [\"fn\"]\ndef fn():\n    return 1\n",
+      "lines": 4,
+      "reexports": []
+    },
+    "moved_names": [],
+    "errors": [
+      "план без символов к переносу"
+    ],
+    "warnings": [
+      "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+      "в фасаде остаются не перенесённые символы: fn"
+    ],
+    "inventory": {
+      "symbols": [
+        {
+          "name": "fn",
+          "kind": "def",
+          "lines": 2,
+          "is_public": true,
+          "state": false
+        }
+      ],
+      "imports": 0,
+      "other": 0,
+      "docstring": false
+    },
+    "refs": {
+      "counts": {
+        "import": 0,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 0,
+        "doc": 0
+      },
+      "hard_files": [],
+      "soft_files": [],
+      "truncated": false
+    }
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "donor_sha256": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce",
+      "donor_lines": 2,
+      "target_lines": 900,
+      "auto_groups": false,
+      "moved_names": [],
+      "errors": [
+        "план без символов к переносу"
+      ],
+      "warnings": [
+        "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+        "в фасаде остаются не перенесённые символы: fn"
+      ],
+      "inventory": {
+        "symbols": [
+          {
+            "name": "fn",
+            "kind": "def",
+            "lines": 2,
+            "is_public": true,
+            "state": false
+          }
+        ],
+        "imports": 0,
+        "other": 0,
+        "docstring": false
+      },
+      "refs": {
+        "counts": {
+          "import": 0,
+          "source_read": 0,
+          "patch": 0,
+          "mention": 0,
+          "doc": 0
+        },
+        "hard_files": [],
+        "soft_files": [],
+        "truncated": false
+      },
+      "modules": [],
+      "facade": {
+        "rel": "donor.py",
+        "lines": 4,
+        "reexports": []
+      }
+    }
+  }
+}

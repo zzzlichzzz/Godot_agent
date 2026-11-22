@@ -1,0 +1,90 @@
+{
+  "id": "limits-wait32",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "int",
+          "value": 1
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres",
+      "res://old.tres"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "x",
+            "value": {
+              "type": "int",
+              "value": 1
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://old.tres"
+        ],
+        "summary": "description"
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "d28ae52a674bd5bc824c2bba8c0698888f7b154f80a2f75569169f70ebf4b1db"
+}

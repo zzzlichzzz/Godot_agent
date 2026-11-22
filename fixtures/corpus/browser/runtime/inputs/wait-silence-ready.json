@@ -1,0 +1,11 @@
+{
+  "id": "wait-silence-ready",
+  "op": "wait",
+  "answer": {
+    "text": "captured"
+  },
+  "count": 1,
+  "length": 0,
+  "ready": true,
+  "timeout": 60
+}

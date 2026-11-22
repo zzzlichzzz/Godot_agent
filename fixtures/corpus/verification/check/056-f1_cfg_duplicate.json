@@ -1,0 +1,33 @@
+{
+  "id": "056-f1_cfg_duplicate",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://duplicate.cfg"
+  },
+  "reference_result": {
+    "path": "res://duplicate.cfg",
+    "problems": [
+      "cfg syntax: While reading from '<string>' [line  3]: option 'a' in section 'x' already exists"
+    ],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://duplicate.cfg",
+      "problems": [
+        "cfg syntax: While reading from '<string>' [line  3]: option 'a' in section 'x' already exists"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "cfg"
+      ],
+      "unavailable": []
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

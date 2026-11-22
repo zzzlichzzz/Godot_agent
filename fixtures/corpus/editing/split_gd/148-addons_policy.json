@@ -1,0 +1,18 @@
+{
+  "id": "148-addons_policy",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/addons_policy",
+  "args": {
+    "path": "res://addons/probe/donor.gd"
+  },
+  "reference_addon": "addons/probe",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: addons_policy",
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

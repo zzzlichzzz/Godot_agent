@@ -1,0 +1,27 @@
+{
+  "id": "mirror-sequence-no-text-cache",
+  "kind": "mirror",
+  "native_case_source": "test_v88_11_live_input.py:callback/seq/busy/error cases; new sequences",
+  "steps": [
+    {
+      "seq": 5,
+      "text": "текст"
+    },
+    {
+      "seq": 3,
+      "text": "устарел"
+    },
+    {
+      "seq": 6,
+      "text": "текст"
+    },
+    {
+      "seq": "bad",
+      "text": null
+    },
+    {
+      "seq": 7,
+      "text": 42
+    }
+  ]
+}

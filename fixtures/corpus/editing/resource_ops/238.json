@@ -1,0 +1,73 @@
+{
+  "id": "c24-animation_add_value_track",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "animation_add_value_track",
+        "path": "Node:position",
+        "keys": [
+          {
+            "time": 0.0,
+            "value": {
+              "type": "Vector2",
+              "value": [
+                0.0,
+                0.0
+              ]
+            }
+          },
+          {
+            "time": 1.0,
+            "value": {
+              "type": "Vector2",
+              "value": [
+                2.0,
+                3.0
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQoKOyBpbnB1dCBjb21tZW50IG11c3Qgbm90IGJlIG1pc3Rha2VuIGZvciBhbiBvcGVyYXRpb24KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSIKbGVuZ3RoID0gMS4w"
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQoKOyBpbnB1dCBjb21tZW50IG11c3Qgbm90IGJlIG1pc3Rha2VuIGZvciBhbiBvcGVyYXRpb24KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSIKbGVuZ3RoID0gMS4wCnRyYWNrcy8wL3R5cGUgPSAidmFsdWUiCnRyYWNrcy8wL2ltcG9ydGVkID0gZmFsc2UKdHJhY2tzLzAvZW5hYmxlZCA9IHRydWUKdHJhY2tzLzAvcGF0aCA9IE5vZGVQYXRoKCJOb2RlOnBvc2l0aW9uIikKdHJhY2tzLzAvaW50ZXJwID0gMQp0cmFja3MvMC9sb29wX3dyYXAgPSB0cnVlCnRyYWNrcy8wL2tleXMgPSB7InRpbWVzIjogUGFja2VkRmxvYXQzMkFycmF5KDAuMCwgMS4wKSwgInRyYW5zaXRpb25zIjogUGFja2VkRmxvYXQzMkFycmF5KDEuMCwgMS4wKSwgInVwZGF0ZSI6IDAsICJ2YWx1ZXMiOiBbVmVjdG9yMigwLjAsIDAuMCksIFZlY3RvcjIoMi4wLCAzLjApXX0=",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_execute": "animation_add_value_track-native.output.json",
+    "generated_load": "animation_add_value_track-generated.output.json",
+    "projection_sha256": "a8d801f735965f190b7c44292dc3eec4409243ecc710f9841532d9d97293f698",
+    "semantic_hash": "5fcc37c6f991bd2dda9699faed02b996badc85061f4ee0f9b83db61993fb2d18",
+    "proof_sha256": "9885f724f3b4458b25ba7dc9f872cf785c585ed9871e23ce591f5f7fc4e97d5f",
+    "decision": "D18"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "e43c5463ce12e86f54d2e5fed856e4c48512a61cff9ad824b74e2deed21757f5",
+      "after_hash": "107e73623d28eb73ebba51f7da81d425151227de2d07e0629aec6030239945ad",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

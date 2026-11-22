@@ -1,0 +1,345 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-29",
+  "reference": {
+    "commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+    "file": "python/godot_tools/gd_lint.py",
+    "function": "lint_gdscript:69-191",
+    "sha256": "666186488cc9e7f45e70fa5238710ba7c68be628011b94de342374b23d8cb1ae",
+    "bytes": 9640
+  },
+  "capture": "Actual old _bootstrap/gd_lint import; one-off python -B script, deleted after capture.",
+  "decoding": "F1: main files utf-8-sig/errors=replace, preserve CRLF and original byte count; pure text lint unchanged",
+  "truncated": "Reached reference output quota: len(reference_messages) >= MAX_ERRORS (8), including exactly eight.",
+  "codes": {
+    "empty_file": "^итоговый файл получился пустым$",
+    "damaged_encoding": "^в коде символ повреждённой кодировки",
+    "unclosed_string": "^строка \\d+: незакрытая кавычка",
+    "extra_closing_bracket": "^строка \\d+: лишняя закрывающая скобка",
+    "mismatched_bracket": "^строка \\d+: закрывающая",
+    "unclosed_triple_string": "^строка \\d+: незакрытая тройная кавычка",
+    "unclosed_bracket": "^строка \\d+: скобка",
+    "space_before_tab": "^строка \\d+: в отступе пробел ПЕРЕД табом",
+    "missing_colon": "^строка \\d+: похоже, пропущено двоеточие",
+    "type_mismatch": "^строка \\d+: переменной типа",
+    "mixed_indentation": "^смешаны отступы:"
+  },
+  "inputs": {
+    "project/scripts/clean.gd": {
+      "sha256": "101e3844f4d291a47ec6cff8cf873d70a74349cd9469899146885bc6cd537850",
+      "bytes": 59
+    },
+    "project/scripts/empty.gd": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "project/scripts/spaces.gd": {
+      "sha256": "e09ef1bacd63d0c3480cfe71c260845e3feac101cbc89cce8a21f5fe70640494",
+      "bytes": 7
+    },
+    "project/scripts/quote_newline.gd": {
+      "sha256": "362b936aacde07aa6a2a6f5586a56fef7747b147e2a0bf5e6adb574db9e60280",
+      "bytes": 44
+    },
+    "project/scripts/quote_eof.gd": {
+      "sha256": "54f99002fcd1164c1b9cab4684614124a96b5c6d235ea1fab72d13ab440cab51",
+      "bytes": 19
+    },
+    "project/scripts/unclosed_bracket.gd": {
+      "sha256": "6940944293d6c3762acc711a813f9b310d6ab13add771d3fdfe78a9446e0d99b",
+      "bytes": 16
+    },
+    "project/scripts/extra_closing.gd": {
+      "sha256": "958e50cba2c30a9814d00220aeed3043a8fb4020a4b5833237cf835941c47c25",
+      "bytes": 30
+    },
+    "project/scripts/mismatched_pairs.gd": {
+      "sha256": "ea8e03d809abf15fa1159ddba86daa03be6609d755d77b84e7a07afb22459cc5",
+      "bytes": 33
+    },
+    "project/scripts/encoding.gd": {
+      "sha256": "b12ebcb30a9561fa9dc22f99c946bf218d8faef1fd4f642c6a45c26b44c1815c",
+      "bytes": 30
+    },
+    "project/scripts/hash_in_string.gd": {
+      "sha256": "a2b2be61913617e51ab4e9c0801067cb9c0ef724bbeb6b17d55d6babb8c23489",
+      "bytes": 30
+    },
+    "project/scripts/comment_after_code.gd": {
+      "sha256": "4200b89b0a02e20514dd2b0f758cc670ff932c2fb5a563a04699038ab983a3e8",
+      "bytes": 28
+    },
+    "project/scripts/triple_strings.gd": {
+      "sha256": "d3360cf0a19e4100023b9c1b7225fe3557cc363c0056a271be7492ddecb55eb6",
+      "bytes": 51
+    },
+    "project/scripts/int_string.gd": {
+      "sha256": "4fc227221713009ccf36a837ac65e1a3078f94ffdd7bf17d4df81cb0bb4e04ef",
+      "bytes": 17
+    },
+    "project/scripts/float_int.gd": {
+      "sha256": "1ce8e51f9ffd84331ca2f2a711d3b7d55d4e11cdcbcb220dfbc4eacf497c3af0",
+      "bytes": 17
+    },
+    "project/scripts/bool_string.gd": {
+      "sha256": "a7a7cdfa7e10d90218c368baa946c9dded118834bd62d2bb0b8cec215a82c40f",
+      "bytes": 21
+    },
+    "project/scripts/many_errors.gd": {
+      "sha256": "e2898d75ace650106e0b8de0378363009a4fb067fe02bfd00f2c877be18af774",
+      "bytes": 24
+    },
+    "project/scripts/crlf.gd": {
+      "sha256": "5105835bb82c5d8a7a1efc3603e28726de8171d920c0cdd9fe91618e439afde4",
+      "bytes": 35
+    },
+    "project/scripts/bom.gd": {
+      "sha256": "6cff35fca475d32122dffe3f327906873200718396b108e02b20d388ac5918bd",
+      "bytes": 38
+    },
+    "project/scripts/bom_crlf.gd": {
+      "sha256": "9f4c9f6f97c95e56dc89c3b26db0389b2de8ea61aa5bfe776cf0907b458b71ff",
+      "bytes": 40
+    },
+    "project/scripts/triple_unclosed.gd": {
+      "sha256": "02dcf7e75d0f618086e24916644c2e0c26973afad312de7318ca68aa1cde2fe6",
+      "bytes": 25
+    },
+    "project/scripts/mixed_indentation.gd": {
+      "sha256": "57bb7d2f2a7ce5a5fcf1174a9774627d809bce4c559d43fb67f15c61cc488a09",
+      "bytes": 35
+    },
+    "project/scripts/space_before_tab.gd": {
+      "sha256": "b697ce6aea76ad083114d40c39246e29b725074d6427fa02503cdb72aaba4bd5",
+      "bytes": 17
+    },
+    "project/scripts/func_missing_colon.gd": {
+      "sha256": "61d7274a26d1c01a4d7a90b7aa8ead19dcbb176cca5d611cd743b64bb9a7c264",
+      "bytes": 32
+    },
+    "project/scripts/class_missing_colon.gd": {
+      "sha256": "a3b0756f4c5e0879984a0a1dbf74a225cb89975a71abbc20db5a1b110f9dd01e",
+      "bytes": 23
+    },
+    "project/scripts/literal_types.gd": {
+      "sha256": "4943f03e6cfbe2efccda7b5cea0364a80dc1f069e60de4622ee5d7f7bbaae875",
+      "bytes": 108
+    },
+    "project/scripts/expressions_ignored.gd": {
+      "sha256": "0b975ee99ff9d550362dbc41a0d87f6da36e7f5891037e2ea1aa096144d588b7",
+      "bytes": 81
+    },
+    "project/scripts/escaped_quotes.gd": {
+      "sha256": "86045161fc9f4340fc7bacfbfe6ca76f7825dc3d897c7ee7d0168746cf1aa3cb",
+      "bytes": 61
+    },
+    "project/scripts/single_quote_newline.gd": {
+      "sha256": "fde43afd266974a733d28f26fb4ce979c9be1b97712d7daa292d2fb982859a29",
+      "bytes": 30
+    },
+    "project/scripts/structural_skips_lines.gd": {
+      "sha256": "c9b34414bf0927f03584c7e51eec801bc0a11c8ba0b1bd641b5f586ac5ee6bda",
+      "bytes": 45
+    },
+    "project/scripts/paren_indent_free.gd": {
+      "sha256": "cbdf9a6856bf66a9c2da6147ae6449ba60629f721d5a0a432568349507e9eca6",
+      "bytes": 23
+    },
+    "project/scripts/semicolon.gd": {
+      "sha256": "a12908096fc279ad84adef43e42fa545e931de65a6f95c82b8404b48b554acc6",
+      "bytes": 36
+    },
+    "project/scripts/eight_exact.gd": {
+      "sha256": "3e636dc83ab3cbcd785cdb1b1525302f2c08c49928d86399ef3e894480ccff9d",
+      "bytes": 16
+    },
+    "project/scripts/typed_hash_quirk.gd": {
+      "sha256": "52deee7bd0483ac9d2c4b39ee25ae34413c0fc233a4aa8a79d223ddde71b0dbb",
+      "bytes": 19
+    },
+    "project/scripts/escaped_newline.gd": {
+      "sha256": "236bb79b6ee56dd490e214a258f51a5cad4c20ed987fb30a3df51f77b3f4fdcc",
+      "bytes": 43
+    },
+    "project/scripts/bom_only.gd": {
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5",
+      "bytes": 3
+    },
+    "project/scripts/invalid_utf8.gd": {
+      "sha256": "3d2eb37be586211ab8e0a7f6438c76f7d3862f48bb9b908d842fd4f51e6d169d",
+      "bytes": 25
+    },
+    "project/scripts/valid_literals.gd": {
+      "sha256": "ec4b08b1c56f929cdf2cfe46291d5288178b443c3b0c1048f61019435c320763",
+      "bytes": 116
+    }
+  },
+  "cases": [
+    {
+      "file": "001-clean.json",
+      "sha256": "f934c7015d10564bf383744f8ebf16ad0cc7b5d32960debd98019b0ba3cedf0b"
+    },
+    {
+      "file": "002-empty.json",
+      "sha256": "025a80839fb20154e6d494724b5194d16a68628a7e30dac08da00220493ca3b0"
+    },
+    {
+      "file": "003-spaces.json",
+      "sha256": "047fa2ae207061569adfab5a9bb84726adcb7a65e351b6b3a1c6fa7e19542f82"
+    },
+    {
+      "file": "004-quote_newline.json",
+      "sha256": "98cc2f9e5b658a9726bd9f06b599c584ce667f0100d2193fc45f45156ae2af77"
+    },
+    {
+      "file": "005-quote_eof.json",
+      "sha256": "cf4c4fc2c8db0d71d58017a0bf8f5c657ce5c1b0a9b568cae4d8a00453f29d2a"
+    },
+    {
+      "file": "006-unclosed_bracket.json",
+      "sha256": "0cfae34e60b62cc1c09ae0f9f792f0bdf9d30fc54cbdc97ba1eb263f44add4d9"
+    },
+    {
+      "file": "007-extra_closing.json",
+      "sha256": "4ec82d108a7813ff5cd7da66938e3041ac9f7337f58b3e42fb069ba56d2454e7"
+    },
+    {
+      "file": "008-mismatched_pairs.json",
+      "sha256": "b4295d5cdbf81cc51642f2c5b378a19af11b42e0f62ecf6bed5ef0e1f9839ba9"
+    },
+    {
+      "file": "009-encoding.json",
+      "sha256": "ae3177d52281e26490070454de7b94dbbc5f60fc7eb9e6d13ef7f43521e26625"
+    },
+    {
+      "file": "010-hash_in_string.json",
+      "sha256": "1c6e89cefe84fd43843f7077147fb771c36417c65b0a0f772124773be858c45e"
+    },
+    {
+      "file": "011-comment_after_code.json",
+      "sha256": "7da15f6dfa5e22af37b94a8448372a195985904ed3bfd122180f19afe5d8d9f6"
+    },
+    {
+      "file": "012-triple_strings.json",
+      "sha256": "664668780764079fb494cbd470ace512a531194ac964af510f5d1f755c28da66"
+    },
+    {
+      "file": "013-int_string.json",
+      "sha256": "ea3abe9614b771343e7d659665862f52c950652e7197b2951e2f925b44f45a1e"
+    },
+    {
+      "file": "014-float_int.json",
+      "sha256": "fd9228e673b4312ee680b327ff2eb3b3df9367709cea21bd1a5bc5147fd47cb9"
+    },
+    {
+      "file": "015-bool_string.json",
+      "sha256": "002bf49d52d2b270e1a9922614c7677e91fa06f541c89617bafd519d0389c371"
+    },
+    {
+      "file": "016-many_errors.json",
+      "sha256": "3e99796be256c7a2c41f1e9eda8e9bb0da0da0078bf89cbb7a8206d76fa3a900"
+    },
+    {
+      "file": "017-crlf.json",
+      "sha256": "44ea6e1552bb6776e26c781c17b5520b248b13fcebc1c8afd7a612c8c6bdad84"
+    },
+    {
+      "file": "018-bom.json",
+      "sha256": "17f0aa46538d9cc5ccc6d167d0039c2ed252bc0806ecaee1e5468b36063bb918"
+    },
+    {
+      "file": "019-bom_crlf.json",
+      "sha256": "8e6e53e44dce473369b93e96e03b06103914a32f1d0c8e1f3ab8bd54bdf8ef64"
+    },
+    {
+      "file": "020-triple_unclosed.json",
+      "sha256": "b5545a3f09ce0fe9a2d48c9cf3192f80e54dfe64ad46b983aa1eb32c28674dca"
+    },
+    {
+      "file": "021-mixed_indentation.json",
+      "sha256": "c2a924a82f8a40347a4e4ee6cd18c0c66a686e33df64328c81b76a138b82ba8d"
+    },
+    {
+      "file": "022-space_before_tab.json",
+      "sha256": "4eae83fcdec90ce1570058da90bdd13fb6dc2534556675b2c971b8c24588771b"
+    },
+    {
+      "file": "023-func_missing_colon.json",
+      "sha256": "91fa267ce89ec28f54a0c8b26d42d7cb3a3d9deda8336f372a90c62c06e695d5"
+    },
+    {
+      "file": "024-class_missing_colon.json",
+      "sha256": "4a6fac0c48ea920b09ce2e43ae082db830c62cb8d708107a7b021c4c7899e54f"
+    },
+    {
+      "file": "025-literal_types.json",
+      "sha256": "b61a4ef2e009437c4b7cedee8fefbd4091c380aad7317336bda563f1e0aa0023"
+    },
+    {
+      "file": "026-expressions_ignored.json",
+      "sha256": "f8eb9026e5fb8d0fc2afefb199101f605f017fd18c1af7567e553c5911781ebc"
+    },
+    {
+      "file": "027-escaped_quotes.json",
+      "sha256": "4680ec059ddf20866e3bb5118a44fcb7d711e357ae7cb5b3e1ef3385a0160832"
+    },
+    {
+      "file": "028-single_quote_newline.json",
+      "sha256": "0559e1b381087103afe5b599dad27f5c72d1f0703122064b65a5659d6d604745"
+    },
+    {
+      "file": "029-structural_skips_lines.json",
+      "sha256": "e4286a9859ed8366f589ad6cf420e0c7aabf3da74cd1d6c8088744243723e1e5"
+    },
+    {
+      "file": "030-paren_indent_free.json",
+      "sha256": "1a8c56e46a17f34f97c09d6568738e610b086400ad68cbfd32352ca96c34ba7e"
+    },
+    {
+      "file": "031-semicolon.json",
+      "sha256": "4a6e710d459dfeb557d08cbfb29ce86bba2d484bddab034c97279c09c0c89212"
+    },
+    {
+      "file": "032-eight_exact.json",
+      "sha256": "f13e2d525de5f3728b72414ffe9cf0f6b68d08173392ce8f594b065f99373dac"
+    },
+    {
+      "file": "033-typed_hash_quirk.json",
+      "sha256": "bdb87b2d1c7237644cc652cade56ffab9a5a226122da86c17703aed2600aebaa"
+    },
+    {
+      "file": "034-escaped_newline.json",
+      "sha256": "64432f77f47021ae616078c4743a15add1a0c0f097bd4f0ed562682d0a569ade"
+    },
+    {
+      "file": "035-bom_only.json",
+      "sha256": "43a21e01bf1a430948fce427a4b9c3a36ce21393aef3a72d65c763db92901351"
+    },
+    {
+      "file": "036-invalid_utf8.json",
+      "sha256": "c532a7cf5da063249068166df8bd7be6d73266abd26cda4b9b92d4fbfdb93651"
+    },
+    {
+      "file": "037-valid_literals.json",
+      "sha256": "73b930c11bdb649de0643da211fc4ae2e90dc75623e545c44a203afb2579f9fd"
+    }
+  ],
+  "f1_capture": {
+    "captured_at": "2026-10-31",
+    "cases": [
+      "018-bom.json",
+      "019-bom_crlf.json",
+      "035-bom_only.json"
+    ],
+    "capture_script": {
+      "sha256": "47fe348294667827c076053455171f4ce63a675efb180de897a3f29d4fd99bc2",
+      "bytes": 7589
+    },
+    "reference": {
+      "sha256": "a9b1ad832fd072f486d10a4f877bd858a31740c2b496eb820d4968900851f995",
+      "bytes": 142171
+    },
+    "function": "_check_one_path:1173-1264 -> project_tools.read_project_file:778-786",
+    "old_text_results": "reference_text_messages and previous_expect preserve C.2 raw-text observations"
+  }
+}

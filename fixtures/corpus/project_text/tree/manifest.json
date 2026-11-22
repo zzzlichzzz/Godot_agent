@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-03",
+  "reference": {
+    "source": "godot_tools/project_tools.py",
+    "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877"
+  },
+  "projection": "D20: native tuple/text -> typed read/root node; transport clip/ASCII marker omitted",
+  "cases": [
+    {
+      "id": "001-default",
+      "file": "001-default.json",
+      "sha256": "12d21b080b61102962e7759008a076aaac5445fb3d456ae7738d703924c857d8"
+    },
+    {
+      "id": "002-root",
+      "file": "002-root.json",
+      "sha256": "5ed83a83b28a643e292405304f62e2a2c94c342f4df7ecc51b709cc45a909240"
+    },
+    {
+      "id": "003-depth0",
+      "file": "003-depth0.json",
+      "sha256": "bb17e963e9905d1b4f85372b0c0917427fb5f57fdb88628244456fb7e09e68fa"
+    },
+    {
+      "id": "004-depth1",
+      "file": "004-depth1.json",
+      "sha256": "4fc366389dacdddfc5f19c09d4478f44bb98146fbc509a4f44f9a8bd414de65b"
+    },
+    {
+      "id": "005-only-gd",
+      "file": "005-only-gd.json",
+      "sha256": "d3cb603bcc11018fba3ab086ed9e8bed919f3f0720cbd840abf85b58cfafe238"
+    },
+    {
+      "id": "006-only-upper",
+      "file": "006-only-upper.json",
+      "sha256": "4ffc6c88529f6a9eb88bd65f0a56a3329164acfd253ef14df517b5cf43f3051e"
+    },
+    {
+      "id": "007-empty-exts",
+      "file": "007-empty-exts.json",
+      "sha256": "79293a64247a2a7a5f5012e4db1e7965473c4908cf926d50fbbdf74df44aa925"
+    },
+    {
+      "id": "008-empty-dir",
+      "file": "008-empty-dir.json",
+      "sha256": "3e945c851c64924a2ef5d61b94a4d101133dd907b8539415cb6093087ee8a576"
+    },
+    {
+      "id": "009-src",
+      "file": "009-src.json",
+      "sha256": "bcda424c3fea2d1e0b5fa94dc5080cbf352e78368e91277500bbf7f81ed7833e"
+    },
+    {
+      "id": "010-hidden-explicit",
+      "file": "010-hidden-explicit.json",
+      "sha256": "42bebaad2fa2737a189711124fd02dea4457d37912db3797eaefbfe987450ada"
+    },
+    {
+      "id": "011-history",
+      "file": "011-history.json",
+      "sha256": "9296a9a651016b1c79469014f8b68a4f43208bac81a47c550e66c8671bf71c79"
+    },
+    {
+      "id": "012-escape",
+      "file": "012-escape.json",
+      "sha256": "d3e1e77060183bd2e9487abf377b6d4075a50acbc6c58622ae6f7c7d69b79551"
+    },
+    {
+      "id": "013-missing",
+      "file": "013-missing.json",
+      "sha256": "337b9026e8fe51dfe4652ff5168a231a05b3dc9d6aa0da6653276d60294b718f"
+    },
+    {
+      "id": "014-file",
+      "file": "014-file.json",
+      "sha256": "cfab68bfcc3761b1caaa1d0319e1656cdbb7fe9d22c484614da8747936113d94"
+    },
+    {
+      "id": "015-addon-denied",
+      "file": "015-addon-denied.json",
+      "sha256": "4afe539cc8714f8f2b221f105fc8e1d0e86211e868a4c925f67aeed8a94e5bcc"
+    },
+    {
+      "id": "016-quota-0",
+      "file": "016-quota-0.json",
+      "sha256": "ef2e755d6737f37bcb8a9fd016a7c535264200cc6e8828a757881d2db39a5992"
+    },
+    {
+      "id": "017-quota-1",
+      "file": "017-quota-1.json",
+      "sha256": "1d1c78449262a0957cdd9db48b89459032fcbd622d056620888303dd6577f8b0"
+    },
+    {
+      "id": "018-quota-2",
+      "file": "018-quota-2.json",
+      "sha256": "94181b3c2c21c376cfc53b49d0af6523ce672a6ac1ef14008f383337596edbc7"
+    },
+    {
+      "id": "019-quota-20",
+      "file": "019-quota-20.json",
+      "sha256": "9fe61856773dba1eaaeecfc449edea8df7d6126cb7acacd1dab960cfb3ac951e"
+    },
+    {
+      "id": "020-flags-0",
+      "file": "020-flags-0.json",
+      "sha256": "d5ff09fe1e220dfc1739527510cb6fa687c03f0034e09798bdce5d2a47df34f2"
+    },
+    {
+      "id": "021-flags-1",
+      "file": "021-flags-1.json",
+      "sha256": "b27fbdf4faf71a131048eb57d1de3e03779981ab5f499207fb016541dd5f94c5"
+    },
+    {
+      "id": "022-flags-2",
+      "file": "022-flags-2.json",
+      "sha256": "67a0b9fd9309e0d5d90839cdc8a7fdb081308ebd5698a49eabd192be3c8c88bd"
+    }
+  ]
+}

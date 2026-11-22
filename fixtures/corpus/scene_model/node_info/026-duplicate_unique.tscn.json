@@ -1,0 +1,41 @@
+{
+  "id": "026-duplicate_unique.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "duplicate_unique.tscn: '%Unique'",
+  "args": {
+    "path": "res://scenes/duplicate_unique.tscn",
+    "node": "%Unique"
+  },
+  "reference_node": {
+    "name": "Unique",
+    "parent": "First",
+    "type": "Node2D",
+    "path": "First/Unique",
+    "unique_name": true,
+    "script_id": null,
+    "header_span": [
+      138,
+      187
+    ],
+    "body_span": [
+      187,
+      216
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Unique",
+      "type": "Node2D",
+      "parent": "First",
+      "path": "First/Unique",
+      "depth": 2,
+      "script": null,
+      "instance": null,
+      "unique_name": true,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "083-plan-no-symbols",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_no-symbols",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_result": null,
+  "reference_error": {
+    "ok": false,
+    "exception": "SplitError",
+    "message": "в файле нет символов верхнего уровня для переноса"
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "в файле нет символов верхнего уровня для переноса"
+}

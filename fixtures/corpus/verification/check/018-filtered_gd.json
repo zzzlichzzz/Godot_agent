@@ -1,0 +1,36 @@
+{
+  "id": "018-filtered_gd",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://clean.gd",
+    "kinds": [
+      "py"
+    ]
+  },
+  "reference_result": {
+    "path": "res://clean.gd",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "contract_boundary": "new kinds filter; unavailable providers are never run",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.gd",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [],
+      "unchecked_reason": "ни один из запрошенных kinds (py) не относится к расширению .gd — файл НЕ проверен",
+      "unavailable": []
+    }
+  }
+}

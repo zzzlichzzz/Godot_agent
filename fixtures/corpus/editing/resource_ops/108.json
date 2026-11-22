@@ -1,0 +1,37 @@
+{
+  "id": "expanded-op0-extra",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        },
+        "extra": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестные поля: extra",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "d62dc7c7ef89b1b547cb02727cf245700ddd4701217ac47aeb3a5f3ad1816a8a"
+}

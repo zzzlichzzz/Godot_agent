@@ -1,0 +1,21 @@
+{
+  "id": "010-unreferenced",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://unreferenced.gd",
+    "new_path": "res://other.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://unreferenced.gd",
+      "new_path": "res://other.gd",
+      "is_directory": false,
+      "file_count": 1,
+      "reference_count": 0,
+      "files": [],
+      "source_text": "extends Node\n"
+    }
+  }
+}

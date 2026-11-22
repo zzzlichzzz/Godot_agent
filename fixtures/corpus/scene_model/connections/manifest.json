@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-29",
+  "reference": {
+    "commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+    "files": {
+      "godot_tools/scene_deps.py": {
+        "sha256": "dbd502afeca7fa2fe97d49a995438c551d313d1713e6591865ab2bf3b053067b",
+        "bytes": 19866
+      },
+      "godot_tools/project_tools.py": {
+        "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877",
+        "bytes": 102471
+      },
+      "main.py": {
+        "sha256": "c5b3edd1a1528d8662b49081880549b2f4cd1f9eed108030605fdaf2c6a17d0b",
+        "bytes": 304431
+      }
+    }
+  },
+  "capture": "one disposable python -B script, ordinary _bootstrap/project_tools/scene_deps imports; actual functions, not copied code; removed before implementation",
+  "projection": "raw parse_scene connections + display connections traced from actual describe_scene; text joins native display rows with - prefix",
+  "decoding": "utf-8-sig replace/universal newlines, describe_scene",
+  "inputs": {
+    "absent_function.tscn": {
+      "sha256": "9b78f863724867fcb77a29b320ec418f882b29ffb73e6f3301828eeaf7460585",
+      "bytes": 172
+    },
+    "bom.tscn": {
+      "sha256": "942db9d2a8e490b11043c3c16b82effacbdcd42da87f054eb4cc070866e55890",
+      "bytes": 179
+    },
+    "crlf.tscn": {
+      "sha256": "2045ba90449002b8fd529bb6f1ba9a39c29e21c18f84ffb1a449ac3f7e2aa9d1",
+      "bytes": 180
+    },
+    "duplicates.tscn": {
+      "sha256": "a8b6f2dafb518e6699fb3d6348d7cefd5f592f5c8ed465ae02906fbaf98769a0",
+      "bytes": 255
+    },
+    "empty.tscn": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "empty_from.tscn": {
+      "sha256": "08bce4e2f0a159f19189ae0cdd5dd2b1e1e8b46965745c50d6b72bd14ee21ade",
+      "bytes": 170
+    },
+    "empty_method.tscn": {
+      "sha256": "7d39cb813e58e1deafce9ebbbe64260c8f50fa2a83b3a917cd2c4c4dd75aa52a",
+      "bytes": 158
+    },
+    "empty_to.tscn": {
+      "sha256": "27d5540a9c0e968b68c53144822f3a124825a8d45d63ee1eb895ce9c0cf00a87",
+      "bytes": 175
+    },
+    "escaped.tscn": {
+      "sha256": "2376878f2da5fc5f77811be80542439b6632b28c61d762ab235244e0e283f11c",
+      "bytes": 184
+    },
+    "flags.tscn": {
+      "sha256": "78f4b4c155e486a8f9d49fe13ca7e9cb4238c73ca72cb8e17b532b4dc2b42388",
+      "bytes": 196
+    },
+    "injection.tscn": {
+      "sha256": "6c3b8b1984b181c8c2768ea1dd04c048c1120e58b1559be3069ba9e919c964ec",
+      "bytes": 195
+    },
+    "invalid_utf8.tscn": {
+      "sha256": "96f4e1df03066759a9409537ccaaee8e7ac06f76c996a7497b0d78ea368c4731",
+      "bytes": 177
+    },
+    "lone_cr.tscn": {
+      "sha256": "7ec4bec032d2910c18b6a49d725514215cebdf53ef7d6ad609e5efa3a6547e38",
+      "bytes": 176
+    },
+    "many.tscn": {
+      "sha256": "7b762c083628e83e5e1a1d6ff7c425ae89a06f5a8b97a4c1687f1924c5f236d6",
+      "bytes": 255
+    },
+    "missing_from.tscn": {
+      "sha256": "e078dd7ab3940cd82c21605b988fc5f668c31960fc024d9f93d34f1e4f54f580",
+      "bytes": 162
+    },
+    "missing_method.tscn": {
+      "sha256": "78b24bffd56352f5b2d89966538c69ff0f6debc823e91daef03216511924875d",
+      "bytes": 148
+    },
+    "missing_signal.tscn": {
+      "sha256": "a7fb207d5b355952b591a7905481e09793b25e8f79700dfb39f17d032de1a3ed",
+      "bytes": 159
+    },
+    "none.tscn": {
+      "sha256": "aa051d429cf1dca156c2011a24b02e6c0a480dc53fdb2abe8a5049988a40bdf6",
+      "bytes": 97
+    },
+    "not_scene.tscn": {
+      "sha256": "c0b6dd24532e7713e50fedd65657eae46ff7efc12abc330d819157c29af2aac6",
+      "bytes": 12
+    },
+    "one.tscn": {
+      "sha256": "f2a5b0ab982a5a5b2070d354f31eb4e3886f90144779c8f4a2f401d032d79a9e",
+      "bytes": 176
+    },
+    "other.tres": {
+      "sha256": "6f570d6f28170f51d612a65e726239dd178885beaa2a8d003ce2958a4fbea5e7",
+      "bytes": 14
+    },
+    "root_from.tscn": {
+      "sha256": "933dde059d580617d961a5cc501da3922e707057d7df1b515cba47f471933a73",
+      "bytes": 171
+    },
+    "textual.scn": {
+      "sha256": "f2a5b0ab982a5a5b2070d354f31eb4e3886f90144779c8f4a2f401d032d79a9e",
+      "bytes": 176
+    }
+  },
+  "cases": {
+    "001-none.tscn.json": "1d67bfcef4bfda8a577cc467973f24fb4c819cd97671e0d59ff96a94da7d33b4",
+    "002-one.tscn.json": "bf9754d84f0f35b0431da9cb7eeb2428fd0418aa6d67838c0cb5eadf31db822f",
+    "003-many.tscn.json": "d5cee73ac09bb8641a1a67d1c0a747425f42868a7d0ce2b5bcf5007f4f1e9849",
+    "004-root_from.tscn.json": "7b99f4ebe1eb9acadafb8d40a4e76a445c196bb69838882aedd79a83a6747dad",
+    "005-empty_from.tscn.json": "0bed0d5c9e319a2869bd39aec5acfe06de10a2dcf764108743f920ecedbece9f",
+    "006-empty_to.tscn.json": "0da6e9a208cc6f951f143ff236e24dfec9c2306254b693c1bf0eff9c97b43f8d",
+    "007-duplicates.tscn.json": "f3273b513cb1f48585a1b2c891dd3c9c7197a9222b94dd7da78d84a5aec8464d",
+    "008-absent_function.tscn.json": "8f7c84b09283cd1cad0ce9ef7cf4da78b559ef356d59d54c54d827cbcc2e8d35",
+    "009-missing_method.tscn.json": "bbe3f6365a9239a734940ade26361e59b6be1bbe01a293e0a177e892b69fbef6",
+    "010-empty_method.tscn.json": "e914080b33c259761886715bd92a253fc7c81a0005169c2d050dfc4873763ef8",
+    "011-missing_signal.tscn.json": "0fd026932ebcd56812c8a19553d8b837e6c4ccab4544e87e8c567d2f890c33f4",
+    "012-missing_from.tscn.json": "1e3a4550458d2d12ac252ec67b9e4f5369e16e1ac37418909b984a5b7277dbb6",
+    "013-flags.tscn.json": "8ffba6e1e43bdc7ffb0de10f52106fab81cd6ec1331772714cb3a71116f2ecda",
+    "014-escaped.tscn.json": "b50f0432cd67e9f424f73f905663a7d4347ff46714adf31fbfbc57b787d85014",
+    "015-crlf.tscn.json": "2c3f3333e1bcde7bc44a3d7a73bebbe915df12bbd0820f053a8ee1ae7c07b12e",
+    "016-bom.tscn.json": "0fbb4e44eccf904e6784f725ca0622d3ede92e2915efd4d75c2d130a52d088b4",
+    "017-lone_cr.tscn.json": "a14ac0dcf636f4122f8073e97211e779a2a63837ff3a8b81e03023e1affa0bf9",
+    "018-empty.tscn.json": "ae81f366fbe76be0809bceb68f2641acaa4a1fa7e30e45a9fc9a0f17449616cb",
+    "019-not_scene.tscn.json": "1c2b082e5014698023357f65b9a591ba722c645bbf12fe90326cce4599140658",
+    "020-other.tres.json": "fe7b9cb45230e747fa917bd80601acd91183637797fe402601b9d28a8eeea24f",
+    "021-textual.scn.json": "6b88df1acec69d3488ebc1a1417e4af1e94e984f376b8f41c9ecf2bdfe66ca19",
+    "022-invalid_utf8.tscn.json": "f28436e66186401974c6e01da74d35d7b923555074a301337cffc1c8a15e1604",
+    "023-injection.tscn.json": "d99eafd7583d2a8e3f99123dfc23fd84724812721fb970d7fe72d124b098c8ce",
+    "024-missing.tscn.json": "a3afe90df23cca659e70d15fc260494f6d18dd94feb670a5d77e6461f750dd09",
+    "025-outside_outside.gd.json": "27e19d98e77886cfe2c1f6e28f994b4f0b2e747cc8746aeacb9728dbff22615f"
+  },
+  "copied_source": null
+}

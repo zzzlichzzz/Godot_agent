@@ -1,0 +1,15 @@
+{
+  "id": "039-outside_script",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/039-outside_script",
+  "note": "outside_script",
+  "args": {
+    "path": "../outside.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Путь вне проекта отклонен: ../outside.gd",
+    "reference_exception": "ValueError"
+  }
+}

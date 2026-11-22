@@ -1,0 +1,23 @@
+{
+  "id": "005-quote_eof",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "quote_eof",
+  "args": {
+    "path": "res://scripts/quote_eof.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "unclosed_string",
+          "line": 1,
+          "message": "строка 1: незакрытая кавычка (\")"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 19
+    }
+  }
+}

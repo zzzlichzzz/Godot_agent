@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "module_id": "assistant.write",
+  "capability_id": "assistant.write",
+  "tool_name": "assistant_rollback",
+  "description": "Откатить подтверждённую запись по квитанциям.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "plan_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+      },
+      "entry_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 150
+      }
+    },
+    "required": [
+      "plan_id",
+      "entry_id"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "state": {
+        "type": "string",
+        "enum": [
+          "REJECTED",
+          "COMMITTED",
+          "ROLLED_BACK"
+        ]
+      },
+      "plan_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+      },
+      "entry_id": {
+        "type": "string"
+      },
+      "result": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "state",
+      "plan_id",
+      "entry_id",
+      "result"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "write"
+  ],
+  "idempotent": false,
+  "requires_preview": true,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied",
+    "stale_plan",
+    "conflict",
+    "unavailable",
+    "internal"
+  ],
+  "availability": "*",
+  "cost": "bounded",
+  "limits": {
+    "max_files": 100,
+    "max_action_chars": 200000
+  }
+}

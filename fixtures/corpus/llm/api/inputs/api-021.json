@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "md_to_bbcode",
+  "function": "to_bbcode",
+  "args": [
+    "а\r\nб\rв"
+  ],
+  "kwargs": {},
+  "id": "api-021"
+}

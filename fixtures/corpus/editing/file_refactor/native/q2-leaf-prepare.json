@@ -1,0 +1,98 @@
+{
+  "id": "q2-leaf-prepare",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://chars/hero.gd",
+      "res://chars/Hero.gd"
+    ]
+  },
+  "kwargs": {
+    "update_references": false
+  },
+  "before": {
+    "files": {
+      "chars/hero.gd": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "chars/hero.gd.uid": {
+        "bytes": 11,
+        "sha256": "3d7caf15d41a80f6ba85cf33aad19dcc8006a94d95a3ddc7eea6cca2edf85588"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "chars"
+    ]
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://chars/hero.gd",
+    "new_path": "res://chars/Hero.gd",
+    "companion_script": null,
+    "update_references": false,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://chars/hero.gd",
+        "dest": "res://chars/Hero.gd",
+        "absolute": "<PROJECT>\\chars\\hero.gd",
+        "dest_absolute": "<PROJECT>\\chars\\hero.gd",
+        "before_hash": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "before_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "diff": {
+          "path": "res://chars/hero.gd",
+          "action": "move_file",
+          "dest": "res://chars/Hero.gd",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://chars/Hero.gd"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://chars/Hero.gd"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "chars/hero.gd": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "chars/hero.gd.uid": {
+        "bytes": 11,
+        "sha256": "3d7caf15d41a80f6ba85cf33aad19dcc8006a94d95a3ddc7eea6cca2edf85588"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "chars"
+    ]
+  },
+  "project_byte_tree_unchanged": true
+}

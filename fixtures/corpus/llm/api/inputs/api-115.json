@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "parse_models_detailed",
+  "args": [
+    null
+  ],
+  "kwargs": {
+    "free_only": false,
+    "provider_id": "openrouter"
+  },
+  "id": "api-115"
+}

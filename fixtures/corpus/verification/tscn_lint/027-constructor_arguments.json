@@ -1,0 +1,27 @@
+{
+  "id": "027-constructor_arguments",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene load_steps=9 format=3]\n[node name=\"Root\" type=\"Node\"]\nmesh = PlaneMesh.new(1)\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene load_steps=1 format=3]\n[node name=\"Root\" type=\"Node\"]\nmesh = PlaneMesh.new(1)\n",
+      "changed": true,
+      "problems": [
+        "строка «mesh = PlaneMesh.new(1)»: PlaneMesh.new(...) с аргументами — это синтаксис GDScript, в .tscn он невалиден. Объяви [sub_resource type=\"PlaneMesh\" id=\"...\"] с нужными свойствами отдельными строками и подставь SubResource(\"...\")."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene load_steps=1 format=3]\n[node name=\"Root\" type=\"Node\"]\nmesh = PlaneMesh.new(1)\n",
+    "changed": true,
+    "problems": [
+      "строка «mesh = PlaneMesh.new(1)»: PlaneMesh.new(...) с аргументами — это синтаксис GDScript, в .tscn он невалиден. Объяви [sub_resource type=\"PlaneMesh\" id=\"...\"] с нужными свойствами отдельными строками и подставь SubResource(\"...\")."
+    ]
+  },
+  "reference_api_classes": null
+}

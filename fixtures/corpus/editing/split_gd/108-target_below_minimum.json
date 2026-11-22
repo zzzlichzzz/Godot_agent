@@ -1,0 +1,21 @@
+{
+  "id": "108-target_below_minimum",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/target_below_minimum",
+  "args": {
+    "path": "res://donor.gd",
+    "target_lines": 99
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: target_below_minimum",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "target_lines must be between 100 and 5000"
+  },
+  "expected_message": "target_lines must be between 100 and 5000"
+}

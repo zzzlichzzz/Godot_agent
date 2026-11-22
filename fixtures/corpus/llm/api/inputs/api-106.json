@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "anthropic_compat",
+  "function": "_usage",
+  "args": [
+    {}
+  ],
+  "kwargs": {},
+  "id": "api-106"
+}

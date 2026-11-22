@@ -1,0 +1,11 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "transport_for",
+  "args": [
+    "agentrouter",
+    "gpt-fixture"
+  ],
+  "kwargs": {},
+  "id": "api-117"
+}

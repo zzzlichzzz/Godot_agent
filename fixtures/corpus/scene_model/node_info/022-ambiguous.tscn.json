@@ -1,0 +1,41 @@
+{
+  "id": "022-ambiguous.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "ambiguous.tscn: 'A/Leaf'",
+  "args": {
+    "path": "res://scenes/ambiguous.tscn",
+    "node": "A/Leaf"
+  },
+  "reference_node": {
+    "name": "Leaf",
+    "parent": "A",
+    "type": "Node",
+    "path": "A/Leaf",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      171,
+      212
+    ],
+    "body_span": [
+      212,
+      213
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Leaf",
+      "type": "Node",
+      "parent": "A",
+      "path": "A/Leaf",
+      "depth": 2,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

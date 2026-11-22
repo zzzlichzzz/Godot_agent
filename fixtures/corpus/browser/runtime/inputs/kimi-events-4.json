@@ -1,0 +1,24 @@
+{
+  "id": "kimi-events-4",
+  "op": "kimi",
+  "events": [
+    {
+      "op": "set",
+      "block": {
+        "id": "1",
+        "tool": {
+          "name": "search"
+        },
+        "text": "tool"
+      }
+    },
+    {
+      "op": "set",
+      "block": {
+        "id": "3",
+        "text": "\u0424\u0438\u043d\u0430\u043b"
+      }
+    }
+  ],
+  "reset": true
+}

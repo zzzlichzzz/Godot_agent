@@ -1,0 +1,47 @@
+{
+  "id": "035-bom_only",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "bom_only",
+  "args": {
+    "path": "res://scripts/bom_only.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "empty_file",
+          "line": null,
+          "message": "итоговый файл получился пустым"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 3
+    }
+  },
+  "reference_text_messages": [],
+  "previous_expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 3
+    }
+  },
+  "reference_result": {
+    "path": "res://scripts/bom_only.gd",
+    "problems": [
+      "итоговый файл получился пустым"
+    ],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "f1_revision": "User-approved file decoding via read_project_file utf-8-sig; original pure-text oracle retained"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "042-empty.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "empty.tscn: '.'",
+  "args": {
+    "path": "res://scenes/empty.tscn",
+    "node": "."
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Корневой узел сцены не найден"
+  }
+}

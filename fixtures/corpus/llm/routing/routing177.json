@@ -1,0 +1,217 @@
+{
+  "input": {
+    "id": "routing177",
+    "label": "proxy args preserved",
+    "kind": "send",
+    "responses": [
+      {
+        "wire_base64": "ZGF0YTogeyJtb2RlbCI6ICJmaXh0dXJlL21vZGVsIiwgImNob2ljZXMiOiBbeyJkZWx0YSI6IHsiY29udGVudCI6ICIjIFN5bnRoZXRpYyBhbnN3ZXJcblVzZSAifX1dfQoKZGF0YTogeyJtb2RlbCI6ICJmaXh0dXJlL21vZGVsIiwgImNob2ljZXMiOiBbeyJkZWx0YSI6IHsiY29udGVudCI6ICJganVtcF9jb3VudGAuXG5gYGBhZ2VudF8ifX1dfQoKZGF0YTogeyJtb2RlbCI6ICJmaXh0dXJlL21vZGVsIiwgImNob2ljZXMiOiBbeyJkZWx0YSI6IHsiY29udGVudCI6ICJhY3Rpb25cbntcImFjdGlvblwiOiBcImxpc3QifX1dfQoKZGF0YTogeyJtb2RlbCI6ICJmaXh0dXJlL21vZGVsIiwgImNob2ljZXMiOiBbeyJkZWx0YSI6IHsiY29udGVudCI6ICJfZmlsZXNcIiwgXCJkaXJcIjogXCJyZXM6Ly8ifX1dfQoKZGF0YTogeyJtb2RlbCI6ICJmaXh0dXJlL21vZGVsIiwgImNob2ljZXMiOiBbeyJkZWx0YSI6IHsiY29udGVudCI6ICJzeW50aGV0aWMvXCJ9XG5gYGBcbj09PURPTiJ9fV19CgpkYXRhOiB7Im1vZGVsIjogImZpeHR1cmUvbW9kZWwiLCAiY2hvaWNlcyI6IFt7ImRlbHRhIjogeyJjb250ZW50IjogIkU9PT0ifX1dfQoKZGF0YTogeyJjaG9pY2VzIjogW3siZGVsdGEiOiB7fSwgImZpbmlzaF9yZWFzb24iOiAic3RvcCJ9XSwgInVzYWdlIjogeyJwcm9tcHRfdG9rZW5zIjogNzAsICJjb21wbGV0aW9uX3Rva2VucyI6IDZ9fQoKZGF0YTogW0RPTkVdCgo=",
+        "chunk": 17
+      }
+    ],
+    "proxy": true
+  },
+  "expect": {
+    "result": {
+      "reply": {
+        "text": "[b][font_size=20]Synthetic answer[/font_size][/b]\nUse [code]jump_count[/code].\n[color=#888888]— агент предлагает действие (см. ниже) —[/color]\n\n[color=#888888]· 70 → 6 tok · Σ 76 · 1 запр.[/color]",
+        "action": {
+          "action": "list_files",
+          "dir": "res://synthetic/"
+        },
+        "raw": "# Synthetic answer\nUse `jump_count`.\n```agent_action\n{\"action\": \"list_files\", \"dir\": \"res://synthetic/\"}\n```\n===DONE===",
+        "usage": {
+          "prompt_tokens": 70,
+          "completion_tokens": 6
+        },
+        "finish_reason": "stop",
+        "model": "fixture/model"
+      },
+      "requests": [
+        {
+          "url": "http://127.0.0.1:1/v1/chat/completions",
+          "payload": {
+            "model": "fixture/model",
+            "messages": [
+              {
+                "role": "system",
+                "content": "synthetic system instructions"
+              },
+              {
+                "role": "user",
+                "content": "synthetic user request"
+              }
+            ],
+            "stream": true,
+            "max_tokens": 1000,
+            "temperature": 0.25
+          },
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": "GodotAgent/0.6"
+          },
+          "proxy": "http://127.0.0.1:8080",
+          "accept": "text/event-stream",
+          "timeout": 30.0,
+          "method": "POST",
+          "key_slot": -1
+        }
+      ],
+      "deltas": [
+        {
+          "protocol": "openai",
+          "text": "# Synthetic answer\nUse ",
+          "reasoning": false
+        },
+        {
+          "protocol": "openai",
+          "text": "`jump_count`.\n```agent_",
+          "reasoning": false
+        },
+        {
+          "protocol": "openai",
+          "text": "action\n{\"action\": \"list",
+          "reasoning": false
+        },
+        {
+          "protocol": "openai",
+          "text": "_files\", \"dir\": \"res://",
+          "reasoning": false
+        },
+        {
+          "protocol": "openai",
+          "text": "synthetic/\"}\n```\n===DON",
+          "reasoning": false
+        },
+        {
+          "protocol": "openai",
+          "text": "E===",
+          "reasoning": false
+        }
+      ],
+      "progress": [
+        {
+          "phase": "запрос к Свой адрес (OpenAI-совместимый)",
+          "chars": 0,
+          "elapsed": 0,
+          "stream": ""
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 23,
+          "elapsed": 0,
+          "stream": "# Synthetic answer\nUse "
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 119,
+          "elapsed": 0,
+          "stream": "# Synthetic answer\nUse `jump_count`.\n```agent_action\n{\"action\": \"list_files\", \"dir\": \"res://synthetic/\"}\n```\n===DONE==="
+        }
+      ],
+      "messages_built": [
+        {
+          "budget": 16000,
+          "messages": [
+            {
+              "role": "system",
+              "content": "synthetic system instructions"
+            },
+            {
+              "role": "user",
+              "content": "synthetic user request"
+            }
+          ]
+        }
+      ],
+      "saved_messages": [
+        {
+          "role": "user",
+          "content": "synthetic user request",
+          "kind": "prompt",
+          "ts": 1000.0
+        },
+        {
+          "role": "assistant",
+          "content": "# Synthetic answer\nUse `jump_count`.\n```agent_action\n{\"action\": \"list_files\", \"dir\": \"res://synthetic/\"}\n```\n===DONE===",
+          "kind": "answer",
+          "ts": 1000.0
+        }
+      ],
+      "files": {
+        "history/agent_api_history/fixturechat0001.json": {
+          "version": 1,
+          "messages": [
+            {
+              "role": "user",
+              "content": "synthetic user request",
+              "kind": "prompt",
+              "ts": 1000.0
+            },
+            {
+              "role": "assistant",
+              "content": "# Synthetic answer\nUse `jump_count`.\n```agent_action\n{\"action\": \"list_files\", \"dir\": \"res://synthetic/\"}\n```\n===DONE===",
+              "kind": "answer",
+              "ts": 1000.0
+            }
+          ],
+          "usage_total": {
+            "prompt_tokens": 70,
+            "completion_tokens": 6,
+            "requests": 1
+          },
+          "trimmed": 0
+        },
+        "runtime/config/api_keys.json": {
+          "version": 2,
+          "providers": {
+            "custom": {
+              "keys": [],
+              "model": "not-the-chat-model",
+              "base_url": "http://127.0.0.1:1/v1"
+            }
+          },
+          "defaults": {
+            "provider": "",
+            "model": ""
+          },
+          "proxy": {
+            "enabled": true,
+            "host": "127.0.0.1",
+            "port": 8080,
+            "user": "",
+            "password": ""
+          },
+          "dns": {
+            "enabled": false,
+            "url": ""
+          },
+          "provider_stats": {},
+          "catalog": {
+            "enabled": false
+          },
+          "recent": []
+        }
+      },
+      "rate_status": [
+        null,
+        null
+      ],
+      "retry_after": [
+        null,
+        null
+      ],
+      "usable_key_indices": [],
+      "description": "custom / fixture/model"
+    },
+    "stdout": "--> Прокси: включён 127.0.0.1:8080\n--> Бюджеты токенов для fixture/model: окно 32000 (оценка по умолчанию), история 16000, ответ 1000\n<-- API custom / fixture/model: 119 симв., finish=stop, событий=7, 0.0 с\n    токены: запрос 70, ответ 6\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "ApiBackend.send",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

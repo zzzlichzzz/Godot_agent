@@ -1,0 +1,43 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "parse_models_detailed",
+  "args": [
+    [
+      {
+        "id": "z-paid",
+        "pricing": {
+          "prompt": "0.000001",
+          "completion": "0.000002"
+        },
+        "context_length": 4096
+      },
+      {
+        "id": "a:free"
+      },
+      {
+        "id": "z-paid",
+        "pricing": {
+          "prompt": "0",
+          "completion": "0"
+        }
+      },
+      "b-free",
+      {
+        "id": ""
+      },
+      null,
+      {
+        "id": "unknown",
+        "pricing": {
+          "prompt": "invalid"
+        }
+      }
+    ]
+  ],
+  "kwargs": {
+    "free_only": true,
+    "provider_id": "openrouter"
+  },
+  "id": "api-108"
+}

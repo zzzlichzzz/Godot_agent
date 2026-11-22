@@ -1,0 +1,4 @@
+[gd_scene format=3]
+[node name="Root" type="Node"]
+[node name="Branch" type="Node" parent="."]
+[node name="Leaf" type="Node" parent="Branch/"]

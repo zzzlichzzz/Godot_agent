@@ -1,0 +1,1720 @@
+{
+  "version": 1,
+  "sources": {
+    "runtime_debug": {
+      "source": "godot_tools/runtime_debug.py",
+      "target": "python.substrate.editor.references.runtime_debug",
+      "pin": {
+        "bytes": 12251,
+        "sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+        "LF": 295,
+        "CRLF": 0
+      },
+      "imports": [
+        {
+          "line": 3,
+          "module": "json",
+          "kind": "import"
+        },
+        {
+          "line": 4,
+          "module": "secrets",
+          "kind": "import"
+        },
+        {
+          "line": 5,
+          "module": "time",
+          "kind": "import"
+        }
+      ],
+      "resolved": {
+        "json": "stdlib",
+        "secrets": "stdlib",
+        "time": "stdlib"
+      }
+    },
+    "editor_context": {
+      "source": "server/editor_context.py",
+      "target": "python.substrate.editor.references.editor_context",
+      "pin": {
+        "bytes": 14161,
+        "sha256": "32613d28449674134888ecf8e1b9088ff9b30f30c9baeecacf1fe799f6349362",
+        "LF": 365,
+        "CRLF": 0
+      },
+      "imports": [],
+      "resolved": {}
+    },
+    "api_backend": {
+      "source": "backends/api_backend.py",
+      "target": "python.substrate.llm.backends.api_backend",
+      "pin": {
+        "bytes": 91906,
+        "sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+        "LF": 1308,
+        "CRLF": 1264
+      },
+      "imports": [
+        {
+          "line": 25,
+          "module": "re",
+          "kind": "import"
+        },
+        {
+          "line": 26,
+          "module": "time",
+          "kind": "import"
+        },
+        {
+          "line": 27,
+          "module": "xml.etree.ElementTree",
+          "kind": "import"
+        },
+        {
+          "line": 29,
+          "module": "api_history",
+          "kind": "import"
+        },
+        {
+          "line": 30,
+          "module": "editor_context",
+          "kind": "import"
+        },
+        {
+          "line": 31,
+          "module": "runtime_debug",
+          "kind": "import"
+        },
+        {
+          "line": 32,
+          "module": "api_keys",
+          "kind": "import"
+        },
+        {
+          "line": 33,
+          "module": "anthropic_compat",
+          "kind": "import"
+        },
+        {
+          "line": 34,
+          "module": "catalog",
+          "kind": "import"
+        },
+        {
+          "line": 35,
+          "module": "md_to_bbcode",
+          "kind": "import"
+        },
+        {
+          "line": 36,
+          "module": "openai_compat",
+          "kind": "import"
+        },
+        {
+          "line": 37,
+          "module": "parser_base",
+          "kind": "import"
+        },
+        {
+          "line": 38,
+          "module": "providers",
+          "kind": "import"
+        },
+        {
+          "line": 39,
+          "module": "rate_limit",
+          "kind": "import"
+        },
+        {
+          "line": 40,
+          "module": "agent_prompts",
+          "names": [
+            "API_CONTEXT_WINDOW",
+            "API_MAX_TOKENS"
+          ],
+          "kind": "from"
+        }
+      ],
+      "resolved": {
+        "re": "stdlib",
+        "time": "stdlib",
+        "xml.etree.ElementTree": "stdlib",
+        "api_history": "python.substrate.llm.api.api_history",
+        "editor_context": "python.substrate.editor.references.editor_context",
+        "runtime_debug": "python.substrate.editor.references.runtime_debug",
+        "api_keys": "python.substrate.llm.api.api_keys",
+        "anthropic_compat": "python.substrate.llm.api.anthropic_compat",
+        "catalog": "python.substrate.llm.api.providers_catalog",
+        "md_to_bbcode": "python.substrate.llm.api.md_to_bbcode",
+        "openai_compat": "python.substrate.llm.api.openai_compat",
+        "parser_base": "python.substrate.llm.parsers.parser_base",
+        "providers": "python.substrate.llm.api.providers",
+        "rate_limit": "python.substrate.llm.api.rate_limit",
+        "agent_prompts": "python.substrate.llm.api.agent_prompts"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "routing001",
+      "file": "routing001.json",
+      "bytes": 576,
+      "sha256": "0a5f102c5faf5e1d825cdc84f088426c4154af7f8084a4c95a40cc6950593506",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing002",
+      "file": "routing002.json",
+      "bytes": 558,
+      "sha256": "8d54b75ad0888eea310f773633c4783161b39e9f0b8d0ee8ee525836be8d1e46",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing003",
+      "file": "routing003.json",
+      "bytes": 537,
+      "sha256": "079a96dc0cc14545f8ce8d72611a7d8fc252b5a87c6168e0e678c93003d2b70f",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing004",
+      "file": "routing004.json",
+      "bytes": 532,
+      "sha256": "889c76348db0957c2b61a56ba417b061077f8fa0871bbe15e7394718951e7f84",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing005",
+      "file": "routing005.json",
+      "bytes": 574,
+      "sha256": "f6466be17fbcda6e93a1bca7c5c0ec097ff6fc5ae28f0b28d497dad4ddbf4985",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing006",
+      "file": "routing006.json",
+      "bytes": 556,
+      "sha256": "554cb7ab8da7c53e5b4a189ab277321072792b385b86594708cb2926096ebdec",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing007",
+      "file": "routing007.json",
+      "bytes": 535,
+      "sha256": "65405113a65b500c8e1821aa0a5abeacc2e7058cc7cbba2921eefcf6040f749e",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing008",
+      "file": "routing008.json",
+      "bytes": 530,
+      "sha256": "b3e182277de741fba84cecb4cc9f987f7093fa0b5d0a49509891a5ee24929804",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing009",
+      "file": "routing009.json",
+      "bytes": 598,
+      "sha256": "7a3c903d1029683f8cff76fff0a24217b3346e3f23302acf493f2e11afd86f96",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing010",
+      "file": "routing010.json",
+      "bytes": 580,
+      "sha256": "ea6479428d1c710c53530c80070f6340ce5b3501caa30b72895f465059900088",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing011",
+      "file": "routing011.json",
+      "bytes": 547,
+      "sha256": "31d83befa344274272ea3aa53d790367b17cd0f280b3474229ca091f63b589ca",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing012",
+      "file": "routing012.json",
+      "bytes": 649,
+      "sha256": "9e9d484f596ce5a663feecb23cdfad5c73765249a31323a33a2396c5d0517087",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing013",
+      "file": "routing013.json",
+      "bytes": 816,
+      "sha256": "6b2858d45ec9e93e64cff319ffe6c4936915848596a367ff2d791a7bfe0b65e2",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing014",
+      "file": "routing014.json",
+      "bytes": 810,
+      "sha256": "9b16e902366d7c39e93eb90fa1840b892491a0ff6312197660f9f14cc7407c26",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing015",
+      "file": "routing015.json",
+      "bytes": 732,
+      "sha256": "9b9ef140c04337607db9aaea270614f8e8f3e57944f97ef97ae44fbc2271003e",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing016",
+      "file": "routing016.json",
+      "bytes": 836,
+      "sha256": "c4e26960f63bf43c66a130e06ca23f908cf29c7ba05cb6c5280745da8f54a0ab",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing017",
+      "file": "routing017.json",
+      "bytes": 910,
+      "sha256": "9b51fff3831936a7280a2ad0ea9ed93004b9985096dd5275a31acda121756d61",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing018",
+      "file": "routing018.json",
+      "bytes": 901,
+      "sha256": "ebd2368277a504270bab06eeb27b7ee55302a6acbc7522073ec84b387d1c28eb",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing019",
+      "file": "routing019.json",
+      "bytes": 742,
+      "sha256": "761994b5ce8a243e4841f713e0d9f76152b4017d79cf1689066e11400144afee",
+      "LF": 23,
+      "CRLF": 0
+    },
+    {
+      "id": "routing020",
+      "file": "routing020.json",
+      "bytes": 984,
+      "sha256": "e5db0cb0e66ba9b4ed2a4270e7d77ac6e6b42882642d695ec4d9aab681df1f38",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing021",
+      "file": "routing021.json",
+      "bytes": 639,
+      "sha256": "0f08a507e4ae35ac6552ee912b0d472e800824b613bf7ede12588a6bd3df2884",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing022",
+      "file": "routing022.json",
+      "bytes": 788,
+      "sha256": "94f0fe33b6ef9dda6104158c4e6a37fe923635efa41e23df32669588e42ba98a",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing023",
+      "file": "routing023.json",
+      "bytes": 577,
+      "sha256": "15efb8ec964bc3d61bd1dabcb1d65223d2b9b9cd5db0d57e7427357a678484c6",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing024",
+      "file": "routing024.json",
+      "bytes": 672,
+      "sha256": "9899909d38c005f01e8a7a79e9bb6dd15873192bc18df0f5532a056b45f0e70b",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing025",
+      "file": "routing025.json",
+      "bytes": 616,
+      "sha256": "2ed680671b0bdbb3bfae381a2601de08bddf15d1ef86f0dddf5222a8494fe2d4",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing026",
+      "file": "routing026.json",
+      "bytes": 768,
+      "sha256": "a94c322e2abed616b6fe90e9c9a66a48261c50d7cc77d7f3328272131f46ae58",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing027",
+      "file": "routing027.json",
+      "bytes": 722,
+      "sha256": "1b4fb714241949de16469a0ef31e04a085f90725b676ce0465a5885c094b3322",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing028",
+      "file": "routing028.json",
+      "bytes": 562,
+      "sha256": "1755b122a1e024a8ca8f25f3e59ba025b959f57d0d3614a77fed20f5d148065d",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing029",
+      "file": "routing029.json",
+      "bytes": 636,
+      "sha256": "75a4af660e59b29c776c72703f5fa841f1ce20f0a3df13cdf503d35ee573bb33",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing030",
+      "file": "routing030.json",
+      "bytes": 1054,
+      "sha256": "1027285f5661914aee211d61752212cefbe1551583f54120299c8d09dfe2749b",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing031",
+      "file": "routing031.json",
+      "bytes": 815,
+      "sha256": "d6fb8df985cc0fbaeb86654dd31dd46f444483f22dacc3162537fd05b78bfc29",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing032",
+      "file": "routing032.json",
+      "bytes": 572,
+      "sha256": "58e9bb6fb25adcf021d7149fce7b7ab07439b22acce3d3c9cdd0b5ca2a4eed59",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing033",
+      "file": "routing033.json",
+      "bytes": 690,
+      "sha256": "d27408fa1cf25c26d51dd093c11830d1bec023cc49f6d94f37de342375d10798",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing034",
+      "file": "routing034.json",
+      "bytes": 890,
+      "sha256": "d8c879a1bf51941fc4ece76a8d2197978c574d32316bb157317bfc263083b16a",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing035",
+      "file": "routing035.json",
+      "bytes": 593,
+      "sha256": "ee2c16dd76067c55e61e00f1bb49bdbf8a10d381ce2e7c8b6851e526705acbcc",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing036",
+      "file": "routing036.json",
+      "bytes": 741,
+      "sha256": "5273c750fafb488ebb661222e61015ed30f3780474c97a5ac618b118f719ceb5",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing037",
+      "file": "routing037.json",
+      "bytes": 638,
+      "sha256": "51d4321f0062c40d362348ecc87141a8dbc5b80fd5c8f8cb40f873cbd8811beb",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing038",
+      "file": "routing038.json",
+      "bytes": 627,
+      "sha256": "c0b90accde26b27bb69c663075535a5f20e3a0da06d31517c75568b251907f85",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing039",
+      "file": "routing039.json",
+      "bytes": 602,
+      "sha256": "83ab5099c6cad4db73361d2c7f9fe34f17a198627ad12833db83836b15566a78",
+      "LF": 23,
+      "CRLF": 0
+    },
+    {
+      "id": "routing040",
+      "file": "routing040.json",
+      "bytes": 574,
+      "sha256": "98c1a4a5fc5696280b996469b54e7265c77f7eccfaf6f85401fb5b2b256d99ab",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing041",
+      "file": "routing041.json",
+      "bytes": 784,
+      "sha256": "0b6a0314d696ce6ab66a12abca55641a26dda60b8d349fc280b383df217effd8",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing042",
+      "file": "routing042.json",
+      "bytes": 785,
+      "sha256": "d0ded171491a995718a04867a9a11d0e1f17464bf81a5e6310d45b15d238064a",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing043",
+      "file": "routing043.json",
+      "bytes": 641,
+      "sha256": "0a732ed8b8d3973cd1f51a670afbd2460b873daf11708415b3ecced678796200",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing044",
+      "file": "routing044.json",
+      "bytes": 636,
+      "sha256": "e66d0f7ece7de55016e864c4a63279199f03e97d1f68bb6a9bd7bc40455a2d98",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing045",
+      "file": "routing045.json",
+      "bytes": 750,
+      "sha256": "c8f82a2d90bddb4499e07214cbfec2e688f90d15b0e74f1ab0f9c788350ae64d",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing046",
+      "file": "routing046.json",
+      "bytes": 743,
+      "sha256": "5bf0aed7a4a97523f28fe6b6e951329d083cfd33f6e86cb156861ff93cd18df8",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing047",
+      "file": "routing047.json",
+      "bytes": 624,
+      "sha256": "bf7513bcad6581fc6b6df42d608c0860e6506a823776129014920b7f8f684f32",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing048",
+      "file": "routing048.json",
+      "bytes": 619,
+      "sha256": "c0fa81b84c4aa0e5bd5593b02152f83dd950a15b89c27101365d40aa2388fe63",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing049",
+      "file": "routing049.json",
+      "bytes": 786,
+      "sha256": "fbaafeacbcc2a8254dde3ddeaed3d5ef022047e1054ecfb933ace78bb5bba409",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing050",
+      "file": "routing050.json",
+      "bytes": 1076,
+      "sha256": "4bf4b3ce0c0c4c0b6d91b09a3c798ca2d461e2aeca2f3d6f33009aa0ba3d396f",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing051",
+      "file": "routing051.json",
+      "bytes": 642,
+      "sha256": "945f1e6968f23fa1050f7464e7c9887258cccb26cc3455c304d41adbf9be3b3f",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing052",
+      "file": "routing052.json",
+      "bytes": 637,
+      "sha256": "0bf5180a38f4c4f303a0bf96a330eeed685f908074227f473091bdb60e693767",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing053",
+      "file": "routing053.json",
+      "bytes": 756,
+      "sha256": "fd89e575f98475026f5953f0fbcb582878bbd074c73ae7c30477b29b74291302",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing054",
+      "file": "routing054.json",
+      "bytes": 1201,
+      "sha256": "87e6bcc15fc8e562a5d12595b529d3f2a8c9b042de9ba12e86aaf53bb8602ac3",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing055",
+      "file": "routing055.json",
+      "bytes": 627,
+      "sha256": "0958d8e599b8119f7daf92045593f32b6ce0fb95bc8183eed824bc5b0cd00f68",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing056",
+      "file": "routing056.json",
+      "bytes": 622,
+      "sha256": "65998eb7ae185a0fe9897be33c2c45da795c45ffd29d2139bbc01ab03de070d6",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing057",
+      "file": "routing057.json",
+      "bytes": 648,
+      "sha256": "f6b2e4e01fdb270a1bf4f3c24f566b599aa5170c07243834d38f04c9956a2e41",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing058",
+      "file": "routing058.json",
+      "bytes": 900,
+      "sha256": "a55cc8d2c60a023ebb6312053ed2d037e6e1d1e1f8b4c2ae0c0f95a1ba5bbe8a",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing059",
+      "file": "routing059.json",
+      "bytes": 573,
+      "sha256": "74b81897958ea989be8b0b8547cb967e7fbb451724d92437cd0377c357f97186",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing060",
+      "file": "routing060.json",
+      "bytes": 668,
+      "sha256": "d3713e2327ac76e002cbb23e468c9e19b012707a79aa9c3641c95d662f987bfc",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing061",
+      "file": "routing061.json",
+      "bytes": 702,
+      "sha256": "939d8d89ace85cf44091360769760d487d2d36735558379dcf59c96bf2975977",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing062",
+      "file": "routing062.json",
+      "bytes": 914,
+      "sha256": "e17e20811d8ac3062fbba74881211202566aa78e3363666abacf6f89d9b791a1",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing063",
+      "file": "routing063.json",
+      "bytes": 600,
+      "sha256": "2fa30cb391bc58cb208a13b2a0653a0a67198a62f4bd08a5d6c86d3678a47740",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing064",
+      "file": "routing064.json",
+      "bytes": 595,
+      "sha256": "099a4c17f429e2d0fd15d9fadc00ba62f8f96391b05bae686c2f6568512bfd15",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing065",
+      "file": "routing065.json",
+      "bytes": 636,
+      "sha256": "e54e03141b60818f356e643b9c98cf3cf355bdfec0ccd08ba313ca95d30ccb28",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing066",
+      "file": "routing066.json",
+      "bytes": 618,
+      "sha256": "8b729af3d7ea0652f2715ea067ced5058997ec3402702a75210259e613c7e893",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing067",
+      "file": "routing067.json",
+      "bytes": 566,
+      "sha256": "53519b1d0cd4b1ba03205b1904683305469e061b6c3fec467fa665d9f3be28c8",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing068",
+      "file": "routing068.json",
+      "bytes": 687,
+      "sha256": "7a2b5a2f4442477a21508dfcf5506b6ec255db02a25dc9eb0331cc753ea57d18",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing069",
+      "file": "routing069.json",
+      "bytes": 630,
+      "sha256": "580be901c29b14fd1bb072c2974a6d57cdb9c1546fad242a0e337b2f0cf3560c",
+      "LF": 24,
+      "CRLF": 0
+    },
+    {
+      "id": "routing070",
+      "file": "routing070.json",
+      "bytes": 1051,
+      "sha256": "4eee17b416c09e03005a0c44a6fa826a2a7ffb81bb34b00b8e8580579b4bef03",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing071",
+      "file": "routing071.json",
+      "bytes": 812,
+      "sha256": "0a7ee0b4b811f084cd36300448228b0270859679a7c27c664b3c6f236d8b3ecb",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing072",
+      "file": "routing072.json",
+      "bytes": 569,
+      "sha256": "8f92ea5436458ad007f351ed055077b65a5a228ee2d5045a31155bc4e5197f78",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing073",
+      "file": "routing073.json",
+      "bytes": 550,
+      "sha256": "4690fa915bbd440cc4c6628c4ddbd23143c6f00f3413b2c2d9e0e5e5098375cb",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing074",
+      "file": "routing074.json",
+      "bytes": 548,
+      "sha256": "921d0809e1606f01b386e3f764ce8e28ae6d83ebbb847af8e2e3696a59c1659b",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing075",
+      "file": "routing075.json",
+      "bytes": 555,
+      "sha256": "88c4a80271dfa2a38eb1a79ff79bf0ce23cfa3773f8d2524949132d6e2e777f8",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing076",
+      "file": "routing076.json",
+      "bytes": 582,
+      "sha256": "1b84c56e8928a1516a2484b89bac44e551260c8f54b653ae1a32bf9b8984a538",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing077",
+      "file": "routing077.json",
+      "bytes": 575,
+      "sha256": "331b1e0def4dd85f50c5a8108a14a18e10a71a9bf05e7f9e1ebb7bb6d7cb6b23",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing078",
+      "file": "routing078.json",
+      "bytes": 587,
+      "sha256": "e03d73f060aaf262bc4681af722e3ac8d1d3a2c145a674322b274feefa507dc2",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing079",
+      "file": "routing079.json",
+      "bytes": 592,
+      "sha256": "9c5e8e2fef3ad0446893002ecaf7e52329443626ba428b6e36377d4db41130f5",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing080",
+      "file": "routing080.json",
+      "bytes": 555,
+      "sha256": "21a6a4d991f7e4865e3065aa94509428b9275720ee585d231815a364fa5e0f6c",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing081",
+      "file": "routing081.json",
+      "bytes": 575,
+      "sha256": "dc2edad4530906231fca1c3ed3bf071853202379a54ec5efbe32336f12c4b253",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing082",
+      "file": "routing082.json",
+      "bytes": 607,
+      "sha256": "da26898de6092e0edcbb0f64c73746510b154ef289002eb0d4c0f8e509ca4b45",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing083",
+      "file": "routing083.json",
+      "bytes": 797,
+      "sha256": "41796e6e5b7561848541ae92dd62c006520be5d4e05940abea0705d084fb72ec",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing084",
+      "file": "routing084.json",
+      "bytes": 543,
+      "sha256": "9f94fb7992a881fc20eb78c76a36a0d1f2fdd087e367cf71a3fcbf32f41167ad",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "id": "routing085",
+      "file": "routing085.json",
+      "bytes": 551,
+      "sha256": "2938f8e10ce0499e589b9cc61512bb6db2ad1ffe48ba76c46cf53b1a947ce0ae",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "id": "routing086",
+      "file": "routing086.json",
+      "bytes": 552,
+      "sha256": "f5277516875f55aa318acd7e6b2b6ccec9f018bb238010646bae455ce4fcc663",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "id": "routing087",
+      "file": "routing087.json",
+      "bytes": 1348,
+      "sha256": "6ac21aa4eb9358278c88c6e368e5dc2fde386cce52fe4ef5d4a9c19f27575a88",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "id": "routing088",
+      "file": "routing088.json",
+      "bytes": 558,
+      "sha256": "094a577c1029094943405b57a67fb84b2ddff7befaaf5f58c750034b2d8adc3b",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "id": "routing089",
+      "file": "routing089.json",
+      "bytes": 546,
+      "sha256": "602ac03471af34c2dd04d6f314baacf533dbf092332478799cbdbb9141aea69e",
+      "LF": 22,
+      "CRLF": 0
+    },
+    {
+      "id": "routing090",
+      "file": "routing090.json",
+      "bytes": 606,
+      "sha256": "7cbdb59305f3c08c58bff48369d4c328e560be116d243ac88a1258a2fc5cde62",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing091",
+      "file": "routing091.json",
+      "bytes": 668,
+      "sha256": "ea2c7e528a9a248d9ff2f52a9296d861dd9d3914b80387bb2f7bb0d7fea00121",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "id": "routing092",
+      "file": "routing092.json",
+      "bytes": 676,
+      "sha256": "3074fca6a91b6e8fa407badbae4abe58323e678dfaf6643900ac624cfa4a2cf7",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "id": "routing093",
+      "file": "routing093.json",
+      "bytes": 702,
+      "sha256": "2a690f780c638614353574569ef0ced92d2f4c19f84592164c4d97bd66077ddf",
+      "LF": 31,
+      "CRLF": 0
+    },
+    {
+      "id": "routing094",
+      "file": "routing094.json",
+      "bytes": 629,
+      "sha256": "cef992c014b47eaad6047498dea59ae65655edb91517287ab6b450c084934807",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing095",
+      "file": "routing095.json",
+      "bytes": 627,
+      "sha256": "3968f7b37250d593c0e33430ec49af14027d81bb253aab8290ffc34519e3cc63",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing096",
+      "file": "routing096.json",
+      "bytes": 760,
+      "sha256": "03116ff18e2abee15b231bb997c8c2a254392544ebaf61abe86810705a86e4a4",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "id": "routing097",
+      "file": "routing097.json",
+      "bytes": 726,
+      "sha256": "20906321c95f8325fcb2ff4e270fac6cb8139d3b8c27fe5b76a3538a8b0f3057",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing098",
+      "file": "routing098.json",
+      "bytes": 743,
+      "sha256": "6dfada4eddd51ec34f71b924ed3c21899756cfca7fd951eb413a2d75021a9783",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing099",
+      "file": "routing099.json",
+      "bytes": 518,
+      "sha256": "f0055baf6754ffbd1fff3d3d37477aaa07b88299e84f1b6a000d242a3579a1cd",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing100",
+      "file": "routing100.json",
+      "bytes": 520,
+      "sha256": "1fbb6ff2c53fef80954dd9b985c4bd793ec191933bb1047b7e206c1fe5725313",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing101",
+      "file": "routing101.json",
+      "bytes": 527,
+      "sha256": "e6b3d5f551bdc7831320d761ea497fbadd96574da46720b447ab8de7b1640369",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing102",
+      "file": "routing102.json",
+      "bytes": 536,
+      "sha256": "fa1563c8086a5c122fca530033ebb3dc47e1b9dacefe6f9c3ebeaa90e1388904",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing103",
+      "file": "routing103.json",
+      "bytes": 522,
+      "sha256": "63c0769489f5f7d288e43f4c3716ee81a3ff240f2965706e3ba9553eacdd357c",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing104",
+      "file": "routing104.json",
+      "bytes": 528,
+      "sha256": "d31d3b5d9905cc40d5d99ea504a5e6acbea21c85e4105689663625e5d009c4d0",
+      "LF": 21,
+      "CRLF": 0
+    },
+    {
+      "id": "routing105",
+      "file": "routing105.json",
+      "bytes": 922,
+      "sha256": "2bdd256a37d1cff51dc927f74a508ace4229b53b0ff3a2301c008431c7b963e8",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing106",
+      "file": "routing106.json",
+      "bytes": 1197,
+      "sha256": "c1339edb6224c287d8c11c632ca1b3b0634a19c6d3c058ef15d4c4316eec0344",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing107",
+      "file": "routing107.json",
+      "bytes": 1424,
+      "sha256": "dd5a4565df4880cf816c79e3ad400a9ac6ceb7b43ff575778469562a0c686b43",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing108",
+      "file": "routing108.json",
+      "bytes": 964,
+      "sha256": "aaffc2fd1589b4a944eab5dc0acf92bc1167b8d7a190c300601b12dd1841d663",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing109",
+      "file": "routing109.json",
+      "bytes": 982,
+      "sha256": "950b2ba9a095b3123a7f5b851d0dcf939699875a7cf36cb1e1976e3c4564d8dd",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing110",
+      "file": "routing110.json",
+      "bytes": 956,
+      "sha256": "695cc4aaf55c9c5c0460a1c357e34f48f011abdb896d046cb9d1a4df738e1786",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing111",
+      "file": "routing111.json",
+      "bytes": 830,
+      "sha256": "dfe950f9e40984fbd11c846fb49fe4b60f1501c76ac6ac0b647dbb1c3830b7c9",
+      "LF": 31,
+      "CRLF": 0
+    },
+    {
+      "id": "routing112",
+      "file": "routing112.json",
+      "bytes": 1031,
+      "sha256": "d4ebf201586661cb2b34f11175cfe3bae03d65dc4a8748f83ed57451b7c0eaee",
+      "LF": 32,
+      "CRLF": 0
+    },
+    {
+      "id": "routing113",
+      "file": "routing113.json",
+      "bytes": 827,
+      "sha256": "62758b7dd7f3493b57a7e7309b5830e89cc1b9aa24ad5bc05b21aabf8c0e5c5d",
+      "LF": 31,
+      "CRLF": 0
+    },
+    {
+      "id": "routing114",
+      "file": "routing114.json",
+      "bytes": 954,
+      "sha256": "b429ee74829b357bf91e417239f85d4de45009a5602874453dcaaadec65612d1",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "id": "routing115",
+      "file": "routing115.json",
+      "bytes": 724,
+      "sha256": "ce075662ce893bde7ae33a6f4cae89c2ef11e6670e13742dac53e7162fc95446",
+      "LF": 29,
+      "CRLF": 0
+    },
+    {
+      "id": "routing116",
+      "file": "routing116.json",
+      "bytes": 1138,
+      "sha256": "bac080cf0778009c84798e43a134a2679ad293cd07f7fea510950359e2ea0ac3",
+      "LF": 30,
+      "CRLF": 0
+    },
+    {
+      "id": "routing117",
+      "file": "routing117.json",
+      "bytes": 586,
+      "sha256": "8ca7e708708633ed6c161105c5d116581891a16e161a123094fddac4b7f7befa",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "id": "routing118",
+      "file": "routing118.json",
+      "bytes": 584,
+      "sha256": "6d6aaaffc8de58cc8ca40d91523acae0251024df946d5c8bfd021271bb9175d4",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "id": "routing119",
+      "file": "routing119.json",
+      "bytes": 608,
+      "sha256": "2ac2a59882694cc1ee58fc1cd5c6c585208b64b4e7568e1714e2ede0b37e07d5",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing120",
+      "file": "routing120.json",
+      "bytes": 612,
+      "sha256": "11e089990ce07d02a5325b6690a224ed21c13d0791bd27cf29f142f288324562",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing121",
+      "file": "routing121.json",
+      "bytes": 645,
+      "sha256": "0de9b99b086b2308b1041cb5b4d3bbf300cbdec78d5ea8cfa69b5f88a7da0c9b",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing122",
+      "file": "routing122.json",
+      "bytes": 647,
+      "sha256": "b40a9d1cea7fb913a3f82a8fca30239ff224a89f152b6f61b7f23956d14237f0",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing123",
+      "file": "routing123.json",
+      "bytes": 651,
+      "sha256": "91b6c84d5c3685fa9bf729776a4695d0bdcc21bd119bd4023796c7ba3526f5a9",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing124",
+      "file": "routing124.json",
+      "bytes": 627,
+      "sha256": "547677cb85ceecfff563c4c35db108a24c95f5befc8775ef85fa4aa36f376a51",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing125",
+      "file": "routing125.json",
+      "bytes": 612,
+      "sha256": "e071ce9d611209c6d8e38119a4fca0586cac54a777db2d4901535f7d4e21b686",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing126",
+      "file": "routing126.json",
+      "bytes": 609,
+      "sha256": "9bbf6a514d2615ba667126c1e502d1121bf3472bc16febec5ba388591eb50212",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing127",
+      "file": "routing127.json",
+      "bytes": 645,
+      "sha256": "af65a357c4ebedcfb6fc963097e4f5ad6fa61edf3afddf36058093b7afdfe2f4",
+      "LF": 28,
+      "CRLF": 0
+    },
+    {
+      "id": "routing128",
+      "file": "routing128.json",
+      "bytes": 750,
+      "sha256": "d38c4db5fa83b8043910f8a416292f2a3ff220b2552b7cdfdd8b4e7cb7954918",
+      "LF": 26,
+      "CRLF": 0
+    },
+    {
+      "id": "routing129",
+      "file": "routing129.json",
+      "bytes": 627,
+      "sha256": "ca9cc2d52145211b9ac4578c29b176dc114a176c42992771fe87165e262b267d",
+      "LF": 27,
+      "CRLF": 0
+    },
+    {
+      "id": "routing130",
+      "file": "routing130.json",
+      "bytes": 601,
+      "sha256": "42f5130c516055880b9980584235409d477d9d7e9ac8229b7b8df7817702c082",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "id": "routing131",
+      "file": "routing131.json",
+      "bytes": 599,
+      "sha256": "10c61bdb05d80e412bc84fdcdb947597bcdc7bbc333983ec573c32ee9847bb37",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "id": "routing132",
+      "file": "routing132.json",
+      "bytes": 599,
+      "sha256": "b29dd94caa592e3190dfbc6aa9df6b6bd87c8e4a95c08a8edf260f672636fa13",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "id": "routing133",
+      "file": "routing133.json",
+      "bytes": 615,
+      "sha256": "6d73ef572c6431dfbe353e92419d000bcc18b5ddca958154547b3cca749f97e1",
+      "LF": 25,
+      "CRLF": 0
+    },
+    {
+      "id": "routing134",
+      "file": "routing134.json",
+      "bytes": 809,
+      "sha256": "88d9e2fc8779366862fc2c37a728d916be7a49d9b580e15db2a024a2b27685c9",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing135",
+      "file": "routing135.json",
+      "bytes": 800,
+      "sha256": "bca4321316325d12da7cd4a262da91056222ee285b05e9690363ba83c5e9ac98",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing136",
+      "file": "routing136.json",
+      "bytes": 800,
+      "sha256": "2cdf690e6ddee167ee50ee9d002259df44490496189b1ea65476a4155e656757",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing137",
+      "file": "routing137.json",
+      "bytes": 810,
+      "sha256": "ae14f2277b95402daaea07f4fcaed4025682579e8c4219c571dd7112f132d658",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing138",
+      "file": "routing138.json",
+      "bytes": 814,
+      "sha256": "42c07fc459911df5a5dfa3176a63adb16ef2904c0122a84521970ecd4ec715ad",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing139",
+      "file": "routing139.json",
+      "bytes": 810,
+      "sha256": "3f7121915e715de282b749553305961f8299c863a9df05c62464fbd5d9ff356a",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing140",
+      "file": "routing140.json",
+      "bytes": 806,
+      "sha256": "b5edc4954b9e70f2b10d7f36a82624f78eaf70719277d086b73f2f757dfe2317",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing141",
+      "file": "routing141.json",
+      "bytes": 801,
+      "sha256": "0a7e7422ddceea51c8ca652eec195ea1e711c17466c2d8918ddb6884848197bb",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing142",
+      "file": "routing142.json",
+      "bytes": 801,
+      "sha256": "c0578f612fa10048159e6fa93686d629fda73cc82ded7e2efa0d5e95bb659349",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing143",
+      "file": "routing143.json",
+      "bytes": 811,
+      "sha256": "f54b8e38e188fb701b37f6c7193ca0e5b52434277bd5a9d95cc08cd628a365f9",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing144",
+      "file": "routing144.json",
+      "bytes": 815,
+      "sha256": "e787378f0c3df700439a848be2cccb5ee956500bf49f99c6da2072b8d9da2fb7",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing145",
+      "file": "routing145.json",
+      "bytes": 807,
+      "sha256": "20c72d00b5f6d3b10029127334722a7c4f812e80fd48c9d3e375ec84f011bde2",
+      "LF": 45,
+      "CRLF": 0
+    },
+    {
+      "id": "routing146",
+      "file": "routing146.json",
+      "bytes": 7305,
+      "sha256": "b8dd8bf12c9b18d92310da908f685ad9dfe48d8dfbac030d260d60b39d8ad2bb",
+      "LF": 216,
+      "CRLF": 0
+    },
+    {
+      "id": "routing147",
+      "file": "routing147.json",
+      "bytes": 7579,
+      "sha256": "36ce597beb7c7f99d3989cb7a9cea4ecfe82ebb6a6718a330c4a97283e647651",
+      "LF": 221,
+      "CRLF": 0
+    },
+    {
+      "id": "routing148",
+      "file": "routing148.json",
+      "bytes": 7792,
+      "sha256": "e5dff7e706707422393fb3a0559beb6693f0b3039594235a4081f8da97e0d27a",
+      "LF": 220,
+      "CRLF": 0
+    },
+    {
+      "id": "routing149",
+      "file": "routing149.json",
+      "bytes": 10174,
+      "sha256": "f120b5b81a2cf5c7dd96eb6b6b96cfe6e8e7e24759ea35d6febde75555e5b2c2",
+      "LF": 269,
+      "CRLF": 0
+    },
+    {
+      "id": "routing150",
+      "file": "routing150.json",
+      "bytes": 10448,
+      "sha256": "211dca7c557f3024eb8835237a56346d2e98e5853dbb212c345a936f29940a36",
+      "LF": 274,
+      "CRLF": 0
+    },
+    {
+      "id": "routing151",
+      "file": "routing151.json",
+      "bytes": 13857,
+      "sha256": "562c13b46ef2ac484191755eb6b566151db2806029929aa1e531a3509bd072ca",
+      "LF": 362,
+      "CRLF": 0
+    },
+    {
+      "id": "routing152",
+      "file": "routing152.json",
+      "bytes": 7419,
+      "sha256": "7351e466ae0ffb669dc04a6e6dcebfe3ff11e55d657ab4940ba2e4d8a2d09c98",
+      "LF": 216,
+      "CRLF": 0
+    },
+    {
+      "id": "routing153",
+      "file": "routing153.json",
+      "bytes": 7874,
+      "sha256": "d289deb32f0c76a9e64b18426e11ebeb899c4a835308d1a1093cb8f1f046d406",
+      "LF": 241,
+      "CRLF": 0
+    },
+    {
+      "id": "routing154",
+      "file": "routing154.json",
+      "bytes": 7801,
+      "sha256": "987213c71d31301ce0d7713646be14eada8b2c41f9bb5a318dd1d7681c85ea98",
+      "LF": 244,
+      "CRLF": 0
+    },
+    {
+      "id": "routing155",
+      "file": "routing155.json",
+      "bytes": 20797,
+      "sha256": "7a8088b65e013d8fcc6fc282f2bb1f7d05ff74efae0ad66640aeee407dc9ad9a",
+      "LF": 754,
+      "CRLF": 0
+    },
+    {
+      "id": "routing156",
+      "file": "routing156.json",
+      "bytes": 7260,
+      "sha256": "1e6f972483509029165701047e200a5bac0c0be5880fe14a18922a4977611781",
+      "LF": 249,
+      "CRLF": 0
+    },
+    {
+      "id": "routing157",
+      "file": "routing157.json",
+      "bytes": 4123,
+      "sha256": "77dc2a2547aa2ab156f26d08b82faa68477f93cf480a32c5cddee78b7212f09e",
+      "LF": 141,
+      "CRLF": 0
+    },
+    {
+      "id": "routing158",
+      "file": "routing158.json",
+      "bytes": 4789,
+      "sha256": "ca8ab1f44667a417c4f94daf763c54d59a218c478ebe318814c0582e19c55e5b",
+      "LF": 149,
+      "CRLF": 0
+    },
+    {
+      "id": "routing159",
+      "file": "routing159.json",
+      "bytes": 6007,
+      "sha256": "f708ab684a4f010bd19c17ff02def31dfe63d9a2587fe28cb54d350b0f899025",
+      "LF": 169,
+      "CRLF": 0
+    },
+    {
+      "id": "routing160",
+      "file": "routing160.json",
+      "bytes": 7502,
+      "sha256": "95e391acb53dbd82acf0c1badb13d3c2b377c2ede206b972d73b881f8ccd36ba",
+      "LF": 213,
+      "CRLF": 0
+    },
+    {
+      "id": "routing161",
+      "file": "routing161.json",
+      "bytes": 7390,
+      "sha256": "cdd1806bbd14e82de054ce18e98752c06a73ebdb95e6af9a49db429bd8f7bd74",
+      "LF": 214,
+      "CRLF": 0
+    },
+    {
+      "id": "routing162",
+      "file": "routing162.json",
+      "bytes": 4899,
+      "sha256": "031bd00b1ea51407a1588170e59d3d16b32fbdca87600dc28ea9bd90f0633102",
+      "LF": 150,
+      "CRLF": 0
+    },
+    {
+      "id": "routing163",
+      "file": "routing163.json",
+      "bytes": 4446,
+      "sha256": "19f7323426296b5f16b13893a94f85d744dfec401cc28e2826bf9be6ab7b3590",
+      "LF": 140,
+      "CRLF": 0
+    },
+    {
+      "id": "routing164",
+      "file": "routing164.json",
+      "bytes": 4099,
+      "sha256": "1d55cc11fb448e7c262b6cddc117363684609e68331612b47b03d9bd40766fd9",
+      "LF": 136,
+      "CRLF": 0
+    },
+    {
+      "id": "routing165",
+      "file": "routing165.json",
+      "bytes": 5136,
+      "sha256": "bd2b0bd1c45da6dba7274e6f66057d3c967432106b4f78d32956ecb7f0e3696e",
+      "LF": 146,
+      "CRLF": 0
+    },
+    {
+      "id": "routing166",
+      "file": "routing166.json",
+      "bytes": 4406,
+      "sha256": "54310791a7812116e61bbd5761bb911eea27f282587d2b4b6d406997fb98f2e9",
+      "LF": 134,
+      "CRLF": 0
+    },
+    {
+      "id": "routing167",
+      "file": "routing167.json",
+      "bytes": 4406,
+      "sha256": "c1421eda37e08def2c934f94e42af96d817eb18adefd7efd5526fbb5d6f3f778",
+      "LF": 134,
+      "CRLF": 0
+    },
+    {
+      "id": "routing168",
+      "file": "routing168.json",
+      "bytes": 4232,
+      "sha256": "f72d3328a40ce13ffe2281394e26d6ead5aebad1d46a373302b305c3801785dc",
+      "LF": 137,
+      "CRLF": 0
+    },
+    {
+      "id": "routing169",
+      "file": "routing169.json",
+      "bytes": 4239,
+      "sha256": "d891d02b346e80988d912e487022b2e0a45ab6cdd639b62f4788824f8e678207",
+      "LF": 136,
+      "CRLF": 0
+    },
+    {
+      "id": "routing170",
+      "file": "routing170.json",
+      "bytes": 2190,
+      "sha256": "a31c308f49f11f896604fa05e2193b8135fb474f2a93520ff14226b5a5a4d345",
+      "LF": 78,
+      "CRLF": 0
+    },
+    {
+      "id": "routing171",
+      "file": "routing171.json",
+      "bytes": 2309,
+      "sha256": "39f1248b4fad1e288ff69783fed4d7a99c433e317a902b4371ce57f519d6266d",
+      "LF": 79,
+      "CRLF": 0
+    },
+    {
+      "id": "routing172",
+      "file": "routing172.json",
+      "bytes": 2150,
+      "sha256": "6efb8d0d7d4fa1173c5afeb6684850d1e2c291432517bbaeaddf6c7504c95133",
+      "LF": 78,
+      "CRLF": 0
+    },
+    {
+      "id": "routing173",
+      "file": "routing173.json",
+      "bytes": 3536,
+      "sha256": "03265d96def6de7238097c8d952e6715741bbdb90045959cc19144ae8f542846",
+      "LF": 87,
+      "CRLF": 0
+    },
+    {
+      "id": "routing174",
+      "file": "routing174.json",
+      "bytes": 3624,
+      "sha256": "2aed06866f0a4b01e62e239dee01c40d8ffb5ddfb5c353146757f5eb5af4bf0d",
+      "LF": 91,
+      "CRLF": 0
+    },
+    {
+      "id": "routing175",
+      "file": "routing175.json",
+      "bytes": 6468,
+      "sha256": "db64fc88eb30021bb4c5537375d18399d32bf3e25890ee0e1b2de3f51cf72366",
+      "LF": 80,
+      "CRLF": 0
+    },
+    {
+      "id": "routing176",
+      "file": "routing176.json",
+      "bytes": 7403,
+      "sha256": "505eb75a847966e187c040ad817fc4b91e2edd1e6cfedca6675176ffa75679bf",
+      "LF": 221,
+      "CRLF": 0
+    },
+    {
+      "id": "routing177",
+      "file": "routing177.json",
+      "bytes": 7396,
+      "sha256": "766537600131e5528e117c582a2d90a5d662b3109e36dd19ac6198fb4ccd7db0",
+      "LF": 217,
+      "CRLF": 0
+    },
+    {
+      "id": "routing178",
+      "file": "routing178.json",
+      "bytes": 7197,
+      "sha256": "a9381fd9aca84ef2c544d92db25e66174e2c02e065f4799baf656b358e4e2a7f",
+      "LF": 209,
+      "CRLF": 0
+    },
+    {
+      "id": "routing179",
+      "file": "routing179.json",
+      "bytes": 2816,
+      "sha256": "403678d69e257a3334eab59a36eae407dc45a1326361f775eb594433c8c0e8b0",
+      "LF": 83,
+      "CRLF": 0
+    },
+    {
+      "id": "routing180",
+      "file": "routing180.json",
+      "bytes": 6526,
+      "sha256": "2112f9d7bd16ef421ab80ee7c6177e39ecbba5b87bbc1235fdadd2eef0faae16",
+      "LF": 181,
+      "CRLF": 0
+    },
+    {
+      "id": "routing181",
+      "file": "routing181.json",
+      "bytes": 7550,
+      "sha256": "b658f02e2904d972f999a9886f0aefdbfed1062b9e2898b0b8c4caf98c9304bb",
+      "LF": 217,
+      "CRLF": 0
+    },
+    {
+      "id": "routing182",
+      "file": "routing182.json",
+      "bytes": 8168,
+      "sha256": "4821f3c0df10a68f09675d99ef36a64b92efee81704820b716bf90ce8cbb2bdd",
+      "LF": 225,
+      "CRLF": 0
+    },
+    {
+      "id": "routing183",
+      "file": "routing183.json",
+      "bytes": 7392,
+      "sha256": "0df77cc161d1824dff9d0aa929815b8e471532be60b0a321886a4fd13318cfcc",
+      "LF": 217,
+      "CRLF": 0
+    },
+    {
+      "id": "routing184",
+      "file": "routing184.json",
+      "bytes": 9847,
+      "sha256": "4c12e9123256609c2236a78b5ae39276051d4b2076afc1fe860ed973dd79eb31",
+      "LF": 292,
+      "CRLF": 0
+    },
+    {
+      "id": "routing185",
+      "file": "routing185.json",
+      "bytes": 6277,
+      "sha256": "3de2ef8c3c5cf5f3cb37360fcacacc27a934bb45e29939792fe5f199bdb23aa1",
+      "LF": 164,
+      "CRLF": 0
+    },
+    {
+      "id": "routing186",
+      "file": "routing186.json",
+      "bytes": 9905,
+      "sha256": "4b824d01f60b744d8058af41299d45a8813533c1397b433c7470fba562a07480",
+      "LF": 293,
+      "CRLF": 0
+    },
+    {
+      "id": "routing187",
+      "file": "routing187.json",
+      "bytes": 9884,
+      "sha256": "82eadd81b5d4446a998348a5065031333b4dc40dfc29fd214c2f8ce902fa9f8f",
+      "LF": 293,
+      "CRLF": 0
+    },
+    {
+      "id": "routing188",
+      "file": "routing188.json",
+      "bytes": 9874,
+      "sha256": "2178fdcaed1cd6948357ecbc2632c091948e93001fa33c027fe1b9b374bb8dc7",
+      "LF": 292,
+      "CRLF": 0
+    },
+    {
+      "id": "routing189",
+      "file": "routing189.json",
+      "bytes": 5485,
+      "sha256": "03b132b096dfe0d4da02ac0c7d6e30ef860c7b14fd88eb93fe33b4033a85ea4d",
+      "LF": 165,
+      "CRLF": 0
+    },
+    {
+      "id": "routing190",
+      "file": "routing190.json",
+      "bytes": 5791,
+      "sha256": "91ba55f61112954a8696d84f901e37b47f496ae2e7af7c98e573e5f425b1e91b",
+      "LF": 163,
+      "CRLF": 0
+    },
+    {
+      "id": "routing191",
+      "file": "routing191.json",
+      "bytes": 6689,
+      "sha256": "6d36d896c06c01397dc3e64ffab64bdc88aca82a083259926a2f5224e862244a",
+      "LF": 164,
+      "CRLF": 0
+    },
+    {
+      "id": "routing192",
+      "file": "routing192.json",
+      "bytes": 6799,
+      "sha256": "04d64ad4138ebfcc5b9e0e39bf8c3e10d57aa1ee9c6a26936073e52a119d93c4",
+      "LF": 214,
+      "CRLF": 0
+    },
+    {
+      "id": "routing193",
+      "file": "routing193.json",
+      "bytes": 7827,
+      "sha256": "2e51d35665005a988c611928a663fd78b49d212e10584fc1f3bae24f6ec67bd4",
+      "LF": 214,
+      "CRLF": 0
+    }
+  ],
+  "determinism": {
+    "time": 1000,
+    "seed": 77,
+    "silence": [
+      1000,
+      1000,
+      1003
+    ],
+    "passes": 2,
+    "transport": "actual SSE loops, recorded mock IO only; all sockets denied"
+  },
+  "deferred": [
+    "real DNS/DoH",
+    "MODULE/HTTP integration",
+    "Flask/chat_routes",
+    "real API credentials/network"
+  ]
+}

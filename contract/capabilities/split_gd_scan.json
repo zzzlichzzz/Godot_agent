@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.split_gd",
+  "capability_id": "editing.split_gd",
+  "tool_name": "split_gd_scan",
+  "description": "Карта ссылок на .gd агента: кто им пользуется и что поедет при разбиении. Только чтение.",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "result_schema": {
+    "type": "object",
+    "required": [
+      "donor",
+      "lines",
+      "extends",
+      "class_name",
+      "funcs",
+      "consts",
+      "vars",
+      "public_methods",
+      "counts",
+      "occurrences",
+      "truncated",
+      "hard_files",
+      "soft_files"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "donor": {
+        "type": "string",
+        "minLength": 1
+      },
+      "lines": {
+        "type": "integer"
+      },
+      "extends": {
+        "type": "string"
+      },
+      "class_name": {
+        "type": "string"
+      },
+      "funcs": {
+        "type": "integer"
+      },
+      "consts": {
+        "type": "integer"
+      },
+      "vars": {
+        "type": "integer"
+      },
+      "public_methods": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "counts": {
+        "type": "object",
+        "required": [
+          "path",
+          "source_read",
+          "call",
+          "doc",
+          "mention"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "integer"
+          },
+          "source_read": {
+            "type": "integer"
+          },
+          "call": {
+            "type": "integer"
+          },
+          "doc": {
+            "type": "integer"
+          },
+          "mention": {
+            "type": "integer"
+          }
+        }
+      },
+      "occurrences": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "file",
+            "line",
+            "kind",
+            "text"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "line": {
+              "type": "integer"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "path",
+                "source_read",
+                "call",
+                "doc",
+                "mention"
+              ]
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "hard_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "soft_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

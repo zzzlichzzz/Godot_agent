@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "module_id": "verification.tscn_lint",
+  "capability_id": "verification.tscn_lint",
+  "tool_name": "check",
+  "description": "Структурная проверка candidate-текста .tscn/.scn: механически исправленный fixed, changed и полные упорядоченные строковые problems. Это данные: не исполняет текст, не пишет файл, не запускает Godot и не является агрегатором проверок.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "res:// путь .tscn/.scn."
+      },
+      "content": {
+        "type": "string"
+      },
+      "planned_paths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      }
+    },
+    "required": [
+      "path",
+      "content"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "fixed": {
+        "type": "string"
+      },
+      "changed": {
+        "type": "boolean"
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "fixed",
+      "changed",
+      "problems"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

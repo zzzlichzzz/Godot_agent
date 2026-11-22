@@ -1,0 +1,20 @@
+{
+  "id": "048-plan-missing-no-addon",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_missing-no-addon",
+  "args": {
+    "path": "res://missing.py"
+  },
+  "reference_result": null,
+  "reference_error": {
+    "ok": false,
+    "exception": "SplitError",
+    "message": "файл не найден: missing.py"
+  },
+  "contract_boundary": "not_found",
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  },
+  "expected_message": "файл не найден: missing.py"
+}

@@ -1,0 +1,1 @@
+@toolextends Controlconst DEFAULT = 2@export var state = 0# alpha docfunc alpha(a: int = DEFAULT) -> int:	var x := get_tree()	var y := x	return afunc beta() -> void:	self.visible = true	await get_tree().process_framefunc _ready():	state = 1func _private():	return $Childstatic func gamma(value = [1, 2]) -> int:	return value.size()

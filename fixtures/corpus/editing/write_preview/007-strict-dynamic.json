@@ -1,0 +1,17 @@
+{
+  "id": "007-strict-dynamic",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "strict и динамическая ссылка: отказ dynamic_references",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/hero.gd:6",
+    "allow_unverified": true
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

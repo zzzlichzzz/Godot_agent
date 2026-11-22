@@ -1,0 +1,158 @@
+{
+  "id": "006-malformed-arity",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/bad-arity",
+  "args": {
+    "class_name": "Bad"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Bad",
+      "found": true,
+      "cache_version": "4.6",
+      "inherits": [
+        "Bad"
+      ],
+      "methods": [
+        {
+          "name": "dict",
+          "min_args": -1,
+          "max_args": -1,
+          "signature": ""
+        },
+        {
+          "name": "extra",
+          "min_args": 1,
+          "max_args": 3,
+          "signature": ""
+        },
+        {
+          "name": "float_bool",
+          "min_args": 1,
+          "max_args": 1,
+          "signature": ""
+        },
+        {
+          "name": "nonnumeric",
+          "min_args": -1,
+          "max_args": -1,
+          "signature": ""
+        },
+        {
+          "name": "null",
+          "min_args": -1,
+          "max_args": -1,
+          "signature": ""
+        },
+        {
+          "name": "numeric_strings",
+          "min_args": 2,
+          "max_args": 4,
+          "signature": ""
+        },
+        {
+          "name": "numeric_text",
+          "min_args": 1,
+          "max_args": 2,
+          "signature": ""
+        },
+        {
+          "name": "short",
+          "min_args": -1,
+          "max_args": -1,
+          "signature": ""
+        },
+        {
+          "name": "string",
+          "min_args": -1,
+          "max_args": -1,
+          "signature": ""
+        }
+      ],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Bad",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6",
+    "record": {
+      "inherits": null,
+      "methods": {
+        "string": "x",
+        "short": [
+          1
+        ],
+        "null": null,
+        "nonnumeric": [
+          "no",
+          3
+        ],
+        "numeric_strings": [
+          "2",
+          "4"
+        ],
+        "extra": [
+          1,
+          3,
+          99
+        ],
+        "numeric_text": "12",
+        "float_bool": [
+          1.9,
+          true
+        ],
+        "dict": {
+          "0": 1,
+          "1": 2
+        }
+      }
+    },
+    "chain": [
+      "Bad"
+    ],
+    "members": [
+      {
+        "string": "x",
+        "short": [
+          1
+        ],
+        "null": null,
+        "nonnumeric": [
+          "no",
+          3
+        ],
+        "numeric_strings": [
+          "2",
+          "4"
+        ],
+        "extra": [
+          1,
+          3,
+          99
+        ],
+        "numeric_text": "12",
+        "float_bool": [
+          1.9,
+          true
+        ],
+        "dict": {
+          "0": 1,
+          "1": 2
+        }
+      },
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "002-project-only",
+  "tool": "context",
+  "fixture": "minimal",
+  "note": "одна секция: остальные не запрашивались, unavailable пуст",
+  "args": {
+    "sections": ["project"]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "sections": {
+        "project": {
+          "root": "<PROJECT>",
+          "project_file": "res://project.godot",
+          "engine": null,
+          "source": "fs"
+        }
+      },
+      "available": ["project"],
+      "unavailable": [],
+      "cost": "light"
+    }
+  }
+}

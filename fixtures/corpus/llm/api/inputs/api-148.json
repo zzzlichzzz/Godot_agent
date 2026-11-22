@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "_clean_url",
+  "args": [
+    "https://example.invalid/v1"
+  ],
+  "kwargs": {},
+  "id": "api-148"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "043-wrong_collision_owner",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Shape\" type=\"CollisionShape2D\" parent=\".\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Shape\" type=\"CollisionShape2D\" parent=\".\"]\n",
+      "changed": false,
+      "problems": [
+        "узел «Shape» (CollisionShape2D): родитель «Root» имеет тип Node — это не физическое тело/область (нужен Area2D, StaticBody2D, CharacterBody2D, RigidBody2D, Area3D и т.п.). Коллизия работать НЕ будет: Godot помечает такой узел предупреждением «only serves to provide a collision shape to a CollisionObject». Перенеси узел под нужное физическое тело (например parent=\"Player\")."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Shape\" type=\"CollisionShape2D\" parent=\".\"]\n",
+    "changed": false,
+    "problems": [
+      "узел «Shape» (CollisionShape2D): родитель «Root» имеет тип Node — это не физическое тело/область (нужен Area2D, StaticBody2D, CharacterBody2D, RigidBody2D, Area3D и т.п.). Коллизия работать НЕ будет: Godot помечает такой узел предупреждением «only serves to provide a collision shape to a CollisionObject». Перенеси узел под нужное физическое тело (например parent=\"Player\")."
+    ]
+  },
+  "reference_api_classes": null
+}

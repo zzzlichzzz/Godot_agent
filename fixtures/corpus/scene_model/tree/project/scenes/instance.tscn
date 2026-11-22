@@ -1,0 +1,5 @@
+[gd_scene format=3]
+[ext_resource type="PackedScene" path="res://scenes/gun.tscn" id="1_gun"]
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+[node name="Gun" parent="." instance=ExtResource( "1_gun" )]

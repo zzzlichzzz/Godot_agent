@@ -1,0 +1,30 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "attach_status",
+    "args": [
+      "request",
+      {
+        "enabled": true,
+        "sessions": [
+          {
+            "session_id": 3,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true
+          }
+        ]
+      }
+    ],
+    "kwargs": {},
+    "id": "context-021"
+  },
+  "expect": "[Godot runtime status; no snapshot]\nRuntime debugger: 1 bridge-ready session(s): 3.\n[/Godot runtime status]\n\nrequest",
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "attach_status",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_player")
+metadata/note = "Привет, мир 🌍"
+
+[node name="Gun" type="Node2D" parent="."]
+position = Vector2(0, -16)
+
+[node name="Muzzle" type="Marker2D" parent="Gun"]
+position = Vector2(8, 0)

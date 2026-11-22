@@ -1,0 +1,36 @@
+{
+  "id": "unknown-op",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "custom",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестная операция ресурса: custom",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "437857cdd81fabfd532fb0b7d2e0549f6a6472025d14df1df4075796c4e60a75"
+}

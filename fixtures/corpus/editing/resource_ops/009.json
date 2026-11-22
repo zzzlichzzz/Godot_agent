@@ -1,0 +1,36 @@
+{
+  "id": "missing-dependency",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "ResourcePath",
+          "value": "res://missing.tres"
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Ресурс не найден: res://missing.tres",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "b51b9d8a800caf390615ee258f8f421a0266b2096cc9bddbc9ce470d4333cd30"
+}

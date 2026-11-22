@@ -1,0 +1,33 @@
+{
+  "id": "expanded-op3-missing-frames",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "idle",
+        "fps": 8,
+        "loop": true
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: frames",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "f67bfa9c13ca1c858c322722b66f5a870da89592cd598a2cb002e0c8926872ef"
+}

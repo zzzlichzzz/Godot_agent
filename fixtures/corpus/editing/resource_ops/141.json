@@ -1,0 +1,46 @@
+{
+  "id": "expanded-op5-extra",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": [
+          [
+            0,
+            0
+          ]
+        ],
+        "extra": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестные поля: extra",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "2e174ae849059d259acaf241b1aca2cb84e4a84c55a1031c3ae0353699c50646"
+}

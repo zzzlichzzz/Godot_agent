@@ -1,0 +1,21 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "status_prompt",
+    "args": [
+      {
+        "enabled": false
+      }
+    ],
+    "kwargs": {},
+    "id": "context-006"
+  },
+  "expect": "[Godot runtime status; no snapshot]\nRuntime debugger: disabled.\n[/Godot runtime status]\n\n",
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "status_prompt",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

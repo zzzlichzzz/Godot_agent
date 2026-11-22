@@ -1,0 +1,16 @@
+{
+  "id": "029-lint_refusal",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/029-lint_refusal",
+  "note": "actual-old prepare-only: lint_refusal",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "После перемещения узла в скрипте res://root.gd обнаружена синтаксическая ошибка: строка 2: скобка «(» не закрыта"
+  }
+}

@@ -1,0 +1,3 @@
+[node type="Node"]
+[node name="" parent=""]
+[node name="Child" parent="A/"]

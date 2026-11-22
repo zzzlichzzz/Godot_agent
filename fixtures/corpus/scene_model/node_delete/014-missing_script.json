@@ -1,0 +1,247 @@
+{
+  "id": "014-missing_script",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/014-missing_script",
+  "note": "actual-old prepare-only: missing_script",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "delete_node",
+      "scene": "res://main.tscn",
+      "target_node": "Old",
+      "target_node_path": "Old",
+      "deleted_nodes": [
+        "Old",
+        "Old/Tip",
+        "Old/Tip/End"
+      ],
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "ceab30799a83d486fa17f4e16578f2261df70c15fd739686e933302ab339bfb7",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NSBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9yb290LmdkIiBpZD0icm9vdCJdCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9icmFuY2guZ2QiIGlkPSJicmFuY2giXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vdGlwLmdkIiBpZD0idGlwIl0KCltzdWJfcmVzb3VyY2UgdHlwZT0iQW5pbWF0aW9uIiBpZD0iQW5pbWF0aW9uX2EiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIk9sZC9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiT2xkOnJvdGF0aW9uIikKdHJhY2tzLzIvcGF0aCA9IE5vZGVQYXRoKCIlVGlwOnNjYWxlIikKdHJhY2tzLzMvcGF0aCA9IE5vZGVQYXRoKCJPbGQvVGlwL0VuZDpwb3NpdGlvbiIpCnRyYWNrcy80L3BhdGggPSBOb2RlUGF0aCgiT2xkaXNoOnBvc2l0aW9uIikKCltub2RlIG5hbWU9IlJvb3QiIHR5cGU9Ik5vZGUiXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgicm9vdCIpCgpbbm9kZSBuYW1lPSJOZXciIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCJicmFuY2giKQoKW25vZGUgbmFtZT0iT2xkIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKc2NyaXB0ID0gRXh0UmVzb3VyY2UoInRpcCIpCgpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUiIHBhcmVudD0iT2xkIl0KdW5pcXVlX25hbWVfaW5fb3duZXIgPSB0cnVlCgpbbm9kZSBuYW1lPSJFbmQiIHR5cGU9Ik5vZGUiIHBhcmVudD0iT2xkL1RpcCJdCgpbbm9kZSBuYW1lPSJPbGRpc2giIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCgpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJPbGQiIHRvPSJPbGQvVGlwIiBtZXRob2Q9Il9yZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZC9UaXAiIHRvPSJOZXciIG1ldGhvZD0iX3JlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iTmV3IiB0bz0iT2xkIiBtZXRob2Q9Il9yZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZGlzaCIgdG89Ik5ldyIgbWV0aG9kPSJfcmVhZHkiXQo=",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NSBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9yb290LmdkIiBpZD0icm9vdCJdCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9icmFuY2guZ2QiIGlkPSJicmFuY2giXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vdGlwLmdkIiBpZD0idGlwIl0KCltzdWJfcmVzb3VyY2UgdHlwZT0iQW5pbWF0aW9uIiBpZD0iQW5pbWF0aW9uX2EiXQp0cmFja3MvNC9wYXRoID0gTm9kZVBhdGgoIk9sZGlzaDpwb3NpdGlvbiIpCgpbbm9kZSBuYW1lPSJSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoInJvb3QiKQoKW25vZGUgbmFtZT0iTmV3IiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiYnJhbmNoIikKCltub2RlIG5hbWU9Ik9sZGlzaCIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZGlzaCIgdG89Ik5ldyIgbWV0aG9kPSJfcmVhZHkiXQo=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                5,
+                5,
+                "@@ -5,10 +5,6 @@"
+              ],
+              [
+                " ",
+                5,
+                5,
+                "[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"tip\"]"
+              ],
+              [
+                " ",
+                6,
+                6,
+                ""
+              ],
+              [
+                " ",
+                7,
+                7,
+                "[sub_resource type=\"Animation\" id=\"Animation_a\"]"
+              ],
+              [
+                "-",
+                8,
+                null,
+                "tracks/0/path = NodePath(\"Old/Tip:position:x\")"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "tracks/1/path = NodePath(\"Old:rotation\")"
+              ],
+              [
+                "-",
+                10,
+                null,
+                "tracks/2/path = NodePath(\"%Tip:scale\")"
+              ],
+              [
+                "-",
+                11,
+                null,
+                "tracks/3/path = NodePath(\"Old/Tip/End:position\")"
+              ],
+              [
+                " ",
+                12,
+                8,
+                "tracks/4/path = NodePath(\"Oldish:position\")"
+              ],
+              [
+                " ",
+                13,
+                9,
+                ""
+              ],
+              [
+                " ",
+                14,
+                10,
+                "[node name=\"Root\" type=\"Node\"]"
+              ],
+              [
+                "@",
+                17,
+                13,
+                "@@ -17,18 +13,6 @@"
+              ],
+              [
+                " ",
+                17,
+                13,
+                "[node name=\"New\" type=\"Node\" parent=\".\"]"
+              ],
+              [
+                " ",
+                18,
+                14,
+                "script = ExtResource(\"branch\")"
+              ],
+              [
+                " ",
+                19,
+                15,
+                ""
+              ],
+              [
+                "-",
+                20,
+                null,
+                "[node name=\"Old\" type=\"Node\" parent=\".\"]"
+              ],
+              [
+                "-",
+                21,
+                null,
+                "unique_name_in_owner = true"
+              ],
+              [
+                "-",
+                22,
+                null,
+                "script = ExtResource(\"tip\")"
+              ],
+              [
+                "-",
+                23,
+                null,
+                ""
+              ],
+              [
+                "-",
+                24,
+                null,
+                "[node name=\"Tip\" type=\"Node\" parent=\"Old\"]"
+              ],
+              [
+                "-",
+                25,
+                null,
+                "unique_name_in_owner = true"
+              ],
+              [
+                "-",
+                26,
+                null,
+                ""
+              ],
+              [
+                "-",
+                27,
+                null,
+                "[node name=\"End\" type=\"Node\" parent=\"Old/Tip\"]"
+              ],
+              [
+                "-",
+                28,
+                null,
+                ""
+              ],
+              [
+                " ",
+                29,
+                16,
+                "[node name=\"Oldish\" type=\"Node\" parent=\".\"]"
+              ],
+              [
+                " ",
+                30,
+                17,
+                ""
+              ],
+              [
+                "-",
+                31,
+                null,
+                "[connection signal=\"ready\" from=\"Old\" to=\"Old/Tip\" method=\"_ready\"]"
+              ],
+              [
+                "-",
+                32,
+                null,
+                "[connection signal=\"ready\" from=\"Old/Tip\" to=\"New\" method=\"_ready\"]"
+              ],
+              [
+                "-",
+                33,
+                null,
+                "[connection signal=\"ready\" from=\"New\" to=\"Old\" method=\"_ready\"]"
+              ],
+              [
+                " ",
+                34,
+                18,
+                "[connection signal=\"ready\" from=\"Oldish\" to=\"New\" method=\"_ready\"]"
+              ]
+            ],
+            "added": 0,
+            "removed": 16,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 10
+        }
+      ],
+      "reference_count": 10,
+      "affected_paths": [
+        "res://main.tscn"
+      ],
+      "warnings": [
+        {
+          "file": "res://branch.gd",
+          "line": 2,
+          "code": "@onready var item = $\"../Old\"",
+          "message": "Ссылка на удаляемый узел 'Old' в res://branch.gd:2: @onready var item = $\"../Old\""
+        },
+        {
+          "file": "res://branch.gd",
+          "line": 3,
+          "code": "@onready var tip = get_node(\"../Old/Tip\")",
+          "message": "Ссылка на удаляемый узел 'Old' в res://branch.gd:3: @onready var tip = get_node(\"../Old/Tip\")"
+        },
+        {
+          "file": "res://branch.gd",
+          "line": 4,
+          "code": "@onready var end = get_node_or_null(\"../Old/Tip/End\")",
+          "message": "Ссылка на удаляемый узел 'Old' в res://branch.gd:4: @onready var end = get_node_or_null(\"../Old/Tip/End\")"
+        }
+      ]
+    }
+  }
+}

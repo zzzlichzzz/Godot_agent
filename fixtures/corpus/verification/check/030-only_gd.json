@@ -1,0 +1,41 @@
+{
+  "id": "030-only_gd",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://bad.gd",
+    "kinds": [
+      "gd"
+    ]
+  },
+  "reference_result": {
+    "path": "res://bad.gd",
+    "problems": [
+      "строка 2: скобка «(» не закрыта"
+    ],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "contract_boundary": "new kinds filter; unavailable providers are never run",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://bad.gd",
+      "problems": [
+        "строка 2: скобка «(» не закрыта"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "gd"
+      ],
+      "unavailable": []
+    }
+  }
+}

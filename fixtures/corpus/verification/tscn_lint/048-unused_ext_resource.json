@@ -1,0 +1,27 @@
+{
+  "id": "048-unused_ext_resource",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/exist.gd\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/exist.gd\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n",
+      "changed": false,
+      "problems": [
+        "[ext_resource id=\"1\"] (Script, res://scripts/exist.gd) объявлен, но нигде не используется через ExtResource(\"1\") — Godot удалит его при пересохранении сцены. Сошлись на него в свойстве узла или убери объявление."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/exist.gd\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n",
+    "changed": false,
+    "problems": [
+      "[ext_resource id=\"1\"] (Script, res://scripts/exist.gd) объявлен, но нигде не используется через ExtResource(\"1\") — Godot удалит его при пересохранении сцены. Сошлись на него в свойстве узла или убери объявление."
+    ]
+  },
+  "reference_api_classes": null
+}

@@ -1,0 +1,14 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "classify_http_error",
+  "args": [
+    429,
+    "{\"error\": {\"message\": \"daily quota exceeded\"}}",
+    {
+      "Retry-After": "120"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-052"
+}

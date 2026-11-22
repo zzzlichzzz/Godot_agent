@@ -1,0 +1,27 @@
+{
+  "id": "011-resource_cycle",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\nnext = SubResource(\"b\")\n[sub_resource type=\"Resource\" id=\"b\"]\nnext = SubResource(\"a\")\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\nnext = SubResource(\"b\")\n[sub_resource type=\"Resource\" id=\"b\"]\nnext = SubResource(\"a\")\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+      "changed": false,
+      "problems": [
+        "циклическая зависимость ресурсов: SubResource(\"a\") -> SubResource(\"b\") -> SubResource(\"a\") — Godot не сможет построить такой ресурс"
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\nnext = SubResource(\"b\")\n[sub_resource type=\"Resource\" id=\"b\"]\nnext = SubResource(\"a\")\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+    "changed": false,
+    "problems": [
+      "циклическая зависимость ресурсов: SubResource(\"a\") -> SubResource(\"b\") -> SubResource(\"a\") — Godot не сможет построить такой ресурс"
+    ]
+  },
+  "reference_api_classes": null
+}

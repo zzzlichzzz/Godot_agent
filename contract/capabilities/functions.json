@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "module_id": "code_intel.functions",
+  "capability_id": "code_intel.functions",
+  "tool_name": "functions",
+  "description": "Показывает функции GDScript-файла (.gd). Без `names` — режим списка: имена всех объявленных функций в порядке объявления (включая `_ready`/`_process` и `static func`, дубли повторяются). С `names` — извлечение: тело каждой запрошенной функции дословно, с номерами строк (1-based) и прилегающими сверху `#`-комментариями и `@`-аннотациями; имена, которых нет, возвращаются в `missing`. Разбор индентационный, не AST: `func`, объявленный внутри тела другой функции, в `names` виден, но тело по запросу не извлекается. Файл не меняется. Вызывать, когда нужно понять, что делает конкретная функция или какие функции есть в скрипте.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Путь к скрипту: `res://scripts/player.gd` или относительный `scripts/player.gd`."
+      },
+      "names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Имена функций для извлечения тел. Пустой список — режим списка имён."
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "res:// путь файла."
+      },
+      "names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Режим списка: имена в порядке объявления."
+      },
+      "functions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Имя функции."
+            },
+            "snippet": {
+              "type": "string",
+              "description": "Строки функции дословно, с комментариями и аннотациями сверху."
+            },
+            "start_line": {
+              "type": "integer",
+              "description": "Первая строка сниппета (1-based)."
+            },
+            "end_line": {
+              "type": "integer",
+              "description": "Последняя непустая строка тела."
+            }
+          },
+          "required": [
+            "name",
+            "start_line",
+            "end_line",
+            "snippet"
+          ],
+          "additionalProperties": false
+        },
+        "description": "Режим извлечения: найденные функции в порядке запроса."
+      },
+      "missing": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Режим извлечения: запрошенные имена, которых нет в файле."
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {}
+}

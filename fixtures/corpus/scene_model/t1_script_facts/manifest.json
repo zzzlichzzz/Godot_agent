@@ -1,0 +1,1053 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-11-22",
+  "native_source": "D:\\vajno\\Godot\\тест-плагина-ии\\addons\\Godot_agent\\godot_agent\\python\\godot_tools\\scene_deps.py",
+  "native_pin": {
+    "bytes": 19866,
+    "sha256": "dbd502afeca7fa2fe97d49a995438c551d313d1713e6591865ab2bf3b053067b",
+    "LF": 412,
+    "CRLF": 0
+  },
+  "frozen_manifest_pin": {
+    "bytes": 110763,
+    "sha256": "1b8780f63d0433c5cd246da92d4f65059add772c8b29fd1606163d3100cd3ab5",
+    "LF": 3590,
+    "CRLF": 0
+  },
+  "script_facts": [
+    {
+      "path": "editor/core/resource_publication_observer.gd",
+      "bytes": 370,
+      "sha256": "fa449727bf5b461b0cdff330bc4d60ced5a6a7765b665098486ea8bf05eb4706",
+      "LF": 6,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/structural_overlay.gd",
+      "bytes": 2494,
+      "sha256": "14b912dfaa13163c1119736e09a7ab9b114bdad6831360a434708cd9b31ef2e2",
+      "LF": 51,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/AgentMessageCard.gd",
+      "bytes": 12277,
+      "sha256": "9bc3142692acbd67d7ef53fedd569994dc33ddeb3495a81aa73fdcfa3ca24fa7",
+      "LF": 288,
+      "CRLF": 0,
+      "handlers": [
+        "_on_copy_pressed",
+        "_on_rollback_pressed",
+        "_on_expand_pressed"
+      ],
+      "custom_signals": [
+        "rollback_requested"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_copy_pressed": true,
+        "_on_rollback_pressed": true,
+        "_on_expand_pressed": true
+      }
+    },
+    {
+      "path": "editor/native/AgentStatusBar.gd",
+      "bytes": 4638,
+      "sha256": "45decd189251db4de7988c4ff5c0f3e3dc0b8cce37b0798d40bc0ce4564c16b6",
+      "LF": 132,
+      "CRLF": 0,
+      "handlers": [
+        "_on_timer_tick"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_timer_tick": true
+      }
+    },
+    {
+      "path": "editor/native/DiffPreviewCard.gd",
+      "bytes": 20633,
+      "sha256": "967253ab4325a673effb6d96de5f6497950cda8c7f2286754a61adb63fb4b02a",
+      "LF": 501,
+      "CRLF": 0,
+      "handlers": [
+        "_on_header_gui_input",
+        "_on_apply_pressed",
+        "_on_reject_pressed",
+        "_on_apply_all_pressed",
+        "_on_view_full_pressed"
+      ],
+      "custom_signals": [
+        "apply_all_requested",
+        "diff_applied",
+        "diff_rejected"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_header_gui_input": true,
+        "_on_apply_pressed": true,
+        "_on_reject_pressed": true,
+        "_on_apply_all_pressed": true,
+        "_on_view_full_pressed": true
+      }
+    },
+    {
+      "path": "editor/native/PlanChecklistCard.gd",
+      "bytes": 5523,
+      "sha256": "9bd3a6429c3e591f1a0fcd289274ca6ec404522bbff6de1ed5f81b4d954fb426",
+      "LF": 161,
+      "CRLF": 0,
+      "handlers": [
+        "_on_pause_pressed",
+        "_on_continue_pressed",
+        "_on_rollback_pressed"
+      ],
+      "custom_signals": [
+        "plan_continued",
+        "plan_paused",
+        "plan_rollback_requested"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_pause_pressed": true,
+        "_on_continue_pressed": true,
+        "_on_rollback_pressed": true
+      }
+    },
+    {
+      "path": "editor/native/PlanStepItem.gd",
+      "bytes": 2945,
+      "sha256": "4520e4d15bd4222a76040e3a24cbe765a3062ca9f7bbe3f4201769949f82ece0",
+      "LF": 106,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/ToolCallCard.gd",
+      "bytes": 4090,
+      "sha256": "28027dd957ae51025a149f4886abdabd58c8a1d6d28560243dd893ed238f1820",
+      "LF": 137,
+      "CRLF": 0,
+      "handlers": [
+        "_on_toggle"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_toggle": true
+      }
+    },
+    {
+      "path": "editor/native/UserMessageCard.gd",
+      "bytes": 6192,
+      "sha256": "8fd1c6623cbd2ec26b8ddc37811edb2e33b0f2025a301980c65c79546dab861a",
+      "LF": 153,
+      "CRLF": 0,
+      "handlers": [
+        "_on_copy_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_copy_pressed": true
+      }
+    },
+    {
+      "path": "editor/native/agent_api_export.gd",
+      "bytes": 3691,
+      "sha256": "5754c8ff27c82b726e814ec2ae0d750435fe4af158ce856d19016453e1b52bf3",
+      "LF": 81,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_chat_view.gd",
+      "bytes": 45595,
+      "sha256": "bd569440f801db480851e5873c23bd80a7d350d0083d205d5ef27b9ec8490ec8",
+      "LF": 1143,
+      "CRLF": 0,
+      "handlers": [
+        "_on_card_rollback_requested",
+        "_on_tw_tick",
+        "_on_diff_allow_all"
+      ],
+      "custom_signals": [
+        "message_rollback_requested"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_card_rollback_requested": true,
+        "_on_tw_tick": true,
+        "_on_diff_allow_all": true
+      }
+    },
+    {
+      "path": "editor/native/agent_editor_context.gd",
+      "bytes": 5940,
+      "sha256": "7da3005f2d0da8ae6df07a4767dc44d8899eb17615b255d1d08682ee27216c7b",
+      "LF": 190,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_entry.gd",
+      "bytes": 24233,
+      "sha256": "fea207f0296d429d372a9465c854cee3480b97da2ca5d09150357460a832f31f",
+      "LF": 491,
+      "CRLF": 491,
+      "handlers": [
+        "_on_menu_id",
+        "_on_fs_files_moved",
+        "_on_fs_folder_moved"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_menu_id": true,
+        "_on_fs_files_moved": true,
+        "_on_fs_folder_moved": true
+      }
+    },
+    {
+      "path": "editor/native/agent_headless_validator.gd",
+      "bytes": 1701,
+      "sha256": "799ec9e26f43f65aa8208a1cf1e5379b8d5c3ca80fbd3ad7a0a8e87251da895e",
+      "LF": 39,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_highlight.gd",
+      "bytes": 5660,
+      "sha256": "d49687e05ed2eb0f4da931ca72f17f52232385c2d47d46d7783a4e0eb269a1b5",
+      "LF": 138,
+      "CRLF": 0,
+      "handlers": [
+        "_on_hl_text_changed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_hl_text_changed": true
+      }
+    },
+    {
+      "path": "editor/native/agent_integration_signals.gd",
+      "bytes": 10061,
+      "sha256": "4b909fad1fc21ca4a43fc8324b6778c246d5b13ee67623a510e745f14dd97983",
+      "LF": 219,
+      "CRLF": 0,
+      "handlers": [
+        "_on_script_changed",
+        "_on_scene_changed",
+        "_on_node_tree_exiting",
+        "_on_child_entered_tree",
+        "_on_node_renamed",
+        "_on_scene_saved",
+        "_on_resource_saved",
+        "_on_project_settings_changed",
+        "_on_editor_state_changed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_script_changed": false,
+        "_on_scene_changed": false,
+        "_on_node_tree_exiting": false,
+        "_on_child_entered_tree": false,
+        "_on_node_renamed": false,
+        "_on_scene_saved": false,
+        "_on_resource_saved": false,
+        "_on_project_settings_changed": false,
+        "_on_editor_state_changed": false
+      }
+    },
+    {
+      "path": "editor/native/agent_locale.gd",
+      "bytes": 86142,
+      "sha256": "cb3e9830e99ea68000ade0587419c2e92d36839797469b4edfe9c62493ba7ee8",
+      "LF": 1051,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_mutation_gate.gd",
+      "bytes": 12174,
+      "sha256": "928913579ac33451f3e8a5c1a6ccc03aeacf8a7c47d2509a0bce6cea1a918fcd",
+      "LF": 258,
+      "CRLF": 258,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_panel.gd",
+      "bytes": 82171,
+      "sha256": "a751d654842db5097a1dd0e712960a10d3e4272f20edd27bd4b7666f4edaafd7",
+      "LF": 1899,
+      "CRLF": 0,
+      "handlers": [
+        "_on_runtime_status_changed",
+        "_on_runtime_inspect_completed",
+        "_on_runtime_inspect_timeout",
+        "_on_runtime_check_completed",
+        "_on_server_state_changed",
+        "_on_open_server_folder_pressed",
+        "_on_stop_pressed",
+        "_on_chat_model_pressed",
+        "_on_input_field_gui_input",
+        "_on_live_input_changed",
+        "_on_live_input_tick",
+        "_on_live_input_response",
+        "_on_live_input_toggled",
+        "_on_safe_rename_toggled",
+        "_on_rename_unverified_toggled",
+        "_on_rename_mode_selected",
+        "_on_allow_addons_toggled",
+        "_on_allow_self_edit_toggled",
+        "_on_reinit_pressed",
+        "_on_send_pressed",
+        "_on_confirm_pressed",
+        "_on_reject_pressed",
+        "_on_plan_stop_pressed",
+        "_on_reload_project_confirmed",
+        "_on_plan_rollback_confirmed",
+        "_on_message_rollback_requested",
+        "_on_rollback_pressed",
+        "_on_rollback_confirmed",
+        "_on_check_log_pressed",
+        "_on_export_api_pressed",
+        "_on_request_completed",
+        "_on_guard_timeout",
+        "_on_editor_scene_saved",
+        "_on_play_watch_tick",
+        "_on_progress_tick",
+        "_on_short_response",
+        "_on_short_stop_response",
+        "_on_progress_response",
+        "_on_chats_payload",
+        "_on_chat_selected",
+        "_on_chat_new_pressed",
+        "_on_chat_rename_pressed",
+        "_on_chat_delete_pressed",
+        "_on_delete_confirmed",
+        "_on_start_delete_chat",
+        "_on_editor_script_changed",
+        "_on_language_changed",
+        "_on_sites_tab_requested",
+        "_on_chats_tab_requested",
+        "_on_start_new_chat",
+        "_on_start_load_chat",
+        "_on_site_switch_yes",
+        "_on_site_switch_no",
+        "_on_pagewait_tick",
+        "_on_browser_status",
+        "_on_api_tab_requested",
+        "_on_api_settings_save",
+        "_on_api_models_refresh",
+        "_on_api_models_scan",
+        "_on_api_test_requested",
+        "_on_start_new_api_chat",
+        "_on_api_payload",
+        "_on_api_chat_model",
+        "_on_link_show_loading",
+        "_on_link_hide_loading",
+        "_on_settings_pressed",
+        "_on_updater_available",
+        "_on_updater_progress",
+        "_on_updater_completed",
+        "_on_updater_error",
+        "_on_updater_check_completed",
+        "_on_update_badge_pressed",
+        "_on_check_updates_pressed",
+        "_on_update_auto_pressed",
+        "_on_update_github_pressed",
+        "_on_update_restart_pressed",
+        "_on_train_mode_toggled",
+        "_on_minilich_toggled",
+        "_on_github_fetch_pressed",
+        "_on_minilich_payload",
+        "_on_safe_rename_pressed",
+        "_on_safe_rename_browse",
+        "_on_safe_rename_preview",
+        "_on_safe_rename_apply",
+        "_on_post_move_sync_response",
+        "_on_node_rename_sync_response",
+        "_on_node_rename_apply_response",
+        "_on_safe_node_rename_pressed",
+        "_on_safe_node_rename_scene_browse",
+        "_on_safe_node_rename_preview",
+        "_on_safe_node_rename_apply"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_runtime_status_changed": false,
+        "_on_runtime_inspect_completed": false,
+        "_on_runtime_inspect_timeout": false,
+        "_on_runtime_check_completed": false,
+        "_on_server_state_changed": true,
+        "_on_open_server_folder_pressed": true,
+        "_on_stop_pressed": false,
+        "_on_chat_model_pressed": true,
+        "_on_input_field_gui_input": true,
+        "_on_live_input_changed": true,
+        "_on_live_input_tick": true,
+        "_on_live_input_response": false,
+        "_on_live_input_toggled": true,
+        "_on_safe_rename_toggled": false,
+        "_on_rename_unverified_toggled": true,
+        "_on_rename_mode_selected": true,
+        "_on_allow_addons_toggled": false,
+        "_on_allow_self_edit_toggled": false,
+        "_on_reinit_pressed": true,
+        "_on_send_pressed": true,
+        "_on_confirm_pressed": true,
+        "_on_reject_pressed": true,
+        "_on_plan_stop_pressed": false,
+        "_on_reload_project_confirmed": false,
+        "_on_plan_rollback_confirmed": false,
+        "_on_message_rollback_requested": true,
+        "_on_rollback_pressed": false,
+        "_on_rollback_confirmed": false,
+        "_on_check_log_pressed": true,
+        "_on_export_api_pressed": true,
+        "_on_request_completed": true,
+        "_on_guard_timeout": true,
+        "_on_editor_scene_saved": false,
+        "_on_play_watch_tick": true,
+        "_on_progress_tick": true,
+        "_on_short_response": true,
+        "_on_short_stop_response": false,
+        "_on_progress_response": false,
+        "_on_chats_payload": true,
+        "_on_chat_selected": true,
+        "_on_chat_new_pressed": true,
+        "_on_chat_rename_pressed": true,
+        "_on_chat_delete_pressed": true,
+        "_on_delete_confirmed": false,
+        "_on_start_delete_chat": true,
+        "_on_editor_script_changed": true,
+        "_on_language_changed": true,
+        "_on_sites_tab_requested": true,
+        "_on_chats_tab_requested": true,
+        "_on_start_new_chat": true,
+        "_on_start_load_chat": true,
+        "_on_site_switch_yes": false,
+        "_on_site_switch_no": false,
+        "_on_pagewait_tick": false,
+        "_on_browser_status": false,
+        "_on_api_tab_requested": true,
+        "_on_api_settings_save": true,
+        "_on_api_models_refresh": true,
+        "_on_api_models_scan": true,
+        "_on_api_test_requested": true,
+        "_on_start_new_api_chat": true,
+        "_on_api_payload": false,
+        "_on_api_chat_model": true,
+        "_on_link_show_loading": true,
+        "_on_link_hide_loading": true,
+        "_on_settings_pressed": true,
+        "_on_updater_available": true,
+        "_on_updater_progress": true,
+        "_on_updater_completed": true,
+        "_on_updater_error": true,
+        "_on_updater_check_completed": true,
+        "_on_update_badge_pressed": true,
+        "_on_check_updates_pressed": false,
+        "_on_update_auto_pressed": false,
+        "_on_update_github_pressed": false,
+        "_on_update_restart_pressed": false,
+        "_on_train_mode_toggled": false,
+        "_on_minilich_toggled": false,
+        "_on_github_fetch_pressed": false,
+        "_on_minilich_payload": false,
+        "_on_safe_rename_pressed": true,
+        "_on_safe_rename_browse": false,
+        "_on_safe_rename_preview": false,
+        "_on_safe_rename_apply": false,
+        "_on_post_move_sync_response": false,
+        "_on_node_rename_sync_response": false,
+        "_on_node_rename_apply_response": false,
+        "_on_safe_node_rename_pressed": true,
+        "_on_safe_node_rename_scene_browse": false,
+        "_on_safe_node_rename_preview": false,
+        "_on_safe_node_rename_apply": false
+      }
+    },
+    {
+      "path": "editor/native/agent_panel_part1.gd",
+      "bytes": 62618,
+      "sha256": "1c52619861f77bc975fa97423c8360826840a7435aca2b6f67f82e0aeecfbd84",
+      "LF": 1199,
+      "CRLF": 0,
+      "handlers": [
+        "_on_runtime_status_changed",
+        "_on_runtime_inspect_completed",
+        "_on_runtime_inspect_timeout",
+        "_on_runtime_check_completed",
+        "_on_server_state_changed",
+        "_on_open_server_folder_pressed",
+        "_on_stop_pressed",
+        "_on_chat_model_pressed",
+        "_on_input_field_gui_input",
+        "_on_live_input_changed",
+        "_on_live_input_tick",
+        "_on_live_input_response",
+        "_on_live_input_toggled",
+        "_on_safe_rename_toggled",
+        "_on_rename_unverified_toggled",
+        "_on_rename_mode_selected",
+        "_on_allow_addons_toggled",
+        "_on_allow_self_edit_toggled",
+        "_on_reinit_pressed",
+        "_on_send_pressed",
+        "_on_confirm_pressed",
+        "_on_reject_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_runtime_status_changed": true,
+        "_on_runtime_inspect_completed": true,
+        "_on_runtime_inspect_timeout": true,
+        "_on_runtime_check_completed": true,
+        "_on_server_state_changed": false,
+        "_on_open_server_folder_pressed": false,
+        "_on_stop_pressed": true,
+        "_on_chat_model_pressed": false,
+        "_on_input_field_gui_input": false,
+        "_on_live_input_changed": false,
+        "_on_live_input_tick": false,
+        "_on_live_input_response": false,
+        "_on_live_input_toggled": false,
+        "_on_safe_rename_toggled": false,
+        "_on_rename_unverified_toggled": false,
+        "_on_rename_mode_selected": false,
+        "_on_allow_addons_toggled": false,
+        "_on_allow_self_edit_toggled": false,
+        "_on_reinit_pressed": false,
+        "_on_send_pressed": false,
+        "_on_confirm_pressed": false,
+        "_on_reject_pressed": false
+      }
+    },
+    {
+      "path": "editor/native/agent_panel_part2.gd",
+      "bytes": 63440,
+      "sha256": "8817af1232c73b460edd7b267d5466fb2915efd0faae749a06d170c81393e142",
+      "LF": 1168,
+      "CRLF": 0,
+      "handlers": [
+        "_on_plan_stop_pressed",
+        "_on_reload_project_confirmed",
+        "_on_plan_rollback_confirmed",
+        "_on_message_rollback_requested",
+        "_on_rollback_pressed",
+        "_on_rollback_confirmed",
+        "_on_check_log_pressed",
+        "_on_export_api_pressed",
+        "_on_request_completed",
+        "_on_guard_timeout",
+        "_on_editor_scene_saved"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_plan_stop_pressed": false,
+        "_on_reload_project_confirmed": false,
+        "_on_plan_rollback_confirmed": false,
+        "_on_message_rollback_requested": false,
+        "_on_rollback_pressed": false,
+        "_on_rollback_confirmed": false,
+        "_on_check_log_pressed": false,
+        "_on_export_api_pressed": false,
+        "_on_request_completed": false,
+        "_on_guard_timeout": false,
+        "_on_editor_scene_saved": false
+      }
+    },
+    {
+      "path": "editor/native/agent_panel_part3.gd",
+      "bytes": 58453,
+      "sha256": "2214fb8a3dc54b3f14bc9831807e53469b3569556c78a956f193a75fabb2cc75",
+      "LF": 1138,
+      "CRLF": 0,
+      "handlers": [
+        "_on_play_watch_tick",
+        "_on_progress_tick",
+        "_on_short_response",
+        "_on_short_stop_response",
+        "_on_progress_response",
+        "_on_chats_payload",
+        "_on_chat_selected",
+        "_on_chat_new_pressed",
+        "_on_chat_rename_pressed",
+        "_on_chat_delete_pressed",
+        "_on_delete_confirmed",
+        "_on_start_delete_chat",
+        "_on_editor_script_changed",
+        "_on_language_changed",
+        "_on_sites_tab_requested",
+        "_on_chats_tab_requested",
+        "_on_start_new_chat",
+        "_on_start_load_chat",
+        "_on_site_switch_yes",
+        "_on_site_switch_no",
+        "_on_pagewait_tick",
+        "_on_browser_status",
+        "_on_api_tab_requested",
+        "_on_api_settings_save",
+        "_on_api_models_refresh",
+        "_on_api_models_scan",
+        "_on_api_test_requested",
+        "_on_start_new_api_chat",
+        "_on_api_payload",
+        "_on_api_chat_model",
+        "_on_link_show_loading",
+        "_on_link_hide_loading"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_play_watch_tick": false,
+        "_on_progress_tick": false,
+        "_on_short_response": false,
+        "_on_short_stop_response": false,
+        "_on_progress_response": false,
+        "_on_chats_payload": false,
+        "_on_chat_selected": false,
+        "_on_chat_new_pressed": false,
+        "_on_chat_rename_pressed": false,
+        "_on_chat_delete_pressed": false,
+        "_on_delete_confirmed": false,
+        "_on_start_delete_chat": false,
+        "_on_editor_script_changed": false,
+        "_on_language_changed": false,
+        "_on_sites_tab_requested": false,
+        "_on_chats_tab_requested": false,
+        "_on_start_new_chat": false,
+        "_on_start_load_chat": false,
+        "_on_site_switch_yes": false,
+        "_on_site_switch_no": false,
+        "_on_pagewait_tick": true,
+        "_on_browser_status": false,
+        "_on_api_tab_requested": false,
+        "_on_api_settings_save": false,
+        "_on_api_models_refresh": false,
+        "_on_api_models_scan": false,
+        "_on_api_test_requested": false,
+        "_on_start_new_api_chat": false,
+        "_on_api_payload": false,
+        "_on_api_chat_model": false,
+        "_on_link_show_loading": false,
+        "_on_link_hide_loading": false
+      }
+    },
+    {
+      "path": "editor/native/agent_panel_part4.gd",
+      "bytes": 56836,
+      "sha256": "adaeb41a5d985e92913443bccee50ff5bda26cdc0e59f6a192a0eb43031d8ec1",
+      "LF": 1073,
+      "CRLF": 0,
+      "handlers": [
+        "_on_settings_pressed",
+        "_on_updater_available",
+        "_on_updater_progress",
+        "_on_updater_completed",
+        "_on_updater_error",
+        "_on_updater_check_completed",
+        "_on_update_badge_pressed",
+        "_on_check_updates_pressed",
+        "_on_update_auto_pressed",
+        "_on_update_github_pressed",
+        "_on_update_restart_pressed",
+        "_on_train_mode_toggled",
+        "_on_minilich_toggled",
+        "_on_github_fetch_pressed",
+        "_on_minilich_payload",
+        "_on_safe_rename_pressed",
+        "_on_safe_rename_browse",
+        "_on_safe_rename_preview",
+        "_on_safe_rename_apply",
+        "_on_post_move_sync_response",
+        "_on_node_rename_sync_response",
+        "_on_node_rename_apply_response",
+        "_on_safe_node_rename_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_settings_pressed": false,
+        "_on_updater_available": false,
+        "_on_updater_progress": false,
+        "_on_updater_completed": false,
+        "_on_updater_error": false,
+        "_on_updater_check_completed": false,
+        "_on_update_badge_pressed": false,
+        "_on_check_updates_pressed": true,
+        "_on_update_auto_pressed": true,
+        "_on_update_github_pressed": true,
+        "_on_update_restart_pressed": true,
+        "_on_train_mode_toggled": true,
+        "_on_minilich_toggled": true,
+        "_on_github_fetch_pressed": true,
+        "_on_minilich_payload": false,
+        "_on_safe_rename_pressed": false,
+        "_on_safe_rename_browse": true,
+        "_on_safe_rename_preview": false,
+        "_on_safe_rename_apply": true,
+        "_on_post_move_sync_response": false,
+        "_on_node_rename_sync_response": false,
+        "_on_node_rename_apply_response": false,
+        "_on_safe_node_rename_pressed": false
+      }
+    },
+    {
+      "path": "editor/native/agent_panel_part5.gd",
+      "bytes": 8976,
+      "sha256": "985a811e171ac9c33d6addb2c715f9b7839772a4ea24d1b1d06212eceb7f83c3",
+      "LF": 187,
+      "CRLF": 0,
+      "handlers": [
+        "_on_safe_node_rename_scene_browse",
+        "_on_safe_node_rename_preview",
+        "_on_safe_node_rename_apply"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_safe_node_rename_scene_browse": true,
+        "_on_safe_node_rename_preview": false,
+        "_on_safe_node_rename_apply": true
+      }
+    },
+    {
+      "path": "editor/native/agent_project_settings_executor.gd",
+      "bytes": 17271,
+      "sha256": "801380299fd84289679ee23d5c6961e2765a4a88299350c9cce4f417c89bfa42",
+      "LF": 357,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_resource_executor.gd",
+      "bytes": 32576,
+      "sha256": "e56466e266dd98525d79f1f7efe200f316b5621e3468b9e62d71770cd56555e2",
+      "LF": 628,
+      "CRLF": 0,
+      "handlers": [
+        "_on_preview_ready"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_preview_ready": true
+      }
+    },
+    {
+      "path": "editor/native/agent_runtime_bridge.gd",
+      "bytes": 15459,
+      "sha256": "3d0e3a9c40767d8af8b312295b9dede30cfb7d5475c672a8540779bf1eca7c58",
+      "LF": 403,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_runtime_debugger.gd",
+      "bytes": 7614,
+      "sha256": "6749020b28f41b6abddfec8e08056369b6fef3d2126ae57cb54739563d3b2851",
+      "LF": 185,
+      "CRLF": 0,
+      "handlers": [
+        "_on_session_started",
+        "_on_session_stopped",
+        "_on_session_breaked",
+        "_on_session_continued"
+      ],
+      "custom_signals": [
+        "check_completed",
+        "inspect_completed",
+        "status_changed"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_session_started": true,
+        "_on_session_stopped": true,
+        "_on_session_breaked": true,
+        "_on_session_continued": true
+      }
+    },
+    {
+      "path": "editor/native/agent_scene_executor.gd",
+      "bytes": 26146,
+      "sha256": "15ab63aaf5876e486c2930720ccad9e17e25eb04cd455aa7a9e8f24d67288844",
+      "LF": 506,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_server.gd",
+      "bytes": 13426,
+      "sha256": "aae5a4d72daa3cf807ec98bb0cc8e50c6f9720ab411fb7ca35f09fe5a809bc59",
+      "LF": 246,
+      "CRLF": 246,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_server_link.gd",
+      "bytes": 29341,
+      "sha256": "c09783ed60d90f0bcb819ad1c9cc591dacd41f9d78fe1fd6577674db697b475c",
+      "LF": 606,
+      "CRLF": 606,
+      "handlers": [
+        "_on_short_response",
+        "_on_response",
+        "_on_server_wait_tick",
+        "_on_server_alive"
+      ],
+      "custom_signals": [
+        "chats_response",
+        "hide_loading_requested",
+        "link_status",
+        "server_state_changed",
+        "short_response",
+        "show_loading_requested"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_short_response": true,
+        "_on_response": true,
+        "_on_server_wait_tick": true,
+        "_on_server_alive": false
+      }
+    },
+    {
+      "path": "editor/native/agent_start_screen.gd",
+      "bytes": 203876,
+      "sha256": "925622c65e3fe4962a9e3f9b36146e4d1a26d45abc120bd257e3ce8391cd6e6a",
+      "LF": 3384,
+      "CRLF": 3384,
+      "handlers": [
+        "_on_lang_selected",
+        "_on_api_save_fields",
+        "_on_api_save_proxy",
+        "_on_api_save_dns",
+        "_on_api_detail_key_save",
+        "_on_api_key_row_delete",
+        "_on_api_keys_reset",
+        "_on_api_detail_models_refresh",
+        "_on_api_pick_open",
+        "_on_api_pick_search",
+        "_on_api_pick_filter",
+        "_on_api_pick_group_toggled",
+        "_on_api_pick_row",
+        "_on_api_detail_filter",
+        "_on_api_detail_free",
+        "_on_api_pick_choose",
+        "_on_api_test",
+        "_on_api_start_chat",
+        "_on_api_switch_model",
+        "_on_spin_tick"
+      ],
+      "custom_signals": [
+        "api_chat_model_requested",
+        "api_models_refresh_requested",
+        "api_models_scan_requested",
+        "api_settings_save_requested",
+        "api_tab_requested",
+        "api_test_requested",
+        "chats_tab_requested",
+        "delete_chat_requested",
+        "language_changed",
+        "load_chat_requested",
+        "new_api_chat_requested",
+        "new_chat_requested",
+        "open_server_requested",
+        "settings_requested",
+        "sites_tab_requested"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_lang_selected": true,
+        "_on_api_save_fields": true,
+        "_on_api_save_proxy": true,
+        "_on_api_save_dns": true,
+        "_on_api_detail_key_save": true,
+        "_on_api_key_row_delete": true,
+        "_on_api_keys_reset": true,
+        "_on_api_detail_models_refresh": true,
+        "_on_api_pick_open": true,
+        "_on_api_pick_search": true,
+        "_on_api_pick_filter": true,
+        "_on_api_pick_group_toggled": true,
+        "_on_api_pick_row": true,
+        "_on_api_detail_filter": true,
+        "_on_api_detail_free": true,
+        "_on_api_pick_choose": true,
+        "_on_api_test": true,
+        "_on_api_start_chat": true,
+        "_on_api_switch_model": true,
+        "_on_spin_tick": true
+      }
+    },
+    {
+      "path": "editor/native/agent_theme.gd",
+      "bytes": 14364,
+      "sha256": "a541a1816049b5d17f203809de9287dd742ba64b70aa6c33f80fdd8f7137d18a",
+      "LF": 325,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/native/agent_updater.gd",
+      "bytes": 27210,
+      "sha256": "0ced1dbd685551413afb857da22077f4ee64022396d25d833f0f5ea917400e7a",
+      "LF": 671,
+      "CRLF": 671,
+      "handlers": [
+        "_on_check_completed",
+        "_on_progress_tick",
+        "_on_download_completed"
+      ],
+      "custom_signals": [
+        "check_completed",
+        "update_available",
+        "update_completed",
+        "update_error",
+        "update_progress"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_check_completed": true,
+        "_on_progress_tick": true,
+        "_on_download_completed": true
+      }
+    },
+    {
+      "path": "editor/native/plugin_universal.gd",
+      "bytes": 13118,
+      "sha256": "ecaaac07f518792f928ce9c4fd0793f86a13071c1e7053b688ce7d1dd7320fce",
+      "LF": 275,
+      "CRLF": 0,
+      "handlers": [
+        "_on_fs_files_moved",
+        "_on_fs_folder_moved",
+        "_on_safe_rename_menu_pressed",
+        "_on_safe_node_rename_menu_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false,
+        "_on_fs_files_moved": true,
+        "_on_fs_folder_moved": true,
+        "_on_safe_rename_menu_pressed": false,
+        "_on_safe_node_rename_menu_pressed": false
+      }
+    },
+    {
+      "path": "editor/t1_panel.gd",
+      "bytes": 6515,
+      "sha256": "354e15371f77870f5ebfe0427923a8a49a859fc0c439c76c66bd0ef701bbaf9e",
+      "LF": 146,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    }
+  ],
+  "projection": "native functions, UTF8 replace/universal newlines; no new parser/code copy",
+  "excluded_old_tests": true,
+  "original_corpus_unchanged": true
+}

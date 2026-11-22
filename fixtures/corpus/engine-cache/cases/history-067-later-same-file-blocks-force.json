@@ -1,0 +1,127 @@
+{
+  "id": "history-067-later-same-file-blocks-force",
+  "input": {
+    "group": "history",
+    "action": "sequence",
+    "finish": "blocker"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "metadata": {
+        "id": "000000000001",
+        "type": "patch_file",
+        "path": "res://A.txt",
+        "overwrote": false,
+        "chat_title": "Synthetic chat",
+        "ts": 1000,
+        "chain_id": "chain-one",
+        "chain_total": 1,
+        "paths": [
+          "res://A.txt"
+        ],
+        "is_last": true,
+        "newer_same_file": []
+      },
+      "result": [
+        false,
+        "Этот файл (res://A.txt) агент правил ещё 1 раз(а) ПОСЛЕ этого действия. Откатить его сейчас — значит потерять более свежие правки. Сначала откатите их: откат идёт от новых к старым.",
+        false,
+        [],
+        null
+      ],
+      "journal": [
+        {
+          "id": "000000000001",
+          "ts": 1000,
+          "type": "patch_file",
+          "path": "res://A.txt",
+          "committed": true,
+          "chat_id": "chat-one",
+          "chat_title": "Synthetic chat",
+          "chain_id": "chain-one",
+          "snapshot": "snapshots\\000000000001_before",
+          "search": "before",
+          "replace": "after",
+          "after_hash": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919"
+        },
+        {
+          "id": "000000000002",
+          "ts": 1001,
+          "type": "patch_file",
+          "path": "res://A.txt",
+          "committed": true,
+          "chat_id": "chat-two",
+          "chat_title": "",
+          "snapshot": "snapshots\\000000000002_before",
+          "search": "",
+          "replace": "",
+          "after_hash": "0bd7226ea868984d97d517ccc35c0bc9a04d93e81c5a25b6c8eaded088626944"
+        }
+      ],
+      "files": {
+        "A.txt": {
+          "base64": "bGF0ZXIK"
+        },
+        "B.txt": {
+          "base64": "YmVmb3JlIEINCg=="
+        },
+        "Moved.txt": null,
+        "new.txt": null
+      }
+    },
+    "after": {
+      "files": {
+        "project/.agent_history/journal.json": {
+          "bytes": 730,
+          "sha256": "41f4162fa5c9cb91bade7ea4347913d69c5ab995ac512c417982d52709d03a5f"
+        },
+        "project/.agent_history/snapshots/000000000001_before": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/.agent_history/snapshots/000000000002_before": {
+          "bytes": 6,
+          "sha256": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919"
+        },
+        "project/A.txt": {
+          "bytes": 6,
+          "sha256": "0bd7226ea868984d97d517ccc35c0bc9a04d93e81c5a25b6c8eaded088626944"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "project/.agent_history",
+        "project/.agent_history/snapshots"
+      ]
+    }
+  }
+}

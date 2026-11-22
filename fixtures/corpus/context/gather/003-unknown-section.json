@@ -1,0 +1,13 @@
+{
+  "id": "003-unknown-section",
+  "tool": "context",
+  "fixture": "minimal",
+  "note": "неизвестная секция отказывает всему вызову: частичный ответ хуже отказа",
+  "args": {
+    "sections": ["project", "secrets"]
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

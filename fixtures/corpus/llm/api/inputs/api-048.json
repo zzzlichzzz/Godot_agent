@@ -1,0 +1,14 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "classify_http_error",
+  "args": [
+    403,
+    "{\"error\": {\"message\": \"auth token invalid\"}}",
+    {
+      "Retry-After": "120"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-048"
+}

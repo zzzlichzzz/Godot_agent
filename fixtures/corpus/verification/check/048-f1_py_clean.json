@@ -1,0 +1,29 @@
+{
+  "id": "048-f1_py_clean",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://clean.py"
+  },
+  "reference_result": {
+    "path": "res://clean.py",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.py",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "py"
+      ],
+      "unavailable": []
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "md_to_bbcode",
+  "function": "to_bbcode",
+  "args": [
+    "_ready _physics_process __MAX__"
+  ],
+  "kwargs": {},
+  "id": "api-011"
+}

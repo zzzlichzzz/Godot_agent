@@ -1,0 +1,17 @@
+{
+  "id": "011-missing_node",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/011-missing_node",
+  "note": "missing_node",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Missing",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Узел 'Missing' не найден в сцене",
+    "reference_exception": "NodeRefactorError"
+  }
+}

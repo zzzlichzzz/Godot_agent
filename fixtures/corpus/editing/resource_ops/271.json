@@ -1,0 +1,46 @@
+{
+  "id": "c24-lone-CR-comment-native-refusal",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "length",
+        "value": {
+          "type": "float",
+          "value": 2.0
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0NOyBpbnB1dCBjb21tZW50IG11c3Qgbm90IGJlIG1pc3Rha2VuIGZvciBhbiBvcGVyYXRpb24NW3Jlc291cmNlXQ1yZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSINbGVuZ3RoID0gMS4wDQ=="
+    }
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_generated_load": "oracle-formats/c24-set-lone-CR.output.json",
+    "native_diagnostic": "Parse Error: Unexpected end of file.",
+    "native_output_sha256": "1ce144e3906f2118ecaff1cb4f1ee27ced1f4b9a1f33c15f8e605af07349a421",
+    "decision": "D18 bounded ambiguous input refusal"
+  },
+  "expect": {
+    "kind": "invalid_input",
+    "message": "Неоднозначная или неподдерживаемая структура .tres",
+    "hint": "",
+    "ok": false
+  }
+}

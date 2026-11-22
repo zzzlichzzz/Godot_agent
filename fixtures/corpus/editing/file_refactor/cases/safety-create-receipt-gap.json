@@ -1,0 +1,16 @@
+{
+  "id": "safety-create-receipt-gap",
+  "tool": "file_refactor",
+  "oracle": "our safety behaviour, not native parity",
+  "scenario": "receipt_gap",
+  "op": "create",
+  "target": "res://item.gd",
+  "payload": {"text": "after\n", "newline": "crlf"},
+  "expect": {
+    "intent_before_effect": true,
+    "effect_bytes_b64": "YWZ0ZXINCg==",
+    "receipt_absent": true,
+    "recovery": "rolled_back",
+    "tree_unchanged": true
+  }
+}

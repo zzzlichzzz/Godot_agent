@@ -1,0 +1,39 @@
+{
+  "id": "expanded-value10",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "Vector2i",
+          "value": [
+            true,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Vector2i содержит нечисловое или бесконечное значение",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "47275cb706831b8494cf68702985c50fdf17840c4ea44ad77aab8cced3ed3d4b"
+}

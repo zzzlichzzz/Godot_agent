@@ -1,0 +1,123 @@
+{
+  "id": "history-042-patch_file-metadata",
+  "input": {
+    "group": "history",
+    "action": "sequence",
+    "kind": "patch_file",
+    "finish": "metadata",
+    "storage": "user"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "metadata": {
+        "id": "000000000001",
+        "type": "patch_file",
+        "path": "res://A.txt",
+        "overwrote": false,
+        "chat_title": "Synthetic chat",
+        "ts": 1000,
+        "chain_id": "chain-one",
+        "chain_total": 1,
+        "paths": [
+          "res://A.txt"
+        ],
+        "is_last": true,
+        "newer_same_file": []
+      },
+      "result": {
+        "last": {
+          "id": "000000000001",
+          "type": "patch_file",
+          "path": "res://A.txt",
+          "overwrote": false,
+          "chat_title": "Synthetic chat",
+          "ts": 1000,
+          "chain_id": "chain-one",
+          "chain_total": 1,
+          "paths": [
+            "res://A.txt"
+          ]
+        },
+        "others_ts": 1000,
+        "summary": "[Система]: Пока этот чат был неактивен, в проекте изменились файлы:\n- res://A.txt — изменён [чат: Synthetic chat]\nТвоя память об их содержимом устарела: перед patch_file или create_file по этим файлам сначала перечитай их через read_file."
+      },
+      "journal": [
+        {
+          "id": "000000000001",
+          "ts": 1000,
+          "type": "patch_file",
+          "path": "res://A.txt",
+          "committed": true,
+          "chat_id": "chat-one",
+          "chat_title": "Synthetic chat",
+          "chain_id": "chain-one",
+          "snapshot": "snapshots\\000000000001_before",
+          "search": "before",
+          "replace": "after",
+          "after_hash": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919"
+        }
+      ],
+      "files": {
+        "A.txt": {
+          "base64": "YWZ0ZXIK"
+        },
+        "B.txt": {
+          "base64": "YmVmb3JlIEINCg=="
+        },
+        "Moved.txt": null,
+        "new.txt": null
+      }
+    },
+    "after": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 6,
+          "sha256": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/journal.json": {
+          "bytes": 393,
+          "sha256": "fddd8d1501a7cf7fd98478db1dfd1b7f60682bdcb912a16e261afc93162626ec"
+        },
+        "user/agent_history/snapshots/000000000001_before": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

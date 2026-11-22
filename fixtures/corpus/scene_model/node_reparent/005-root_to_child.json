@@ -1,0 +1,16 @@
+{
+  "id": "005-root_to_child",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/005-root_to_child",
+  "note": "actual-old prepare-only: root_to_child",
+  "args": {
+    "path": "res://main.tscn",
+    "node": ".",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Нельзя перемещать корневой узел сцены"
+  }
+}

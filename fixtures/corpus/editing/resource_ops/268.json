@@ -1,0 +1,42 @@
+{
+  "id": "c24-reference-count-conflict",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "replace_reference",
+        "target": [],
+        "old": "res://old.tres",
+        "new": "res://new.tres",
+        "expected_count": 2
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IlRoZW1lIiBsb2FkX3N0ZXBzPTIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTIiXQ0KDQo7IGtlZXAgc3BhY2luZyBhbmQgY29tbWVudCBpbiBwcm9wb3NlZCB0ZXh0dWFsIHZhcmlhbnQNCltleHRfcmVzb3VyY2UgdHlwZT0iVGV4dHVyZTJEIiBwYXRoPSJyZXM6Ly9vbGQudHJlcyIgaWQ9Im9sZF90ZXh0dXJlIl0NCg0KW3Jlc291cmNlXQ0KZGVmYXVsdF9mb250X3NpemUgPSAxNg0KQnV0dG9uL2ljb25zL3Byb2JlX2ljb24gPSBFeHRSZXNvdXJjZSgib2xkX3RleHR1cmUiKQ0K"
+    }
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "decision": "D18/SEC-24",
+    "source_sha256": "edef33817b0f5e9a9885dae55648b2c0c01fa2a8f908c07b10007fa1ff7fbbc5"
+  },
+  "expect": {
+    "kind": "conflict",
+    "message": "Найдено ссылок 1, ожидалось 2",
+    "hint": "",
+    "ok": false
+  }
+}

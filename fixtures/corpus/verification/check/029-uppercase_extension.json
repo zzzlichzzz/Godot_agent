@@ -1,0 +1,28 @@
+{
+  "id": "029-uppercase_extension",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://UPPER.JSON"
+  },
+  "reference_result": {
+    "path": "res://UPPER.JSON",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://UPPER.JSON",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "json"
+      ],
+      "unavailable": []
+    }
+  }
+}

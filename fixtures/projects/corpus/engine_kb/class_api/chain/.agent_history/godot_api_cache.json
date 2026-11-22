@@ -1,0 +1,84 @@
+{
+  "godot_version": "4.6.3",
+  "classes": {
+    "Node2D": {
+      "inherits": "CanvasItem",
+      "methods": {
+        "zebra": [
+          0,
+          0
+        ],
+        "shared": [
+          1,
+          2
+        ],
+        "alpha": [
+          2,
+          3
+        ]
+      },
+      "properties": [
+        "z_index",
+        "position"
+      ],
+      "signals": [
+        "changed"
+      ],
+      "signatures": {
+        "alpha": "alpha(x: int, y: String = \"λ\") -> void",
+        "shared": "shared(child: int) -> bool"
+      }
+    },
+    "CanvasItem": {
+      "inherits": "Node",
+      "methods": {
+        "draw": [
+          0,
+          1
+        ],
+        "shared": [
+          8,
+          9
+        ]
+      },
+      "properties": [
+        "visible",
+        "position"
+      ],
+      "signals": [
+        "drawn"
+      ],
+      "signatures": {
+        "draw": "draw(width: float = 1.0) -> void",
+        "shared": "shared(parent: String) -> void"
+      }
+    },
+    "Node": {
+      "inherits": "Object",
+      "methods": {
+        "queue_free": [
+          0,
+          0
+        ]
+      },
+      "properties": [
+        "name"
+      ],
+      "signals": [
+        "ready",
+        "changed"
+      ]
+    },
+    "Object": {
+      "inherits": null,
+      "methods": {
+        "free": [
+          0,
+          0
+        ]
+      },
+      "properties": [],
+      "signals": []
+    }
+  }
+}

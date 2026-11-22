@@ -1,0 +1,22 @@
+{
+  "id": "085-plan-groups-nonobject",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_groups-nonobject",
+  "args": {
+    "path": "res://donor.py",
+    "groups": [
+      1
+    ]
+  },
+  "reference_result": null,
+  "reference_error": {
+    "ok": false,
+    "exception": "AttributeError",
+    "message": "'int' object has no attribute 'get'"
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

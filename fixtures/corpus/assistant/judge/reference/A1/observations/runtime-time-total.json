@@ -1,0 +1,46 @@
+{
+  "before": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  },
+  "result": {
+    "error": "RuntimeCheckError",
+    "message": "run_check exceeds total wait limits"
+  },
+  "after": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  }
+}

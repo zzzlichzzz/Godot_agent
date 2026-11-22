@@ -1,0 +1,36 @@
+{
+  "id": "002-only-declaration",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Только объявление: ссылок нет, поэтому один элемент; упоминание reset() в комментарии ссылкой не считается",
+  "args": {
+    "kind": "function",
+    "old_name": "reset",
+    "declaration": "res://src/lab_entity.gd:17"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "reset",
+      "new_name": "",
+      "declaration": "res://src/lab_entity.gd:17",
+      "usages": [
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 17,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1
+      },
+      "proven_count": 1,
+      "probable_count": 0,
+      "dynamic_count": 0
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "014-unsupported_md",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://notes.md"
+  },
+  "reference_result": {
+    "path": "res://notes.md",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": false,
+    "unchecked_reason": "расширение .md не проверяется этим каналом (проверяются: .cfg, .gd, .gdshader, .json, .py, .shader, .tres, .tscn)"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://notes.md",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [],
+      "unchecked_reason": "расширение .md не проверяется этим каналом (проверяются: .cfg, .gd, .gdshader, .json, .py, .shader, .tres, .tscn)",
+      "unavailable": []
+    }
+  }
+}

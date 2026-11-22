@@ -1,0 +1,29 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "extract_delta",
+  "args": [
+    {
+      "model": "fixture",
+      "usage": {
+        "prompt_tokens": 2
+      },
+      "choices": [
+        {
+          "message": {
+            "content": [
+              {
+                "text": "а"
+              },
+              {
+                "text": "б"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "kwargs": {},
+  "id": "api-061"
+}

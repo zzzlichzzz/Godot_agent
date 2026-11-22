@@ -1,0 +1,164 @@
+{
+  "id": "008-reverse_name",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/008-reverse_name",
+  "note": "reverse_name",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "Arm",
+    "scripts_only": true,
+    "previous_name": "ArmA"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Arm",
+      "new_name": "Arm",
+      "old_path": "Arm",
+      "new_path": "Arm",
+      "target_node_path": "Arm",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.gd",
+          "before_hash": "055ce9ec2f95e6b48fd69fa2e088c5bb1ca334712d5df08cd18cdee2cd158214",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkQXJtQQpAb25yZWFkeSB2YXIgYiA9ICRBcm1BL1RpcApAb25yZWFkeSB2YXIgYyA9ICQiQXJtQS9UaXAiCkBvbnJlYWR5IHZhciBkID0gJUFybUEKZnVuYyByZWFkeSgpOgogICAgZ2V0X25vZGUoIkFybUEvVGlwIikKICAgIGdldF9ub2RlX29yX251bGwoJ0FybUEnKQogICAgaGFzX25vZGUoIkFybUEiKQogICAgZmluZF9jaGlsZCgiQXJtQSIpCg==",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkQXJtCkBvbnJlYWR5IHZhciBiID0gJEFybS9UaXAKQG9ucmVhZHkgdmFyIGMgPSAkIkFybS9UaXAiCkBvbnJlYWR5IHZhciBkID0gJUFybQpmdW5jIHJlYWR5KCk6CiAgICBnZXRfbm9kZSgiQXJtL1RpcCIpCiAgICBnZXRfbm9kZV9vcl9udWxsKCdBcm0nKQogICAgaGFzX25vZGUoIkFybSIpCiAgICBmaW5kX2NoaWxkKCJBcm0iKQo=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,10 +1,10 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node2D"
+              ],
+              [
+                "-",
+                2,
+                null,
+                "@onready var a = $ArmA"
+              ],
+              [
+                "-",
+                3,
+                null,
+                "@onready var b = $ArmA/Tip"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "@onready var c = $\"ArmA/Tip\""
+              ],
+              [
+                "-",
+                5,
+                null,
+                "@onready var d = %ArmA"
+              ],
+              [
+                "+",
+                null,
+                2,
+                "@onready var a = $Arm"
+              ],
+              [
+                "+",
+                null,
+                3,
+                "@onready var b = $Arm/Tip"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "@onready var c = $\"Arm/Tip\""
+              ],
+              [
+                "+",
+                null,
+                5,
+                "@onready var d = %Arm"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "func ready():"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "    get_node(\"ArmA/Tip\")"
+              ],
+              [
+                "-",
+                8,
+                null,
+                "    get_node_or_null('ArmA')"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "    has_node(\"ArmA\")"
+              ],
+              [
+                "-",
+                10,
+                null,
+                "    find_child(\"ArmA\")"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "    get_node(\"Arm/Tip\")"
+              ],
+              [
+                "+",
+                null,
+                8,
+                "    get_node_or_null('Arm')"
+              ],
+              [
+                "+",
+                null,
+                9,
+                "    has_node(\"Arm\")"
+              ],
+              [
+                "+",
+                null,
+                10,
+                "    find_child(\"Arm\")"
+              ]
+            ],
+            "added": 8,
+            "removed": 8,
+            "truncated": false,
+            "path": "res://main.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 8
+        }
+      ],
+      "reference_count": 8,
+      "affected_paths": [
+        "res://main.gd"
+      ],
+      "scripts_only": true,
+      "previous_name": "ArmA"
+    }
+  }
+}

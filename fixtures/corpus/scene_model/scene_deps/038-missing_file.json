@@ -1,0 +1,15 @@
+{
+  "id": "038-missing_file",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/038-missing_file",
+  "note": "missing_file",
+  "args": {
+    "path": "res://main.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл не найден: res://main.gd",
+    "reference_exception": "FileNotFoundError"
+  }
+}

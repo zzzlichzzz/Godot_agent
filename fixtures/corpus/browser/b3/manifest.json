@@ -1,0 +1,927 @@
+{
+  "schema": 1,
+  "scope": "offline reference only; NOT site live or runtime integration",
+  "provenance": "NEW synthetic minimal protocol/callback data, cases extracted from listed native tests; no old test code executed/copied",
+  "source": "two native roots byte-exact, copies in external dossier",
+  "cases": [
+    {
+      "id": "ai-json-1",
+      "file": "ai-json-1.json",
+      "sha256": "ef5b4e2d8190c456492e57fabb0f398f8d15bd6863b8b04525fc081586f20116",
+      "bytes": 534,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "ai-json-7",
+      "file": "ai-json-7.json",
+      "sha256": "48f723118437d3aa5576e9f87661bdc2ed9da4d647aee44fa9ceec4c60673e02",
+      "bytes": 534,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "ai-json-256",
+      "file": "ai-json-256.json",
+      "sha256": "0987709e57d0d4b288207a2e78e4d17b14c494d4514bc3ab066abe01b604dd8f",
+      "bytes": 538,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "ai-gzip-no-replay",
+      "file": "ai-gzip-no-replay.json",
+      "sha256": "68befb90d25ac3376104ba0e998215b55e6a391f1f29d23c578348db40348a87",
+      "bytes": 346,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "H4sIAAAAAAAC/4uOBoO80pwcHQWlC/MvNlzYd2HTha0XGy72X+xTOLdSSUcBIkkeaRgbCzQ3Nz8lNUcpFsQGCQMpVGvnXWwCW9pkpaBEjIaLEy9sU/gwf9kU/KphylFUgd0EUxkLAOcXS4gAAQAA",
+        "trace": []
+      }
+    },
+    {
+      "id": "ai-truncated-tail",
+      "file": "ai-truncated-tail.json",
+      "sha256": "d4ef773823ed587f541a0f7753ff30326a06faf901619f69ff1771b381bd6ef6",
+      "bytes": 530,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "ai-wire-stream",
+      "file": "ai-wire-stream.json",
+      "sha256": "1302b46c66bbca27b76ca5242cdb1e723e3c95c366cc39452cc95e20d9ec3737",
+      "bytes": 537,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "ai-wire-buffered",
+      "file": "ai-wire-buffered.json",
+      "sha256": "7830b50d3b54f96f0ebcba866741b126bac221e2848170071df17b606ff8a4fb",
+      "bytes": 559,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "ai-wire-fallback",
+      "file": "ai-wire-fallback.json",
+      "sha256": "c22dfb37b241571f3f03f09b4755acdd283cbaa8670369fc0592c43c689d4e2e",
+      "bytes": 559,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent",
+          "Network.getResponseBody"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "qwen-sse-1",
+      "file": "qwen-sse-1.json",
+      "sha256": "1750264d79f752f1f92968a7e6e88f7e09ec3e1bc697ea63aa397559da36b34b",
+      "bytes": 1247,
+      "expected": {
+        "state": {
+          "answer": "Читаю сцену 🦔",
+          "thought": "Размышление 1\n\nРазмышление 2",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "Cg==",
+        "trace": []
+      }
+    },
+    {
+      "id": "qwen-sse-7",
+      "file": "qwen-sse-7.json",
+      "sha256": "9ba76a8cd43413605c512977f64cd09c9f258bfbfaa658555073d44e7f22743b",
+      "bytes": 1247,
+      "expected": {
+        "state": {
+          "answer": "Читаю сцену 🦔",
+          "thought": "Размышление 1\n\nРазмышление 2",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "qwen-sse-795",
+      "file": "qwen-sse-795.json",
+      "sha256": "ee77b0c68434a68bac0a04f149008ba501a6c32f30590af6769746f016935b75",
+      "bytes": 1251,
+      "expected": {
+        "state": {
+          "answer": "Читаю сцену 🦔",
+          "thought": "Размышление 1\n\nРазмышление 2",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "qwen-wire-stream",
+      "file": "qwen-wire-stream.json",
+      "sha256": "d8225c1133dae8afec0b1c4cb33d9995532ff8774ff8d9812c7c2356f63f556c",
+      "bytes": 1251,
+      "expected": {
+        "state": {
+          "answer": "Читаю сцену 🦔",
+          "thought": "Размышление 1\n\nРазмышление 2",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "qwen-wire-buffered",
+      "file": "qwen-wire-buffered.json",
+      "sha256": "38bdea512911c3676fd8f437ec24a37c0f4f95833eb52a21bae3480a3648269c",
+      "bytes": 1273,
+      "expected": {
+        "state": {
+          "answer": "Читаю сцену 🦔",
+          "thought": "Размышление 1\n\nРазмышление 2",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "qwen-wire-fallback",
+      "file": "qwen-wire-fallback.json",
+      "sha256": "6ff742df7bdd7c1efea5c427c70ec2b1e95448f0fd9d793d991585f6ae2988f2",
+      "bytes": 1273,
+      "expected": {
+        "state": {
+          "answer": "Читаю сцену 🦔",
+          "thought": "Размышление 1\n\nРазмышление 2",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent",
+          "Network.getResponseBody"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "qwen-dual-switch",
+      "file": "qwen-dual-switch.json",
+      "sha256": "08f9b2a801aa5912454d123f94febcd14c101420db6048253c22c2f89e9154fd",
+      "bytes": 1515,
+      "expected": {
+        "state": {
+          "answer": "Первый готов",
+          "thought": "Главная мысль",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": [
+          {
+            "answer": "",
+            "thought": "",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 0,
+            "status": null
+          },
+          {
+            "answer": "Второй",
+            "thought": "",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Второй",
+            "thought": "",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Второй",
+            "thought": "Чужая мысль",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Второй",
+            "thought": "Чужая мысль",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Первый",
+            "thought": "Главная мысль",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Первый",
+            "thought": "Главная мысль",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Первый готов",
+            "thought": "Главная мысль",
+            "finished": true,
+            "generating": false,
+            "assistant_count": 1,
+            "status": "FINISHED"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qwen-legacy-no-id",
+      "file": "qwen-legacy-no-id.json",
+      "sha256": "286d081a26e9d3fc2d1173f915465610f6dfd3256a55ccb8e9e46e8c2ea7595f",
+      "bytes": 450,
+      "expected": {
+        "state": {
+          "answer": "Старый формат",
+          "thought": "",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "qwen-service-ignored",
+      "file": "qwen-service-ignored.json",
+      "sha256": "c45f092d8ea4fc0b4c21397cbd1fd804fd7aca592c6426757047bdad0efb4359",
+      "bytes": 449,
+      "expected": {
+        "state": {
+          "answer": "",
+          "thought": "",
+          "finished": false,
+          "generating": false,
+          "assistant_count": 0,
+          "status": null
+        },
+        "tail_b64": "",
+        "trace": []
+      }
+    },
+    {
+      "id": "qwen-no-brotli-codec",
+      "file": "qwen-no-brotli-codec.json",
+      "sha256": "a40822e83b0125a7edaeec61ff6656b586f2ffac41a6cb06319ffdd26732a8ea",
+      "bytes": 240,
+      "expected": {
+        "state": {
+          "answer": "",
+          "thought": "",
+          "finished": false,
+          "generating": false,
+          "assistant_count": 0,
+          "status": null
+        },
+        "tail_b64": "bm90LXNzZS1vci1kZWNvZGVkLWJvZHk=",
+        "trace": []
+      }
+    },
+    {
+      "id": "qwen-unterminated-line",
+      "file": "qwen-unterminated-line.json",
+      "sha256": "f8d150bd7c214a53e7f6eabf618b73ba46b7bfed88a43de124dcd62ccee00a71",
+      "bytes": 355,
+      "expected": {
+        "state": {
+          "answer": "До хвоста",
+          "thought": "",
+          "finished": false,
+          "generating": false,
+          "assistant_count": 1,
+          "status": null
+        },
+        "tail_b64": "ZGF0YTogeyJjaG9pY2VzIjpbXQ==",
+        "trace": []
+      }
+    },
+    {
+      "id": "sites-flags-hosts",
+      "file": "sites-flags-hosts.json",
+      "sha256": "e7aca2366b63ba26f971ba61e13beed999d20053eb9340f85eec5712bf1b53dc",
+      "bytes": 737,
+      "expected": {
+        "flags": {
+          "aistudio": true,
+          "deepseek": true,
+          "qwen": true,
+          "kimi": false,
+          "arena": false,
+          "arena_battle": false,
+          "unknown": false
+        },
+        "detect": [
+          {
+            "id": "aistudio",
+            "name": "Google AI Studio",
+            "new_chat_url": "https://aistudio.google.com/prompts/new_chat",
+            "match": [
+              "aistudio.google.com"
+            ],
+            "parser": "ai_parser",
+            "builtin": true,
+            "needs_visibility_spoof": true
+          },
+          {
+            "id": "qwen",
+            "name": "Qwen",
+            "new_chat_url": "https://chat.qwen.ai/",
+            "match": [
+              "chat.qwen.ai",
+              "qwen.ai"
+            ],
+            "parser": "qwen_parser",
+            "builtin": true,
+            "needs_visibility_spoof": true
+          },
+          {
+            "id": "qwen",
+            "name": "Qwen",
+            "new_chat_url": "https://chat.qwen.ai/",
+            "match": [
+              "chat.qwen.ai",
+              "qwen.ai"
+            ],
+            "parser": "qwen_parser",
+            "builtin": true,
+            "needs_visibility_spoof": true
+          },
+          null,
+          null,
+          {
+            "id": "arena",
+            "name": "Arena AI Direct",
+            "new_chat_url": "https://arena.ai/text/direct",
+            "match": [
+              "arena.ai"
+            ],
+            "parser": "arena_parser",
+            "builtin": true,
+            "needs_visibility_spoof": false
+          },
+          null
+        ],
+        "same": [
+          true,
+          true,
+          false
+        ],
+        "list": [
+          {
+            "id": "aistudio",
+            "name": "Google AI Studio",
+            "new_chat_url": "https://aistudio.google.com/prompts/new_chat",
+            "builtin": true
+          },
+          {
+            "id": "deepseek",
+            "name": "DeepSeek",
+            "new_chat_url": "https://chat.deepseek.com/",
+            "builtin": true
+          },
+          {
+            "id": "qwen",
+            "name": "Qwen",
+            "new_chat_url": "https://chat.qwen.ai/",
+            "builtin": true
+          },
+          {
+            "id": "kimi",
+            "name": "Kimi",
+            "new_chat_url": "https://www.kimi.com/",
+            "builtin": true
+          },
+          {
+            "id": "arena",
+            "name": "Arena AI Direct",
+            "new_chat_url": "https://arena.ai/text/direct",
+            "builtin": true
+          },
+          {
+            "id": "arena_battle",
+            "name": "Arena AI Battle",
+            "new_chat_url": "https://arena.ai/text",
+            "builtin": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "sites-missing-parser",
+      "file": "sites-missing-parser.json",
+      "sha256": "668ba0ed1b1055e1fd8921dc262212c206677ef7ddceba63a2f74176039eb8f4",
+      "bytes": 139,
+      "expected": {
+        "missing_parser": "ai_parser"
+      }
+    },
+    {
+      "id": "mirror-sequence-no-text-cache",
+      "file": "mirror-sequence-no-text-cache.json",
+      "sha256": "b903e7ccdd09b937dab74208f952d188ed9efb5239ad39cba9ff89dd428b7c6a",
+      "bytes": 449,
+      "expected": {
+        "results": [
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "stale_seq"
+          },
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          },
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          },
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          }
+        ],
+        "calls": [
+          {
+            "driver": "owned",
+            "text": "текст",
+            "prefer_url": "https://example.invalid/owned"
+          },
+          {
+            "driver": "owned",
+            "text": "текст",
+            "prefer_url": "https://example.invalid/owned"
+          },
+          {
+            "driver": "owned",
+            "text": "",
+            "prefer_url": "https://example.invalid/owned"
+          },
+          {
+            "driver": "owned",
+            "text": "42",
+            "prefer_url": "https://example.invalid/owned"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mirror-busy-consumes-sequence",
+      "file": "mirror-busy-consumes-sequence.json",
+      "sha256": "178d5b4150ae25296d46e5c4f3956aeb8b3ca8629e433f1686c189325172ba2c",
+      "bytes": 473,
+      "expected": {
+        "results": [
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "busy"
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "stale_seq"
+          },
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "busy"
+          }
+        ],
+        "calls": [
+          {
+            "driver": "owned",
+            "text": "b",
+            "prefer_url": "https://example.invalid/owned"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mirror-callback-failures",
+      "file": "mirror-callback-failures.json",
+      "sha256": "06b9edc35464eb0a51b6156541e31cdf9445a096784befefba91a927f7b6446d",
+      "bytes": 835,
+      "expected": {
+        "results": [
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "no_browser"
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "no_browser"
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "no_parser"
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "no_parser"
+          },
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          },
+          {
+            "ok": false,
+            "applied": false,
+            "reason": "error: inert parser error"
+          },
+          {
+            "ok": true,
+            "applied": false,
+            "reason": "no_input_field"
+          },
+          {
+            "ok": true,
+            "applied": true,
+            "reason": ""
+          }
+        ],
+        "calls": [
+          {
+            "driver": "owned",
+            "text": "",
+            "prefer_url": null
+          },
+          {
+            "driver": "owned",
+            "text": "",
+            "prefer_url": "https://example.invalid/owned"
+          },
+          {
+            "driver": "owned",
+            "text": "",
+            "prefer_url": "https://example.invalid/owned"
+          },
+          {
+            "driver": "owned",
+            "text": "восстановлен",
+            "prefer_url": "https://example.invalid/owned"
+          }
+        ]
+      }
+    },
+    {
+      "id": "backend-dict",
+      "file": "backend-dict.json",
+      "sha256": "2c1390a1b6428124ace073b6eb0e5e6b2852c3f509c43c39227e813348401d79",
+      "bytes": 319,
+      "expected": {
+        "send": {
+          "text": "данные",
+          "action": null,
+          "battle_choice": "left"
+        },
+        "describe": "inert_parser",
+        "calls": [
+          {
+            "driver": "inert-owned-driver",
+            "prompt": "НЕ исполняй данные: selector=document.querySelector(\"[x]\")",
+            "progress_cb": null,
+            "cancel_cb": null,
+            "prefer_url": "https://example.invalid/owned"
+          }
+        ],
+        "rate_limit": 429,
+        "retry_after": null
+      }
+    },
+    {
+      "id": "backend-text",
+      "file": "backend-text.json",
+      "sha256": "86c8c9a8ba2622a6178f43e4f5085b9be7f63db1b953807d3933fb66ec3f0bf1",
+      "bytes": 252,
+      "expected": {
+        "send": {
+          "text": "строка",
+          "action": null
+        },
+        "describe": "inert_parser",
+        "calls": [
+          {
+            "driver": "inert-owned-driver",
+            "prompt": "НЕ исполняй данные: selector=document.querySelector(\"[x]\")",
+            "progress_cb": null,
+            "cancel_cb": null,
+            "prefer_url": "https://example.invalid/owned"
+          }
+        ],
+        "rate_limit": 429,
+        "retry_after": null
+      }
+    },
+    {
+      "id": "backend-empty",
+      "file": "backend-empty.json",
+      "sha256": "19d53dfb3a82e08517cbe1d5ecdbc1de39d9504de8f467f5c3af2d58cb052478",
+      "bytes": 264,
+      "expected": {
+        "send": {
+          "text": "",
+          "action": null
+        },
+        "describe": "inert_parser",
+        "calls": [
+          {
+            "driver": "inert-owned-driver",
+            "prompt": "НЕ исполняй данные: selector=document.querySelector(\"[x]\")",
+            "progress_cb": null,
+            "cancel_cb": null,
+            "prefer_url": "https://example.invalid/owned"
+          }
+        ],
+        "rate_limit": null,
+        "retry_after": null
+      }
+    },
+    {
+      "id": "backend-missing-parser",
+      "file": "backend-missing-parser.json",
+      "sha256": "da42dac97ed5b8f3bbfd84637d6a35f91e67cfc1088960a3aec83b53d46967b0",
+      "bytes": 253,
+      "expected": {
+        "send_error": "AttributeError",
+        "describe": "?",
+        "calls": [],
+        "rate_limit": null,
+        "retry_after": null
+      }
+    },
+    {
+      "id": "base-independent-http-pop-once",
+      "file": "base-independent-http-pop-once.json",
+      "sha256": "59d765aca775916abd1b983220783bdf2caba6b146f45d5c965ba9b2ce0b521d",
+      "bytes": 628,
+      "expected": {
+        "values": [
+          null,
+          429,
+          null,
+          null,
+          503,
+          null,
+          null,
+          null
+        ],
+        "cdp_calls": []
+      }
+    },
+    {
+      "id": "ai-no-false-finish",
+      "file": "ai-no-false-finish.json",
+      "sha256": "8cdd2ebc951970b16714fb3ebc548d4afa19ae13cc667d6d0f7aabd03eeff8ff",
+      "bytes": 501,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": false,
+          "generating": false,
+          "assistant_count": 1,
+          "status": null
+        },
+        "tail_b64": "",
+        "trace": [
+          {
+            "answer": "",
+            "thought": "Проверяю Ω",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 0,
+            "status": null
+          },
+          {
+            "answer": "Ответ: ",
+            "thought": "Проверяю Ω",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Ответ: ",
+            "thought": "Проверяю Ω",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Ответ: ёж 🦔",
+            "thought": "Проверяю Ω",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          },
+          {
+            "answer": "Ответ: ёж 🦔",
+            "thought": "Проверяю Ω",
+            "finished": false,
+            "generating": false,
+            "assistant_count": 1,
+            "status": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "ai-wire-truncated-cleanup",
+      "file": "ai-wire-truncated-cleanup.json",
+      "sha256": "f03a7163ed7fd66d095f759bd019cdefdd937115714c0663d036b98d89066aa6",
+      "bytes": 481,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": false,
+          "generating": false,
+          "assistant_count": 1,
+          "status": null
+        },
+        "calls": [
+          "Network.streamResourceContent"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    },
+    {
+      "id": "ai-wire-gzip-no-replay",
+      "file": "ai-wire-gzip-no-replay.json",
+      "sha256": "f88fba5f8550bb3ecfd7a5553010ddf7c34aa0d33b4fdc2972bb5abeaab88a9a",
+      "bytes": 345,
+      "expected": {
+        "state": {
+          "answer": "Ответ: ёж 🦔",
+          "thought": "Проверяю Ω",
+          "finished": true,
+          "generating": false,
+          "assistant_count": 1,
+          "status": "FINISHED"
+        },
+        "calls": [
+          "Network.streamResourceContent"
+        ],
+        "request_count": 1,
+        "answer_count": 1
+      }
+    }
+  ]
+}

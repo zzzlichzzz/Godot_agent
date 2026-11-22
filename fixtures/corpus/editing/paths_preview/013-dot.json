@@ -1,0 +1,14 @@
+{
+  "id": "013-dot",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://./assets/item.gd",
+    "new_path": "res://next/item.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "Некорректный путь: res://./assets/item.gd"
+}

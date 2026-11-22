@@ -1,0 +1,43 @@
+{
+  "id": "031-only_api",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://clean.gd",
+    "kinds": [
+      "api"
+    ]
+  },
+  "reference_result": {
+    "path": "res://clean.gd",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "contract_boundary": "new kinds filter; unavailable providers are never run",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.gd",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [
+        "api"
+      ],
+      "unchecked_reason": "ни одна проверка расширения .gd не выполнена (no_cache) — файл НЕ проверен",
+      "unavailable": [
+        {
+          "kind": "api_cache",
+          "reason": "no_cache"
+        }
+      ]
+    }
+  }
+}

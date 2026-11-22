@@ -1,0 +1,496 @@
+{
+  "id": "q5-reference-actual-prepare",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://src/item.gd",
+      "res://deep/item.gd"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "base.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+    "ext/ref.bin": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.cfg": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.GD": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.gdshader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.gdshaderinc": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.import": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.json": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.py": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.shader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.tres": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.tscn": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4",
+    "ext/ref.txt": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.uid": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "project.godot": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395",
+    "ref.gd": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460",
+    "src/item.gd": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+    "src/weapon.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+    "texture.tres": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+  },
+  "apply_argument_observations": [],
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://src/item.gd",
+    "new_path": "res://deep/item.gd",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://src/item.gd",
+        "dest": "res://deep/item.gd",
+        "absolute": "<PROJECT>\\src\\item.gd",
+        "dest_absolute": "<PROJECT>\\deep\\item.gd",
+        "before_hash": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+        "before_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgid2VhcG9uLmdkIikNY29uc3QgVT1sb2FkKCJ1aWQ6Ly9rZWVwIikK"
+        },
+        "after_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgicmVzOi8vc3JjL3dlYXBvbi5nZCIpDWNvbnN0IFU9bG9hZCgidWlkOi8va2VlcCIpCg=="
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://deep/item.gd (обновлено внутренних путей: 2)"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,2 +1,2 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "extends \"../base.gd\""
+            ],
+            [
+              "-",
+              2,
+              null,
+              "const W=preload(\"weapon.gd\")\rconst U=load(\"uid://keep\")"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "extends \"res://base.gd\""
+            ],
+            [
+              "+",
+              null,
+              2,
+              "const W=preload(\"res://src/weapon.gd\")\rconst U=load(\"uid://keep\")"
+            ]
+          ],
+          "added": 2,
+          "removed": 2,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://src/item.gd",
+          "dest": "res://deep/item.gd"
+        },
+        "occurrences": 2
+      },
+      {
+        "action": "patch_file",
+        "path": "res://project.godot",
+        "absolute": "<PROJECT>\\project.godot",
+        "before_hash": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395",
+        "before_bytes": {
+          "$bytes_base64": "W2F1dG9sb2FkXQ0KWD0iKnJlczovL3NyYy9pdGVtLmdkIgo="
+        },
+        "after_bytes": {
+          "$bytes_base64": "W2F1dG9sb2FkXQ0KWD0iKnJlczovL2RlZXAvaXRlbS5nZCIK"
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,2 +1,2 @@"
+            ],
+            [
+              " ",
+              1,
+              1,
+              "[autoload]"
+            ],
+            [
+              "-",
+              2,
+              null,
+              "X=\"*res://src/item.gd\""
+            ],
+            [
+              "+",
+              null,
+              2,
+              "X=\"*res://deep/item.gd\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://project.godot",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ref.gd",
+        "absolute": "<PROJECT>\\ref.gd",
+        "before_hash": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460",
+        "before_bytes": {
+          "$bytes_base64": "77u/Y29uc3QgQT1wcmVsb2FkKCJyZXM6Ly9zcmMvaXRlbS5nZCIpDQpjb25zdCBCPWxvYWQoInNyYy9pdGVtLmdkIikNIyBsb2FkKCJzcmMvaXRlbS5nZCIpCmNvbnN0IFQ9InNyYy9pdGVtLmdkIgpjb25zdCBVPSJ1aWQ6Ly9rZWVwIgo="
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/Y29uc3QgQT1wcmVsb2FkKCJyZXM6Ly9kZWVwL2l0ZW0uZ2QiKQ0KY29uc3QgQj1sb2FkKCJyZXM6Ly9kZWVwL2l0ZW0uZ2QiKQ0jIGxvYWQoInJlczovL2RlZXAvaXRlbS5nZCIpCmNvbnN0IFQ9InNyYy9pdGVtLmdkIgpjb25zdCBVPSJ1aWQ6Ly9rZWVwIgo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,4 +1,4 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "const A=preload(\"res://src/item.gd\")"
+            ],
+            [
+              "-",
+              2,
+              null,
+              "const B=load(\"src/item.gd\")\r# load(\"src/item.gd\")"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "const A=preload(\"res://deep/item.gd\")"
+            ],
+            [
+              "+",
+              null,
+              2,
+              "const B=load(\"res://deep/item.gd\")\r# load(\"res://deep/item.gd\")"
+            ],
+            [
+              " ",
+              3,
+              3,
+              "const T=\"src/item.gd\""
+            ],
+            [
+              " ",
+              4,
+              4,
+              "const U=\"uid://keep\""
+            ]
+          ],
+          "added": 2,
+          "removed": 2,
+          "truncated": false,
+          "path": "res://ref.gd",
+          "action": "patch_file"
+        },
+        "occurrences": 3
+      },
+      {
+        "action": "patch_file",
+        "path": "res://texture.tres",
+        "absolute": "<PROJECT>\\texture.tres",
+        "before_hash": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f",
+        "before_bytes": {
+          "$bytes_base64": "W2V4dF9yZXNvdXJjZSB0eXBlPSJUZXh0dXJlMkQiIHBhdGg9InJlczovL3NyYy9pdGVtLmdkIiBpZD0iMSJdCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "W2V4dF9yZXNvdXJjZSB0eXBlPSJUZXh0dXJlMkQiIHBhdGg9InJlczovL2RlZXAvaXRlbS5nZCIgaWQ9IjEiXQo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "[ext_resource type=\"Texture2D\" path=\"res://src/item.gd\" id=\"1\"]"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "[ext_resource type=\"Texture2D\" path=\"res://deep/item.gd\" id=\"1\"]"
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://texture.tres",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ext/ref.GD",
+        "absolute": "<PROJECT>\\ext\\ref.GD",
+        "before_hash": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "before_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vZGVlcC9pdGVtLmdkIgo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "path=\"res://src/item.gd\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "path=\"res://deep/item.gd\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://ext/ref.GD",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ext/ref.gdshader",
+        "absolute": "<PROJECT>\\ext\\ref.gdshader",
+        "before_hash": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "before_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vZGVlcC9pdGVtLmdkIgo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "path=\"res://src/item.gd\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "path=\"res://deep/item.gd\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://ext/ref.gdshader",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ext/ref.gdshaderinc",
+        "absolute": "<PROJECT>\\ext\\ref.gdshaderinc",
+        "before_hash": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "before_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vZGVlcC9pdGVtLmdkIgo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "path=\"res://src/item.gd\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "path=\"res://deep/item.gd\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://ext/ref.gdshaderinc",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ext/ref.tres",
+        "absolute": "<PROJECT>\\ext\\ref.tres",
+        "before_hash": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "before_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "cGF0aD0icmVzOi8vZGVlcC9pdGVtLmdkIgo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "path=\"res://src/item.gd\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "path=\"res://deep/item.gd\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://ext/ref.tres",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ext/ref.tscn",
+        "absolute": "<PROJECT>\\ext\\ref.tscn",
+        "before_hash": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4",
+        "before_bytes": {
+          "$bytes_base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiIGlkPSIxIl0K"
+        },
+        "after_bytes": {
+          "$bytes_base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vZGVlcC9pdGVtLmdkIiBpZD0iMSJdCg=="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,2 +1,2 @@"
+            ],
+            [
+              " ",
+              1,
+              1,
+              "[gd_scene format=3]"
+            ],
+            [
+              "-",
+              2,
+              null,
+              "[ext_resource type=\"Script\" path=\"res://src/item.gd\" id=\"1\"]"
+            ],
+            [
+              "+",
+              null,
+              2,
+              "[ext_resource type=\"Script\" path=\"res://deep/item.gd\" id=\"1\"]"
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://ext/ref.tscn",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      }
+    ],
+    "reference_count": 12,
+    "affected_paths": [
+      "res://deep/item.gd",
+      "res://project.godot",
+      "res://ref.gd",
+      "res://texture.tres",
+      "res://ext/ref.GD",
+      "res://ext/ref.gdshader",
+      "res://ext/ref.gdshaderinc",
+      "res://ext/ref.tres",
+      "res://ext/ref.tscn"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "base.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+    "ext/ref.bin": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.cfg": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.GD": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.gdshader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.gdshaderinc": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.import": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.json": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.py": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.shader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.tres": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.tscn": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4",
+    "ext/ref.txt": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "ext/ref.uid": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+    "project.godot": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395",
+    "ref.gd": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460",
+    "src/item.gd": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+    "src/weapon.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+    "texture.tres": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+  },
+  "observation": "sys.setprofile observes only actual apply argument; never replaces native call",
+  "byte_files_unchanged": true
+}

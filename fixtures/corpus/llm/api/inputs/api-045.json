@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "split_sse_lines",
+  "args": [
+    {
+      "base64": "ZGF0YTog0ZHQtgo="
+    }
+  ],
+  "kwargs": {},
+  "id": "api-045",
+  "bytes_argument": true
+}

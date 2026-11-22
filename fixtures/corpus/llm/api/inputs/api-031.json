@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_keys",
+  "function": "mask",
+  "args": [
+    "fixture-key-000000001"
+  ],
+  "kwargs": {},
+  "id": "api-031"
+}

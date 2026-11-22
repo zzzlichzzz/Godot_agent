@@ -1,0 +1,15 @@
+{
+  "_status": "skeleton",
+  "_note": "Шаблон сгенерированного артефакта (ADR-0006). Источник правды - ToolSpec в modules/<область>/<фича>/tools.py; этот файл только для клиентов и CI.",
+  "schema_version": 1,
+  "module_id": "verification.check",
+  "capability_id": "verification.check",
+  "tool_name": "check",
+  "description": "Когда и зачем вызывать этот инструмент.",
+  "input_schema": {},
+  "result_schema": {},
+  "effects": ["read"],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": ["not_found", "unavailable", "invalid_input"]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "036-invalid_utf8",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "invalid_utf8",
+  "args": {
+    "path": "res://scripts/invalid_utf8.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "damaged_encoding",
+          "line": null,
+          "message": "в коде символ повреждённой кодировки (\\ufffd) — текст побился"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 25
+    }
+  }
+}

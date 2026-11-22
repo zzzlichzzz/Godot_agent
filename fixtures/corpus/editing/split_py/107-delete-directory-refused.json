@@ -1,0 +1,8 @@
+{
+  "id": "107-delete-directory-refused",
+  "tool": "write_apply",
+  "fixture": "corpus/editing/split_py/plan_occupied-directory",
+  "step": {"op": "delete", "target": "res://part.py", "payload": {}, "expected_hash": "3be3e5e4d553a053fda59f7ed1b3c0e2ab49bfd3216a23c2097822ffb6dc46ce"},
+  "native_capture": null,
+  "expect": {"ok": false, "kind": "invalid_input", "tree_unchanged": true}
+}

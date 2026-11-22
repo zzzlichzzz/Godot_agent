@@ -1,0 +1,32 @@
+{
+  "id": "036-zero",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/simple.tscn",
+    "max_chars": 0
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "\n… (сводка обрезана — сцена очень большая)",
+      "truncated": true,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "runtime-qwen-legacy-no-id",
+  "op": "b3",
+  "payload": {
+    "id": "qwen-legacy-no-id",
+    "kind": "decode",
+    "native_case_source": "test_qwen_dual_response.py:51-118; new distinct branch text/probes",
+    "monitor": "qwen",
+    "body_b64": "ZGF0YTogeyJjaG9pY2VzIjpbeyJkZWx0YSI6eyJwaGFzZSI6ImFuc3dlciIsImNvbnRlbnQiOiLQodGC0LDRgNGL0LkiLCJzdGF0dXMiOiJ0eXBpbmcifX1dfQoKZGF0YTogeyJjaG9pY2VzIjpbeyJkZWx0YSI6eyJwaGFzZSI6ImFuc3dlciIsImNvbnRlbnQiOiIg0YTQvtGA0LzQsNGCIiwic3RhdHVzIjoiZmluaXNoZWQifX1dfQoK",
+    "step": 7
+  }
+}

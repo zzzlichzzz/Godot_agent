@@ -1,0 +1,12 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "sleep_seconds",
+  "args": [
+    -1
+  ],
+  "kwargs": {
+    "kind": "outage"
+  },
+  "id": "api-168"
+}

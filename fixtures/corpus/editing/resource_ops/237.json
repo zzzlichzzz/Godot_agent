@@ -1,0 +1,54 @@
+{
+  "id": "c24-replace_reference",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "replace_reference",
+        "target": [],
+        "old": "res://old.tres",
+        "new": "res://new.tres",
+        "expected_count": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IlRoZW1lIiBsb2FkX3N0ZXBzPTIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTIiXQ0KDQo7IGtlZXAgc3BhY2luZyBhbmQgY29tbWVudCBpbiBwcm9wb3NlZCB0ZXh0dWFsIHZhcmlhbnQNCltleHRfcmVzb3VyY2UgdHlwZT0iVGV4dHVyZTJEIiBwYXRoPSJyZXM6Ly9vbGQudHJlcyIgaWQ9Im9sZF90ZXh0dXJlIl0NCg0KW3Jlc291cmNlXQ0KZGVmYXVsdF9mb250X3NpemUgPSAxNg0KQnV0dG9uL2ljb25zL3Byb2JlX2ljb24gPSBFeHRSZXNvdXJjZSgib2xkX3RleHR1cmUiKQ0K"
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IlRoZW1lIiBsb2FkX3N0ZXBzPTMgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTIiXQ0KDQo7IGtlZXAgc3BhY2luZyBhbmQgY29tbWVudCBpbiBwcm9wb3NlZCB0ZXh0dWFsIHZhcmlhbnQNCltleHRfcmVzb3VyY2UgdHlwZT0iVGV4dHVyZTJEIiBwYXRoPSJyZXM6Ly9vbGQudHJlcyIgaWQ9Im9sZF90ZXh0dXJlIl0NCg0KW2V4dF9yZXNvdXJjZSB0eXBlPSJUZXh0dXJlMkQiIHBhdGg9InJlczovL25ldy50cmVzIiBpZD0iYWdlbnRfMSJdDQoNCltyZXNvdXJjZV0NCmRlZmF1bHRfZm9udF9zaXplID0gMTYNCkJ1dHRvbi9pY29ucy9wcm9iZV9pY29uID0gRXh0UmVzb3VyY2UoImFnZW50XzEiKQ0K",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_execute": "replace_reference-native.output.json",
+    "generated_load": "replace_reference-generated.output.json",
+    "projection_sha256": "b51d42541fc4f532dc47602d4ee889b5b138d40691e0eac13863e552064802ed",
+    "semantic_hash": "32e9c1850c9b4fa3090c124b85899e0e89c743a9f2338f6ce557767041ae0eb4",
+    "proof_sha256": "9885f724f3b4458b25ba7dc9f872cf785c585ed9871e23ce591f5f7fc4e97d5f",
+    "decision": "D18"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "7383ea5b4be2834fb82b22c1095cf91ca21ac675153c594953ce672a4b907d4f",
+      "after_hash": "80b43f766b8cbadedb9c2a1edf698cc45390af2654a37d3b2cdb543945c69ac7",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

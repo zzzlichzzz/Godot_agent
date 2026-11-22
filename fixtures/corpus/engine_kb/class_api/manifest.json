@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-31",
+  "module": "engine_kb.class_api",
+  "reference_commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+  "reference": {
+    "file": "godot_agent/python/godot_tools/gd_api_cache.py",
+    "function": "has_cache/get_cached_version/get_class/resolve_chain/collect_members/collect_signatures",
+    "lines": "115-216",
+    "sha256": "6e6f5e0c83de40d2469e167554cfa1084952f0812175bc4f67239a259650b65a",
+    "bytes": 11545
+  },
+  "capture": "Actual-old library, root/classes reset before EACH case; isolated disposable copies, addon_dir=None. Legacy mkdir effects observed, never published.",
+  "capture_script": {
+    "sha256": "8bf9424d117a760148e96de1c783f7526e1f03b99f4ad3f88bca48c41b9417d6",
+    "bytes": 11145
+  },
+  "fixture_base": "fixtures/projects",
+  "cases": {
+    "001-full-chain.json": {
+      "sha256": "b16f46e2897a149696aa9e34cf539b200aac2fa8b6833b705328adf1f8787154",
+      "bytes": 2997
+    },
+    "002-parent-chain.json": {
+      "sha256": "206676ae873b83a0f9a0b62942a842020eb3bfc29484fbe94cf67895ed1ee37f",
+      "bytes": 2418
+    },
+    "003-root-null.json": {
+      "sha256": "b2d3964ce8e3c4773ae359da32f1d727fc9199d84bd7a0b0597212fd826c4f0b",
+      "bytes": 1118
+    },
+    "004-nearby-override.json": {
+      "sha256": "84778c028d8744e491ec6c897697792c02a977c2f4e5f114ac51f7b784ab5889",
+      "bytes": 3002
+    },
+    "005-old-no-signatures.json": {
+      "sha256": "189666e1025f73a227637a01617299437a87795d2c0f141f1b0ec88c4f14287f",
+      "bytes": 1057
+    },
+    "006-malformed-arity.json": {
+      "sha256": "acff68c877d874f9316f603139d6ae8fdf0e0e5e6a6bdf5215cfcf12bb390edc",
+      "bytes": 2879
+    },
+    "007-cycle-a.json": {
+      "sha256": "36b7eb91dae5e93b734c103c4d076080311b8323cc3162d08e435bb0c40b9092",
+      "bytes": 1227
+    },
+    "008-cycle-b.json": {
+      "sha256": "e8be0dd026e7edf3ef3a43163616805b48741c94182a48542b6adbb8dc46fb0d",
+      "bytes": 1227
+    },
+    "009-missing-parent.json": {
+      "sha256": "38146bd4c423135f4f260a85064018f68d45cac9f0a083068e173f5a38e99529",
+      "bytes": 813
+    },
+    "010-missing-class.json": {
+      "sha256": "ce2f6646976262c1e7944900d26f378260a43e5f66ad450f281d71fb5188c5c8",
+      "bytes": 741
+    },
+    "011-falsy-record.json": {
+      "sha256": "80fa07c23eb3bb0fe51f7c6ed9527f5f1a2fdcaedbd762095301fc8720a3b0ed",
+      "bytes": 725
+    },
+    "012-all-falsy-records.json": {
+      "sha256": "96839cf168ce4a43fd9c3fae8f9389a8c0b6c859165d95478e45a6c9054441bb",
+      "bytes": 734
+    },
+    "013-no-cache.json": {
+      "sha256": "e41b9b35edf6c29443522ce7c1a57c1483bed5ae499df42c59e7b0dd256ffb20",
+      "bytes": 840
+    },
+    "014-empty-cache.json": {
+      "sha256": "d429ec6b911c2b0d1bcb970d10c8c0ae1dba8c4db43d4de8e611824ae14dc078",
+      "bytes": 816
+    },
+    "015-broken-cache.json": {
+      "sha256": "698a78d2b359b151b5be63cf3d09c651ae1143dad15ba75fcff0840c141ada76",
+      "bytes": 818
+    },
+    "016-list-root-cache.json": {
+      "sha256": "fd163007c82a2d48a52e6f59670324a8ec211b6f96fce3dfdf6d275120bdc982",
+      "bytes": 824
+    },
+    "017-strip-name.json": {
+      "sha256": "7e6426180930530c1317bad93fba71aaf32ddcf18dffc9a6e849a1d28c9b0fde",
+      "bytes": 3002
+    },
+    "018-missing-argument.json": {
+      "sha256": "2b33e02231757c46cf49d5ee09b6b395ad43868e953cc406fd26eb552ed8be00",
+      "bytes": 1817
+    },
+    "019-empty-name.json": {
+      "sha256": "e08b383cab0296a274023e557c65eae8edd1d49fcbe99c4a8e877f2b8527f716",
+      "bytes": 638
+    },
+    "020-whitespace-name.json": {
+      "sha256": "90f875abe87e37e8ede60aef448fd9d4c2fde6402d2b3a11f716b756fc2fe438",
+      "bytes": 650
+    },
+    "021-nonstring-name.json": {
+      "sha256": "598f8fcd6fc7de33c91ea010aea547a9d0d1709385db5d4e0440df56a44f6bb3",
+      "bytes": 1839
+    },
+    "022-overlong-name.json": {
+      "sha256": "0b16d569962a29f67391aaf1294b6cc8b21398d391822701d206620b14fa9c55",
+      "bytes": 883
+    },
+    "023-extra-argument.json": {
+      "sha256": "80986370b69a4253f781e0288be9628b9a5ffa46140161bd211bf8d2d72228de",
+      "bytes": 1874
+    },
+    "024-depth-limit.json": {
+      "sha256": "7a012f5b66f017d36c37eb76a09061311dba7f1bdd182ac641df4b1548c38ffa",
+      "bytes": 6941
+    },
+    "025-signature-filter-and-empty.json": {
+      "sha256": "134645fc47290b8ba72419ec70ffa74fcefae864cbad8233d7b91ba5f4eb271b",
+      "bytes": 1837
+    },
+    "026-version-missing.json": {
+      "sha256": "10c8b48d2cfeeb2f49c2f841b60a8fa07da6af489221882a9848610dda35e8dc",
+      "bytes": 799
+    }
+  },
+  "inputs": {
+    "corpus/engine_kb/class_api/all-falsy/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/bad-arity/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/broken/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/chain/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/cycle/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/depth/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/empty/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/falsy/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/list-root/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/missing-parent/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/no-cache/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/no-version/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/old/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/signatures/project.godot": {
+      "sha256": "18c6e739e430d6b9efef2f402f458b33a830da25bf42e2f34b24ee634a4ea80a",
+      "bytes": 60
+    },
+    "corpus/engine_kb/class_api/signatures/.agent_history/godot_api_cache.json": {
+      "sha256": "b2f0e2958936cecc3ff3b09f5ebf451db78c40e57f21c5b9bb818e500969ff8d",
+      "bytes": 579
+    },
+    "corpus/engine_kb/class_api/old/.agent_history/godot_api_cache.json": {
+      "sha256": "285af9525e32cd05d2bf60e36aaf7bee977322df74c9dca882d0cfe5beeaf44e",
+      "bytes": 171
+    },
+    "corpus/engine_kb/class_api/no-version/.agent_history/godot_api_cache.json": {
+      "sha256": "5107f380681acf40e7d8e34d17fb76696b233c0ba800a1d1f5ea49ed0de8a841",
+      "bytes": 67
+    },
+    "corpus/engine_kb/class_api/missing-parent/.agent_history/godot_api_cache.json": {
+      "sha256": "aca1dd56280f79ba3f68a558f2a483654f1d5d25e72fc513e7c7def05f75dc72",
+      "bytes": 98
+    },
+    "corpus/engine_kb/class_api/list-root/.agent_history/godot_api_cache.json": {
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "bytes": 3
+    },
+    "corpus/engine_kb/class_api/falsy/.agent_history/godot_api_cache.json": {
+      "sha256": "03da2f8cce712cb3faa8fd860a637185e74281587780c19f97f5358b8f060bc6",
+      "bytes": 109
+    },
+    "corpus/engine_kb/class_api/empty/.agent_history/godot_api_cache.json": {
+      "sha256": "bbe6146daeca123c28d7ba5683f3a9b18a68feddbcf19237d55626f24782c82d",
+      "bytes": 46
+    },
+    "corpus/engine_kb/class_api/depth/.agent_history/godot_api_cache.json": {
+      "sha256": "9b3903a9e20759ccd283da12dd3d675d9ac14aef804f14131f7c2516e42f6236",
+      "bytes": 4387
+    },
+    "corpus/engine_kb/class_api/cycle/.agent_history/godot_api_cache.json": {
+      "sha256": "4a68154c7d5cd24bc639ddb69a1903af8219076980ce668af28d9b69d619f42d",
+      "bytes": 284
+    },
+    "corpus/engine_kb/class_api/chain/.agent_history/godot_api_cache.json": {
+      "sha256": "d66d4e062bed4fa81afcccfe9023fead4a64b2291420d22b377a4935b9be20b0",
+      "bytes": 1404
+    },
+    "corpus/engine_kb/class_api/broken/.agent_history/godot_api_cache.json": {
+      "sha256": "be302461cda285db3ed2d45fb767b23e08ca8808b35a638009937df22b332d73",
+      "bytes": 7
+    },
+    "corpus/engine_kb/class_api/bad-arity/.agent_history/godot_api_cache.json": {
+      "sha256": "e6f6c33772f9c4f4015b89869bcf3cdcb293d6f51473ff0216edab5ca9a35678",
+      "bytes": 565
+    },
+    "corpus/engine_kb/class_api/all-falsy/.agent_history/godot_api_cache.json": {
+      "sha256": "317e17219698203d6761324980e76f65895335ab9124a2d5967e1bacae99371f",
+      "bytes": 64
+    }
+  }
+}

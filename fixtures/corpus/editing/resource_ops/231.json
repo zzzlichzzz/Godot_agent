@@ -1,0 +1,1582 @@
+{
+  "id": "limits-frames257",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "a",
+        "fps": 1,
+        "loop": true,
+        "frames": [
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          },
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            }
+          }
+        ]
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "frames должен содержать от 1 до 256 кадров",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "a549b2f29630ea9857be589e8a6d226bea18831c86d20f050cbd9cbcf8c560c0"
+}

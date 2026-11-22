@@ -1,0 +1,15 @@
+{
+  "id": "016-addon-hidden",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Файл в addons/ скрыт политикой: denied",
+  "args": {
+    "kind": "function",
+    "old_name": "plugin_ready",
+    "declaration": "res://addons/other/plugin.gd:4"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

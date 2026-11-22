@@ -1,0 +1,58 @@
+{
+  "id": "032-eight_exact",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "eight_exact",
+  "args": {
+    "path": "res://scripts/eight_exact.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "extra_closing_bracket",
+          "line": 1,
+          "message": "строка 1: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 2,
+          "message": "строка 2: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 3,
+          "message": "строка 3: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 4,
+          "message": "строка 4: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 5,
+          "message": "строка 5: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 6,
+          "message": "строка 6: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 7,
+          "message": "строка 7: лишняя закрывающая скобка «]»"
+        },
+        {
+          "code": "extra_closing_bracket",
+          "line": 8,
+          "message": "строка 8: лишняя закрывающая скобка «]»"
+        }
+      ],
+      "truncated": true,
+      "checked_bytes": 16
+    }
+  }
+}

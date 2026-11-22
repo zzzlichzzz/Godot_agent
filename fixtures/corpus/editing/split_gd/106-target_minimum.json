@@ -1,0 +1,2470 @@
+{
+  "id": "106-target_minimum",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/target_minimum",
+  "args": {
+    "path": "res://donor.gd",
+    "target_lines": 100
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": {
+    "schema": 1,
+    "kind": "split_gd",
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\106-target_minimum",
+    "project_root": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\106-target_minimum",
+    "donor": "donor.gd",
+    "donor_abs": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\106-target_minimum\\donor.gd",
+    "donor_sha256": "6dc036e54ab438197bb76310052fb59610590f630c47968cb3240b3540eb0807",
+    "newline": "\n",
+    "target_lines": 100,
+    "groups": [
+      {
+        "module": "donor_part1",
+        "funcs": [
+          "alpha"
+        ]
+      },
+      {
+        "module": "donor_part2",
+        "funcs": [
+          "beta"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "rel": "donor_part1.gd",
+        "const": "DonorPart1",
+        "funcs": [
+          "alpha"
+        ],
+        "content": "@tool\nextends RefCounted\n\n# Модуль donor_part1: методы вынесены «пилой» split_gd из donor.gd.\n# Реализация живёт ЗДЕСЬ; в доноре на месте метода — тонкая обёртка,\n# поэтому connect()/call() по исходным именам продолжают работать.\n# Тело работает через параметр panel: к членам донора — panel.<член>,\n# к другим методам донора — panel.<метод> (через его обёртку).\n\nstatic func alpha(panel):\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n",
+        "lines": 81
+      },
+      {
+        "rel": "donor_part2.gd",
+        "const": "DonorPart2",
+        "funcs": [
+          "beta"
+        ],
+        "content": "@tool\nextends RefCounted\n\n# Модуль donor_part2: методы вынесены «пилой» split_gd из donor.gd.\n# Реализация живёт ЗДЕСЬ; в доноре на месте метода — тонкая обёртка,\n# поэтому connect()/call() по исходным именам продолжают работать.\n# Тело работает через параметр panel: к членам донора — panel.<член>,\n# к другим методам донора — panel.<метод> (через его обёртку).\n\nstatic func beta(panel):\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n\tpass\n",
+        "lines": 81
+      }
+    ],
+    "donor_content": "extends Node\n\n# --- части (вынесены «пилой» split_gd) ---\nconst DonorPart1 = preload(\"donor_part1.gd\")\nconst DonorPart2 = preload(\"donor_part2.gd\")\n# split_gd: тело — donor_part1.gd\nfunc alpha():\n\tDonorPart1.alpha(self)\n\n# split_gd: тело — donor_part2.gd\nfunc beta():\n\tDonorPart2.beta(self)\n",
+    "wrappers": [
+      {
+        "name": "alpha",
+        "module": "donor_part1",
+        "await": false
+      },
+      {
+        "name": "beta",
+        "module": "donor_part2",
+        "await": false
+      }
+    ],
+    "warnings": [],
+    "stats": {
+      "moved": 2,
+      "modules": 2,
+      "donor_before": 144,
+      "donor_after": 13
+    }
+  },
+  "reference_public": {
+    "schema": 1,
+    "kind": "split_gd",
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\106-target_minimum",
+    "project_root": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\106-target_minimum",
+    "donor": "donor.gd",
+    "donor_abs": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\106-target_minimum\\donor.gd",
+    "donor_sha256": "6dc036e54ab438197bb76310052fb59610590f630c47968cb3240b3540eb0807",
+    "newline": "\n",
+    "target_lines": 100,
+    "groups": [
+      {
+        "module": "donor_part1",
+        "funcs": [
+          "alpha"
+        ]
+      },
+      {
+        "module": "donor_part2",
+        "funcs": [
+          "beta"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "rel": "donor_part1.gd",
+        "const": "DonorPart1",
+        "funcs": [
+          "alpha"
+        ],
+        "lines": 81
+      },
+      {
+        "rel": "donor_part2.gd",
+        "const": "DonorPart2",
+        "funcs": [
+          "beta"
+        ],
+        "lines": 81
+      }
+    ],
+    "donor_content": null,
+    "wrappers": [
+      {
+        "name": "alpha",
+        "module": "donor_part1",
+        "await": false
+      },
+      {
+        "name": "beta",
+        "module": "donor_part2",
+        "await": false
+      }
+    ],
+    "warnings": [],
+    "stats": {
+      "moved": 2,
+      "modules": 2,
+      "donor_before": 144,
+      "donor_after": 13
+    }
+  },
+  "reference_error": null,
+  "contract_refusal": null,
+  "expect": {
+    "ok": true,
+    "result": {
+      "schema": 1,
+      "kind": "split_gd",
+      "donor": "donor.gd",
+      "donor_sha256": "6dc036e54ab438197bb76310052fb59610590f630c47968cb3240b3540eb0807",
+      "newline": "\n",
+      "target_lines": 100,
+      "groups": [
+        {
+          "module": "donor_part1",
+          "funcs": [
+            "alpha"
+          ]
+        },
+        {
+          "module": "donor_part2",
+          "funcs": [
+            "beta"
+          ]
+        }
+      ],
+      "modules": [
+        {
+          "rel": "donor_part1.gd",
+          "const": "DonorPart1",
+          "funcs": [
+            "alpha"
+          ],
+          "lines": 81
+        },
+        {
+          "rel": "donor_part2.gd",
+          "const": "DonorPart2",
+          "funcs": [
+            "beta"
+          ],
+          "lines": 81
+        }
+      ],
+      "wrappers": [
+        {
+          "name": "alpha",
+          "module": "donor_part1",
+          "await": false
+        },
+        {
+          "name": "beta",
+          "module": "donor_part2",
+          "await": false
+        }
+      ],
+      "warnings": [],
+      "stats": {
+        "moved": 2,
+        "modules": 2,
+        "donor_before": 144,
+        "donor_after": 13
+      }
+    }
+  },
+  "reference_inventory": {
+    "extends": "Node",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [],
+    "vars": [],
+    "funcs": [
+      {
+        "name": "alpha",
+        "sig_start": 2,
+        "start": 2,
+        "block_start": 2,
+        "sig_lines": [
+          "func alpha():"
+        ],
+        "sig_text": "func alpha():",
+        "body_start": 3,
+        "end": 72,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      },
+      {
+        "name": "beta",
+        "sig_start": 74,
+        "start": 74,
+        "block_start": 74,
+        "sig_lines": [
+          "func beta():"
+        ],
+        "sig_text": "func beta():",
+        "body_start": 75,
+        "end": 144,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 144
+  },
+  "reference_tokens": [
+    {
+      "kind": "identifier",
+      "value": "extends",
+      "start": 0,
+      "end": 7,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "Node",
+      "start": 8,
+      "end": 12,
+      "line": 1
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 12,
+      "end": 13,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 13,
+      "end": 17,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "alpha",
+      "start": 18,
+      "end": 23,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 23,
+      "end": 24,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 24,
+      "end": 25,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 25,
+      "end": 26,
+      "line": 2
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 26,
+      "end": 27,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 28,
+      "end": 32,
+      "line": 3
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 32,
+      "end": 33,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 34,
+      "end": 38,
+      "line": 4
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 38,
+      "end": 39,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 40,
+      "end": 44,
+      "line": 5
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 44,
+      "end": 45,
+      "line": 5
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 46,
+      "end": 50,
+      "line": 6
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 50,
+      "end": 51,
+      "line": 6
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 52,
+      "end": 56,
+      "line": 7
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 56,
+      "end": 57,
+      "line": 7
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 58,
+      "end": 62,
+      "line": 8
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 62,
+      "end": 63,
+      "line": 8
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 64,
+      "end": 68,
+      "line": 9
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 68,
+      "end": 69,
+      "line": 9
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 70,
+      "end": 74,
+      "line": 10
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 74,
+      "end": 75,
+      "line": 10
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 76,
+      "end": 80,
+      "line": 11
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 80,
+      "end": 81,
+      "line": 11
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 82,
+      "end": 86,
+      "line": 12
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 86,
+      "end": 87,
+      "line": 12
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 88,
+      "end": 92,
+      "line": 13
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 92,
+      "end": 93,
+      "line": 13
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 94,
+      "end": 98,
+      "line": 14
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 98,
+      "end": 99,
+      "line": 14
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 100,
+      "end": 104,
+      "line": 15
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 104,
+      "end": 105,
+      "line": 15
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 106,
+      "end": 110,
+      "line": 16
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 110,
+      "end": 111,
+      "line": 16
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 112,
+      "end": 116,
+      "line": 17
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 116,
+      "end": 117,
+      "line": 17
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 118,
+      "end": 122,
+      "line": 18
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 122,
+      "end": 123,
+      "line": 18
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 124,
+      "end": 128,
+      "line": 19
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 128,
+      "end": 129,
+      "line": 19
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 130,
+      "end": 134,
+      "line": 20
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 134,
+      "end": 135,
+      "line": 20
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 136,
+      "end": 140,
+      "line": 21
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 140,
+      "end": 141,
+      "line": 21
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 142,
+      "end": 146,
+      "line": 22
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 146,
+      "end": 147,
+      "line": 22
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 148,
+      "end": 152,
+      "line": 23
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 152,
+      "end": 153,
+      "line": 23
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 154,
+      "end": 158,
+      "line": 24
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 158,
+      "end": 159,
+      "line": 24
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 160,
+      "end": 164,
+      "line": 25
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 164,
+      "end": 165,
+      "line": 25
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 166,
+      "end": 170,
+      "line": 26
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 170,
+      "end": 171,
+      "line": 26
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 172,
+      "end": 176,
+      "line": 27
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 176,
+      "end": 177,
+      "line": 27
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 178,
+      "end": 182,
+      "line": 28
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 182,
+      "end": 183,
+      "line": 28
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 184,
+      "end": 188,
+      "line": 29
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 188,
+      "end": 189,
+      "line": 29
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 190,
+      "end": 194,
+      "line": 30
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 194,
+      "end": 195,
+      "line": 30
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 196,
+      "end": 200,
+      "line": 31
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 200,
+      "end": 201,
+      "line": 31
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 202,
+      "end": 206,
+      "line": 32
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 206,
+      "end": 207,
+      "line": 32
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 208,
+      "end": 212,
+      "line": 33
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 212,
+      "end": 213,
+      "line": 33
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 214,
+      "end": 218,
+      "line": 34
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 218,
+      "end": 219,
+      "line": 34
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 220,
+      "end": 224,
+      "line": 35
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 224,
+      "end": 225,
+      "line": 35
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 226,
+      "end": 230,
+      "line": 36
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 230,
+      "end": 231,
+      "line": 36
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 232,
+      "end": 236,
+      "line": 37
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 236,
+      "end": 237,
+      "line": 37
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 238,
+      "end": 242,
+      "line": 38
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 242,
+      "end": 243,
+      "line": 38
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 244,
+      "end": 248,
+      "line": 39
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 248,
+      "end": 249,
+      "line": 39
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 250,
+      "end": 254,
+      "line": 40
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 254,
+      "end": 255,
+      "line": 40
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 256,
+      "end": 260,
+      "line": 41
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 260,
+      "end": 261,
+      "line": 41
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 262,
+      "end": 266,
+      "line": 42
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 266,
+      "end": 267,
+      "line": 42
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 268,
+      "end": 272,
+      "line": 43
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 272,
+      "end": 273,
+      "line": 43
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 274,
+      "end": 278,
+      "line": 44
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 278,
+      "end": 279,
+      "line": 44
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 280,
+      "end": 284,
+      "line": 45
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 284,
+      "end": 285,
+      "line": 45
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 286,
+      "end": 290,
+      "line": 46
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 290,
+      "end": 291,
+      "line": 46
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 292,
+      "end": 296,
+      "line": 47
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 296,
+      "end": 297,
+      "line": 47
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 298,
+      "end": 302,
+      "line": 48
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 302,
+      "end": 303,
+      "line": 48
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 304,
+      "end": 308,
+      "line": 49
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 308,
+      "end": 309,
+      "line": 49
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 310,
+      "end": 314,
+      "line": 50
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 314,
+      "end": 315,
+      "line": 50
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 316,
+      "end": 320,
+      "line": 51
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 320,
+      "end": 321,
+      "line": 51
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 322,
+      "end": 326,
+      "line": 52
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 326,
+      "end": 327,
+      "line": 52
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 328,
+      "end": 332,
+      "line": 53
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 332,
+      "end": 333,
+      "line": 53
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 334,
+      "end": 338,
+      "line": 54
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 338,
+      "end": 339,
+      "line": 54
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 340,
+      "end": 344,
+      "line": 55
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 344,
+      "end": 345,
+      "line": 55
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 346,
+      "end": 350,
+      "line": 56
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 350,
+      "end": 351,
+      "line": 56
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 352,
+      "end": 356,
+      "line": 57
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 356,
+      "end": 357,
+      "line": 57
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 358,
+      "end": 362,
+      "line": 58
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 362,
+      "end": 363,
+      "line": 58
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 364,
+      "end": 368,
+      "line": 59
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 368,
+      "end": 369,
+      "line": 59
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 370,
+      "end": 374,
+      "line": 60
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 374,
+      "end": 375,
+      "line": 60
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 376,
+      "end": 380,
+      "line": 61
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 380,
+      "end": 381,
+      "line": 61
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 382,
+      "end": 386,
+      "line": 62
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 386,
+      "end": 387,
+      "line": 62
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 388,
+      "end": 392,
+      "line": 63
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 392,
+      "end": 393,
+      "line": 63
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 394,
+      "end": 398,
+      "line": 64
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 398,
+      "end": 399,
+      "line": 64
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 400,
+      "end": 404,
+      "line": 65
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 404,
+      "end": 405,
+      "line": 65
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 406,
+      "end": 410,
+      "line": 66
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 410,
+      "end": 411,
+      "line": 66
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 412,
+      "end": 416,
+      "line": 67
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 416,
+      "end": 417,
+      "line": 67
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 418,
+      "end": 422,
+      "line": 68
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 422,
+      "end": 423,
+      "line": 68
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 424,
+      "end": 428,
+      "line": 69
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 428,
+      "end": 429,
+      "line": 69
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 430,
+      "end": 434,
+      "line": 70
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 434,
+      "end": 435,
+      "line": 70
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 436,
+      "end": 440,
+      "line": 71
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 440,
+      "end": 441,
+      "line": 71
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 442,
+      "end": 446,
+      "line": 72
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 446,
+      "end": 447,
+      "line": 72
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 447,
+      "end": 448,
+      "line": 73
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 448,
+      "end": 452,
+      "line": 74
+    },
+    {
+      "kind": "identifier",
+      "value": "beta",
+      "start": 453,
+      "end": 457,
+      "line": 74
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 457,
+      "end": 458,
+      "line": 74
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 458,
+      "end": 459,
+      "line": 74
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 459,
+      "end": 460,
+      "line": 74
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 460,
+      "end": 461,
+      "line": 74
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 462,
+      "end": 466,
+      "line": 75
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 466,
+      "end": 467,
+      "line": 75
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 468,
+      "end": 472,
+      "line": 76
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 472,
+      "end": 473,
+      "line": 76
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 474,
+      "end": 478,
+      "line": 77
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 478,
+      "end": 479,
+      "line": 77
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 480,
+      "end": 484,
+      "line": 78
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 484,
+      "end": 485,
+      "line": 78
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 486,
+      "end": 490,
+      "line": 79
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 490,
+      "end": 491,
+      "line": 79
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 492,
+      "end": 496,
+      "line": 80
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 496,
+      "end": 497,
+      "line": 80
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 498,
+      "end": 502,
+      "line": 81
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 502,
+      "end": 503,
+      "line": 81
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 504,
+      "end": 508,
+      "line": 82
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 508,
+      "end": 509,
+      "line": 82
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 510,
+      "end": 514,
+      "line": 83
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 514,
+      "end": 515,
+      "line": 83
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 516,
+      "end": 520,
+      "line": 84
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 520,
+      "end": 521,
+      "line": 84
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 522,
+      "end": 526,
+      "line": 85
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 526,
+      "end": 527,
+      "line": 85
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 528,
+      "end": 532,
+      "line": 86
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 532,
+      "end": 533,
+      "line": 86
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 534,
+      "end": 538,
+      "line": 87
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 538,
+      "end": 539,
+      "line": 87
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 540,
+      "end": 544,
+      "line": 88
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 544,
+      "end": 545,
+      "line": 88
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 546,
+      "end": 550,
+      "line": 89
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 550,
+      "end": 551,
+      "line": 89
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 552,
+      "end": 556,
+      "line": 90
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 556,
+      "end": 557,
+      "line": 90
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 558,
+      "end": 562,
+      "line": 91
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 562,
+      "end": 563,
+      "line": 91
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 564,
+      "end": 568,
+      "line": 92
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 568,
+      "end": 569,
+      "line": 92
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 570,
+      "end": 574,
+      "line": 93
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 574,
+      "end": 575,
+      "line": 93
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 576,
+      "end": 580,
+      "line": 94
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 580,
+      "end": 581,
+      "line": 94
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 582,
+      "end": 586,
+      "line": 95
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 586,
+      "end": 587,
+      "line": 95
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 588,
+      "end": 592,
+      "line": 96
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 592,
+      "end": 593,
+      "line": 96
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 594,
+      "end": 598,
+      "line": 97
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 598,
+      "end": 599,
+      "line": 97
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 600,
+      "end": 604,
+      "line": 98
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 604,
+      "end": 605,
+      "line": 98
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 606,
+      "end": 610,
+      "line": 99
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 610,
+      "end": 611,
+      "line": 99
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 612,
+      "end": 616,
+      "line": 100
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 616,
+      "end": 617,
+      "line": 100
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 618,
+      "end": 622,
+      "line": 101
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 622,
+      "end": 623,
+      "line": 101
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 624,
+      "end": 628,
+      "line": 102
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 628,
+      "end": 629,
+      "line": 102
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 630,
+      "end": 634,
+      "line": 103
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 634,
+      "end": 635,
+      "line": 103
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 636,
+      "end": 640,
+      "line": 104
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 640,
+      "end": 641,
+      "line": 104
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 642,
+      "end": 646,
+      "line": 105
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 646,
+      "end": 647,
+      "line": 105
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 648,
+      "end": 652,
+      "line": 106
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 652,
+      "end": 653,
+      "line": 106
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 654,
+      "end": 658,
+      "line": 107
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 658,
+      "end": 659,
+      "line": 107
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 660,
+      "end": 664,
+      "line": 108
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 664,
+      "end": 665,
+      "line": 108
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 666,
+      "end": 670,
+      "line": 109
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 670,
+      "end": 671,
+      "line": 109
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 672,
+      "end": 676,
+      "line": 110
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 676,
+      "end": 677,
+      "line": 110
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 678,
+      "end": 682,
+      "line": 111
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 682,
+      "end": 683,
+      "line": 111
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 684,
+      "end": 688,
+      "line": 112
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 688,
+      "end": 689,
+      "line": 112
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 690,
+      "end": 694,
+      "line": 113
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 694,
+      "end": 695,
+      "line": 113
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 696,
+      "end": 700,
+      "line": 114
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 700,
+      "end": 701,
+      "line": 114
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 702,
+      "end": 706,
+      "line": 115
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 706,
+      "end": 707,
+      "line": 115
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 708,
+      "end": 712,
+      "line": 116
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 712,
+      "end": 713,
+      "line": 116
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 714,
+      "end": 718,
+      "line": 117
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 718,
+      "end": 719,
+      "line": 117
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 720,
+      "end": 724,
+      "line": 118
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 724,
+      "end": 725,
+      "line": 118
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 726,
+      "end": 730,
+      "line": 119
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 730,
+      "end": 731,
+      "line": 119
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 732,
+      "end": 736,
+      "line": 120
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 736,
+      "end": 737,
+      "line": 120
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 738,
+      "end": 742,
+      "line": 121
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 742,
+      "end": 743,
+      "line": 121
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 744,
+      "end": 748,
+      "line": 122
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 748,
+      "end": 749,
+      "line": 122
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 750,
+      "end": 754,
+      "line": 123
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 754,
+      "end": 755,
+      "line": 123
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 756,
+      "end": 760,
+      "line": 124
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 760,
+      "end": 761,
+      "line": 124
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 762,
+      "end": 766,
+      "line": 125
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 766,
+      "end": 767,
+      "line": 125
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 768,
+      "end": 772,
+      "line": 126
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 772,
+      "end": 773,
+      "line": 126
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 774,
+      "end": 778,
+      "line": 127
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 778,
+      "end": 779,
+      "line": 127
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 780,
+      "end": 784,
+      "line": 128
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 784,
+      "end": 785,
+      "line": 128
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 786,
+      "end": 790,
+      "line": 129
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 790,
+      "end": 791,
+      "line": 129
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 792,
+      "end": 796,
+      "line": 130
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 796,
+      "end": 797,
+      "line": 130
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 798,
+      "end": 802,
+      "line": 131
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 802,
+      "end": 803,
+      "line": 131
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 804,
+      "end": 808,
+      "line": 132
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 808,
+      "end": 809,
+      "line": 132
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 810,
+      "end": 814,
+      "line": 133
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 814,
+      "end": 815,
+      "line": 133
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 816,
+      "end": 820,
+      "line": 134
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 820,
+      "end": 821,
+      "line": 134
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 822,
+      "end": 826,
+      "line": 135
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 826,
+      "end": 827,
+      "line": 135
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 828,
+      "end": 832,
+      "line": 136
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 832,
+      "end": 833,
+      "line": 136
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 834,
+      "end": 838,
+      "line": 137
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 838,
+      "end": 839,
+      "line": 137
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 840,
+      "end": 844,
+      "line": 138
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 844,
+      "end": 845,
+      "line": 138
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 846,
+      "end": 850,
+      "line": 139
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 850,
+      "end": 851,
+      "line": 139
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 852,
+      "end": 856,
+      "line": 140
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 856,
+      "end": 857,
+      "line": 140
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 858,
+      "end": 862,
+      "line": 141
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 862,
+      "end": 863,
+      "line": 141
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 864,
+      "end": 868,
+      "line": 142
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 868,
+      "end": 869,
+      "line": 142
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 870,
+      "end": 874,
+      "line": 143
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 874,
+      "end": 875,
+      "line": 143
+    },
+    {
+      "kind": "identifier",
+      "value": "pass",
+      "start": 876,
+      "end": 880,
+      "line": 144
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 880,
+      "end": 881,
+      "line": 144
+    }
+  ],
+  "reference_locals": {
+    "alpha": [],
+    "beta": []
+  },
+  "reference_engine": {
+    "methods": [
+      "accept_event",
+      "add_child",
+      "add_theme_color_override",
+      "add_theme_constant_override",
+      "add_theme_font_override",
+      "add_theme_font_size_override",
+      "add_theme_stylebox_override",
+      "add_to_group",
+      "call",
+      "call_deferred",
+      "connect",
+      "disconnect",
+      "duplicate",
+      "emit_signal",
+      "find_child",
+      "force_update_transform",
+      "get",
+      "get_child",
+      "get_child_count",
+      "get_children",
+      "get_class",
+      "get_index",
+      "get_meta",
+      "get_node",
+      "get_node_or_null",
+      "get_parent",
+      "get_path",
+      "get_scene_file_path",
+      "get_script",
+      "get_theme_color",
+      "get_theme_constant",
+      "get_theme_default_font",
+      "get_theme_default_font_size",
+      "get_theme_font",
+      "get_theme_font_size",
+      "get_theme_stylebox",
+      "get_tree",
+      "get_viewport",
+      "get_window",
+      "grab_focus",
+      "has_focus",
+      "has_meta",
+      "has_method",
+      "has_node",
+      "has_theme_color",
+      "has_theme_constant",
+      "has_theme_font",
+      "has_theme_font_size",
+      "has_theme_stylebox",
+      "hide",
+      "is_class",
+      "is_connected",
+      "is_in_group",
+      "is_inside_tree",
+      "is_node_ready",
+      "is_visible_in_tree",
+      "move_child",
+      "move_to_front",
+      "notification",
+      "notify_property_list_changed",
+      "queue_free",
+      "release_focus",
+      "remove_child",
+      "remove_from_group",
+      "remove_meta",
+      "remove_theme_color_override",
+      "remove_theme_constant_override",
+      "remove_theme_font_override",
+      "remove_theme_font_size_override",
+      "remove_theme_stylebox_override",
+      "set",
+      "set_deferred",
+      "set_meta",
+      "set_physics_process",
+      "set_process",
+      "set_process_input",
+      "set_process_unhandled_input",
+      "set_script",
+      "show"
+    ],
+    "properties": [
+      "alignment",
+      "anchor_bottom",
+      "anchor_left",
+      "anchor_right",
+      "anchor_top",
+      "anchors_preset",
+      "autowrap_mode",
+      "bbcode_enabled",
+      "button_pressed",
+      "clip_contents",
+      "context_menu_enabled",
+      "custom_minimum_size",
+      "disabled",
+      "editable",
+      "flat",
+      "focus_mode",
+      "icon",
+      "layout_mode",
+      "modulate",
+      "mouse_filter",
+      "name",
+      "offset_bottom",
+      "offset_left",
+      "offset_right",
+      "offset_top",
+      "owner",
+      "pivot_offset",
+      "placeholder_text",
+      "position",
+      "pressed",
+      "rotation",
+      "scale",
+      "scroll_following",
+      "selection_enabled",
+      "self_modulate",
+      "size",
+      "size_flags_horizontal",
+      "size_flags_vertical",
+      "text",
+      "theme_type_variation",
+      "tooltip_text",
+      "top_level",
+      "visible",
+      "wrap_mode"
+    ]
+  },
+  "capture_tree": {
+    "files": {
+      "donor.gd": {
+        "bytes": 881,
+        "sha256": "6dc036e54ab438197bb76310052fb59610590f630c47968cb3240b3540eb0807"
+      },
+      "plugin.cfg": {
+        "bytes": 28,
+        "sha256": "b1f19cfdd95c7ac7092291eae8d46885b97fc6b1253180b554545405dda4cda1"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  }
+}

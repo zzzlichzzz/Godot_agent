@@ -1,0 +1,26 @@
+{
+  "id": "002",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "три файла: неразмеченные приёмники требуют allow_unverified",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "hurt",
+    "declaration": "res://src/hero.gd:6",
+    "mode": "probable",
+    "allow_unverified": true,
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "files": {
+        "src/enemy.gd": "1b0dee2ef59ba86e25e80f34dfec1cad8c8293d9ac0f884f7efd296af73707d8",
+        "src/hero.gd": "6246d7d6180e87acc3dd83116579e94fd07ba1b2d1cc0e51dbe4e945ffb2312a",
+        "src/party.gd": "9c35a6ebd59faeb810a19407e81a5e0a108c1958149af530cc269238cd96ffe6"
+      }
+    }
+  }
+}

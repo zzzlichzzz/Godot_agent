@@ -1,0 +1,259 @@
+{
+  "cases": [
+    {
+      "id": "create",
+      "action": {
+        "action": "create_file",
+        "path": "res://new.gd",
+        "content": "extends Node\nfunc value():\n\treturn 3\n"
+      }
+    },
+    {
+      "id": "replace",
+      "action": {
+        "action": "create_file",
+        "path": "res://hero.gd",
+        "content": "extends Node\nfunc value():\n\treturn 4\n"
+      }
+    },
+    {
+      "id": "patch",
+      "action": {
+        "action": "patch_file",
+        "path": "res://hero.gd",
+        "search": "return health",
+        "replace": "return health + 1"
+      }
+    },
+    {
+      "id": "missing-patch",
+      "action": {
+        "action": "patch_file",
+        "path": "res://hero.gd",
+        "search": "MISSING",
+        "replace": "new"
+      }
+    },
+    {
+      "id": "move",
+      "action": {
+        "action": "move_file",
+        "path": "res://hero.gd",
+        "dest": "res://player.gd"
+      }
+    },
+    {
+      "id": "traversal",
+      "action": {
+        "action": "create_file",
+        "path": "res://../escape.gd",
+        "content": "extends Node\n"
+      }
+    },
+    {
+      "id": "addon-denied",
+      "action": {
+        "action": "create_file",
+        "path": "res://addons/other/x.gd",
+        "content": "extends Node\n"
+      }
+    },
+    {
+      "id": "structural-scene-denied",
+      "action": {
+        "action": "create_file",
+        "path": "res://new.tscn",
+        "content": "[gd_scene format=3]\n"
+      }
+    },
+    {
+      "id": "transaction",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://one.gd",
+            "content": "extends Node\n"
+          },
+          {
+            "action": "patch_file",
+            "path": "res://hero.gd",
+            "search": "return health",
+            "replace": "return 10"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dependent-transaction",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://one.gd",
+            "content": "extends Node\nvar value = 1\n"
+          },
+          {
+            "action": "patch_file",
+            "path": "res://one.gd",
+            "search": "value = 1",
+            "replace": "value = 2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rename-node",
+      "action": {
+        "action": "rename_node",
+        "scene": "res://level.tscn",
+        "target_node_path": "%Hero",
+        "new_name": "Player"
+      }
+    },
+    {
+      "id": "reparent-node",
+      "action": {
+        "action": "reparent_node",
+        "scene": "res://level.tscn",
+        "target_node_path": "Hero/Weapon",
+        "new_parent": "."
+      }
+    },
+    {
+      "id": "delete-node",
+      "action": {
+        "action": "delete_node",
+        "scene": "res://level.tscn",
+        "target_node_path": "Hero/Weapon"
+      }
+    }
+  ],
+  "observations": {
+    "create": {
+      "files": [
+        {
+          "path": "res://new.gd",
+          "before": null,
+          "after": "ZXh0ZW5kcyBOb2RlCmZ1bmMgdmFsdWUoKToKCXJldHVybiAzCg=="
+        }
+      ]
+    },
+    "replace": {
+      "files": [
+        {
+          "path": "res://hero.gd",
+          "before": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCgpzdGF0aWMgZnVuYyBoZWxwZXIoKToKCXJldHVybiAyCg==",
+          "after": "ZXh0ZW5kcyBOb2RlCmZ1bmMgdmFsdWUoKToKCXJldHVybiA0Cg=="
+        }
+      ]
+    },
+    "patch": {
+      "files": [
+        {
+          "path": "res://hero.gd",
+          "before": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCgpzdGF0aWMgZnVuYyBoZWxwZXIoKToKCXJldHVybiAyCg==",
+          "after": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoICsgMQoKc3RhdGljIGZ1bmMgaGVscGVyKCk6CglyZXR1cm4gMgo="
+        }
+      ]
+    },
+    "missing-patch": {
+      "error": "TransactionError",
+      "message": "patch_file должен иметь одно точное совпадение: res://hero.gd"
+    },
+    "move": {
+      "files": [
+        {
+          "path": "res://hero.gd",
+          "before": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCgpzdGF0aWMgZnVuYyBoZWxwZXIoKToKCXJldHVybiAyCg==",
+          "after": null
+        },
+        {
+          "path": "res://hero.gd.uid",
+          "before": "dWlkOi8vdDEK",
+          "after": null
+        },
+        {
+          "path": "res://player.gd",
+          "before": null,
+          "after": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCgpzdGF0aWMgZnVuYyBoZWxwZXIoKToKCXJldHVybiAyCg=="
+        },
+        {
+          "path": "res://player.gd.uid",
+          "before": null,
+          "after": "dWlkOi8vdDEK"
+        }
+      ]
+    },
+    "traversal": {
+      "error": "TransactionError",
+      "message": "Некорректный путь: res://../escape.gd"
+    },
+    "addon-denied": {
+      "error": "TransactionError",
+      "message": "Изменение res://addons требует явного запроса пользователя и разрешённой политики доступа: res://addons/other/x.gd"
+    },
+    "structural-scene-denied": {
+      "error": "TransactionError",
+      "message": "Структурные сцены нельзя менять в transaction; используй create_scene/edit_scene"
+    },
+    "transaction": {
+      "files": [
+        {
+          "path": "res://hero.gd",
+          "before": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCgpzdGF0aWMgZnVuYyBoZWxwZXIoKToKCXJldHVybiAyCg==",
+          "after": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgVDFIZXJvCmNvbnN0IE1BWF9IRUFMVEggPSAxMAp2YXIgaGVhbHRoID0gMTAKIyBleGFjdCBib2R5CmZ1bmMgaGl0KGFtb3VudDogaW50ID0gMSk6CgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gMTAKCnN0YXRpYyBmdW5jIGhlbHBlcigpOgoJcmV0dXJuIDIK"
+        },
+        {
+          "path": "res://one.gd",
+          "before": null,
+          "after": "ZXh0ZW5kcyBOb2RlCg=="
+        }
+      ]
+    },
+    "dependent-transaction": {
+      "files": [
+        {
+          "path": "res://one.gd",
+          "before": null,
+          "after": "ZXh0ZW5kcyBOb2RlCnZhciB2YWx1ZSA9IDIK"
+        }
+      ]
+    },
+    "rename-node": {
+      "files": [
+        {
+          "path": "res://level.tscn",
+          "before": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSJIZXJvIl0K",
+          "after": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJQbGF5ZXIiIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQoKW25vZGUgbmFtZT0iV2VhcG9uIiB0eXBlPSJOb2RlIiBwYXJlbnQ9IlBsYXllciJdCg=="
+        }
+      ]
+    },
+    "reparent-node": {
+      "files": [
+        {
+          "path": "res://level.tscn",
+          "before": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSJIZXJvIl0K",
+          "after": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0K"
+        }
+      ]
+    },
+    "delete-node": {
+      "files": [
+        {
+          "path": "res://level.tscn",
+          "before": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9IldlYXBvbiIgdHlwZT0iTm9kZSIgcGFyZW50PSJIZXJvIl0K",
+          "after": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCgpbbm9kZSBuYW1lPSJIZXJvIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCg=="
+        }
+      ]
+    }
+  },
+  "main_semantics": {
+    "pending_required": 2812,
+    "reject_no_write": 2820,
+    "approved_plan_started": 2838,
+    "policy_revalidation": 2911
+  }
+}

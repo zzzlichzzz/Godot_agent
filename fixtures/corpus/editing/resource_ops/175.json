@@ -1,0 +1,20 @@
+{
+  "id": "expanded-hash-crlf",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "bytes-crlf",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "345f2e07242a1b16b2d57418463bad553f362786f8b2a458173f22c0f5e2a593"
+  },
+  "oracle": "native",
+  "raw_sha256": "3cba39c1b08aa8d3a3580e30658ed71ed52fb50df1c795acfb9afcc5f8d92e2c"
+}

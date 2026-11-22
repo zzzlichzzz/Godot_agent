@@ -1,0 +1,104 @@
+{
+  "id": "history-050-create_file-forget",
+  "input": {
+    "group": "history",
+    "action": "sequence",
+    "kind": "create_file",
+    "finish": "forget",
+    "storage": "user"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "metadata": {
+        "id": "000000000001",
+        "type": "create_file",
+        "path": "res://new.txt",
+        "overwrote": false,
+        "chat_title": "Synthetic chat",
+        "ts": 1000,
+        "chain_id": "chain-one",
+        "chain_total": 1,
+        "paths": [
+          "res://new.txt"
+        ],
+        "is_last": true,
+        "newer_same_file": []
+      },
+      "result": 1,
+      "journal": [
+        {
+          "id": "000000000001",
+          "ts": 1000,
+          "type": "create_file",
+          "path": "res://new.txt",
+          "committed": true,
+          "chain_id": "chain-one",
+          "after_hash": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919"
+        }
+      ],
+      "files": {
+        "A.txt": {
+          "base64": "77u/YmVmb3JlIEENClVuaWNvZGU6IM67DQo="
+        },
+        "B.txt": {
+          "base64": "YmVmb3JlIEINCg=="
+        },
+        "Moved.txt": null,
+        "new.txt": {
+          "base64": "YWZ0ZXIK"
+        }
+      }
+    },
+    "after": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/new.txt": {
+          "bytes": 6,
+          "sha256": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/journal.json": {
+          "bytes": 240,
+          "sha256": "57604d25af768320fe545548785f052ee10e5786c94baf842c6fef5d08f7978e"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

@@ -1,0 +1,529 @@
+{
+  "id": "limits-shared-counter32",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "NewSubresource",
+          "class": "Resource",
+          "properties": [
+            {
+              "property": "p0",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p1",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p2",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p3",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p4",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p5",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p6",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p7",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p8",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p9",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p10",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p11",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p12",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p13",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p14",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p15",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p16",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p17",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p18",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p19",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p20",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p21",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p22",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p23",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p24",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p25",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p26",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p27",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p28",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p29",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            },
+            {
+              "property": "p30",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Resource"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "x",
+            "value": {
+              "type": "NewSubresource",
+              "class": "Resource",
+              "properties": [
+                {
+                  "property": "p0",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p1",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p2",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p3",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p4",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p5",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p6",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p7",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p8",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p9",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p10",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p11",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p12",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p13",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p14",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p15",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p16",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p17",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p18",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p19",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p20",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p21",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p22",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p23",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p24",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p25",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p26",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p27",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p28",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p29",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                },
+                {
+                  "property": "p30",
+                  "value": {
+                    "type": "NewSubresource",
+                    "class": "Resource",
+                    "properties": []
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://texture.png"
+        ],
+        "summary": "description"
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "b8feb16cb2738d0eb47ca90708b9676292c997b268d20294704b0203c5f7bec5"
+}

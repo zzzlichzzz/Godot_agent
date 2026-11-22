@@ -1,0 +1,23 @@
+{
+  "id": "018-tres_content_early_return",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_resource type=\"Resource\" format=3]\n[resource]\nvalue = bare\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_resource type=\"Resource\" format=3]\n[resource]\nvalue = bare\n",
+      "changed": false,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_resource type=\"Resource\" format=3]\n[resource]\nvalue = bare\n",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

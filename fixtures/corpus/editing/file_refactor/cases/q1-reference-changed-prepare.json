@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "id": "q1-reference-changed-prepare",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://item.gd",
+    "new_path": "res://new.gd",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "item.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg==",
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      },
+      "ref.gd": {
+        "bytes_b64": "Y29uc3QgWD1sb2FkKCJyZXM6Ly9pdGVtLmdkIikK",
+        "bytes": 30,
+        "sha256": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6"
+      }
+    },
+    "dirs": []
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "old_path": "res://item.gd",
+    "new_path": "res://new.gd",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://item.gd",
+        "dest": "res://new.gd",
+        "absolute": "<PROJECT>\\item.gd",
+        "dest_absolute": "<PROJECT>\\new.gd",
+        "before_hash": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "before_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+        },
+        "diff": {
+          "path": "res://item.gd",
+          "action": "move_file",
+          "dest": "res://new.gd",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://new.gd"
+            }
+          ]
+        },
+        "occurrences": 0
+      },
+      {
+        "action": "patch_file",
+        "path": "res://ref.gd",
+        "absolute": "<PROJECT>\\ref.gd",
+        "before_hash": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6",
+        "before_bytes": {
+          "$bytes_base64": "Y29uc3QgWD1sb2FkKCJyZXM6Ly9pdGVtLmdkIikK"
+        },
+        "after_bytes": {
+          "$bytes_base64": "Y29uc3QgWD1sb2FkKCJyZXM6Ly9uZXcuZ2QiKQo="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "const X=load(\"res://item.gd\")"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "const X=load(\"res://new.gd\")"
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://ref.gd",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      }
+    ],
+    "reference_count": 1,
+    "affected_paths": [
+      "res://new.gd",
+      "res://ref.gd"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "47ad7bf207ee0faba39484e1b01984f6753a90a9b3888f719ccb6467fb591299"
+}

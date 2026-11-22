@@ -1,0 +1,17 @@
+{
+  "id": "033-typed_hash_quirk",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "typed_hash_quirk",
+  "args": {
+    "path": "res://scripts/typed_hash_quirk.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 19
+    }
+  }
+}

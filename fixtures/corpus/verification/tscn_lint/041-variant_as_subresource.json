@@ -1,0 +1,27 @@
+{
+  "id": "041-variant_as_subresource",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"Color\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"Color\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+      "changed": false,
+      "problems": [
+        "[sub_resource type=\"Color\"]: Color — это ЗНАЧЕНИЕ (Variant), а НЕ ресурс. Godot откажется грузить сцену («Can't create sub resource of type 'Color' as it's not a resource type»). Такие значения пишутся ПРЯМО в строке свойства узла, например color = Color(1, 0.85, 0.1, 1) — удали эту секцию [sub_resource] и ссылки SubResource на неё."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"Color\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+    "changed": false,
+    "problems": [
+      "[sub_resource type=\"Color\"]: Color — это ЗНАЧЕНИЕ (Variant), а НЕ ресурс. Godot откажется грузить сцену («Can't create sub resource of type 'Color' as it's not a resource type»). Такие значения пишутся ПРЯМО в строке свойства узла, например color = Color(1, 0.85, 0.1, 1) — удали эту секцию [sub_resource] и ссылки SubResource на неё."
+    ]
+  },
+  "reference_api_classes": null
+}

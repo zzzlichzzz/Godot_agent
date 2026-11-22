@@ -1,0 +1,66 @@
+{
+  "id": "097-apply-two-modules",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/apply_two",
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "one",
+          "symbols": [
+            "alpha"
+          ]
+        },
+        {
+          "module": "two",
+          "symbols": [
+            "beta"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": {
+    "artifact_sha256": "921c9184c83a9c338a5364cf32a2660b0d924268e300aa3147c9c462be6b378d",
+    "result": {
+      "donor": "donor.py",
+      "written": [
+        "one.py",
+        "two.py"
+      ],
+      "moved": [
+        "alpha",
+        "beta"
+      ],
+      "facade_lines": 4
+    },
+    "after_sha256": {
+      "donor.py": "39080c92ded70cc88b3daf46bf9da8aa5dbe3d655b8837b153ba05e2644d4ca1",
+      "one.py": "c4a10ac19bb3fcae8a4aa9c2cf1a46fb090e2d3a9bbd8a86ef7c322712b723ab",
+      "two.py": "8007745bfcc7c9d574141d3410e4ab82c1994896a8d9a9515a6ce778ae698691"
+    }
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "written": [
+        "one.py",
+        "two.py"
+      ],
+      "moved": [
+        "alpha",
+        "beta"
+      ],
+      "facade_lines": 4
+    },
+    "receipts_count": 3
+  },
+  "scenario": "split_plan_apply"
+}

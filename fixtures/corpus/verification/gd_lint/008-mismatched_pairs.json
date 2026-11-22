@@ -1,0 +1,33 @@
+{
+  "id": "008-mismatched_pairs",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "mismatched_pairs",
+  "args": {
+    "path": "res://scripts/mismatched_pairs.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "mismatched_bracket",
+          "line": 1,
+          "message": "строка 1: закрывающая «)» не соответствует открытой «[» со строки 1"
+        },
+        {
+          "code": "mismatched_bracket",
+          "line": 2,
+          "message": "строка 2: закрывающая «}» не соответствует открытой «(» со строки 2"
+        },
+        {
+          "code": "mismatched_bracket",
+          "line": 3,
+          "message": "строка 3: закрывающая «]» не соответствует открытой «{» со строки 3"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 33
+    }
+  }
+}

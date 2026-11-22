@@ -1,0 +1,27 @@
+{
+  "id": "008-nested-class-function",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "func с отступом внутри class Inner: находится, потому что regex разрешает отступ",
+  "args": {
+    "path": "res://scripts/func_lab.gd",
+    "names": [
+      "inner_helper"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/func_lab.gd",
+      "functions": [
+        {
+          "name": "inner_helper",
+          "snippet": "\tfunc inner_helper() -> String:\n\t\treturn \"inner\"",
+          "start_line": 36,
+          "end_line": 37
+        }
+      ],
+      "missing": []
+    }
+  }
+}

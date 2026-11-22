@@ -1,0 +1,17 @@
+{
+  "id": "027-escaped_quotes",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "escaped_quotes",
+  "args": {
+    "path": "res://scripts/escaped_quotes.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 61
+    }
+  }
+}

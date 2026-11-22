@@ -1,0 +1,21 @@
+{
+  "id": "kimi-events-2",
+  "op": "kimi",
+  "events": [
+    {
+      "op": "set",
+      "block": {
+        "id": "10",
+        "text": "\u0411"
+      }
+    },
+    {
+      "op": "set",
+      "block": {
+        "id": "2",
+        "text": "\u0410"
+      }
+    }
+  ],
+  "reset": false
+}

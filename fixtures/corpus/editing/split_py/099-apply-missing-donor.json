@@ -1,0 +1,38 @@
+{
+  "id": "099-apply-missing-donor",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_explicit",
+  "setup": {
+    "delete": [
+      "donor.py"
+    ]
+  },
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": {
+    "exception": "StaleSplitError",
+    "message": "файл-донор исчез: donor.py"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "tree_unchanged": true
+  },
+  "scenario": "split_plan_apply"
+}

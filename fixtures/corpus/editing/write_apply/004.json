@@ -1,0 +1,19 @@
+{
+  "id": "004",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "strict при динамическом вызове: отказ dynamic",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "hurt",
+    "declaration": "res://src/hero.gd:6",
+    "allow_unverified": true,
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

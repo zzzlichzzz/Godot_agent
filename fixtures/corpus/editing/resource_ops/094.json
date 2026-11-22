@@ -1,0 +1,36 @@
+{
+  "id": "expanded-value2",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "unknown",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неподдерживаемый тип свойства: unknown",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "8509722f1a35ee2ba2283ee2b9b83db3974703420f661c71533913e5be1ad51a"
+}

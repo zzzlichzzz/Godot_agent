@@ -1,0 +1,159 @@
+{
+  "id": "002-directory-15-22",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://assets",
+    "new_path": "res://moved"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://assets",
+      "new_path": "res://moved",
+      "is_directory": true,
+      "file_count": 15,
+      "reference_count": 22,
+      "files": [
+        {
+          "path": "res://a.gd",
+          "occurrences": 4,
+          "exact_matches": 4,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://assets/item.gd",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://assets/other.gd",
+          "occurrences": 0,
+          "exact_matches": 0,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://b.gd",
+          "occurrences": 4,
+          "exact_matches": 0,
+          "rel_matches": [
+            [
+              9,
+              23,
+              "assets/item.gd"
+            ],
+            [
+              75,
+              89,
+              "assets/item.gd"
+            ],
+            [
+              103,
+              117,
+              "assets/item.gd"
+            ],
+            [
+              42,
+              58,
+              "./assets/item.gd"
+            ]
+          ],
+          "bom": false
+        },
+        {
+          "path": "res://bom/ref.gd",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": true
+        },
+        {
+          "path": "res://broken.tscn",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://dir.gd",
+          "occurrences": 2,
+          "exact_matches": 2,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://e.gdshader",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://e.gdshaderinc",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://e.tres",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://extra/project.godot",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://project.godot",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://src/r.gd",
+          "occurrences": 2,
+          "exact_matches": 0,
+          "rel_matches": [
+            [
+              9,
+              26,
+              "../assets/item.gd"
+            ],
+            [
+              45,
+              62,
+              "../assets/item.gd"
+            ]
+          ],
+          "bom": false
+        },
+        {
+          "path": "res://upper.GD",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://кириллица.gd",
+          "occurrences": 1,
+          "exact_matches": 1,
+          "rel_matches": [],
+          "bom": false
+        }
+      ],
+      "source_text": null
+    }
+  }
+}

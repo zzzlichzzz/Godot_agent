@@ -1,0 +1,13 @@
+{
+  "id": "032-foreign.txt",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/foreign.txt"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "list_scene работает только со сценами .tscn: res://scenes/foreign.txt"
+  }
+}

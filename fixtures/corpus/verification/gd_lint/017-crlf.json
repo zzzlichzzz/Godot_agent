@@ -1,0 +1,23 @@
+{
+  "id": "017-crlf",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "crlf",
+  "args": {
+    "path": "res://scripts/crlf.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "type_mismatch",
+          "line": 2,
+          "message": "строка 2: переменной типа int присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 35
+    }
+  }
+}

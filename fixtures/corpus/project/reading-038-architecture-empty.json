@@ -1,0 +1,40 @@
+{
+  "id": "reading-038-architecture-empty",
+  "input": {
+    "kind": "read",
+    "function": "has_architecture",
+    "args": [],
+    "fixture": "blank"
+  },
+  "expected": {
+    "result": false,
+    "before": {
+      "files": {
+        "outside/private.gd": "9575dd01a606d945732bbc613f585bcc6f77977a97b0ee9fe89959bfa5db47a8",
+        "project-extra/leak.gd": "401a4ec80c84f2fdad50db900e323a2484192fb8c640f1920304ce6363171b8c",
+        "project/project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      },
+      "dirs": [
+        "config",
+        "outside",
+        "project",
+        "project-extra"
+      ],
+      "links": []
+    },
+    "after": {
+      "files": {
+        "outside/private.gd": "9575dd01a606d945732bbc613f585bcc6f77977a97b0ee9fe89959bfa5db47a8",
+        "project-extra/leak.gd": "401a4ec80c84f2fdad50db900e323a2484192fb8c640f1920304ce6363171b8c",
+        "project/project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      },
+      "dirs": [
+        "config",
+        "outside",
+        "project",
+        "project-extra"
+      ],
+      "links": []
+    }
+  }
+}

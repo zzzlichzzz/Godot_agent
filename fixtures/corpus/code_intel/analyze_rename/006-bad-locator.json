@@ -1,0 +1,16 @@
+{
+  "id": "006-bad-locator",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Кривой locator: строка не число",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/lab_entity.gd:abc"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

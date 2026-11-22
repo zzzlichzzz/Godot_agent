@@ -1,0 +1,8 @@
+{
+  "id": "qwen-unterminated-line",
+  "kind": "decode",
+  "native_case_source": "test_v88_6_qwen_net.py:125-165; independent Unicode SSE deltas",
+  "monitor": "qwen",
+  "body_b64": "ZGF0YTogeyJjaG9pY2VzIjpbeyJkZWx0YSI6eyJwaGFzZSI6ImFuc3dlciIsImNvbnRlbnQiOiLQlNC+INGF0LLQvtGB0YLQsCIsInN0YXR1cyI6InR5cGluZyJ9fV19CgpkYXRhOiB7ImNob2ljZXMiOltd",
+  "step": 7
+}

@@ -1,0 +1,36 @@
+{
+  "id": "004-comment-is-not-a-usage",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Ссылка только в комментарии: в вывод не попадает",
+  "args": {
+    "kind": "function",
+    "old_name": "fire",
+    "declaration": "res://src/lab_turret.gd:6"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "fire",
+      "new_name": "",
+      "declaration": "res://src/lab_turret.gd:6",
+      "usages": [
+        {
+          "path": "res://src/lab_turret.gd",
+          "line": 6,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1
+      },
+      "proven_count": 1,
+      "probable_count": 0,
+      "dynamic_count": 0
+    }
+  }
+}

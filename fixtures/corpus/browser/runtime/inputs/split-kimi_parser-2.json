@@ -1,0 +1,6 @@
+{
+  "id": "split-kimi_parser-2",
+  "op": "split",
+  "text": "answer\n===DONE===",
+  "parser": "kimi_parser"
+}

@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-30",
+  "module": "verification.tscn_lint",
+  "reference_commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+  "reference": {
+    "file": "godot_agent/python/godot_tools/tscn_lint.py",
+    "function": "lint_and_fix_tscn:953-1315",
+    "sha256": "118e9ddc0b776cd86974666ff42789a3b41b93ba2b404f06c78db605ca0ac3f8",
+    "bytes": 74080
+  },
+  "capture": "Actual public old helper import; isolated temporary per-case project; no old test/bootstrap code or host global patches.",
+  "capture_script": {
+    "sha256": "9fdb85d19027ecba1e6fa733a0b968bcc3b12f8474277f0f2b61766866a4259d",
+    "bytes": 11560
+  },
+  "contract_refusals": "Path/extension refusals are new ToolSpec boundary expectations, not fabricated old helper errors; reference_result always preserves the actual old helper output.",
+  "cache": "Read existing per-project .agent_history cache on isolated old fixture; no bundled addon_dir and no migration. Falsy class records preserved.",
+  "decoding": "Inline content strings passed unchanged; LF/CRLF/BOM/lone-CR/no-final-newline preserved.",
+  "cases": {
+    "001-valid_scene.json": {
+      "sha256": "360fd535ceed871a58ffe66be547441a597af8dcc73c69526f741403fa5aee82",
+      "bytes": 596
+    },
+    "002-angle_header.json": {
+      "sha256": "6ed95445f56e027a0c9d98c4e2b9a1b546851e22fce867b274f4c79c7981c766",
+      "bytes": 595
+    },
+    "003-balanced_missing_bracket.json": {
+      "sha256": "4ac1e732738859372652a85d26f4ad1093922b8e338efc19186c56591bf837e1",
+      "bytes": 606
+    },
+    "004-odd_quote_early_return.json": {
+      "sha256": "ab5dcb1dfc79fa3f7e228f378a05ac8a469e5d2d5faa02fe2dfcf0b6e51dc8d7",
+      "bytes": 1397
+    },
+    "005-closing_tags.json": {
+      "sha256": "f9e3fdb613c4f0df68ff69d851bf8b2861e7702048408f7afaf6c3c94a2d40bc",
+      "bytes": 621
+    },
+    "006-late_ext_resource.json": {
+      "sha256": "4692f169e7d2ef1705d5319c3a79cffaedca373219cebd3e17a75bc85940b9b2",
+      "bytes": 906
+    },
+    "007-late_sub_resource.json": {
+      "sha256": "4ac4917fe54a76a09d2b5be606766c8cc2acc190f5aee6761c853085064c555a",
+      "bytes": 822
+    },
+    "008-invalid_uids.json": {
+      "sha256": "b5504a7fa91b110e3c9c44e0443489dff42dec86d1541304be37638ecded9e0a",
+      "bytes": 942
+    },
+    "009-parent_order.json": {
+      "sha256": "795bc78eaf808ddd0c61ab8e6d421fd9174be3cf8487323d7c99e5f32e137047",
+      "bytes": 913
+    },
+    "010-resource_constructor.json": {
+      "sha256": "110a6f3b505d11745e684658d3a4357aead2e17b41b48af6c9c8ec3713e800d4",
+      "bytes": 867
+    },
+    "011-resource_cycle.json": {
+      "sha256": "9e10b8369d28059fa51e2679f7ab8c7d8e4fbebbd08282ee8301f5c8349f0c45",
+      "bytes": 1529
+    },
+    "012-connection_missing_endpoints.json": {
+      "sha256": "59a47907310924a402c8fddd13726bea0e99dc6745ec044ba5e8989c4ffb468c",
+      "bytes": 1931
+    },
+    "013-missing_parent.json": {
+      "sha256": "6581acc153a0358e712d66289de4baeefcd36189c9a4576f9e8dc9ff80826278",
+      "bytes": 1729
+    },
+    "014-missing_nodepath.json": {
+      "sha256": "40c546fb00fb412b2c2484d0249f8a68b63bca2588c70488f8aa6ef6bcb4290a",
+      "bytes": 1827
+    },
+    "015-single_sub_candidate.json": {
+      "sha256": "db1ab2f4605635e97b57156d79583079b33b91d646d1c1f5144d1f2c27d7afa5",
+      "bytes": 820
+    },
+    "016-ambiguous_sub_candidates.json": {
+      "sha256": "34b4382c5e17c8267937b9bce3f0b0c48ccf16336f315298af591d49759f5be5",
+      "bytes": 2527
+    },
+    "017-load_steps.json": {
+      "sha256": "83ba8d8e52447f61a44b2167a5f3f35641e7f2be42b4f38d180f0d0bab1b6d0f",
+      "bytes": 632
+    },
+    "018-tres_content_early_return.json": {
+      "sha256": "82f5472a278e7be5d50ca7a43e09576f107cf190de2d01a155c0537b2d44db50",
+      "bytes": 643
+    },
+    "019-crlf_angle.json": {
+      "sha256": "da364516b0fe3ce6f7c7cdb7cf3e3b5f8e517543fe3aef9fee1b79494820a79d",
+      "bytes": 605
+    },
+    "020-bom_scene.json": {
+      "sha256": "df4df0311be99ae106d8e1cb8f814f85f100455ed842456549af059b415b25a9",
+      "bytes": 603
+    },
+    "021-lone_cr_scene.json": {
+      "sha256": "a795a4a6bdcaa075d38deeaa67cd8969b26e22d24d4388eb1ad5359ba4f20271",
+      "bytes": 598
+    },
+    "022-no_final_newline.json": {
+      "sha256": "df09ae5edef31e757eeb30cb72cb97b7589532940b3698efa8079cbbd2075094",
+      "bytes": 595
+    },
+    "023-commands_in_string.json": {
+      "sha256": "818facd74df4b94600e16aa726140d1d76998355c7ca18d04468a12abf80c4bd",
+      "bytes": 852
+    },
+    "024-missing_dependency.json": {
+      "sha256": "12110a00a0c79ae7c16a31a034e7581796840572ae2e2be5573674a45a0db75d",
+      "bytes": 2043
+    },
+    "025-planned_dependency.json": {
+      "sha256": "6784afa96a14734479444980e948e7156696e8e90bd6863b43174a23534a01f8",
+      "bytes": 998
+    },
+    "026-normalized_planned_dependency.json": {
+      "sha256": "17cac3b3b5cc73454a4c94f47955e4f4594b6c827e50d99f5a7f1691401e0d61",
+      "bytes": 1010
+    },
+    "027-constructor_arguments.json": {
+      "sha256": "f517a3ce8601ae75d91c21793a4678f1375fa26bc73fba79e78dff705462cafd",
+      "bytes": 1424
+    },
+    "028-node_constructor.json": {
+      "sha256": "f5ce1d785e86eb7514e2aabe6fff15490e601ba03e2063dd1a4eef6d1045709b",
+      "bytes": 1321
+    },
+    "029-constructor_id_collision.json": {
+      "sha256": "e9076a7ea045d5b4a445d702c6a623f4a2822186b931b9e25833d6c04c72666b",
+      "bytes": 1728
+    },
+    "030-subresource_toposort.json": {
+      "sha256": "57ad47d8adc2351c131f3cd8c3ff1501b8897efa34d6d55605ffb525edccf52a",
+      "bytes": 1026
+    },
+    "031-unknown_sections.json": {
+      "sha256": "235a9d14c666aa228bdbd0de642451fe3e5ccc9a46a29e2c19234747df6c768a",
+      "bytes": 2000
+    },
+    "032-scanner_stops_uid_fix.json": {
+      "sha256": "c778f8d13942edd226d441be94599fb37c8c95ff7bfc5ddb54545a1b1d4bd249",
+      "bytes": 1311
+    },
+    "033-unquoted_property.json": {
+      "sha256": "d472f09927c2fb7aba91f2b1e2725f20e250ec673e8f4aa6a554c9a163236c76",
+      "bytes": 1291
+    },
+    "034-balance_before_section.json": {
+      "sha256": "a64993a6789b60ea391d0994742d8192ddbfa3912f1397e11fe4aee359f18601",
+      "bytes": 1625
+    },
+    "035-balance_eof.json": {
+      "sha256": "54c27a4ce17cc745146be078d63f0afedee8a64f793c8ad8016c3272a574c755",
+      "bytes": 1427
+    },
+    "036-extra_bracket.json": {
+      "sha256": "3a63a7a6d528448876b8f95afcf7730c5081a6c2912d9b829997582e4d816f33",
+      "bytes": 1112
+    },
+    "037-second_root.json": {
+      "sha256": "1b572fe767c6c3e9cad5e4750004618580e6548179a212f1091d56e51e6417ba",
+      "bytes": 1003
+    },
+    "038-duplicate_ext_id.json": {
+      "sha256": "6c287ee47c73f2b21b9c18c827419e5281e92495818bbe3a84b38e8699b23b6f",
+      "bytes": 1438
+    },
+    "039-duplicate_sub_id.json": {
+      "sha256": "d9311a982dda04881d8c2381fbe2dc6fdd9a6cc82a8df3e2e2a574fd65198ebc",
+      "bytes": 1255
+    },
+    "040-node_as_subresource.json": {
+      "sha256": "d3dc4fbd1445314fb13660c68229443e16c1f9c69eb57bc13c882884ed55d050",
+      "bytes": 2075
+    },
+    "041-variant_as_subresource.json": {
+      "sha256": "c5593b250ec2952b939fabb8a36f60fb385ece25f73157fd0ee31a832ce7863f",
+      "bytes": 1765
+    },
+    "042-root_collision_shape.json": {
+      "sha256": "c4722b2a0615895ae11b0c1942aaf8ea60dad5711740fdebc908af82052f5b38",
+      "bytes": 1297
+    },
+    "043-wrong_collision_owner.json": {
+      "sha256": "285282456e1969aa3d79671a26eeb79ad6b0015f6d978e814efc1626c344871d",
+      "bytes": 1898
+    },
+    "044-valid_collision_owner.json": {
+      "sha256": "bc899c656ea7d9b4b83122253c7574952911098cd9c469f6543261b7a1b2f986",
+      "bytes": 798
+    },
+    "045-duplicate_node_path.json": {
+      "sha256": "cf8066d00467684fe3d0afdb994b39e2da2cdab63e7027b4fed74a715e250248",
+      "bytes": 1120
+    },
+    "046-child_missing_type.json": {
+      "sha256": "b216a1c60ecf3986e1bbf504ea6ee77ec70ac66df9e6be1b19343a4164d83149",
+      "bytes": 1343
+    },
+    "047-unused_packed_scene.json": {
+      "sha256": "afab89876e3dead06eb60106f65077779d0faabde583cc8d47977fdb23f892d5",
+      "bytes": 1810
+    },
+    "048-unused_ext_resource.json": {
+      "sha256": "0ecc7f43237b2867c48b56a132f97920b3ffef4b068e1e8f927c973defd7904a",
+      "bytes": 1507
+    },
+    "049-unused_sub_resource.json": {
+      "sha256": "1bd31bf9d756add9f7aa378a572afdaef06247019239dadf2a96a6b5f7c95518",
+      "bytes": 1381
+    },
+    "050-dotted_property.json": {
+      "sha256": "d35c1a8c333e12f037b5048afdce4b7747b3e81741028628076dd49950e9a62d",
+      "bytes": 1649
+    },
+    "051-instance_existing_child.json": {
+      "sha256": "3cc84c9ef303e5b8f1b230e733ce48d497def5dfd23ad1b5adf6c88360fbca4f",
+      "bytes": 1124
+    },
+    "052-instance_vanished_child.json": {
+      "sha256": "e5928ef9ced1b20b0bd7cf3482bf591ddf5d94e4937cacc30cfed99e15742797",
+      "bytes": 2249
+    },
+    "053-instance_fuzzy_child.json": {
+      "sha256": "337f4fff47296dde7eaa8722585e046f515990a7aa2f10f9d3161327ca49773a",
+      "bytes": 1141
+    },
+    "054-api_cached_class.json": {
+      "sha256": "23c96b77921d38f1e9a40be099e48a26a476670a890ab972ae6c87082053062d",
+      "bytes": 646
+    },
+    "055-api_unknown_class.json": {
+      "sha256": "71d37f2108d22b4c1db4f468b0ca5ee797d82d7c1c0823f334ae795ad4b08a9c",
+      "bytes": 1051
+    },
+    "056-api_falsy_record.json": {
+      "sha256": "acc3abe6dc2bda42a93193718328f18614398ab0f43a5abaabb76dcf3efa86ee",
+      "bytes": 1046
+    },
+    "057-api_broken_cache.json": {
+      "sha256": "3bcfbb690259adb5713343d9fb6039ce1102fae9fbcc7ad0dd0caf848ea8650e",
+      "bytes": 605
+    },
+    "058-commands_not_executed.json": {
+      "sha256": "72f886614e5874bfeb457160c76e31753d3713c9287d486334a021d74b36ca29",
+      "bytes": 1793
+    },
+    "059-protected_tool_path.json": {
+      "sha256": "b76b0deccf547badf37d74803f7bfa3a146d95b86d8f291d3e524677bad44725",
+      "bytes": 502
+    },
+    "060-outside_tool_path.json": {
+      "sha256": "ed080a46ab4b726d6dcc79e34e6fbafce8fb0b7a436b49d0ba465bee149ab30c",
+      "bytes": 484
+    },
+    "061-tres_tool_refusal.json": {
+      "sha256": "37eecc0b9aa1ed762cdf53a2e9c124ee4345918a79457b4a42b6d94085ac1df6",
+      "bytes": 510
+    },
+    "062-non_res_tool_refusal.json": {
+      "sha256": "5734cc48ea23ef00012ef9da577123010cfac1f9118edb68668ba6cba5d41e7f",
+      "bytes": 485
+    },
+    "063-uppercase_scn.json": {
+      "sha256": "336630a9149bea664428b4bfe726644d6d65c5acad8ab083f08a06f19f7ea247",
+      "bytes": 597
+    },
+    "064-no_scene_marker.json": {
+      "sha256": "4954eb09b720a6362d7e6897661c6a33c370fd6e5bb8c0db52970dd07d756b57",
+      "bytes": 570
+    },
+    "065-legacy_bridge_scene_input.json": {
+      "sha256": "652948b0807b0767190c335cb70ce65145292f7aae55dea5bb12bb61dd210ab0",
+      "bytes": 1046
+    }
+  },
+  "inputs": {
+    "project/api/project.godot": {
+      "sha256": "1579b4825b643b97e01b2e74e969d3c357fd847b9de0b547a2cb3182a57c8932",
+      "bytes": 38
+    },
+    "project/api/scripts/exist.gd": {
+      "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+      "bytes": 13
+    },
+    "project/api/child.tscn": {
+      "sha256": "464718a3b694c9f337e33db0eac81fd84d257f153ffa1d1177dab560f201ef2f",
+      "bytes": 92
+    },
+    "project/api/.agent_history/godot_api_cache.json": {
+      "sha256": "5ca1336fbeb930dfe97d76dcee6b9987ab0970bca21774dc169f2c7c47c75d11",
+      "bytes": 45
+    },
+    "project/api_broken/project.godot": {
+      "sha256": "1579b4825b643b97e01b2e74e969d3c357fd847b9de0b547a2cb3182a57c8932",
+      "bytes": 38
+    },
+    "project/api_broken/scripts/exist.gd": {
+      "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+      "bytes": 13
+    },
+    "project/api_broken/child.tscn": {
+      "sha256": "464718a3b694c9f337e33db0eac81fd84d257f153ffa1d1177dab560f201ef2f",
+      "bytes": 92
+    },
+    "project/api_broken/.agent_history/godot_api_cache.json": {
+      "sha256": "d7aeddb6d7f6999d468f23bef79fb0de030b72b6f6e10ab9e78a0b133619aae2",
+      "bytes": 12
+    },
+    "project/api_falsy/project.godot": {
+      "sha256": "1579b4825b643b97e01b2e74e969d3c357fd847b9de0b547a2cb3182a57c8932",
+      "bytes": 38
+    },
+    "project/api_falsy/scripts/exist.gd": {
+      "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+      "bytes": 13
+    },
+    "project/api_falsy/child.tscn": {
+      "sha256": "464718a3b694c9f337e33db0eac81fd84d257f153ffa1d1177dab560f201ef2f",
+      "bytes": 92
+    },
+    "project/api_falsy/.agent_history/godot_api_cache.json": {
+      "sha256": "876921577dad770954be8fddab2986ef33131e2aae52bb1df585f3d15bf5f7d4",
+      "bytes": 61
+    },
+    "project/common/project.godot": {
+      "sha256": "1579b4825b643b97e01b2e74e969d3c357fd847b9de0b547a2cb3182a57c8932",
+      "bytes": 38
+    },
+    "project/common/scripts/exist.gd": {
+      "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+      "bytes": 13
+    },
+    "project/common/child.tscn": {
+      "sha256": "464718a3b694c9f337e33db0eac81fd84d257f153ffa1d1177dab560f201ef2f",
+      "bytes": 92
+    },
+    "project/fuzzy/project.godot": {
+      "sha256": "1579b4825b643b97e01b2e74e969d3c357fd847b9de0b547a2cb3182a57c8932",
+      "bytes": 38
+    },
+    "project/fuzzy/scripts/exist.gd": {
+      "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+      "bytes": 13
+    },
+    "project/fuzzy/child.tscn": {
+      "sha256": "f63e6fe09bd9fb6f5511c690b2908bc60878623472ac74dbbb0c0e7c6b335325",
+      "bytes": 122
+    }
+  },
+  "legacy_input": {
+    "source": "godot_agent/python/tests/test_agent_bridge.py:1117-1122",
+    "sha256": "d9f9f0b178ef89e35baabb19867cf9fab9ae074c1f072252e34db357e7ab516e",
+    "correction": "Initial capture omitted two blank lines; original file/case/manifest retained in approved temp, actual literal input and output recaptured before tests/code."
+  },
+  "fixture_base": "fixtures/projects, as required by frozen snapshot_diff.py:18",
+  "fixture_correction": "Initial fixture values were relative to fixtures instead of fixtures/projects; native found9 missing-resource mismatches despite unit315 green. Only ../ prefix corrected, all65 actual-old outputs rechecked unchanged; pre-correction case/manifest bytes retained in approved temp."
+}

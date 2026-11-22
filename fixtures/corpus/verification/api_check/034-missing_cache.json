@@ -1,0 +1,26 @@
+{
+  "id": "034-missing_cache",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/missing",
+  "note": "missing_cache",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.nope()\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "Node2D",
+      "checked": false,
+      "unavailable": [
+        {
+          "kind": "api_cache",
+          "reason": "no_cache"
+        }
+      ]
+    }
+  }
+}

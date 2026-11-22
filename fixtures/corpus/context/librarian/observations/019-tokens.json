@@ -1,0 +1,132 @@
+{
+  "before": {
+    "files": {
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJTeW50aGV0aWMgbGlicmFyaWFuIgpbYXV0b2xvYWRdCkdsb2JhbD0iKnJlczovL3NjcmlwdHMvZ2xvYmFsLmdkIgpQcml2YXRlPSIqcmVzOi8vLi4vb3V0c2lkZS9wcml2YXRlLmdkIgo="
+      },
+      ".agent_history/private.gd": {
+        "base64": "ZnVuYyBwcml2YXRlX2hpc3Rvcnlfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "Addons/vendor/private.gd": {
+        "base64": "ZnVuYyB2ZW5kb3Jfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "data/binary.bin": {
+        "base64": "AP8Ac3ludGhldGljX2JpbmFyeQ=="
+      },
+      "docs/readme.md": {
+        "base64": "IyBTeW50aGV0aWMKQXR0YWNrIGNhdXNlcyBkYW1hZ2U7IHRha2VfZGFtYWdlIGRvY3VtZW50YXRpb24gb25seS4K"
+      },
+      "scenes/player.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbbm9kZSBuYW1lPSJIZXJvVW5pdCIgdHlwZT0iTm9kZTJEIl0KW25vZGUgbmFtZT0iSGVhbHRoQmFyIiB0eXBlPSJDb250cm9sIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9ImhlYWx0aF9jaGFuZ2VkIiBmcm9tPSIuIiB0bz0iSGVhbHRoQmFyIiBtZXRob2Q9Il9vbl9oZWFsdGhfY2hhbmdlZCJdCg=="
+      },
+      "scripts/bom.gd": {
+        "base64": "77u/ZXh0ZW5kcyBOb2RlCmZ1bmMgYm9tX3N5bWJvbCgpOgoJcmV0dXJuIDEK"
+      },
+      "scripts/enemy.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMgYXR0YWNrKHRhcmdldCk6Cgl0YXJnZXQudGFrZV9kYW1hZ2UoMikKCXRhcmdldC5jYWxsKCJ0YWtlX2RhbWFnZSIsIDMpCgl0YXJnZXQudGFrZV9kYW1hZ2UuYmluZCg0KS5jYWxsKCkKCXRhcmdldC5oZWFsdGhfY2hhbmdlZC5jb25uZWN0KF9vbl9oZWFsdGhfY2hhbmdlZCkKCWF3YWl0IHRhcmdldC5oZWFsdGhfY2hhbmdlZApmdW5jIF9vbl9oZWFsdGhfY2hhbmdlZCh2YWx1ZSk6CglwcmludCh2YWx1ZSkKZnVuYyBzaGFyZWRfYWN0aW9uKCk6CglyZXR1cm4gMgo="
+      },
+      "scripts/global.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBjb2lucz0wCmZ1bmMgY29sbGVjdF9yZXdhcmQoKToKCWNvaW5zICs9IDEK"
+      },
+      "scripts/invalid.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCiMgaW52YWxpZCD/CmZ1bmMgb2RkX2J5dGVzKCk6CglyZXR1cm4gMQo="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgSGVyb1VuaXQKc2lnbmFsIGhlYWx0aF9jaGFuZ2VkKHZhbHVlKQpjb25zdCBNQVhfSEVBTFRIPTEwMAp2YXIgaGVhbHRoPTEwMApmdW5jIHRha2VfZGFtYWdlKGFtb3VudDogaW50ID0gMSk6Cgl2YXIgcmVtYWluaW5nID0gaGVhbHRoIC0gYW1vdW50CgloZWFsdGggPSByZW1haW5pbmcKCWhlYWx0aF9jaGFuZ2VkLmVtaXQoaGVhbHRoKQoJcmV0dXJuIHJlbWFpbmluZwpmdW5jIHNoYXJlZF9hY3Rpb24oKToKCXJldHVybiAxCmNsYXNzIEVxdWlwbWVudDoKCXZhciBhcm1vcj0yCglmdW5jIGVxdWlwX3dlYXBvbihpdGVtKToKCQlyZXR1cm4gaXRlbQo="
+      },
+      "scripts/unicode.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMg0LfQtNC+0YDQvtCy0YzQtSgpOgoJcmV0dXJuICLQv9GA0LjQstC10YIiCg=="
+      }
+    },
+    "dirs": [
+      ".agent_history",
+      "Addons",
+      "Addons/vendor",
+      "data",
+      "docs",
+      "scenes",
+      "scripts"
+    ]
+  },
+  "result": {
+    "tokens": [
+      "nonexistentneedle"
+    ],
+    "subtokens": [
+      "nonexistentneedle"
+    ],
+    "expanded": [
+      "nonexistentneedle",
+      []
+    ],
+    "card_request": [
+      null,
+      "nonexistentneedle"
+    ],
+    "phrase": [
+      "nonexistentneedle"
+    ],
+    "path_keys": [
+      "nonexistentneedle"
+    ]
+  },
+  "project_after": {
+    "files": {
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJTeW50aGV0aWMgbGlicmFyaWFuIgpbYXV0b2xvYWRdCkdsb2JhbD0iKnJlczovL3NjcmlwdHMvZ2xvYmFsLmdkIgpQcml2YXRlPSIqcmVzOi8vLi4vb3V0c2lkZS9wcml2YXRlLmdkIgo="
+      },
+      ".agent_history/private.gd": {
+        "base64": "ZnVuYyBwcml2YXRlX2hpc3Rvcnlfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "Addons/vendor/private.gd": {
+        "base64": "ZnVuYyB2ZW5kb3Jfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "data/binary.bin": {
+        "base64": "AP8Ac3ludGhldGljX2JpbmFyeQ=="
+      },
+      "docs/readme.md": {
+        "base64": "IyBTeW50aGV0aWMKQXR0YWNrIGNhdXNlcyBkYW1hZ2U7IHRha2VfZGFtYWdlIGRvY3VtZW50YXRpb24gb25seS4K"
+      },
+      "scenes/player.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbbm9kZSBuYW1lPSJIZXJvVW5pdCIgdHlwZT0iTm9kZTJEIl0KW25vZGUgbmFtZT0iSGVhbHRoQmFyIiB0eXBlPSJDb250cm9sIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9ImhlYWx0aF9jaGFuZ2VkIiBmcm9tPSIuIiB0bz0iSGVhbHRoQmFyIiBtZXRob2Q9Il9vbl9oZWFsdGhfY2hhbmdlZCJdCg=="
+      },
+      "scripts/bom.gd": {
+        "base64": "77u/ZXh0ZW5kcyBOb2RlCmZ1bmMgYm9tX3N5bWJvbCgpOgoJcmV0dXJuIDEK"
+      },
+      "scripts/enemy.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMgYXR0YWNrKHRhcmdldCk6Cgl0YXJnZXQudGFrZV9kYW1hZ2UoMikKCXRhcmdldC5jYWxsKCJ0YWtlX2RhbWFnZSIsIDMpCgl0YXJnZXQudGFrZV9kYW1hZ2UuYmluZCg0KS5jYWxsKCkKCXRhcmdldC5oZWFsdGhfY2hhbmdlZC5jb25uZWN0KF9vbl9oZWFsdGhfY2hhbmdlZCkKCWF3YWl0IHRhcmdldC5oZWFsdGhfY2hhbmdlZApmdW5jIF9vbl9oZWFsdGhfY2hhbmdlZCh2YWx1ZSk6CglwcmludCh2YWx1ZSkKZnVuYyBzaGFyZWRfYWN0aW9uKCk6CglyZXR1cm4gMgo="
+      },
+      "scripts/global.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBjb2lucz0wCmZ1bmMgY29sbGVjdF9yZXdhcmQoKToKCWNvaW5zICs9IDEK"
+      },
+      "scripts/invalid.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCiMgaW52YWxpZCD/CmZ1bmMgb2RkX2J5dGVzKCk6CglyZXR1cm4gMQo="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgSGVyb1VuaXQKc2lnbmFsIGhlYWx0aF9jaGFuZ2VkKHZhbHVlKQpjb25zdCBNQVhfSEVBTFRIPTEwMAp2YXIgaGVhbHRoPTEwMApmdW5jIHRha2VfZGFtYWdlKGFtb3VudDogaW50ID0gMSk6Cgl2YXIgcmVtYWluaW5nID0gaGVhbHRoIC0gYW1vdW50CgloZWFsdGggPSByZW1haW5pbmcKCWhlYWx0aF9jaGFuZ2VkLmVtaXQoaGVhbHRoKQoJcmV0dXJuIHJlbWFpbmluZwpmdW5jIHNoYXJlZF9hY3Rpb24oKToKCXJldHVybiAxCmNsYXNzIEVxdWlwbWVudDoKCXZhciBhcm1vcj0yCglmdW5jIGVxdWlwX3dlYXBvbihpdGVtKToKCQlyZXR1cm4gaXRlbQo="
+      },
+      "scripts/unicode.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMg0LfQtNC+0YDQvtCy0YzQtSgpOgoJcmV0dXJuICLQv9GA0LjQstC10YIiCg=="
+      }
+    },
+    "dirs": [
+      ".agent_history",
+      "Addons",
+      "Addons/vendor",
+      "data",
+      "docs",
+      "scenes",
+      "scripts"
+    ]
+  },
+  "addon_after": {
+    "files": {},
+    "dirs": [
+      "minilich_brain"
+    ]
+  },
+  "history_after": {
+    "files": {},
+    "dirs": []
+  }
+}

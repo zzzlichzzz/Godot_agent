@@ -1,0 +1,20 @@
+{
+  "godot_version": "4.6-fixture",
+  "classes": {
+    "A": {
+      "inherits": "B",
+      "methods": {
+        "a": [
+          0,
+          0
+        ]
+      }
+    },
+    "B": {
+      "inherits": "A",
+      "properties": [
+        "b"
+      ]
+    }
+  }
+}

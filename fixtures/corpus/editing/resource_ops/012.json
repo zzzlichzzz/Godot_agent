@@ -1,0 +1,36 @@
+{
+  "id": "directory",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://directory.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Ресурс не найден: res://directory.tres",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "cd69c9d07f0e305f37a84094262a8ae7c651c4b84a2851464f971614c1ed38d0"
+}

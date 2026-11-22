@@ -1,0 +1,24 @@
+{
+  "input": {
+    "id": "routing029",
+    "label": "split_action_block",
+    "function": "split_action_block",
+    "args": [
+      "```agent_action\n{\"dir\":\"res://\"}\n```"
+    ]
+  },
+  "expect": {
+    "result": [
+      "{\"dir\":\"res://\"}\n",
+      ""
+    ],
+    "stdout": ""
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "split_action_block",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="Root" type="Node2D"]
+
+[node name="Gun" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Ordinary" type="Node2D" parent="."]
+unique_name_in_owner = false

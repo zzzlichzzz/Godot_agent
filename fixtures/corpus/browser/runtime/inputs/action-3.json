@@ -1,0 +1,5 @@
+{
+  "id": "action-3",
+  "op": "action",
+  "raw": "{\"action\":\"write_file\",\"path\":\"res://a.gd\",\"content\":\"extends Node\"}"
+}

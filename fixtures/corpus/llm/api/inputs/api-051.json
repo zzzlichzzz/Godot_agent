@@ -1,0 +1,14 @@
+{
+  "kind": "call",
+  "module": "openai_compat",
+  "function": "classify_http_error",
+  "args": [
+    404,
+    "{\"error\": {\"message\": \"unknown model\"}}",
+    {
+      "Retry-After": "120"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-051"
+}

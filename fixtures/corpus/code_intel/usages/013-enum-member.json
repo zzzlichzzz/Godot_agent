@@ -1,0 +1,45 @@
+{
+  "id": "013-enum-member",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "enum_member: обращение через имя enum остаётся probable с причиной — эталон не передаёт имя enum в доказательство",
+  "args": {
+    "kind": "enum_member",
+    "old_name": "IDLE",
+    "declaration": "res://src/lab_entity.gd:10"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "enum_member",
+      "old_name": "IDLE",
+      "new_name": "",
+      "declaration": "res://src/lab_entity.gd:10",
+      "usages": [
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 10,
+          "column": 14,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_state.gd",
+          "line": 4,
+          "column": 15,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «State»: добавь аннотацию типа, и ссылка переименуется сама"
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 1
+      },
+      "proven_count": 1,
+      "probable_count": 1,
+      "dynamic_count": 0
+    }
+  }
+}

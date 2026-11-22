@@ -1,0 +1,12 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "sleep_seconds",
+  "args": [
+    3
+  ],
+  "kwargs": {
+    "kind": "limit"
+  },
+  "id": "api-161"
+}

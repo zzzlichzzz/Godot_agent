@@ -1,0 +1,21 @@
+{
+  "id": "005-same-directory",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/projection",
+  "args": {
+    "old_path": "res://src/unit.gd",
+    "new_path": "res://src/renamed.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://src/unit.gd",
+      "new_path": "res://src/renamed.gd",
+      "is_directory": false,
+      "file_count": 1,
+      "reference_count": 0,
+      "files": [],
+      "source_text": "extends \"../base.gd\"\r\nconst A=preload(\"weapon.gd\")\rconst U=preload(\"uid://unchanged\")\nconst S=preload(\"res://src/shield.tres\")\nconst M=preload(\"missing.gd\")\nconst RAW=\"weapon.gd\"\n# load(\"weapon.gd\")\n"
+    }
+  }
+}

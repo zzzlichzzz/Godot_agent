@@ -1,0 +1,15 @@
+{
+  "id": "011-old-name-keyword",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "old_name — ключевое слово GDScript: invalid_input",
+  "args": {
+    "kind": "function",
+    "old_name": "func",
+    "declaration": "res://src/lab_entity.gd:12"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

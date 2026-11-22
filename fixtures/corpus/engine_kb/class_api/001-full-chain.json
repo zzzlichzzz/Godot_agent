@@ -1,0 +1,161 @@
+{
+  "id": "001-full-chain",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/chain",
+  "args": {
+    "class_name": "Node2D"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Node2D",
+      "found": true,
+      "cache_version": "4.6.3",
+      "inherits": [
+        "Node2D",
+        "CanvasItem",
+        "Node",
+        "Object"
+      ],
+      "methods": [
+        {
+          "name": "alpha",
+          "min_args": 2,
+          "max_args": 3,
+          "signature": "alpha(x: int, y: String = \"λ\") -> void"
+        },
+        {
+          "name": "draw",
+          "min_args": 0,
+          "max_args": 1,
+          "signature": "draw(width: float = 1.0) -> void"
+        },
+        {
+          "name": "free",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "queue_free",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "shared",
+          "min_args": 1,
+          "max_args": 2,
+          "signature": "shared(child: int) -> bool"
+        },
+        {
+          "name": "zebra",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        }
+      ],
+      "properties": [
+        "name",
+        "position",
+        "visible",
+        "z_index"
+      ],
+      "signals": [
+        "changed",
+        "drawn",
+        "ready"
+      ],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Node2D",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6.3",
+    "record": {
+      "inherits": "CanvasItem",
+      "methods": {
+        "zebra": [
+          0,
+          0
+        ],
+        "shared": [
+          1,
+          2
+        ],
+        "alpha": [
+          2,
+          3
+        ]
+      },
+      "properties": [
+        "z_index",
+        "position"
+      ],
+      "signals": [
+        "changed"
+      ],
+      "signatures": {
+        "alpha": "alpha(x: int, y: String = \"λ\") -> void",
+        "shared": "shared(child: int) -> bool"
+      }
+    },
+    "chain": [
+      "Node2D",
+      "CanvasItem",
+      "Node",
+      "Object"
+    ],
+    "members": [
+      {
+        "zebra": [
+          0,
+          0
+        ],
+        "shared": [
+          1,
+          2
+        ],
+        "alpha": [
+          2,
+          3
+        ],
+        "draw": [
+          0,
+          1
+        ],
+        "queue_free": [
+          0,
+          0
+        ],
+        "free": [
+          0,
+          0
+        ]
+      },
+      [
+        "name",
+        "position",
+        "visible",
+        "z_index"
+      ],
+      [
+        "changed",
+        "drawn",
+        "ready"
+      ]
+    ],
+    "signatures": {
+      "alpha": "alpha(x: int, y: String = \"λ\") -> void",
+      "shared": "shared(child: int) -> bool",
+      "draw": "draw(width: float = 1.0) -> void"
+    }
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

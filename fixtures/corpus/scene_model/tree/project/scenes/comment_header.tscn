@@ -1,0 +1,5 @@
+# [ext_resource id=1 path="res://scripts/comment.gd"]
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+# [node name="NotNode"]
+script=ExtResource(1)

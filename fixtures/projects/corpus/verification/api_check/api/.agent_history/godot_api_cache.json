@@ -1,0 +1,74 @@
+{
+  "godot_version": "4.6-fixture",
+  "classes": {
+    "Object": {
+      "inherits": null,
+      "methods": {
+        "connect": [
+          2,
+          3
+        ],
+        "base": [
+          0,
+          0
+        ],
+        "inherited": [
+          1,
+          1
+        ]
+      },
+      "properties": [
+        "parent_prop"
+      ],
+      "signals": [
+        "parent_signal"
+      ]
+    },
+    "Node": {
+      "inherits": "Object",
+      "methods": {
+        "f": [
+          2,
+          3
+        ],
+        "a": [
+          2,
+          2
+        ],
+        "zero": [
+          0,
+          0
+        ],
+        "one": [
+          1,
+          1
+        ],
+        "overridden": [
+          1,
+          1
+        ]
+      },
+      "properties": [
+        "name"
+      ],
+      "signals": [
+        "known_signal"
+      ]
+    },
+    "Node2D": {
+      "inherits": "Node",
+      "methods": {
+        "overridden": [
+          0,
+          0
+        ]
+      },
+      "properties": [
+        "position"
+      ],
+      "signals": [
+        "moved"
+      ]
+    }
+  }
+}

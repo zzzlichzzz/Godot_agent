@@ -1,0 +1,26 @@
+{
+  "case_count": 1,
+  "oracle_runs": 2,
+  "oracle_differences": 0,
+  "case": {
+    "bytes": 570,
+    "sha256": "e942c1725f4ebe9b29959bcce7e21e2998a2718cab75d002bdfddda3f30ac633",
+    "LF": 9,
+    "CRLF": 0
+  },
+  "observation": {
+    "bytes": 6857,
+    "sha256": "b917c43b597659f5544cd6df6369cb77394c62fc564427457e2c50452244ed33",
+    "LF": 146,
+    "CRLF": 0
+  },
+  "source": {
+    "bytes": 19866,
+    "sha256": "dbd502afeca7fa2fe97d49a995438c551d313d1713e6591865ab2bf3b053067b",
+    "LF": 412,
+    "CRLF": 0
+  },
+  "initial_survivor_preserved": true,
+  "original214_unchanged": true,
+  "new_production_logic": false
+}

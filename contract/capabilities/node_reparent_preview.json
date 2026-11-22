@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "module_id": "scene_model.node_reparent",
+  "capability_id": "scene_model.node_reparent",
+  "tool_name": "node_reparent_preview",
+  "description": "Read-only native prepare_node_reparent plan; no apply/undo/history/WAL. update_scripts defaults to true. Lossless Base64 before_bytes/after_bytes; only scene_res duplicate and files.absolute omitted. Native structured diff context=3, max600 ordered [kind,old_line|null,new_line|null,text] rows. target_node is name; target_node_path is old path; new_parent is resolved path, root=\".\". Scene-first files order; quoted $ paths for .. or nonidentifier components. .tscn and textual .scn supported.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "node": {
+        "type": "string"
+      },
+      "new_parent": {
+        "type": "string"
+      },
+      "update_scripts": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "path",
+      "node",
+      "new_parent"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "reparent_node"
+        ]
+      },
+      "scene": {
+        "type": "string"
+      },
+      "old_path": {
+        "type": "string"
+      },
+      "new_path": {
+        "type": "string"
+      },
+      "new_parent": {
+        "type": "string"
+      },
+      "target_node": {
+        "type": "string"
+      },
+      "target_node_path": {
+        "type": "string"
+      },
+      "files": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "patch_file"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "before_hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "before_bytes": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            },
+            "after_bytes": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+            },
+            "diff": {
+              "type": "object",
+              "properties": {
+                "lines": {
+                  "type": "array",
+                  "maxItems": 600,
+                  "items": {
+                    "type": "array",
+                    "minItems": 4,
+                    "maxItems": 4,
+                    "items": {
+                      "type": [
+                        "string",
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "added": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "removed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "truncated": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "patch_file"
+                  ]
+                }
+              },
+              "required": [
+                "lines",
+                "added",
+                "removed",
+                "truncated",
+                "path",
+                "action"
+              ],
+              "additionalProperties": false
+            },
+            "occurrences": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "action",
+            "path",
+            "before_hash",
+            "before_bytes",
+            "after_bytes",
+            "diff",
+            "occurrences"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "reference_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "affected_paths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "action",
+      "scene",
+      "old_path",
+      "new_path",
+      "new_parent",
+      "target_node",
+      "target_node_path",
+      "files",
+      "reference_count",
+      "affected_paths"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="Animation" id="Animation_shoot"]
+resource_name = "shoot"
+tracks/0/type = "value"
+tracks/0/path = NodePath("Gun/Muzzle:position")
+tracks/1/type = "value"
+tracks/1/path = NodePath("Gun:rotation")
+tracks/2/path = NodePath( 'Gun/Muzzle:scale' )
+
+[node name="Root" type="Node2D"]
+
+[node name="Gun" type="Node2D" parent="."]
+
+[node name="Muzzle" type="Marker2D" parent="Gun"]

@@ -1,0 +1,1256 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-29",
+  "reference": {
+    "commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+    "file": "python/godot_tools/project_tools.py",
+    "function": "describe_scene:1269-1367",
+    "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877",
+    "bytes": 102471
+  },
+  "capture": "Actual _bootstrap/project_tools import, python -B from old cwd; local trace captures data; one-off script removed.",
+  "decoding": "utf-8-sig/errors=replace, universal newlines as in reference open()",
+  "inputs": {
+    "player.tscn": {
+      "sha256": "76500b7ac09ea3abca81372831fedeadcdd8a3803179613362ab3cac3bf4dec5",
+      "bytes": 271
+    },
+    "simple.tscn": {
+      "sha256": "6f1a6f14ace829ebe0f4d8c3a3be66dddf5cf5379027b75c97193b0723e74af2",
+      "bytes": 53
+    },
+    "nested.tscn": {
+      "sha256": "67393e0820dbe6b9bd5abf528eb62f8c3bb941231467ba3ce2b15c4ddaf7816c",
+      "bytes": 186
+    },
+    "instance.tscn": {
+      "sha256": "5f78f05296c921afab344eecbb2f78c62f1cbe097d99894338be899da07e7540",
+      "bytes": 208
+    },
+    "script.tscn": {
+      "sha256": "418b669e50fc93179d09682fba5bc6f057fbc2deb72c0283ee2365e60c2ae8aa",
+      "bytes": 218
+    },
+    "connections.tscn": {
+      "sha256": "4a2ff1994adce8db721418135624309958a39adeea75906d5987759deae60f67",
+      "bytes": 239
+    },
+    "unique.tscn": {
+      "sha256": "ac91f2839b01bb962c568d1639dfd7afcb406fc9d43c999377102ce0165640b6",
+      "bytes": 142
+    },
+    "editable.tscn": {
+      "sha256": "1c42b07b12fc1bdcb35d56e38fb8ee8c8a607bf297c4b32d14563c52b1485eaf",
+      "bytes": 161
+    },
+    "sub.tscn": {
+      "sha256": "10e81452cc95b29dc7e4bfcfbd902bdc34ba724c6a54e5a090ec01412dbd618a",
+      "bytes": 175
+    },
+    "resources.tscn": {
+      "sha256": "f82c8a6136a77ec86a51129269b532427328c6d0d7ff39b63600ca90f84b97cf",
+      "bytes": 266
+    },
+    "duplicates.tscn": {
+      "sha256": "d99d3ce8298120bf5ac626ff808e8fb55b6f484053ce1374555fe97deda3b8a6",
+      "bytes": 205
+    },
+    "missing_attrs.tscn": {
+      "sha256": "c1d361db36c7a8f81cecd33e7e856e4b5c6d4f9653bd5d4ba8fbb43d849d6c6f",
+      "bytes": 76
+    },
+    "brackets_quotes.tscn": {
+      "sha256": "68a7b8148fc2cf6ec24dbce5bd8e29e1075d084d9eff3d32980ff6755c77bd2f",
+      "bytes": 129
+    },
+    "malformed.tscn": {
+      "sha256": "d575fa65065c732efff7e668e4108f8f19ef6202f2011abef388badea7d2dc60",
+      "bytes": 103
+    },
+    "incomplete_connections.tscn": {
+      "sha256": "4b961175c59dbea1f5839b9fc7e462c7aa6fff1f9391d146e2897fe1722625e6",
+      "bytes": 200
+    },
+    "sections.tscn": {
+      "sha256": "2cae5255e7cc3a650e542719f8f7e748bd9bd50ef541f3324af4ccc52806b1bb",
+      "bytes": 231
+    },
+    "single_quote.tscn": {
+      "sha256": "cd01538fbb813b00c4c932d0c1b17fc804c8ffc701ccf3f64549f4c9db68c13e",
+      "bytes": 180
+    },
+    "unicode.tscn": {
+      "sha256": "98b3c0835e1f45f4fd6f1a5182c58c98a0261c64f50df3bbc0a42cd2abfa6048",
+      "bytes": 79
+    },
+    "comment_header.tscn": {
+      "sha256": "6615e0c539d11739520d92fd2bf4c92ae6585283d69994f1b92254fbad4ab389",
+      "bytes": 153
+    },
+    "out_of_order.tscn": {
+      "sha256": "c5b1e53813e5bff240ddddbbea94399052a4b2e4703612dbe7664b4ea20d8784",
+      "bytes": 106
+    },
+    "crlf.tscn": {
+      "sha256": "2c38c36a6600421bb9a1449df31e5adfbec180c79946a65289aca2ca0dc46e35",
+      "bytes": 55
+    },
+    "bom.tscn": {
+      "sha256": "19d26605d6a2bbb12024582bb38c2d1563209ebeac69eaf6cc64dd4cbea5c4b7",
+      "bytes": 56
+    },
+    "bom_crlf.tscn": {
+      "sha256": "fee5b053f5b74964f4d3f8e7d14391f3a0af2cf5a234f06ecf357e788e6d6116",
+      "bytes": 58
+    },
+    "cr.tscn": {
+      "sha256": "2b9bad82291f5c357c9d4327cff91307c02bf78604da7dcbd31006ca60baa65b",
+      "bytes": 53
+    },
+    "large.tscn": {
+      "sha256": "220dbbbd3441838c590b1c379a06acf1727e0eb0688e5e11bcbdd5b2edd6be05",
+      "bytes": 2608
+    },
+    "flat.tres": {
+      "sha256": "eaf2bc2ff0edf482b2802d5e0b1cb29a1890afddeb033b62e29a32d979684e30",
+      "bytes": 85
+    },
+    "no_nodes.tscn": {
+      "sha256": "d8274e85a9c5800a99ba704ed8ff4e261eccebdfce177e237d19f96ffe14ea0f",
+      "bytes": 72
+    },
+    "empty.tscn": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "spaces.tscn": {
+      "sha256": "f209e36a594a34ac6603bf6b30fe81d9a535dcacad3f88657c69af1306ca3bbc",
+      "bytes": 5
+    },
+    "text.scn": {
+      "sha256": "6f1a6f14ace829ebe0f4d8c3a3be66dddf5cf5379027b75c97193b0723e74af2",
+      "bytes": 53
+    },
+    "binary.scn": {
+      "sha256": "001846439ee245569228bedd9d4125e1538ecf813f5d90eed9982ace73aafa22",
+      "bytes": 8
+    },
+    "foreign.txt": {
+      "sha256": "6f1a6f14ace829ebe0f4d8c3a3be66dddf5cf5379027b75c97193b0723e74af2",
+      "bytes": 53
+    },
+    "upper.TSCN": {
+      "sha256": "6f1a6f14ace829ebe0f4d8c3a3be66dddf5cf5379027b75c97193b0723e74af2",
+      "bytes": 53
+    },
+    "invalid_utf8.tscn": {
+      "sha256": "9794f0f382107f357ec6da3ee0cdd96927be126e77ad5d29b36ca1487789f262",
+      "bytes": 31
+    }
+  },
+  "cases": {
+    "001-player.tscn.json": "a837d3b06332389e60452f0d325e4baea42a6550c36176eca5f7beb0eab995bc",
+    "002-simple.tscn.json": "c4ba0950583fbc22f6fa8a07e7510e4bcdacfedb450e29f4c941ce3181ca9c55",
+    "003-nested.tscn.json": "18ad06399bad9d203a9a33b0e898b245d9c7084298a5cec20a47332a0a145fd8",
+    "004-instance.tscn.json": "31d1feabf0e88c27690602a4e471d7b13e2be3cc1b25c2a21d37649417624369",
+    "005-script.tscn.json": "193bc7167196acff46b57f364e9e44a461f3c8a9cb84ea08bebba8b23248dbf0",
+    "006-connections.tscn.json": "3d2db31ba13f8ce10ad557d043d36f0b439ce782559760b5d59d8f6aa09ae18b",
+    "007-unique.tscn.json": "1e65815c17a244423d9def3dcb821eb26d9f6adccaf7852a9e501b64c43bd4f7",
+    "008-editable.tscn.json": "ff5b2342f42d0e198af87de789e27e4555f866fd18c22fdf8bd8cd6ff52ae115",
+    "009-sub.tscn.json": "4d19abf6e7c1c612f455f9d3c2e0bd33f6841020749f37d0fb3a97e148ac0663",
+    "010-resources.tscn.json": "b5ff5ca109f1bf051cf1f6ebf59a20eb3f951cdbdc1c7dba27a4bf8ae11b7635",
+    "011-duplicates.tscn.json": "8d96b3009fc440095b3ebaaaf49dd19fe0b480ba10264e9f302ad23b0bffba2a",
+    "012-missing_attrs.tscn.json": "6bba481148e6e406af55e1762b78add1bf89c7eefda95d6311a8e3e9e1598e93",
+    "013-brackets_quotes.tscn.json": "b34c03d640b339cb2d774e48d4c26e5948acf5db652732b9611e61fe71b440ae",
+    "014-malformed.tscn.json": "e6ffb30eee65134601b325054a2aba57b9581711d96ae6e4ed0ac2318767ba3f",
+    "015-incomplete_connections.tscn.json": "eb99ae7f4511de290a286656f676bb8e53315acc5977d0edec12b6f0dae8b5cf",
+    "016-sections.tscn.json": "caffca4a7b7b2bb02ba289f396f254f5a6db1248a74178fb72ba37ad224d7711",
+    "017-single_quote.tscn.json": "ae77dd096436f0e155e7f3730aab3f15c96ea5e52223869aa3c2b455308b000e",
+    "018-unicode.tscn.json": "a0fd07aee4b3e479dff88aa2518fdb0ed73690d7f00a3ae1838d18ded0b590c8",
+    "019-comment_header.tscn.json": "482c7d76a591fa670016b9173b2086cbd43a828a729b2b529febb4871909fecc",
+    "020-out_of_order.tscn.json": "265d34bf910cdb4b4e19e4cb8c2c15017ad82bd53e23996aa8b03c5b7c70f3c7",
+    "021-crlf.tscn.json": "fc4b129729ebadfb268a30aebdf530b9c5e7c02390d42ebc72f97cf5824624f0",
+    "022-bom.tscn.json": "c64e814e5499caf8d52357c5a2099da223c48b700af4c7db766f9cbf8a023898",
+    "023-bom_crlf.tscn.json": "583d844dcc94536ea36009fb5b1d684850d60e327d5660601b492f81b73f5fc8",
+    "024-cr.tscn.json": "3ccb04b73105a086e6ae054d7608dbafec54fea49633aea8b6754d83b2566f6c",
+    "025-large.tscn.json": "c315fb00afb53a1b38f1437ff19ecc785657e41799e69180c5f9647ab4a65ddb",
+    "026-flat.tres.json": "a3d6e162c0aeb327c49baea3dd06c98d293ccb8e17acf28d7662f5fa765a4013",
+    "027-no_nodes.tscn.json": "ee8cfbeb1faa36d44fc22b22e7b4de4e049153dc522cbfcb87734cae9fdfdfc9",
+    "028-empty.tscn.json": "3e759d547249390eb203ddbc1859bd5a7155e3fdcd557b96752eaeb515fea0b9",
+    "029-spaces.tscn.json": "3d045d56f2c7761681e531fc2b0ae51e142676abef6e26e8f578babf9e4ac451",
+    "030-text.scn.json": "dc5923f8be7605639c0b81d0144e6121264bbb83f9c404f60381dd6e7130b552",
+    "031-binary.scn.json": "aa0a28c2486f9b1fb752b60a13317e056a5eaee47244e2d651679011a8a2b841",
+    "032-foreign.txt.json": "f6bb1efbeec44662f8720af7616939c364314f15afeed39ad8743d205210be9d",
+    "033-upper.TSCN.json": "f1425f5993d01ca586d637b206636d2b71746dad868eade5a7c2133e45d408c9",
+    "034-invalid_utf8.tscn.json": "5f44958d734b8b7c173213235e54ff100853fb3820b5206ecb81e946c4b3aa99",
+    "035-truncate.json": "91c15254404d7bc48a684c439a72274b395e53b21f46b37c3cec4bde769e5edc",
+    "036-zero.json": "6b258f4b5fefcd0ac2a981463ee8ca264705a8f04ab435e7d0f5ecb18d3415c1",
+    "037-exact.json": "cac838546a2251504c194af7ee4402d60b5215646d9fc9dbe47bbea757799fcd",
+    "038-unicode_cut.json": "4ddf95e15de800d7b1d140d032573aad6077bb091da67531927f022b714ee624",
+    "039-missing.json": "1b4cced8905cb2f29092ad64559b98b0b561e86cc2f4b5339da81c48b9ae35d8",
+    "040-relative.json": "c78ad75fdf00521f1275b96ea32ab12327f1bceea285679282d6a566d86c3930"
+  },
+  "format_rows": {
+    "player.tscn": {
+      "nodes": [
+        {
+          "name": "Player",
+          "type": "CharacterBody2D",
+          "script": "res://scripts/player.gd",
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Sprite",
+          "type": "Sprite2D",
+          "script": null,
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1_player",
+            "type": "Script",
+            "path": "res://scripts/player.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "simple.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "nested.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Gun",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "."
+        },
+        {
+          "name": "Muzzle",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "Gun"
+        },
+        {
+          "name": "Spark",
+          "type": "Marker2D",
+          "script": null,
+          "instance": null,
+          "parent": "Gun/Muzzle"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "instance.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Gun",
+          "type": "",
+          "script": null,
+          "instance": "res://scenes/gun.tscn",
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1_gun",
+            "type": "PackedScene",
+            "path": "res://scenes/gun.tscn",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "script.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/root.gd",
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Child",
+          "type": "",
+          "script": "res://scripts/root.gd",
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1_script",
+            "type": "Script",
+            "path": "res://scripts/root.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "connections.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [
+        {
+          "from": ".",
+          "to": "",
+          "signal": "ready",
+          "method": "start"
+        },
+        {
+          "from": "Gun",
+          "to": ".",
+          "signal": "fired",
+          "method": "receive"
+        },
+        {
+          "from": "",
+          "to": "Gun/Muzzle",
+          "signal": "hit",
+          "method": "spark"
+        }
+      ],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "unique.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Unique",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "editable.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/a.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "sub.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": [
+          {
+            "id": "Shape_1",
+            "type": "RectangleShape2D"
+          },
+          {
+            "id": "late",
+            "type": "?"
+          }
+        ]
+      }
+    },
+    "resources.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/a.gd",
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "A",
+            "type": "Script",
+            "path": "res://scripts/a.gd",
+            "uid": "uid://s"
+          },
+          {
+            "id": "only",
+            "type": "?",
+            "path": "?",
+            "uid": null
+          },
+          {
+            "id": "?",
+            "type": "Texture2D",
+            "path": "?",
+            "uid": null
+          }
+        ],
+        "sub": [
+          {
+            "id": "Curve_1",
+            "type": "Curve"
+          },
+          {
+            "id": "?",
+            "type": "?"
+          }
+        ]
+      }
+    },
+    "duplicates.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/new.gd",
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/old.gd",
+            "uid": null
+          },
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/new.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "missing_attrs.tscn": {
+      "nodes": [
+        {
+          "name": "?",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "?",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": ""
+        },
+        {
+          "name": "Child",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "A/"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "brackets_quotes.tscn": {
+      "nodes": [
+        {
+          "name": "quo\\",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "?",
+            "type": "?",
+            "path": "res://scripts/quo\\",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "malformed.tscn": {
+      "nodes": [
+        {
+          "name": "Open",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "incomplete_connections.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [
+        {
+          "from": ".",
+          "to": ".",
+          "signal": "go",
+          "method": "a"
+        }
+      ],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "sections.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Child",
+          "type": "",
+          "script": "res://scripts/a.gd",
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/a.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "single_quote.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Odd",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "?",
+            "path": "res://scripts/a.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "unicode.tscn": {
+      "nodes": [
+        {
+          "name": "Игрок🙂",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Оружие",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "comment_header.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/comment.gd",
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "?",
+            "path": "res://scripts/comment.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "out_of_order.tscn": {
+      "nodes": [
+        {
+          "name": "Child",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "Missing/Deep"
+        },
+        {
+          "name": "Root",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Sibling",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "crlf.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "bom.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "bom_crlf.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "cr.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "large.tscn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        },
+        {
+          "name": "Child0",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child1",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child2",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child3",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child4",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child5",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child6",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child7",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child8",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child9",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child10",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child11",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child12",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child13",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child14",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child15",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child16",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child17",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child18",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child19",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child20",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child21",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child22",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child23",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child24",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child25",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child26",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child27",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child28",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child29",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child30",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child31",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child32",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child33",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child34",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child35",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child36",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child37",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child38",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child39",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child40",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child41",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child42",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child43",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        },
+        {
+          "name": "Child44",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": "Branch/Deep"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "flat.tres": {
+      "nodes": [],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": [
+          {
+            "id": "1",
+            "type": "Curve"
+          }
+        ]
+      }
+    },
+    "no_nodes.tscn": {
+      "nodes": [],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://a.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    },
+    "empty.tscn": {
+      "nodes": [],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "spaces.tscn": {
+      "nodes": [],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "text.scn": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "binary.scn": {
+      "nodes": [],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "foreign.txt": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "upper.TSCN": {
+      "nodes": [
+        {
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    },
+    "invalid_utf8.tscn": {
+      "nodes": [
+        {
+          "name": "Bad�",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "032-scripts.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "scripts.tscn: '.'",
+  "args": {
+    "path": "res://scenes/scripts.tscn",
+    "node": "."
+  },
+  "reference_node": {
+    "name": "Root",
+    "parent": null,
+    "type": "Node",
+    "path": ".",
+    "unique_name": false,
+    "script_id": "root",
+    "header_span": [
+      158,
+      188
+    ],
+    "body_span": [
+      188,
+      218
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Root",
+      "type": "Node",
+      "parent": null,
+      "path": ".",
+      "depth": 0,
+      "script": "res://scripts/root.gd",
+      "instance": null,
+      "unique_name": false,
+      "parent_path": null,
+      "children": [
+        "Child",
+        "Missing"
+      ]
+    }
+  }
+}

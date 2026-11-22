@@ -1,0 +1,36 @@
+{
+  "id": "outside",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://../outside.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "43eb60e3deaec90a8098416445e90d2c482b726a859009791cc2c4853dc609d5"
+}
