@@ -11285,3 +11285,51 @@ D100 completed:365 measured owned diagnostic junction entries detached only with
 
 ИТОГ: T-F ПРИНЯТ. 27 маршрутов панели обслуживаются, контракт 51/51, write-петля без обходов (мутанты убиты), exe поднимается и панельным noargs-путём, observer исправлен, полный регресс зелёный. Плагин готов к живой обкатке; далее: синхронизация в установленную копию, коммит, обкатка на игре.
 
+2026-11-23 - Аудитор: синхронизация принятого T-F в установленную копию (r44).
+Префлюйт: WORKLOG 1103888/bcada22bc9bc89b0, exe 30859253/969854a477e143e3.
+git preflight: чист, HEAD 42edc0700d74d2ff.
+robocopy /MIR (XD .git,__pycache__,.pytest_cache,reports): rc=3.
+Дерево после: работа 6249/113031723 == установлено 6249/113031723.
+Spot-SHA 9 файлов ==; exe_gitignored=True (иначе локальный .git/info/exclude).
+Коммит db80ae45a052b8ff поверх 42edc0700d74d2ff; staged {"M": 9, "A": 25, "D": 171, "R": 0, "?": 0}; статус чист.
+Дальнейшие WORKLOG-аппенды остаются только в рабочей копии до следующей синхронизации.
+2026-11-23 - Auditor: fixtures/.gdignore dobavlen v obe kopii (rebuild+installed, commit v installed) - redaktor Godot perestanet skanirovat 66 MB testovogo korpusa (warnings project.godot + Parse Error na namerenno bitom fixtures). Ne trebuet D-zapisi: additivnyj pustoj fajl, kod ne izmenyon.
+
+
+## T-F.5 preflight-RED (2026-11-22T18:10:22.830883+00:00)
+
+Мандат T-F.5 принят. Исходное дерево/installed/native pins сохранены во внешнем tf5-20261122. Пустой fixtures/.gdignore уже аудиторский; preexisting UID/cache не удалены. Native/rollback/exe bytes frozen. Новый entry-contract на исходном plugin.cfg: ожидаемый RED (script ещё plugin.gd), остальные контрольные инварианты проверены. Следующее: ровно config-only switch и настоящий native headless/check-only ×2.
+
+
+## T-F.5 activation-live-D102-D103 (2026-11-22T18:34:28.321596+00:00)
+
+Native headless activation/dock ×2 and 25 check-only×2 passed. Real native provider/token/button→confirm_action/physical WAL/rollback/shutdown passed fresh rounds19/20. First full pair four genuine failures×2 retained. D102 supersedes only one T1 entry expectation, ID and other assertions retained; original bytes backup matches preflight. D103 frozen C.21 input materialization +25 strict current-input/UID cases; direct unadapted C.21 still has three baseline membership failures. Focused GREEN obtained; final8458 IDs×2 and 8 genuine selfchecks×2 now launched. No frozen/native/exe/installed changes or external network. A shell-quoting error before this append had written nothing; actual backup/append are from checkpoint.py.
+
+
+## T-F.5 closure-gates (2026-11-22T18:50:23.744762+00:00)
+
+Closure security_audit/lint_arch/check_limits/gen_contract--check ×2 all exit0. Eight genuine selfchecks×2 all verdict=ok; full actual stdout JSON equals relocated reports, pinned in gates/verdicts-read.json. Earlier C.21 unit receipt-name collision RED retained, corrected only per-process receipt filenames; predicates unchanged. Source-only inspector confirms raw single-value config diff, all other rebuild frozen/foreign baseline and native backup exact. D105: installed181 fixture UID files absent versus start, no added/modified files/dirs/links; cause unproven, no executor installed write/sync or unauthorized restoration; observed snapshot stable. Next: await full-final8458 IDs×2 actual verdicts, then D104/identity/secret scan/seal LAST and sibling ZIP. No final seal or independent acceptance yet.
+
+
+## T-F.5 executor-handoff (2026-11-22T18:56:48.503179+00:00)
+
+Final8458 IDs×2:8456passed+2 historic skips each; all8427 predecessor IDs/order and all phases exact. Four closure gates×2 and eight genuine selfchecks×2 all exit0/verdict=ok, actual reports external. Native activation/dock×2,25 check-only×2, actual panel/provider/token/native confirm_action→physical WAL/rollback/owned exe shutdown×2 and read-only CLI probe passed. First failed full pair and harness errors retained; D102/D103 explicit, unadapted frozen C.21 has three foreign-baseline membership REDs; actual current UID corpus25cases also passes. D104 detached 246 measured own diagnostic junction entries only, raw FSCTL retained, original ordinary bytes/dirs and targets exact. Next: final identity/token scan, seal LAST, sibling postseal ZIP/verification receipt and independent audit. No executor installed write/sync; exe/frozen/native untouched; no automatic sync, git or external network. D105: installed read-only inventory has181 missing fixture UID versus start, cause unproven; all other files/dirs/links exact, no executor write/sync or unauthorized restore. Runtime/editor execution, protected split apply and automatic post-move sync remain unsupported.
+2026-11-23 — Аудитор: НЕЗАВИСИМАЯ ПРИЁМКА T-F.5 (панель↔сервер, exe, observer) — ПРИНЯТ.
+
+1) Пины: seal tf5-20261122/SHA256-final.json 33 332 883 B 8d0f38a85a6bf0b4, ZIP 586 524 315 B 9cfa44beff8a6fa8, exe 30 859 253 B 969854a477e143e3 (обе копии идентичны, не пересобран).
+2) ZIP: 94 126 файлов + 95 943 каталогов — полный побайтовый SHA256+EOL каждого члена, bad=0, duplicates/missing/extra=0.
+3) Диск-vs-seal: 94 125 файлов bad=0, missing=0, extra=1 (SHA256-final.json).
+4) Репо-vs-final: 6302 файла bad=0/missing=0/extra=0. Tree-identity-corrected: missing 4→0, extra 212, changed = docs/PROGRESS.md + docs/WORKLOG.md.
+5) Маршруты: мой независимый скан a20 — declared=51, served=62, MISSING=0. Контракт-тест test_panel_route_contract.py — 51/51, все dispatched.
+6) Код прочитан дословно: routes_project.py (preview→assistant_plan→pending, apply→assistant_confirm, no WAL bypass, nondefault options refuse), routes_panel.py (confirm_action→confirm_pending, server-owned plan_id+64hex digest, immutable), panel_state.py (D95/D97: nlink==1, no links/junctions, exclusive staging, fsync, os.replace, native_output перехват open()), exe_binding.py (D95: noargs derives addon→project→config/name→APPDATA userdata, safe_name DOS-safe, exclusive token xb, ProjectAuth before native fail-open).
+7) Мутанты 3+3 убиты с точным восстановлением: auth bypass, wrong digest, direct rename мимо WAL; повторены после D97 — kill сохранился.
+8) exe: мой полный цикл args-режим ×2 (health/auth matrix/plan/confirm/rollback/physical exact/shutdown 403+200/exit 0/endpoint removed/token unchanged) + noargs-режим ×2 (port 5000, PluginAuth, physical exact). Два моих ранних фейла — пробелы моего харнесса (нет plugin.cfg/config-name; неверная PROCESSENTRY32W раскладка) — исправлены и задокументированы.
+9) Observer D90: Godot 4.6.3 --check-only без Parse Error; tests/py/live/test_bridge_live.py зелёный (junit 1/0/0; был красным на приёмке T1).
+10) Гейты ×2 + 8 selfcheck ×2 exit 0 (exec utor's gates/final-paired-summary.json + мой независимый a19).
+11) Полный регресс ×2: 8458 collected = 8456 passed + 2 исторических WinError1314 skips; ordered IDs exact; 31 добавление в panel_tf + security prefixes; phase setup/call/teardown exact; только docs/PROGRESS.md + docs/WORKLOG.md изменились.
+12) D90–D105 прочитаны дословно; выборочно сверены с нативом (D91 native confirmation approved-only, D92 nondefault refuse, D93 post_move_sync refusal, D94 collect_errors argument order, D95 zero-arg derivation, D97 hardlink escape fix). Пять permanent real-hardlink tests были RED до фикса и GREEN после — ревизия D97 подтверждена.
+13) Границы: runtime/editor execution, protected split apply, automatic sync — отказные (D92/D93); NN F0; сеть/ключи не использовались; optional 0-byte не запускалось; unsigned exe может предупреждать AV/SmartScreen. РЕШЕНИЕ АУДИТОРА: границы УДОВЛЕТВОРЯЮТ мандату T-F.5.
+14) Установленная копия не синхронизирована исполнителем (git dirty 9 lines = 9 fixture .uid deletions, D105); синхронизация + коммит — задача аудитора, выполняется отдельно.
+
+ИТОГ: T-F.5 ПРИНЯТ. Панель Godot теперь показывает полный нативный UI (agent_entry), сервер обслуживает все 51 маршрут, write-петля не имеет обходов, exe поднимается noargs-путём, observer исправлен. Плагин Godot Agent полностью готов к живой обкатке на игре пользователя.
+

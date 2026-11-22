@@ -30,6 +30,7 @@ def test_failed_rollback_keeps_last_journal_and_never_claims_success():
     assert 'parsed.get("ok", true) != true' in text
 
 def test_native_entry_and_updater_are_inactive_configuration():
-    assert 'script="plugin.gd"' in (ROOT/'plugin.cfg').read_text(encoding='utf-8')
+    # Historical ID retained; T-F.5 explicitly supersedes only the entry choice.
+    assert 'script="editor/native/agent_entry.gd"' in (ROOT/'plugin.cfg').read_text(encoding='utf-8')
     assert 'agent_entry.gd' in (ROOT/'editor/native/plugin.cfg').read_text(encoding='utf-8')
     assert 'agent_updater' not in (ROOT/'plugin.gd').read_text(encoding='utf-8')

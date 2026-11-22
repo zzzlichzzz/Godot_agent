@@ -145,3 +145,102 @@ ordinary bytes/SHA256/EOL, directory membership and target identities passed.
 Both failed original artifacts and the capture script remain unchanged. Earlier
 final identity/repository/checkpoint records are retained byte-exact before
 refresh. Production/tests/corpus/checkers/exe were not changed for packaging.
+
+## D101 — T-F.5 config-only activation and foreign baseline (2026-11-22)
+
+The mandate selects `editor/native/agent_entry.gd` in root `plugin.cfg`.
+Its stale prototype docstring is intentionally frozen; `plugin.gd` and
+`editor/t1_panel.gd` remain byte-exact rollback assets. No capability, executor,
+provider, confirmation policy or native dependency is changed. The empty
+`fixtures/.gdignore` already existed before this work (auditor WORKLOG tail),
+and is preserved, not falsely recorded as an executor addition. Preflight found
+additional fixture `.gd.uid`/`.pytest_cache` entries relative to T-F's seal:
+all are foreign baseline and retained, not cleaned or restored. Exact raw
+before-inventory and predecessor deltas are in the separate `tf5-20261122`
+dossier. Godot probes run only on owned synthetic project copies with external
+userdata; a fresh native updater cache prevents its automatic GitHub request
+without changing frozen scripts. Production change is one config value only;
+installed copy, previous seals, exe and frozen native/substrate bytes untouched.
+
+## D102 — Superseded T1 entry expectation and retained REDs (2026-11-22)
+
+The first complete 8433-ID pair genuinely failed four cases in each run:
+one T1 assertion still required inactive native entry, and three frozen C.21
+cases copied seven preexisting Godot UID sidecars not declared in their original
+manifest. No failure is skipped, xfailed, deleted, or relabelled GREEN. T-F.5
+explicitly supersedes only the entry choice: the historical T1 node ID is kept,
+its one config expectation selects the native entry, and both remaining updater
+and rollback-plugin assertions stay unchanged. This T1 test is not a frozen
+T-A…T-E file. Its complete original bytes are retained against the preflight pin.
+Native GDScript, old C.21 tests, source inputs, manifests and goldens are frozen.
+
+Live harness failures (imports, cache filename/provider mapping, nonexistent PID
+reader, console-wrapper ancestry, wrong provider URL, JSON versus JSONL journal,
+and secret scan racing pytest temp handles) are retained/disclosed, not production
+failures. Fresh independent rounds 19/20 passed actual provider UI, native button
+HTTPRequest `/chat/confirm_action`, physical WAL commit/rollback and zero-arg exe
+lineage/shutdown. No backend/native/exe rebuild was needed; no network/key claim.
+
+## D103 — Explicit frozen input materialization plus current-UID corpus (2026-11-22)
+
+Do not delete auditor-owned UID files or rewrite byte-exact C.21 tests/manifests.
+The external `tf5_corpus.py` pytest input adapter verifies the entire actual
+C.21 fixture file set equals original manifest inputs plus exactly seven pinned
+UID additions in new `fixtures/corpus/editor/tf5-panel-ui/input-revision.json`.
+It copies only the original manifest-declared raw inputs into an owned external
+view and redirects this one frozen suite's fixture ROOT, not its assertions,
+expected results, test functions or production imports. This recovers the exact
+original test input revision; all original node IDs still execute normally.
+In addition, 25 new cases run the genuine production agent against unfiltered
+current fixture copies, assert complete bytes/SHA/file membership including the
+seven sidecars, exact original native results/messages, and two-call idempotence.
+Nothing is ignored in those current-input checks; new/changed/missing files fail.
+
+Final regression is 8427 predecessor IDs +31 new IDs =8458, with the adapter
+explicitly recorded in each command/receipt. Without this declared input adapter,
+direct pytest of the frozen C.21 suite still reports the three preexisting input
+membership failures; it must not be advertised as a clean unadapted run.
+The initial adapter failed before any test (`junitxml` option name); that retained
+harness error was corrected to pytest's actual `xmlpath`, without predicate changes.
+
+The additional genuine C.21 selfcheck initially returned `unit=fail: no tests ran`
+(corpus=ok, 25/0diff). Its collect-count and actual pytest are separate processes:
+the adapter reused one exclusive receipt filename when JUnit was absent. This
+retained harness failure is fixed only by including actual process ID in the
+receipt filename; fixture pins/predicates remain identical. Final closure gates
+must run all eight selfchecks twice after this correction.
+
+## D104 — Owned diagnostic junctions at publication boundary (2026-11-22)
+
+T-F.5 full/security runs create their own NTFS junction entries under external
+`diagnostics/*/pytest-*`. Before sealing, `normalize_links.py` may detach only
+these exact measured entries: capture raw `FSCTL_GET_REPARSE_POINT`, raw target
+strings and source/target identities; require ordinary targets within the same
+owned pytest root; validate every entry before any operation and again immediately
+before single nonrecursive `os.rmdir`. No ordinary file/directory or link target
+may be removed, normalized or overwritten; unknown/foreign links are STOP.
+Original ordinary bytes/SHA/EOL/membership and directories must compare exactly.
+Actual count/verdict belong to `links/raw-capture.json` and `links/proof.json`;
+this decision alone is not evidence of execution. No production/native/installed
+change or exe rebuild is authorized by it.
+
+The source-only preclosure inspector first assumed `fixtures/corpus/editor`
+already existed. Actual measured directory delta is exactly that parent plus
+`tf5-panel-ui` child (no removed directories/links). Inspector expectations were
+corrected to those two declared new corpus directories, not by changing any
+source/baseline bytes; the original assertion failure is disclosed here.
+
+## D105 — Observed installed-copy drift; no unauthorized restoration (2026-11-22)
+
+Read-only preclosure inventory found 181 fixture `.uid` files absent relative to
+`installed-before.json`; no added/modified ordinary files, directory or reparse
+changes. Initial pins and measured missing paths remain in
+`final/installed-parallel-{current,drift,summary}.json`. These paths are outside
+this executor's authorized write scope. No executor command synchronized or
+wrote the installed copy; grep of executed tests/Python found no installed-path
+references. Attribution of removal is not proven: do not silently blame auditor
+or claim whole installed tree is still byte-exact. Do not recreate/delete/revert
+foreign installed work. Final identity reports initial-vs-observed drift explicitly
+and only asserts stability against the separately captured observed snapshot.
+Rebuild baseline UID/cache/frozen sources still must compare exactly; this does
+not waive their invariants or authorize installed sync/git.

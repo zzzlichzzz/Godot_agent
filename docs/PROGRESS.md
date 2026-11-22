@@ -1,5 +1,14 @@
 # Прогресс переноса механик (R-19)
 
+## T-F.5 — активный мандат (2026-11-22)
+
+| Пакет | Этап | Следующее действие | Лист |
+|---|---|---|---|
+| T-F.5 | 7 | Executor checkpoint: full8456pass+2historic skips×2 (8458 IDs, все8427 predecessor/фазы exact); native UI/check-only/confirm/WAL×2; gates4×2/selfchecks8×2 ok; D104 detach246/raw proof, links0. Следующее: final identity/token scan → seal LAST → sibling ZIP/receipt → независимый аудит D101–D105 | [TF5-panel-ui](porting/TF5-panel-ui.md) |
+
+T-F принят независимым аудитом и синхронизирован аудитором (WORKLOG tail,
+установленный коммит db80ae45); исторический checkpoint ниже не новый STOP.
+
 ## T-F — активный мандат (2026-11-22)
 
 | Пакет | Этап | Следующее действие | Лист |
