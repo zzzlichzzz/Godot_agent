@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import uuid
+import threading
 from werkzeug import serving
 from python.kernel.errors import AppError
 
@@ -17,14 +18,18 @@ def serve(app,project_root,state_dir,port=0):
     record=dict(host='127.0.0.1',port=server.server_port,pid=os.getpid(),session_id=owner)
     expected=(json.dumps(record,sort_keys=True)+'\n').encode('utf-8')
     endpoint=profile/'http_endpoint.json';published=False;proof=None
+    extensions=getattr(app,'extensions',{})
+    shutdown=(lambda:threading.Thread(target=server.shutdown,daemon=True).start()) if hasattr(server,'shutdown') else None
     try:
         with endpoint.open('x',encoding='utf-8',newline='\n') as output:
             stat=os.fstat(output.fileno());proof=(stat.st_dev,stat.st_ino)
             output.write(expected.decode('utf-8'));output.flush();os.fsync(output.fileno())
         published=True
+        if shutdown is not None:extensions['godot_shutdown']=shutdown
         print(json.dumps(dict(ok=True,endpoint=record),sort_keys=True),flush=True)
         server.serve_forever()
     finally:
+        if shutdown is not None and extensions.get('godot_shutdown') is shutdown:extensions.pop('godot_shutdown',None)
         try:
             server.server_close()
             if published and not endpoint.is_symlink():

@@ -15,4 +15,3 @@ python/build/
 python/dist/
 reports/
 *.log
-agent_api_cache/

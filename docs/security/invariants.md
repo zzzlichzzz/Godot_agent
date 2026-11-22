@@ -181,4 +181,37 @@ write/turn cases и `assistant/write/tests/test_core.py`; no network/credentials
   One B executor/WAL/explicit confirmation only.
 - SEC05 permission exact path/full raw SHA/byte positions, inactive references.
   Tests: tests/py/security/test_t1_overlay_security.py,
-  tests/py/editor_t1/test_structural_overlay.py and test_native_gd_security.py.
+   tests/py/editor_t1/test_structural_overlay.py and test_native_gd_security.py.
+
+## SEC-TF — frozen-panel HTTP adapters (specification before code)
+
+- All 27 added routes use ProjectAuth before JSON/dispatch; Host/Origin and
+  project binding remain strict. HTTP payload cannot elevate startup policy.
+- Native approved-only confirmation binds to one pending server plan with
+  nonempty exact digest; mismatched IDs/digests fail closed. Exclusion/editor
+  proof cannot silently replace that plan. No automatic approval.
+- Explicit native refactor `/apply` is a separate button contract: exact prior
+  action/options AND still-pending preview identity only, translated to assistant_confirm with immutable server
+  plan_id/digest and boolean approval. No native apply/direct write_apply;
+  USER_CONFIRMED, existing WAL and receipt remain mandatory.
+- Automatic external-move notification cannot authorize writes. Excluded NN,
+  unsupported runtime/editor claims and protected addon split edits refuse.
+- Shutdown targets only this listener callback. Endpoint cleanup preserves raw
+  bytes+identity proof and gateway ownership; no process killing.
+- Cache/log markers stay inside guarded external state; no addon cache mirror
+  or migration, no credentials/raw log text in evidence.
+Tests: `tests/py/panel_tf/`, `tests/py/security/test_panel_tf_security.py`;
+auth/digest/direct-WAL mutants required before completion.
+- Exe no-arg binding precedes the listener: only its own deployment project and
+  plain external Godot userdata; malformed/ambiguous configuration refuses.
+  Exclusive token creation preserves native read semantics and never replaces
+   an existing panel token. No startup shell or execution of project scripts.
+ - Old `/chat/confirm` cannot make a stale native `/apply` approve another chat
+    plan. Refactor rejection reports no changed paths or committed entry.
+- External cache/log file reads and writes reject reparse/symlink/multi-link
+  targets. Native serialization uses an exclusive external stage and exact
+  owned-stage/parent proof before replace, never truncates a project hardlink.
+  Log marker/native tmp checks precede assistant_turn; refused send keeps its
+  prepared report. Native output binding is restored exactly after success or
+  failure. Permanent cases: tests/py/security/test_panel_tf_state.py (real
+  hardlinks, no new privilege skip). D97 is a guarded IO boundary, not a sandbox.

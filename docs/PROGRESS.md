@@ -1,5 +1,14 @@
 # Прогресс переноса механик (R-19)
 
+## T-F — активный мандат (2026-11-22)
+
+| Пакет | Этап | Следующее действие | Лист |
+|---|---|---|---|
+| T-F | 7 | Executor full8425+2historic skips×2/gates4×2/selfchecks7×2 ok; D100 raw capture/detach365/exact proof, links0; final identity/checkpoint→seal LAST/sibling ZIP (actual status only external publication receipt); next independent audit D90–D100 | [TF-panel-exe](porting/TF-panel-exe.md) |
+
+Досье: `C:/Users/Lich/AppData/Local/Temp/opencode/c8_audit/tf-20261122/`.
+Установленная git-копия и прежние запечатанные пакеты неизменны.
+
 ## Автономное завершение T1 (2026-11-21)
 
 | Пакет | Этап | Следующее действие | Лист |

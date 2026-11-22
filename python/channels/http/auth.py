@@ -37,6 +37,8 @@ class ProjectAuth:
             if request.method=='POST':
                 body=request.get_json(silent=True)
                 if not isinstance(body,dict): return jsonify(ok=False,kind='invalid_input',error='JSON object required'),400
+                if body.get('allow_addons') or body.get('allow_self_edit'):
+                    return jsonify(ok=False,kind='denied',error='HTTP cannot elevate startup policy'),403
                 udd=body.get('user_data_dir')
                 if udd is not None and Path(str(udd)).resolve()!=self.user_data:
                     return jsonify(ok=False,kind='denied',error='Server belongs to another project'),409

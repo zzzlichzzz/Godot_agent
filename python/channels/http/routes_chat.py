@@ -1,6 +1,7 @@
 """HTTP adapter: all planning, confirmation and effects belong to Agent."""
 from flask import Blueprint,jsonify,request
 from python.kernel.errors import AppError
+from .routes_panel import panel_chat_reply
 
 def register_chat_routes(app,agent,session):
     bp=Blueprint('rebuild_chat',__name__)
@@ -20,7 +21,7 @@ def register_chat_routes(app,agent,session):
             if isinstance(result,tuple):return result
             if result['state']=='pending_confirmation':session.pending=result['plan']
             return jsonify(dict(result,ok=True,result=result['text'],response=result['text'],action=None,
-                                preview=result['plan'],pending_confirmation=result['state']=='pending_confirmation'))
+                                preview=result['plan'],pending_confirmation=result['state']=='pending_confirmation',**panel_chat_reply(result)))
     @bp.post('/chat/confirm')
     def confirm():
         body=request.get_json()

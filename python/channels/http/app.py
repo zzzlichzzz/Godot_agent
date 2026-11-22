@@ -5,6 +5,9 @@ from flask import Flask,jsonify,request,g
 from python.runtime.http_services import NativeServerReferences,build_http_agent
 from .auth import ProjectAuth
 from .routes_chat import register_chat_routes
+from .routes_panel import register_panel_routes
+from .routes_project import register_project_routes
+from python.runtime.panel_services import PanelServices
 
 class HttpSession:
     def __init__(self):
@@ -29,6 +32,8 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
             scope=g.pop('godot_native_scope',None)
             if scope:scope.__exit__(None,None,None)
     register_chat_routes(app,agent,session)
+    services=PanelServices(project,state)
+    register_panel_routes(app,agent,session,services);register_project_routes(app,agent,session,services)
     @app.get('/health')
     def health():return jsonify(ok=True,name='Godot_Agent_Server',write_confirmation_required=True,provider_live_verified=False)
     @app.post('/init')
@@ -61,11 +66,9 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
     @app.errorhandler(Exception)
     def unexpected(_error):return jsonify(ok=False,kind='internal',message='HTTP request failed; details redacted'),500
     return app
-
 def serve(project_root,state_dir,port=0):
     from .listener import serve as listen
     return listen(create_app(project_root,state_dir),project_root,state_dir,port)
-
 def main(argv=None):
     import argparse
     parser=argparse.ArgumentParser(description='Godot Agent owned local HTTP channel')
@@ -75,5 +78,3 @@ def main(argv=None):
     try:serve(args.project,args.state,port=args.port)
     except (OSError,ValueError):parser.exit(2,'HTTP startup refused: invalid external profile or listener configuration\n')
     return 0
-
-if __name__=='__main__':raise SystemExit(main())
