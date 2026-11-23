@@ -12,7 +12,8 @@ def test_new_panel_routes_auth_host_and_escalation_before_dispatch(http_client,p
         assert response.status_code==403
     for flag in ('allow_addons','allow_self_edit'):
         response=client.post(path,json={flag:True},headers=headers)
-        assert response.status_code==403,response.get_json()
+        # ADR-0090: cache status discards UI metadata, never grants project rights.
+        assert response.status_code==(200 if path=='/project/api_cache_status' else 403),response.get_json()
     assert physical(project)==before
 
 def test_old_confirmation_cannot_make_stale_file_apply_confirm_another_chat_plan(http_client):

@@ -18,16 +18,6 @@ def serve(app,project_root,state_dir,port=0):
     record=dict(host='127.0.0.1',port=server.server_port,pid=os.getpid(),session_id=owner)
     expected=(json.dumps(record,sort_keys=True)+'\n').encode('utf-8')
     endpoint=profile/'http_endpoint.json';published=False;proof=None
-    if endpoint.exists():
-        import ctypes
-        def _pid_alive(pid):
-            k=ctypes.windll.kernel32;h=k.OpenProcess(0x1000,False,pid)
-            if h:k.CloseHandle(h);return True
-            return False
-        try:
-            old=json.loads(endpoint.read_text('utf-8'))
-            if not _pid_alive(old.get('pid',0)):endpoint.unlink()
-        except Exception:endpoint.unlink()
     extensions=getattr(app,'extensions',{})
     shutdown=(lambda:threading.Thread(target=server.shutdown,daemon=True).start()) if hasattr(server,'shutdown') else None
     try:

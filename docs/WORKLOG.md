@@ -11360,3 +11360,93 @@ Failed live1 (headless visibility), live3 (PNG race), live5 (log decode), port c
 
 Пользователь/аудитор снял STOP и разрешил offline rebuild exe (PyInstaller6.21.0). D107/D108 записаны до production. Static fallback: aistudio=Gemini API, qwen=DashScope; API253 source/goldens сохраняются. Следующее: corpus/new RED до кода, build и проверки ×2. Installed/native/git/предыдущие sealed-досье не разрешены к изменению.
 2026-11-23 - Auditor: plugin.cfg pereklyuchen na native agent_entry.gd (red: 0 script errors in editor probe), fixtures/.gdignore v obe kopii, commit ea669a1. Polzovatel otkroet proekt - panel zapustit server cherez exe, polnyy native UI budet vidna.
+
+## 2026-11-23 — исправление HTTP 403 по логу пользователя (ADR-0090)
+
+Причина подтверждена: saved allow_addons=true из external policy попадает в общую
+обёртку POST; ProjectAuth отказывает ещё до list/providers/status. На шести точных
+metadata routes оба UI-поля удаляются после auth/project/JSON checks; никакого
+расширения прав Agent/PathPolicy, native/GDScript/ToolSpec edits нет.
+Genuine RED30fail/9pass → same-ID GREEN39pass. Связанный прогон302pass/1fail
+выявил unsafe preexisting-endpoint cleanup. Ещё RED4fail; listener restored
+exclusive create/refusal/owned cleanup. Связанные suites307passed.
+
+Четыре гейта exit0 (security/layers/limits/contract; два прежних limits warnings),
+genuine selfcheck assistant.write verdict=ok/unit43pass/corpus4, read-only probe ok.
+REPORTS external, запечатанные repo reports сохранены. Offline PyInstaller6.21.0
+rebuild завершён; python/dist/godot_agent_server.exe SHA256
+a5e8a4206b0d3b644fa6346c131c1ea399cafb1f15d1d8a69326c4f959deadf0.
+Old exe preserved in external http403-exe-backup-20261123; no install sync/git action.
+
+Socket source/exe/isolated-zeroarg-exe GREEN: шесть POST200 и progress200,
+auth/Host/Origin403/project409, sensitive-policy403/no_key denied. Contender exit2
+с exact чужим endpoint, owned shutdown exit0/endpoint removed, project/token/policy
+exact. Zeroarg port5000/external APPDATA; production user state/server/UI не запускали.
+Первый helper ошибся путём shutdown; fail/logs retained, production не меняли,
+исправлен только helper на /server/shutdown, затем три цикла GREEN.
+
+Отдельно с разрешения пользователя stale endpoint PID18332 переименован в том же
+userdata в http_endpoint.stale-18332-20261123.json после проверки отсутствия
+процесса/listener. Bytes preserved, token/settings untouched; auto-cleanup запрещён.
+
+### Где остановились — HTTP correction
+
+Код и exe исправлены; python/modules: 2569passed (40.38s); tests/py ещё выполняется,
+его GREEN не заявлен. Final gates4/git diff--check ok. Read-only launcher check:
+cached exe отсутствует, manual/onedir/старшие priority candidates отсутствуют;
+fallback — пересобранный python/dist exe с повторно exact SHA, user cache не менялся.
+Следующее действие: записать actual pytest verdict tests/py; затем пользователь
+перезапускает Godot/сервер. Общая независимая приёмка T-F.6 не заявляется и не меняется.
+
+## 2026-11-23 — продолжение: key save403 и chat list500 (ADR-0091)
+
+Предыдущее исправление охватило неполную envelope: без addon_dir и settings.
+По новому пользовательскому логу получены RED r2:32failed/14passed (settings403,
+SessionContextError500, linked-key input/temp200). Первый RED содержал missing client
+fixture errors2; исправлен только импорт fixture, отказ/вывод не скрыт.
+Полная точная таблица14 POST удаляет пять UI project-policy fields после auth/Host/
+Origin/JSON/лимита/project/userdata checks. Перед native IO ExternalPanelState
+проверяет api_config/key/model/catalog/temp против symlink/reparse/hardlink.
+Native/GDScript/ToolSpec/Agent/PathPolicy bytes/правила не менялись.
+
+Same IDs GREEN46. Offline API-chat lifecycle выявил неосвобождённую navigation:
+new200→rename409. Дополнительный RED3fail/1pass; существующий clear_request_activity
+подключён в runtime finally. Чужой thread exchange не освобождается. Own50passed,
+связанные353passed до cleanup → final357passed (300.28s) после него.
+Четыре genuine gates exit0 (два прежних limits warnings), final selfcheck
+assistant.write verdict=ok/unit43/corpus4/differences0; REPORTS external, sealed repo
+reports untouched. Read-only probe ok на отдельном synthetic project.godot.
+
+Offline PyInstaller6.21.0/Python3.14.6 build в external staged dist; после final
+cleanup выполнен новый build r2. Genuine build изменяет только distpath, inputs
+и build script неизменны. Actual source/explicit-exe/isolated-zeroarg-exe sockets3
+GREEN с полной panel envelope: synthetic key save/add200, masked responses/external
+persistence; existing chat list200; new/list/rename/open/model/delete200;
+browser/status idle. No-key refresh/scan до key save denied; configured api/test/
+refresh не вызывали, реальных provider/browser requests0. Negative auth/Host/Origin403,
+foreign-project409/sensitive-policy403; contender exit2/foreign endpoint exact,
+owned shutdown exit0/cleanup/project-token-policy unchanged. Zeroarg synthetic
+deployment/external APPDATA/port5000, не production Godot UI. Helper/logs external.
+
+С разрешения пользователя stale endpoint PID26668/session9a273edb903f4a2084c9dbd173d18810
+после fresh identity/process/listener checks переименован в той же userdata в
+http_endpoint.stale-26668-20261123.json: bytes preserved, token/policy exact.
+Автоматического удаления чужих endpoints нет. Предыдущий exe сохранён в external
+control-envelope-exe-backup-20261123; verified staged exe установлен в
+python/dist/godot_agent_server.exe, SHA256
+26de3c038b13f5b44f401df67b3c7110a0f520ee1cfd74b3089f2f87b0165334.
+User server не запускали; реальные ключи/переписка не изменялись.
+
+### Где остановились — HTTP control correction
+
+Оба пользовательских дефекта исправлены и сборка установлена; следующий шаг —
+пользователь перезапускает Godot и проверяет key save/chat list в реальной панели.
+Отложенный предыдущий tests/py завершился5952passed/6failed/2skipped (1029.48s),
+не GREEN: три integration paths-preview native corpus cases (004/005/009),
+два editor-branch-live port.json, transfer_t1 write TTL denied!=not_found.
+Это не исправлялось/не исключалось ради GREEN данного HTTP-запроса.
+python/modules прежнего среза2569passed; повторный whole-inventory после ADR-0091
+не запускался. Общая приёмка/этап T-F.6 и parity не меняются; UI/provider live
+не подменяются synthetic socket evidence.
+Final docs-only повтор: security/layers/limits/contract exit0, git diff--check ok;
+SHA256 установленного exe повторно совпадает с проверенной socket-сборкой.

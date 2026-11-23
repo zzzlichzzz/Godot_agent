@@ -1,5 +1,11 @@
 # Прогресс переноса механик (R-19)
 
+## Коррекция HTTP POST 403 — отдельный запрос пользователя (2026-11-23)
+
+| Срез | Этап | Следующее действие | Лист |
+|---|---|---|---|
+| HTTP control envelope / ADR-0091 | 5 | RED32fail/14pass→GREEN46; navigation RED3fail/1pass→own50pass; final related357pass/gates4/selfcheck assistant.write/probe ok; source/exe/isolated-zeroarg sockets3 ok; final exe установлен, stale PID26668 endpoint сохранён с разрешения, ключи/переписка нетронуты → пользователь перезапускает Godot и проверяет key save/chat list в панели; previous full6fail/5952pass/2skip не GREEN, T-F.6 не повышать | [T1-channels](porting/T1-channels.md) |
+
 ## T-F.6 — активный мандат, STOP снят аудитором (2026-11-23)
 
 | Пакет | Этап | Следующее действие | Лист |

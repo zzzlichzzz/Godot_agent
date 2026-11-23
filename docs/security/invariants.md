@@ -227,3 +227,36 @@ auth/digest/direct-WAL mutants required before completion.
   cache on exceptions. Browser sites/stealth and API253 references stay exact.
 Tests: tests/py/panel_tf/test_tf6_models.py, tests/py/llm/test_tf6_fallback.py,
 tests/py/security/test_tf6_models_security.py; delivered-byte guard/scope mutants.
+
+## SEC-HTTP-METADATA — сохранённые UI-флаги (ADR-0090)
+
+- Исторический срез ADR-0090: шесть точных POST-путей допускают сохранённые поля
+  `allow_addons`/`allow_self_edit` как неавторитетные UI-метаданные: оба поля
+  удаляются до dispatch. Права Agent/PathPolicy не изменяются.
+- Токен/Host/Origin/JSON/лимит/проект проверяются как прежде; чужой проект
+  отвергается и на этих путях. Refresh/scan не обходят SEC-TF6/no_key.
+- `/init`, `/chat`, `/tools/call`, preview/apply и неизвестные/похожие пути
+  не получают исключения. Новых проектных/сетевых эффектов нет.
+Тесты: `tests/py/panel_tf/test_metadata_policy.py`,
+`tests/py/security/test_http_metadata_policy.py`; прежний SEC-TF case для
+  api_cache_status уточнён ADR-0090, остальные утверждения сохранены.
+
+ADR-0091 ниже расширяет точную таблицу и discarded envelope; прежние шесть
+путей/тестов остаются её подмножеством, не отдельной конкурирующей политикой.
+
+## SEC-HTTP-CONTROL — полная служебная обёртка (ADR-0091, до кода)
+
+- Четырнадцать точных project-policy-neutral POST из ADR-0091 удаляют пять
+  полей policy до native dispatch. Ни addon identity, ни Agent/PathPolicy,
+  ни probable rename не выбираются запросом списка/ключа/переписки.
+- Auth/Host/Origin/JSON/лимит/project/userdata binding и no_key неизменны;
+  похожие пути и project-sensitive routes по-прежнему не повышают права.
+- Settings пишет только прежний api_config во внешнем userdata; обычность
+  config/key/cache/temp проверяется до native scope: symlink/reparse/hardlink
+  не становится чтением/записью проекта. Сырые ключи не попадают в ответ/лог/проект.
+- Нет новой сети/браузерного эффекта, не меняются native/GDScript/контракт.
+- Native request activity освобождается в runtime finally только существующим
+  thread-owned cleanup; успешный/ошибочный запрос не оставляет navigation lease,
+  отказавший запрос не освобождает exchange другого потока.
+Тесты: tests/py/panel_tf/test_control_envelope.py,
+tests/py/security/test_http_control_envelope.py; synthetic keys, no provider traffic.

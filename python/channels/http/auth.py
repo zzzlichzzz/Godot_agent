@@ -4,6 +4,13 @@ from pathlib import Path
 from flask import jsonify, request
 from python.kernel.errors import AppError
 
+# Exact control-plane routes: saved panel flags are metadata, not authority.
+_CONTROL_POSTS=frozenset(('/sites/list','/api/providers','/api/settings/set',
+    '/api/models/refresh','/api/models/scan','/api/test','/browser/status',
+    '/chats/list','/chats/new','/chats/open','/chats/model','/chats/rename',
+    '/chats/delete','/project/api_cache_status'))
+_PROJECT_POLICY_FIELDS=('allow_addons','allow_self_edit','addon_dir','rename_mode','rename_unverified')
+
 class ProjectAuth:
     def __init__(self, project_root, user_data_dir):
         self.project=Path(project_root).resolve();self.user_data=Path(user_data_dir).resolve()
@@ -37,7 +44,7 @@ class ProjectAuth:
             if request.method=='POST':
                 body=request.get_json(silent=True)
                 if not isinstance(body,dict): return jsonify(ok=False,kind='invalid_input',error='JSON object required'),400
-                if body.get('allow_addons') or body.get('allow_self_edit'):
+                if request.path not in _CONTROL_POSTS and (body.get('allow_addons') or body.get('allow_self_edit')):
                     return jsonify(ok=False,kind='denied',error='HTTP cannot elevate startup policy'),403
                 udd=body.get('user_data_dir')
                 if udd is not None and Path(str(udd)).resolve()!=self.user_data:
@@ -45,7 +52,14 @@ class ProjectAuth:
                 root=body.get('project_root')
                 if root is not None and Path(str(root)).resolve()!=self.project:
                     return jsonify(ok=False,kind='denied',error='Server belongs to another project'),409
+                if request.path in _CONTROL_POSTS:
+                    # Flask caches this object; native discovery never trusts UI policy.
+                    for key in _PROJECT_POLICY_FIELDS:body.pop(key,None)
             return None
+        @app.errorhandler(AppError)
+        def state_refused(error):
+            if error.kind=='denied':return jsonify(ok=False,kind='denied',message='HTTP state access refused'),403
+            return jsonify(ok=False,kind='internal',message='HTTP request failed; details redacted'),500
         @app.errorhandler(413)
         def too_large(_error):
             return jsonify(ok=False,kind='invalid_input',error='Request body exceeds limit'),413
