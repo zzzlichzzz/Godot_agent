@@ -214,4 +214,16 @@ auth/digest/direct-WAL mutants required before completion.
   Log marker/native tmp checks precede assistant_turn; refused send keeps its
   prepared report. Native output binding is restored exactly after success or
   failure. Permanent cases: tests/py/security/test_panel_tf_state.py (real
-  hardlinks, no new privilege skip). D97 is a guarded IO boundary, not a sandbox.
+   hardlinks, no new privilege skip). D97 is a guarded IO boundary, not a sandbox.
+
+## SEC-TF6 — keyless model requests (D108, before code)
+
+- HTTP refresh/scan refuse before provider/catalog transport when no provider
+  key exists; public-model flags and custom endpoints do not bypass this guard.
+- Keyless refusal does not write attempted-model statistics or model/catalog
+  caches. Authentication/Host/project guards remain before native dispatch.
+- Offline fallback adds metadata only in locked runtime scope, mandatory keys,
+  verified=false, no invented live model/price availability; restore identity and
+  cache on exceptions. Browser sites/stealth and API253 references stay exact.
+Tests: tests/py/panel_tf/test_tf6_models.py, tests/py/llm/test_tf6_fallback.py,
+tests/py/security/test_tf6_models_security.py; delivered-byte guard/scope mutants.

@@ -277,6 +277,9 @@ def _fetch_models(pid, connect_timeout=None):
     provider = providers.get_provider(pid)
     if provider is None:
         return [], u"неизвестный провайдер «%s»" % pid
+    from python.substrate.llm.api import model_refresh_policy as policy
+    if not policy.has_key(pid, providers, api_keys):
+        return [], policy.MISSING_KEY
     url = providers.models_url(pid)
     if not url:
         # Живого источника списка у провайдера может не быть вовсе — тогда
@@ -470,6 +473,9 @@ def api_models_refresh():
         return jsonify(_api_settings_payload({
             "error": u"«%s» пока недоступен: %s" % (provider["name"], blocked),
             "provider": pid}))
+    from python.substrate.llm.api import model_refresh_policy as policy
+    if not policy.has_key(pid, providers, api_keys):
+        return jsonify(_api_settings_payload(dict(policy.refusal(), provider=pid)))
     # Разбираем ВЕСЬ ответ, без фильтра, и только потом отбираем бесплатные.
     # Порядок важен: счётчики у провайдера должны считаться по полному списку,
     # иначе при включённом флажке «только бесплатные» всего == бесплатных, и в
@@ -560,20 +566,19 @@ def api_models_scan():
     """
     data = request.json or {}
     force = bool(data.get("force"))
-    # Каталог — ПЕРЕД опросом провайдеров: живые записи дополняются его полями
-    # сразу, а не при следующем обходе. Своя свежесть (неделя против суток) и
-    # свой замок внутри; неудача не мешает опросу провайдеров и уходит в панель
-    # отдельным полем catalog в ответе.
-    _refresh_catalog(force)
-    if force:
-        targets = [pid for pid in providers.provider_ids()
-                   if providers.can_fetch_models(pid)]
-    else:
-        targets = providers.autoscan_targets()
+    from python.substrate.llm.api import model_refresh_policy as policy
+    keyed = [pid for pid in providers.provider_ids() if policy.has_key(pid, providers, api_keys)]
+    if not keyed:
+        return jsonify(_api_settings_payload(dict(policy.refusal(), scanned=[], failed=[],
+                         scan_skipped=True, models_index=_models_index())))
+    targets = [pid for pid in keyed if policy.can_fetch(pid, providers, api_keys)
+               and (force or providers.models_stale(pid))]
     if not targets:
         return jsonify(_api_settings_payload({"scanned": [], "failed": [],
                                               "scan_skipped": True,
                                               "models_index": _models_index()}))
+    # No catalog/provider work until an actual keyed, stale target exists.
+    _refresh_catalog(force)
     if not _scan_lock.acquire(False):
         # Обход уже идёт в другом запросе. Ждать его нечего: панель получит
         # свежие числа следующим ответом сервера, а сейчас — то, что есть.

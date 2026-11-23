@@ -49,7 +49,8 @@ class NativeServerReferences:
         reader=NativePlanner(self.project,Path(self.user_data)/'rebuild_state',Path(__file__).parents[2])
         gateway=ChatGateway(self.project,self.user_data,Path(__file__).parents[2])
         with reader._references():
-            from python.substrate.llm.api import api_keys
+            from python.substrate.llm.api import api_keys, providers
+            from python.substrate.llm.api.providers_fallback import scope as provider_scope
             gateway._guard_storage()
             env=api_keys.ENV_CONFIG_DIR;old_env=os.environ.get(env)
             previous=(api_keys._cfg_cache,api_keys._secrets_cache,api_keys._dirs_ready,api_keys._session_spent)
@@ -57,7 +58,8 @@ class NativeServerReferences:
                 os.environ[env]=str(gateway.config_dir)
                 cache=self._api_cache or ({'key':False,'value':None},{'list':None},{},{})
                 (api_keys._cfg_cache,api_keys._secrets_cache,api_keys._dirs_ready,api_keys._session_spent)=cache
-                yield
+                with provider_scope(providers):
+                    yield
             finally:
                 self._api_cache=(api_keys._cfg_cache,api_keys._secrets_cache,api_keys._dirs_ready,api_keys._session_spent)
                 (api_keys._cfg_cache,api_keys._secrets_cache,api_keys._dirs_ready,api_keys._session_spent)=previous

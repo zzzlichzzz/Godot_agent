@@ -57,7 +57,7 @@ T1_NATIVE_CAPS = {
     'python/substrate/code_intel/function_card.py': 751,
 }
 SERVER_NATIVE_CAPS = {
-    "python/substrate/assistant/server/chat_routes.py": (1169, "91c8a9689096a670d9b514d09c58829d38d294edc8140f43554d98077fdfda0f"),
+    "python/substrate/assistant/server/chat_routes.py": (1174, "21d5609abf6873b9f8d3183c67d2062e57252fde728ab2fd6214f08eee7cef5d"),
     "python/substrate/assistant/server/server_state.py": (832, "efecb557b45c4a6e0ea4a4b806027cab20f07af8bda6a6e72f3e297575300c1e"),
 }
 MODULE_MAX = 3000

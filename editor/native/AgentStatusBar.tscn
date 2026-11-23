@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://ekxn7k7x7hqk7"]
 
-[ext_resource type="Script" uid="uid://1k5olngje7r8" path="res://addons/godot_agent/editor/native/AgentStatusBar.gd" id="1_ekxn7"]
+[ext_resource type="Script" uid="uid://cyv7bxjosjeps" path="res://addons/godot_agent/editor/native/AgentStatusBar.gd" id="1_ekxn7"]
 
 [node name="AgentStatusBar" type="PanelContainer"]
 layout_mode = 2

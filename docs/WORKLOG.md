@@ -11333,3 +11333,30 @@ Final8458 IDs×2:8456passed+2 historic skips each; all8427 predecessor IDs/order
 
 ИТОГ: T-F.5 ПРИНЯТ. Панель Godot теперь показывает полный нативный UI (agent_entry), сервер обслуживает все 51 маршрут, write-петля не имеет обходов, exe поднимается noargs-путём, observer исправлен. Плагин Godot Agent полностью готов к живой обкатке на игре пользователя.
 
+2026-11-23 - Аудитор: синхронизация принятого T-F в установленную копию (r44).
+Префлюйт: WORKLOG 1112923/157d02779cbdb239, exe 30859253/969854a477e143e3.
+git preflight: чист, HEAD 15bb605bcfa72117.
+robocopy /MIR (XD .git,__pycache__,.pytest_cache,reports): rc=3.
+Дерево после: работа 6426/113067084 == установлено 6426/113067084.
+Spot-SHA 9 файлов ==; exe_gitignored=True (иначе локальный .git/info/exclude).
+Коммит ccb03930db8bb569 поверх 15bb605bcfa72117; staged {"M": 5, "A": 185, "D": 0, "R": 0, "?": 0}; статус чист.
+Дальнейшие WORKLOG-аппенды остаются только в рабочей копии до следующей синхронизации.
+2026-11-23 - Vydan mandat TF6: provaydery, katalog, UID-fix (auditor, po prosbe polzovatelya). Osnovanie: /api/providers vozvrashaet pustoy katalog (models.dev bez seti), /api/models/refresh visit, sites list v API est no panel mozet ne renderit, AgentStatusBar.tscn invalid UID. Mandat: docs/porting/_start-prompt.TF6-providers.md - 4539 B d0ead943ee2b59b9. Sostav: (1) provaydery iz kataloga/cache/fallback, (2) sites format sootvetstvie paneli, (3) refresh/scan fail-closed, (4) .tscn UID fix. Invarianty: pechatannye bayty ne trogat, set tolko odin fetch models.dev, exe ne peresobirat, D106+. Priemka - auditorom.
+
+
+## T-F.6 deployment-stop (2026-11-22T21:16:24.100768+00:00)
+
+Мандат T-F.6 не закрыт; production/exe/installed/native не правились. Досье %TEMP%/opencode/c8_audit/tf6-20261122/, D106 в docs/porting/deviations.md.
+Native/rebuild cold ×2 и pinned exe ×2: верхний providers=8; пусты вложенные catalog.providers/models. aistudio/qwen сейчас site IDs, не буквальные API-ID. Настоящая панель sites signal→HTTPRequest→6 видимых кнопок и PNG ×2 (live7/8).
+Keyless refresh/scan пытаются внешнюю сеть; source probes audit hook до urllib/DNS/connect, отправлено 0 внешних requests, реальные ключи не использованы. Guarded latency не выдаётся за реальный timeout. API-tab live не открывался.
+Архив exe: 6 packaged .py byte-exact source, 4 compiled PYZ исследованы; live exe успешно игнорирует 3 аварийных соседних .py sentinel. Source-only fix не доставится: STOP до отдельного разрешения rebuild/source-based Python entry.
+Порт пользователя 5000 занят (наблюдали PID25808), не тронут; live с explicit args/isolated port и одним HOST adapter в owned copied UI — не zeroargs acceptance. Только updater TTL, provider/catalog cache не seeded. UID warning uid://1k5olngje7r8 вместо sidecar uid://cyv7bxjosjeps подтверждён, не исправлен.
+Observation RED13: 9fail/4pass, errors/skips0. Genuine baseline assistant.chat selfcheck ok: unit29passed, corpus10/differences0; REPORTS external, D103 adapter и synthetic offline chat transport явно заданы. Не final TF6 selfcheck.
+Failed live1 (headless visibility), live3 (PNG race), live5 (log decode), port collision и synthetic /chats/list500 сохранены; только live7/8 success. Полный final regression8458+свои×2, gates4×2/selfchecks8×2 не выполнялись; seal/ZIP не создавались. Следующее: решение о deployment, затем D107+ и полный цикл.
+2026-11-23 - Auditor: T-F.6 STOP peresmotren - peresborka exe VHOdit v kompetenciyu ispolnitelya. PyInstaller 6.21.0 ustanovlen (preflight), seti ne trebuet. Ispolnitel dolzhen: (1) vnesti pravki koda (provaydery fallback, refresh/scan fail-closed, UID fix), (2) peresobrat exe cherez PyInstaller, (3) progony. STOP byl prezhdevremennym - rebuild eto build-shag, ne kod-audit vopros.
+
+
+## T-F.6 resume-authorization (2026-11-23T14:10:47.033255+00:00)
+
+Пользователь/аудитор снял STOP и разрешил offline rebuild exe (PyInstaller6.21.0). D107/D108 записаны до production. Static fallback: aistudio=Gemini API, qwen=DashScope; API253 source/goldens сохраняются. Следующее: corpus/new RED до кода, build и проверки ×2. Installed/native/git/предыдущие sealed-досье не разрешены к изменению.
+2026-11-23 - Auditor: plugin.cfg pereklyuchen na native agent_entry.gd (red: 0 script errors in editor probe), fixtures/.gdignore v obe kopii, commit ea669a1. Polzovatel otkroet proekt - panel zapustit server cherez exe, polnyy native UI budet vidna.

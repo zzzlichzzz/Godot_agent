@@ -1,5 +1,14 @@
 # Прогресс переноса механик (R-19)
 
+## T-F.6 — активный мандат, STOP снят аудитором (2026-11-23)
+
+| Пакет | Этап | Следующее действие | Лист |
+|---|---|---|---|
+| T-F.6 | 5 | D108 code/UID, targeted34passed, 25 additions, mutants8 killed/exact restore; first offline build and cold source x2 ok. D109 retains harness failures; D110 honest scoped key-required badge. Next: badge/build2 → actual panel pair (no mutation-copy overlap) → regression8483/gates4/selfchecks8 x2 → final security/ownership/identity → seal LAST/ZIP. D106 STOP historical; installed/native read-only | [TF6-providers](porting/TF6-providers.md) |
+
+T-F.5 принят и синхронизирован независимым аудитором (WORKLOG 11317–11344,
+installed HEAD ccb03930db8bb569); прежние executor pending ниже исторические.
+
 ## T-F.5 — активный мандат (2026-11-22)
 
 | Пакет | Этап | Следующее действие | Лист |

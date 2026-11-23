@@ -244,3 +244,133 @@ foreign installed work. Final identity reports initial-vs-observed drift explici
 and only asserts stability against the separately captured observed snapshot.
 Rebuild baseline UID/cache/frozen sources still must compare exactly; this does
 not waive their invariants or authorize installed sync/git.
+
+## D106 — T-F.6 diagnostic-port adapter and executable deployment STOP (2026-11-23)
+
+This is an observation record, **not** permission to change frozen Python,
+rebuild the executable, sync installed bytes, or waive the T-F.6 mandate.
+Separate dossier: `%TEMP%/opencode/c8_audit/tf6-20261122/`.
+
+Native/rebuild cold routes were observed twice each with a CPython audit hook
+refusing external requests before urllib/DNS/connect. Both return eight top-level
+API providers and six browser sites. Empty `catalog.providers`/`catalog.models`
+is a different, secondary models.dev cache. `aistudio`/`qwen` are currently site
+IDs; the API registry uses `gemini` and has no literal `qwen` provider. Keyless
+refresh attempts OpenRouter; scan attempts models.dev and public provider model
+endpoints. Guarded timing is **not** a measurement of real network latency.
+No external catalog/provider request was sent and no real key was used.
+
+The first zero-argument panel probe refused to start: user-owned port 5000 was
+occupied (observed PID 25808). The listener was neither requested nor stopped.
+Successful diagnostic rounds 7/8 launch the unchanged pinned exe with explicit
+project/state/isolated port. Exactly the HOST constant in an **owned copied**
+`agent_server.gd` is adapted; production/installed UI remains unchanged. Real
+native sites-tab signal -> real HTTPRequest -> six visible enabled Button nodes
+and viewport PNG were verified in an actual visible Godot editor. This is not
+a zero-argument native-launcher acceptance or a provider/API-tab live check.
+The API tab was not opened, because it automatically starts the unfixed scan.
+Only the ordinary owned updater TTL is seeded; provider/catalog caches are cold.
+
+PyInstaller read-only inspection extracts six packaged raw Python sources, all
+byte-exact current source, and inspects four compiled PYZ modules. The packaged
+`NativeServerReferences._load` derives routes from packaged `__file__`, not the
+adjacent addon source. Live rounds 7/8 run successfully despite three deliberately
+failing **owned adjacent-source** sentinels. Therefore a source-only guard/fallback
+fix will not repair the deployed pinned exe. No extracted or embedded code is
+patched. A separate user decision about rebuilding or using a source-based Python
+entry is required before claiming the mandatory live correction.
+
+All failed diagnostics remain disclosed: initial port collision; headless round
+1 populated buttons but visibility predicate failed; visible round 3 hit a PNG
+write/read race; round 5 hit a mixed-encoding exe log decode failure. The strict
+visibility predicate was retained, PNG publication ordered before its receipt,
+and raw logs retained (replacement decoding is only for diagnostic assertions).
+Unrelated synthetic-project `/chats/list` 500 responses are retained, not accepted
+as chat-regression proof. Only rounds 7/8 are successful paired diagnostics.
+
+Observation RED: 13 cases, 9 failures/4 passes; literal provider IDs, keyless
+refusal and scene UID remain unresolved. Genuine `assistant.chat` selfcheck
+checkpoint: `ok`, unit 29 passed, corpus 10 with zero differences, unchanged
+predicates; external report relocation, explicit existing D103 input adapter and
+the existing synthetic offline chat transport are disclosed. This baseline check
+does not close T-F.6. No production repair, full final regression, paired final
+gates/eight selfchecks, seal or postseal ZIP has been performed.
+
+## D107 — T-F.6 auditor-authorized offline executable build (2026-11-23)
+
+The user explicitly overturns D106's STOP: rebuilding using installed PyInstaller
+6.21.0 is an authorized executor build step, no network needed. Preserve D106 and
+failed diagnostics as history; do not rewrite the original mandate. Working exe
+may change; installed/native/git/sync/prior publications remain read-only. Capture
+old exe bytes and exact inputs, build with tools/build_http_exe.py in fresh external
+work, verify packaged sources and real panel. READ.md in the independent dossier
+documents this mandate revision. No embedded/adjacent-source hotpatches.
+
+## D108 — T-F.6 offline registry and keyless correction specification (2026-11-23)
+
+Specification before code. Cold native/rebuild observations are retained, not
+rewritten; the following authorized correction intentionally differs:
+- Static fallback only, zero models.dev fetches. Keep accepted providers.py,
+  catalog/model_cache and API253 corpus byte-exact. Existing locked runtime scope
+  temporarily extends registry with aistudio (Gemini compatible API, not browser
+  URL) and qwen (DashScope international compatible API). Preserve gemini/old IDs.
+  Empty models, mandatory keys, verified=false, no price/free claims. Restore
+  registry identity/cache on return and exceptions.
+- Frozen chat_routes.py receives only key guards/target filtering through one new
+  llm policy. Unknown/unavailable refusals remain. Keyless refresh: HTTP200/full
+  settings/error='Нужен ключ провайдера'/error_code='no_key'/kind='denied'/hint;
+  no network or model-error stats/cache write. Keyless scan: same error, empty
+  scanned/failed, scan_skipped=true and existing models index, before catalog work.
+  Keyed scans target only keyed available endpoints, not keyless public/custom
+  endpoints; fresh keyed scans skip catalog. Internal fetch repeats key guard.
+- Repin exact-path/full-SHA chat_routes size permission to measured final bytes,
+  never a directory exemption. Existing cap-test IDs/predicates remain; only the
+  measured positive cap fixture changes. New byte/EOL/sibling/cap tests protect it.
+- Scene changes only Script ext_resource UID to existing sidecar. Sites UI and
+  response stay unchanged; real visible providers/sites/refresh/auto-scan required.
+
+Cases: fixtures/corpus/editor/tf6-providers/, new panel/llm/security tests; genuine
+RED before implementation. Predecessor8458 IDs/order/phases plus additions x2,
+gates4/selfchecks8 x2, seal LAST/verified sibling ZIP. No new public tool/writer,
+browser/stealth/provider call or live-verification claim.
+
+## D109 — T-F.6 implementation/build and retained harness failures (2026-11-23)
+
+D108 implemented via llm policies and locked HTTP composition; accepted native
+API providers/catalog/model-cache byte-exact. Route1174 CRLF lines/SHA256
+`21d5609abf6873b9f8d3183c67d2062e57252fde728ab2fd6214f08eee7cef5d`.
+Only exact-path/full-SHA permission changes. Four historical cap-test IDs retain
+`chat_routes.py-1169` explicitly; measured input1174, assertions/other caps exact.
+Scene Script UID alone matches actual sidecar.
+
+First offline PyInstaller6.21.0 build succeeds: exe30866721B/SHA256
+`d374b9227a482b7f32e74bb2dffb895e74936f9bf3e79ea88c884d8e77c94427`;
+old exe backed up, build inputs unchanged except output. Six raw embedded sources
+exact, three compiled policies/scope verified. No download/catalog/provider call
+or real key; interpreter audit guard is not an OS sandbox. Cold corrected source
+x2: ten providers/no_key, zero network attempts/config file writes.
+
+All failures retained: wrong fixture import/module/tuple/token keyword and finally
+ensure_token's None return used as header. Apparent17fail/2pass included auth403
+and is NOT complete feature RED. Original pre-code observation13=9fail/4pass is
+valid; fixed explicitly synthetic auth fixture gives targeted34passed (25 new +9
+existing cap cases). Eight delivered-byte mutants killed, no errors/new skips,
+exact raw SHA/EOL restored. Original HTTP replay is mutation, not backdated RED.
+
+Rebuilt live1 did not expand native collapsed groups; live3 searched refresh in
+model-list box rather than sibling toolbar. Both observer failures retained,
+real native IDs/rows/no_key proved but not full live acceptance. Concurrent live3
+copy and baseline mutation could capture historical scene bytes: never claim its
+UID warning is delivered-source failure. Further live copies must not overlap
+source mutation. Only observer changes: native group toggles/row buttons, actual
+popup viewport, toolbar lookup/scroll. Production GDScript logic unchanged.
+
+## D110 — honest scoped HTTP model-list badge (2026-11-23, before code)
+
+Live popup exposes inherited `models_public` as “model list without a key”, which
+contradicts D108 HTTP refusal. In same locked metadata-only scope, copy public
+records with models_public=false and explicit key-required note; never mutate
+accepted registry dictionaries or API253 reference behavior. No endpoint or
+transport availability claim changes outside HTTP scope. Tests assert original
+record/caches restored by identity and force a public-target bypass mutant;
+rebuild again to deliver corrected metadata. No new effects/tool.

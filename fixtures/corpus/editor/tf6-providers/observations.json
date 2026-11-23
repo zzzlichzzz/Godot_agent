@@ -1,0 +1,760 @@
+{
+  "format": "TF6-native-observations-v1",
+  "network_guarded": true,
+  "sent_external_requests": 0,
+  "real_provider_keys": false,
+  "rounds": [
+    {
+      "family": "native",
+      "round": 1,
+      "answers": [
+        {
+          "path": "/api/providers",
+          "body": {},
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/sites/list",
+          "body": {},
+          "status": 200,
+          "provider_ids": [],
+          "sites": [
+            {
+              "builtin": true,
+              "id": "aistudio",
+              "name": "Google AI Studio",
+              "new_chat_url": "https://aistudio.google.com/prompts/new_chat"
+            },
+            {
+              "builtin": true,
+              "id": "deepseek",
+              "name": "DeepSeek",
+              "new_chat_url": "https://chat.deepseek.com/"
+            },
+            {
+              "builtin": true,
+              "id": "qwen",
+              "name": "Qwen",
+              "new_chat_url": "https://chat.qwen.ai/"
+            },
+            {
+              "builtin": true,
+              "id": "kimi",
+              "name": "Kimi",
+              "new_chat_url": "https://www.kimi.com/"
+            },
+            {
+              "builtin": true,
+              "id": "arena",
+              "name": "Arena AI Direct",
+              "new_chat_url": "https://arena.ai/text/direct"
+            },
+            {
+              "builtin": true,
+              "id": "arena_battle",
+              "name": "Arena AI Battle",
+              "new_chat_url": "https://arena.ai/text"
+            }
+          ],
+          "catalog": {
+            "providers": null,
+            "models": null,
+            "known_providers": null
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/api/models/refresh",
+          "body": {
+            "provider": "openrouter"
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "неожиданный ответ от «OpenRouter»: TF6 offline diagnostic: external network forbidden",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": false
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": true
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "native",
+      "round": 2,
+      "answers": [
+        {
+          "path": "/api/providers",
+          "body": {},
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/sites/list",
+          "body": {},
+          "status": 200,
+          "provider_ids": [],
+          "sites": [
+            {
+              "builtin": true,
+              "id": "aistudio",
+              "name": "Google AI Studio",
+              "new_chat_url": "https://aistudio.google.com/prompts/new_chat"
+            },
+            {
+              "builtin": true,
+              "id": "deepseek",
+              "name": "DeepSeek",
+              "new_chat_url": "https://chat.deepseek.com/"
+            },
+            {
+              "builtin": true,
+              "id": "qwen",
+              "name": "Qwen",
+              "new_chat_url": "https://chat.qwen.ai/"
+            },
+            {
+              "builtin": true,
+              "id": "kimi",
+              "name": "Kimi",
+              "new_chat_url": "https://www.kimi.com/"
+            },
+            {
+              "builtin": true,
+              "id": "arena",
+              "name": "Arena AI Direct",
+              "new_chat_url": "https://arena.ai/text/direct"
+            },
+            {
+              "builtin": true,
+              "id": "arena_battle",
+              "name": "Arena AI Battle",
+              "new_chat_url": "https://arena.ai/text"
+            }
+          ],
+          "catalog": {
+            "providers": null,
+            "models": null,
+            "known_providers": null
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/api/models/refresh",
+          "body": {
+            "provider": "openrouter"
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "неожиданный ответ от «OpenRouter»: TF6 offline diagnostic: external network forbidden",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": false
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": true
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "rebuild",
+      "round": 1,
+      "answers": [
+        {
+          "path": "/api/providers",
+          "body": {},
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/sites/list",
+          "body": {},
+          "status": 200,
+          "provider_ids": [],
+          "sites": [
+            {
+              "builtin": true,
+              "id": "aistudio",
+              "name": "Google AI Studio",
+              "new_chat_url": "https://aistudio.google.com/prompts/new_chat"
+            },
+            {
+              "builtin": true,
+              "id": "deepseek",
+              "name": "DeepSeek",
+              "new_chat_url": "https://chat.deepseek.com/"
+            },
+            {
+              "builtin": true,
+              "id": "qwen",
+              "name": "Qwen",
+              "new_chat_url": "https://chat.qwen.ai/"
+            },
+            {
+              "builtin": true,
+              "id": "kimi",
+              "name": "Kimi",
+              "new_chat_url": "https://www.kimi.com/"
+            },
+            {
+              "builtin": true,
+              "id": "arena",
+              "name": "Arena AI Direct",
+              "new_chat_url": "https://arena.ai/text/direct"
+            },
+            {
+              "builtin": true,
+              "id": "arena_battle",
+              "name": "Arena AI Battle",
+              "new_chat_url": "https://arena.ai/text"
+            }
+          ],
+          "catalog": {
+            "providers": null,
+            "models": null,
+            "known_providers": null
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/api/models/refresh",
+          "body": {
+            "provider": "openrouter"
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "неожиданный ответ от «OpenRouter»: TF6 offline diagnostic: external network forbidden",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": false
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": true
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "family": "rebuild",
+      "round": 2,
+      "answers": [
+        {
+          "path": "/api/providers",
+          "body": {},
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/sites/list",
+          "body": {},
+          "status": 200,
+          "provider_ids": [],
+          "sites": [
+            {
+              "builtin": true,
+              "id": "aistudio",
+              "name": "Google AI Studio",
+              "new_chat_url": "https://aistudio.google.com/prompts/new_chat"
+            },
+            {
+              "builtin": true,
+              "id": "deepseek",
+              "name": "DeepSeek",
+              "new_chat_url": "https://chat.deepseek.com/"
+            },
+            {
+              "builtin": true,
+              "id": "qwen",
+              "name": "Qwen",
+              "new_chat_url": "https://chat.qwen.ai/"
+            },
+            {
+              "builtin": true,
+              "id": "kimi",
+              "name": "Kimi",
+              "new_chat_url": "https://www.kimi.com/"
+            },
+            {
+              "builtin": true,
+              "id": "arena",
+              "name": "Arena AI Direct",
+              "new_chat_url": "https://arena.ai/text/direct"
+            },
+            {
+              "builtin": true,
+              "id": "arena_battle",
+              "name": "Arena AI Battle",
+              "new_chat_url": "https://arena.ai/text"
+            }
+          ],
+          "catalog": {
+            "providers": null,
+            "models": null,
+            "known_providers": null
+          },
+          "error": "",
+          "blocked_network_attempts": []
+        },
+        {
+          "path": "/api/models/refresh",
+          "body": {
+            "provider": "openrouter"
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "неожиданный ответ от «OpenRouter»: TF6 offline diagnostic: external network forbidden",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": false
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            }
+          ]
+        },
+        {
+          "path": "/api/models/scan",
+          "body": {
+            "force": true
+          },
+          "status": 200,
+          "provider_ids": [
+            "clinepass",
+            "openrouter",
+            "groq",
+            "gemini",
+            "agentrouter",
+            "custom",
+            "opencode_zen",
+            "deepseek"
+          ],
+          "sites": [],
+          "catalog": {
+            "providers": [],
+            "models": 0,
+            "known_providers": 0
+          },
+          "error": "",
+          "blocked_network_attempts": [
+            {
+              "event": "urllib.Request",
+              "host": "models.dev",
+              "path": "/api.json"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "openrouter.ai",
+              "path": "/api/v1/models"
+            },
+            {
+              "event": "urllib.Request",
+              "host": "opencode.ai",
+              "path": "/zen/v1/models"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
