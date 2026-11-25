@@ -397,7 +397,7 @@ func _clear_runtime_check_state() -> void:
 
 # split_gd: тело — agent_panel_part1.gd
 func _locale():
-	AgentPanelPart1._locale(self)
+	return AgentPanelPart1._locale(self)
 
 
 # split_gd: тело — agent_panel_part1.gd
@@ -415,7 +415,7 @@ var _theme_script = null
 
 # split_gd: тело — agent_panel_part1.gd
 func _T():
-	AgentPanelPart1._T(self)
+	return AgentPanelPart1._T(self)
 
 
 # split_gd: тело — agent_panel_part1.gd

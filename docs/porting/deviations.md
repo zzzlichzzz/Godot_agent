@@ -374,3 +374,42 @@ accepted registry dictionaries or API253 reference behavior. No endpoint or
 transport availability claim changes outside HTTP scope. Tests assert original
 record/caches restored by identity and force a public-target bypass mutant;
 rebuild again to deliver corrected metadata. No new effects/tool.
+
+
+## D111 — startup Chrome/Edge auto-detection and fail-closed missing-browser message (2026-11-25)
+
+- **Decision context**: `docs/porting/_start-prompt.TF6-providers.md` §1.5 (`BUG-008`). Panel reported `Browser is unavailable; configure GODOT_AGENT_CHROME_PATH` because the headless HTTP server launched without `GODOT_AGENT_CHROME_PATH`.
+- **Change**: Add `python/runtime/chrome_paths.py` invoked from `python/channels/http/exe_bootstrap.py` and `python/runtime/http_services.py` (`NativeServerReferences.activate` / `build_http_agent`) while preserving `app.py` 80-line cap. Auto-detect order: standard Chrome paths (`Program Files`, `Program Files (x86)`, `%LOCALAPPDATA%`), Windows Registry `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe`, then standard Edge paths (`msedge.exe`), setting `os.environ["GODOT_AGENT_CHROME_PATH"]` when unset/empty and a regular binary file is found. Never touches `Google\Chrome\User Data` or adopts arbitrary non-binary paths.
+- **Fail-closed error**: `InteractiveGateway._ensure_browser` and `InteractiveGateway.wait_driver` report `Chrome не найден, укажите путь в настройках` when `GODOT_AGENT_CHROME_PATH` is absent/invalid; explicit valid env is preserved.
+- **Boundary**: Preserves `ReadOnlyBrowser` `plain_process_then_attach`, `facade.py` exact bytes/SHA, and all SEC-20 stealth invariants (`contract/browser_stealth.json`).
+
+## D112 — systemic locale/theme wrapper return fix in frozen native panel (2026-11-25)
+
+- **Decision context**: `docs/bugs-register.md` (`BUG-004`, `BUG-010`, `BUG-011`) and `WORKLOG.md` systemic locale issue, explicitly authorized by user prompt.
+- **Defect**: `editor/native/agent_panel.gd` wrapper methods `_locale()` (line 400) and `_T()` (line 418) invoked `AgentPanelPart1._locale(self)` and `AgentPanelPart1._T(self)` without `return`, returning `null` so `_t(key)` always fell back to bare key strings and `%`-formatting in `agent_panel_part3.gd` / `agent_panel_part4.gd` raised operator `%` errors while theme styling received `null`.
+- **Change**: Prepend `return ` to both one-line forwarding bodies in `editor/native/agent_panel.gd`; keep `agent_entry.gd`, `plugin.gd`, `agent_panel_part*.gd`, and all other GDScript files unchanged.
+- **Verification**: Static wrapper check + real Godot 4.6.3 headless SceneTree test (`tests/py/live/test_panel_locale_live.py`) verifying `_locale()`, `_T()`, `%`-formatted keys, `AgentStatusBar.tscn`, and `agent_start_screen.set_sites()`.
+
+## D113 — Explicit D112 source-input revision for editor/native/agent_panel.gd (2026-11-25)
+
+- **Pattern (D98 continuation)**: Adding `return ` to `_locale()` and `_T()` changed `editor/native/agent_panel.gd` from `82171` B (`a751d654842db5097a1dd0e712960a10d3e4272f20edd27bd4b7666f4edaafd7`) to `82185` B (`c160c67762741a4b0d55596f4d4c1e44527e2e2c297b6013a61d2a99b8b3ac43`) with zero change to GDScript signal/handler extraction facts or business goldens.
+- **Change**: Keep `tests/py/formats/test_scene_deps_facts.py` and both `fixtures/corpus/scene_model/*/manifest.json` files byte-exact. Extend `tests/py/panel_tf/source_inputs.py` (`revised_panel_fact`) and `tests/conftest.py` (`D113`) to verify exact inverse reconstruction back to the `82171`-byte preimage SHA256 and update only `bytes`/`sha256` on the single matching `fact`, plus dedicated `tests/py/panel_tf/test_panel_source_input.py` checks refusing any unproved byte drift or path rebinding.
+
+## D114 — Safe stale dead-PID http_endpoint archiving (ADR-0092, 2026-11-25)
+
+- **Context**: User's server failed to launch on startup because `http_endpoint.json` from dead `PID 29240` (`2026-11-23`) caused `FileExistsError` on exclusive `'x'` create (`listener.py:24`), repeating the same lockout previously seen for `PID 18332` and `PID 26668`.
+- **Change**: Archive `PID 29240` to `http_endpoint.stale-29240-20261125.json` (with explicit user authorization), and implement ADR-0092 in `python/channels/http/listener.py`: only when an existing `http_endpoint.json` is an ordinary plain file (`nlink == 1`, no symlink/reparse), contains a complete 4-field loopback record (`host == '127.0.0.1'`, valid `port`, `pid > 0`, `session_id`), and OS checks confirm `pid` is dead (`ERROR_INVALID_PARAMETER` or exited handle, never `ERROR_ACCESS_DENIED`), preserve its exact bytes as `http_endpoint.stale-<pid>-<ts>.json` before exclusive `'x'` creation. Incomplete/malformed/foreign-shape/live/linked files still raise `FileExistsError` untouched (`test_endpoint_owner.py` and `test_http_metadata_policy.py` remain 100% unchanged and passing).
+
+## D115 — Bundle selenium lazy browser submodules in tools/build_http_exe.py (2026-11-25)
+
+- **Defect**: Live `/chats/new` against the rebuilt `godot_agent_server.exe` launched Chrome via `D111` auto-detection and immediately failed 503 with `No module named 'selenium.webdriver.chrome.options'`, because `selenium 4.46.0` loads `selenium.webdriver.chrome.options`, `webdriver`, `driver_finder`, `selenium_manager`, etc. dynamically and PyInstaller omitted 42 submodules.
+- **Change**: Add `'--collect-submodules', 'selenium'` to `tools/build_http_exe.py` (`tools/build_http_exe.py:17`), test closure in `tests/py/panel_tf/test_exe_selenium_closure.py`, rebuild `godot_agent_server.exe` offline via PyInstaller `6.21.0`, and verify live Chrome/CDP attach startup in the rebuilt executable.
+
+## D116 — ADR-0093 HTTP chat prompt/live_input compatibility, fail-closed GDScript policy UI, and scene UID alignment (2026-11-25)
+
+- **Context**: User live run against `PID 11044` hit `403 HTTP cannot elevate startup policy` on both `/chat/live_input` (`BUG-009`) and `/chat` because `user://godot_agent_policy.txt` held `"1"`; inspecting downstream flow also uncovered `routes_chat.py:15` ignoring Godot panel's `"prompt"` key (`400`), missing `active` on `/chat/progress`, `panel_services.live_input` returning the parser module instead of `getattr(module, 'PARSER', module)` and missing `_selection()` fallback before turn 1, plus 7 stale script `uid://` attributes in `editor/native/*.tscn` (`UserMessageCard.tscn` et al.).
+- **Change**: Implement ADR-0093 (`docs/adr/0093-http-chat-prompt-and-ui-policy.md`, `SEC-HTTP-CHAT-POLICY` in `docs/security/invariants.md`):
+  - Keep `python/channels/http/auth.py` `_CONTROL_POSTS` unchanged (14 exact ADR-0091 routes), preserving all strict `403` HTTP policy-elevation blocks (`test_panel_tf_security.py`, `test_http_control_envelope.py`, `test_http_metadata_policy.py`, `test_http_chat_policy.py` all pass without relaxing a single security assertion).
+  - Support `message` / `prompt` / `text` and `active=session.busy` on `/chat` and `/chat/progress` (`python/channels/http/routes_chat.py`), and resolve `gateway._record` or `gateway._selection()` + `getattr(module, 'PARSER', module)` + `kind == 'api'` guard in `python/runtime/panel_services.py` (`test_chat_prompt_and_live_input.py`).
+  - Make `editor/native/agent_panel_part1.gd`, `agent_panel_part4.gd`, and `agent_locale.gd` fail closed (`_allow_addons = false`, `_allow_self_edit = false`, disabled HTTP-locked checkboxes with RU/EN tooltips) with exact inverse-verified `D116_REVISIONS` in `tests/py/panel_tf/source_inputs.py` and `tests/conftest.py` (without changing `fixtures/corpus/scene_model/t1_script_facts/manifest.json` or any extraction golden).
+  - Align all 7 `editor/native/*.tscn` script UIDs to their `.gd.uid` sidecars (`test_scene_uids_and_policy_live.py`, `godot --editor --headless --quit` 0 warnings).

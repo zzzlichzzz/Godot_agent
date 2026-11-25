@@ -441,6 +441,7 @@ const RU := {
 	"policy_confirm_text": "Разрешить агенту изменять файлы аддона? Проверьте пути и создайте резервную копию.",
 	"policy_confirm_yes": "Разрешить",
 	"policy_confirm_no": "Отмена",
+	"policy_http_locked": "В HTTP-режиме сервера изменение политики addons/ и self-edit через панель отключено (fail-closed).",
 
 	"safe_rename_preview": "Предпросмотр",
 	"safe_rename_apply": "Применить",
@@ -887,6 +888,7 @@ const EN := {
 	"policy_confirm_text": "Allow the agent to edit addon files? Check the paths and make a backup first.",
 	"policy_confirm_yes": "Allow",
 	"policy_confirm_no": "Cancel",
+	"policy_http_locked": "In HTTP server mode, changing addons/ or self-edit policy from the panel is disabled (fail-closed).",
 
 	"safe_rename_preview": "Preview",
 	"safe_rename_apply": "Apply",

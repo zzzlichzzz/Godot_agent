@@ -14,7 +14,7 @@ def main():
     if work.exists():parser.error('Use a fresh external build directory')
     import PyInstaller  # Availability check only. Never installs/downloads dependencies.
     work.mkdir(parents=True)
-    command=['--onefile','--noupx',
+    command=['--onefile','--noupx','--collect-submodules','selenium',
         '--name','godot_agent_server','--distpath',str(ROOT/'python/dist'),
         '--workpath',str(work/'work'),'--specpath',str(work),'--paths',str(ROOT)]
     for path in sorted((ROOT/'python').rglob('*.py')):

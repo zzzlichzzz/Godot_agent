@@ -1,11 +1,85 @@
 """One owned loopback listener; never adopts or kills another process."""
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import stat as stat_mod
 import uuid
 import threading
 from werkzeug import serving
 from python.kernel.errors import AppError
+
+
+def _pid_alive(pid):
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return True
+    if os.name == 'nt':
+        import ctypes
+        kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return ctypes.get_last_error() != 87
+        try:
+            code = ctypes.c_ulong(0)
+            if kernel32.GetExitCodeProcess(handle, ctypes.byref(code)) and code.value == 259:
+                return True
+            return kernel32.WaitForSingleObject(handle, 0) != 0
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _archive_stale_endpoint(profile, endpoint):
+    """Archive a verified plain-file dead-PID loopback endpoint without modifying live/foreign claims."""
+    try:
+        if endpoint.is_symlink():
+            return False
+        st = endpoint.stat(follow_symlinks=False)
+        if getattr(st, 'st_file_attributes', 0) & 0x400:
+            return False
+        if not stat_mod.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_size <= 0 or st.st_size > 4096:
+            return False
+        raw = endpoint.read_bytes()
+        if len(raw) != st.st_size:
+            return False
+        old = json.loads(raw.decode('utf-8'))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    if not isinstance(old, dict) or set(old) != {'host', 'port', 'pid', 'session_id'}:
+        return False
+    if old['host'] != '127.0.0.1':
+        return False
+    port, pid, sid = old['port'], old['pid'], old['session_id']
+    if isinstance(port, bool) or not isinstance(port, int) or not 1024 <= port <= 65535:
+        return False
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0 or pid == os.getpid():
+        return False
+    if not isinstance(sid, str) or not sid.strip() or _pid_alive(pid):
+        return False
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    for idx in range(100):
+        suffix = '' if idx == 0 else f'-{idx}'
+        target = profile / f'http_endpoint.stale-{pid}-{stamp}{suffix}.json'
+        if target.exists():
+            continue
+        try:
+            st2 = endpoint.stat(follow_symlinks=False)
+            if (st2.st_dev, st2.st_ino) != (st.st_dev, st.st_ino) or endpoint.read_bytes() != raw:
+                return False
+            os.rename(endpoint, target)
+            return True
+        except FileExistsError:
+            continue
+        except OSError:
+            return False
+    return False
+
 
 def serve(app,project_root,state_dir,port=0):
     if isinstance(port,bool) or not isinstance(port,int) or (port!=0 and not 1024<=port<=65535):
@@ -21,7 +95,13 @@ def serve(app,project_root,state_dir,port=0):
     extensions=getattr(app,'extensions',{})
     shutdown=(lambda:threading.Thread(target=server.shutdown,daemon=True).start()) if hasattr(server,'shutdown') else None
     try:
-        with endpoint.open('x',encoding='utf-8',newline='\n') as output:
+        try:
+            output=endpoint.open('x',encoding='utf-8',newline='\n')
+        except FileExistsError:
+            if not _archive_stale_endpoint(profile,endpoint):
+                raise
+            output=endpoint.open('x',encoding='utf-8',newline='\n')
+        with output:
             stat=os.fstat(output.fileno());proof=(stat.st_dev,stat.st_ino)
             output.write(expected.decode('utf-8'));output.flush();os.fsync(output.fileno())
         published=True

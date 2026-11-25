@@ -1,12 +1,11 @@
 """Authenticated loopback HTTP transport over one rebuild Agent."""
-from pathlib import Path
-import threading
+from pathlib import Path;import threading
 from flask import Flask,jsonify,request,g
+from python.runtime.chrome_paths import configure_chrome_env
 from python.runtime.http_services import NativeServerReferences,build_http_agent
 from .auth import ProjectAuth
 from .routes_chat import register_chat_routes
-from .routes_panel import register_panel_routes
-from .routes_project import register_project_routes
+from .routes_panel import register_panel_routes;from .routes_project import register_project_routes
 from python.runtime.panel_services import PanelServices
 
 class HttpSession:
@@ -15,7 +14,7 @@ class HttpSession:
         self.editor_snapshot={};self.busy=False
 
 def create_app(project_root,state_dir,agent=None,native_routes=True):
-    project=Path(project_root).resolve();state=Path(state_dir).resolve()
+    configure_chrome_env();project=Path(project_root).resolve();state=Path(state_dir).resolve()
     auth=ProjectAuth(project,state);app=Flask(__name__);auth.install(app)
     session=HttpSession()
     refs=NativeServerReferences(project,state).activate() if native_routes else None
@@ -67,7 +66,7 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
     def unexpected(_error):return jsonify(ok=False,kind='internal',message='HTTP request failed; details redacted'),500
     return app
 def serve(project_root,state_dir,port=0):
-    from .listener import serve as listen
+    from .listener import serve as listen;configure_chrome_env()
     return listen(create_app(project_root,state_dir),project_root,state_dir,port)
 def main(argv=None):
     import argparse

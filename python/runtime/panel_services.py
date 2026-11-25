@@ -71,11 +71,18 @@ class PanelServices:
             return result
 
     def live_input(self,data,session):
-        def record():return getattr(getattr(session,'gateway',None),'_record',None) or {}
-        def site():return import_module('python.substrate.llm.browser.sites').get_site(record().get('site_id','qwen'))
+        def record():
+            gw=getattr(session,'gateway',None);sel=getattr(gw,'_selection',None)
+            return getattr(gw,'_record',None) or (sel() if callable(sel) else None) or {}
+        def site():
+            rec=record()
+            if rec.get('kind')=='api':return None
+            return import_module('python.substrate.llm.browser.sites').get_site(rec.get('site_id') or 'qwen')
         def parser():
             selected=site()
-            return import_module('python.substrate.llm.parsers.'+selected['parser']) if selected else None
+            if not selected:return None
+            module=import_module('python.substrate.llm.parsers.'+selected['parser'])
+            return getattr(module,'PARSER',module)
         def url():return record().get('url') or (site() or {}).get('new_chat_url')
         with self._mirror_lock:
             if self._mirror is None:

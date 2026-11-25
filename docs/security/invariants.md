@@ -260,3 +260,53 @@ ADR-0091 ниже расширяет точную таблицу и discarded en
   отказавший запрос не освобождает exchange другого потока.
 Тесты: tests/py/panel_tf/test_control_envelope.py,
 tests/py/security/test_http_control_envelope.py; synthetic keys, no provider traffic.
+
+## SEC-TF6-CHROME — автоопределение браузера и локаль панели (D111/D112)
+
+- Автоопределение Chrome/Edge на старте HTTP-сервера проверяет только стандартные
+  пути бинарников `chrome.exe`/`msedge.exe` и ключ `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe`.
+- Доступ к пользовательскому профилю Chrome (`User Data`) и запуск selenium
+  в обход `ReadOnlyBrowser` / CDP attach исключены (`SEC-20`).
+- Явно заданный валидный `GODOT_AGENT_CHROME_PATH` не перезаписывается; при
+  отсутствии/невалидности пути браузерный режим остаётся fail-closed с
+  сообщением «Chrome не найден, укажите путь в настройках».
+- Исправление `return` в `_locale()`/`_T()` (`editor/native/agent_panel.gd`)
+  не затрагивает `agent_entry.gd`, права проекта или HTTP-политику.
+Тесты: `tests/py/panel_tf/test_chrome_autodetect.py`,
+`tests/py/security/test_chrome_autodetect_security.py`,
+`tests/py/panel_tf/test_tf6_d110_models_public.py`,
+`tests/py/live/test_panel_locale_live.py`.
+
+## SEC-HTTP-STALE-ENDPOINT — архивация мёртвого endpoint (ADR-0092, до кода)
+
+- Живой процесс (`STILL_ACTIVE` или `ERROR_ACCESS_DENIED`), неполная запись без полного
+  контракта `{host, port, pid, session_id}`, битый JSON, невалидный порт/PID, symlink,
+  reparse point и hardlink (`st_nlink != 1`) по-прежнему вызывают отказ `FileExistsError`
+  без модификации `http_endpoint.json` (`SEC-T1-LOCAL-04`).
+- Только обычный, единично-связанный, полный loopback-endpoint заведомо мёртвого
+  процесса (`ERROR_INVALID_PARAMETER` / завершившийся процесс, `pid != current`)
+  переносится в `http_endpoint.stale-<pid>-<timestamp>.json` с точным сохранением
+  исходных байтов до нового эксклюзивного создания `http_endpoint.json`.
+Тесты: `tests/py/channels_t1/test_stale_endpoint_archive.py`,
+`tests/py/channels_t1/test_endpoint_owner.py`,
+`tests/py/security/test_http_metadata_policy.py`.
+
+## SEC-HTTP-CHAT-POLICY — чат-панель, живой ввод и политика UI (ADR-0093)
+
+- `_CONTROL_POSTS` в `auth.py` сохраняет строгий список ADR-0091 без расширения:
+  `/chat`, `/chat/live_input`, `/chat/stop`, `/chat/rollback/preview`,
+  `/server/shutdown`, `/minilich/*`, `/init`, `/tools/call`, `/project/*`,
+  `/chat/confirm*`, `/chat/rollback` и неизвестные/похожие пути по-прежнему
+  отвечают `403 HTTP cannot elevate startup policy` при передаче
+  `allow_addons=True` или `allow_self_edit=True` (`SEC-TF`, `SEC-HTTP-CONTROL`).
+- Чтение ключа `prompt` на `/chat`, выбор текущей записи чата (`_selection()`)
+  и экземпляра `getattr(module, 'PARSER', module)` в `live_input` не обходят
+  `assistant_turn` / `PathPolicy` и не открывают браузерный сайт для `kind == 'api'`.
+- Панель GDScript (`D116`) всегда стартует fail-closed (`allow_addons = false`,
+  `allow_self_edit = false`), игнорируя прежний `user://godot_agent_policy.txt`,
+  и не позволяет включить HTTP-повышение прав через чекбоксы настроек; правка
+  трёх `.gd`-файлов подтверждена обратимым SHA-доказательством в `source_inputs.py`.
+Тесты: `tests/py/security/test_http_chat_policy.py`,
+`tests/py/security/test_panel_tf_security.py`,
+`tests/py/panel_tf/test_chat_prompt_and_live_input.py`,
+`tests/py/live/test_scene_uids_and_policy_live.py`.

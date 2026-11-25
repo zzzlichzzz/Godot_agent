@@ -38,7 +38,7 @@ class InteractiveGateway(ChatGateway):
         if self._owned_browser is None:
             chrome=os.environ.get('GODOT_AGENT_CHROME_PATH','').strip()
             if not chrome or not Path(chrome).is_file():
-                raise AppError('unavailable','Browser mode needs GODOT_AGENT_CHROME_PATH; no unknown browser is adopted')
+                raise AppError('unavailable','Chrome не найден, укажите путь в настройках')
             from python.substrate.llm.browser.facade import ReadOnlyBrowser
             driver=os.environ.get('GODOT_AGENT_CHROMEDRIVER_PATH') or None
             self._browser_started=True
@@ -57,8 +57,10 @@ class InteractiveGateway(ChatGateway):
 
     def wait_driver(self,timeout=90.0):
         try:driver=self._ensure_browser(timeout=timeout)
-        except (AppError,OSError,RuntimeError,TypeError):
-            raise RuntimeError('Browser is unavailable for this session; configure GODOT_AGENT_CHROME_PATH') from None
+        except AppError as error:
+            raise RuntimeError(error.message) from None
+        except (OSError,RuntimeError,TypeError):
+            raise RuntimeError('Browser is unavailable for this session; Chrome не найден, укажите путь в настройках') from None
         if driver is not self.current_driver():raise RuntimeError('Foreign browser owner is not adopted')
         return driver
 

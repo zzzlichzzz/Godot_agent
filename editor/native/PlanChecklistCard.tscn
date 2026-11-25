@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cpjsmjbpnautg"]
 
-[ext_resource type="Script" uid="uid://c6mkvrdbgjkei" path="res://addons/godot_agent/editor/native/PlanChecklistCard.gd" id="1_gkxn7"]
+[ext_resource type="Script" uid="uid://8mtp2e7e5ios" path="res://addons/godot_agent/editor/native/PlanChecklistCard.gd" id="1_gkxn7"]
 
 [node name="PlanChecklistCard" type="PanelContainer"]
 layout_mode = 2

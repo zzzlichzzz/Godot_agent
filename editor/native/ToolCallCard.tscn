@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dkxn7k7x7hqk7"]
 
-[ext_resource type="Script" uid="uid://n0os24ib0b3l" path="res://addons/godot_agent/editor/native/ToolCallCard.gd" id="1_dkxn7"]
+[ext_resource type="Script" uid="uid://cdb5iyb0rmws8" path="res://addons/godot_agent/editor/native/ToolCallCard.gd" id="1_dkxn7"]
 
 [node name="ToolCallCard" type="PanelContainer"]
 layout_mode = 2

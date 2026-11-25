@@ -12,7 +12,8 @@ def register_chat_routes(app,agent,session):
         return answer['result']
     @bp.post('/chat')
     def chat():
-        body=request.get_json();text=body.get('message',body.get('text',''))
+        body=request.get_json()
+        text=next((body[k] for k in ('message','prompt','text') if k in body and body[k] is not None),'')
         with session.lock:
             if session.pending is not None:return jsonify(error='Resolve the pending preview first',kind='conflict'),409
             session.busy=True
@@ -73,7 +74,7 @@ def register_chat_routes(app,agent,session):
     @bp.post('/chat/editor/dirty')
     def editor_dirty():return editor_sync()
     @bp.get('/chat/progress')
-    def progress():return jsonify(ok=True,busy=session.busy,pending_confirmation=session.pending is not None)
+    def progress():return jsonify(ok=True,busy=session.busy,active=session.busy,pending_confirmation=session.pending is not None)
     @bp.post('/chat/stop')
     def stop():
         gateway=getattr(session,'gateway',None)

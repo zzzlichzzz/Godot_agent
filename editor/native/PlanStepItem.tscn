@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bpjsmjbpnautg"]
 
-[ext_resource type="Script" uid="uid://dra3lc1dsn5p6" path="res://addons/godot_agent/editor/native/PlanStepItem.gd" id="1_fkxn7"]
+[ext_resource type="Script" uid="uid://crqfly5y7bwmk" path="res://addons/godot_agent/editor/native/PlanStepItem.gd" id="1_fkxn7"]
 
 [node name="PlanStepItem" type="HBoxContainer"]
 layout_mode = 2

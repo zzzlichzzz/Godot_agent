@@ -1,4 +1,4 @@
-# Реестр багов Godot Agent (после T-F.5, 2026-11-23)
+# Реестр актуальных багов Godot Agent
 
 ## ОТКРЫТЫЕ БАГИ
 
@@ -23,93 +23,23 @@
 - Статус: ОТКРЫТ
 - Фикс: guard в _enter_tree
 
-### BUG-004: agent_panel_part3.gd:586 — ошибка форматирования строки
-- Ошибка: `not all arguments converted during string formatting in operator '%'`
-- Источник: `panel._t("api_chat_hint") % [2 аргумента]` — локаль возвращает строку с числом %s ≠ 2
-- Серьёзность: низкая (подсказка не показывается, чат работает)
-- Статус: ОТКРЫТ
-- Фикс: убедиться что locale инициализирован до panel._view.add_hint()
-
-### BUG-005: каталог провайдеров пуст без сети
-- Ошибка: /api/providers → providers:[], known_providers:0
-- Причина: providers_catalog фетчит models.dev без сети — пусто
-- Серьёзность: средняя (нельзя выбрать провайдера)
-- Статус: ОТКРЫТ
-- Фикс: fetch models.dev при первом запросе ИЛИ seed кэша ИЛИ статический fallback
-
-### BUG-006: /api/models/refresh висит без ключа
-- Ошибка: долгая загрузка без результата
-- Причина: refresh фетчит модели от провайдера без API-ключа
-- Серьёзность: средняя (UI зависает)
-- Статус: ОТКРЫТ
-- Фикс: fail-closed — проверка ключа до фетча, возврат 400
-
 ### BUG-007: fixture .uid исчезают в установленной копии
 - Описание: 181 fixture .uid файлов исчезли (D105)
 - Причина: не установлена; вероятно Godot editor пересоздаёт .uid
 - Серьёзность: низкая (Godot перегенерирует)
 - Статус: ОТКРЫТ (документировано в D105)
 
-## ИСПРАВЛЕННЫЕ
-
-### FIX-001: AgentStatusBar.tscn invalid UID → исправлен на cyv7bxjosjeps
-### FIX-002: listener.py stale endpoint → проверка PID, удаление если мёртв
-### FIX-003: fixtures шум → .gdignore в обеих копиях
-### FIX-004: observer.gd unresolved super path → D90
-### FIX-005: 27 маршрутов панели → T-F.1, 51/51
+### BUG-014: POST /chat возвращает 400 «исчерпан лимит шагов диалога» на первом коротком запросе
+- Симптом (лог HTTP + UI): `GET /chat/progress → 200`, `POST /chat → 400`, `POST /chat/live_input → 200`; в панели сообщение `исчерпан лимит шагов диалога` на первом коротком запросе.
+- Источник ошибки: `python/modules/assistant/write/operations/turn.py:26-68` (`assistant_turn` проходит `max_turns=8` и на строке 68 поднимает `AppError('unavailable', 'исчерпан лимит шагов диалога')`); `python/channels/http/routes_chat.py:10-11, 20` любую ошибку кроме `conflict`/`stale_plan` отдаёт как HTTP `400`.
+- Причины в коде (гипотезы до живой трассировки):
+  1. `turn.py:64-67` + `python/substrate/assistant/answer_judge.py:381-383`: обычный ответ без `agent_action` и без `===DONE===` получает blocking-находку `"plain answer is missing ===DONE==="`; `turn.py` не возвращает ответ пользователю (в отличие от `parser_base.py:35`), а до `8` раз шлёт модели `"Исправь ответ; заверши маркером DONE. ..."`.
+  2. `python/substrate/assistant/interactive_gateway.py:84-101` + `python/substrate/llm/parsers/deepseek_parser.py:125-128`: `capture` ловит только `parser_base._strip_done_marker`; ответы вида `[Ошибка]: ...` без `_strip_done_marker` (`deepseek_parser.py:314-316`, `parser_base.py:3245, 3288`) дают `done=False` и гоняются в 8-шаговом цикле. При наличии `agent_action` `deepseek_parser` выносит JSON в `actionRaw` и оставляет в `text`/`raw` заглушку `— агент предлагает действие —`, из-за чего `judge` в `turn.py:55` видит `raw` без ```` ```agent_action``` ````.
+  3. Исчерпание `max_turns=8` на серии `READ`/отклонённых `WRITE` шагов (`turn.py:36-57`) и игнорирование `chat_id`/`editor_context` из тела `/chat` (`routes_chat.py:16, 20` vs `editor/native/agent_panel_part1.gd:817-825`).
+- Серьёзность: высокая (блокирует базовый диалог в `/chat`).
+- Статус: ОТКРЫТ (код не патчился по запросу пользователя).
 
 ## ОГРАНИЧЕНИЯ (by design)
 - NN minilich исключены (F0); doh.py исключён (D36); n8n исключён
 - runtime/editor execution — отказные (D92); protected split apply (D92); automatic sync (D93)
 - exe неподписанный (AV/SmartScreen); 2 WinError1314 skips
-
-### BUG-008: /chats/new возвращает 503
-- Ошибка: POST /chats/new → 503 Service Unavailable
-- Причина: создание чата зависит от браузера/провайдера, которые не настроены
-- Серьёзность: высокая (нельзя создать чат = нельзя работать)
-- Статус: ОТКРЫТ
-- Фикс: связано с BUG-005 (провайдеры) — после настройки провайдера чат должен создаваться
-
-### BUG-009: /chat/live_input возвращает 403
-- Ошибка: POST /chat/live_input → 403
-- Причина: нативная аутентификация (server_auth) отвергает запрос — вероятно user_data_dir binding не совпадает
-- Серьёзность: средняя (live input не работает)
-- Статус: ОТКРЫТ
-- Фикс: проверить, что exe_binding → server_auth binding использует правильный user_data_dir
-
-### ОБНОВЛЕНИЕ: /sites/list работает (200)
-- API возвращает корректные данные (aistudio, deepseek, qwen)
-- Если панель показывает пустой список — проблема в рендеринге панели, не в API
-
-### BUG-010: agent_panel_part3.gd:545 — ошибка форматирования (тот же класс что BUG-004)
-- Ошибка: `not all arguments converted during string formatting in operator %`
-- Источник: `panel._t("chat_opened") % str(json.get("title",""))` при клике на существующий чат
-- Локаль: "chat_opened" = "Открыт чат: %s — страница открыта в браузере" (1 %s, 1 аргумент — должно работать)
-- Причина: та же что BUG-004 — locale не инициализирован или формат не совпадает
-- Серьёзность: средняя (нельзя открыть существующий чат из списка)
-- Статус: ОТКРЫТ
-- Фикс: тот же что BUG-004 — инициализация locale до использования
-
-### ОБНОВЛЕНИЕ: загрузки подсасываются
-- /sites/list 200, /chats/list 200 — данные приходят, список заполняется
-- Но клик на чат → BUG-010 (форматирование)
-- После фикса BUG-004/010: загрузка чата должна работать
-
-### BUG-011: agent_panel_part4.gd:190 — ошибка форматирования (класс BUG-004/010)
-- Ошибка: `not all arguments converted during string formatting in operator %`
-- Источник: `panel._t("update_current_version") % cur_v` при открытии настроек агента
-- Локаль: "update_current_version" = "Текущая версия: %s" (1 %s, 1 аргумент)
-- Причина: та же что BUG-004/BUG-010 — системная проблема инициализации locale в rebuild
-- Серьёзность: средняя (настройки агента не открываются)
-- Статус: ОТКРЫТ
-
-### ПАТТЕРН: BUG-004 + BUG-010 + BUG-011 = системный класс
-Три разных _t() вызова в трёх разных файлах (part3:586, part3:545, part4:190) — все падают
-с одной ошибкой. Это НЕ случайные баги, а системная проблема: locale инициализация
-в rebuild работает иначе чем в native. Возможные причины:
-1. agent_locale.gd создаёт новый экземпляр в panel, но язык не установлен
-2. LANGS константа не загружается из-за пути/порядка инициализации
-3. get_lang() возвращает неожиданное значение в rebuild
-
-Фикс: диагностировать инициализацию agent_locale в rebuild vs native,
-убедиться что t() возвращает правильную строку для текущего языка.

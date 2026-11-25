@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dpjsmjbpnautg"]
 
-[ext_resource type="Script" uid="uid://cl63hvh8h5dg5" path="res://addons/godot_agent/editor/native/DiffPreviewCard.gd" id="1_hkxn7"]
+[ext_resource type="Script" uid="uid://dmmsh2x648qk7" path="res://addons/godot_agent/editor/native/DiffPreviewCard.gd" id="1_hkxn7"]
 
 [node name="DiffPreviewCard" type="PanelContainer"]
 layout_mode = 2

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://craxit2cb7yjw"]
 
-[ext_resource type="Script" uid="uid://bhi3bmvfr2uhv" path="res://addons/godot_agent/editor/native/agent_panel.gd" id="1_jpmp7"]
+[ext_resource type="Script" uid="uid://d0u7ws3y6vv30" path="res://addons/godot_agent/editor/native/agent_panel.gd" id="1_jpmp7"]
 
 [node name="ИИ Агент" type="Control" unique_id=1450016915]
 layout_mode = 3

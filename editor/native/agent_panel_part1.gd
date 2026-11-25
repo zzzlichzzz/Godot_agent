@@ -676,11 +676,6 @@ static func _save_rename_mode(panel, mode: String) -> void:
 
 static func _load_policy_settings(panel) -> void:
 	panel._allow_addons = false
-	if FileAccess.file_exists(POLICY_SETTING_FILE):
-		var p = FileAccess.open(POLICY_SETTING_FILE, FileAccess.READ)
-		if p:
-			panel._allow_addons = p.get_as_text().strip_edges() == "1"
-			p.close()
 	panel._allow_self_edit = false
 	if panel._policy_warning_label:
 		panel._policy_warning_label.visible = false
@@ -712,23 +707,20 @@ static func _policy_json(panel, value) -> String:
 	return JSON.stringify(panel._policy_body(body))
 
 static func _on_allow_addons_toggled(panel, pressed: bool) -> void:
-	if not pressed:
-		panel._allow_addons = false
-		panel._save_allow_addons_policy()
-		return
-	panel._policy_previous_allow_addons = panel._allow_addons
 	panel._allow_addons = false
-	panel._request_policy_enable("allow_addons")
+	if panel._allow_addons_check:
+		panel._allow_addons_check.set_pressed_no_signal(false)
+	if pressed:
+		panel._notify(panel._t("policy_http_locked"), "status")
 
 static func _on_allow_self_edit_toggled(panel, pressed: bool) -> void:
-	if pressed:
-		panel._policy_previous_allow_self_edit = panel._allow_self_edit
-		panel._allow_self_edit = false
-		panel._request_policy_enable("allow_self_edit")
-	else:
-		panel._allow_self_edit = false
+	panel._allow_self_edit = false
+	if panel._allow_self_edit_check:
+		panel._allow_self_edit_check.set_pressed_no_signal(false)
 	if panel._policy_warning_label:
-		panel._policy_warning_label.visible = panel._allow_self_edit
+		panel._policy_warning_label.visible = false
+	if pressed:
+		panel._notify(panel._t("policy_http_locked"), "status")
 
 static func _request_policy_enable(panel, kind: String) -> void:
 	if is_instance_valid(panel._policy_confirmation_dialog):

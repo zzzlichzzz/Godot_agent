@@ -1,5 +1,21 @@
 # T-C — локальные HTTP/MCP и editor-link
 
+## Продолжение: ADR-0093 / D116 — /chat prompt, live_input PARSER, fail-closed UI-политика и UID сцен (2026-11-25), этап 7
+
+- Причина сбоя у пользователя (`403` на `/chat/live_input` и `/chat` при `allow_addons = 1` в `user://godot_agent_policy.txt`):
+  1) `ADR-0093` / `SEC-HTTP-CHAT-POLICY`: строгий список `_CONTROL_POSTS` в `python/channels/http/auth.py` (14 маршрутов ADR-0091) сохранён без ослабления — все проектные и панельные действия (`/chat`, `/chat/live_input`, `/chat/stop`, `/server/shutdown`, `/minilich/*`, `/init`, `/tools/call`, `/project/*`) продолжают отвечать `403` на попытку HTTP-повышения `allow_addons`/`allow_self_edit` (`test_panel_tf_security.py`, `test_http_control_envelope.py`, `test_http_chat_policy.py`).
+  2) `python/channels/http/routes_chat.py`: `/chat` принимает ключ `'prompt'` панели Godot наравне с `'message'`/`'text'`; `/chat/progress` включает `active=session.busy`.
+  3) `python/runtime/panel_services.py`: `live_input` берёт активную запись из `gateway._record` или `gateway._selection()`, не обращается к сайту `'qwen'` при `kind == 'api'` и передаёт в `LiveInputMirror` экземпляр парсера `getattr(module, 'PARSER', module)` (ранее отдавался модуль без `.mirror_input`, из-за чего живой ввод на DeepSeek и других сайтах падал в `'Mirror unavailable'`).
+  4) `D116` (`editor/native/agent_panel_part1.gd`, `agent_panel_part4.gd`, `agent_locale.gd`): панель при старте всегда инициализирует `_allow_addons = false` и `_allow_self_edit = false`, игнорируя прежний `user://godot_agent_policy.txt`, а чекбоксы HTTP-повышения заблокированы с RU/EN-подсказками (`tests/py/panel_tf/source_inputs.py`, `tests/conftest.py`). Исправлены stale `uid://` в 7 `editor/native/*.tscn` (`UserMessageCard.tscn` et al.).
+- Пересобран `python/dist/godot_agent_server.exe` (`45865181` B, SHA256 `56E759592797D6D6F7AF366A31DB120D9E31A273F053F08C58E92216C2459B93`); убиты 6 мутантов с точным SHA/EOL-восстановлением; в живом Chrome DeepSeek `POST /chats/new` → `POST /chat/live_input` (`allow_addons=True`) дал `ok=True, applied=True` и выдержал `403` без падения, нуль-аргументный exe на `port=5000` и headless Godot 4.6.3 `--editor --quit` без предупреждений.
+
+## Продолжение: ADR-0092 / D114 / D115 — блокировка stale http_endpoint.json и упаковка selenium в exe (2026-11-25), этап 7
+
+- Зафиксирован повторный отказ старта `godot_agent_server.exe` по причине оставшегося `http_endpoint.json` от завершившегося процесса (`PID 29240`, порт `5000` свободен). По разрешению пользователя `PID 29240` архивирован в `http_endpoint.stale-29240-20261125.json`.
+- `ADR-0092` / `D114`: `python/channels/http/listener.py` после биндинга сокета проверяет обычный единично-связанный (`nlink == 1`) 4-польный loopback-файл `http_endpoint.json`; если `OS` подтверждает смерть процесса (`ERROR_INVALID_PARAMETER`, но при `ERROR_ACCESS_DENIED` / `STILL_ACTIVE` или неполном/битом/линкованном файле по-прежнему `FileExistsError`), исходные байты атомарно переносятся в `http_endpoint.stale-<pid>-<ts>.json`. Постоянные тесты: `tests/py/channels_t1/test_stale_endpoint_archive.py` (10/10, 2 мутанта убиты; `test_endpoint_owner.py` и `test_http_metadata_policy.py` сохранены).
+- `D115`: при живом `/chats/new` в пересобранном exe обнаружен `No module named 'selenium.webdriver.chrome.options'` (`selenium 4.46.0` загружает подмодули лениво). В `tools/build_http_exe.py` добавлен `--collect-submodules selenium`; `tests/py/panel_tf/test_exe_selenium_closure.py` подтверждает 123 транзитивных модуля в PYZ exe (`45864239` B, SHA256 `730fa3245566b527cf1a248355548b1904bab71aa7d25bf2f8bd7e5edf56e61d`, 1 мутант убит).
+- Реальные проверки: изолированный zero-arg exe со stale `http_endpoint.json` (`99999999`), реальный zero-arg запуск exe на `тест-плагина-ии` (`port=5000`, архивация мёртвого `PID 25112`, `/health 200`, `/server/shutdown` exit `0`), живой Chrome + Selenium CDP attach (`url=about:blank`, `navigator.webdriver=False`).
+
 ## Продолжение: key settings403 / chats list500 (2026-11-23), этап 5
 
 Первый срез проверял неполную native envelope без addon_dir и не охватил

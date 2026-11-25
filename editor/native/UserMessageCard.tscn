@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bkxn7k7x7hqk7"]
 
-[ext_resource type="Script" uid="uid://b0400nt65h8bs" path="res://addons/godot_agent/editor/native/UserMessageCard.gd" id="1_bkxn7"]
+[ext_resource type="Script" uid="uid://cckse4e1d16hv" path="res://addons/godot_agent/editor/native/UserMessageCard.gd" id="1_bkxn7"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_nhwvs"]
 

@@ -4,7 +4,7 @@
 |---|---|
 | `PORTING.md` | Цикл переноса механики: корпус → спецификация → тесты → код → живая проверка, DoD |
 | `PROGRESS.md` | Этап каждой механики (`0…7`), следующее действие, дата — точка продолжения работы |
-| `porting/` | Рабочие листы механик (`<module_id>.md`), шаблон `_template.md`, стартовый промпт `_start-prompt.md` для новой сессии |
+| `porting/` | Рабочие листы механик (`<module_id>.md`) и шаблон `_template.md` |
 | `tests-map.md` | Судьба каждого старого теста (168 файлов): `corpus` / `ported` / `replaced` / `dropped` / `deferred` |
 | `architecture.md` | Слои, правило зависимостей, путь вызова, воронка записи, два процесса, модули, ошибки, состояние, тесты, карта папок |
 | `mapping.md` | Старый файл → новый модуль: что реально делает по коду, делить или нет, где дубли |
@@ -25,12 +25,3 @@
 
 Читать в этом порядке: `../RULES.md` → `architecture.md` → `WORKLOG.md` →
 `mapping.md` → `parity.md` → `NOTES.md`.
-
-
-## J1: публичный `judge` (2026-11-15)
-
-`assistant.judge` перенесён и проверен; independent audit pending. Tool `judge` принимает `{"full_text":"...===DONE==="}`, возвращает score/acceptable/vote_eligible, findings/evidence, opaque parsed action и семь structural scores. Только чтение: ничего не применяет. State хранится вне проекта в профиле; raw parser samples не сохраняются.
-
-Проверка: `python tools/selfcheck.py assistant.judge --json`; проба: `python tools/probe.py judge --args-file <owned-answer.json> --project <project>`.
-
-Final: selfcheck ok/exit0×2, corpus74×2/0diff, full7921passed×2 + только2 historical WinError1314 gaps, 14killed/0survivors. Лист: docs/porting/answer-judge.md; ADR0020; final dossier: C:/Users/Lich/AppData/Local/Temp/opencode/c8_audit/answer-judge-J1-B-20261115/ . NN/browser/editor apply/live — отдельно, не объявлены готовыми.

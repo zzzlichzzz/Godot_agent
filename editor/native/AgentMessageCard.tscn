@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ckxn7k7x7hqk7"]
 
-[ext_resource type="Script" uid="uid://dayht28cwuhbr" path="res://addons/godot_agent/editor/native/AgentMessageCard.gd" id="1_ckxn7"]
+[ext_resource type="Script" uid="uid://fbsq0vdnd546" path="res://addons/godot_agent/editor/native/AgentMessageCard.gd" id="1_ckxn7"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_y5us2"]
 content_margin_left = 12.0

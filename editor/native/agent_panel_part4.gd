@@ -45,14 +45,16 @@ static func _on_settings_pressed(panel) -> void:
 		policy_group.add_child(policy_header)
 		panel._allow_addons_check = CheckBox.new()
 		panel._allow_addons_check.text = panel._t("policy_allow_addons")
-		panel._allow_addons_check.tooltip_text = panel._t("policy_allow_addons_tip")
-		panel._allow_addons_check.button_pressed = panel._allow_addons
+		panel._allow_addons_check.tooltip_text = panel._t("policy_allow_addons_tip") + "\n" + panel._t("policy_http_locked")
+		panel._allow_addons_check.button_pressed = false
+		panel._allow_addons_check.disabled = true
 		panel._allow_addons_check.toggled.connect(panel._on_allow_addons_toggled)
 		policy_group.add_child(panel._allow_addons_check)
 		panel._allow_self_edit_check = CheckBox.new()
 		panel._allow_self_edit_check.text = panel._t("policy_allow_self_edit")
-		panel._allow_self_edit_check.tooltip_text = panel._t("policy_allow_self_edit_tip")
+		panel._allow_self_edit_check.tooltip_text = panel._t("policy_allow_self_edit_tip") + "\n" + panel._t("policy_http_locked")
 		panel._allow_self_edit_check.button_pressed = false
+		panel._allow_self_edit_check.disabled = true
 		panel._allow_self_edit_check.toggled.connect(panel._on_allow_self_edit_toggled)
 		policy_group.add_child(panel._allow_self_edit_check)
 		panel._policy_warning_label = Label.new()
@@ -154,12 +156,14 @@ static func _on_settings_pressed(panel) -> void:
 		panel._safe_rename_check.button_pressed = panel._safe_rename_enabled
 	if panel._allow_addons_check:
 		panel._allow_addons_check.text = panel._t("policy_allow_addons")
-		panel._allow_addons_check.tooltip_text = panel._t("policy_allow_addons_tip")
-		panel._allow_addons_check.set_pressed_no_signal(panel._allow_addons)
+		panel._allow_addons_check.tooltip_text = panel._t("policy_allow_addons_tip") + "\n" + panel._t("policy_http_locked")
+		panel._allow_addons_check.set_pressed_no_signal(false)
+		panel._allow_addons_check.disabled = true
 	if panel._allow_self_edit_check:
 		panel._allow_self_edit_check.text = panel._t("policy_allow_self_edit")
-		panel._allow_self_edit_check.tooltip_text = panel._t("policy_allow_self_edit_tip")
-		panel._allow_self_edit_check.set_pressed_no_signal(panel._allow_self_edit)
+		panel._allow_self_edit_check.tooltip_text = panel._t("policy_allow_self_edit_tip") + "\n" + panel._t("policy_http_locked")
+		panel._allow_self_edit_check.set_pressed_no_signal(false)
+		panel._allow_self_edit_check.disabled = true
 	if panel._policy_warning_label:
 		panel._policy_warning_label.visible = panel._allow_self_edit
 		panel._policy_warning_label.text = panel._t("policy_warning")
