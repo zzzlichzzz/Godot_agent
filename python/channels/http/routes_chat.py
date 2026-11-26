@@ -23,7 +23,8 @@ def register_chat_routes(app,agent,session):
             if isinstance(result,tuple):return result
             session.pending=None
             if result['state']=='COMMITTED':session.last_receipt=result
-            return jsonify(dict(result,ok=True,message='Applied through the journal' if result['state']=='COMMITTED' else 'Rejected: no project file changed',
+            text='Applied through the journal' if result['state']=='COMMITTED' else 'Rejected: no project file changed'
+            return jsonify(dict(result,ok=True,message=text,**session.finish_preview_note(text),
                                 plan_started=False,plan_finished=result['state']=='COMMITTED'))
     @bp.post('/chat/rollback')
     def rollback():
@@ -49,7 +50,7 @@ def register_chat_routes(app,agent,session):
             if plan is None:return jsonify(ok=True,message='No pending plan')
             result=invoke('assistant_confirm',dict(plan_id=plan['plan_id'],digest=plan['digest'],approved=False))
             if isinstance(result,tuple):return result
-            session.pending=None;return jsonify(dict(result,ok=True))
+            session.pending=None;return jsonify(dict(result,ok=True,**session.finish_preview_note('Plan stopped')))
     @bp.post('/chat/plan/rollback_chain')
     def rollback_chain():return rollback()
     @bp.post('/chat/editor/sync')

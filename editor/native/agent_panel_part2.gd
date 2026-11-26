@@ -354,6 +354,7 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 			return
 		if kind == "chat":
 			panel._finish_chat_send()
+		if kind in ["chat", "read_decision", "confirm"]:
 			var transcript_warning := str(json.get("transcript_warning", ""))
 			if transcript_warning != "":
 				if panel._view:

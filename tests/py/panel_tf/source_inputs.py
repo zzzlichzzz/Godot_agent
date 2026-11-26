@@ -156,3 +156,16 @@ def revised_bug_register_fact(fact, current, revisions=BUG_REGISTER_REVISIONS):
     if (len(current), hashlib.sha256(current).hexdigest()) != (new_size, new_sha):
         raise ValueError('UI bug source differs from the reviewed revision')
     return dict(fact, bytes=new_size, sha256=new_sha)
+
+
+D124_TRANSCRIPT = 'editor/native/agent_panel_part2.gd'
+
+
+def revised_transcript_fact(fact, current):
+    added = b'\n\t\tif kind in ["chat", "read_decision", "confirm"]:'
+    if current.count(added) != 1:
+        raise ValueError('Missing D124 transcript warning guard')
+    prior = revised_bug_register_fact(fact, current.replace(added, b'', 1), D122_REVISIONS)
+    return revised_bug_register_fact(prior, current, {D124_TRANSCRIPT: (
+        63747, 'f0f5860a35698b4b45508e344b6f34317db8a7db183644a51e0317e9e35563a3',
+        63798, 'ceabe7f6480885b3364c9614f478a75ddeb4e76a1721cb333ebc89b812956d44')})

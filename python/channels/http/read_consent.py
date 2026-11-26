@@ -12,7 +12,9 @@ def register_turns(bp, session, invoke):
         turn=session.turn_context.set((chat,snap))
         consent=session.approved_read.set(approved)
         session.progress={};session.busy=True
-        try:result=invoke('assistant_turn',dict(text=text,max_turns=limit))
+        try:
+            result=invoke('assistant_turn',dict(text=text,max_turns=limit))
+            owner,_=session.turn_context.get()
         finally:
             session.busy=False;session.progress={}
             session.approved_read.reset(consent);session.turn_context.reset(turn)
@@ -20,7 +22,6 @@ def register_turns(bp, session, invoke):
         extra={}
         if result['state']=='pending_read':
             # An implicit first chat becomes an explicit destination before we offer data.
-            owner=chat or (getattr(getattr(session,'gateway',None),'_record',None) or {}).get('id')
             if not owner:return jsonify(error='Выберите чат для чтения'),409
             action=result['action'].copy()
             if action.get('action')=='list_scene' and not ('path' in action or 'scene' in action):
@@ -30,7 +31,9 @@ def register_turns(bp, session, invoke):
             ticket=dict(id=secrets.token_urlsafe(24),chat_id=owner,action=action,pause=step%8==0)
             session.ticket=(ticket,text,snap,limit,step,time.monotonic()+600)
             extra['read_request']=ticket
-        if result['state']=='pending_confirmation':session.pending=result['plan']
+        if result['state']=='pending_confirmation':session.pending=result['plan'];session.pending_chat=owner
+        entries=[] if approved is not None else [('user',text)]
+        extra.update(session.remember(owner, entries+[('agent',result['text'])]))
         return jsonify(dict(result,ok=True,result=result['text'],response=result['text'],action=None,
                             preview=result['plan'],pending_confirmation=result['state']=='pending_confirmation',
                             **panel_chat_reply(result),**extra))
@@ -65,5 +68,6 @@ def register_turns(bp, session, invoke):
             session.ticket=None
             if not body['approved']:
                 msg='Чтение отклонено. Данные не отправлены.'
-                return jsonify(ok=True,state='final',response=msg,answer=msg,pending_confirmation=False)
+                return jsonify(ok=True,state='final',response=msg,answer=msg,pending_confirmation=False,
+                               **session.remember(ticket['chat_id'], [('system',msg)]))
             return run(text,ticket['chat_id'],snap,limit,step+1,ticket['action'])

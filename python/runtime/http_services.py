@@ -78,6 +78,15 @@ class NativeServerReferences:
         self.state.wait_driver=gateway.wait_driver
         self.state.browser_boot_started=gateway.browser_boot_started
 
+    def save_transcript(self, chat_id, entries, token):
+        from python.substrate.llm.api import api_keys, chat_store
+        from python.substrate.panel_state import ExternalPanelState
+        with self.scope():
+            ExternalPanelState(self.user_data, self.project).check(chat_store._path(self.user_data))
+            safe = [(role, api_keys.redact(text.replace(token, '****'))) for role, text in entries if text]
+            if not chat_id or chat_store.append_transcript_entries(self.user_data, chat_id, safe) is None:
+                raise OSError('Transcript destination unavailable')
+
     def index_status(self):
         import minilich
         return minilich.status(self.project,str(Path(__file__).parents[2]))
@@ -106,7 +115,8 @@ def build_http_agent(project,state,session,refs=None):
         if chat_id and record is None:raise AppError('not_found','Выбранный чат не найден')
         return record
     gateway=InteractiveGateway(project,state,Path(__file__).parents[2],selection=selected,
-                               progress=session.report_progress,approved_read=session.approved_read)
+                               progress=session.report_progress,approved_read=session.approved_read,bind_chat=session.bind_turn_chat)
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
-    if refs is not None:refs.bind_browser(gateway)
+    if refs is not None:
+        refs.bind_browser(gateway);session.transcript_writer=refs.save_transcript
     return build_agent(project_root=project,profile='cli',state_dir=state/'rebuild_state',ports=ports)

@@ -28,7 +28,8 @@ def confirm_pending(agent,session,body):
     result=answer['result'];session.pending=None;session.panel_preview=None
     if result['state']=='COMMITTED':session.last_receipt=result
     text='Applied through the journal' if result['state']=='COMMITTED' else 'Rejected: no project file changed'
-    return dict(result,ok=True,answer=text,message=text,pending_action=None,plan_started=False,
+    saved=session.finish_preview_note(text)
+    return dict(result,**saved,ok=True,answer=text,message=text,pending_action=None,plan_started=False,
                 plan_finished=result['state']=='COMMITTED',history_entry_id=result.get('entry_id')),200
 
 def register_panel_routes(app,agent,session,services):

@@ -3,6 +3,7 @@ from pathlib import Path
 from tests.py.panel_tf.source_inputs import (
     BUG_REGISTER_REVISIONS,D116_REVISIONS,D122_REVISIONS,PANEL_PATH,PATH,revised_bug_register_fact,
     D123_REVISIONS,revised_dock_fact,revised_d116_fact,revised_fact,revised_panel_fact,
+    D124_TRANSCRIPT,revised_transcript_fact,
 )
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -23,6 +24,8 @@ def pytest_collection_modifyitems(items):
             item.callspec.params['fact']=revised_dock_fact(fact,(ROOT/fact['path']).read_bytes())
         elif fact['path'] in BUG_REGISTER_REVISIONS:
             item.callspec.params['fact']=revised_bug_register_fact(fact,(ROOT/fact['path']).read_bytes())
+        elif fact['path']==D124_TRANSCRIPT:
+            item.callspec.params['fact']=revised_transcript_fact(fact,(ROOT/fact['path']).read_bytes())
         elif fact['path'] in D122_REVISIONS:
             item.callspec.params['fact']=revised_bug_register_fact(fact,(ROOT/fact['path']).read_bytes(),D122_REVISIONS)
     assert revised<=1,'D90 observer input must not be duplicated'

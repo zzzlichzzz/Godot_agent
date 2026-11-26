@@ -17,11 +17,15 @@ _WRAPPED_DONE=re.compile(r'\[(code|b|i)\]\s*={2,}\s*DONE\s*={2,}\s*\[/\1\]\s*\Z'
 _ACTION_START=re.compile(r'^\s*```agent_action\b',re.IGNORECASE|re.MULTILINE)
 
 class InteractiveGateway(ChatGateway):
-    def __init__(self,project_root,state_dir,addon_dir,selection=None,progress=None,approved_read=None):
+    def __init__(self,project_root,state_dir,addon_dir,selection=None,progress=None,approved_read=None,bind_chat=None):
         super().__init__(project_root,state_dir,addon_dir)
         self._selection=selection;self._progress=progress;self.approved_read=approved_read;self._cancel=threading.Event()
         self._owned_browser=None;self._browser_context={};self._browser_started=False;self._implicit_id=None
-        self._mirror_held=set()
+        self._mirror_held=set();self._bind_chat=bind_chat
+
+    def _new_title(self, store, prompt):
+        # The panel store names the chat from the first redacted, visible user message.
+        return store.DEFAULT_TITLE if self._bind_chat else super()._new_title(store, prompt)
 
     def send(self,text,*,system_text=None,provider=None,model=None,max_chars=200000):
         with _LOCK:
@@ -29,7 +33,7 @@ class InteractiveGateway(ChatGateway):
             import chat_store
             selected=self._selection() if self._selection else None
             if self._selection:
-                if selected:self._implicit_id=None
+                if selected and selected['id']!=self._implicit_id:self._implicit_id=None
                 self._record=selected or (chat_store.find_chat(str(self.storage_base),self._implicit_id)
                                           if self._implicit_id else None)
             rec=self._record
@@ -40,16 +44,16 @@ class InteractiveGateway(ChatGateway):
                 if self._record and self._record.get('kind')!='api':
                     updated=chat_store.update_chat(str(self.storage_base),self._record['id'],kind='api')
                     self._record=updated or dict(self._record,kind='api')
-                if not selected and self._record:self._implicit_id=self._record['id']
                 if (reply.get('finish_reason')=='stop' and not reply.get('parse_error')
                         and reply.get('action') is None and str(reply.get('text','')).strip()):
                     import parser_base
                     raw=str(reply.get('raw') or reply.get('text') or '').rstrip()
                     reply=self._finish_plain(reply,raw,max_chars,parser_base)
-                return reply
-            self._cancel.clear()
-            reply=self._send_browser(text,system_text or self.system_prompt(),max_chars)
+            else:
+                self._cancel.clear()
+                reply=self._send_browser(text,system_text or self.system_prompt(),max_chars)
             if not selected and self._record:self._implicit_id=self._record['id']
+            if self._bind_chat and self._record:self._bind_chat(self._record['id'])
             return reply
 
     @staticmethod

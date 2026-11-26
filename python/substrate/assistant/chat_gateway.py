@@ -46,6 +46,9 @@ class ChatGateway:
         return agent_prompts.PRIMING_TEMPLATE.replace('{godot_version}', godot_version).replace(
             '{architecture}', architecture).replace('{tree}', tree)
 
+    def _new_title(self, store, prompt):
+        return store.title_from_prompt(prompt)
+
     def send(self, prompt, *, system_text=None, provider=None, model=None, max_chars=200000):
         if not self.project_root.is_dir():
             raise AppError('not_found', 'корень проекта не найден')
@@ -74,7 +77,7 @@ class ChatGateway:
                     if self._record is None:
                         pid = provider or defaults.get('provider') or ''
                         pinned_model = model or defaults.get('model') or api_keys.get_model(pid)
-                        record = chat_store.create_chat(str(self.storage_base), title=chat_store.title_from_prompt(prompt))
+                        record = chat_store.create_chat(str(self.storage_base), title=self._new_title(chat_store, prompt))
                         self._record = chat_store.update_chat(str(self.storage_base), record['id'],
                                                              provider=pid, model=pinned_model)
                     fixed = system_text if system_text is not None else self.system_prompt()

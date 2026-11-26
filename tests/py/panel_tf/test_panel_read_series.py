@@ -43,6 +43,10 @@ def test_eight_reads_return_individually_and_can_finish(client, cold_tf6, monkey
     assert len(feedback[1])==2 and 'hit' in feedback[3][0]['names']
     assert feedback[5][0]['missing']==['no_such_function']
     assert path in str(feedback[6]) and 'level.tscn' not in str(feedback[6])
+    from python.substrate.llm.api import chat_store
+    rows=chat_store.find_chat(str(state),chat)['transcript']
+    assert [r['text'] for r in rows if r['role']=='user']==['проверить чтение']
+    assert [r['text'] for r in rows if r['role']=='agent']==['Шаг проверен.']*9
 
 
 def test_tickets_expire_and_new_prompts_replace_them(client, cold_tf6, monkeypatch):
