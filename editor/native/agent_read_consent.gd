@@ -3,6 +3,7 @@ extends RefCounted
 ## Read-only panel controls. The server owns the action; decisions send only its ticket.
 
 const BADGE := "ReadConsentBadge"
+const DockTheme = preload("agent_theme.gd")
 
 static func revoke(view) -> void:
 	if view._root_vbox != null:
@@ -23,6 +24,8 @@ static func finish(panel, success: bool) -> void:
 	var badge := Button.new()
 	badge.name = BADGE
 	badge.text = "Чтение в этом чате разрешено · Отменить"
+	badge.icon = DockTheme.first_icon(["Unlock", "FileAccess"])
+	badge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	badge.pressed.connect(func(): revoke(view))
 	view._root_vbox.add_child(badge)
 	view._root_vbox.move_child(badge, view._input_row_index())
@@ -38,20 +41,33 @@ static func offer(panel, ticket: Dictionary) -> void:
 	if view.get_meta("read_grant", "") == owner and not paused:
 		decide(panel, ticket, true, false)
 		return
-	var card := VBoxContainer.new()
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", DockTheme.panel_style("hint"))
+	var stack := VBoxContainer.new()
+	card.add_child(stack)
 	var label := Label.new()
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.text = ("Продолжить серию чтений?" if paused else "Разрешить чтение и отправку в этот чат?")
-	label.text += "\n" + JSON.stringify(ticket.get("action", {}), "  ")
-	card.add_child(label)
+	stack.add_child(label)
+	var details := Label.new()
+	details.name = "RequestedAction"
+	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	details.text = JSON.stringify(ticket.get("action", {}), "  ")
+	var mono := DockTheme.mono_font()
+	if mono:
+		details.add_theme_font_override("font", mono)
+	details.add_theme_color_override("font_color", DockTheme.color("dim"))
+	stack.add_child(details)
 	var buttons := HFlowContainer.new()
-	card.add_child(buttons)
-	for choice in ["Разрешить один раз", "Разрешить всегда в этом чате", "Отказать"]:
+	buttons.name = "Choices"
+	stack.add_child(buttons)
+	# Вопрос уже называет разрешение; короткие ответы помещаются и в узком доке.
+	for choice in [["Один раз", true, false], ["Всегда в этом чате", true, true], ["Отказать", false, false]]:
 		var button := Button.new()
-		button.text = choice
+		button.text = choice[0]
 		buttons.add_child(button)
 		button.pressed.connect(func():
-			if decide(panel, ticket, choice != "Отказать", choice == "Разрешить всегда в этом чате"):
+			if decide(panel, ticket, choice[1], choice[2]):
 				card.queue_free())
 	view._chat_container.add_child(card)
 	view.scroll_to_end(true)

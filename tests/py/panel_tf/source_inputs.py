@@ -123,6 +123,31 @@ D122_REVISIONS = {
         63747, 'f0f5860a35698b4b45508e344b6f34317db8a7db183644a51e0317e9e35563a3'),
 }
 
+# D123 visual changes. The start screen already has a reviewed intermediate revision above.
+D123_REVISIONS = {
+    'editor/native/agent_start_screen.gd': (
+        203949, 'd09926528fb9281f63d426e1dabbbd42098d26d66dc026e79eabcf9a912312c3',
+        202647, 'd4d47329378386973e8a073f7b077bbd9e1cd1d531f6a6baebb9706fc10f2258'),
+    'editor/native/agent_theme.gd': (
+        14364, 'a541a1816049b5d17f203809de9287dd742ba64b70aa6c33f80fdd8f7137d18a',
+        14124, 'dcddcbbf0eacbd28f0bd9cd2a21c0ded165c40401ade649f28f95249b0c9e11d'),
+    'editor/native/UserMessageCard.gd': (
+        6192, '8fd1c6623cbd2ec26b8ddc37811edb2e33b0f2025a301980c65c79546dab861a',
+        6189, 'adba37306b5dd3e083124852167355aa9434a0c100624d738ea30019fcf3b002'),
+    'editor/native/agent_read_consent.gd': (
+        3137, '37077ff88fcbd7b52c3db7b9d59491024161fa546190f080048e4c5b8b86c540',
+        3835, '38a967c3bf0967a6eaab3786d5d56c5a5c0b111d5e45efa84d0a0cc22a57ddc8'),
+}
+
+
+def revised_dock_fact(fact, current):
+    prior = BUG_REGISTER_REVISIONS.get(fact['path'])
+    if prior:
+        if (fact['bytes'], fact['sha256']) != prior[:2]:
+            raise ValueError('Pre-D123 start screen input drifted')
+        fact = dict(fact, bytes=prior[2], sha256=prior[3])
+    return revised_bug_register_fact(fact, current, D123_REVISIONS)
+
 
 def revised_bug_register_fact(fact, current, revisions=BUG_REGISTER_REVISIONS):
     old_size, old_sha, new_size, new_sha = revisions[fact['path']]

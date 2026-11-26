@@ -21,10 +21,10 @@ extends Object
 # были в карточках до вынесения, — внешний вид не меняется, если тема недоступна.
 # ---------------------------------------------------------------------------
 
-# Кэш живёт между вызовами: get_editor_theme() на каждый цвет заметно
-# тормозил при отрисовке длинной истории чата.
+# Цвета и иконки вычисляются один раз для каждого ресурса темы редактора.
 static var _colors: Dictionary = {}
 static var _icons: Dictionary = {}
+static var _palette: Theme
 
 # Семантическое имя -> [имя в теме, тип в теме, запасной цвет].
 # "dark_color_*" в светлой теме редактора светлые — отсюда и берётся
@@ -39,7 +39,6 @@ const _COLOR_MAP := {
 	"bg_3": ["dark_color_3", "Editor", Color("#1f2430")],
 	"contrast": ["contrast_color_1", "Editor", Color("#3a4a63")],
 	"text": ["font_color", "Label", Color.WHITE],
-	"dim": ["font_disabled_color", "Button", Color(0.6, 0.6, 0.6)],
 	"btn_text": ["font_color", "Button", Color.WHITE],
 }
 
@@ -53,7 +52,11 @@ const _CODE_COLOR_FALLBACK := Color("#8ab4f8")
 
 static func _editor_theme() -> Theme:
 	if Engine.is_editor_hint():
-		return EditorInterface.get_editor_theme()
+		var current := EditorInterface.get_editor_theme()
+		if current != _palette:
+			invalidate()
+			_palette = current
+		return current
 	return null
 
 
@@ -67,8 +70,14 @@ static func invalidate() -> void:
 # --- цвета ---
 
 static func color(key: String) -> Color:
+	var th := _editor_theme()
 	if _colors.has(key):
 		return _colors[key]
+	if key == "dim":
+		# Подпись остаётся читаемой: это вторичный текст, не отключённая кнопка.
+		var secondary := color("text").lerp(color("bg_1"), 0.20)
+		_colors[key] = secondary
+		return secondary
 	if key == "code_text":
 		var code := _CODE_COLOR_FALLBACK
 		if Engine.is_editor_hint():
@@ -82,7 +91,6 @@ static func color(key: String) -> Color:
 		push_warning("agent_theme: неизвестный цвет " + key)
 		return Color.WHITE
 	var result: Color = spec[2]
-	var th := _editor_theme()
 	if th and th.has_color(spec[0], spec[1]):
 		result = th.get_color(spec[0], spec[1])
 	_colors[key] = result
@@ -102,10 +110,10 @@ static func hex(key: String) -> String:
 # --- иконки и шрифты редактора ---
 
 static func icon(icon_name: StringName) -> Texture2D:
+	var th := _editor_theme()
 	if _icons.has(icon_name):
 		return _icons[icon_name]
 	var result: Texture2D = null
-	var th := _editor_theme()
 	if th and th.has_icon(icon_name, "EditorIcons"):
 		result = th.get_icon(icon_name, "EditorIcons")
 	_icons[icon_name] = result
@@ -178,32 +186,32 @@ static func make_panel_style(bg: Color, border: Color, radius: int, margin_h: in
 	return style
 
 
+static func px(value: int) -> int:
+	return roundi(value * EditorInterface.get_editor_scale()) if Engine.is_editor_hint() else value
+
+
 static func panel_style(variant: String) -> StyleBoxFlat:
-	# Готовые варианты панелей — ровно те, что использовались в карточках.
+	# Обычные записи спокойные; цветная полоса отмечает только особое состояние.
+	var surface := color("bg_1")
+	var rail := Color.TRANSPARENT
+	var inset := Vector2i(10, 7)
 	match variant:
-		"agent":
-			return make_panel_style(color("bg_2"), alpha("accent", 0.35), 8, 12, 8)
 		"user":
-			return make_panel_style(color("bg_1"), alpha("success", 0.45), 8, 12, 8)
+			surface = surface.lerp(color("accent"), 0.08)
 		"hint":
-			return make_panel_style(color("bg_1"), alpha("warning", 0.45), 8, 12, 8)
+			rail = color("warning")
 		"error":
-			return make_panel_style(color("bg_1"), alpha("error", 0.45), 8, 12, 8)
-		"code":
-			return make_panel_style(color("bg_3"), alpha("accent", 0.35), 6, 12, 8)
-		"code_plain":
-			return make_panel_style(color("bg_3"), Color(0, 0, 0, 0), 6, 8, 6)
-		"tool":
-			return make_panel_style(color("bg_2"), color("contrast"), 6, 10, 6)
+			rail = color("error")
+		"code", "code_plain", "sunken", "tool":
+			surface = color("bg_2")
+			inset = Vector2i(8, 5)
 		"status":
-			return make_panel_style(color("bg_1"), alpha("accent", 0.35), 6, 0, 0)
-		"sunken":
-			# Половина окна, в которую смотрят: фон темнее общего, рамки нет.
-			# Рамка тут лишняя — границу задаёт сам разделитель HSplitContainer,
-			# а вторая линия рядом с ним читается как двойная.
-			return make_panel_style(color("bg_3"), Color(0, 0, 0, 0), 6, 10, 8)
-		_:
-			return make_panel_style(color("bg_2"), alpha("accent", 0.35), 8, 12, 8)
+			inset = Vector2i.ZERO
+	var style := make_panel_style(surface, Color.TRANSPARENT, px(3), px(inset.x), px(inset.y))
+	if rail.a > 0:
+		style.border_color = rail
+		style.border_width_left = maxi(1, px(2))
+	return style
 
 
 static func badge_style(tone: String) -> StyleBoxFlat:
@@ -273,17 +281,13 @@ static func style_icon_button(btn: Button, icon_names: Array, fallback_text: Str
 # --- поля ввода ---
 
 static func style_input(ctrl: Control) -> void:
-	# TextEdit/LineEdit: фон и рамка как у панелей, при фокусе рамка акцентная.
-	if ctrl == null:
-		return
-	var normal := make_panel_style(color("bg_3"), alpha("contrast", 0.8), 6, 8, 6)
-	var focus := make_panel_style(color("bg_3"), alpha("accent", 0.7), 6, 8, 6)
-	ctrl.add_theme_stylebox_override("normal", normal)
-	ctrl.add_theme_stylebox_override("focus", focus)
-	ctrl.add_theme_color_override("font_color", color("text"))
-	ctrl.add_theme_color_override("font_placeholder_color", alpha("dim", 0.8))
-	ctrl.add_theme_color_override("caret_color", color("accent"))
-	ctrl.add_theme_color_override("selection_color", alpha("accent", 0.35))
+	# Поля наследуют normal/focus/read_only, каретку и выделение от редактора.
+	# Удаляем и старые локальные переопределения у уже созданного поля.
+	if ctrl:
+		for key in [&"normal", &"focus"]:
+			ctrl.remove_theme_stylebox_override(key)
+		for key in [&"font_color", &"font_placeholder_color", &"caret_color", &"selection_color"]:
+			ctrl.remove_theme_color_override(key)
 
 
 # --- текстовые блоки ---
@@ -298,6 +302,8 @@ static func style_rich_text(rt: RichTextLabel, mono: bool = false) -> void:
 	rt.bbcode_enabled = true
 	rt.selection_enabled = true
 	rt.context_menu_enabled = true
+	# Фон уже рисует карточка. Обычный текст не должен выглядеть как поле ввода.
+	rt.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	rt.add_theme_color_override("default_color", color("text"))
 	rt.add_theme_color_override("selection_color", color("accent"))
 	var mono_f := mono_font()

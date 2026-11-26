@@ -472,76 +472,60 @@ func _build() -> void:
 		settings_btn.text = "⚙"
 	top.add_child(settings_btn)
 
-	# Заголовок в карточке-шапке: тот же StyleBoxFlat, что у сообщений чата.
-	var title_panel := PanelContainer.new()
+	# Заголовок раздела, как в доках редактора: без второй рамки вокруг названия.
+	var heading := HBoxContainer.new()
+	root.add_child(heading)
 	if T:
-		title_panel.add_theme_stylebox_override("panel", T.panel_style("agent"))
+		var mark := TextureRect.new()
+		mark.texture = T.first_icon(["EditorPlugin", "Script"])
+		mark.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		heading.add_child(mark)
 	var title := Label.new()
 	title.text = _t("title")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = SIZE_EXPAND_FILL
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.add_theme_color_override("font_color", _color("accent"))
-	title.add_theme_font_size_override("font_size", 20)
-	title_panel.add_child(title)
-	root.add_child(title_panel)
+	title.theme_type_variation = &"HeaderSmall"
+	heading.add_child(title)
+	root.add_child(HSeparator.new())
 	_apply_server_visibility()
 
-	# ---- ГЛАВНАЯ: основные действия по центру экрана ----
-	# Раньше две кнопки растягивались на всю высоту (SIZE_EXPAND_FILL по
-	# вертикали) и выглядели как две огромные плашки — главная страница почти
-	# не отличалась от списков чатов/сайтов. Теперь кнопки фиксированной
-	# высоты, собраны в карточку по центру и разделены на «основные» и
-	# «дополнительные».
+	# Список действий начинается сверху, независимо от высоты пристёгнутого дока.
 	_home = VBoxContainer.new()
 	_home.size_flags_horizontal = SIZE_EXPAND_FILL
 	_home.size_flags_vertical = SIZE_EXPAND_FILL
 	_home.add_theme_constant_override("separation", 10)
 	root.add_child(_home)
 
-	# Верхний отступ прижимает блок кнопок к центру.
-	var top_pad := Control.new()
-	top_pad.size_flags_vertical = SIZE_EXPAND_FILL
-	top_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_home.add_child(top_pad)
-
 	var hint := Label.new()
 	hint.text = _t("hint")
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_color_override("font_color", _color("dim"))
 	_home.add_child(hint)
 
-	# Карточка с действиями — тот же стиль, что у сообщений чата.
+	# Единая поверхность списка вместо отдельных крупных кнопок.
 	var actions_card := PanelContainer.new()
 	if T:
-		actions_card.add_theme_stylebox_override("panel", T.panel_style("agent"))
+		actions_card.add_theme_stylebox_override("panel", T.panel_style("sunken"))
 	_home.add_child(actions_card)
 	var actions := VBoxContainer.new()
-	actions.add_theme_constant_override("separation", 8)
+	actions.add_theme_constant_override("separation", 0)
 	actions_card.add_child(actions)
 
 	# ПОРЯДОК КНОПОК: сохранённый чат — первым. Возвращаются к работе чаще, чем
 	# начинают с нуля, а действие, которое делают чаще, не должно стоять вторым.
 	var b_load := Button.new()
-	b_load.text = _t("btn_load")
-	b_load.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
-	b_load.size_flags_horizontal = SIZE_EXPAND_FILL
+	b_load.text = _t("hdr_chats")
 	b_load.pressed.connect(func(): chats_tab_requested.emit())
 	if T:
-		T.style_button(b_load, "neutral", false)
 		b_load.icon = T.first_icon(["Load", "Folder"])
 	actions.add_child(b_load)
 
 	var b_new := Button.new()
 	b_new.text = _t("btn_new")
 	b_new.tooltip_text = _t("btn_new_tip")
-	b_new.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
-	b_new.size_flags_horizontal = SIZE_EXPAND_FILL
 	b_new.pressed.connect(func(): sites_tab_requested.emit())
-	# Главное действие — акцентная и не плоская.
 	if T:
-		T.style_button(b_new, "accent", false)
 		# Иконка «наружу», а не «плюс»: кнопка больше не про создание чата, а про
 		# работу в чужом окне браузера. Список запасных именно такой длины
 		# потому, что имена иконок редактора между версиями Godot меняются, и
@@ -555,23 +539,26 @@ func _build() -> void:
 	_api_key_btn.name = "ApiKeyBtn"
 	_api_key_btn.text = _t("btn_api_key")
 	_api_key_btn.tooltip_text = _t("btn_api_key_tip")
-	_api_key_btn.custom_minimum_size = Vector2(0, MAIN_BUTTON_HEIGHT)
-	_api_key_btn.size_flags_horizontal = SIZE_EXPAND_FILL
 	_api_key_btn.pressed.connect(func(): api_tab_requested.emit())
 	if T:
-		T.style_button(_api_key_btn, "neutral", false)
 		_api_key_btn.icon = T.first_icon(["Key", "Lock", "Tools"])
 	actions.add_child(_api_key_btn)
 
-	# Нижний отступ — вторая половина центрирования.
+	for row: Button in [b_load, b_new, _api_key_btn]:
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.flat = true
+		row.custom_minimum_size.y = T.px(32) if T else 32
+
+	# Оставляем ссылки внизу, не раздвигая основные действия.
 	var bottom_pad := Control.new()
 	bottom_pad.size_flags_vertical = SIZE_EXPAND_FILL
 	bottom_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_home.add_child(bottom_pad)
 
 	# ---- Блок «Поддержать автора» (маленькая строка под кнопками) ----
-	var support := HBoxContainer.new()
-	support.alignment = BoxContainer.ALIGNMENT_CENTER
+	var support := HFlowContainer.new()
+	support.add_theme_constant_override("h_separation", T.px(10) if T else 10)
 	_home.add_child(support)
 	var sup_lbl := Label.new()
 	sup_lbl.text = _t("support")
@@ -586,17 +573,11 @@ func _build() -> void:
 		tips_btn.text = _t("support_tips")
 		tips_btn.uri = URL_TIPS
 		tips_btn.tooltip_text = URL_TIPS
-		tips_btn.add_theme_color_override("font_color", _color("accent"))
 		support.add_child(tips_btn)
-		var sep := Label.new()
-		sep.text = " · "
-		sep.add_theme_color_override("font_color", _color("dim"))
-		support.add_child(sep)
 	var boosty_btn := LinkButton.new()
 	boosty_btn.text = _t("support_boosty")
 	boosty_btn.uri = URL_BOOSTY
 	boosty_btn.tooltip_text = URL_BOOSTY
-	boosty_btn.add_theme_color_override("font_color", _color("accent"))
 	support.add_child(boosty_btn)
 
 	# ---- СПИСОК ЧАТОВ ----

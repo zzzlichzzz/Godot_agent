@@ -80,7 +80,7 @@ func _setup_theme() -> void:
 	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	bubble.add_theme_stylebox_override("panel", T.panel_style("user"))
 
-	name_label.add_theme_color_override("font_color", T.color("success"))
+	name_label.add_theme_color_override("font_color", T.color("text"))
 	time_label.add_theme_color_override("font_color", T.color("dim"))
 
 	# style_rich_text ставит fit_content: без него текст в контейнере не виден.

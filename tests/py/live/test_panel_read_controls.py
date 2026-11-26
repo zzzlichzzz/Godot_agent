@@ -40,8 +40,8 @@ func offer(id, pause=false):
     Consent.offer(self, {"chat_id": _current_chat_id, "id": id, "pause": pause, "action": {"action":"read_file","path":"res://hero.gd"}})
 func click(index):
     var card = _view._chat_container.get_child(-1)
-    assert("res://hero.gd" in card.get_child(0).text)
-    card.get_child(1).get_child(index).pressed.emit()
+    assert("res://hero.gd" in card.find_child("RequestedAction", true, false).text)
+    card.find_child("Choices", true, false).get_child(index).pressed.emit()
     _set_ui_busy(false)
     Consent.finish(self, true)
 func journey():
