@@ -37,6 +37,9 @@ const LANG_FALLBACK := "en"
 static var _cur: String = ""
 
 const RU := {
+	"workspace_caption": "Мастерская проекта",
+	"workspace_new": "Начать диалог",
+	"workspace_browser": "Браузер",
 	"lang_name": "Русский",
 	"dock_title": "ИИ Агент",
 	"ctx_ask_node_default": "Объясни, что делает этот узел, за что отвечает и как связан с остальной сценой.",
@@ -494,6 +497,9 @@ const RU := {
 }
 
 const EN := {
+	"workspace_caption": "Project workspace",
+	"workspace_new": "Start a conversation",
+	"workspace_browser": "Browser",
 	"lang_name": "English",
 	"dock_title": "AI Agent",
 	"ctx_ask_node_default": "Explain what this node does, what it is responsible for and how it is connected to the rest of the scene.",

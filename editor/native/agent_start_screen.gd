@@ -386,6 +386,23 @@ func _apply_server_visibility() -> void:
 
 # ---------------- Построение интерфейса ----------------
 
+# Небольшая схема портов, как на холсте Godot. Векторная, без текстур и ввода.
+class WorkspaceMark extends Control:
+	var ink := Color.WHITE
+	func _draw() -> void:
+		var scale_factor := minf(size.x / 74.0, size.y / 64.0)
+		draw_set_transform((size - Vector2(74, 64) * scale_factor) * 0.5, 0.0, Vector2.ONE * scale_factor)
+		for x in range(4, 73, 8):
+			for y in range(4, 62, 8):
+				draw_circle(Vector2(x,y), 0.85, Color(ink, 0.28))
+		var paths := [PackedVector2Array([Vector2(8,32),Vector2(28,32),Vector2(46,14),Vector2(66,14)]),
+			PackedVector2Array([Vector2(28,32),Vector2(46,50),Vector2(60,50)])]
+		for points in paths:
+			draw_polyline(points, Color(ink,0.72), 2, true)
+		for p in [Vector2(8,32), Vector2(66,14), Vector2(60,50)]:
+			draw_circle(p, 6.5, Color(ink,0.18), true, -1, true)
+			draw_circle(p, 3.0, ink, true, -1, true)
+
 func _build() -> void:
 	if _built:
 		return
@@ -472,22 +489,6 @@ func _build() -> void:
 		settings_btn.text = "⚙"
 	top.add_child(settings_btn)
 
-	# Заголовок раздела, как в доках редактора: без второй рамки вокруг названия.
-	var heading := HBoxContainer.new()
-	root.add_child(heading)
-	if T:
-		var mark := TextureRect.new()
-		mark.texture = T.first_icon(["EditorPlugin", "Script"])
-		mark.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		heading.add_child(mark)
-	var title := Label.new()
-	title.text = _t("title")
-	title.size_flags_horizontal = SIZE_EXPAND_FILL
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.theme_type_variation = &"HeaderSmall"
-	heading.add_child(title)
-	root.add_child(HSeparator.new())
 	_apply_server_visibility()
 
 	# Список действий начинается сверху, независимо от высоты пристёгнутого дока.
@@ -497,32 +498,55 @@ func _build() -> void:
 	_home.add_theme_constant_override("separation", 10)
 	root.add_child(_home)
 
-	var hint := Label.new()
-	hint.text = _t("hint")
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.add_theme_color_override("font_color", _color("dim"))
-	_home.add_child(hint)
-
-	# Единая поверхность списка вместо отдельных крупных кнопок.
-	var actions_card := PanelContainer.new()
+	var banner := PanelContainer.new()
 	if T:
-		actions_card.add_theme_stylebox_override("panel", T.panel_style("sunken"))
-	_home.add_child(actions_card)
-	var actions := VBoxContainer.new()
-	actions.add_theme_constant_override("separation", 0)
-	actions_card.add_child(actions)
+		banner.add_theme_stylebox_override("panel", T.panel_style("workspace"))
+	_home.add_child(banner)
+	var heading := HBoxContainer.new()
+	banner.add_child(heading)
+	var caption := VBoxContainer.new()
+	caption.size_flags_horizontal = SIZE_EXPAND_FILL
+	caption.alignment = BoxContainer.ALIGNMENT_CENTER
+	caption.add_theme_constant_override("separation", 2)
+	heading.add_child(caption)
+	var eyebrow := Label.new()
+	eyebrow.text = _t("workspace_caption")
+	eyebrow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	eyebrow.add_theme_color_override("font_color", _color("dim"))
+	caption.add_child(eyebrow)
+	var title := Label.new()
+	title.text = _t("title")
+	title.theme_type_variation = &"HeaderLarge"
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	caption.add_child(title)
+	var mark := WorkspaceMark.new()
+	mark.custom_minimum_size = Vector2(54, 58) * (T.px(100) / 100.0 if T else 1.0)
+	mark.mouse_filter = MOUSE_FILTER_IGNORE
+	mark.ink = _color("accent")
+	heading.add_child(mark)
 
 	# ПОРЯДОК КНОПОК: сохранённый чат — первым. Возвращаются к работе чаще, чем
 	# начинают с нуля, а действие, которое делают чаще, не должно стоять вторым.
 	var b_load := Button.new()
+	b_load.name = "OpenHistory"
 	b_load.text = _t("hdr_chats")
+	b_load.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b_load.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	b_load.custom_minimum_size.y = T.px(42) if T else 42
 	b_load.pressed.connect(func(): chats_tab_requested.emit())
 	if T:
-		b_load.icon = T.first_icon(["Load", "Folder"])
-	actions.add_child(b_load)
+		b_load.icon = T.first_icon(["History", "Load", "Folder"])
+	_home.add_child(b_load)
+	var group := Label.new()
+	group.text = _t("workspace_new")
+	group.theme_type_variation = &"HeaderSmall"
+	_home.add_child(group)
+	var actions := HBoxContainer.new()
+	_home.add_child(actions)
 
 	var b_new := Button.new()
-	b_new.text = _t("btn_new")
+	b_new.name = "BrowserChat"
+	b_new.text = _t("workspace_browser")
 	b_new.tooltip_text = _t("btn_new_tip")
 	b_new.pressed.connect(func(): sites_tab_requested.emit())
 	if T:
@@ -537,18 +561,19 @@ func _build() -> void:
 	# новый или сохранённый браузерный чат.
 	_api_key_btn = Button.new()
 	_api_key_btn.name = "ApiKeyBtn"
-	_api_key_btn.text = _t("btn_api_key")
+	_api_key_btn.text = "API"
 	_api_key_btn.tooltip_text = _t("btn_api_key_tip")
 	_api_key_btn.pressed.connect(func(): api_tab_requested.emit())
 	if T:
 		_api_key_btn.icon = T.first_icon(["Key", "Lock", "Tools"])
 	actions.add_child(_api_key_btn)
 
-	for row: Button in [b_load, b_new, _api_key_btn]:
-		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		row.flat = true
-		row.custom_minimum_size.y = T.px(32) if T else 32
+	for tile: Button in [b_new, _api_key_btn]:
+		tile.size_flags_horizontal = SIZE_EXPAND_FILL
+		tile.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		tile.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tile.custom_minimum_size.y = T.px(57) if T else 57
 
 	# Оставляем ссылки внизу, не раздвигая основные действия.
 	var bottom_pad := Control.new()

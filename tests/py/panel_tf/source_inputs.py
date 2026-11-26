@@ -169,3 +169,36 @@ def revised_transcript_fact(fact, current):
     return revised_bug_register_fact(prior, current, {D124_TRANSCRIPT: (
         63747, 'f0f5860a35698b4b45508e344b6f34317db8a7db183644a51e0317e9e35563a3',
         63798, 'ceabe7f6480885b3364c9614f478a75ddeb4e76a1721cb333ebc89b812956d44')})
+
+
+D124_VISUAL = {
+    'editor/native/AgentMessageCard.gd': (12277, '9bc3142692acbd67d7ef53fedd569994dc33ddeb3495a81aa73fdcfa3ca24fa7',
+        12409, '169f7689c3a296fbf3c80a86f23d7f40ffb075114662de40dee23dacb3f7d70e'),
+    'editor/native/agent_start_screen.gd': (*D123_REVISIONS['editor/native/agent_start_screen.gd'][2:],
+        203818, 'e0a170679c0c5c4ba8ab165205f06079ef44332a9a7bb18b36df6b2c5caaae38'),
+    'editor/native/agent_theme.gd': (*D123_REVISIONS['editor/native/agent_theme.gd'][2:],
+        14503, 'cd8503bc71498711eb5b81518ff41836e87e613c09a98fd1b847cd988a9e3da6'),
+    'editor/native/agent_locale.gd': (*D116_REVISIONS['editor/native/agent_locale.gd'][2:4],
+        86711, '2965bc09f3b7a6814ba0f1572238b1bb1ca00a5fc482a8d35b92d4eb043f01a8'),
+}
+
+
+def before_workspace_labels(current):
+    path = 'editor/native/agent_locale.gd'
+    if (len(current), hashlib.sha256(current).hexdigest()) != D124_VISUAL[path][2:]:
+        raise ValueError('Unexpected workspace labels revision')
+    return b''.join(line for line in current.splitlines(True) if not line.startswith(b'\t"workspace_'))
+
+
+def revised_workspace_fact(fact, current):
+    path = fact['path']
+    if path in D116_REVISIONS:
+        fact = revised_d116_fact(fact, before_workspace_labels(current))
+    else:
+        for revisions in (BUG_REGISTER_REVISIONS, D123_REVISIONS):
+            if path in revisions:
+                old_size, old_sha, size, sha = revisions[path]
+                if (fact['bytes'], fact['sha256']) != (old_size, old_sha):
+                    raise ValueError('Prior dock input drifted: ' + path)
+                fact = dict(fact, bytes=size, sha256=sha)
+    return revised_bug_register_fact(fact, current, D124_VISUAL)

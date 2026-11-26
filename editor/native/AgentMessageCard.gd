@@ -124,6 +124,7 @@ func _setup_theme() -> void:
 	if T.is_edited_scene(self):
 		return
 	add_theme_stylebox_override("panel", T.panel_style("agent"))
+	$Row/Spacer.hide()  # Ответ читается как документ: вся ширина дока отдана тексту.
 
 	var accent: Color = T.color("accent")
 	var agent_icon: Texture2D = T.first_icon(["Node", "Script"])

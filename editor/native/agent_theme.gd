@@ -196,8 +196,14 @@ static func panel_style(variant: String) -> StyleBoxFlat:
 	var rail := Color.TRANSPARENT
 	var inset := Vector2i(10, 7)
 	match variant:
+		"workspace":
+			surface = color("bg_2").lerp(color("accent"), 0.13)
+			inset = Vector2i(12, 8)
+		"agent":
+			surface = Color.TRANSPARENT
+			inset = Vector2i(3, 8)
 		"user":
-			surface = surface.lerp(color("accent"), 0.08)
+			surface = surface.lerp(color("accent"), 0.16)
 		"hint":
 			rail = color("warning")
 		"error":
@@ -208,6 +214,12 @@ static func panel_style(variant: String) -> StyleBoxFlat:
 		"status":
 			inset = Vector2i.ZERO
 	var style := make_panel_style(surface, Color.TRANSPARENT, px(3), px(inset.x), px(inset.y))
+	if variant == "agent":
+		style.border_color = alpha("text", 0.16)
+		style.border_width_bottom = maxi(1, px(1))
+	elif variant == "user":
+		style.set_corner_radius_all(px(9))
+		style.corner_radius_top_right = px(2)
 	if rail.a > 0:
 		style.border_color = rail
 		style.border_width_left = maxi(1, px(2))

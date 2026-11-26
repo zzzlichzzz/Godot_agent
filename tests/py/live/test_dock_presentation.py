@@ -53,7 +53,7 @@ func measure() -> void:
     screen.chats_tab_requested.connect(func(): clicked.append("chats"))
     screen.sites_tab_requested.connect(func(): clicked.append("sites"))
     screen.api_tab_requested.connect(func(): clicked.append("api"))
-    var rows: Array = screen._api_key_btn.get_parent().get_children()
+    var rows: Array = [screen.find_child("OpenHistory", true, false), screen.find_child("BrowserChat", true, false), screen._api_key_btn]
     for width in [250, 420]:
         viewport.size.x = width
         for i in 8:
