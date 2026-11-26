@@ -21,7 +21,7 @@ func _enter_tree() -> void:
 func measure() -> void:
     var viewport := SubViewport.new()
     viewport.disable_3d = true
-    viewport.size = Vector2i(250, 480)
+    viewport.size = Vector2i(250, 640)
     viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
     add_child(viewport)
     # A standalone viewport has a grey clear colour; an actual dock sits over the editor.
@@ -71,21 +71,55 @@ func measure() -> void:
     _view = load(NATIVE + "agent_chat_view.gd").new()
     add_child(_view)
     _view.setup(conversation)
-    _view.add_user_message("Как устроена сцена?")
-    _view.add_agent_message("Запрошу структуру сцены, чтобы увидеть её узлы.")
+    _view.add_user_message("Где сцена подписывается на сигнал?")
+    var text := '[b]Найду места подключения[/b]\\nПроверю скрипты проекта и покажу строки, где встречается [code]collected[/code].'
+    var args := '{"action":"search_project","query":"collected","only_exts":[lb]"gd"[rb]}'
+    _view.add_agent_message(text + "\\n" + args)
+    var card = _view._chat_container.get_child(-1)
+    var toggle = card.find_child("PayloadToggle", true, false)
+    var detail = card.find_child("PayloadText", true, false)
+    if not toggle or not detail:
+        push_error("Missing transcript disclosure")
+        get_tree().quit(2)
+        return
+    ok = ok and not detail.visible and toggle.focus_mode == Control.FOCUS_ALL
+    toggle.button_pressed = true
+    ok = ok and detail.visible and '"only_exts":["gd"]' in detail.get_parsed_text()
+    toggle.button_pressed = false
+    ok = ok and card._copy_text().ends_with('"only_exts":["gd"]}') and card.get_text().ends_with(args)
+    ok = ok and not card.rollback_btn.visible and not card.copy_btn.disabled
     load(NATIVE + "agent_read_consent.gd").offer(self, {"chat_id": _current_chat_id,
-        "action": {"action": "list_scene", "path": "res://level.tscn"}})
+        "action": {"action": "search_project", "query": "collected", "only_exts": ["gd"]}})
+    var composer := HBoxContainer.new()
+    conversation.add_child(composer)
     var field := TextEdit.new()
     field.placeholder_text = "Сообщение…"
-    field.custom_minimum_size.y = theme_service.px(44)
-    conversation.add_child(field)
+    field.custom_minimum_size.y = 60
+    field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    composer.add_child(field)
     theme_service.style_input(field)
+    var send := Button.new()
+    send.text = "Отправить"
+    composer.add_child(send)
+    theme_service.style_button(send, "accent", false)
+    send.icon = theme_service.icon(&"ArrowRight")
     for width in [250, 420]:
         viewport.size.x = width
         for i in 8:
             await get_tree().process_frame
         ok = within_width(conversation, width) and ok
         ok = await capture(viewport, "chat", width) and ok
+    var long_answer := ("Длинный ответ со строками [code]GDScript[/code].\\n").repeat(50)
+    card.setup(long_answer)
+    ok = ok and not toggle.visible and card.expand_btn.visible and not card.expand_btn.disabled
+    card.expand_btn.pressed.emit()
+    ok = ok and not card.content.fit_content and card.get_text() == long_answer
+    card.expand_btn.pressed.emit()
+    card.setup("JSON?\\n{broken}")
+    ok = ok and not toggle.visible and "{broken}" in card.content.get_parsed_text()
+    card.setup("")
+    card.append_text(text + "\\n" + args)
+    ok = ok and not toggle.visible and "search_project" in card.content.get_parsed_text()
     print("DOCK_LAYOUT_OK" if ok else "DOCK_LAYOUT_FAILED", " bg=", bg, " contrast=", contrast, " actions=", clicked)
     get_tree().quit(0 if ok else 2)
 
@@ -101,7 +135,7 @@ func within_width(parent: Control, width: int) -> bool:
 func capture(viewport: SubViewport, page: String, width: int) -> bool:
     if OS.get_environment("CAPTURE") != "1":
         return true
-    await RenderingServer.frame_post_draw
+    RenderingServer.force_draw(false)
     var image := viewport.get_texture().get_image()
     return image.save_png(OS.get_environment("PREVIEW").path_join("%s-%d.png" % [page, width])) == OK
 '''
@@ -114,8 +148,8 @@ def test_dock_layout_and_navigation(palette, isolated_native_project, tmp_path):
     if not godot:
         pytest.skip('Godot 4.6 binary not installed')
     project, env, _ = isolated_native_project
-    (project / 'project.godot').write_text('config_version=5\n[editor_plugins]\n'
-        'enabled=PackedStringArray("res://addons/check/plugin.cfg")\n', 'utf-8')
+    settings = project / 'project.godot'
+    settings.write_text('config_version=5\n', 'utf-8')
     check = project / 'addons/check'
     check.mkdir()
     (check / 'plugin.cfg').write_text('[plugin]\nname="Layout"\nscript="check.gd"\n', 'utf-8')
@@ -130,6 +164,11 @@ def test_dock_layout_and_navigation(palette, isolated_native_project, tmp_path):
     xdg = tmp_path / 'config/godot'
     xdg.mkdir(parents=True, exist_ok=True)
     (xdg / 'editor_settings-4.6.tres').write_bytes((profile / 'editor_settings-4.6.tres').read_bytes())
+    # Resolve global card classes and scene imports before running the probe plugin.
+    subprocess.run([godot, '--headless', '--import', '--path', str(project)], env=env,
+                   capture_output=True, check=True, timeout=75)
+    settings.write_text('config_version=5\n[editor_plugins]\n'
+        'enabled=PackedStringArray("res://addons/check/plugin.cfg")\n', 'utf-8')
     capture = os.environ.get('GODOT_AGENT_DOCK_CAPTURE') == '1'
     flags = ['--rendering-method', 'gl_compatibility'] if capture else ['--headless']
     proc = subprocess.run([godot, *flags, '--editor', '--path', str(project), '--quit-after', '900'],

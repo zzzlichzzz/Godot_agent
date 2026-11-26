@@ -23,7 +23,9 @@ const COLLAPSED_HEIGHT := 260.0
 
 var _full_text: String = ""
 var _is_expanded: bool = true
-var _needs_collapse: bool = false
+var _prose_length: int = 0
+var _payload_toggle: Button
+var _payload_text: RichTextLabel
 
 # Откат ИМЕННО ТОГО изменения, о котором сообщает эта карточка.
 # Саму логику отката карточка не знает: только просит, а подтверждение и
@@ -78,11 +80,12 @@ func _ready() -> void:
 		rollback_btn.pressed.connect(_on_rollback_pressed)
 	if not expand_btn.pressed.is_connected(_on_expand_pressed):
 		expand_btn.pressed.connect(_on_expand_pressed)
-	if not mouse_entered.is_connected(_show_actions):
-		mouse_entered.connect(_show_actions)
-	if not mouse_exited.is_connected(_hide_actions):
-		mouse_exited.connect(_hide_actions)
-	_set_actions_shown(false)
+	for button in [copy_btn, expand_btn, rollback_btn]:
+		button.modulate.a = 1.0
+		button.mouse_filter = Control.MOUSE_FILTER_STOP
+		button.focus_mode = Control.FOCUS_ALL
+		button.disabled = false
+	rollback_btn.hide()
 
 
 func _apply_locale() -> void:
@@ -126,23 +129,26 @@ func _setup_theme() -> void:
 	add_theme_stylebox_override("panel", T.panel_style("agent"))
 	$Row/Spacer.hide()  # Ответ читается как документ: вся ширина дока отдана тексту.
 
-	var accent: Color = T.color("accent")
-	var agent_icon: Texture2D = T.first_icon(["Node", "Script"])
+	var agent_icon: Texture2D = T.first_icon(["Godot", "Script"])
 	if agent_icon != null:
 		avatar.texture = agent_icon
 		avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		avatar.modulate = accent
+		avatar.modulate = Color.WHITE
 		avatar.visible = true
 	else:
 		avatar.visible = false
 
-	name_label.add_theme_color_override("font_color", accent)
+	name_label.add_theme_color_override("font_color", T.color("text"))
+	name_label.add_theme_stylebox_override("normal", T.make_panel_style(T.alpha("accent", 0.12), Color.TRANSPARENT, T.px(4), T.px(6), T.px(2)))
+	$Row/MessageBox.add_theme_constant_override("separation", T.px(7))
+	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	status_label.add_theme_color_override("font_color", T.color("dim"))
 
 	# style_rich_text ставит fit_content/scroll_active/цвета: без fit_content
 	# RichTextLabel внутри контейнера получает нулевую высоту и текст не виден.
 	T.style_rich_text(content)
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_theme_constant_override("line_separation", T.px(3))
 	content.add_theme_color_override("table_odd_row_bg", Color(0, 0, 0, 0.15))
 
 	T.style_icon_button(copy_btn, ["ActionCopy"], "⧉")
@@ -151,19 +157,75 @@ func _setup_theme() -> void:
 	if rollback_btn:
 		T.style_icon_button(rollback_btn, ["UndoRedo", "Undo", "Reload"], "⟲", "warning")
 		rollback_btn.tooltip_text = _t("msg_rollback_tip")
-	T.style_button(expand_btn, "dim")
+	expand_btn.custom_minimum_size = copy_btn.custom_minimum_size
 
 
 func setup(text: String, _time_str: String = "") -> void:
 	_full_text = text
-	content.text = text
+	content.text = _present_answer(text)
+	_prose_length = content.text.length()
+	_is_expanded = true
 	_refresh_collapse_state()
+
+
+func _present_answer(text: String) -> String:
+	# Presentation only. Keep the verbatim response for history and copying. Never dispatch JSON here.
+	if _payload_toggle:
+		_payload_toggle.set_pressed_no_signal(false)
+		_payload_toggle.hide()
+		_payload_text.hide()
+		_payload_text.text = ""
+	var trimmed := text.rstrip(" \n\r\t")
+	if not trimmed.ends_with("}"): return text
+	var split := trimmed.rfind("\n")
+	if split < 1 or trimmed.length() - split > 8192: return text
+	var body := trimmed.left(split).rstrip(" \r\n\t")
+	if body.is_empty() or body.count("```") % 2 or body.count("[code]") != body.count("[/code]"): return text
+	var raw := trimmed.substr(split + 1).strip_edges().replace("[rb]", "]").replace("[lb]", "[")
+	if not raw.begins_with("{"): return text
+	var json := JSON.new()
+	if json.parse(raw) != OK or not (json.data is Dictionary): return text
+	var kind = json.data.get("action", null)
+	if not (kind is String) or kind.length() > 64 or not kind.is_valid_ascii_identifier(): return text
+	if not _payload_toggle: _build_disclosure()
+	var english: bool = _locale_script != null and _locale_script.get_lang() == "en"
+	_payload_toggle.text = ("Tool request" if english else "Запрос инструмента")
+	_payload_toggle.tooltip_text = kind
+	_payload_text.text = raw
+	_payload_open(false)
+	_payload_toggle.show()
+	return body
+
+
+func _build_disclosure() -> void:
+	var T = _T()
+	var box = $Row/MessageBox
+	_payload_toggle = Button.new()
+	_payload_toggle.name = "PayloadToggle"
+	_payload_toggle.toggle_mode = true
+	_payload_toggle.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	T.style_button(_payload_toggle, "dim")
+	box.add_child(_payload_toggle)
+	_payload_text = RichTextLabel.new()
+	_payload_text.name = "PayloadText"
+	T.style_rich_text(_payload_text, true)
+	_payload_text.bbcode_enabled = false
+	_payload_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_payload_text.add_theme_stylebox_override("normal", T.panel_style("code"))
+	box.add_child(_payload_text)
+	_payload_toggle.toggled.connect(_payload_open)
+
+
+func _payload_open(open: bool) -> void:
+	_payload_text.visible = open
+	_payload_toggle.icon = _T().first_icon(["GuiTreeArrowDown"] if open else ["GuiTreeArrowRight"])
 
 
 func append_text(delta: String) -> void:
 	if delta == "":
 		return
 	_full_text += delta
+	_prose_length += delta.length()
 	# append_text дописывает инкрементально: полный re-parse BBCode на каждый чанк
 	# стрима подвешивал панель на длинных ответах.
 	content.append_text(delta)
@@ -193,11 +255,8 @@ func add_tool_call(tool_name: String, params: Dictionary) -> void:
 
 func _refresh_collapse_state() -> void:
 	# Кнопка «Развернуть» нужна только длинным ответам.
-	var need_collapse := _full_text.length() > COLLAPSE_THRESHOLD
-	_needs_collapse = need_collapse
-	# Видимость и прозрачность кнопок держит _set_actions_shown: если выставить
-	# visible здесь, во время стрима кнопка проступит без наведения.
-	_set_actions_shown(copy_btn.modulate.a > 0.5)
+	var need_collapse := _prose_length > COLLAPSE_THRESHOLD
+	expand_btn.visible = need_collapse
 	if not need_collapse:
 		content.custom_minimum_size.y = 0
 		content.clip_contents = false
@@ -211,17 +270,24 @@ func _apply_expand_state() -> void:
 		content.fit_content = true
 		content.clip_contents = false
 		content.custom_minimum_size.y = 0
-		expand_btn.text = _t("collapse")
+		expand_btn.tooltip_text = _t("collapse")
+		_T().style_icon_button(expand_btn, ["Collapse", "GuiTreeArrowDown"], "−")
 	else:
 		content.fit_content = false
 		content.clip_contents = true
-		content.custom_minimum_size.y = COLLAPSED_HEIGHT
-		expand_btn.text = _t("expand")
+		content.custom_minimum_size.y = _T().px(int(COLLAPSED_HEIGHT))
+		expand_btn.tooltip_text = _t("expand")
+		_T().style_icon_button(expand_btn, ["Expand", "GuiTreeArrowRight"], "+")
 
 
 func _on_copy_pressed() -> void:
 	# Копируем видимый текст без BBCode-разметки.
-	DisplayServer.clipboard_set(content.get_parsed_text())
+	DisplayServer.clipboard_set(_copy_text())
+
+
+func _copy_text() -> String:
+	var plain := content.get_parsed_text()
+	return plain + "\n" + _payload_text.text if _payload_toggle and _payload_toggle.visible else plain
 
 
 func _on_rollback_pressed() -> void:
@@ -245,44 +311,12 @@ func set_rollback_available(available: bool) -> void:
 	if rollback_btn == null or not is_instance_valid(rollback_btn):
 		return
 	rollback_btn.visible = available
-	if not available:
-		rollback_btn.disabled = true
+	rollback_btn.disabled = not available
 
 
 func _on_expand_pressed() -> void:
 	_is_expanded = not _is_expanded
 	_apply_expand_state()
-
-
-func _set_actions_shown(shown: bool) -> void:
-	# Кнопки всегда занимают своё место в шапке: прячем прозрачностью, а не
-	# visible, иначе появление кнопки при наведении дёргает верстку карточки.
-	var alpha := 1.0 if shown else 0.0
-	var filter := Control.MOUSE_FILTER_STOP if shown else Control.MOUSE_FILTER_IGNORE
-	copy_btn.modulate.a = alpha
-	copy_btn.mouse_filter = filter
-	copy_btn.disabled = not shown
-	# Кнопка отката ведёт себя так же; visible ею управляет
-	# set_rollback_available (у живой карточки её нет вовсе).
-	if rollback_btn and is_instance_valid(rollback_btn) and rollback_btn.visible:
-		rollback_btn.modulate.a = alpha
-		rollback_btn.mouse_filter = filter
-		rollback_btn.disabled = not shown
-	# Кнопка сворачивания резервирует место только у длинных ответов.
-	expand_btn.visible = _needs_collapse
-	expand_btn.modulate.a = alpha
-	expand_btn.mouse_filter = filter
-	expand_btn.disabled = not shown
-
-
-func _show_actions() -> void:
-	_set_actions_shown(true)
-
-
-func _hide_actions() -> void:
-	if get_global_rect().has_point(get_global_mouse_position()):
-		return
-	_set_actions_shown(false)
 
 
 func get_text() -> String:

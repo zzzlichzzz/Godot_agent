@@ -211,3 +211,23 @@ def revised_workspace_fact(fact, current):
                     raise ValueError('Prior dock input drifted: ' + path)
                 fact = dict(fact, bytes=size, sha256=sha)
     return revised_bug_register_fact(fact, current, D124_VISUAL)
+
+
+D126_CHAT = {
+    'editor/native/AgentMessageCard.gd': (*D124_VISUAL['editor/native/AgentMessageCard.gd'][2:],
+        13856, '3635e2b165391935e1c0c20e7c23a3af1a14f0f4213f711eb87111743d540cdf'),
+    'editor/native/UserMessageCard.gd': (*D123_REVISIONS['editor/native/UserMessageCard.gd'][2:],
+        5465, '4d4b772831a85bf18b5fa898e9a133a9745b5d2f84c65997ff06aa3fe1a5d419'),
+    'editor/native/agent_theme.gd': (*D124_VISUAL['editor/native/agent_theme.gd'][2:],
+        14662, '22a35099be21744853a16d925f3e077de8936ad52dd51f9bed4127ee655745e2'),
+}
+
+
+def revised_chat_fact(fact, current):
+    for versions in (D123_REVISIONS, D124_VISUAL):
+        if fact['path'] in versions:
+            size, sha, after_size, after_sha = versions[fact['path']]
+            if (fact['bytes'], fact['sha256']) != (size, sha):
+                raise ValueError('Unexpected prior chat input: ' + fact['path'])
+            fact = dict(fact, bytes=after_size, sha256=after_sha)
+    return revised_bug_register_fact(fact, current, D126_CHAT)

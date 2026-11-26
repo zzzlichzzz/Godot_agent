@@ -13,8 +13,6 @@ const MIN_BUBBLE_WIDTH := 120.0
 @onready var time_label: Label = $Row/Bubble/MessageBox/Header/TimeLabel
 @onready var copy_btn: Button = $Row/Bubble/MessageBox/Header/CopyButton
 
-var _hovered: bool = false
-
 
 # Цвета, иконки и стили — единый модуль agent_theme.gd.
 static var _theme_script = null
@@ -50,13 +48,12 @@ func _ready() -> void:
 	_apply_locale()
 	if not copy_btn.pressed.is_connected(_on_copy_pressed):
 		copy_btn.pressed.connect(_on_copy_pressed)
-	if not mouse_entered.is_connected(_show_actions):
-		mouse_entered.connect(_show_actions)
-	if not mouse_exited.is_connected(_hide_actions):
-		mouse_exited.connect(_hide_actions)
+	copy_btn.focus_mode = Control.FOCUS_ALL
+	copy_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	copy_btn.modulate.a = 1.0
+	copy_btn.disabled = false
 	if not resized.is_connected(_recalc_bubble_width):
 		resized.connect(_recalc_bubble_width)
-	_set_actions_shown(false)
 	_recalc_bubble_width()
 
 
@@ -81,7 +78,11 @@ func _setup_theme() -> void:
 	bubble.add_theme_stylebox_override("panel", T.panel_style("user"))
 
 	name_label.add_theme_color_override("font_color", T.color("text"))
+	var header = name_label.get_parent()
+	header.move_child(time_label, copy_btn.get_index() - 1)
+	$Row/Bubble/MessageBox.add_theme_constant_override("separation", T.px(5))
 	time_label.add_theme_color_override("font_color", T.color("dim"))
+	time_label.add_theme_font_size_override("font_size", T.font_size("Label", 14) - T.px(1))
 
 	# style_rich_text ставит fit_content: без него текст в контейнере не виден.
 	T.style_rich_text(content)
@@ -125,28 +126,6 @@ func _recalc_bubble_width() -> void:
 
 func _on_copy_pressed() -> void:
 	DisplayServer.clipboard_set(content.get_parsed_text())
-
-
-func _set_actions_shown(shown: bool) -> void:
-	# Кнопка всегда занимает своё место в шапке: прячем прозрачностью, а не
-	# visible, чтобы размер пузыря при наведении не менялся.
-	copy_btn.modulate.a = 1.0 if shown else 0.0
-	copy_btn.mouse_filter = Control.MOUSE_FILTER_STOP if shown else Control.MOUSE_FILTER_IGNORE
-	copy_btn.disabled = not shown
-
-
-func _show_actions() -> void:
-	_hovered = true
-	_set_actions_shown(true)
-
-
-func _hide_actions() -> void:
-	# mouse_exited приходит и при переходе на дочерний Control (текст, кнопки),
-	# поэтому прячем только когда курсор реально ушёл с карточки.
-	if get_global_rect().has_point(get_global_mouse_position()):
-		return
-	_hovered = false
-	_set_actions_shown(false)
 
 
 func get_text() -> String:

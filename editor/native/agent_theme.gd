@@ -200,8 +200,8 @@ static func panel_style(variant: String) -> StyleBoxFlat:
 			surface = color("bg_2").lerp(color("accent"), 0.13)
 			inset = Vector2i(12, 8)
 		"agent":
-			surface = Color.TRANSPARENT
-			inset = Vector2i(3, 8)
+			surface = color("bg_1").lerp(color("text"), 0.035)
+			inset = Vector2i(10, 9)
 		"user":
 			surface = surface.lerp(color("accent"), 0.16)
 		"hint":
@@ -215,8 +215,7 @@ static func panel_style(variant: String) -> StyleBoxFlat:
 			inset = Vector2i.ZERO
 	var style := make_panel_style(surface, Color.TRANSPARENT, px(3), px(inset.x), px(inset.y))
 	if variant == "agent":
-		style.border_color = alpha("text", 0.16)
-		style.border_width_bottom = maxi(1, px(1))
+		style.set_corner_radius_all(px(6))
 	elif variant == "user":
 		style.set_corner_radius_all(px(9))
 		style.corner_radius_top_right = px(2)
@@ -300,6 +299,9 @@ static func style_input(ctrl: Control) -> void:
 			ctrl.remove_theme_stylebox_override(key)
 		for key in [&"font_color", &"font_placeholder_color", &"caret_color", &"selection_color"]:
 			ctrl.remove_theme_color_override(key)
+		if ctrl is TextEdit:
+			var writing_surface := make_panel_style(color("bg_2"), alpha("text", 0.18), px(5), px(9), px(7))
+			ctrl.add_theme_stylebox_override("normal", writing_surface)
 
 
 # --- текстовые блоки ---
