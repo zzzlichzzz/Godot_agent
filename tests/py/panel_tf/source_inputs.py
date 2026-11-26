@@ -140,12 +140,21 @@ D123_REVISIONS = {
 }
 
 
+D125_CONSENT = 'editor/native/agent_read_consent.gd'
+
+
 def revised_dock_fact(fact, current):
     prior = BUG_REGISTER_REVISIONS.get(fact['path'])
     if prior:
         if (fact['bytes'], fact['sha256']) != prior[:2]:
             raise ValueError('Pre-D123 start screen input drifted')
         fact = dict(fact, bytes=prior[2], sha256=prior[3])
+    if fact['path'] == D125_CONSENT:
+        old_size, old_sha, size, sha = D123_REVISIONS[D125_CONSENT]
+        if (fact['bytes'], fact['sha256']) != (old_size, old_sha):
+            raise ValueError('Original consent helper drifted')
+        return revised_bug_register_fact(dict(fact, bytes=size, sha256=sha), current, {D125_CONSENT: (
+            size, sha, 6633, '3e5fd1a26ada34a9412afd1990cf01b0fe58e5521abe3143188c0eaa8cac825b')})
     return revised_bug_register_fact(fact, current, D123_REVISIONS)
 
 

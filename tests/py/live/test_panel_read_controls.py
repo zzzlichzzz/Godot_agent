@@ -40,7 +40,14 @@ func offer(id, pause=false):
     Consent.offer(self, {"chat_id": _current_chat_id, "id": id, "pause": pause, "action": {"action":"read_file","path":"res://hero.gd"}})
 func click(index):
     var card = _view._chat_container.get_child(-1)
-    assert("res://hero.gd" in card.find_child("RequestedAction", true, false).text)
+    assert(card.find_child("ReadTarget", true, false).text == "res://hero.gd")
+    var details = card.find_child("RequestedAction", true, false)
+    var toggle = card.find_child("ReadParameters", true, false)
+    assert(not details.visible)
+    var calls_before = http_request.calls.size()
+    toggle.button_pressed = true
+    assert(details.visible and JSON.parse_string(details.text).path == "res://hero.gd")
+    assert(http_request.calls.size() == calls_before)
     card.find_child("Choices", true, false).get_child(index).pressed.emit()
     _set_ui_busy(false)
     Consent.finish(self, true)
