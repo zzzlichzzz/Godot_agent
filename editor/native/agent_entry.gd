@@ -25,10 +25,13 @@ extends EditorPlugin
 # ============================================================================
 
 const PLUGIN_NAME := "Godot Agent"
+const _ENTRY_META := &"_godot_agent_entry_owner"
 
 var _integrations: Array[EditorContextMenuPlugin] = []
 var _dock: Control = null
 var _debugger: EditorDebuggerPlugin = null
+var _entered: bool = false
+var _menu_added: bool = false
 
 # Подписки на сигналы редактора живут в отдельном модуле: у него одна
 # причина существования, и в точке входа ему не место.
@@ -74,6 +77,14 @@ class SceneTreeMenu extends EditorContextMenuPlugin:
 
 
 func _enter_tree() -> void:
+	if _entered:
+		return
+	if Engine.has_meta(_ENTRY_META):
+		var prev = Engine.get_meta(_ENTRY_META)
+		if prev != null and prev != self and is_instance_valid(prev):
+			return
+	_entered = true
+	Engine.set_meta(_ENTRY_META, self)
 	_load_locale()
 	_register_signals()
 	_build_menu()
@@ -97,6 +108,8 @@ func _enter_tree() -> void:
 ## Поэтому подтверждение печатается явно и содержит то, что важно: док,
 ## число интеграций и подписки на сигналы.
 func _report_entry_ready() -> void:
+	if not _entered:
+		return
 	_wire_node_rename_intercept()
 	print("[Godot Agent] Точка входа agent_entry.gd загружена: dock=%s, интеграций=%d, сигналы=%s" % [
 		"да" if _dock != null else "нет",
@@ -116,6 +129,11 @@ func _wire_node_rename_intercept() -> void:
 
 
 func _exit_tree() -> void:
+	if not _entered:
+		return
+	_entered = false
+	if Engine.has_meta(_ENTRY_META) and Engine.get_meta(_ENTRY_META) == self:
+		Engine.remove_meta(_ENTRY_META)
 	if _signals_integration != null:
 		_signals_integration.detach()
 		_signals_integration = null
@@ -123,7 +141,9 @@ func _exit_tree() -> void:
 	for integration in _integrations:
 		remove_context_menu_plugin(integration)
 	_integrations.clear()
-	remove_tool_menu_item(PLUGIN_NAME)
+	if _menu_added:
+		remove_tool_menu_item(PLUGIN_NAME)
+		_menu_added = false
 	if _debugger:
 		remove_debugger_plugin(_debugger)
 		_debugger = null
@@ -283,12 +303,15 @@ const MENU_SAFE_NODE_RENAME := 202
 
 ## Подменю вместо плоских пунктов.
 func _build_menu() -> void:
+	if _menu_added:
+		return
 	var submenu := PopupMenu.new()
 	submenu.add_item(_menu_title("safe_rename_title", "Безопасное переименование файла..."),
 		MENU_SAFE_RENAME_FILE)
 	submenu.add_item(_menu_title("safe_node_rename_title", "Безопасное переименование узла..."),
 		MENU_SAFE_NODE_RENAME)
 	add_tool_submenu_item(PLUGIN_NAME, submenu)
+	_menu_added = true
 	submenu.id_pressed.connect(_on_menu_id)
 
 
@@ -340,6 +363,8 @@ func _menu_title(key: String, fallback: String) -> String:
 ## Два контекстных меню — самый дешёвый способ встроить агента в редактор:
 ## он появляется ровно там, где пользователь уже работает.
 func _build_context_menus() -> void:
+	if not _integrations.is_empty():
+		return
 	var tree_menu := SceneTreeMenu.new(self, "узел")
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE, tree_menu)
 	_integrations.append(tree_menu)
@@ -382,6 +407,8 @@ func _load_locale() -> void:
 
 ## Точка для плагина отладчика: один объект, один понятный хук.
 func _build_debugger() -> void:
+	if _debugger != null:
+		return
 	_debugger = _make_runtime_debugger()
 	if _debugger:
 		add_debugger_plugin(_debugger)
@@ -460,7 +487,7 @@ func _on_fs_folder_moved(old_folder: String, new_folder: String) -> void:
 
 func _disconnect_fs_dock() -> void:
 	var fs_dock := EditorInterface.get_file_system_dock()
-	if fs_dock == null:
+	if fs_dock == null or not is_instance_valid(fs_dock):
 		return
 	if fs_dock.files_moved.is_connected(_on_fs_files_moved):
 		fs_dock.files_moved.disconnect(_on_fs_files_moved)

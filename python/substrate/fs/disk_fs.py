@@ -50,7 +50,15 @@ class DiskFileSystem:
 
     def list_entries(self, subdir="", accept=None):
         """Primitive enumeration: lstat reparse pointers before scandir recursion."""
+        return self._list_entries(subdir, accept, None)[0]
+
+    def list_entries_bounded(self, subdir, accept, max_scanned):
+        """Return (rows, truncated); count raw entries, including rejected ones."""
+        return self._list_entries(subdir, accept, max_scanned)
+
+    def _list_entries(self, subdir, accept, remaining):
         import stat
+        from itertools import islice
         base = self._resolve(subdir) if subdir else self._root
         relative = os.path.relpath(base, self._root)
         cursor = self._root
@@ -58,11 +66,20 @@ class DiskFileSystem:
             cursor = os.path.join(cursor, part)
             info = os.lstat(cursor)
             if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
-                return []
+                return [], False
         rows = []
         def visit(folder):
+            nonlocal remaining
             with os.scandir(folder) as entries:
-                ordered = sorted(entries, key=lambda entry: entry.name)
+                if remaining is None:
+                    ordered = list(entries)
+                else:
+                    ordered = list(islice(entries, remaining + 1))
+                    if len(ordered) > remaining:
+                        # Do not publish an arbitrary OS-order subset of this folder.
+                        return False
+                    remaining -= len(ordered)
+                ordered.sort(key=lambda entry: entry.name)
             for entry in ordered:
                 info = entry.stat(follow_symlinks=False)
                 if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
@@ -75,10 +92,11 @@ class DiskFileSystem:
                 if accept is not None and not accept(row):
                     continue
                 rows.append(row)
-                if directory:
-                    visit(entry.path)
-        visit(base)
-        return sorted(rows, key=lambda row: row["path"])
+                if directory and not visit(entry.path):
+                    return False
+            return True
+        complete = visit(base)
+        return sorted(rows, key=lambda row: row["path"]), not complete
 
     def read_raw(self, rel_path):
         """Байты файла как есть: BOM и переводы строк не трогаются.

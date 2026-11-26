@@ -17,4 +17,6 @@ def test_native_script_fact_scope_and_frozen_manifest_are_exact():
     known={row['path'] for row in base['script_facts']}
     expected={p.relative_to(ROOT).as_posix() for p in (ROOT/'editor').rglob('*.gd') if p.is_file()}-known
     paths=[row['path'] for row in extra['script_facts']]
-    assert len(paths)==len(set(paths))==36 and set(paths)==expected and not set(paths)&known
+    additions=json.loads((ROOT/'fixtures/corpus/scene_model/d122_script_facts/manifest.json').read_bytes())['script_facts']
+    assert [row['path'] for row in additions]==['editor/native/agent_read_consent.gd']
+    assert len(paths)==len(set(paths))==36 and set(paths)==expected-{additions[0]['path']} and not set(paths)&known

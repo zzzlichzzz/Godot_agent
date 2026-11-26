@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "module_id": "project_text.tree",
+  "capability_id": "project_text.tree",
+  "tool_name": "tree",
+  "description": "List permitted project files and directories under res://. Narrow by subdir or max_depth if the scan is truncated, or filter the output with only_exts.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "subdir": {
+        "type": "string",
+        "default": "res://",
+        "maxLength": 1024
+      },
+      "max_depth": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 12,
+        "default": 3,
+        "description": "0 lists only files directly in subdir."
+      },
+      "max_entries": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 500,
+        "default": 200,
+        "description": "Maximum files; directories have a separate node limit."
+      },
+      "only_exts": {
+        "type": "array",
+        "maxItems": 64,
+        "items": {
+          "type": "string",
+          "maxLength": 32
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "dir",
+          "file"
+        ]
+      },
+      "children": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "truncated": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "path",
+      "type",
+      "children",
+      "count",
+      "truncated"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "node": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "dir",
+              "file"
+            ]
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/node"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "path",
+          "type",
+          "children",
+          "count"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_depth": 12,
+    "max_entries": 500,
+    "max_nodes": 600,
+    "max_scanned": 4096
+  }
+}

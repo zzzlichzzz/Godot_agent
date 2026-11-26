@@ -1,7 +1,6 @@
 """HTTP adapter: all planning, confirmation and effects belong to Agent."""
 from flask import Blueprint,jsonify,request
-from python.kernel.errors import AppError
-from .routes_panel import panel_chat_reply
+from .read_consent import register_turns
 
 def register_chat_routes(app,agent,session):
     bp=Blueprint('rebuild_chat',__name__)
@@ -10,19 +9,7 @@ def register_chat_routes(app,agent,session):
         if not answer['ok']:
             return jsonify(dict(answer,error=answer.get('message','Request failed'))),409 if answer['kind'] in ('conflict','stale_plan') else 400
         return answer['result']
-    @bp.post('/chat')
-    def chat():
-        body=request.get_json()
-        text=next((body[k] for k in ('message','prompt','text') if k in body and body[k] is not None),'')
-        with session.lock:
-            if session.pending is not None:return jsonify(error='Resolve the pending preview first',kind='conflict'),409
-            session.busy=True
-            try:result=invoke('assistant_turn',dict(text=text,max_turns=body.get('max_turns',8)))
-            finally:session.busy=False
-            if isinstance(result,tuple):return result
-            if result['state']=='pending_confirmation':session.pending=result['plan']
-            return jsonify(dict(result,ok=True,result=result['text'],response=result['text'],action=None,
-                                preview=result['plan'],pending_confirmation=result['state']=='pending_confirmation',**panel_chat_reply(result)))
+    register_turns(bp,session,invoke)
     @bp.post('/chat/confirm')
     def confirm():
         body=request.get_json()
@@ -74,7 +61,7 @@ def register_chat_routes(app,agent,session):
     @bp.post('/chat/editor/dirty')
     def editor_dirty():return editor_sync()
     @bp.get('/chat/progress')
-    def progress():return jsonify(ok=True,busy=session.busy,active=session.busy,pending_confirmation=session.pending is not None)
+    def progress():return jsonify(ok=True,busy=session.busy,active=session.busy,pending_confirmation=session.pending is not None,**session.progress)
     @bp.post('/chat/stop')
     def stop():
         gateway=getattr(session,'gateway',None)

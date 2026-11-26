@@ -102,4 +102,5 @@ def test_context_advertises_node_without_hiding_old_tools(agent):
     result = agent.call('context',{'sections':['tools']})['result']['sections']['tools']
     names = ['analyze_rename','api','api_check','ask','assistant_confirm','assistant_plan','assistant_rollback','assistant_turn','chat','check','connections','context','functions','gd_lint','judge','node','node_delete_preview','node_rename_preview','node_reparent_preview','paths_preview','read','scene','scene_deps','search','split_apply','split_gd_plan','split_gd_scan','split_plan','split_scan','usages',
              'verify','write_apply','write_preview','write_rollback']
-    assert result == {'count':34,'names':names,'effects':{n:'write' if n == 'split_apply' or n.startswith('write_') or n in ('assistant_confirm','assistant_plan','assistant_rollback','assistant_turn') else 'read' for n in names}}
+    names.insert(names.index('usages'), 'tree')
+    assert result == {'count':35,'names':names,'effects':{n:'write' if n == 'split_apply' or n.startswith('write_') or n in ('assistant_confirm','assistant_plan','assistant_rollback','assistant_turn') else 'read' for n in names}}

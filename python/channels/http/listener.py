@@ -15,14 +15,23 @@ def _pid_alive(pid):
         return True
     if os.name == 'nt':
         import ctypes
+        from ctypes.wintypes import BOOL, DWORD, HANDLE
+
+        if pid > 0xFFFFFFFF:
+            return True  # Do not let ctypes truncate a malformed PID.
         kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-        handle = kernel32.OpenProcess(0x1000, False, pid)
+        kernel32.OpenProcess.argtypes = (DWORD, BOOL, DWORD)
+        kernel32.OpenProcess.restype = HANDLE
+        kernel32.WaitForSingleObject.argtypes = (HANDLE, DWORD)
+        kernel32.WaitForSingleObject.restype = DWORD
+        kernel32.CloseHandle.argtypes = (HANDLE,)
+        kernel32.CloseHandle.restype = BOOL
+        handle = kernel32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
         if not handle:
-            return ctypes.get_last_error() != 87
+            return ctypes.get_last_error() != 87  # ERROR_INVALID_PARAMETER: no such PID
         try:
-            code = ctypes.c_ulong(0)
-            if kernel32.GetExitCodeProcess(handle, ctypes.byref(code)) and code.value == 259:
-                return True
+            # WAIT_OBJECT_0 proves exit even if a parent still holds a handle or
+            # the child returned 259 (also used for STILL_ACTIVE).
             return kernel32.WaitForSingleObject(handle, 0) != 0
         finally:
             kernel32.CloseHandle(handle)

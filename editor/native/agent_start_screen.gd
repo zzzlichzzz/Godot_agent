@@ -311,6 +311,11 @@ func _rebuild_ui() -> void:
 		_api_pick_dialog.exclusive = false
 		remove_child(_api_pick_dialog)
 		_api_pick_dialog.queue_free()
+	if _delete_dialog and is_instance_valid(_delete_dialog):
+		_delete_dialog.hide()
+		_delete_dialog.exclusive = false
+		remove_child(_delete_dialog)
+		_delete_dialog.queue_free()
 	for ch in get_children():
 		ch.queue_free()
 	_built = false
@@ -1128,6 +1133,7 @@ func _request_chat_delete(chat_id: String, chat_title: String) -> void:
 	_delete_chat_id = chat_id
 	if _delete_dialog == null or not is_instance_valid(_delete_dialog):
 		_delete_dialog = ConfirmationDialog.new()
+		_delete_dialog.exclusive = false
 		_delete_dialog.confirmed.connect(_confirm_chat_delete)
 		add_child(_delete_dialog)
 	_delete_dialog.title = _t("del_title")
@@ -1655,11 +1661,10 @@ func set_api_scan_result(json: Dictionary) -> void:
 
 func _api_build_pick_dialog() -> void:
 	_api_pick_dialog = AcceptDialog.new()
-	_api_pick_dialog.exclusive = true
+	_api_pick_dialog.exclusive = false
 	# Единственную кнопку диалога НЕ скрываем, а переименовываем в «Закрыть».
-	# Выбор делается внутри окна, но окно модальное: остаться в нём без
-	# видимого выхода нельзя, а надеяться на Esc в модальном окне — значит
-	# надеяться, что фокус в нужном месте (в поле поиска он не там).
+	# exclusive=false исключает конфликт «parent window already has another
+	# exclusive child» в Godot 4.6.3 при открытых диалогах редактора/подтверждения.
 	add_child(_api_pick_dialog)
 
 	var root := VBoxContainer.new()

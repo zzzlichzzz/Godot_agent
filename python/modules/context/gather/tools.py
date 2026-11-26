@@ -6,6 +6,7 @@
 
 from python.kernel.tool_spec import ToolSpec
 
+from .architecture import BRIEF, BRIEF_CHARS
 from .domain.core import MAX_SECTIONS
 
 CONTEXT = ToolSpec(
@@ -16,7 +17,8 @@ CONTEXT = ToolSpec(
         "которые собирают другие модули (состояние редактора, рантайм). Секции "
         "запрашиваются по имени; секция, которой нет в этом окружении, попадает в "
         "unavailable с причиной, а не валит вызов. Вызывать в начале работы, когда "
-        "неясно, где мы находимся и что уже доступно."
+        "неясно, где мы находимся и что уже доступно. `architecture`: опциональная "
+        "краткая карта из `%s`, не более %d символов, если нет вклада модуля." % (BRIEF, BRIEF_CHARS)
     ),
     args={
         "type": "object",
@@ -84,4 +86,3 @@ CONTEXT = ToolSpec(
 )
 
 TOOLS = (CONTEXT,)
-

@@ -1,4 +1,4 @@
-"""D52 record loading and the explicitly authorized librarian reference route."""
+"""Load corpus records and select explicitly declared replay adapters."""
 from functools import wraps
 import json
 from pathlib import Path
@@ -44,6 +44,15 @@ def http_manifest(folder):
     return isinstance(record, dict) and record.get("module") == "channels.http" and record.get("reference_only") is True
 
 
+def chat_manifest(folder):
+    path = Path(folder) / "manifest.json"
+    if not path.is_file():
+        return False
+    record = json.loads(path.read_text(encoding="utf-8"))
+    return (isinstance(record, dict) and record.get("module") == "assistant.chat"
+            and record.get("real_provider_calls") is False)
+
+
 def corpus_routes(compare):
     """Keep ordinary records/assertions untouched; reference213 is not public213."""
     def decorate(ordinary):
@@ -58,6 +67,9 @@ def corpus_routes(compare):
                 if only and "ask" not in only:
                     return 0, 0, []
                 from tools.librarian_replay import replay
+                return replay(folder, compare)
+            if (not only or "chat" in only) and chat_manifest(folder):
+                from tools.chat_replay import replay
                 return replay(folder, compare)
             return ordinary(agent_cache, folder, only)
         return run

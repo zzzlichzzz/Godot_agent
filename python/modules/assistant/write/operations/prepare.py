@@ -4,7 +4,7 @@ from python.kernel.errors import AppError
 from ..domain.core import validate_action, compile_plan, timestamp
 
 def call(args,ctx):
-    action=validate_action(args['action']);lock=ctx.port('lock')
+    action=validate_action(_action(args));lock=ctx.port('lock')
     if not lock.acquire(): raise AppError('conflict','проект занят')
     try:
         prepared=ctx.port('native_planner').prepare(action,allow_addons=ctx.path_policy.allow_addons,
@@ -23,3 +23,18 @@ def call(args,ctx):
                 'digest':plan.digest,'diffs':diffs,'steps_count':len(plan.steps),'confirm_ttl':plan.confirm_ttl,
                 'warnings':[str(w) for w in prepared.get('warnings',[])]}
     finally: lock.release()
+
+
+def _action(args):
+    # The kernel validates the field schemas; enforce the exclusive choices here.
+    if set(args) == {'action'}:
+        return args['action']
+    if set(args) != {'operations'}:
+        raise AppError('invalid_input', 'укажите ровно одно поле: action или operations')
+    operations = []
+    for item in args['operations']:
+        if len(item) != 1:
+            raise AppError('invalid_input', 'в каждом элементе operations требуется ровно одна операция')
+        kind, fields = next(iter(item.items()))
+        operations.append(dict(fields, action=kind))
+    return {'action': 'transaction', 'operations': operations}

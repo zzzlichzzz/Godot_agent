@@ -1,7 +1,9 @@
 """ADR-0092: safe archiving of dead-PID loopback http_endpoint.json without touching live/malformed claims."""
 import json
 import os
-from types import SimpleNamespace
+import subprocess
+import sys
+from unittest.mock import Mock
 import pytest
 
 
@@ -104,13 +106,49 @@ def test_win32_access_denied_treats_pid_as_live_fail_closed(monkeypatch):
     if os.name != 'nt':
         pytest.skip('Windows-only OpenProcess last-error test')
 
-    class _FakeKernel32:
-        def OpenProcess(self, access, inherit, pid):
-            return 0
-
-    monkeypatch.setattr(ctypes, 'WinDLL', lambda *a, **kw: _FakeKernel32())
+    kernel = Mock()
+    kernel.OpenProcess.return_value = 0
+    monkeypatch.setattr(ctypes, 'WinDLL', lambda *a, **kw: kernel)
     monkeypatch.setattr(ctypes, 'get_last_error', lambda: 5)
     assert listener._pid_alive(424242) is True
 
     monkeypatch.setattr(ctypes, 'get_last_error', lambda: 87)
     assert listener._pid_alive(424242) is False
+    assert listener._pid_alive(0x1_0000_0000 + 424242) is True
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows-only wait statuses')
+@pytest.mark.parametrize('status', [0x102, 0xFFFFFFFF])
+def test_win32_wait_without_exit_proof_is_fail_closed(monkeypatch, status):
+    import ctypes
+    from python.channels.http import listener
+
+    kernel = Mock()
+    handle = 0x1_0000_0001
+    kernel.OpenProcess.return_value = handle
+    kernel.WaitForSingleObject.return_value = status
+    monkeypatch.setattr(ctypes, 'WinDLL', lambda *a, **kw: kernel)
+
+    assert listener._pid_alive(424242) is True
+    kernel.OpenProcess.assert_called_once_with(0x00100000, False, 424242)
+    kernel.WaitForSingleObject.assert_called_once_with(handle, 0)
+    kernel.CloseHandle.assert_called_once_with(handle)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows process handle lifetime')
+@pytest.mark.parametrize('exit_code', [0, 259])
+def test_exited_pid_with_retained_handle_does_not_block_startup(patched_listener, exit_code):
+    listener, server, project, state = patched_listener
+    endpoint = state / 'http_endpoint.json'
+    # Popen retains its process handle until collection, including after wait().
+    with subprocess.Popen([sys.executable, '-B', '-c', 'import sys; sys.exit(int(sys.argv[1]))',
+                           str(exit_code)]) as child:
+        assert child.wait(timeout=10) == exit_code
+        raw = json.dumps(dict(host='127.0.0.1', port=5000, pid=child.pid, session_id='exited')).encode()
+        endpoint.write_bytes(raw)
+
+        listener.serve(object(), project, state, port=5000)
+
+        archived, = state.glob(f'http_endpoint.stale-{child.pid}-*.json')
+        assert archived.read_bytes() == raw
+        assert server.ran and server.closed and not endpoint.exists()

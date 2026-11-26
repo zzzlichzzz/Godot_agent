@@ -38,10 +38,13 @@ class SearchQuery:
     exclude_prefixes: tuple
     case_insensitive: bool
     extensions: frozenset
+    include_prefixes: tuple = ()
+    snippet_chars: int | None = None
 
 
 def build_query(query, max_results=30, context_lines=2, exclude_rel_prefixes=None,
-                case_insensitive=False, agent_py_allowed=False):
+                case_insensitive=False, agent_py_allowed=False, include_prefixes=(), only_exts=None,
+                snippet_chars=None):
     """Собрать запрос. Пустой `query` — не ошибка: так эталон отвечает пустым списком."""
     needles = _needles(query)
     keys = tuple(needle.lower() for needle in needles) if case_insensitive else needles
@@ -50,11 +53,14 @@ def build_query(query, max_results=30, context_lines=2, exclude_rel_prefixes=Non
     extensions = set(SEARCH_EXTS)
     if agent_py_allowed:
         extensions |= AGENT_ONLY_SEARCH_EXTS
+    if only_exts is not None:
+        extensions.intersection_update(ext.lower() for ext in only_exts)
     return SearchQuery(needles=needles, keys=keys, max_results=int(max_results),
                        context_lines=int(context_lines),
                        exclude_prefixes=prefixes,
                        case_insensitive=bool(case_insensitive),
-                       extensions=frozenset(extensions))
+                       extensions=frozenset(extensions), include_prefixes=include_prefixes,
+                       snippet_chars=snippet_chars)
 
 
 def _needles(query):
@@ -84,10 +90,12 @@ def is_candidate(query, rel):
         return False
     if query.exclude_prefixes and rel.lstrip("/").startswith(query.exclude_prefixes):
         return False
+    if query.include_prefixes and not rel.startswith(query.include_prefixes):
+        return False
     return file_extension(rel) in query.extensions
 
 
-def match_file(query, rel, text, counts):
+def match_file(query, rel, text, counts, *, skip=0):
     """Совпадения одного файла: `(rows, stop, truncated)`.
 
     `stop` — квоту набрали все подстроки, обход можно прекращать (одиночный
@@ -110,9 +118,10 @@ def match_file(query, rel, text, counts):
         if not hits:
             continue
         for group in _group(hits, query.context_lines):
-            rows.append({"path": path, "line": group[0] + 1,
-                         "snippet": _snippet(lines, group, query.context_lines)})
             counts[index] += 1
+            if skip < counts[index]:
+                rows.append({"path": path, "line": group[0] + 1,
+                             "snippet": _snippet(lines, group, query.context_lines, query.snippet_chars)})
             if counts[index] >= query.max_results:
                 truncated = True
                 if all(count >= query.max_results for count in counts):
@@ -135,9 +144,17 @@ def _group(hits, context_lines):
     return groups
 
 
-def _snippet(lines, group, context_lines):
+def _snippet(lines, group, context_lines, limit=None):
     low = max(0, group[0] - context_lines)
     high = min(len(lines), group[-1] + context_lines + 1)
-    return "\n".join("%d: %s" % (number + 1, clip_snippet_line(lines[number], SNIPPET_LINE_MAX))
-                     for number in range(low, high))
-
+    parts = []
+    used = 0
+    for number in range(low, high):
+        part = "%d: %s" % (number + 1, clip_snippet_line(lines[number], SNIPPET_LINE_MAX))
+        if parts:
+            part = "\n" + part
+        if limit is not None and used + len(part) > limit:
+            return ("".join(parts) + part)[:limit - 1] + "…"
+        parts.append(part)
+        used += len(part)
+    return "".join(parts)

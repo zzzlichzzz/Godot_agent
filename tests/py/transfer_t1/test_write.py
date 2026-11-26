@@ -105,7 +105,8 @@ def test_ttl_is_from_preview_not_journal_mtime(client):
     agent,project,state=client;plan=preview(client);before=physical(project)
     # Locate the real journal physically; do not alter a project file.
     path=next(state.rglob(plan['plan_id']+'.jsonl'))
-    rows=[json.loads(s) for s in path.read_text().splitlines()]
+    # WAL rows contain UTF-8 project/policy paths, regardless of the system locale.
+    rows=[json.loads(s) for s in path.read_text(encoding='utf-8').splitlines()]
     rows[0]['detail']['created_at']=0
     path.write_text(''.join(json.dumps(r)+'\n' for r in rows),encoding='utf-8')
     answer=agent.call('assistant_confirm',dict(plan_id=plan['plan_id'],digest=plan['digest'],approved=True))

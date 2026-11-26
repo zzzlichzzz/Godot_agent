@@ -91,30 +91,36 @@ def test_live_input_uses_selected_deepseek_site_with_fail_closed_policy(cold_tf6
     from types import SimpleNamespace
     http, headers, state, _, (_, _, app) = cold_tf6
     refs = app.extensions['native_references']
-    dummy_driver = SimpleNamespace(current_url='https://chat.deepseek.com/', execute_script=lambda *a: None)
+    field = object()
+    seen = {}
+    from python.substrate.llm.parsers import deepseek_parser
+
+    def execute(script, *args):
+        if script == deepseek_parser.JS_SET_INPUT:
+            assert args[0] is field
+            seen['text'] = args[1]
+        elif not args:
+            return field
+        elif 'e.value' in script or 'arguments[0].value' in script:
+            return seen.get('text', '')
+        else:
+            return False
+
+    dummy_driver = SimpleNamespace(current_url='https://chat.deepseek.com/', current_window_handle='agent',
+                                   execute_script=execute)
     monkeypatch.setattr(refs.state, 'wait_driver', lambda timeout=90.0: dummy_driver)
     monkeypatch.setattr(refs.routes, '_navigate', lambda driver, url: True)
     created = http.post('/chats/new', json=panel_body(app, state, kind='site', site_id='deepseek'), headers=headers)
     assert created.status_code == 200 and created.json['site_id'] == 'deepseek'
     assert app.extensions['godot_session'].gateway._record is None
 
-    seen = {}
-    from python.substrate.llm.parsers import deepseek_parser
     monkeypatch.setattr(app.extensions['godot_session'].gateway, 'current_driver', lambda: dummy_driver)
-    monkeypatch.setattr(
-        deepseek_parser.PARSER,
-        'mirror_input',
-        lambda driver, text, prefer_url=None: (
-            seen.update(driver=driver, text=text, url=prefer_url) or True
-        ),
-    )
     body = panel_body(app, state, text='hello deepseek', seq=7)
     body.update(allow_addons=False, allow_self_edit=False)
     resp = http.post('/chat/live_input', json=body, headers=headers)
     assert resp.status_code == 200, resp.get_json()
     assert resp.json == {'ok': True, 'applied': True, 'reason': ''}
-    assert seen['driver'] is dummy_driver and seen['text'] == 'hello deepseek'
-    assert 'deepseek' in (seen['url'] or '')
+    assert seen == {'text': 'hello deepseek'}
 
 
 def test_all_native_scenes_match_script_uid_sidecars():

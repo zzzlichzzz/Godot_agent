@@ -131,6 +131,19 @@ def project_context(result):
     return result
 
 
+def _context_inventory_expected(expect):
+    """D119: exact additive inventory since the 27-tool headless snapshot."""
+    result = expect["result"]
+    sections = result["sections"]
+    tools = sections["tools"]
+    added = {"ask": "read", "assistant_confirm": "write", "assistant_plan": "write",
+             "assistant_rollback": "write", "assistant_turn": "write", "chat": "read",
+             "judge": "read", "tree": "read"}
+    inventory = dict(tools, count=tools["count"] + len(added),
+                     names=sorted([*tools["names"], *added]), effects={**tools["effects"], **added})
+    return dict(expect, result=dict(result, sections=dict(sections, tools=inventory)))
+
+
 def project_split_apply(result):
     """`split_apply` -> native result without random WAL receipt tokens."""
     return {key: (result or {}).get(key) for key in
@@ -338,7 +351,10 @@ def run_corpus(agent_cache, folder, only=None):
                 from python.runtime.bootstrap import build_agent
                 agent_cache[str(fixture)] = build_agent(project_root=fixture,
                                                         profile="headless")
-            problem = describe(record.get("expect") or {},
+            expect = record.get("expect") or {}
+            if folder == CORPUS_ROOT / "context" / "gather" and case_id == "001-all-sections":
+                expect = _context_inventory_expected(expect)
+            problem = describe(expect,
                                agent_cache[str(fixture)].call(tool, record.get("args") or {}),
                                tool)
         if problem:

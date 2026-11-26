@@ -86,19 +86,20 @@ def test_d21_internal_service_without_corpus_does_not_turn_green():
     assert status == "not_implemented"
 
 
-def test_private_tree_passes_actual_module_discovery():
+def test_tree_passes_actual_module_discovery():
     from python.runtime.module_loader import discover
     loaded, failed = discover()
     errors = [row for row in failed if row["module"] == "project_text.tree"]
     assert not errors, errors
-    assert any(item.spec.id == "project_text.tree" and item.tools == () for item in loaded)
+    assert any(item.spec.id == "project_text.tree" and tuple(tool.name for tool in item.tools) == ('tree',)
+               for item in loaded)
 
 
-def test_private_tree_is_not_disabled_by_actual_agent_bootstrap(tmp_path):
+def test_tree_is_not_disabled_by_actual_agent_bootstrap(tmp_path):
     from python.runtime.bootstrap import build_agent
     agent = build_agent(tmp_path, "test", state_dir=str(tmp_path / "state"))
     assert "project_text.tree" not in agent.disabled(), agent.disabled().get("project_text.tree")
-    assert "project_text.tree" not in {tool["name"] for tool in agent.tools()}
+    assert "tree" in {tool["name"] for tool in agent.tools()}
 
 
 def test_d22_loader_empty_identity_keeps_exact_error(monkeypatch):

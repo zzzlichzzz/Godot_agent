@@ -30,7 +30,8 @@
         "type": "string",
         "enum": [
           "final",
-          "pending_confirmation"
+          "pending_confirmation",
+          "pending_read"
         ]
       },
       "text": {

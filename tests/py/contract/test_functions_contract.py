@@ -141,7 +141,7 @@ def test_two_modules_register_without_conflicts():
     names = [tool["name"] for tool in agent.tools()]
     # Имена — инвентарь headless-профиля: новая механика добавляет своё имя.
     assert sorted(names) == ["analyze_rename", "api", "api_check", "ask", "assistant_confirm", "assistant_plan", "assistant_rollback", "assistant_turn", "chat", "check", "connections", "context", "functions", "gd_lint", "judge", "node", "node_delete_preview", "node_rename_preview", "node_reparent_preview", "paths_preview", "read", "scene", "scene_deps", "search",
-                                 "split_apply", "split_gd_plan", "split_gd_scan", "split_plan", "split_scan", "usages", "verify", "write_apply", "write_preview",
+                                 "split_apply", "split_gd_plan", "split_gd_scan", "split_plan", "split_scan", "tree", "usages", "verify", "write_apply", "write_preview",
                              "write_rollback"]
     assert names.count("functions") == 1
 

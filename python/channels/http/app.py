@@ -1,5 +1,5 @@
 """Authenticated loopback HTTP transport over one rebuild Agent."""
-from pathlib import Path;import threading
+from pathlib import Path
 from flask import Flask,jsonify,request,g
 from python.runtime.chrome_paths import configure_chrome_env
 from python.runtime.http_services import NativeServerReferences,build_http_agent
@@ -8,10 +8,7 @@ from .routes_chat import register_chat_routes
 from .routes_panel import register_panel_routes;from .routes_project import register_project_routes
 from python.runtime.panel_services import PanelServices
 
-class HttpSession:
-    def __init__(self):
-        self.lock=threading.RLock();self.pending=None;self.last_receipt=None
-        self.editor_snapshot={};self.busy=False
+from .session import HttpSession
 
 def create_app(project_root,state_dir,agent=None,native_routes=True):
     configure_chrome_env();project=Path(project_root).resolve();state=Path(state_dir).resolve()

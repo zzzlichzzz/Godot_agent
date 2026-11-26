@@ -1,5 +1,15 @@
 # T-C — локальные HTTP/MCP и editor-link
 
+## Продолжение: D119 — обнаружение инструментов в MCP (2026-11-26)
+
+`initialize` объясняет, с каких инструментов начать и как подтверждать правку.
+`tools/list` остаётся плоским и сохраняет существующие имена и порядок: добавлен
+`tree`, обновлены схемы расширенных инструментов. В изолированном MCP stdio
+проверены `initialize`, список из 35 инструментов, `tree`, диапазон `read` и
+`assistant_plan.operations`; байты проекта не изменились. HTTP и MCP остаются
+на профиле `cli`. Следующее действие для editor-link — отдельная проверка
+подключения живого редактора без переключения действующей панели.
+
 ## Продолжение: ADR-0093 / D116 — /chat prompt, live_input PARSER, fail-closed UI-политика и UID сцен (2026-11-25), этап 7
 
 - Причина сбоя у пользователя (`403` на `/chat/live_input` и `/chat` при `allow_addons = 1` в `user://godot_agent_policy.txt`):
@@ -15,6 +25,14 @@
 - `ADR-0092` / `D114`: `python/channels/http/listener.py` после биндинга сокета проверяет обычный единично-связанный (`nlink == 1`) 4-польный loopback-файл `http_endpoint.json`; если `OS` подтверждает смерть процесса (`ERROR_INVALID_PARAMETER`, но при `ERROR_ACCESS_DENIED` / `STILL_ACTIVE` или неполном/битом/линкованном файле по-прежнему `FileExistsError`), исходные байты атомарно переносятся в `http_endpoint.stale-<pid>-<ts>.json`. Постоянные тесты: `tests/py/channels_t1/test_stale_endpoint_archive.py` (10/10, 2 мутанта убиты; `test_endpoint_owner.py` и `test_http_metadata_policy.py` сохранены).
 - `D115`: при живом `/chats/new` в пересобранном exe обнаружен `No module named 'selenium.webdriver.chrome.options'` (`selenium 4.46.0` загружает подмодули лениво). В `tools/build_http_exe.py` добавлен `--collect-submodules selenium`; `tests/py/panel_tf/test_exe_selenium_closure.py` подтверждает 123 транзитивных модуля в PYZ exe (`45864239` B, SHA256 `730fa3245566b527cf1a248355548b1904bab71aa7d25bf2f8bd7e5edf56e61d`, 1 мутант убит).
 - Реальные проверки: изолированный zero-arg exe со stale `http_endpoint.json` (`99999999`), реальный zero-arg запуск exe на `тест-плагина-ии` (`port=5000`, архивация мёртвого `PID 25112`, `/health 200`, `/server/shutdown` exit `0`), живой Chrome + Selenium CDP attach (`url=about:blank`, `navigator.webdriver=False`).
+
+### D120 — повторный отказ запуска с удерживаемым Win32-дескриптором (2026-11-26)
+
+PID 23008 уже завершился, но `OpenProcess` ещё открывает его дескриптор. Право `PROCESS_QUERY_LIMITED_INFORMATION` не позволяет ждать его завершения (`WAIT_FAILED`, ошибка 5). [ADR-0095](../adr/0095-win32-process-exit-proof.md) требует `SYNCHRONIZE`; только `WAIT_OBJECT_0` доказывает завершение при открытом дескрипторе. При невозможности проверки архивации нет.
+
+Отказ воспроизведён на реальном дочернем процессе с удерживаемым дескриптором (exit `0` и `259`). В изолированном zero-arg запуске на `127.0.0.1:5000` D118 отказал с кодом `2`, D120 сохранил точные байты архива, подтвердил `/health` и чтение через авторизованный API и штатно завершился. Регресс каналов, панели и безопасности: 890 passed, 2 skipped (`WinError 1314`).
+
+После подтверждения D120 был установлен с копией D118 вне проекта. Установленный EXE при запуске без аргументов сам заархивировал endpoint PID 23008 на рабочем профиле и ответил на `/health` и авторизованный `/tools/list`. Проверочный процесс штатно завершён; вызовов провайдера не было. Затем пользователь отправил сообщение из панели; исправление двойной отправки и проверка установленного D121 описаны в [assistant.write](assistant.write.md#d121--лишний-ответ-при-первом-запросе-в-браузере).
 
 ## Продолжение: key settings403 / chats list500 (2026-11-23), этап 5
 
@@ -157,3 +175,16 @@ Historical stage2/69/71 checkpoints above remain historical, not current status.
 Следующее действие: docs-only delta verification, seal LAST/full sibling ZIP;
 then T-D production structural/UI integration. Independent acceptance false;
 real HTTP socket smoke/provider/browser/editor semantic apply not claimed here.
+
+## Коррекция BUG-014 (2026-11-26)
+
+`POST /chat` задаёт `chat_id` и `editor_context` только для текущего вызова
+`assistant_turn`; при выходе контекст восстанавливается и `busy` сбрасывается.
+Неизвестный чат возвращает `not_found` до обращения к транспорту, без подмены
+другим чатом. Строгие проверки HTTP и обязательное подтверждение записи не
+менялись. Сценарии BUG-014: 10 passed (включая обычный ответ без DONE со
+стабом провайдера). Проверены три socket-цикла: исходники, EXE с аргументами
+и изолированный EXE без аргументов. Во всех циклах неизвестный чат дал
+ожидаемый отказ; проверены HTTP-границы и завершение своего listener.
+Установлен протестированный EXE. Следующая проверка — реальный первый запрос
+из панели после перезапуска Godot; приёмка транспорта не менялась.

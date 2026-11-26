@@ -1,0 +1,14 @@
+{
+  "script_facts": [
+    {
+      "path": "editor/native/agent_read_consent.gd",
+      "bytes": 3137,
+      "sha256": "37077ff88fcbd7b52c3db7b9d59491024161fa546190f080048e4c5b8b86c540",
+      "LF": 72,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {"_on_button_pressed": false, "_on_my_event": false}
+    }
+  ]
+}

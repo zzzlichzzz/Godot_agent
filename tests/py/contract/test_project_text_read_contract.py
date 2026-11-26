@@ -2,7 +2,7 @@
 import pytest
 
 
-def test_read_is_the_only_new_public_tool():
+def test_read_and_tree_are_distinct_read_only_tools():
     from python.modules.project_text.read.module import MODULE
     from python.modules.project_text.read.tools import TOOLS
     from python.modules.project_text.tree.module import MODULE as TREE
@@ -10,9 +10,10 @@ def test_read_is_the_only_new_public_tool():
     assert MODULE.provides_tools == ("read",)
     assert len(TOOLS) == 1 and TOOLS[0].name == "read"
     assert TOOLS[0].effects == "read" and TOOLS[0].idempotent is True
-    assert TREE_TOOLS == TREE.provides_tools == TREE.contributes_to == TREE.capabilities == ()
+    assert TREE.provides_tools == ('tree',) and TREE_TOOLS[0].effects == 'read'
+    assert TREE.contributes_to == TREE.capabilities == ()
     assert TREE.internal_services == ("project_text.tree",)
-    assert set(TREE.entrypoints) == {"build"}
+    assert set(TREE.entrypoints) == {"build", "call"}
 
 
 @pytest.mark.parametrize("args", [{}, {"path": "res://x", "unknown": True},

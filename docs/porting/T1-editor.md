@@ -85,3 +85,16 @@ and accepted tests reconstruct exactly; failed batches/observer gaps retained.
 No unsafe script/scalar/config/parent-node parity, visual/provider/browser live
 or independent acceptance. Next authorized six-doc delta proof→seal LAST/full ZIP
 then T-E. Native refs/host/updater remain inactive except owned guarded SDKs.
+
+## Реестр BUG-001/002/003/007 — отдельная коррекция
+
+`tests/py/live/test_ui_bugs_live.py`: изолированные проект и профиль, Godot
+4.6.3, итог **1 passed**. Проверены конкурирующие окна и пересборка экрана,
+отсоединение живого узла, повторное подключение ровно один раз и освобождение
+источника. Начальный RED: `DETACHED_NODE_STILL_WATCHED`; теперь подписки
+учитываются по ID источника, отключение проверяет, что источник ещё жив.
+Повторный вход и второй экземпляр не создают док или новые интеграции;
+штатный повторный вход после выхода создаёт их заново. Под `.gdignore`
+копия C.21 сохранила все байты; вне `fixtures` появился контрольный `.gd.uid`.
+Эталонные факты сохраняются через точную ревизию входных байтов трёх скриптов.
+Исторический снимок D105 не менялся. Дополнительный шаг переноса не открыт.

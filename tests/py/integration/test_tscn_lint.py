@@ -56,5 +56,6 @@ def test_context_inventory_and_pinned_case_need_only_new_read_name():
     agent = build_agent(project_root=ROOT / 'fixtures/minimal', profile='headless')
     result = agent.call('context', {'sections': ['tools']})['result']['sections']['tools']
     live_names = sorted(names + ['ask', 'assistant_confirm', 'assistant_plan', 'assistant_rollback', 'assistant_turn', 'chat', 'judge'])
+    live_names.insert(live_names.index('usages'), 'tree')
     assert result == {'count': len(live_names), 'names': live_names,
                       'effects': {n: 'write' if n == 'split_apply' or n.startswith('write_') or n in ('assistant_confirm','assistant_plan','assistant_rollback','assistant_turn') else 'read' for n in live_names}}

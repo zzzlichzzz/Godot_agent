@@ -1,6 +1,7 @@
 """Native missing-parent creation plus receipt-only directory compensation."""
 import pytest
 from python.kernel.errors import AppError
+from tests.py.transfer_t1.conftest import isolated_chat_native_generation,extra_aliases
 from tests.py.transfer_t1.write_composition import build_agent,default_ports,intent_unstarted
 from tests.py.transfer_t1.test_write import client,physical
 

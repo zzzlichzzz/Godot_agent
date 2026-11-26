@@ -49,7 +49,8 @@ def test_args_schema_is_the_documented_surface():
     assert schema["required"] == ["query"]
     assert schema["additionalProperties"] is False
     assert set(schema["properties"]) == {"query", "max_results", "context_lines",
-                                         "exclude_rel_prefixes", "case_insensitive"}
+                                         "exclude_rel_prefixes", "case_insensitive",
+                                         "include_rel_prefixes", "only_exts", "offset", "snippet_chars"}
     assert schema["properties"]["max_results"]["minimum"] == 1
     assert schema["properties"]["context_lines"]["minimum"] == 0
     assert schema["properties"]["exclude_rel_prefixes"]["items"] == {"type": "string"}
@@ -58,6 +59,7 @@ def test_args_schema_is_the_documented_surface():
 def test_result_schema_pins_matches_and_truncated():
     schema = SPEC.result
     assert schema["required"] == ["matches", "truncated"]
+    assert set(schema["properties"]) == {"matches", "truncated", "next_offset"}
     assert schema["additionalProperties"] is False
     item = schema["properties"]["matches"]["items"]
     assert item["required"] == ["path", "line", "snippet"]

@@ -3,7 +3,7 @@
   "module_id": "assistant.write",
   "capability_id": "assistant.write",
   "tool_name": "assistant_plan",
-  "description": "Подготовить нативное действие; только preview, без изменения проекта.",
+  "description": "Предпросмотр без записи. Передайте operations для правок текстовых файлов или action для существующих нативных действий. Для применения требуется явное подтверждение пользователя через assistant_confirm.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -20,12 +20,94 @@
           "action"
         ],
         "additionalProperties": true
+      },
+      "operations": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 30,
+        "items": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "properties": {
+            "create_file": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000,
+                  "description": "Путь в проекте, например res://scripts/player.gd."
+                },
+                "content": {
+                  "type": "string",
+                  "maxLength": 200000
+                }
+              },
+              "required": [
+                "path",
+                "content"
+              ],
+              "additionalProperties": false
+            },
+            "patch_file": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000,
+                  "description": "Путь в проекте, например res://scripts/player.gd."
+                },
+                "search": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000,
+                  "description": "Точный уникальный фрагмент."
+                },
+                "replace": {
+                  "type": "string",
+                  "maxLength": 200000
+                }
+              },
+              "required": [
+                "path",
+                "search",
+                "replace"
+              ],
+              "additionalProperties": false
+            },
+            "move_file": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000,
+                  "description": "Путь в проекте, например res://scripts/player.gd."
+                },
+                "dest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000,
+                  "description": "Путь в проекте, например res://scripts/player.gd."
+                }
+              },
+              "required": [
+                "path",
+                "dest"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
       }
     },
-    "required": [
-      "action"
-    ],
-    "additionalProperties": false
+    "required": [],
+    "additionalProperties": false,
+    "minProperties": 1,
+    "maxProperties": 1
   },
   "result_schema": {
     "type": "object",

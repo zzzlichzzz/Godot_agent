@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[3]
 CORPUS = ROOT / "fixtures/corpus/editing/paths_preview"
 CASES = sorted(p for p in CORPUS.glob("*.json") if p.name != "manifest.json")
 MANIFEST = json.loads((CORPUS / "manifest.json").read_bytes())
+UID_REVISION = json.loads((ROOT / "fixtures/corpus/editor/tf5-panel-ui/input-revision.json").read_bytes())
 
 
 def hashes(root):
@@ -30,7 +31,11 @@ def test_actual_native_corpus_is_exact_and_idempotent(tmp_path, case_path):
     agent = build_agent(project, profile="test", state_dir=tmp_path / "state")
     before = hashes(project)
     prefix = case["fixture"] + "/"
-    expected_inputs = {p[len(prefix):]: f for p, f in MANIFEST["inputs"].items() if p.startswith(prefix)}
+    assert hashlib.sha256((CORPUS / "manifest.json").read_bytes()).hexdigest() == UID_REVISION["base_manifest_sha256"]
+    extra = UID_REVISION["added_inputs"]
+    assert not set(extra) & MANIFEST["inputs"].keys()
+    expected_inputs = {p[len(prefix):]: f for p, f in {**MANIFEST["inputs"], **extra}.items()
+                       if p.startswith(prefix)}
     assert {p: {"bytes": (project / p).stat().st_size, "sha256": h} for p, h in before.items()} == expected_inputs
     first = agent.call("paths_preview", case["args"])
     second = agent.call("paths_preview", case["args"])

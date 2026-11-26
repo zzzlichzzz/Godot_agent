@@ -11,6 +11,15 @@ PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
+GUIDE = (
+    "Start with tree for project layout, search for text, read for line ranges or pages, "
+    "and functions for GDScript functions. Use context for available sections. "
+    "For targeted analysis use scene, usages, analyze_rename or verify as needed. "
+    "For text edits use assistant_plan.operations to preview; show the diff to the user "
+    "and call assistant_confirm only after explicit approval. Use assistant_rollback to undo. "
+    "Use these tools directly; chat, assistant_turn and judge are optional orchestration, "
+    "not prerequisites for working with the project."
+)
 
 
 class McpServer:
@@ -34,6 +43,7 @@ class McpServer:
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": self._name, "version": self._version},
+                "instructions": GUIDE,
             })
         if method == "tools/list":
             return answer(request_id, {"tools": self._agent.tools()})
@@ -59,4 +69,3 @@ def answer(request_id, value):
 def error(request_id, code, message):
     return {"jsonrpc": "2.0", "id": request_id,
             "error": {"code": code, "message": message}}
-

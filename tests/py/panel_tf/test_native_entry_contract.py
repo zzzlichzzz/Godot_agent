@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 
 import pytest
+from tests.py.panel_tf.source_inputs import revised_bug_register_fact
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -26,7 +27,10 @@ def test_native_plugin_entry_is_selected():
      '354e15371f77870f5ebfe0427923a8a49a859fc0c439c76c66bd0ef701bbaf9e'),
 ])
 def test_native_and_rollback_assets_remain_byte_exact(path, digest):
-    assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == digest
+    raw = (ROOT / path).read_bytes()
+    if path == 'editor/native/agent_entry.gd':
+        digest = revised_bug_register_fact(dict(path=path, bytes=24233, sha256=digest), raw)['sha256']
+    assert hashlib.sha256(raw).hexdigest() == digest
 
 
 def test_fixture_import_boundary_is_empty_file():

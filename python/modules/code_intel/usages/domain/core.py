@@ -86,6 +86,17 @@ class Query(object):
 
 def build_query(kind, old_name, new_name, declaration):
     """Проверить запрос по правилам эталона; ошибки — `invalid_input`."""
+    kind_text, name = validate_symbol(kind, old_name)
+    new_text = str(new_name or "").strip()
+    if new_text and (not IDENTIFIER.match(new_text) or new_text in KEYWORDS):
+        raise AppError("invalid_input",
+                       "new_name не является допустимым идентификатором GDScript",
+                       hint="new_name нужен только analyze_rename: для поиска его можно не передавать")
+    path, line, column = parse_locator(declaration)
+    return Query(kind_text, name, new_text, declaration, path, line, column)
+
+
+def validate_symbol(kind, old_name):
     kind_text = str(kind or "").strip()
     name = str(old_name or "").strip()
     if kind_text not in KINDS:
@@ -96,13 +107,7 @@ def build_query(kind, old_name, new_name, declaration):
         raise AppError("invalid_input",
                        "old_name не является допустимым идентификатором GDScript",
                        hint="Имя символа — как в объявлении, без кавычек")
-    new_text = str(new_name or "").strip()
-    if new_text and (not IDENTIFIER.match(new_text) or new_text in KEYWORDS):
-        raise AppError("invalid_input",
-                       "new_name не является допустимым идентификатором GDScript",
-                       hint="new_name нужен только analyze_rename: для поиска его можно не передавать")
-    path, line, column = parse_locator(declaration)
-    return Query(kind_text, name, new_text, declaration, path, line, column)
+    return kind_text, name
 
 
 def build_rename_query(kind, old_name, new_name, declaration, mode=None,

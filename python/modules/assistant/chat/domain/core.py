@@ -1,38 +1,17 @@
 """K1 pure bounded loop; IO and native semantics arrive only as callbacks."""
 from python.kernel.errors import AppError
+from ...shared.read_actions import READ_ACTIONS
 
 MAX_TURNS = 8
 MAX_TEXT = 80000
 MAX_REPLY = 200000
-READ_ACTIONS = frozenset(('read_file', 'search_project', 'ask_librarian',
-                          'gather_context', 'read_function', 'list_scene'))
 REFUSE_ACTIONS = frozenset(('create_file', 'patch_file', 'move_file', 'copy_file',
     'rename_symbol', 'plan', 'write_apply', 'write_preview', 'rollback',
     'write_rollback', 'project_command', 'run_check', 'chat', 'edit_scene',
-    'create_scene', 'edit_project_settings', 'edit_resource', 'transaction'))
+    'create_scene', 'edit_project_settings', 'edit_resource', 'transaction',
+    'rename_file', 'rename_node', 'reparent_node', 'delete_node'))
 REFUSAL = ('Режим read-only: я могу прочитать проект и объяснить изменения, '
            'но не буду выполнять запись, plan или команды.')
-
-
-def read_requests(action, budget):
-    """Translate only explicit native READ operations, never arbitrary commands."""
-    name = action.get('action')
-    if name == 'read_file':
-        paths = action.get('paths')
-        if not isinstance(paths, list) or not 1 <= len(paths) <= 5 or not all(isinstance(p, str) for p in paths):
-            raise AppError('invalid_input', 'read_file требует от одного до пяти путей')
-        return [('read', {'path': path, 'max_chars': min(30000, max(1, budget//len(paths)))}) for path in paths]
-    if name == 'search_project':
-        return [('search', {'query': action.get('query', '')})]
-    if name == 'ask_librarian':
-        return [('ask', {'query': action.get('query', ''), 'budget_chars': budget})]
-    if name == 'gather_context':
-        return [('context', {'sections': ['project', 'tools']})]
-    if name == 'read_function':
-        return [('functions', {'path': action.get('path', '')})]
-    if name == 'list_scene':
-        return [('scene', {'path': action.get('path', ''), 'max_chars': budget})]
-    raise AppError('denied', 'действие не входит в read-only allowlist')
 
 
 def run_turn(text, send, system_prompt, execute, judge, *, max_turns=MAX_TURNS,
@@ -48,13 +27,14 @@ def run_turn(text, send, system_prompt, execute, judge, *, max_turns=MAX_TURNS,
         final = response.get('text') or ''
         action = response.get('action')
         name = action.get('action') if isinstance(action, dict) else None
+        name = name if isinstance(name, str) else None
         refusal = name in REFUSE_ACTIONS
         judgment = judge(REFUSAL+'\n===DONE===' if refusal else response.get('raw') or final)
         trace['judge_summary'] = {'score': judgment.get('score', 0),
                                   'acceptable': bool(judgment.get('acceptable', False))}
         if refusal:
             return REFUSAL[:budget_chars]
-        if response.get('finish_reason') in ('error', 'interrupted'):
+        if response.get('finish_reason') in ('error', 'interrupted', 'length'):
             feedback = 'Поток ответа не завершён; повторите полный ответ без частичных действий.'
         elif response.get('parse_error'):
             feedback = 'Ошибка agent_action: '+str(response['parse_error'])

@@ -24,7 +24,7 @@ APPLY_RESULT={'type':'object','properties':{'state':{'type':'string','enum':['RE
     'plan_id':ID,'entry_id':{'type':'string'},'result':{'type':'object','additionalProperties':True}},
     'required':['state','plan_id','entry_id','result'],'additionalProperties':False}
 
-TURN_RESULT={'type':'object','properties':{'state':{'type':'string','enum':['final','pending_confirmation']},
+TURN_RESULT={'type':'object','properties':{'state':{'type':'string','enum':['final','pending_confirmation','pending_read']},
     'text':{'type':'string'},'action':{'type':['object','null'],'additionalProperties':True},
      'plan':dict(PLAN_RESULT,type=['object','null']),'turns_used':{'type':'integer','minimum':1,'maximum':8}},
     'required':['state','text','action','plan','turns_used'],'additionalProperties':False}

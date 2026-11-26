@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import uuid
 from contextlib import contextmanager
+from python.kernel.errors import AppError
 
 class NativeServerReferences:
     def __init__(self,project_root,user_data_dir):
@@ -99,10 +100,13 @@ def build_http_agent(project,state,session,refs=None):
     from python.substrate.llm.api import chat_store
     ports=default_ports(project,'cli',state_dir=state/'rebuild_state')
     def selected():
-        if refs is None:return None
-        chat_id=refs.state.STATE.get('current_chat_id')
-        return chat_store.find_chat(str(state),chat_id) if chat_id else None
-    gateway=InteractiveGateway(project,state,Path(__file__).parents[2],selection=selected,editor=lambda:session.editor_snapshot)
+        explicit,_=session.turn_context.get()
+        chat_id=explicit or (refs.state.STATE.get('current_chat_id') if refs is not None else None)
+        record=chat_store.find_chat(str(state),chat_id) if chat_id else None
+        if chat_id and record is None:raise AppError('not_found','Выбранный чат не найден')
+        return record
+    gateway=InteractiveGateway(project,state,Path(__file__).parents[2],selection=selected,
+                               progress=session.report_progress,approved_read=session.approved_read)
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
     if refs is not None:refs.bind_browser(gateway)
     return build_agent(project_root=project,profile='cli',state_dir=state/'rebuild_state',ports=ports)

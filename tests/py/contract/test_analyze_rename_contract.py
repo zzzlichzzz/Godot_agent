@@ -69,10 +69,10 @@ def test_declared_errors_are_stable_kinds():
 
 def test_args_schema_is_the_documented_surface():
     schema = SPEC.args
-    assert schema["required"] == ["kind", "old_name", "new_name", "declaration"]
+    assert schema["required"] == ["kind", "old_name", "new_name"]
     assert schema["additionalProperties"] is False
     assert set(schema["properties"]) == {"kind", "old_name", "new_name", "declaration",
-                                         "mode", "allow_unverified"}
+                                         "declaration_path", "mode", "allow_unverified"}
     assert schema["properties"]["kind"]["enum"] == [
         "class_name", "function", "signal", "variable", "const", "enum", "enum_member"]
     assert schema["properties"]["mode"]["enum"] == ["strict", "probable"]

@@ -41,7 +41,7 @@ var _subscriptions: Array[Dictionary] = []
 ## нужны для честной отписки при смене сцены.
 var _node_handler: Callable = Callable()
 var _node_names: Dictionary = {}
-var _node_subscriptions: Array[Dictionary] = []
+var _node_subscriptions: Dictionary = {}
 
 var _plugin: EditorPlugin = null
 
@@ -57,12 +57,12 @@ func _init(plugin: EditorPlugin) -> void:
 func attach() -> void:
 	if _plugin == null or not _subscriptions.is_empty():
 		return
-	_bind(_plugin.script_changed, _on_script_changed)
-	_bind(_plugin.scene_changed, _on_scene_changed)
-	_bind(_plugin.scene_saved, _on_scene_saved)
-	_bind(_plugin.resource_saved, _on_resource_saved)
-	_bind(_plugin.project_settings_changed, _on_project_settings_changed)
-	_bind(_plugin.editor_state_changed, _on_editor_state_changed)
+	_bind(_plugin.script_changed, _on_script_changed, _subscriptions)
+	_bind(_plugin.scene_changed, _on_scene_changed, _subscriptions)
+	_bind(_plugin.scene_saved, _on_scene_saved, _subscriptions)
+	_bind(_plugin.resource_saved, _on_resource_saved, _subscriptions)
+	_bind(_plugin.project_settings_changed, _on_project_settings_changed, _subscriptions)
+	_bind(_plugin.editor_state_changed, _on_editor_state_changed, _subscriptions)
 	# Сцена могла быть открыта ДО загрузки плагина: до первого scene_changed
 	# снимок имён обязан существовать, иначе первое переименование узла
 	# останется незамеченным.
@@ -72,14 +72,18 @@ func attach() -> void:
 ## Отписаться. Повторный вызов безопасен.
 func detach() -> void:
 	for subscription in _subscriptions:
-		# Имена `signal` и `object` зарезервированы в GDScript — переменная
-		# с таким именем не проходит даже парсер, поэтому здесь `source`.
-		var source: Signal = subscription["signal"]
-		var handler: Callable = subscription["callable"]
-		if source.is_connected(handler):
-			source.disconnect(handler)
+		_disconnect(subscription)
 	_subscriptions.clear()
 	_clear_node_watch()
+
+
+func _disconnect(subscription: Dictionary) -> void:
+	var emitter := instance_from_id(subscription["id"])
+	var handler: Callable = subscription["callable"]
+	if is_instance_valid(emitter) and handler.is_valid():
+		var source := Signal(emitter, subscription["name"])
+		if source.is_connected(handler):
+			source.disconnect(handler)
 
 
 ## Сколько подписок держится сейчас. Нужно проверкам и отладке.
@@ -87,11 +91,11 @@ func subscription_count() -> int:
 	return _subscriptions.size()
 
 
-func _bind(source: Signal, handler: Callable) -> void:
+func _bind(source: Signal, handler: Callable, subscriptions: Array) -> void:
 	if source.is_connected(handler):
 		return
 	source.connect(handler)
-	_subscriptions.append({"signal": source, "callable": handler})
+	subscriptions.append({"id": source.get_object_id(), "name": source.get_name(), "callable": handler})
 
 
 # --- Обработчики сигналов редактора -----------------------------------------
@@ -132,39 +136,28 @@ func set_node_rename_handler(handler: Callable) -> void:
 func _watch_node(node: Node) -> void:
 	if node == null:
 		return
-	_node_names[node.get_instance_id()] = str(node.name)
-	var renamed_cb := _on_node_renamed.bind(node)
-	var exiting_cb := _on_node_tree_exiting.bind(node)
-	# child_entered_tree несёт сам добавленный узел, поэтому bind не нужен:
-	# обработчик один и тот же для всех наблюдаемых узлов.
-	var added_cb := _on_child_entered_tree
-	if not node.renamed.is_connected(renamed_cb):
-		node.renamed.connect(renamed_cb)
-	if not node.tree_exiting.is_connected(exiting_cb):
-		node.tree_exiting.connect(exiting_cb)
-	if not node.child_entered_tree.is_connected(added_cb):
-		node.child_entered_tree.connect(added_cb)
-	_node_subscriptions.append({"signal": node.renamed, "callable": renamed_cb})
-	_node_subscriptions.append({"signal": node.tree_exiting, "callable": exiting_cb})
-	_node_subscriptions.append({"signal": node.child_entered_tree, "callable": added_cb})
+	var id := node.get_instance_id()
+	if _node_subscriptions.has(id):
+		return
+	_node_names[id] = str(node.name)
+	var subscriptions: Array = []
+	_bind(node.renamed, _on_node_renamed.bind(node), subscriptions)
+	_bind(node.tree_exiting, _on_node_tree_exiting.bind(id), subscriptions)
+	_bind(node.child_entered_tree, _on_child_entered_tree, subscriptions)
+	_node_subscriptions[id] = subscriptions
 
 
 func _clear_node_watch() -> void:
-	for subscription in _node_subscriptions:
-		var source: Signal = subscription["signal"]
-		var handler: Callable = subscription["callable"]
-		if source.is_connected(handler):
-			source.disconnect(handler)
-	_node_subscriptions.clear()
-	_node_names.clear()
+	for id in _node_subscriptions.keys():
+		_on_node_tree_exiting(id)
 
 
-func _on_node_tree_exiting(node: Node) -> void:
-	# Узел покидает сцену: карта не должна расти и держать имена мёртвых
-	# узлов. Сами подписки снимет объект при освобождении.
-	if node == null:
-		return
-	_node_names.erase(node.get_instance_id())
+func _on_node_tree_exiting(id: int) -> void:
+	var subscriptions: Array = _node_subscriptions.get(id, [])
+	_node_subscriptions.erase(id)
+	_node_names.erase(id)
+	for subscription in subscriptions:
+		_disconnect(subscription)
 
 
 func _on_child_entered_tree(child: Node) -> void:

@@ -334,6 +334,8 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 	var json = null
 	if result == OK and not response_str.is_empty():
 		json = JSON.parse_string(response_str)
+	if kind == "read_decision" and panel._view:
+		preload("agent_read_consent.gd").finish(panel, response_code == 200 and json is Dictionary)
 
 	if response_code == 200 and json != null:
 		# ЗАДАЧА 3: единственный полный scan() во всём плагине, и он остаётся
@@ -344,7 +346,8 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 		# файлов здесь нет, взять его неоткуда, поэтому единственный честный
 		# вариант — пересчитать проект. Везде, где сервер отдаёт changed_paths,
 		# полный скан заменён точечным обновлением (см. _refresh_changed_paths).
-		EditorInterface.get_resource_filesystem().scan()
+		if kind not in ["chat", "read_decision"]:
+			EditorInterface.get_resource_filesystem().scan()
 
 		if json.has("site_mismatch") and bool(json.get("site_mismatch", false)):
 			panel._handle_site_mismatch(str(json.get("site", "")), str(json.get("prompt", "")))
@@ -798,6 +801,9 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 
 		# Промежуточное подтверждение файла из пачки на чтение:
 		# сервер НЕ ходил в браузер, просто спрашивает про следующий файл.
+		if json.get("read_request") is Dictionary:
+			preload("agent_read_consent.gd").offer(panel, json.read_request)
+			return
 		var nxt = json.get("next_confirmation")
 		if nxt != null and panel.action_label and panel.pending_action_box:
 			var desc = str(nxt.get("description", panel._t("agent_wants_file")))

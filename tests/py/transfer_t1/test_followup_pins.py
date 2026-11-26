@@ -17,11 +17,20 @@ CASES={
  'test_verify.py':('7dfcd21232c16b34ee189fc6aceb46c49fee541ea295a231240ba1b18c085487',6572,128,[(b'len(agent.tools()) == 30',b'len(agent.tools()) == 34')]),
 }
 
+D119={
+    'test_gd_lint.py': [(b'',b"    names.insert(names.index('usages'), 'tree')\n"),(b"'count': 34",b"'count': 35")],
+    'test_node.py': [(b'',b"    names.insert(names.index('usages'), 'tree')\n"),(b"'count':34",b"'count':35")],
+    'test_scene.py': [(b'',b"    names.insert(names.index('usages'), 'tree')\n"),(b"'count':34",b"'count':35")],
+    'test_tscn_lint.py': [(b'',b"    live_names.insert(live_names.index('usages'), 'tree')\n")],
+    'test_verify.py': [(b'len(agent.tools()) == 34',b'len(agent.tools()) == 35')],
+}
+
+
 @pytest.mark.parametrize('name',CASES)
 def test_six_inventory_files_reconstruct_exact_pre_delta_bytes(name):
     expected,size,lf,edits=CASES[name]
     raw=(ROOT/'tests/py/integration'/name).read_bytes()
-    for before,after in reversed(edits):
+    for before,after in reversed(edits+D119.get(name,[])):
         assert raw.count(after)==1,(name,after)
         raw=raw.replace(after,before,1)
     assert hashlib.sha256(raw).hexdigest()==expected

@@ -36,6 +36,11 @@
 
 ## Как это встроено в работу
 
+Дополнение SEC-11/D119: типизированный `assistant_plan.operations` готовит тот же
+immutable preview, что и `assistant_plan.action`. Смешанный или неизвестный
+вариант, обход через `write_apply` и закрытые целевые пути не дают записи.
+Тест: `tests/py/security/test_typed_file_preview.py`.
+
 Дополнение SEC-24 (C.25, D20/D21): регистрация internal service не расширяет
 публичный периметр: tree `TOOLS=()`, без fictitious contributes/capability;
 public tool без call и отсутствующий required port по-прежнему изолированно denied.
@@ -279,14 +284,17 @@ tests/py/security/test_http_control_envelope.py; synthetic keys, no provider tra
 
 ## SEC-HTTP-STALE-ENDPOINT — архивация мёртвого endpoint (ADR-0092, до кода)
 
-- Живой процесс (`STILL_ACTIVE` или `ERROR_ACCESS_DENIED`), неполная запись без полного
-  контракта `{host, port, pid, session_id}`, битый JSON, невалидный порт/PID, symlink,
-  reparse point и hardlink (`st_nlink != 1`) по-прежнему вызывают отказ `FileExistsError`
-  без модификации `http_endpoint.json` (`SEC-T1-LOCAL-04`).
+- Живой процесс или невозможность доказать завершение (`WAIT_TIMEOUT`,
+  `WAIT_FAILED`, `ERROR_ACCESS_DENIED`), неполная запись без полного контракта
+  `{host, port, pid, session_id}`, битый JSON, невалидный порт/PID, symlink, reparse
+  point и hardlink (`st_nlink != 1`) вызывают `FileExistsError` без изменения
+  `http_endpoint.json` (`SEC-T1-LOCAL-04`).
 - Только обычный, единично-связанный, полный loopback-endpoint заведомо мёртвого
   процесса (`ERROR_INVALID_PARAMETER` / завершившийся процесс, `pid != current`)
   переносится в `http_endpoint.stale-<pid>-<timestamp>.json` с точным сохранением
   исходных байтов до нового эксклюзивного создания `http_endpoint.json`.
+- ADR-0095: Windows проверяет `WAIT_OBJECT_0` с правом `SYNCHRONIZE`, не угадывает
+  по коду выхода и не сужает невалидный PID к 32 битам.
 Тесты: `tests/py/channels_t1/test_stale_endpoint_archive.py`,
 `tests/py/channels_t1/test_endpoint_owner.py`,
 `tests/py/security/test_http_metadata_policy.py`.
@@ -310,3 +318,9 @@ tests/py/security/test_http_control_envelope.py; synthetic keys, no provider tra
 `tests/py/security/test_panel_tf_security.py`,
 `tests/py/panel_tf/test_chat_prompt_and_live_input.py`,
 `tests/py/live/test_scene_uids_and_policy_live.py`.
+# SEC-HTTP-READ-CONSENT (D122)
+
+Модель не авторизует собственное чтение. До разрешения панель не отправляет
+проектные данные модели. Решение относится к одному серверному действию и чату;
+просроченное, повторное или чужое решение не исполняет чтение. Разрешение на
+чтение не подтверждает предпросмотр записи.

@@ -1,12 +1,4 @@
-"""modules/code_intel/usages/tools.py - дескрипторы двух механик (R-05, ADR-0006).
-
-`usages` — где символ объявлен и где используется. `analyze_rename` — тот же
-поиск плюс затронутые файлы и риски переименования. Оба read-only и оба в одном
-модуле: второй — обёртка над первым (`docs/parity.md`, строка 23).
-
-Источник правды: `contract/capabilities/<tool>.json` генерируется из этого
-файла (`python tools/gen_contract.py --write`), руками не правится.
-"""
+"""Read-only usage and rename-analysis contracts (source for gen_contract.py)."""
 
 from python.kernel.tool_spec import ToolSpec
 
@@ -19,8 +11,10 @@ KIND_ARG = {
 OLD_NAME_ARG = {"type": "string", "description": "Имя символа (идентификатор GDScript)."}
 DECLARATION_ARG = {
     "type": "string",
-    "description": "locator объявления: `res://path.gd:line` или `res://path.gd:line:column`.",
+    "description": "Точный locator `res://path.gd:line[:column]`. Без него требуется одно совпадение по виду и имени в видимых скриптах.",
 }
+DECLARATION_PATH_ARG = {"type": "string", "minLength": 7, "maxLength": 1024,
+                        "description": "Ограничить поиск объявления одним res:// скриптом вместо точного locator."}
 USAGE_ITEM = {
     "type": "object",
     "properties": {
@@ -40,7 +34,7 @@ USAGE_FIELDS = {
     "kind": {"type": "string"}, "old_name": {"type": "string"},
     "new_name": {"type": "string"},
     "declaration": {"type": "string",
-                    "description": "locator как его передал клиент."},
+                     "description": "Переданный или найденный точный locator."},
     "usages": {"type": "array", "items": USAGE_ITEM},
     "by_link": {"type": "object", "description": "Счётчик мест по типу связи."},
     "proven_count": {"type": "integer"}, "probable_count": {"type": "integer"},
@@ -52,15 +46,14 @@ USAGE_REQUIRED = ["kind", "old_name", "new_name", "declaration", "usages",
 USAGES = ToolSpec(
     name="usages",
     description=(
-        "Ищет, где объявлен символ и где он ещё используется. Вход — locator "
-        "объявления `res://scripts/player.gd:14` (строка, по желанию колонка), "
-        "вид символа (`function`, `signal`, `variable`, `const`, `enum`, "
+        "Ищет, где объявлен символ и где он используется. Вход — вид символа "
+        "(`function`, `signal`, `variable`, `const`, `enum`, "
         "`enum_member`, `class_name`) и его имя. Отдаёт места с координатами, "
         "типом связи (`declaration`, `call`, `member`, `identifier`, `type`, "
         "`string`) и уверенностью: `proven` — связь доказана, `probable` — "
         "вероятна (в `note` причина, чего не хватает, чаще всего аннотации "
         "типа), `dynamic` — ссылка по строковому литералу. Ничего не меняет: "
-        "переименование — отдельный инструмент analyze_rename."
+        "можно уточнить объявление через declaration или declaration_path."
     ),
     args={
         "type": "object",
@@ -68,13 +61,14 @@ USAGES = ToolSpec(
             "kind": KIND_ARG,
             "old_name": OLD_NAME_ARG,
             "declaration": DECLARATION_ARG,
+            "declaration_path": DECLARATION_PATH_ARG,
             "new_name": {
                 "type": "string",
                 "description": ("Необязательное новое имя: эталон принимает его и "
                                 "возвращает эхом, поиск от него не зависит."),
             },
         },
-        "required": ["kind", "old_name", "declaration"],
+        "required": ["kind", "old_name"],
         "additionalProperties": False,
     },
     result={"type": "object", "properties": USAGE_FIELDS,
@@ -105,8 +99,8 @@ RENAME_REQUIRED = ["kind", "old_name", "new_name", "declaration",
 ANALYZE_RENAME = ToolSpec(
     name="analyze_rename",
     description=(
-        "Предпросмотр переименования: что и где изменится. Вход — те же locator "
-        "объявления, вид символа, старое и НОВОЕ имя, плюс `mode` (`strict` по "
+        "Предпросмотр переименования: что и где изменится. Вход — вид символа, "
+        "старое и НОВОЕ имя, необязательный locator, плюс `mode` (`strict` по "
         "умолчанию) и `allow_unverified`. Отдаёт тот же список мест, что "
         "`usages`, и дополнительно `affected_paths` (файлы с доказанными "
         "ссылками), `risks` (строки `path:line [link, confidence] — причина` для "
@@ -125,6 +119,7 @@ ANALYZE_RENAME = ToolSpec(
                 "description": "Новое имя символа (идентификатор GDScript), обязательно.",
             },
             "declaration": DECLARATION_ARG,
+            "declaration_path": DECLARATION_PATH_ARG,
             "mode": {
                 "type": "string", "enum": ["strict", "probable"], "default": "strict",
                 "description": "Стратегия эталона: в предпросмотре — эхо запроса.",
@@ -134,7 +129,7 @@ ANALYZE_RENAME = ToolSpec(
                 "description": "В предпросмотре — эхо и флаг отчёта.",
             },
         },
-        "required": ["kind", "old_name", "new_name", "declaration"],
+        "required": ["kind", "old_name", "new_name"],
         "additionalProperties": False,
     },
     result={"type": "object", "properties": RENAME_FIELDS,

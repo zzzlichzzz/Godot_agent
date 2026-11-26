@@ -94,3 +94,40 @@ def revised_d116_fact(fact, current):
     if len(current) != new_bytes or hashlib.sha256(current).hexdigest() != new_sha:
         raise ValueError('Revised D116 bytes do not match pin in ' + fact['path'])
     return dict(fact, bytes=new_bytes, sha256=new_sha)
+
+
+# Preimages can be recovered with `git show 85c0dabe25d874a29c4099d5e673b864cdf67655:<path>`.
+# Keep the original business expectations and verify both byte identities without Git at runtime.
+BUG_REGISTER_REVISIONS = {
+    'editor/native/agent_entry.gd': (
+        24233, 'fea207f0296d429d372a9465c854cee3480b97da2ca5d09150357460a832f31f',
+        24968, 'aef2894abe92e9dad6ad9e562be7ca3edf8fb3ae6beb120298c9f69da4871f8b',
+    ),
+    'editor/native/agent_integration_signals.gd': (
+        10061, '4b909fad1fc21ca4a43fc8324b6778c246d5b13ee67623a510e745f14dd97983',
+        9352, 'c1139d7c93d9e630bba48b8daced2f61d57853e3054367e7e172ddfec18fe06e',
+    ),
+    'editor/native/agent_start_screen.gd': (
+        203876, '925622c65e3fe4962a9e3f9b36146e4d1a26d45abc120bd257e3ce8391cd6e6a',
+        203949, 'd09926528fb9281f63d426e1dabbbd42098d26d66dc026e79eabcf9a912312c3',
+    ),
+}
+
+# D122 changes presentation and read controls, not native GDScript extraction.
+D122_REVISIONS = {
+    'editor/native/agent_chat_view.gd': (
+        45595, 'bd569440f801db480851e5873c23bd80a7d350d0083d205d5ef27b9ec8490ec8',
+        45467, '0ee7e4747293b1006cc8942ec868dc9d27bd6a1d125fa1336984d886347c7196'),
+    'editor/native/agent_panel_part2.gd': (
+        63440, '8817af1232c73b460edd7b267d5466fb2915efd0faae749a06d170c81393e142',
+        63747, 'f0f5860a35698b4b45508e344b6f34317db8a7db183644a51e0317e9e35563a3'),
+}
+
+
+def revised_bug_register_fact(fact, current, revisions=BUG_REGISTER_REVISIONS):
+    old_size, old_sha, new_size, new_sha = revisions[fact['path']]
+    if (fact['bytes'], fact['sha256']) != (old_size, old_sha):
+        raise ValueError('UI bug source preimage differs from captured fixture')
+    if (len(current), hashlib.sha256(current).hexdigest()) != (new_size, new_sha):
+        raise ValueError('UI bug source differs from the reviewed revision')
+    return dict(fact, bytes=new_size, sha256=new_sha)

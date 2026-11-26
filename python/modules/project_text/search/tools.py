@@ -11,13 +11,9 @@ from .settings import SEARCH_MAX_CONTEXT_LINES, SEARCH_MAX_RESULTS
 SEARCH = ToolSpec(
     name="search",
     description=(
-        "Ищет литеральную подстроку по текстовым файлам проекта (.gd, .tscn, .tres, "
-        ".cfg, .godot, .json, .txt, .md, .gdshader, .shader, .csv). Это не регулярное "
-        "выражение: запрос 'func _ready' найдёт только это вхождение. Возвращает "
-        "совпадения с путём res://, номером первой строки окна и сниппетом с "
-        "контекстом. Аддоны и исходники самого агента скрыты политикой, шумовые "
-        "каталоги (.godot, node_modules, __pycache__) не сканируются. Вызывать, когда "
-        "нужно найти, где объявлен символ, кто вызывает функцию или где лежит значение."
+        "Find a literal substring in permitted project text files. Results are grouped "
+        "by nearby lines. Use include_rel_prefixes and only_exts to narrow the search; "
+        "set offset=0 to page, then reuse next_offset and the same query/filters."
     ),
     args={
         "type": "object",
@@ -52,6 +48,16 @@ SEARCH = ToolSpec(
                 "default": False,
                 "description": "Сравнение без учёта регистра.",
             },
+            "include_rel_prefixes": {"type": "array", "maxItems": 64,
+                "items": {"type": "string", "maxLength": 1024},
+                "description": "Directory prefixes, e.g. scripts/ or res://scripts. Empty means all."},
+            "only_exts": {"type": "array", "maxItems": 64,
+                "items": {"type": "string", "maxLength": 32},
+                "description": "Restrict the permitted extensions, e.g. ['.gd', '.tscn']."},
+            "offset": {"type": "integer", "minimum": 0,
+                "description": "Number of matching groups to skip. Start at 0 for exact pagination."},
+            "snippet_chars": {"type": "integer", "minimum": 64, "maximum": 16000,
+                "description": "Optional character cap per snippet; clipped snippets end in an ellipsis."},
         },
         "required": ["query"],
         "additionalProperties": False,
@@ -76,6 +82,8 @@ SEARCH = ToolSpec(
                 "type": "boolean",
                 "description": "Квота max_results была набрана: список может быть неполным.",
             },
+            "next_offset": {"type": ["integer", "null"], "minimum": 0,
+                            "description": "With offset: start of next page, or null."},
         },
         "required": ["matches", "truncated"],
         "additionalProperties": False,
@@ -90,4 +98,3 @@ SEARCH = ToolSpec(
 )
 
 TOOLS = (SEARCH,)
-

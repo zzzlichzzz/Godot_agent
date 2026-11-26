@@ -1,16 +1,16 @@
 """IO ports for panel adapters; native references stay byte-exact and scoped."""
 from importlib import import_module
 from pathlib import Path
-from threading import Lock
-from python.substrate.assistant.native_planner import NativePlanner
+from python.kernel.errors import AppError
 from python.substrate.panel_state import ExternalPanelState
 
 class PanelServices:
     def __init__(self,project,state):
+        from python.substrate.assistant.native_planner import NativePlanner
         self.project=str(project);self.state=Path(state)
         self.reader=NativePlanner(project,self.state/'rebuild_state',Path(__file__).parents[2])
         self.files=ExternalPanelState(state,project)
-        self._mirror=None;self._mirror_lock=Lock()
+        self._mirror=None;self._mirror_target=None
 
     def cache(self,classes=None,version=''):
         with self.reader._references():
@@ -71,25 +71,38 @@ class PanelServices:
             return result
 
     def live_input(self,data,session):
-        def record():
-            gw=getattr(session,'gateway',None);sel=getattr(gw,'_selection',None)
-            return getattr(gw,'_record',None) or (sel() if callable(sel) else None) or {}
-        def site():
-            rec=record()
-            if rec.get('kind')=='api':return None
-            return import_module('python.substrate.llm.browser.sites').get_site(rec.get('site_id') or 'qwen')
-        def parser():
-            selected=site()
-            if not selected:return None
-            module=import_module('python.substrate.llm.parsers.'+selected['parser'])
-            return getattr(module,'PARSER',module)
-        def url():return record().get('url') or (site() or {}).get('new_chat_url')
-        with self._mirror_lock:
+        from python.substrate.context.librarian_read import _LOCK
+        def skipped(reason):return dict(ok=True,applied=False,reason=reason)
+        if session.busy or not _LOCK.acquire(blocking=False):return skipped('busy')
+        try:
+            if session.busy:return skipped('busy')
+            gateway=getattr(session,'gateway',None)
+            driver=gateway.current_driver() if hasattr(gateway,'current_driver') else None
+            if driver is None:return skipped('no_browser')
+            selection=getattr(gateway,'_selection',None)
+            rec=(selection() if callable(selection) else getattr(gateway,'_record',None)) or {}
+            if not rec or rec.get('kind')=='api':return skipped('no_parser')
+            selected=import_module('python.substrate.llm.browser.sites').get_site(rec.get('site_id') or 'qwen')
+            if not selected:return skipped('no_parser')
+            url=rec.get('url') or selected['new_chat_url']
+            if selected['id']=='deepseek':
+                from python.substrate.llm.parsers.deepseek_delivery import DeepSeekDelivery
+                if rec.get('id') in getattr(gateway,'_mirror_held',()):return skipped('send_unresolved')
+                parser=DeepSeekDelivery(driver)
+            else:
+                module=import_module('python.substrate.llm.parsers.'+selected['parser'])
+                parser=getattr(module,'PARSER',module)
+            self._mirror_target=(driver,parser,url)
             if self._mirror is None:
                 from python.substrate.llm.browser.live_input import LiveInputMirror
-                self._mirror=LiveInputMirror(
-                    get_driver=lambda:getattr(session,'gateway',None).current_driver() if hasattr(getattr(session,'gateway',None),'current_driver') else None,
-                    get_parser=parser,busy_fn=lambda:session.busy,prefer_url_fn=url)
-        result=self._mirror.apply(data.get('seq'),data.get('text',''))
-        if not result['ok']:result=dict(ok=False,applied=False,reason='Mirror unavailable')
-        return result
+                self._mirror=LiveInputMirror(get_driver=lambda:self._mirror_target[0],
+                    get_parser=lambda:self._mirror_target[1],busy_fn=lambda:session.busy,
+                    prefer_url_fn=lambda:self._mirror_target[2])
+            result=self._mirror.apply(data.get('seq'),data.get('text',''))
+            if result['ok']:return result
+        except (AppError,OSError,RuntimeError,ValueError):
+            pass
+        finally:
+            self._mirror_target=None
+            _LOCK.release()
+        return dict(ok=False,applied=False,reason='Mirror unavailable')

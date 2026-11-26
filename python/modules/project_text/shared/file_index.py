@@ -54,11 +54,13 @@ class ProjectTextFileSystem:
     def is_dir(self, rel):
         return os.path.isdir(os.path.join(self.root, rel))
 
-    def entries(self, base, policy, visible):
+    def entries(self, base, policy, visible, *, max_scanned=None):
         agent = self._agent(policy)
         def accept(row):
             allowed = can_read_project_path(row["path"], policy, agent)
             if row["type"] == "dir" and agent and policy.allow_self_edit:
                 allowed = allowed or agent.casefold().startswith(row["path"].casefold() + "/")
             return allowed and visible(row, base)
-        return self.fs.list_entries(base, accept=accept)
+        if max_scanned is None:
+            return self.fs.list_entries(base, accept=accept)
+        return self.fs.list_entries_bounded(base, accept, max_scanned)

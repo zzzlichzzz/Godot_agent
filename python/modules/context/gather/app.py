@@ -12,6 +12,7 @@ from python.modules.context.shared.context_section import (is_unavailable,
                                                            unavailable)
 
 from .domain import core
+from .architecture import project_brief
 
 TOOL = "context"
 SECTION = "context"
@@ -50,6 +51,8 @@ def _fragment(name, ctx, contributions, target):
                                    for entry in ctx.registry.entries()])
     contribution = core.find_contribution(contributions, name)
     if contribution is None:
+        if name == 'architecture':
+            return project_brief(ctx)
         return unavailable(core.NO_MODULE)
     try:
         fragment = contribution.fragment({"path": target})
@@ -74,4 +77,3 @@ def _project_file(fs):
     except OSError:
         return None
     return "res://project.godot"
-

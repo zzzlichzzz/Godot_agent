@@ -92,5 +92,6 @@ def test_context_retains_old_tools_and_advertises_scene_as_read(agent):
     result = agent.call('context', {'sections':['tools']})['result']['sections']['tools']
     names = ['analyze_rename','api','api_check','ask','assistant_confirm','assistant_plan','assistant_rollback','assistant_turn','chat','check','connections','context','functions','gd_lint','judge','node','node_delete_preview','node_rename_preview','node_reparent_preview','paths_preview','read','scene','scene_deps','search','split_apply','split_gd_plan','split_gd_scan','split_plan','split_scan','usages',
              'verify','write_apply','write_preview','write_rollback']
+    names.insert(names.index('usages'), 'tree')
     effects = {name:'write' if name == 'split_apply' or name.startswith('write_') or name in ('assistant_confirm','assistant_plan','assistant_rollback','assistant_turn') else 'read' for name in names}
-    assert result == {'count':34,'names':names,'effects':effects}
+    assert result == {'count':35,'names':names,'effects':effects}

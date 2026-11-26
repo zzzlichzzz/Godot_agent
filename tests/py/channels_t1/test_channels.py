@@ -65,7 +65,9 @@ def test_mcp_stdio_list_call_notifications_errors_without_network(client):
     source=io.BytesIO(('\n'.join(json.dumps(m) for m in messages)+'\nnot-json\n').encode());target=io.StringIO()
     serve_stdio(agent,source,target);replies=[json.loads(s) for s in target.getvalue().splitlines()]
     assert [r['id'] for r in replies]==[1,2,3,None]
+    guide=replies[0]['result']['instructions'];assert 'tree' in guide and 'explicit approval' in guide
     names={t['name'] for t in replies[1]['result']['tools']};assert {'assistant_plan','assistant_confirm','assistant_rollback'}<=names
+    assert 'tree' in names
     assert replies[2]['result']['isError'] and replies[3]['error']['code']==-32700 and physical(project)==before
 
 def test_native_route_binding_restores_base_owner(client):

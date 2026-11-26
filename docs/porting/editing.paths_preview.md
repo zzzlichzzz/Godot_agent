@@ -969,3 +969,17 @@ tests-map, parity и бинарного ab-append WORKLOG; дальнейших 
 | Native5MiB/unsorted против fs4MiB/sorted и source-policy/plugin.cfg | решено аудитором D4/D5/D6 |
 | Новый tool меняет context/gather/001, но §4.4 запрещает его правку | решено аудитором D8; exact byte-transform проверен |
 | Глобальное gd-покрытие scene_deps и production fs.exists count3 | решено D9; exact diff, manifest-пины и полный4346/0 подтверждены |
+
+## Коррекция BUG-007 (2026-11-26)
+
+Исходный manifest C.21 не менялся. Проверка входов в
+`tests/py/integration/test_paths_preview.py` учитывает точное объединение
+его пинов и семи UID из D103 `tf5-panel-ui/input-revision.json`.
+До согласования: 3 failed / 27 passed (лишние относительно C.21 UID в
+004/005/009); после: 30 passed, исходные эталонные результаты и повторный
+вызов совпали. Корпус, пины и сцены вместе: 395 passed. `selfcheck
+editing.paths_preview`: **ok**, 58 unit / 25 corpus / 0 расхождений.
+Godot 4.6.3 импортировал изолированный проект: контрольный скрипт вне
+`fixtures` получил UID, копия корпуса под `.gdignore` осталась побайтно
+неизменной. Историческая потеря UID в D105 не воспроизводилась и не
+исправлялась удалением или массовой генерацией файлов. Этап C.21 не менялся.

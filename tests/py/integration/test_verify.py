@@ -40,7 +40,7 @@ def test_owner_and_all_contributions_are_discovered(tmp_path):
     contributions = agent._registry.contributions('verify')
     assert [c.name for c in contributions] == ['api', 'gd', 'tscn']
     assert all(c.name in ORDER for c in contributions)
-    assert len(agent.tools()) == 34
+    assert len(agent.tools()) == 35
     assert {e.spec.name: e.spec.effects for e in agent._registry.entries()}['api_check'] == 'read'
 
 

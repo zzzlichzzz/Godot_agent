@@ -209,6 +209,7 @@ func setup(vbox: VBoxContainer) -> void:
 
 func clear() -> void:
 	flush()
+	preload("agent_read_consent.gd").revoke(self)
 	_live_active = false
 	_live_agent_card = null
 	_live_sent = 0
@@ -534,9 +535,8 @@ func feed_live_stream(stream: String) -> void:
 		var delta := stream.substr(_live_sent)
 		_live_sent = stream.length()
 		_live_streamed = true
-		# Через буфер печати: раньше текст вставлялся мгновенно, а таймер
-		# «плавной печати» вообще никогда не запускался.
-		_append_typed(_escape_bbcode(delta))
+		_live_agent_card.append_text(_escape_bbcode(delta))
+		_scroll_to_bottom()
 
 
 func finalize_live_block() -> void:

@@ -3,7 +3,7 @@
   "module_id": "code_intel.usages",
   "capability_id": "code_intel.usages",
   "tool_name": "analyze_rename",
-  "description": "Предпросмотр переименования: что и где изменится. Вход — те же locator объявления, вид символа, старое и НОВОЕ имя, плюс `mode` (`strict` по умолчанию) и `allow_unverified`. Отдаёт тот же список мест, что `usages`, и дополнительно `affected_paths` (файлы с доказанными ссылками), `risks` (строки `path:line [link, confidence] — причина` для вероятных и динамических ссылок) и разобранный locator. Ничего не пишет и ничего не применяет: это ответ на вопрос «что затронет правка». Строки в risks — места, которые переименование само не покроет.",
+  "description": "Предпросмотр переименования: что и где изменится. Вход — вид символа, старое и НОВОЕ имя, необязательный locator, плюс `mode` (`strict` по умолчанию) и `allow_unverified`. Отдаёт тот же список мест, что `usages`, и дополнительно `affected_paths` (файлы с доказанными ссылками), `risks` (строки `path:line [link, confidence] — причина` для вероятных и динамических ссылок) и разобранный locator. Ничего не пишет и ничего не применяет: это ответ на вопрос «что затронет правка». Строки в risks — места, которые переименование само не покроет.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -31,7 +31,13 @@
       },
       "declaration": {
         "type": "string",
-        "description": "locator объявления: `res://path.gd:line` или `res://path.gd:line:column`."
+        "description": "Точный locator `res://path.gd:line[:column]`. Без него требуется одно совпадение по виду и имени в видимых скриптах."
+      },
+      "declaration_path": {
+        "type": "string",
+        "minLength": 7,
+        "maxLength": 1024,
+        "description": "Ограничить поиск объявления одним res:// скриптом вместо точного locator."
       },
       "mode": {
         "type": "string",
@@ -51,8 +57,7 @@
     "required": [
       "kind",
       "old_name",
-      "new_name",
-      "declaration"
+      "new_name"
     ],
     "additionalProperties": false
   },
@@ -70,7 +75,7 @@
       },
       "declaration": {
         "type": "string",
-        "description": "locator как его передал клиент."
+        "description": "Переданный или найденный точный locator."
       },
       "usages": {
         "type": "array",

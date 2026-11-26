@@ -8,6 +8,7 @@ from python.formats import gdscript,tscn
 ROOT=Path(__file__).resolve().parents[3]
 MANIFEST=json.loads((ROOT/'fixtures/corpus/scene_model/scene_deps/manifest.json').read_bytes())
 MANIFEST['script_facts'] += json.loads((ROOT/'fixtures/corpus/scene_model/t1_script_facts/manifest.json').read_bytes())['script_facts']
+MANIFEST['script_facts'] += json.loads((ROOT/'fixtures/corpus/scene_model/d122_script_facts/manifest.json').read_bytes())['script_facts']
 
 
 @pytest.mark.parametrize('fact',MANIFEST['script_facts'],ids=lambda c:c['path'])

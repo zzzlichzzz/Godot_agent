@@ -3,6 +3,13 @@
 **Статус:** исходный этап `0`, назначенный аудитором (см. `docs/PROGRESS.md`); preflight, не приёмка.
 **Обновлено:** `2026-11-03`
 
+## D119 — публичное дерево (2026-11-26)
+
+`tree` доступен через публичную схему. Ограничены глубина, число файлов, число
+узлов и бюджет обхода; `truncated` подсказывает сузить `subdir`. Внутренний
+builder и результаты исторического C.25 сохранены. `selfcheck project_text.tree`
+прошёл (23 unit / 22 corpus); CLI probe и MCP stdio подтвердили публичный вызов.
+
 ## Цель
 
 Показать дерево разрешённых файлов и каталогов проекта с буквальными сортировкой,
@@ -295,4 +302,3 @@ dirs835/UID83/debris0 unchanged; baseline absence/observedSHA в externalwitness
 Записи аудитора: строка `project_text.tree` 0→7, `parity.md` → `ported`,
 блок C.25 в `PROGRESS.md`, WORKLOG append CRLF. Следующий срез —
 consumer дерева (context.ask), средняя сложность.
-
