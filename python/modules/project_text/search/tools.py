@@ -57,7 +57,7 @@ SEARCH = ToolSpec(
             "offset": {"type": "integer", "minimum": 0,
                 "description": "Number of matching groups to skip. Start at 0 for exact pagination."},
             "snippet_chars": {"type": "integer", "minimum": 64, "maximum": 16000,
-                "description": "Optional character cap per snippet; clipped snippets end in an ellipsis."},
+                "description": "Optional character cap per snippet. If context crowds out the first hit, show the matching line first; omitted text may be marked with … ."},
         },
         "required": ["query"],
         "additionalProperties": False,
@@ -71,7 +71,7 @@ SEARCH = ToolSpec(
                     "type": "object",
                     "properties": {
                         "path": {"type": "string", "description": "res:// путь файла."},
-                        "line": {"type": "integer", "description": "Номер первой строки окна (1-based)."},
+                        "line": {"type": "integer", "description": "Номер первой строки с совпадением в группе (1-based)."},
                         "snippet": {"type": "string", "description": "Строки окна с номерами."},
                     },
                     "required": ["path", "line", "snippet"],

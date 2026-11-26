@@ -9,9 +9,9 @@
 
 from dataclasses import dataclass
 
-from python.kernel.text import clip_snippet_line, split_lines
+from python.kernel.text import split_lines
 
-from ..settings import SNIPPET_LINE_MAX
+from .snippets import snippet
 
 RES_PREFIX = "res://"
 
@@ -121,7 +121,7 @@ def match_file(query, rel, text, counts, *, skip=0):
             counts[index] += 1
             if skip < counts[index]:
                 rows.append({"path": path, "line": group[0] + 1,
-                             "snippet": _snippet(lines, group, query.context_lines, query.snippet_chars)})
+                             "snippet": snippet(lines, group, query, haystack[group[0]], needle)})
             if counts[index] >= query.max_results:
                 truncated = True
                 if all(count >= query.max_results for count in counts):
@@ -142,19 +142,3 @@ def _group(hits, context_lines):
         else:
             groups.append([number])
     return groups
-
-
-def _snippet(lines, group, context_lines, limit=None):
-    low = max(0, group[0] - context_lines)
-    high = min(len(lines), group[-1] + context_lines + 1)
-    parts = []
-    used = 0
-    for number in range(low, high):
-        part = "%d: %s" % (number + 1, clip_snippet_line(lines[number], SNIPPET_LINE_MAX))
-        if parts:
-            part = "\n" + part
-        if limit is not None and used + len(part) > limit:
-            return ("".join(parts) + part)[:limit - 1] + "…"
-        parts.append(part)
-        used += len(part)
-    return "".join(parts)

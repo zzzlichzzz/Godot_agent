@@ -65,7 +65,7 @@
         "type": "integer",
         "minimum": 64,
         "maximum": 16000,
-        "description": "Optional character cap per snippet; clipped snippets end in an ellipsis."
+        "description": "Optional character cap per snippet. If context crowds out the first hit, show the matching line first; omitted text may be marked with … ."
       }
     },
     "required": [
@@ -87,7 +87,7 @@
             },
             "line": {
               "type": "integer",
-              "description": "Номер первой строки окна (1-based)."
+              "description": "Номер первой строки с совпадением в группе (1-based)."
             },
             "snippet": {
               "type": "string",
