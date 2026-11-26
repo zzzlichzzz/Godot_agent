@@ -17,6 +17,9 @@ def call(tool, args, ctx):
     fs = ctx.port("project_text_fs")
     rel = fs.resolve(args["path"], ctx.path_policy)
     if not fs.is_file(rel):
+        if fs.is_dir(rel):
+            raise AppError("not_found", "Файл не найден: " + args["path"],
+                           hint="Это каталог. Используйте tree с subdir.", details={"target_type": "directory"})
         raise AppError("not_found", "Файл не найден: " + args["path"])
     try:
         text = fs.read_text(rel)

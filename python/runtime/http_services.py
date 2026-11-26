@@ -104,6 +104,7 @@ def normalize_editor_snapshot(snapshot):
     return normalize(snapshot)
 
 def build_http_agent(project,state,session,refs=None):
+    from python.substrate.panel_timings import TimingLog
     from python.runtime.bootstrap import build_agent,default_ports
     from python.substrate.assistant.interactive_gateway import InteractiveGateway
     from python.substrate.llm.api import chat_store
@@ -117,6 +118,8 @@ def build_http_agent(project,state,session,refs=None):
     gateway=InteractiveGateway(project,state,Path(__file__).parents[2],selection=selected,
                                progress=session.report_progress,approved_read=session.approved_read,bind_chat=session.bind_turn_chat)
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
+    gateway.report_read=session.report_read
+    session.timing_writer=TimingLog(state,project).append
     if refs is not None:
         refs.bind_browser(gateway);session.transcript_writer=refs.save_transcript
     return build_agent(project_root=project,profile='cli',state_dir=state/'rebuild_state',ports=ports)

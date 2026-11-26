@@ -12,10 +12,11 @@ from tests.py.transfer_t1.test_write import client, physical
 def test_eight_reads_return_individually_and_can_finish(client, cold_tf6, monkeypatch):
     http, headers, state, root, app = _setup_browser_chat(client, cold_tf6, monkeypatch)
     chat = app.extensions['native_references'].state.STATE['current_chat_id']
+    (root/'actors').mkdir()
     before = physical(root)
     path = 'res://hero.gd'
     actions = [dict(action='read_file', path=path),
-               dict(action='read_file', paths=[path,'res://level.tscn'], max_chars=450),
+               dict(action='read_file', paths=[path,'res://actors',path,'res://no.gd'], max_chars=450),
                dict(action='read_file', path=path, start_line=2, end_line=3),
                dict(action='read_function', path=path), dict(action='read_function', path=path, names=['hit']),
                dict(action='read_function', path=path, names=['no_such_function']),
@@ -40,9 +41,18 @@ def test_eight_reads_return_individually_and_can_finish(client, cold_tf6, monkey
         assert ticket['pause']==(step==8) and len(composer.submits)==step
         result = post('/chat/read/decision',request_id=ticket['id'],approved=True)
     assert result['state']=='final' and len(composer.submits)==9 and physical(root)==before
-    assert len(feedback[1])==2 and 'hit' in feedback[3][0]['names']
+    assert len(feedback[1])==3 and 'hit' in feedback[3][0]['names']
+    file, directory, missing = feedback[1]
+    assert file['path']==path and directory['error']['target_type']=='directory'
+    assert 'list_files' in directory['error']['hint'] and 'target_type' not in missing['error']
     assert feedback[5][0]['missing']==['no_such_function']
     assert path in str(feedback[6]) and 'level.tscn' not in str(feedback[6])
+    log=(state/'agent_turn_timings.json').read_text('utf8')
+    turns=json.loads(log)
+    assert len(turns)==9 and 'read_tool' not in turns[0]
+    assert turns[2]['read_tool']=='read' and turns[2]['read_results']==['ok','directory','not_found']
+    assert turns[6]['read_tool']=='functions' and turns[6]['read_results']==['missing_names']
+    assert path not in log and 'no_such_function' not in log and 'Шаг проверен' not in log
     from python.substrate.llm.api import chat_store
     rows=chat_store.find_chat(str(state),chat)['transcript']
     assert [r['text'] for r in rows if r['role']=='user']==['проверить чтение']

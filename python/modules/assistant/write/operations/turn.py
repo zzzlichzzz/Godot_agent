@@ -3,16 +3,19 @@ import json
 from python.kernel.errors import AppError
 from ...shared.prompts import system_prompt
 from ...shared.read_actions import READ_ACTIONS, execute_read
+from ...shared.read_outcomes import read_outcomes
 from .prepare import call as prepare_call
 
 WRITE={'create_file','patch_file','move_file','transaction','plan','project_command','rename_file','rename_symbol','rename_node',
        'reparent_node','delete_node','edit_scene','create_scene','edit_resource','edit_project_settings'}
 
-def read_feedback(ctx,action,user_prompt):
+def read_feedback(ctx,action,user_prompt,report=None):
     try:
         _,feedback=execute_read(ctx,action,30000)
     except AppError as error:
         feedback=json.dumps({'error':{'kind':error.kind,'message':error.message}},ensure_ascii=False)
+    if report:
+        report(READ_ACTIONS[action['action']][0],read_outcomes(feedback))
     return 'Результат чтения:\n'+feedback+'\nИсходный запрос: '+user_prompt[:2000]
 
 def call(args,ctx):
@@ -24,7 +27,7 @@ def call(args,ctx):
     consent=getattr(gateway,'approved_read',None)
     prompt=system_prompt(ctx,preview=True,on_demand=consent is not None)
     if consent is not None and consent.get() is not None:
-        text=read_feedback(ctx,consent.get(),user_prompt)
+        text=read_feedback(ctx,consent.get(),user_prompt,getattr(gateway,'report_read',None))
     for number in range(1,args.get('max_turns',8)+1):
         packet=gateway.send(text,system_text=prompt)
         if not isinstance(packet,dict) or len(str(packet.get('raw','')))>200000:

@@ -11,12 +11,13 @@ def register_turns(bp, session, invoke):
     def run(text, chat, snap, limit, step=1, approved=None):
         turn=session.turn_context.set((chat,snap))
         consent=session.approved_read.set(approved)
-        session.progress={};session.busy=True
+        outcome='error';session.start_turn(approved is not None)
         try:
             result=invoke('assistant_turn',dict(text=text,max_turns=limit))
+            if isinstance(result,dict):outcome=result['state']
             owner,_=session.turn_context.get()
         finally:
-            session.busy=False;session.progress={}
+            session.finish_turn(outcome)
             session.approved_read.reset(consent);session.turn_context.reset(turn)
         if isinstance(result,tuple):return result
         extra={}

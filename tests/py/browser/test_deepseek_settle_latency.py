@@ -7,7 +7,7 @@ from tests.py.browser.runtime_cases import Clock, references
 
 
 def wait(use_delivery, monkeypatch, *, first='New answer\n===DONE===', changed=None,
-         change_at=0, generating_until=0, raw=None, height=0, old=False, wrapped=False):
+         change_at=0, generating_until=0, raw=None, height=0, old=False, wrapped=False, stream=None):
     clock = Clock()
 
     class Driver:
@@ -24,7 +24,7 @@ def wait(use_delivery, monkeypatch, *, first='New answer\n===DONE===', changed=N
             if script == deepseek_parser.JS_ANSWER_LEN:
                 return len(text)
             if script in (deepseek_parser.JS_ANSWER_STREAM, deepseek_parser.JS_ANSWER_PREVIEW):
-                return text
+                return text if stream is None else stream
             return None
 
     with references() as modules, monkeypatch.context() as mp:
@@ -79,3 +79,13 @@ def test_wrapped_prose_needs_positive_layout_evidence(monkeypatch):
     guarded,slow=wait(True,monkeypatch,**opts)
     after,fast=wait(True,monkeypatch,**opts,wrapped=True)
     assert guarded==after and slow.now>=20 and fast.now<1.5
+
+
+@pytest.mark.parametrize('tag', ['b', 'i'])
+def test_visible_done_on_its_own_emphasized_line(monkeypatch, tag):
+    opts = dict(first=f'Краткий вывод.\n[{tag}]===DONE===[/{tag}]', stream='Краткий вывод.\n===DONE===')
+    result, clock = wait(True, monkeypatch, **opts)
+    assert result['text'] == opts['first'] and clock.now < 1.5
+    for tail in ('ещё текст', '[/code]'):
+        _, slow = wait(True, monkeypatch, first=opts['first']+tail)
+        assert 2.0 in slow.sleeps

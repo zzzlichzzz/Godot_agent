@@ -51,6 +51,7 @@ def read_requests(action, budget):
         if not isinstance(paths, list) or not 1 <= len(paths) <= 5 or not all(
                 isinstance(path, str) and path for path in paths):
             raise AppError('invalid_input', 'read_file требует path или от одного до пяти paths')
+        paths = list(dict.fromkeys(paths))  # Exact repeats only. Resolve aliases under the tool's policy.
         requested = args.get('max_chars', 30000)
         if type(requested) is int and 1 <= requested <= 200000:
             # Reserve room for metadata and leave the tool responsible for schema validation.
@@ -87,6 +88,8 @@ def execute_read(ctx, action, budget):
             value = ctx.call_tool(name, args)
         except AppError as error:
             value = {'error': {'kind': error.kind, 'message': error.message}}
+            if error.details.get('target_type') == 'directory':
+                value['error'].update(target_type='directory', hint='Use list_files with subdir.')
         encoded = json.dumps(value, ensure_ascii=False, separators=(',', ':'))
         if len(encoded) > remaining:
             encoded = '{"error":"Result exceeds chat budget; narrow the request."}'

@@ -1,6 +1,7 @@
 """Request-local chat inputs and transient state belonging to one project listener."""
 import threading
 from contextvars import ContextVar
+from .turn_clock import TurnClock
 
 
 class HttpSession:
@@ -9,6 +10,7 @@ class HttpSession:
         self.editor_snapshot={};self.busy=False;self.turn_context=ContextVar('http_chat_turn',default=(None,None))
         self.approved_read=ContextVar('http_approved_read',default=None);self.ticket=None;self.progress={}
         self.transcript_writer=None;self.pending_chat=None
+        self.clock=None;self.timing_writer=None
 
     def bind_turn_chat(self, chat_id):
         _, snapshot = self.turn_context.get()
@@ -31,4 +33,18 @@ class HttpSession:
         return self.remember(owner,[('system',text)]) if owner else {}
 
     def report_progress(self,update):
-        if self.busy:self.progress=update
+        if self.busy:self.progress=self.clock.observe(update) if self.clock else update
+
+    def report_read(self,tool,outcomes):
+        if self.clock:self.clock.data.update(read_tool=tool,read_results=outcomes)
+
+    def start_turn(self, continued):
+        self.clock=TurnClock(continued);self.progress={};self.busy=True
+
+    def finish_turn(self, outcome):
+        from python.kernel.errors import AppError
+        clock,self.clock=self.clock,None
+        self.busy=False;self.progress={}
+        if self.timing_writer:
+            try:self.timing_writer(clock.finish(outcome))
+            except (AppError, OSError, ValueError, RuntimeError):pass  # Diagnostic IO never retries a model turn.

@@ -53,6 +53,15 @@ def test_search_pages_do_not_skip_or_duplicate_groups(project):
     assert project.call('search', dict(query='écho', include_rel_prefixes=['../actors']))['kind'] == 'invalid_input'
 
 
+def test_read_directory_has_a_hint_only_for_an_allowed_directory(project):
+    error = project.call('read', {'path': 'res://actors'})
+    assert error['kind'] == 'not_found' and error['details'] == {'target_type': 'directory'}
+    assert 'tree' in error['hint']
+    for path, kind in [('res://missing', 'not_found'), ('res://addons/other', 'denied')]:
+        error = project.call('read', {'path': path})
+        assert error['kind'] == kind and not error.get('details')
+
+
 def test_tree_public_depth_quota_and_policy(project):
     assert 'tree' in {tool['name'] for tool in project.tools()}
     root = result(project, 'tree', max_depth=0)

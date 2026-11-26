@@ -1,6 +1,7 @@
 """Exercise the real HTTP/DeepSeek send pipeline with an isolated composer."""
 import json
 import threading
+from importlib import import_module
 
 import pytest
 from selenium.common.exceptions import StaleElementReferenceException
@@ -76,7 +77,9 @@ def _body(app, state, **fields):
 
 
 def _install_composer(app, monkeypatch, mode, reply):
-    from python.substrate.llm.browser.backends import browser_backend
+    # Replay tests restore sys.modules; a parent package can retain an older
+    # module attribute. Patch the same qualified import the gateway actually uses.
+    browser_backend = import_module('python.substrate.llm.browser.backends.browser_backend')
     from python.substrate.llm.parsers import deepseek_parser as native, parser_base
     composer = Composer(native, mode)
     if mode == 'old-files':

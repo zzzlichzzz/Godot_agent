@@ -8,7 +8,7 @@ from .read_actions import READ_ACTIONS, available
 
 READ_GUIDE = {
     'list_files': 'subdir (alias dir), max_depth, max_entries, only_exts',
-    'read_file': 'path or paths (1–5); max_chars; start_line/end_line (1-based); pass next_offset as offset',
+    'read_file': 'path or paths (1–5; exact repeats returned once); max_chars; start_line/end_line (1-based); pass next_offset as offset; past EOF yields an empty page',
     'read_function': 'path; names (or single name); omit names to list functions',
     'search_project': 'query (literal); max_results, context_lines, snippet_chars, case_insensitive, include_rel_prefixes, exclude_rel_prefixes, only_exts; pass next_offset as offset',
     'ask_librarian': 'query (code terms), budget_chars',

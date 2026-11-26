@@ -16,7 +16,27 @@ const blocks=__answerBlocks(), el=blocks[blocks.length-1];
 if (!el || el.childElementCount>1024) return false;
 const norm=s=>s.replace(/\\s+/g,' ').trim();
 const visible=norm(el.innerText), expected=norm(arguments[0]), raw=arguments[1];
-if (visible!==expected && !(raw && visible===norm(arguments[0].replace(raw,()=> 'agent_action '+raw)))) return false;
+if (visible!==expected && !(raw && visible===norm(arguments[0].replace(raw,()=> 'agent_action '+raw)))) {
+    // JS_EXTRACT adds markers to lists; Chromium's innerText may omit them.
+    // Prove both projections from the same actual items. Never strip a number
+    // out of arbitrary prose (it could be part of the answer).
+    const plain=[], numbered=[]; let items=0;
+    if (raw || el.childNodes.length>512) return false;
+    for (const block of el.childNodes) {
+        if (block.nodeType===1 && ['OL','UL'].includes(block.tagName)) {
+            let index=0;
+            for (const li of block.children) {
+                if (++items>512 || li.tagName!=='LI' || li.querySelector('ol,ul')) return false;
+                const part=li.innerText; plain.push(part);
+                numbered.push((block.tagName==='UL'?'• ': (++index)+'. ')+part);
+            }
+        } else {
+            const part=block.nodeType===3?block.textContent:block.innerText||'';
+            plain.push(part); numbered.push(part);
+        }
+    }
+    if (!items || norm(plain.join(' '))!==visible || norm(numbered.join(' '))!==expected) return false;
+}
 const box=el.getBoundingClientRect(), walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
 const rows=[]; let node,n=0;
 while(node=walker.nextNode()) {
@@ -53,7 +73,10 @@ def complete(driver, frame):
         if answer_transfer_incomplete(raw,text):return False
         material=text.replace(PLACEHOLDER,raw)
         text=text.replace(PLACEHOLDER,'').rstrip()
-    if text.rsplit('\n',1)[-1].strip() not in (DONE_MARKER,'[code]'+DONE_MARKER+'[/code]'):
+    marker = text.rstrip().rsplit('\n',1)[-1].strip()
+    # innerText is plain, but JS_EXTRACT preserves Markdown emphasis. Require
+    # the entire last line and a matching wrapper, never a quoted substring.
+    if marker != DONE_MARKER and not any(marker == f'[{tag}]{DONE_MARKER}[/{tag}]' for tag in ('code','b','i')):
         return False
     if not height_says_incomplete(material,frame.get('blockHeight')):
         return True
