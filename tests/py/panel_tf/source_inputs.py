@@ -223,11 +223,21 @@ D126_CHAT = {
 }
 
 
+D127_TYPOGRAPHY = {
+    'editor/native/AgentMessageCard.gd': (*D126_CHAT['editor/native/AgentMessageCard.gd'][2:],
+        13925, 'baa2cd4ccf5d258828cd6f95b1597e78406a75fd4c1d1e403c9af07128fbe5bd'),
+    'editor/native/agent_theme.gd': (*D126_CHAT['editor/native/agent_theme.gd'][2:],
+        16284, '2cfde8ee63b3860fc59bc16b1ac6d63d0863045415f662c209af02e2f8900fe2'),
+}
+
+
 def revised_chat_fact(fact, current):
-    for versions in (D123_REVISIONS, D124_VISUAL):
+    later = fact['path'] in D127_TYPOGRAPHY
+    chain = (D123_REVISIONS, D124_VISUAL, D126_CHAT) if later else (D123_REVISIONS, D124_VISUAL)
+    for versions in chain:
         if fact['path'] in versions:
             size, sha, after_size, after_sha = versions[fact['path']]
             if (fact['bytes'], fact['sha256']) != (size, sha):
                 raise ValueError('Unexpected prior chat input: ' + fact['path'])
             fact = dict(fact, bytes=after_size, sha256=after_sha)
-    return revised_bug_register_fact(fact, current, D126_CHAT)
+    return revised_bug_register_fact(fact, current, D127_TYPOGRAPHY if later else D126_CHAT)

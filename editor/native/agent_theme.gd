@@ -24,6 +24,7 @@ extends Object
 # Цвета и иконки вычисляются один раз для каждого ресурса темы редактора.
 static var _colors: Dictionary = {}
 static var _icons: Dictionary = {}
+static var _faces: Dictionary = {}
 static var _palette: Theme
 
 # Семантическое имя -> [имя в теме, тип в теме, запасной цвет].
@@ -65,6 +66,7 @@ static func invalidate() -> void:
 	# следующий запрос перечитает тему заново.
 	_colors.clear()
 	_icons.clear()
+	_faces.clear()
 
 
 # --- цвета ---
@@ -306,6 +308,30 @@ static func style_input(ctrl: Control) -> void:
 
 # --- текстовые блоки ---
 
+static func _emphasis(base: Font, bold: bool, italic: bool) -> Font:
+	var key := [base, bold, italic]
+	if not _faces.has(key):
+		var face := FontVariation.new()
+		face.base_font = base
+		if bold:
+			var weight := TextServerManager.get_primary_interface().name_to_tag("wght")
+			if base.get_supported_variation_list().has(weight):
+				face.variation_opentype = {weight: 730}
+			else:
+				face.variation_embolden = 0.8
+		if italic:
+			face.variation_transform = Transform2D(Vector2.RIGHT, Vector2(-0.2, 1), Vector2.ZERO)
+		_faces[key] = face
+	return _faces[key]
+
+
+static func answer_markup(text: String, body_size: int) -> String:
+	# Translate only the known presentation tags from the site/API extractors. Literal brackets are escaped.
+	return text.replace("[b][font_size=20]", "[b][font_size=%d]" % roundi(body_size * 1.25)) \
+		.replace("[bgcolor=#1f2430][color=#8ab4f8]", "[bgcolor=#%s][color=#%s]" % [hex("bg_2"), hex("text")]) \
+		.replace("[bgcolor=#2b2b2b][code]", "[bgcolor=#%s][code]" % hex("bg_2"))
+
+
 static func style_rich_text(rt: RichTextLabel, mono: bool = false) -> void:
 	# Без fit_content RichTextLabel внутри контейнера получает нулевую высоту
 	# и текст просто не виден — это уже ловилось при первой сборке карточек.
@@ -320,13 +346,22 @@ static func style_rich_text(rt: RichTextLabel, mono: bool = false) -> void:
 	rt.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	rt.add_theme_color_override("default_color", color("text"))
 	rt.add_theme_color_override("selection_color", color("accent"))
+	var base := rt.get_theme_font("font", "Label")
+	var body_size := rt.get_theme_font_size("font_size", "Label")
+	if not mono:
+		rt.add_theme_font_override("normal_font", base)
+		rt.add_theme_font_override("bold_font", _emphasis(base, true, false))
+		rt.add_theme_font_override("italics_font", _emphasis(base, false, true))
+		rt.add_theme_font_override("bold_italics_font", _emphasis(base, true, true))
+		for key in [&"normal_font_size", &"bold_font_size", &"italics_font_size", &"bold_italics_font_size"]:
+			rt.add_theme_font_size_override(key, body_size)
 	var mono_f := mono_font()
 	if mono_f != null:
 		rt.add_theme_font_override("mono_font", mono_f)
 		if mono:
 			rt.add_theme_font_override("normal_font", mono_f)
 	var code_size := font_size("CodeEdit", 13)
-	rt.add_theme_font_size_override("mono_size", code_size)
+	rt.add_theme_font_size_override("mono_font_size", code_size)
 	if mono:
 		rt.add_theme_font_size_override("normal_font_size", code_size)
 

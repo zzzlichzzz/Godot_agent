@@ -72,7 +72,7 @@ func measure() -> void:
     add_child(_view)
     _view.setup(conversation)
     _view.add_user_message("Где сцена подписывается на сигнал?")
-    var text := '[b]Найду места подключения[/b]\\nПроверю скрипты проекта и покажу строки, где встречается [code]collected[/code].'
+    var text := '[b][font_size=20]Подключение сигнала[/font_size][/b]\\n[b]Важно:[/b] сигнал объявлен, но подписка ещё не найдена.\\n[i]Что проверить[/i] — вызов [code]connect()[/code].\\n[bgcolor=#2b2b2b][code]coin.collected.connect(on_coin)[/code][/bgcolor]'
     var args := '{"action":"search_project","query":"collected","only_exts":[lb]"gd"[rb]}'
     _view.add_agent_message(text + "\\n" + args)
     var card = _view._chat_container.get_child(-1)
@@ -88,6 +88,14 @@ func measure() -> void:
     toggle.button_pressed = false
     ok = ok and card._copy_text().ends_with('"only_exts":["gd"]}') and card.get_text().ends_with(args)
     ok = ok and not card.rollback_btn.visible and not card.copy_btn.disabled
+    var rich: RichTextLabel = card.content
+    var normal := rich.get_theme_font("normal_font")
+    var bold := rich.get_theme_font("bold_font")
+    var italic := rich.get_theme_font("italics_font")
+    ok = ok and bold != normal and italic != normal and italic != bold
+    ok = ok and bold.get_string_size("Подключение сигнала").x > normal.get_string_size("Подключение сигнала").x
+    ok = ok and "[bgcolor=#2b2b2b]" not in rich.text and "coin.collected.connect(on_coin)" in rich.get_parsed_text()
+    ok = ok and rich.has_theme_font_size_override("mono_font_size") and card.get_text().begins_with(text)
     load(NATIVE + "agent_read_consent.gd").offer(self, {"chat_id": _current_chat_id,
         "action": {"action": "search_project", "query": "collected", "only_exts": ["gd"]}})
     var composer := HBoxContainer.new()

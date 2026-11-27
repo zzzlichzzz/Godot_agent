@@ -162,7 +162,7 @@ func _setup_theme() -> void:
 
 func setup(text: String, _time_str: String = "") -> void:
 	_full_text = text
-	content.text = _present_answer(text)
+	content.text = _T().answer_markup(_present_answer(text), content.get_theme_font_size("normal_font_size"))
 	_prose_length = content.text.length()
 	_is_expanded = true
 	_refresh_collapse_state()
