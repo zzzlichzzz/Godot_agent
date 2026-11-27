@@ -256,6 +256,10 @@ var _progress_inflight: bool = false
 var _view: Node = null
 # --- Чаты: список, создание, переименование, удаление ---
 var _link: Node = null               # связь с сервером — весь транспорт и автозапуск в agent_server_link.gd
+var _recover_button: Button
+var _server_down := false
+var _history_only := false
+var _needs_reopen := false
 
 # Параметры последнего post_move_sync: короткий канал один на все запросы,
 # поэтому обработчик должен знать, ЧЕЙ это ответ.
@@ -601,6 +605,21 @@ func _ready() -> void:
 		_link.hide_loading_requested.connect(_on_link_hide_loading)
 	if not _link.server_state_changed.is_connected(_on_server_state_changed):
 		_link.server_state_changed.connect(_on_server_state_changed)
+	if _recover_button == null:
+		_recover_button = Button.new()
+		_recover_button.hide()
+		$VBoxContainer.add_child(_recover_button)
+		$VBoxContainer.move_child(_recover_button, 0)
+		_recover_button.pressed.connect(func():
+			if not _link.is_inflight() and not _is_network_busy and _current_chat_id != "":
+				_site_resend_envelope = {}
+				_request_chats("open", {"id": _current_chat_id}))
+		var heartbeat := Timer.new()
+		add_child(heartbeat)
+		heartbeat.timeout.connect(func():
+			if $VBoxContainer.is_visible_in_tree() and _current_chat_id != "" and not _is_network_busy and not _link.is_inflight():
+				_link.get_now("health", AgentServer.BASE + "/health"))
+		heartbeat.start(5.0)
 	if $VBoxContainer.has_node("ChatsBar"):
 		var bar_old: HBoxContainer = $VBoxContainer/ChatsBar
 		_chat_select = bar_old.get_child(0)

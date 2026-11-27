@@ -400,6 +400,8 @@ static func _on_progress_tick(panel) -> void:
 static func _on_short_response(panel, id: String, result: int, code: int,
 		headers: PackedStringArray, body: PackedByteArray) -> void:
 	match id:
+		"health":
+			pass  # Availability is reported by ServerLink before dispatch.
 		"progress":
 			panel._on_progress_response(result, code, headers, body)
 		"live_input":
@@ -499,9 +501,14 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 	var cur = json.get("current_id")
 	if cur != null and (kind == "open" or kind == "new"):
 		panel._switch_chat_draft(str(cur))
-	if cur != null:
+	# While recovering, the restarted server's list may refer to another chat.
+	if cur != null and (kind in ["open", "new"] or not panel._needs_reopen):
 		panel._current_chat_id = str(cur)
 	if kind == "open" or kind == "new":
+		panel._history_only = bool(json.get("history_only", false))
+		panel._needs_reopen = false
+		panel._on_server_state_changed(true)
+		if panel._pagewait_timer: panel._pagewait_timer.stop()
 		panel._chat_navigation_generation += 1
 		# Не стираем новый draft, набранный пока запрос навигации был в пути.
 		# Очищаем только действительно пустое/старое визуальное состояние.
@@ -542,10 +549,9 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		panel._push_api_switch_target()
 		panel._view.set_battle_scope(str(json.get("site_id", "")) == "arena_battle")
 		panel._render_transcript(json.get("transcript", []))
-		panel._view.add_system(panel._t("chat_opened") % str(json.get("title", "")))
+		panel._view.add_navigation_notice(panel._t("chat_opened") % str(json.get("title", "")))
 		var warn: String = str(json.get("warning", ""))
 		if warn != "":
-			panel._view.add_system(warn)
 			panel._notify(warn, "error")
 		var trimmed := int(json.get("transcript_trimmed", 0))
 		if trimmed > 0:
@@ -554,7 +560,7 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		# У чата по ключу API нет страницы в браузере: ждать её загрузки нечего,
 		# а ожидание ещё и 40 раз опросило бы /browser/status и закончилось
 		# ложным предупреждением «страница долго грузится».
-		if str(json.get("kind", "browser")) != "api":
+		if str(json.get("kind", "browser")) != "api" and not panel._history_only:
 			panel._begin_page_wait()
 		if warn != "" and not panel._site_resend_envelope.is_empty():
 			panel._site_resend_envelope = {}
@@ -579,7 +585,7 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 			if str(json.get("kind", "browser")) == "api" else "")
 		panel._push_api_switch_target()
 		panel._view.set_battle_scope(str(json.get("site_id", "")) == "arena_battle")
-		panel._view.add_system(panel._t("chat_created"))
+		panel._view.add_navigation_notice(panel._t("chat_created"))
 		if str(json.get("kind", "browser")) == "api":
 			# Модель выбрана заранее в настройках и закреплена за чатом —
 			# напоминание «выберите модель на странице» здесь было бы неверным.
@@ -749,7 +755,7 @@ static func _render_transcript(panel, entries) -> void:
 		var role := str(e.get("role", ""))
 		var text := str(e.get("text", ""))
 		if role == "user":
-			panel._view.add_user_message(panel._escape_bbcode(text))
+			panel._view.add_user_message(text, int(e.get("ts", 0)))
 		elif role == "agent":
 			panel._view.add_agent_message(text)
 		else:
@@ -912,7 +918,7 @@ static func _on_site_switch_no(panel) -> void:
 
 static func _begin_page_wait(panel) -> void:
 	if panel._view:
-		panel._view.add_system(panel._t("page_wait"))
+		panel._view.add_navigation_notice(panel._t("page_wait"))
 	panel._pagewait_left = 40
 	if panel._pagewait_timer == null:
 		panel._pagewait_timer = Timer.new()
@@ -939,7 +945,7 @@ static func _on_browser_status(panel, json: Dictionary) -> void:
 	if bool(json.get("ready", false)):
 		panel._pagewait_timer.stop()
 		if panel._view:
-			panel._view.add_success(panel._t("page_ready"))
+			panel._view.add_navigation_notice(panel._t("page_ready"))
 
 static func _on_api_tab_requested(panel) -> void:
 	panel._pending_view = "api"

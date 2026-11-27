@@ -13,9 +13,13 @@ def _setup_browser_chat(client, cold_tf6, monkeypatch, site_id='deepseek'):
     _, project, _ = client
     http, headers, state, _, (_, _, app) = cold_tf6
     refs = app.extensions['native_references']
-    dummy_driver = SimpleNamespace(current_url='https://chat.deepseek.com/', execute_script=lambda *a: None)
+    class Driver:
+        # The selected WebDriver survives navigation; the document/composer can change.
+        page = SimpleNamespace(current_url='about:blank', current_window_handle='agent', execute_script=lambda *a: True)
+        def __getattr__(self, name): return getattr(self.page, name)
+    dummy_driver = Driver()
     monkeypatch.setattr(refs.state, 'wait_driver', lambda timeout=90.0: dummy_driver)
-    monkeypatch.setattr(refs.routes, '_navigate', lambda driver, url: True)
+    monkeypatch.setattr(refs.routes, '_navigate', lambda driver, url: setattr(driver.page, 'current_url', url) or True)
     created = http.post('/chats/new', json=panel_body(app, state, kind='site', site_id=site_id), headers=headers)
     assert created.status_code == 200, created.get_json()
     monkeypatch.setattr(app.extensions['godot_session'].gateway, 'current_driver', lambda: dummy_driver)
@@ -181,9 +185,8 @@ def test_explicit_chat_does_not_override_next_request_or_fall_back_if_missing(cl
 
     monkeypatch.setattr(BrowserBackend, 'send', send)
     base = dict(panel_body(app, state, prompt='привет'), allow_addons=False, allow_self_edit=False)
-    assert http.post('/chat', json=dict(base, chat_id=other), headers=headers).status_code == 200
-    assert calls and all(url.endswith('/other') for url in calls)
-    calls.clear()
+    assert http.post('/chat', json=dict(base, chat_id=other), headers=headers).status_code == 409
+    assert not calls  # An explicit id cannot authorize typing into another browser conversation.
     missing = http.post('/chat', json=dict(base, chat_id='unknown-chat-id'), headers=headers)
     assert missing.status_code == 400 and missing.json['kind'] == 'not_found' and not calls
     assert http.post('/chat', json=base, headers=headers).status_code == 200

@@ -184,3 +184,20 @@ def test_autodetect_sets_env_on_exe_bootstrap_and_app_serve_and_browser_ready(tm
     importlib_serve = http_app.serve
     importlib_serve(project, state, port=0)
     assert launched == [(str(fake_chrome), None)]
+
+
+@pytest.mark.parametrize(('failure', 'message'), [
+    ('9222 availability unknown; refusing launch', '9222'),
+    ('own Chrome debugger did not become ready', 'окну браузера'),
+    ('debugger owner does not match own process', 'окну браузера'),
+    ('session not created: private path', 'ChromeDriver'),
+])
+def test_existing_binary_launch_failure_is_not_reported_as_missing(tmp_path, monkeypatch, failure, message):
+    project, state, _ = _deployed(tmp_path)
+    state.mkdir(parents=True)
+    (state / 'godot_agent_token.txt').write_text('SYNTHETIC-DIAGNOSTIC-TOKEN', 'utf-8')
+    gw = http_app.create_app(project, state, native_routes=True).extensions['godot_session'].gateway
+    def fail(timeout): raise RuntimeError(failure)
+    monkeypatch.setattr(gw, '_ensure_browser', fail)
+    with pytest.raises(RuntimeError, match=message) as err: gw.wait_driver()
+    assert CHROME_MISSING_MSG not in str(err.value) and 'private path' not in str(err.value)

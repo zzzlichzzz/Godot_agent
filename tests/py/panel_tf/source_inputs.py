@@ -1,5 +1,26 @@
 """D90 input-only revision: exact old/new raw pins, unchanged business goldens."""
 import hashlib
+import json
+from pathlib import Path
+
+
+D128 = json.loads((Path(__file__).resolve().parents[3] / 'fixtures/corpus/scene_model/d128_revision.json').read_bytes())
+
+
+def before_d128(path, current):
+    """Reverse only reviewed edits so earlier source-revision proofs still run on their actual input."""
+    if path not in D128:
+        return current
+    spec = D128[path]
+    if [len(current), hashlib.sha256(current).hexdigest()] != spec['after']:
+        raise ValueError('Unexpected D128 input: ' + path)
+    lines = current.decode('utf-8').splitlines(True)
+    for start, end, old in reversed(spec['reverse']):
+        lines[start:end] = [old]
+    previous = ''.join(lines).encode('utf-8')
+    if [len(previous), hashlib.sha256(previous).hexdigest()] != spec['before']:
+        raise ValueError('Unexpected D128 preimage: ' + path)
+    return previous
 
 PATH='editor/core/resource_publication_observer.gd'
 OLD_SHA='fa449727bf5b461b0cdff330bc4d60ced5a6a7765b665098486ea8bf05eb4706'

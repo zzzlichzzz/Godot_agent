@@ -71,7 +71,15 @@ func measure() -> void:
     _view = load(NATIVE + "agent_chat_view.gd").new()
     add_child(_view)
     _view.setup(conversation)
-    _view.add_user_message("Где сцена подписывается на сигнал?")
+    var question := "Где сцена подписывается на сигнал?\\nПроверь [b]collected[/b]."
+    _view.add_user_message(question)
+    var user = _view._chat_container.get_child(-1)
+    ok = ok and user.content.get_parsed_text() == question and user.get_text() == question
+    ok = ok and user.time_label.text.length() == 5 and user.name_label.text == "Вы"
+    user.content.select_all()
+    ok = ok and user.content.get_selected_text() == question
+    user.content.deselect()
+    ok = ok and user.copy_btn.pressed.is_connected(user._on_copy_pressed) and not user.copy_btn.disabled
     var text := '[b][font_size=20]Подключение сигнала[/font_size][/b]\\n[b]Важно:[/b] сигнал объявлен, но подписка ещё не найдена.\\n[i]Что проверить[/i] — вызов [code]connect()[/code].\\n[bgcolor=#2b2b2b][code]coin.collected.connect(on_coin)[/code][/bgcolor]'
     var args := '{"action":"search_project","query":"collected","only_exts":[lb]"gd"[rb]}'
     _view.add_agent_message(text + "\\n" + args)
@@ -111,11 +119,17 @@ func measure() -> void:
     composer.add_child(send)
     theme_service.style_button(send, "accent", false)
     send.icon = theme_service.icon(&"ArrowRight")
+    var narrow_height := 0.0
     for width in [250, 420]:
         viewport.size.x = width
         for i in 8:
             await get_tree().process_frame
         ok = within_width(conversation, width) and ok
+        ok = ok and user.content.size.y >= user.content.get_content_height() - 1
+        if width == 250:
+            narrow_height = user.content.size.y
+        else:
+            ok = ok and user.content.size.y < narrow_height
         ok = await capture(viewport, "chat", width) and ok
     var long_answer := ("Длинный ответ со строками [code]GDScript[/code].\\n").repeat(50)
     card.setup(long_answer)
@@ -128,6 +142,20 @@ func measure() -> void:
     card.setup("")
     card.append_text(text + "\\n" + args)
     ok = ok and not toggle.visible and "search_project" in card.content.get_parsed_text()
+    _view.add_user_message(question, 1700000000)
+    var restored = _view._chat_container.get_child(-1)
+    ok = ok and restored.time_label.text == Time.get_time_string_from_unix_time(1700000000 + int(Time.get_time_zone_from_system().bias)*60).left(5)
+    _view.add_user_message("Без даты", 0)
+    ok = ok and _view._chat_container.get_child(-1).time_label.text == ""
+    _view.add_hint("Выберите модель в браузере")
+    var hint = _view._chat_container.get_child(-1)
+    _view.add_navigation_notice("Страница загружена")
+    var notice = _view._chat_container.get_child(-1)
+    var expiry: Timer = notice.get_child(0)
+    ok = ok and expiry.time_left > 7 and expiry.time_left <= 8
+    expiry.start(0.03)
+    await get_tree().create_timer(0.12).timeout
+    ok = ok and not is_instance_valid(notice) and is_instance_valid(hint) and is_instance_valid(restored)
     print("DOCK_LAYOUT_OK" if ok else "DOCK_LAYOUT_FAILED", " bg=", bg, " contrast=", contrast, " actions=", clicked)
     get_tree().quit(0 if ok else 2)
 

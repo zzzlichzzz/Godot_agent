@@ -71,6 +71,9 @@ class InteractiveGateway(ChatGateway):
         live=self.current_driver()
         if live is not None:return live
         from python.substrate.llm import runtime_owner
+        if self._owned_browser is not None:
+            # Its child exited since the last request. Release only this session's owner.
+            self.close()
         if self._owned_browser is None:
             chrome=os.environ.get('GODOT_AGENT_CHROME_PATH','').strip()
             if not chrome or not Path(chrome).is_file():
@@ -95,8 +98,16 @@ class InteractiveGateway(ChatGateway):
         try:driver=self._ensure_browser(timeout=timeout)
         except AppError as error:
             raise RuntimeError(error.message) from None
-        except (OSError,RuntimeError,TypeError):
-            raise RuntimeError('Browser is unavailable for this session; Chrome не найден, укажите путь в настройках') from None
+        except Exception as error:
+            # Don't expose Selenium stack traces, profile paths or debugger addresses.
+            reason = str(error)
+            if '9222 availability' in reason:
+                hint = 'Порт 9222 занят или недоступен. Закройте прежнее окно браузера агента и повторите.'
+            elif 'did not become ready' in reason or 'owner does not match' in reason:
+                hint = 'Не удалось подключиться к отдельному окну браузера агента. Закройте прежнее окно агента и повторите.'
+            else:
+                hint = 'Не удалось запустить браузер агента или подключить ChromeDriver. Проверьте драйвер и повторите.'
+            raise RuntimeError(hint) from None
         if driver is not self.current_driver():raise RuntimeError('Foreign browser owner is not adopted')
         return driver
 
@@ -107,7 +118,9 @@ class InteractiveGateway(ChatGateway):
         from python.substrate.llm.browser.backends.browser_backend import BrowserBackend
         import parser_base,api_keys,chat_store
         rec=self._record or {}
-        site=sites.get_site(rec.get('site_id') or os.environ.get('GODOT_AGENT_CHAT_SITE','qwen'))
+        if rec and getattr(self,'selected_page',None):self.selected_page.require(rec,self.current_driver())
+        from python.substrate.assistant.saved_page import site_for_record
+        site=site_for_record(rec) if rec else sites.get_site(os.environ.get('GODOT_AGENT_CHAT_SITE','qwen'))
         if not site:raise AppError('invalid_input','Unknown browser site')
         parser_name=site['parser']
         parser=import_module('python.substrate.llm.parsers.'+parser_name)
@@ -123,10 +136,14 @@ class InteractiveGateway(ChatGateway):
             self._browser_context.pop(chat_id,None)
         prompt=(system+'\n\n=== CURRENT REQUEST (answer it directly) ===\n'+text if include_context else text)
         delivery=None
+        studio=None
         if site['id']=='deepseek':
             from python.substrate.llm.parsers.deepseek_delivery import DeepSeekDelivery
             delivery=DeepSeekDelivery(driver)
-        backend=BrowserBackend(delivery or parser)
+        elif site['id']=='aistudio':
+            from python.substrate.llm.parsers.studio_delivery import StudioDelivery
+            studio=StudioDelivery(driver,url)
+        backend=BrowserBackend(studio or delivery or parser)
         capture=[];strip=parser_base._strip_done_marker;sample=parser_base._save_corpus_sample
         def observe(raw):capture.append(raw);return strip(raw)
         def report(update):
@@ -141,10 +158,11 @@ class InteractiveGateway(ChatGateway):
                 response=backend.send(prompt,prefer_url=url,progress_cb=report,cancel_cb=self._cancel.is_set)
             finally:
                 if delivery and delivery.composer_touched:self._mirror_held.add(self._record['id'])
-            if delivery and delivery.conversation_url and delivery.conversation_url!=url:
-                url=delivery.conversation_url
-                updated=chat_store.update_chat(str(self.storage_base),self._record['id'],url=url)
-                self._record=updated or dict(self._record,url=url)
+                confirmed=(studio or delivery).conversation_url if studio or delivery else None
+                if confirmed and confirmed!=url:
+                    url=confirmed
+                    updated=chat_store.update_chat(str(self.storage_base),self._record['id'],url=url)
+                    self._record=updated or dict(self._record,url=url)
             return response
         try:
             with contextlib.redirect_stdout(log):

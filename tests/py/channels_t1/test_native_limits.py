@@ -2,7 +2,7 @@
 from pathlib import Path
 import pytest
 
-CASES=[pytest.param('chat_routes.py',1174,id='chat_routes.py-1169'),('server_state.py',832)]
+CASES=[pytest.param('chat_routes.py',1142,id='chat_routes.py-1142'),('server_state.py',832)]
 
 @pytest.fixture
 def mirrored_checker(monkeypatch,tmp_path):

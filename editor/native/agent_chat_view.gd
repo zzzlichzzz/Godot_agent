@@ -254,17 +254,21 @@ func _make_note_label(text: String, color: Color) -> Label:
 
 # --- сообщения-«пузыри» (переписка: агент слева, пользователь справа) ---
 
-func add_user_message(escaped_text: String) -> void:
+func add_user_message(text: String, timestamp: int = -1) -> void:
 	flush()
 	if _chat_container == null:
 		return
 	var card := _make_user_card()
 	if card == null:
-		_chat_container.add_child(_make_note_label(escaped_text, _color("success")))
+		_chat_container.add_child(_make_note_label(text, _color("text")))
 		_scroll_to_bottom()
 		return
 	_chat_container.add_child(card)
-	card.setup(escaped_text)
+	var clock := ""
+	if timestamp > 0:
+		var local := timestamp + int(Time.get_time_zone_from_system().bias) * 60
+		clock = Time.get_time_string_from_unix_time(local).left(5)
+	card.setup(text, clock, timestamp != -1)
 	_scroll_to_bottom()
 
 
@@ -325,6 +329,21 @@ func add_system(text: String) -> void:
 	if _chat_container:
 		_chat_container.add_child(_make_note_label(text, _color("dim")))
 		_scroll_to_bottom()
+
+
+# Timer belongs to this notice: clearing/switching a chat cancels its expiry too.
+func add_navigation_notice(text: String) -> void:
+	if _chat_container == null:
+		return
+	flush()
+	var label := _make_note_label(text, _color("dim"))
+	_chat_container.add_child(label)
+	var timer := Timer.new()
+	timer.one_shot = true
+	label.add_child(timer)
+	timer.timeout.connect(label.queue_free)
+	timer.start(8.0)
+	_scroll_to_bottom()
 
 
 # v107: ожидание ответа. Строку «Агент анализирует проект...» при неудачной

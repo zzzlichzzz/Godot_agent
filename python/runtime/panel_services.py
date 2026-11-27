@@ -82,7 +82,12 @@ class PanelServices:
             selection=getattr(gateway,'_selection',None)
             rec=(selection() if callable(selection) else getattr(gateway,'_record',None)) or {}
             if not rec or rec.get('kind')=='api':return skipped('no_parser')
-            selected=import_module('python.substrate.llm.browser.sites').get_site(rec.get('site_id') or 'qwen')
+            if data.get('chat_id') and data['chat_id'] != rec.get('id'):return skipped('chat_changed')
+            if getattr(gateway,'selected_page',None):
+                try:gateway.selected_page.require(rec,driver)
+                except AppError:return skipped('history_only')
+            from python.substrate.assistant.saved_page import site_for_record
+            selected=site_for_record(rec)
             if not selected:return skipped('no_parser')
             url=rec.get('url') or selected['new_chat_url']
             if selected['id']=='deepseek':

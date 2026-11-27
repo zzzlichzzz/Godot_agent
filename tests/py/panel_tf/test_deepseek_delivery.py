@@ -87,8 +87,9 @@ def _install_composer(app, monkeypatch, mode, reply):
     if mode == 'wrong-chat':
         composer.current_url = 'https://chat.deepseek.com/a/chat/s/other'
     gateway = app.extensions['godot_session'].gateway
-    monkeypatch.setattr(gateway, 'current_driver', lambda: composer)
-    monkeypatch.setattr(browser_backend, 'wait_driver', lambda: composer)
+    driver = gateway.current_driver()
+    driver.page = composer
+    monkeypatch.setattr(browser_backend, 'wait_driver', lambda: driver)
     clock = Clock()
     monkeypatch.setattr(parser_base, 'time', clock)
     monkeypatch.setattr(native, 'time', clock)
@@ -223,7 +224,7 @@ def test_mirror_does_not_use_a_stale_chat_or_touch_browser_during_turn(client, c
     stale = {'id': 'previous', 'kind': 'api'}
     gateway._record = stale
     composer = Composer(deepseek_parser, 'named')
-    monkeypatch.setattr(gateway, 'current_driver', lambda: composer)
+    gateway.current_driver().page = composer
     assert http.post('/chat/live_input', json=_body(app, state, text='draft', seq=1), headers=headers).json['applied']
     assert gateway._record is stale
     responses = []

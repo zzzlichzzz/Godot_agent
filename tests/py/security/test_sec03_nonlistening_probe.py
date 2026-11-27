@@ -41,7 +41,7 @@ def test_only_canonical_nonlistening_probe_is_allowed(tmp_path, monkeypatch, new
 def test_actual_frozen_b1_facade_is_allowed(tmp_path, monkeypatch):
     import hashlib
     data = (security_audit.PY / FACADE).read_bytes()
-    assert hashlib.sha256(data).hexdigest() == '6abe81d207c963d9fa58775974aa1bf0828ae9d16edd6bdb7031055b1dcb0b98'
+    assert hashlib.sha256(data).hexdigest() == '3f74bd4a0057d1413950fde1f8026d1f79df5e5352135bc3076276bb6365d100'
     assert scan(tmp_path, monkeypatch, data.decode('utf-8')) == []
 
 

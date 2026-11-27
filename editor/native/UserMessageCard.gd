@@ -4,8 +4,7 @@ class_name UserMessageCard
 
 # Доля ширины панели, которую максимум занимает пузырь. Короткие сообщения
 # обжимаются по тексту, длинные переносятся, не растягиваясь на весь чат.
-const MAX_WIDTH_RATIO := 0.78
-const MIN_BUBBLE_WIDTH := 120.0
+const MAX_WIDTH_RATIO := 0.90
 
 @onready var bubble: PanelContainer = $Row/Bubble
 @onready var content: RichTextLabel = $Row/Bubble/MessageBox/Content
@@ -75,25 +74,29 @@ func _setup_theme() -> void:
 		return
 	# Внешняя карточка — только позиционирование, фон рисует сам пузырь.
 	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	bubble.add_theme_stylebox_override("panel", T.panel_style("user"))
+	var surface: StyleBoxFlat = T.panel_style("user")
+	surface.border_color = T.alpha("accent", 0.65)
+	surface.border_width_right = T.px(3)
+	bubble.add_theme_stylebox_override("panel", surface)
 
 	name_label.add_theme_color_override("font_color", T.color("text"))
-	var header = name_label.get_parent()
-	header.move_child(time_label, copy_btn.get_index() - 1)
-	$Row/Bubble/MessageBox.add_theme_constant_override("separation", T.px(5))
+	name_label.add_theme_stylebox_override("normal", T.badge_style("accent"))
+	$Row/Bubble/MessageBox.add_theme_constant_override("separation", T.px(8))
 	time_label.add_theme_color_override("font_color", T.color("dim"))
 	time_label.add_theme_font_size_override("font_size", T.font_size("Label", 14) - T.px(1))
 
 	# style_rich_text ставит fit_content: без него текст в контейнере не виден.
 	T.style_rich_text(content)
+	content.bbcode_enabled = false
+	content.add_theme_constant_override("line_separation", T.px(2))
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	T.style_icon_button(copy_btn, ["ActionCopy"], "⧉")
 
 
-func setup(text: String, time_str: String = "") -> void:
+func setup(text: String, time_str: String = "", restored: bool = false) -> void:
 	content.text = text
-	if time_str != "":
+	if restored or time_str != "":
 		time_label.text = time_str
 	else:
 		var now := Time.get_time_dict_from_system()
@@ -110,7 +113,8 @@ func _recalc_bubble_width() -> void:
 	var avail := size.x
 	if avail <= 0.0:
 		return
-	var max_w := maxf(MIN_BUBBLE_WIDTH, avail * MAX_WIDTH_RATIO)
+	var inset := bubble.get_theme_stylebox("panel").get_minimum_size().x
+	var max_w := maxf(1.0, avail * MAX_WIDTH_RATIO - inset)
 	var font := content.get_theme_font("normal_font")
 	if font == null:
 		font = ThemeDB.fallback_font

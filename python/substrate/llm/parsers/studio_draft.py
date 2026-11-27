@@ -1,20 +1,24 @@
 """AI Studio draft edits: one range replacement, never a send or a clear/retype retry."""
+import re
 from urllib.parse import urlsplit
 
 
 def studio_route(url):
     try:
         page=urlsplit(url or '')
-        if page.scheme=='https' and page.netloc=='aistudio.google.com' and page.path.startswith('/prompts/'):
+        if (page.scheme=='https' and page.netloc=='aistudio.google.com'
+                and re.fullmatch(r'/prompts/[A-Za-z0-9_-]+',page.path)):
             return page._replace(fragment='').geturl()
     except ValueError:
         pass
     return None
 
 
-_EDIT=r'''
-const [url, desired] = arguments;
-if (location.href !== url) return false;
+def is_new_prompt(url):
+    return bool(studio_route(url)) and urlsplit(url).path == '/prompts/new_chat'
+
+
+_COMPOSER=r'''
 const fields = [], roots = [document];
 const box = 'ms-prompt-box,ms-prompt-input,ms-prompt-input-wrapper,ms-chat-input';
 const excluded = 'dialog,[role="dialog"],[inert],[aria-hidden="true"],ms-system-instructions,[data-turn-role]';
@@ -32,8 +36,17 @@ while (roots.length) {
             (inside || /prompt|start typing|type something|message|запрос|сообщени/i.test(hint))) fields.push(el);
     }
 }
-if (fields.length !== 1) return false;
-const el = fields[0], old = el.value;
+const el = fields.length === 1 ? fields[0] : null;
+'''
+
+_READY = _COMPOSER + '''
+return !!el && location.href === arguments[0] && (!arguments[1] ||
+    !!document.querySelector('[data-turn-role="User"],[data-turn-role="Model"]'));
+'''
+_EDIT = _COMPOSER + r'''
+const [url, desired] = arguments;
+if (!el || location.href !== url) return false;
+const old = el.value;
 if (old === desired) return true;
 // Compare Unicode scalars first. DOM selection and setRangeText take UTF-16 indices.
 const a = Array.from(old), b = Array.from(desired);
@@ -58,8 +71,6 @@ class StudioDraft:
     def mirror_input(self,driver,text,prefer_url=None):
         expected=studio_route(prefer_url)
         if not expected:return False
-        if studio_route(driver.current_url)!=expected:
-            self.parser.switch_to_site_window(driver,prefer_url=prefer_url)
         actual=driver.current_url
         return studio_route(actual)==expected and driver.execute_script(
             _EDIT,actual,text.replace('\r\n','\n').replace('\r','\n'))

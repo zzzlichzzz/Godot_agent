@@ -17,7 +17,8 @@ def test_d113_input_revision_keeps_original_fact_and_all_business_goldens():
     revise = import_module('tests.py.panel_tf.source_inputs').revised_panel_fact
     fact = _panel_fact()
     original = dict(fact)
-    updated = revise(fact, (ROOT / PATH).read_bytes())
+    from tests.py.panel_tf.source_inputs import before_d128
+    updated = revise(fact, before_d128(PATH, (ROOT / PATH).read_bytes()))
     assert fact == original and fact['bytes'] == 82171 and updated['bytes'] == 82185
     assert updated['sha256'] == 'c160c67762741a4b0d55596f4d4c1e44527e2e2c297b6013a61d2a99b8b3ac43'
     assert {k: v for k, v in updated.items() if k not in ('bytes', 'sha256')} == {

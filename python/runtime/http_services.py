@@ -74,6 +74,7 @@ class NativeServerReferences:
                 else:os.environ[env]=old_env
 
     def bind_browser(self,gateway):
+        gateway.selected_page=self.routes.selected_page
         self.state.get_driver=gateway.current_driver
         self.state.wait_driver=gateway.wait_driver
         self.state.browser_boot_started=gateway.browser_boot_started

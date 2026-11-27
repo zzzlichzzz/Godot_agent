@@ -323,6 +323,7 @@ static func _export_api_to_server(panel, silent: bool) -> void:
 		panel._set_ui_busy(false)
 
 static func _on_request_completed(panel, result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	if panel._link: panel._link.report_availability(result, response_code)
 	panel._set_ui_busy(false)
 	var kind = panel._pending_request_kind
 	var response_str = body.get_string_from_utf8()

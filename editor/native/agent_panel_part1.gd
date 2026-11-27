@@ -396,7 +396,7 @@ static func _escape_bbcode(panel, text: String) -> String:
 
 static func _set_ui_busy(panel, busy: bool) -> void:
 	panel._is_network_busy = busy
-	panel.send_button.disabled = busy
+	panel.send_button.disabled = busy or panel._history_only or panel._needs_reopen or panel._server_down
 	panel.reinit_button.disabled = busy
 	if panel._log_errors_button: panel._log_errors_button.disabled = busy
 	if panel._api_export_button: panel._api_export_button.disabled = busy
@@ -477,11 +477,15 @@ static func _switch_chat_draft(panel, next_chat_id: String) -> void:
 	panel._live_dirty = true
 
 static func _on_server_state_changed(panel, running: bool) -> void:
-	# Кнопка ручного запуска сервера теперь живёт на стартовом экране
-	# (agent_start_screen.gd), рядом с переключателем языка — видна только
-	# пока сервер не отвечает. Раньше она добавлялась в $VBoxContainer, но
-	# стартовый экран рисуется поверх него на весь экран и закрывал её целиком —
-	# поэтому кнопку никто не видел. Автозапуск продолжает работать как раньше.
+	panel._server_down = not running
+	if not running and panel._current_chat_id != "":
+		panel._needs_reopen = true
+		panel._site_resend_envelope = {}
+	if panel._recover_button:
+		panel._recover_button.visible = not running or panel._needs_reopen or panel._history_only
+		panel._recover_button.text = panel._t("srv_resume_chat" if running else "srv_restart_chat")
+	if panel.send_button:
+		panel.send_button.disabled = panel._is_network_busy or not running or panel._needs_reopen or panel._history_only
 	if panel._start_screen and panel._start_screen.has_method("set_server_running"):
 		panel._start_screen.set_server_running(running)
 
@@ -574,6 +578,7 @@ static func _on_live_input_changed(panel) -> void:
 		panel._live_dirty = true
 
 static func _on_live_input_tick(panel) -> void:
+	if panel._history_only or panel._needs_reopen or panel._server_down or panel._current_chat_id == "": return
 	if not panel._live_enabled or not panel._live_dirty or panel._live_inflight: return
 	if panel._is_network_busy: return  # идёт обмен — конвейер сам вставит финальный промпт
 	if panel.input_field == null or panel._link == null: return
@@ -582,7 +587,7 @@ static func _on_live_input_tick(panel) -> void:
 		panel._live_dirty = false
 		return
 	panel._live_seq += 1
-	var body = panel._policy_body({"text": txt, "seq": panel._live_seq})
+	var body = panel._policy_body({"text": txt, "seq": panel._live_seq, "chat_id": panel._current_chat_id})
 	if not panel._link.post_now("live_input", LIVE_INPUT_URL, panel._policy_json(body)):
 		return  # сервер занят/недоступен — молча попробуем на следующем тике
 	panel._live_inflight = true
@@ -798,7 +803,7 @@ static func _on_reinit_pressed(panel) -> void:
 	panel.http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, panel._policy_json(body))
 
 static func _on_send_pressed(panel) -> void:
-	if panel._is_network_busy: return
+	if panel._is_network_busy or panel._history_only or panel._needs_reopen or panel._server_down: return
 	if panel._has_pending_action():
 		panel._log_error(panel._t("resolve_action_first"))
 		return
@@ -806,7 +811,7 @@ static func _on_send_pressed(panel) -> void:
 	if user_text.strip_edges().is_empty(): return
 	panel._clear_chat_input(true)
 	panel._rollback_force_next = false
-	panel._view.add_user_message(panel._escape_bbcode(user_text))
+	panel._view.add_user_message(user_text)
 	panel._view.add_pending_system(panel._t("analyzing"))
 	panel._send_chat_raw(user_text, false)
 

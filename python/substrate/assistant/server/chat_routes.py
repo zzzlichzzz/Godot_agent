@@ -23,8 +23,12 @@ import catalog
 import openai_compat
 import api_backend
 from agent_prompts import PROMPT_HASH
+from python.substrate.assistant.saved_page import SavedPage, site_for_record
+from python.substrate.llm.parsers.studio_draft import is_new_prompt
 
 chats_bp = Blueprint("chats", __name__)
+# Этот модуль создаётся отдельно для каждого экземпляра HTTP-сервера.
+selected_page = SavedPage()
 
 
 def _busy_error():
@@ -67,7 +71,7 @@ def _navigate(driver, url):
             if _p54(driver.current_url or "") == want:
                 found = True
                 break
-        if found:
+        if found and not is_new_prompt(url):
             return True
         driver.switch_to.window(cur_handle)
     except Exception:
@@ -91,37 +95,6 @@ def _navigate(driver, url):
         return True
     except Exception:
         return False
-
-
-def _check_chat_page(driver, url, wait=6.0):
-    """После перехода на страницу чата проверяем (не дольше wait секунд),
-    что браузер остался на ней. Если чат удалён на сайте, сайт обычно
-    перекидывает на главную — возвращаем текст предупреждения (или "").
-    Главное: проверка ОГРАНИЧЕНА ПО ВРЕМЕНИ и никогда не виснет вечно."""
-    deadline = time.time() + wait
-    last_url = ""
-    state = ""
-    while time.time() < deadline:
-        time.sleep(0.5)
-        try:
-            last_url = driver.current_url or ""
-            state = driver.execute_script("return document.readyState") or ""
-        except Exception:
-            continue  # страница ещё грузится — команды могут временно падать
-        if state == "complete" and last_url:
-            break
-    if not last_url:
-        return ("Браузер не ответил при открытии страницы чата — вкладка могла "
-                "зависнуть. Если чат был удалён на сайте — удалите его и здесь.")
-
-    def _path(u):
-        return u.split("://", 1)[-1].split("?", 1)[0].split("#", 1)[0].rstrip("/")
-
-    if _path(last_url) != _path(url):
-        return ("Похоже, этот чат удалён на сайте: страница не открылась "
-                "(браузер оказался на %s). История сообщений сохранена локально. "
-                "Отправка сообщений сюда не сработает — удалите чат или создайте новый." % last_url)
-    return ""
 
 
 @chats_bp.route('/sites/list', methods=['POST'])
@@ -832,6 +805,7 @@ def _new_api_chat(data, base):
                           % api_history.history_path(base, rec["id"]))
             print("[chat_routes] %s" % error)
             return jsonify({"ok": False, "error": error})
+    selected_page.select(rec['id'])
     S.STATE["current_chat_id"] = rec["id"]
     S.STATE["current_site_id"] = None
     S.STATE["is_primed"] = False
@@ -1037,7 +1011,8 @@ def chats_new():
     try:
         if not _navigate(driver, target_url):
             return jsonify({"error": "Не удалось открыть новую страницу чата."}), 503
-        time.sleep(1.5)
+        if not is_new_prompt(target_url):
+            time.sleep(1.5)
     except Exception as e:
         return jsonify({"error": "Не удалось открыть новую страницу: %s" % e}), 500
     url = ""
@@ -1045,10 +1020,14 @@ def chats_new():
         url = driver.current_url or ""
     except Exception:
         pass
+    # Адрес после паузы может ещё принадлежать прошлому диалогу или странице входа.
+    if site and site['id'] == 'aistudio':
+        url = target_url
     rec = chat_store.create_chat(base, url=url, primed=False)
     if site:
         chat_store.update_chat(base, rec["id"], site_id=site["id"], site_name=site["name"])
         rec = chat_store.find_chat(base, rec["id"]) or rec
+    selected_page.select(rec['id'], driver)
     S.STATE["current_chat_id"] = rec["id"]
     S.STATE["current_site_id"] = site["id"] if site else None
     S.STATE["is_primed"] = False
@@ -1076,26 +1055,14 @@ def chats_open():
     rec = chat_store.find_chat(base, cid) if base else None
     if rec is None:
         return jsonify({"error": "Чат не найден."}), 404
-    page_note = ""
-    if rec.get("url"):
-        try:
-            driver = S.wait_driver()
-        except Exception as e:
-            return jsonify({"error": str(e)}), 503
-        try:
-            if not _navigate(driver, rec["url"]):
-                return jsonify({"error": "Не удалось открыть страницу сохранённого чата."}), 503
-        except Exception as e:
-            return jsonify({"error": "Не удалось открыть страницу чата: %s" % e}), 500
-        page_note = _check_chat_page(driver, rec["url"])
-        if page_note:
-            print("--> ВНИМАНИЕ:", page_note)
-            # Не переключаем серверный current_chat_id на чат, страницу
-            # которого браузер фактически не открыл. Иначе следующий resend
-            # с ignore_site_mismatch попадёт в чужой composer.
-            return jsonify({"error": page_note, "code": "chat_page_mismatch"}), 409
+    site, page_note = None, ""
+    if S.chat_kind(rec) != 'api':
+        site = site_for_record(rec)
+        page_note = selected_page.restore(rec, S.wait_driver, _navigate, site)
+    else:
+        selected_page.select(cid)
     S.STATE["current_chat_id"] = cid
-    S.STATE["current_site_id"] = rec.get("site_id")
+    S.STATE["current_site_id"] = site['id'] if site else rec.get('site_id')
     S.STATE["is_primed"] = bool(rec.get("primed"))
     S._save_primed(S.STATE.get("project_root"), S.STATE["is_primed"])
     S.clear_pending_confirmations()
@@ -1117,14 +1084,14 @@ def chats_open():
     return jsonify({"chats": chat_store.list_chats(base, PROMPT_HASH), "current_id": cid,
                      "title": rec.get("title"),
                      "site": rec.get("site_name", ""),
-                     "site_id": rec.get("site_id", ""),
+                     "site_id": S.STATE["current_site_id"] or "",
                      # Панели нужно знать вид чата: у чата по ключу нет страницы
                      # в браузере, поэтому ей нельзя ждать её загрузки и незачем
                      # напоминать про выбор модели на сайте.
                      "kind": S.chat_kind(rec),
                      "provider": rec.get("provider", ""),
                       "model": rec.get("model", ""),
-                      "warning": page_note,
+                      "warning": page_note, "history_only": bool(page_note),
                       "transcript_trimmed": int(rec.get("transcript_trimmed") or 0),
                       "transcript": rec.get("transcript", [])})
 
@@ -1167,6 +1134,7 @@ def chats_delete():
     S.discard_action_note_for_chat(cid)  # v45: не копим отложенные заметки удалённых чатов
     S.discard_stale_note_for_chat(cid)
     if S.STATE.get("current_chat_id") == cid:
+        selected_page.select(None)
         S.clear_pending_confirmations()
         S.STATE["current_chat_id"] = None
         S.STATE["current_site_id"] = None

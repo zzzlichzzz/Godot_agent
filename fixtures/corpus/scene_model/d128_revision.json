@@ -1,0 +1,318 @@
+{
+  "editor/native/UserMessageCard.gd": {
+    "before": [
+      5465,
+      "4d4b772831a85bf18b5fa898e9a133a9745b5d2f84c65997ff06aa3fe1a5d419"
+    ],
+    "after": [
+      5734,
+      "52eb42565b236e8ed837efa9eda9a1a28ab3372efb0913a2e7d8c0de5c1c9090"
+    ],
+    "reverse": [
+      [
+        6,
+        7,
+        "const MAX_WIDTH_RATIO := 0.78\nconst MIN_BUBBLE_WIDTH := 120.0\n"
+      ],
+      [
+        76,
+        80,
+        "\tbubble.add_theme_stylebox_override(\"panel\", T.panel_style(\"user\"))\n"
+      ],
+      [
+        82,
+        84,
+        "\tvar header = name_label.get_parent()\n\theader.move_child(time_label, copy_btn.get_index() - 1)\n\t$Row/Bubble/MessageBox.add_theme_constant_override(\"separation\", T.px(5))\n"
+      ],
+      [
+        89,
+        91,
+        ""
+      ],
+      [
+        96,
+        97,
+        "func setup(text: String, time_str: String = \"\") -> void:\n"
+      ],
+      [
+        98,
+        99,
+        "\tif time_str != \"\":\n"
+      ],
+      [
+        115,
+        117,
+        "\tvar max_w := maxf(MIN_BUBBLE_WIDTH, avail * MAX_WIDTH_RATIO)\n"
+      ]
+    ]
+  },
+  "editor/native/agent_chat_view.gd": {
+    "before": [
+      45467,
+      "0ee7e4747293b1006cc8942ec868dc9d27bd6a1d125fa1336984d886347c7196"
+    ],
+    "after": [
+      46077,
+      "b571575a6263c00b7abad23ce2081d709f9d788d79e78d5dd3384b6ae231d2b9"
+    ],
+    "reverse": [
+      [
+        256,
+        257,
+        "func add_user_message(escaped_text: String) -> void:\n"
+      ],
+      [
+        262,
+        263,
+        "\t\t_chat_container.add_child(_make_note_label(escaped_text, _color(\"success\")))\n"
+      ],
+      [
+        266,
+        271,
+        "\tcard.setup(escaped_text)\n"
+      ],
+      [
+        331,
+        346,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_locale.gd": {
+    "before": [
+      86711,
+      "2965bc09f3b7a6814ba0f1572238b1bb1ca00a5fc482a8d35b92d4eb043f01a8"
+    ],
+    "after": [
+      86732,
+      "366867f2283312c7d88e5ca4931e7052d877c5044ead3ee3e6e9d4a2203a1823"
+    ],
+    "reverse": [
+      [
+        248,
+        250,
+        ""
+      ],
+      [
+        307,
+        308,
+        "\t\"chat_opened\": \"Открыт чат: %s — страница открыта в браузере, можно продолжать общение.\",\n"
+      ],
+      [
+        703,
+        705,
+        ""
+      ],
+      [
+        759,
+        760,
+        "\t\"chat_opened\": \"Chat opened: %s — the page is open in the browser, you can continue chatting.\",\n"
+      ]
+    ]
+  },
+  "editor/native/agent_panel.gd": {
+    "before": [
+      82185,
+      "c160c67762741a4b0d55596f4d4c1e44527e2e2c297b6013a61d2a99b8b3ac43"
+    ],
+    "after": [
+      82977,
+      "870a7e0a25aaf3504969383f207de487cf5058cd0955be95fa1ddb7cb2f13fd0"
+    ],
+    "reverse": [
+      [
+        258,
+        262,
+        ""
+      ],
+      [
+        607,
+        622,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part1.gd": {
+    "before": [
+      62362,
+      "415243360397cf925574ec4844eedaace4df510ea267337db8e241d07eb04053"
+    ],
+    "after": [
+      62492,
+      "afd66119d0745cbfd07c5754e01b2d53c96f5042085b63d566e1c1a0b63b15c7"
+    ],
+    "reverse": [
+      [
+        398,
+        399,
+        "\tpanel.send_button.disabled = busy\n"
+      ],
+      [
+        479,
+        488,
+        "\t# Кнопка ручного запуска сервера теперь живёт на стартовом экране\n\t# (agent_start_screen.gd), рядом с переключателем языка — видна только\n\t# пока сервер не отвечает. Раньше она добавлялась в $VBoxContainer, но\n\t# стартовый экран рисуется поверх него на весь экран и закрывал её целиком —\n\t# поэтому кнопку никто не видел. Автозапуск продолжает работать как раньше.\n"
+      ],
+      [
+        580,
+        581,
+        ""
+      ],
+      [
+        589,
+        590,
+        "\tvar body = panel._policy_body({\"text\": txt, \"seq\": panel._live_seq})\n"
+      ],
+      [
+        805,
+        806,
+        "\tif panel._is_network_busy: return\n"
+      ],
+      [
+        813,
+        814,
+        "\tpanel._view.add_user_message(panel._escape_bbcode(user_text))\n"
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part2.gd": {
+    "before": [
+      63798,
+      "ceabe7f6480885b3364c9614f478a75ddeb4e76a1721cb333ebc89b812956d44"
+    ],
+    "after": [
+      63870,
+      "5bfa26b1ecc484a7e623891d97f44bc929dba477fec2348313427a3d8787f4d6"
+    ],
+    "reverse": [
+      [
+        325,
+        326,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part3.gd": {
+    "before": [
+      58453,
+      "2214fb8a3dc54b3f14bc9831807e53469b3569556c78a956f193a75fabb2cc75"
+    ],
+    "after": [
+      58891,
+      "d45cdd599e5b90209b980f285477543de796b57750de969d6c82aab94a6027dc"
+    ],
+    "reverse": [
+      [
+        402,
+        404,
+        ""
+      ],
+      [
+        503,
+        505,
+        "\tif cur != null:\n"
+      ],
+      [
+        507,
+        511,
+        ""
+      ],
+      [
+        551,
+        552,
+        "\t\tpanel._view.add_system(panel._t(\"chat_opened\") % str(json.get(\"title\", \"\")))\n"
+      ],
+      [
+        554,
+        554,
+        "\t\t\tpanel._view.add_system(warn)\n"
+      ],
+      [
+        562,
+        563,
+        "\t\tif str(json.get(\"kind\", \"browser\")) != \"api\":\n"
+      ],
+      [
+        587,
+        588,
+        "\t\tpanel._view.add_system(panel._t(\"chat_created\"))\n"
+      ],
+      [
+        757,
+        758,
+        "\t\t\tpanel._view.add_user_message(panel._escape_bbcode(text))\n"
+      ],
+      [
+        920,
+        921,
+        "\t\tpanel._view.add_system(panel._t(\"page_wait\"))\n"
+      ],
+      [
+        947,
+        948,
+        "\t\t\tpanel._view.add_success(panel._t(\"page_ready\"))\n"
+      ]
+    ]
+  },
+  "editor/native/agent_server_link.gd": {
+    "before": [
+      29341,
+      "c09783ed60d90f0bcb819ad1c9cc591dacd41f9d78fe1fd6577674db697b475c"
+    ],
+    "after": [
+      30581,
+      "3b90312d4484eef82c3ddd285559a18674b0dab8768de863c03d8aa8750cea7f"
+    ],
+    "reverse": [
+      [
+        78,
+        80,
+        ""
+      ],
+      [
+        116,
+        117,
+        ""
+      ],
+      [
+        124,
+        141,
+        ""
+      ],
+      [
+        173,
+        174,
+        ""
+      ],
+      [
+        180,
+        181,
+        ""
+      ],
+      [
+        183,
+        184,
+        ""
+      ],
+      [
+        185,
+        193,
+        ""
+      ],
+      [
+        242,
+        245,
+        "\tif err != OK:\r\n"
+      ],
+      [
+        261,
+        262,
+        ""
+      ],
+      [
+        279,
+        281,
+        "\t\t# Таймаут = сервер жив, но занят; остальные ошибки = сервер не отвечает.\r\n\t\t# По этому сигналу панель показывает/прячет кнопку ручного запуска.\r\n\t\tserver_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)\r\n"
+      ]
+    ]
+  }
+}

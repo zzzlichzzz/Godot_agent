@@ -76,6 +76,8 @@ var _http: HTTPRequest = null
 var _short_http: HTTPRequest = null
 var _short_id: String = ""
 var _short_busy: bool = false
+var _connect_watch: Timer
+var _short_connect_watch: Timer
 var _inflight: bool = false
 var _queue: Array = []
 var _kind: String = ""
@@ -112,6 +114,7 @@ func _ready() -> void:
 		_http.timeout = 180.0
 		add_child(_http)
 		_http.request_completed.connect(_on_response)
+		_connect_watch = _connect_deadline(_http, false)
 	if _short_http == null:
 		_short_http = HTTPRequest.new()
 		# Короткий таймаут: живой ввод и опрос прогресса должны оборваться
@@ -119,6 +122,23 @@ func _ready() -> void:
 		_short_http.timeout = 5.0
 		add_child(_short_http)
 		_short_http.request_completed.connect(_on_short_response)
+		_short_connect_watch = _connect_deadline(_short_http, true)
+
+
+# On Windows a closed loopback port may stay in STATUS_CONNECTING until the HTTP
+# response timeout. Bound only the handshake; a connected server may be busy.
+func _connect_deadline(http: HTTPRequest, short_channel: bool) -> Timer:
+	var watch := Timer.new()
+	watch.one_shot = true
+	add_child(watch)
+	watch.timeout.connect(func():
+		if http.get_http_client_status() != HTTPClient.STATUS_CONNECTING: return
+		http.cancel_request()
+		if short_channel:
+			_on_short_response(HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), PackedByteArray())
+		else:
+			_on_response(HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), PackedByteArray()))
+	return watch
 
 
 ## Короткий запрос мимо очереди основных. Возвращает false, если такой
@@ -151,15 +171,26 @@ func _send_now(id: String, url: String, method: int, body: String) -> bool:
 		return false
 	_short_id = id
 	_short_busy = true
+	if id == "health": _short_connect_watch.start(3.0)
 	return true
 
 
 func _on_short_response(result: int, code: int, headers: PackedStringArray,
 		body: PackedByteArray) -> void:
 	var id := _short_id
+	_short_connect_watch.stop()
 	_short_id = ""
 	_short_busy = false
+	report_availability(result, code)
 	short_response.emit(id, result, code, headers, body)
+
+
+# A timeout can mean an occupied server; it isn't proof of a shutdown or a recovery.
+func report_availability(result: int, code: int) -> void:
+	if code > 0:
+		server_state_changed.emit(true)
+	elif result in [HTTPRequest.RESULT_CANT_CONNECT, HTTPRequest.RESULT_CONNECTION_ERROR, HTTPRequest.RESULT_NO_RESPONSE]:
+		server_state_changed.emit(false)
 
 
 func is_inflight() -> bool:
@@ -209,7 +240,9 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 	_inflight = true
 	_http.set_http_proxy("", 0)
 	var err = _http.request(url, json_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
-	if err != OK:
+	if err == OK:
+		_connect_watch.start(3.0)
+	else:
 		_kind = ""
 		_inflight = false
 		chats_response.emit(kind, {"error": _t("srv_no_response") + " (" + str(err) + ")"}, extra)
@@ -226,6 +259,7 @@ func _drain_queue() -> void:
 
 
 func _on_response(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	_connect_watch.stop()
 	var kind := _kind
 	var extra := _extra
 	var autostart_ok := _autostart_ok
@@ -243,9 +277,8 @@ func _on_response(result: int, response_code: int, _headers: PackedStringArray, 
 		call_deferred("_drain_queue")
 		return
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-		# Таймаут = сервер жив, но занят; остальные ошибки = сервер не отвечает.
-		# По этому сигналу панель показывает/прячет кнопку ручного запуска.
-		server_state_changed.emit(result == HTTPRequest.RESULT_TIMEOUT)
+		# Таймаут не доказывает ни остановку, ни восстановление соединения.
+		report_availability(result, response_code)
 		if kind == "status":
 			call_deferred("_drain_queue")
 			return

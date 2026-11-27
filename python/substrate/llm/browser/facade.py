@@ -13,7 +13,6 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from .browser_manager import _wait_for_debug_port
 from .cdp_ws import CDPSession
 
-
 class ReadOnlyBrowser:
     def __init__(self, chrome_path, driver_path=None, *, live_profile=None):
         self._process = self._driver = self._service = self._cdp = None
@@ -48,6 +47,7 @@ class ReadOnlyBrowser:
                 raise RuntimeError('debugger owner does not match own process')
             self._owned = True
             options = webdriver.ChromeOptions()
+            options.binary_location = str(chrome_path)
             options.add_experimental_option('debuggerAddress', '127.0.0.1:9222')
             self._service = ChromeService(executable_path=driver_path, popen_kw={'close_fds': True})
             self._driver = webdriver.Chrome(options=options, service=self._service)

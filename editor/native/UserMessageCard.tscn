@@ -52,18 +52,16 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.49019608, 0.8627451, 0.5176471, 1)
 text = "Вы"
 
-[node name="TimeLabel" type="Label" parent="Row/Bubble/MessageBox/Header" unique_id=1319829985]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.875, 0.875, 0.875, 0.5)
-text = "00:00"
-
 [node name="HeaderSpacer" type="Control" parent="Row/Bubble/MessageBox/Header" unique_id=971331114]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
+[node name="TimeLabel" type="Label" parent="Row/Bubble/MessageBox/Header" unique_id=1319829985]
+layout_mode = 2
+text = "00:00"
+
 [node name="CopyButton" type="Button" parent="Row/Bubble/MessageBox/Header" unique_id=867145432]
-modulate = Color(1, 1, 1, 0)
 custom_minimum_size = Vector2(22, 22)
 layout_mode = 2
 size_flags_vertical = 4
@@ -83,7 +81,6 @@ layout_mode = 2
 focus_mode = 2
 theme_override_colors/default_color = Color(1, 1, 1, 1)
 theme_override_colors/selection_color = Color(1, 0.8352941, 0.30980393, 1)
-bbcode_enabled = true
 fit_content = true
 scroll_active = false
 context_menu_enabled = true

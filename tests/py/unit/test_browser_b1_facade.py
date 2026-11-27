@@ -29,6 +29,7 @@ def test_selenium_only_attaches_with_non_inherited_handles(b1_browser_env):
     env = b1_browser_env()
     browser = _new(env)
     assert env.options.experimental_options == {'debuggerAddress': '127.0.0.1:9222'}
+    assert env.options.binary_location == 'fake-chrome.exe'
     assert env.options.arguments == []
     assert env.services[0].kwargs == {'executable_path': 'fake-driver.exe', 'popen_kw': {'close_fds': True}}
     assert env.http_closed and ('proxy', {}) in env.calls

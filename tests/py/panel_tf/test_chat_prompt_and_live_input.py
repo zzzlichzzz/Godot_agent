@@ -136,9 +136,9 @@ def test_all_native_scenes_match_script_uid_sidecars():
 
 
 def test_d116_source_input_revisions_prove_preimage_and_refuse_drift():
-    from tests.py.panel_tf.source_inputs import D116_REVISIONS, before_workspace_labels, revised_d116_fact
+    from tests.py.panel_tf.source_inputs import D116_REVISIONS, before_workspace_labels, revised_d116_fact, before_d128
     for path, (old_b, old_sha, new_b, new_sha, _) in D116_REVISIONS.items():
-        current = (ROOT / path).read_bytes()
+        current = before_d128(path, (ROOT / path).read_bytes())
         if path == 'editor/native/agent_locale.gd':
             current = before_workspace_labels(current)
         updated = revised_d116_fact({'path': path, 'bytes': old_b, 'sha256': old_sha}, current)
