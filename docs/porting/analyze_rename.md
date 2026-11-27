@@ -9,11 +9,13 @@
 
 ## Цель
 
+**D134.** В отчёт по функции или сигналу входят доказанные `callable`, `signal` и `scene_connection`. У подключения с разными владельцами меняется только поле нужного узла. Проверка: два перекрёстных подключения и одноимённые объявления в `tests/py/transfer_t1/test_bound_rename.py`.
+
 Клиент спрашивает: «если переименовать `take_damage` → `apply_damage`, что и где
 изменится?» — и получает **read-only** предпросмотр:
 
 - `usages` — тот же список мест, что у `usages` (координаты, `link`, `confidence`, `note`);
-- `affected_paths` — файлы, где есть **доказанные** (`proven`) ссылки: сортировка, без дубликатов;
+- `affected_paths` — файлы с доказанными ссылками, а при `allow_unverified:true` также с вероятными; отсортированы, без дубликатов. Разрешение не повышает уверенность и не убирает `risks` (D133);
 - `risks` — **строки** (не объекты) для недоказанных мест:
   `path:line [link, confidence]` и ` — note`, если причина есть;
 - счётчики (`by_link`, `proven/probable/dynamic_count`) и разобранный locator
@@ -48,7 +50,7 @@
 | `allow_unverified` | boolean | флаг из action (`is True` у эталона) |
 | `mode` | `strict` \| `probable` | по умолчанию `strict` |
 | `usages` | массив мест | `core.find` (тот же формат, что `usages`) |
-| `affected_paths` | string[] | `sorted({path for proven})` |
+| `affected_paths` | string[] | пути `proven` и, если включён `allow_unverified`, `probable` |
 | `risks` | string[] | строки `path:line [link, confidence] — note` |
 | `by_link` | object | счётчик по `link` |
 | `proven_count` / `probable_count` / `dynamic_count` | integer | по `confidence` |
@@ -95,7 +97,7 @@
 | 007 | locator без объявления | `not_found` |
 | 008 | `take_damage`, `mode=strict` | база для сравнения с 009 |
 | 009 | `take_damage`, `mode=probable` | отчёт **совпадает** с 008 (эталон: mode — эхо) |
-| 010 | `allow_unverified=true` | поле `true`, остальное совпадает с 008 |
+| 010 | `allow_unverified=true` | D133: добавляется путь вероятной ссылки `res://src/lab_root.gd`; `usages` и `risks` как в 008 |
 | 011 | путь вне проекта | `denied` |
 | 012 | аддон | `denied` |
 | 013 | `class_name LabEntity` | `affected_paths` отсортирован по нескольким файлам |

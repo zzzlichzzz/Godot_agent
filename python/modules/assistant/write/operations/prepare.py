@@ -2,6 +2,7 @@
 from python.kernel.approval import policy_snapshot
 from python.kernel.errors import AppError
 from ..domain.core import validate_action, compile_plan, timestamp
+from ..domain.rename_guards import complete
 
 def call(args,ctx):
     action=validate_action(_action(args));lock=ctx.port('lock')
@@ -15,6 +16,7 @@ def call(args,ctx):
             if reason or rel.casefold().split('/')[-1]=='plugin.cfg' or rel.casefold().split('/')[0] in ('.agent_history','.godot'):
                 raise AppError('denied','путь плана закрыт: '+path)
         policy=policy_snapshot(ctx.path_policy)
+        if action['action']=='rename_symbol': complete(prepared,action)
         plan,diffs=compile_plan(prepared['files'],action,policy,ctx.ids('plan'),prepared.get('parents',[]))
         if plan.steps:
             ctx.port('journal').write_prepared(plan.as_dict(),{'tool':'assistant.write','requires_confirmation':True,'action':action,

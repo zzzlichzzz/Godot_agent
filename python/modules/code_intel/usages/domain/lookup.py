@@ -13,7 +13,7 @@ def infer_locator(index, kind, name, scope, policy):
     if len(candidates) > 1:
         raise AppError('invalid_input', 'Несколько совпадающих объявлений: ' + ', '.join(candidates[:8]),
                        hint='Уточните declaration_path или передайте точный declaration.')
-    if any((scope is None or scope == 'res://' + rel) and not policy.deny_reason(rel)
+    if any(rel.lower().endswith('.gd') and (scope is None or scope == 'res://' + rel) and not policy.deny_reason(rel)
            for rel in index['skipped']):
         raise AppError('invalid_input', 'Не все видимые скрипты из области поиска были прочитаны.',
                        hint='Уточните declaration_path или передайте точный declaration.')

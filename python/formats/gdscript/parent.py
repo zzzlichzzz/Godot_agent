@@ -38,6 +38,9 @@ def script_parent(text, file_path):
             # extends вложенного класса родителем файла быть не может.
             return None, None
         nxt = tokens[index + 1]
+        if index + 2 < len(tokens) and tokens[index + 2]['value'] == '.':
+            # Extends Outer.Inner: the outer script is not the declared parent.
+            return None, None
         if nxt.get("kind") == "string":
             target = exact_string_value(nxt.get("value", ""))
             if target.startswith("res://"):

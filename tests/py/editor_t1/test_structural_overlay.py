@@ -48,6 +48,16 @@ def test_owned_editor_import_precedes_configured_harness(setup):
         scratch = Path(argv[argv.index('--path') + 1])
         assert scratch.is_relative_to(state) and not scratch.is_relative_to(project)
 
+
+def test_relative_and_transitive_dependencies_only(setup):
+    adapter, project, _, _ = setup
+    assets=project/'assets';assets.mkdir()
+    (assets/'object.tscn').write_bytes(b'[gd_scene format=3]\n[ext_resource type="Resource" path="palette.tres" id="1"]\n')
+    (assets/'palette.tres').write_bytes(b'[gd_resource type="Resource" format=3]\n[ext_resource type="Texture2D" path="res://icon.png" id="1"]\n')
+    (project/'icon.png').write_bytes(b'png')
+    request=dict(action='edit_scene',scene='res://assets/object.tscn',operations=[])
+    assert set(adapter._capture(request,'assets/object.tscn'))=={'project.godot','assets/object.tscn','assets/palette.tres','icon.png'}
+
 def test_native_harness_uses_actual_prepare_expected_hash_and_fingerprints():
     harness = ROOT / 'editor/core/structural_overlay.gd'
     assert harness.is_file(), 'missing production primitive harness'

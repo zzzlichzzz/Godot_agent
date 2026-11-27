@@ -11,6 +11,7 @@ from python.kernel.limits import READ_TEXT_MAX_BYTES
 
 
 class ApiCacheStore:
+    files = None
     def __init__(self, project_root, state_dir=None, addon_dir=None):
         self._project = Path(project_root).absolute()
         self._state = Path(state_dir) if state_dir is not None else None
@@ -24,13 +25,15 @@ class ApiCacheStore:
         key = hashlib.sha256(str(self._project).encode('utf-8')).hexdigest()
         return self._state / 'api_cache' / (key + '.json')
 
-    @staticmethod
-    def _read(path):
+    def _bytes(self,path):
+        if self.files and path.is_relative_to(self._project):
+            return self.files.read_raw(path.relative_to(self._project).as_posix())
+        if path.stat().st_size > READ_TEXT_MAX_BYTES: return b''
+        with path.open('rb') as handle: return handle.read(READ_TEXT_MAX_BYTES+1)
+
+    def _read(self,path):
         try:
-            if path.stat().st_size > READ_TEXT_MAX_BYTES:
-                return {}
-            with path.open('rb') as handle:
-                raw = handle.read(READ_TEXT_MAX_BYTES + 1)
+            raw=self._bytes(path)
             if len(raw) > READ_TEXT_MAX_BYTES:
                 return {}
             record = json.loads(raw.decode('utf-8'))
@@ -54,14 +57,10 @@ class ApiCacheStore:
         self._classes = classes
         return classes
 
-    @staticmethod
-    def _read_snapshot(path):
+    def _read_snapshot(self,path):
         """Fresh classes and version from one bounded JSON read (ADR-0009)."""
         try:
-            if path.stat().st_size > READ_TEXT_MAX_BYTES:
-                return {}, ''
-            with path.open('rb') as handle:
-                raw = handle.read(READ_TEXT_MAX_BYTES + 1)
+            raw=self._bytes(path)
             if len(raw) > READ_TEXT_MAX_BYTES:
                 return {}, ''
             record = json.loads(raw.decode('utf-8'))

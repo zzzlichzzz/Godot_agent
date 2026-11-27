@@ -19,7 +19,7 @@ SCRIPT_EXT = ".gd"
 RES_PREFIX = "res://"
 
 
-def build(fs, policy):
+def build(fs, policy, *, scenes=False):
     """Индекс проекта: `{"files": [...], "skipped": [...]}`.
 
     Элемент файла: `path` (`res://`), `rel`, `sha256`, `text`, `declarations`,
@@ -27,9 +27,19 @@ def build(fs, policy):
     получают `path` и `sha256` файла — по ним locator находит единственное
     совпадение, не зная про индекс.
     """
-    files, skipped = [], []
-    for rel in fs.list_files():
-        if not str(rel).lower().endswith(SCRIPT_EXT):
+    files, skipped, scene_texts = [], [], {}
+    if policy and hasattr(fs, 'list_entries'):
+        def accept(row):
+            rel=row['path']
+            if row['type']=='dir':
+                return policy.can_read(rel) or (rel=='addons' and policy.allow_self_edit)
+            return policy.can_read(rel) and (rel.lower().endswith(SCRIPT_EXT) or scenes and rel.endswith('.tscn'))
+        paths=(r['path'] for r in fs.list_entries('',accept) if r['type']=='file')
+    else:
+        paths=fs.list_files()
+    for rel in paths:
+        scene = scenes and str(rel).endswith('.tscn')
+        if not scene and not str(rel).lower().endswith(SCRIPT_EXT):
             continue
         if policy is not None and policy.deny_reason(rel):
             skipped.append(rel)
@@ -40,8 +50,11 @@ def build(fs, policy):
             # Нечитаемый файл — не повод валить поиск: он честно в `skipped`.
             skipped.append(rel)
             continue
-        files.append(_entry(rel, text))
-    return {"files": files, "skipped": skipped}
+        if scene: scene_texts[RES_PREFIX+rel] = text
+        else: files.append(_entry(rel, text))
+    index = {"files": files, "skipped": skipped}
+    if scenes: index['scenes'] = scene_texts
+    return index
 
 
 def _entry(rel, text):

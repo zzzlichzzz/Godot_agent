@@ -52,7 +52,7 @@ class ProjectTextFileSystem:
         return self.fs.is_file(rel) if rel else False
 
     def is_dir(self, rel):
-        return os.path.isdir(os.path.join(self.root, rel))
+        return self.fs.is_dir(rel)
 
     def entries(self, base, policy, visible, *, max_scanned=None):
         agent = self._agent(policy)

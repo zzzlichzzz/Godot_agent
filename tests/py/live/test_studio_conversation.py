@@ -25,7 +25,7 @@ field.onkeydown=e=>{if(e.ctrlKey && e.key==='Enter'){
 
 
 @pytest.fixture
-def local_studio(tmp_path):
+def local_studio(tmp_path, request):
     from selenium import webdriver
     from selenium.webdriver.chrome.service import Service
     chrome, driver = (os.environ.get(k) for k in ('GODOT_AGENT_CHROME_PATH','GODOT_AGENT_CHROMEDRIVER_PATH'))
@@ -39,12 +39,13 @@ def local_studio(tmp_path):
         # Only the temporary browser's two test tabs receive this local document.
         # The closed proxy prevents any fallback to a real account or network.
         from websocket import create_connection, WebSocketConnectionClosedException
+        documents = getattr(request, 'param', {'https://'+HOST+'/prompts/*': PAGE})
         def intercept():
             opener=build_opener(ProxyHandler({}))
             with opener.open('http://'+debugger+'/json/list',timeout=3) as r: targets=json.load(r)
             target=next(t for t in targets if t['id']==browser.current_window_handle)
             ws=create_connection(target['webSocketDebuggerUrl'],suppress_origin=True,timeout=3)
-            ws.send(json.dumps(dict(id=1,method='Fetch.enable',params={'patterns':[{'urlPattern':'https://'+HOST+'/prompts/*'}]})))
+            ws.send(json.dumps(dict(id=1,method='Fetch.enable',params={'patterns':[{'urlPattern':p,'resourceType':'Document'} for p in documents]})))
             assert json.loads(ws.recv())['id']==1
             ws.settimeout(None)
             def serve():
@@ -54,10 +55,11 @@ def local_studio(tmp_path):
                         event=json.loads(raw)
                         if event.get('method')!='Fetch.requestPaused': continue
                         i+=1
+                        url=event['params']['request']['url']; page=next(v for k,v in documents.items() if url.startswith(k.rstrip('*')))
                         ws.send(json.dumps(dict(id=i,method='Fetch.fulfillRequest',params={
                             'requestId':event['params']['requestId'],'responseCode':200,
                             'responseHeaders':[{'name':'Content-Type','value':'text/html; charset=utf-8'}],
-                            'body':base64.b64encode(PAGE.encode()).decode()})))
+                            'body':base64.b64encode(page.encode()).decode()})))
                 except (WebSocketConnectionClosedException,OSError): pass
             Thread(target=serve,daemon=True).start()
         intercept()

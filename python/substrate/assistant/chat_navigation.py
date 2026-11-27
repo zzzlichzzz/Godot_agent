@@ -1,44 +1,18 @@
-"""Open browser chats. Studio verifies the selected window; other sites reuse an open tab."""
+"""Navigate the selected agent window; a same-site home tab is not a restored chat."""
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from python.substrate.llm.parsers import studio_navigation
 from python.substrate.llm.parsers.studio_draft import studio_route
 
 
 def navigate(driver, url):
-    if studio_route(url):
-        return studio_navigation.navigate(driver, url)
+    if studio_route(url): return studio_navigation.navigate(driver, url)
     try:
-        driver.set_page_load_timeout(20)
-        driver.set_script_timeout(10)
-    except Exception:
-        pass
-
-    def address(u):
-        return (u or '').split('://', 1)[-1].split('?', 1)[0].split('#', 1)[0].rstrip('/')
-
-    try:
-        current = driver.current_window_handle
-        for handle in driver.window_handles:
-            driver.switch_to.window(handle)
-            if address(driver.current_url) == address(url):
-                return True
-        driver.switch_to.window(current)
-    except Exception:
-        pass
-    try:
-        driver.switch_to.window(driver.window_handles[-1])
-    except Exception:
-        pass
-    try:
-        driver.execute_script('window.location.href = arguments[0];', url)
-        return True
-    except Exception:
-        pass
-    try:
+        driver.switch_to.window(driver.current_window_handle)
+        previous = driver.timeouts.page_load
         driver.set_page_load_timeout(10)
-    except Exception:
-        pass
-    try:
-        driver.get(url)
+        try: driver.get(url)
+        except TimeoutException: pass  # Caller checks the selected window and document.
+        finally: driver.set_page_load_timeout(previous)
         return True
-    except Exception:
+    except WebDriverException:
         return False

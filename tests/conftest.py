@@ -4,7 +4,7 @@ from tests.py.panel_tf.source_inputs import (
     BUG_REGISTER_REVISIONS,D116_REVISIONS,D122_REVISIONS,PANEL_PATH,PATH,revised_bug_register_fact,
     D123_REVISIONS,revised_dock_fact,revised_d116_fact,revised_fact,revised_panel_fact,
     D124_TRANSCRIPT,revised_transcript_fact,
-    D124_VISUAL,revised_workspace_fact,D126_CHAT,revised_chat_fact,D128,D129,before_d128,
+    D124_VISUAL,revised_workspace_fact,D126_CHAT,revised_chat_fact,D128,D129,D131,D132,D133,D134,before_d128,
 )
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -27,14 +27,14 @@ def pytest_collection_modifyitems(items):
         elif fact['path'] in D116_REVISIONS:
             item.callspec.params['fact']=revised_d116_fact(fact,current);revised_d116+=1
         elif fact['path'] in D123_REVISIONS:
-            item.callspec.params['fact']=revised_dock_fact(fact,(ROOT/fact['path']).read_bytes())
+            item.callspec.params['fact']=revised_dock_fact(fact,current)
         elif fact['path'] in BUG_REGISTER_REVISIONS:
             item.callspec.params['fact']=revised_bug_register_fact(fact,(ROOT/fact['path']).read_bytes())
         elif fact['path']==D124_TRANSCRIPT:
             item.callspec.params['fact']=revised_transcript_fact(fact,current)
         elif fact['path'] in D122_REVISIONS:
             item.callspec.params['fact']=revised_bug_register_fact(fact,current,D122_REVISIONS)
-        for revisions in (D128,D129):
+        for revisions in (D128,D129,D131,D132,D133,D134):
             if path in revisions:
                 prior=item.callspec.params['fact']
                 assert [prior['bytes'],prior['sha256']]==revisions[path]['before']

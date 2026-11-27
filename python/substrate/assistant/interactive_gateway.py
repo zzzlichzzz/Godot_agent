@@ -55,6 +55,7 @@ class InteractiveGateway(ChatGateway):
                     reply=dict(reply,text=to_bbcode(reply['text']))
             else:
                 self._cancel.clear()
+                self._check_cancelled()
                 reply=self._send_browser(text,system_text or self.system_prompt(),max_chars)
             if not selected and self._record:self._implicit_id=self._record['id']
             if self._bind_chat and self._record:self._bind_chat(self._record['id'])
@@ -140,6 +141,13 @@ class InteractiveGateway(ChatGateway):
         if site['id']=='deepseek':
             from python.substrate.llm.parsers.deepseek_delivery import DeepSeekDelivery
             delivery=DeepSeekDelivery(driver)
+        elif site['id']=='qwen':
+            from python.substrate.llm.parsers.qwen_delivery import QwenDelivery
+            parser=QwenDelivery(self.project_root,self.addon_dir,getattr(self,'valid_read_proposal',None))
+            parser.rank=self.judge.select
+        elif site['id'] in ('arena','arena_battle'):
+            from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
+            parser=ArenaDelivery(self.judge)
         elif site['id']=='aistudio':
             from python.substrate.llm.parsers.studio_delivery import StudioDelivery
             studio=StudioDelivery(driver,url)
@@ -154,15 +162,31 @@ class InteractiveGateway(ChatGateway):
         log=io.StringIO()
         def send_browser(prompt):
             nonlocal url
+            from .provider_conversation import FirstReply, permanent, save_unique
+            first = None if studio or delivery else FirstReply(driver,site,url)
+            def remember(response):
+                nonlocal url
+                confirmed=(studio or delivery).conversation_url if studio or delivery else None
+                if first and response is not None and not str(response.get('text','')).startswith('[Ошибка]'):
+                    confirmed=first.confirmed(driver,prompt,accepted=True,parser=parser,check=self._check_cancelled)
+                elif first and response is None and site['id']=='qwen' and not self._cancelled():
+                    # Qwen can assign a permanent URL even when its reply fails.
+                    if permanent(site,driver.current_url): confirmed=first.confirmed(driver,prompt,accepted=False)
+                if confirmed and confirmed!=url:
+                    updated=save_unique(chat_store,str(self.storage_base),chat_id,site,confirmed)
+                    if not updated: raise AppError('conflict','Ссылка уже привязана к другому чату или не подтверждена.')
+                    self._record=updated; url=updated['url']
+                    if getattr(self,'selected_page',None): self.selected_page.select(chat_id,driver,restored=True)
             try:
-                response=backend.send(prompt,prefer_url=url,progress_cb=report,cancel_cb=self._cancel.is_set)
+                response=backend.send(prompt,prefer_url=url,progress_cb=report,cancel_cb=self._cancelled)
+                self._check_cancelled()
+            except Exception:
+                if not self._cancelled():
+                    with contextlib.suppress(Exception): remember(None)
+                raise
             finally:
                 if delivery and delivery.composer_touched:self._mirror_held.add(self._record['id'])
-                confirmed=(studio or delivery).conversation_url if studio or delivery else None
-                if confirmed and confirmed!=url:
-                    url=confirmed
-                    updated=chat_store.update_chat(str(self.storage_base),self._record['id'],url=url)
-                    self._record=updated or dict(self._record,url=url)
+            remember(response)
             return response
         try:
             with contextlib.redirect_stdout(log):
@@ -176,6 +200,12 @@ class InteractiveGateway(ChatGateway):
                     done=False,finish_reason='error',parse_error=None),api_keys.redact)
             if delivery and (result_text.strip() or action):self._mirror_held.discard(self._record['id'])
             raw=str(capture[-1]) if capture else result_text
+            if site['id']=='qwen' and getattr(parser,'choices',None) and parser.choices.frame:
+                raw=parser.choices.text
+            elif site['id']=='qwen' and action:
+                from python.substrate.llm.parsers.qwen_rename import rename_block
+                proposal=rename_block(raw)
+                if proposal and proposal[1]==action:raw=proposal[2]
             if isinstance(action,dict) and parse_error is None and not _ACTION_START.search(raw):
                 raw=(raw.rstrip()+'\n```agent_action\n'+json.dumps(action,ensure_ascii=False)+'\n```').strip()
             raw=_WRAPPED_DONE.sub('\n===DONE===',raw)
@@ -194,6 +224,11 @@ class InteractiveGateway(ChatGateway):
         finally:
             parser_base._strip_done_marker=strip;parser_base._save_corpus_sample=sample
             api_keys.redact(log.getvalue());log.close()
+
+    def _cancelled(self):return self._cancel.is_set() or getattr(self,'turn_cancelled',lambda:False)()
+
+    def _check_cancelled(self):
+        if self._cancelled():raise AppError('unavailable','Ожидание остановлено.')
 
     def stop(self):self._cancel.set();return True
 

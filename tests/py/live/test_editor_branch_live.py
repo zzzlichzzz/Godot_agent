@@ -82,6 +82,24 @@ SCENE_TIMEOUT = 40.0
 pytestmark = pytest.mark.needs_live
 
 
+@pytest.fixture(autouse=True)
+def modular_editor_project(tmp_path, monkeypatch):
+    """Load this branch's entry point in a disposable project and user profile."""
+    project = tmp_path / 'project'
+    addon = project / 'addons/godot_agent'
+    shutil.copytree(ROOT / 'editor/bridge', addon / 'editor/bridge')
+    (addon / 'editor/core').mkdir()
+    for rel in ('editor/core/lifecycle.gd', 'editor/t1_panel.gd', 'plugin.gd'):
+        shutil.copyfile(ROOT / rel, addon / rel)
+    (addon / 'plugin.cfg').write_text('[plugin]\nname="Bridge probe"\nscript="plugin.gd"\n', 'utf-8')
+    (project / 'project.godot').write_text('config_version=5\n[application]\nconfig/name="Bridge probe"\n'
+        '[editor_plugins]\nenabled=PackedStringArray("res://addons/godot_agent/plugin.cfg")\n', 'utf-8')
+    for name in ('APPDATA','XDG_DATA_HOME','XDG_CONFIG_HOME','XDG_CACHE_HOME','HOME'):
+        monkeypatch.setenv(name, str(tmp_path / name))
+    monkeypatch.setattr(sys.modules[__name__], 'PROJECT', project)
+    monkeypatch.setattr(sys.modules[__name__], 'SCENE_FILE', project / SCENE_RES[6:])
+
+
 class _Ctx:
     """Минимум порта для механики: единственный порт `editor` - клиент моста."""
 
@@ -472,4 +490,3 @@ def test_scene_undo_refuses_empty_history_and_foreign_revision():
         _stop(proc)
         SCENE_FILE.unlink(missing_ok=True)
         port_file.unlink(missing_ok=True)
-

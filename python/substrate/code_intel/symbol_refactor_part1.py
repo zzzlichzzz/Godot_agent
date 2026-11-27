@@ -265,7 +265,7 @@ def _plan_file_rename(project_root, target_path, new_name, addon_dir):
 
 def _unverified_reason(kind, fact, text, tokens, target_path, path,
                        target_class, typed, declarations, subclasses,
-                       all_target_classes, root_owner):
+                       all_target_classes, root_owner, *, suggest_annotation=True):
     """Почему ссылка НЕ доказана. Только для отчёта, решение не принимает.
 
     Тот же обход условий, что в _reference_is_safe, но вместо True/False мы
@@ -306,8 +306,8 @@ def _unverified_reason(kind, fact, text, tokens, target_path, path,
             return None
         if shadowed:
             return "имя перекрыто одноимённым объявлением"
-        return ("не удалось доказать тип ресивера «%s»: добавь аннотацию типа, "
-                "и ссылка переименуется сама" % (prev2_value,))
+        reason = "не удалось доказать тип ресивера «%s»" % (prev2_value,)
+        return reason + (": добавь аннотацию типа, и ссылка переименуется сама" if suggest_annotation else "")
     if kind in ("function", "signal", "variable", "const", "enum",
                 "enum_member"):
         if not hierarchy:

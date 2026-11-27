@@ -82,6 +82,22 @@ def test_locator_takes_line_and_optional_column():
     assert query.column == 6
 
 
+@pytest.mark.parametrize('report', [core.find, core.analyze])
+def test_super_calls_belong_to_nearest_declaring_parent(report):
+    files = {'coin.gd': 'class_name Coin\nextends Area2D\nfunc _ready(): pass',
+             'entity.gd': 'class_name LabEntity\nextends Node2D\nfunc _ready(): pass',
+             'mid.gd': 'extends LabEntity',
+             'turret.gd': 'class_name Turret\nextends "mid.gd"\nfunc _ready():\n\tsuper._ready()',
+             'child.gd': 'extends Turret\nfunc run():\n\tsuper._ready()',
+             'unknown.gd': 'extends Missing\nfunc run():\n\tsuper._ready()'}
+    index = _index(files)
+    def places(path):
+        q = core.build_query('function', '_ready', '_start', 'res://'+path+'.gd:3')
+        return [(i['path'], i['confidence']) for i in report(index, q)['usages'] if i['link'] != 'declaration']
+    assert places('coin') == [('res://unknown.gd', 'probable')]
+    assert places('entity') == [('res://turret.gd', 'proven'), ('res://unknown.gd', 'probable')]
+
+
 @pytest.mark.parametrize("declaration", [
     "res://src/lab_entity.gd:abc",
     "src/lab_entity.gd:8",

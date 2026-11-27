@@ -362,6 +362,7 @@ static func _has_pending_action(panel) -> bool:
 		or not panel._pending_runtime_check_result_body.is_empty())
 
 static func _clear_pending_action_state(panel) -> void:
+	if panel.has_meta("confirm_identity"): panel.remove_meta("confirm_identity")
 	# Подтверждение относится только к чату, в котором оно было создано.
 	panel._set_pending_action(false)
 	panel._last_pending_action_type = ""
@@ -529,6 +530,23 @@ static func _on_stop_pressed(panel) -> void:
 	if panel._stop_button:
 		panel._stop_button.disabled = true
 		panel._stop_button.text = panel._t("stopping")
+	if not panel._active_chat_turn.is_empty():
+		# Progress/live input may occupy ServerLink's short-request slot.
+		var turn: String = panel._active_chat_turn
+		var stop := HTTPRequest.new()
+		stop.timeout = 5
+		panel.add_child(stop)
+		var err := stop.request(CHAT_STOP_URL, panel._json_headers(), HTTPClient.METHOD_POST, panel._policy_json({"turn_id": turn}))
+		var delivered := false
+		if err == OK:
+			var reply: Array = await stop.request_completed
+			delivered = reply[0] == HTTPRequest.RESULT_SUCCESS and reply[1] == 200
+		stop.queue_free()
+		if not delivered and panel._active_chat_turn == turn:
+			panel._new_after_turn = false
+			panel._on_short_stop_response(0, 0)
+			panel._log_error("Не удалось остановить ожидание. Повторите остановку.")
+		return
 	if panel._link == null:
 		if panel._stop_button:
 			panel._stop_button.disabled = false
@@ -849,10 +867,12 @@ static func _on_send_pressed(panel) -> void:
 
 static func _send_chat_raw(panel, prompt: String, ignore_mismatch: bool) -> void:
 	panel._pending_chat_prompt = prompt
+	panel._active_chat_turn = Crypto.new().generate_random_bytes(16).hex_encode()
 	if not ignore_mismatch or panel._pending_editor_context.is_empty():
 		panel._pending_editor_context = panel._capture_editor_context()
 	var body = panel._policy_body({
 		"prompt": prompt,
+		"turn_id": panel._active_chat_turn,
 		"chat_id": panel._current_chat_id,
 		"godot_executable": OS.get_executable_path(),
 		"runtime_status": panel._runtime_status,
@@ -867,6 +887,7 @@ static func _send_chat_raw(panel, prompt: String, ignore_mismatch: bool) -> void
 	panel._set_ui_busy(true)
 	var err = panel.http_request.request(CHAT_URL, headers, HTTPClient.METHOD_POST, panel._policy_json(body))
 	if err != OK:
+		panel._active_chat_turn = ""
 		panel._log_error(panel._t("err_send"))
 		panel._set_ui_busy(false)
 		panel._restore_chat_draft()
@@ -993,6 +1014,8 @@ static func _send_confirm_request(panel, approved: bool) -> void:
 	panel._view.add_system(label + panel._t("waiting_reply"))
 	var headers = panel._json_headers()
 	var body = panel._policy_body({"approved": approved})
+	if panel.has_meta("confirm_identity"):
+		body.merge(panel.get_meta("confirm_identity"), true)
 	if approved and not excluded_places.is_empty():
 		# Адреса мест — ровно те же id, что показаны галочками в карточке
 		# (main.py: _usage_id_to_place -> symbol_refactor._usage_excluded).

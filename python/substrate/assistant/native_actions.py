@@ -6,6 +6,7 @@ def refactor(root,action,policy):
     kind=action['action']
     if kind=='rename_symbol':
         prepared=import_module('python.substrate.code_intel.symbol_refactor').prepare_rename(root,action,**policy)
+        from python.substrate.code_intel.symbol_refactor_part2 import _excluded_places
     else:
         prepared=import_module('python.substrate.editing.file_refactor').prepare_file_rename(root,action.get('path') or action.get('old_path'),
             action.get('dest') or action.get('new_path'),update_references=action.get('update_references',True),**policy)
@@ -29,4 +30,12 @@ def refactor(root,action,policy):
         uid=Path(root)/(source[6:]+'.uid')
         if uid.is_file():
             raw=uid.read_bytes();files.extend([dict(path=source+'.uid',before_bytes=raw,after_bytes=None,move_to=dest+'.uid'),dict(path=dest+'.uid',before_bytes=None,after_bytes=raw)])
-    return dict(files=files,warnings=prepared.get('warnings',[]))
+    warnings=list(prepared.get('warnings',[]))
+    for field,label in [('dynamic_references','Не переименовано'),('skipped_usages','Пропущено')]:
+        warnings.extend(label+': '+str(item) for item in prepared.get(field,[]))
+    for item,included in prepared.get('unverified_details',[]):
+        label='Включена недоказанная ссылка' if included else 'Недоказанная ссылка не включена'
+        warnings.append(label+': '+item)
+    output=dict(files=files,warnings=warnings)
+    if kind=='rename_symbol': output['excluded_places']=_excluded_places(action.get('exclude'))
+    return output

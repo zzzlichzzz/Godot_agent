@@ -24,6 +24,8 @@ from python.substrate.editor.client import EditorClient
 from python.substrate.fs.atomic_write import AtomicFileWriter
 from python.substrate.fs.disk_fs import DiskFileSystem
 from python.substrate.fs.read_only import ReadOnlyFileSystem
+from python.substrate.fs.godot_io import GodotFiles
+from python.substrate.fs.godot_writer import GodotWriter
 from python.substrate.store.backups import FileBackups
 from python.substrate.store.journal import FileJournal
 from python.substrate.store.lock import FileLock
@@ -62,21 +64,34 @@ def default_ports(project_root, profile, state_dir=None, *, loaded=None, registr
     from python.substrate.assistant.native_planner import NativePlanner
     from python.substrate.engine.structural_overlay import EngineOverlay
     state = os.path.dirname(journal_dir(profile, state_dir))
-    ports = {"fs": DiskFileSystem(project_root),
-            "paths_fs": ReadOnlyFileSystem(project_root, max_bytes=PATHS_FILE_BYTES),
+    files = DiskFileSystem if profile == 'test' else GodotFiles
+    restricted = ReadOnlyFileSystem if profile == 'test' else GodotFiles
+    # Internal consumers have their own scan budgets; the public text limit is smaller.
+    project_inputs = files(project_root, max_bytes=sys.maxsize)
+    ports = {"fs": files(project_root),
+             "paths_fs": restricted(project_root, max_bytes=PATHS_FILE_BYTES),
             "api_cache": ApiCacheStore(project_root, state_dir=state, addon_dir=AGENT_DIR),
             "librarian": JudgeRead(project_root, state, AGENT_DIR),
             "chat_gateway": ChatGateway(project_root, state, AGENT_DIR),
             "native_planner": NativePlanner(project_root, state, AGENT_DIR,
                 engine_overlay=EngineOverlay(project_root, state, AGENT_DIR)),
             "journal": FileJournal(journal_dir(profile, state_dir)),
-            "writer": AtomicFileWriter(project_root),
+             "writer": (AtomicFileWriter if profile == 'test' else GodotWriter)(project_root),
             "backups": FileBackups(os.path.join(state, "backup")),
             "lock": FileLock(state),
             "editor": EditorClient()}
     registry = Registry() if registry is None else registry
+    from python.runtime.rename_bindings import complete
+    ports['native_planner'].complete_bindings = complete
+    if profile != 'test':
+        from python.runtime.rename_integrity import HierarchyGuard
+        from python.substrate.fs.project_view import project_view
+        ports['fs'].check_rename = ports['native_planner'].check_rename = HierarchyGuard(project_inputs, AGENT_DIR)
+        for name in ('librarian','native_planner'): ports[name].project_view = project_view
+        ports['native_planner']._engine_overlay.files = project_inputs
+        ports['api_cache'].files = ports['fs']
     candidates = _plan(registry, {}, profile) if loaded is None else loaded
-    install_feature_ports(candidates, DiskFileSystem(project_root, max_bytes=sys.maxsize), ports, registry)
+    install_feature_ports(candidates, project_inputs, ports, registry)
     return ports
 
 

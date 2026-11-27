@@ -1,0 +1,7 @@
+{
+  "editor/native/agent_panel_part3.gd": {
+    "before": [59297, "53dec63b3e5e3a2e5c693758a69666eb71848cbb8fae7143c64d041f3b0adf30"],
+    "after": [59564, "1512644724fccda082a04d72f7f6691c1ddf6f5aff5ff0c9fcc67e26d9fa0fb7"],
+    "reverse": [[621, 622, ""], [646, 651, "\tif id == \"\" or id == panel._current_chat_id:\n"]]
+  }
+}

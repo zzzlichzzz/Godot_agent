@@ -10,7 +10,8 @@ def cold_tf6(client, monkeypatch):
     NativeBindings().register()
     from python.substrate.llm.api import api_keys, providers, openai_compat, providers_catalog
     _, project, state = client
-    monkeypatch.setattr(os, 'environ', {})
+    # Preserve the local engine used by project-file ports; no provider settings.
+    monkeypatch.setattr(os, 'environ', {k:os.environ[k] for k in ('GODOT_AGENT_GODOT_BIN','SYSTEMROOT','TEMP','TMP','PATH') if k in os.environ})
     token = 'SYNTHETIC-TF6-UNIT-NOT-A-REAL-SECRET'
     state.mkdir(exist_ok=True)
     (state / 'godot_agent_token.txt').write_text(token, encoding='utf-8')

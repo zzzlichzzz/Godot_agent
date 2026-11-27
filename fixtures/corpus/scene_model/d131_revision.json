@@ -1,0 +1,127 @@
+{
+  "editor/native/agent_panel.gd": {
+    "before": [
+      83470,
+      "9afe98234cdbb273d61433e6c91a2dc3d02896696b2bd6a010b7fbefa2a8d330"
+    ],
+    "after": [
+      83539,
+      "db77e7bdf883a9fceda9460526be55a2f378628ed38758997babeec724a7ff71"
+    ],
+    "reverse": [
+      [
+        228,
+        230,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part1.gd": {
+    "before": [
+      64214,
+      "2f84bea37fa90f8cae035e6a0b3441e0c76218d341d68e6882debf67ea758309"
+    ],
+    "after": [
+      65165,
+      "38194512014a642c2ce7ae06ea4fb126d02191d410fee02a041127912936bb59"
+    ],
+    "reverse": [
+      [
+        531,
+        548,
+        ""
+      ],
+      [
+        868,
+        869,
+        ""
+      ],
+      [
+        873,
+        874,
+        ""
+      ],
+      [
+        888,
+        889,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part2.gd": {
+    "before": [
+      63870,
+      "5bfa26b1ecc484a7e623891d97f44bc929dba477fec2348313427a3d8787f4d6"
+    ],
+    "after": [
+      64747,
+      "c5268016c5d9d408adf10f758ee437c5754a991e47a4ca3b19fc76480fd335d5"
+    ],
+    "reverse": [
+      [
+        337,
+        349,
+        ""
+      ],
+      [
+        367,
+        368,
+        "\t\tif kind == \"chat\":\n"
+      ],
+      [
+        931,
+        932,
+        "\t\tif kind == \"chat\":\n"
+      ],
+      [
+        939,
+        942,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part3.gd": {
+    "before": [
+      59152,
+      "af9e1c426655083ff3df81cca703987d6da4905bedfb21942cc8f09d7355a5f4"
+    ],
+    "after": [
+      59297,
+      "53dec63b3e5e3a2e5c693758a69666eb71848cbb8fae7143c64d041f3b0adf30"
+    ],
+    "reverse": [
+      [
+        653,
+        658,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_read_consent.gd": {
+    "before": [
+      6633,
+      "3e5fd1a26ada34a9412afd1990cf01b0fe58e5521abe3143188c0eaa8cac825b"
+    ],
+    "after": [
+      6779,
+      "85ee03f77feb9b474c5f7595fce13ed68812687bce190e9a8707b8424bd0a6a1"
+    ],
+    "reverse": [
+      [
+        135,
+        136,
+        ""
+      ],
+      [
+        138,
+        139,
+        "\tvar body := {\"request_id\": ticket.id, \"chat_id\": ticket.chat_id, \"approved\": approved}\n"
+      ],
+      [
+        142,
+        143,
+        ""
+      ]
+    ]
+  }
+}

@@ -25,8 +25,7 @@ import api_backend
 from agent_prompts import PROMPT_HASH
 from python.substrate.assistant.saved_page import SavedPage, site_for_record
 from python.substrate.assistant.chat_navigation import navigate as _navigate
-from python.substrate.llm.parsers.studio_draft import studio_route
-from python.substrate.llm.parsers import studio_navigation
+from python.substrate.assistant.provider_conversation import open_launch, save_unique
 
 chats_bp = Blueprint("chats", __name__)
 # Этот модуль создаётся отдельно для каждого экземпляра HTTP-сервера.
@@ -955,26 +954,12 @@ def chats_new():
     except Exception as e:
         return jsonify({"error": str(e)}), 503
     try:
-        studio = site and site['id'] == 'aistudio'
-        window = driver.current_window_handle if studio else None
         selected_page.select(None)
-        if not _navigate(driver, target_url):
-            return jsonify({"error": "Не удалось открыть новую страницу чата."}), 503
-        if studio and not studio_navigation.open_blank(driver, window, target_url):
-            return jsonify({"error": "AI Studio не открыла пустой чат. Проверьте страницу и повторите создание."}), 409
-        if not studio:
-            time.sleep(1.5)
+        if not open_launch(driver, site, _navigate):
+            return jsonify({"error": "Сайт не открыл новый чат. Проверьте страницу и повторите создание."}), 409
     except Exception as e:
         return jsonify({"error": "Не удалось открыть новую страницу: %s" % e}), 500
-    url = ""
-    try:
-        url = driver.current_url or ""
-    except Exception:
-        pass
-    # Адрес после паузы может ещё принадлежать прошлому диалогу или странице входа.
-    if site and site['id'] == 'aistudio':
-        url = target_url
-    rec = chat_store.create_chat(base, url=url, primed=False)
+    rec = chat_store.create_chat(base, url=target_url, primed=False)
     if site:
         chat_store.update_chat(base, rec["id"], site_id=site["id"], site_name=site["name"])
         rec = chat_store.find_chat(base, rec["id"]) or rec
@@ -1010,9 +995,7 @@ def chats_open():
     if S.chat_kind(rec) != 'api':
         site = site_for_record(rec)
         def save_url(url):
-            if any(row['id'] != cid and studio_route(row.get('url')) == url for row in chat_store.list_chats(base)):
-                return False
-            return chat_store.update_chat(base, cid, url=url) is not None
+            return save_unique(chat_store, base, cid, site, url) is not None
         page_note = selected_page.restore(rec, S.wait_driver, _navigate, site, current_driver=S.get_driver, save_url=save_url)
     else:
         selected_page.select(cid)

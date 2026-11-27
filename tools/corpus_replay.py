@@ -27,6 +27,49 @@ def librarian_manifest(folder):
     return isinstance(record, dict) and record.get("module") == "context.ask"
 
 
+def super_call_expected(record):
+    """D131: the verified parent call in the original read and rename fixtures."""
+    expect = record['expect']
+    result = expect.get('result', {})
+    if (record['tool'], record.get('fixture'), record['id']) == ('write_apply', 'rename', '003'):
+        # Exactly the proven parent call; independent of the bytes produced by the writer.
+        from hashlib import sha256
+        original = (Path(__file__).resolve().parents[1] / 'fixtures/projects/rename/src/enemy.gd').read_bytes()
+        files = result['files'].copy()
+        assert sha256(original).hexdigest() == files['src/enemy.gd'] and original.count(b'super.take_damage(3)') == 1
+        files['src/enemy.gd'] = sha256(original.replace(b'super.take_damage(3)', b'super.hurt(3)')).hexdigest()
+        return dict(expect, result=dict(result, files=files))
+    if (record['tool'], record.get('fixture'), record['id']) == ('write_preview', 'rename', '008-mode-probable'):
+        path = 'res://src/enemy.gd'  # line 10: super.take_damage(3) -> LabHero.take_damage
+        stats = result['stats']
+        return dict(expect, result=dict(result, steps=[{'path': path, 'edits': 1}, *result['steps']],
+            steps_count=result['steps_count']+1, affected_paths=[path, *result['affected_paths']],
+            stats=dict(stats, files=stats['files']+1, edits=stats['edits']+1)))
+    if record.get('fixture') != 'usages' or result.get('old_name') != 'take_damage':
+        return expect
+    path = 'res://src/lab_turret.gd'
+    target = result['declaration']
+    if target not in ('res://src/lab_entity.gd:12', path + ':3'):
+        return expect
+    places = result['usages'].copy()
+    idx = next(i for i, u in enumerate(places) if (u['path'], u['line'], u['column']) == (path, 4, 15))
+    old = places[idx]
+    assert old['confidence'] == 'probable' and old['link'] == 'member'
+    fixed = dict(result, usages=places, probable_count=result['probable_count'] - 1)
+    if target == path + ':3':
+        places.pop(idx)
+        fixed['by_link'] = dict(result['by_link'], member=result['by_link']['member'] - 1)
+    else:
+        places[idx] = dict(old, confidence='proven', note=None)
+        fixed['proven_count'] += 1
+    if 'risks' in result:
+        fixed['risks'] = result['risks'].copy()
+        fixed['risks'].remove(path + ':4 [member, probable] — ' + old['note'])
+    if record['id']=='010-allow-unverified' and record['tool']=='analyze_rename':
+        fixed['affected_paths']=sorted([*result['affected_paths'],'res://src/lab_root.gd'])
+    return dict(expect, result=fixed)
+
+
 def selected_folders(folders, module_id):
     """Declared ask/channel reference lanes; all ordinary selectors stay intact."""
     if module_id == "context.ask":

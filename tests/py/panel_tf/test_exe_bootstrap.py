@@ -43,3 +43,33 @@ def test_token_state_inside_project_refuses_before_effect(tmp_path):
     project,_=deployed(tmp_path);state=project/'unsafe'
     with pytest.raises(ValueError):module.ensure_token(project,state)
     assert not state.exists()
+
+
+def test_saved_editor_is_project_scoped_and_must_still_match(tmp_path):
+    from python.runtime.launcher_engine import ENGINE_ENV, remember, restore
+    project, _ = deployed(tmp_path)
+    editor = tmp_path/'portable Godot.exe'; editor.write_bytes(b'fixture')
+    env = {'LOCALAPPDATA':str(tmp_path/'local'), ENGINE_ENV:str(editor)}
+    remember(project,env); env.pop(ENGINE_ENV)
+    restore(tmp_path/'other',env); assert ENGINE_ENV not in env
+    restore(project,env); assert env.pop(ENGINE_ENV)==str(editor)
+    editor.write_bytes(b'changed file'); restore(project,env); assert ENGINE_ENV not in env
+    local = project/'unexpected.exe'; local.write_bytes(b'fixture')
+    env[ENGINE_ENV]=str(local); remember(project,env); env.pop(ENGINE_ENV)
+    restore(project,env); assert ENGINE_ENV not in env
+
+
+def test_first_standalone_console_can_select_editor(tmp_path,monkeypatch):
+    import io
+    import os
+    entry=import_module('python.channels.http.exe_bootstrap')
+    editor=import_module('python.substrate.fs.godot_io').engine()
+    project, exe = deployed(tmp_path)
+    class Console(io.StringIO):
+        def isatty(self): return True
+    monkeypatch.setattr(entry.sys,'executable',str(exe))
+    monkeypatch.setattr(entry.sys,'stdin',Console(f'"{editor}"\n'))
+    monkeypatch.setenv('LOCALAPPDATA',str(tmp_path/'local')); monkeypatch.setenv('APPDATA',str(tmp_path/'roaming'))
+    monkeypatch.delenv('GODOT_AGENT_GODOT_BIN',raising=False); monkeypatch.setenv('PATH','')
+    assert entry._configuration([])==(project,tmp_path/'roaming/Godot/app_userdata/c14d',5000)
+    assert os.environ['GODOT_AGENT_GODOT_BIN']==str(editor)

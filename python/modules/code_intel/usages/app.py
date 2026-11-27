@@ -36,7 +36,7 @@ def call(tool, args, ctx):
             if not scope.startswith(RES_PREFIX) or not scope.endswith('.gd'):
                 raise AppError('invalid_input', 'declaration_path должен иметь вид res://path.gd')
             scope = RES_PREFIX + _check_policy(scope, ctx)
-        index = symbol_index.build(ctx.port('fs'), ctx.path_policy)
+        index = symbol_index.build(ctx.port('fs'), ctx.path_policy, scenes=kind in ('function','signal'))
         locator = infer_locator(index, kind, name, scope, ctx.path_policy)
     if tool == RENAME:
         query = core.build_rename_query(
@@ -46,7 +46,7 @@ def call(tool, args, ctx):
         query = core.build_query(args.get("kind"), args.get("old_name"), args.get("new_name"), locator)
     _check_policy(query.path, ctx)
     if index is None:
-        index = symbol_index.build(ctx.port("fs"), ctx.path_policy)
+        index = symbol_index.build(ctx.port("fs"), ctx.path_policy, scenes=query.kind in ('function','signal'))
     if tool == RENAME:
         return core.analyze(index, query)
     return core.find(index, query)

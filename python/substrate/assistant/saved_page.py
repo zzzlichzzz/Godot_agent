@@ -1,11 +1,11 @@
 """Session-local browser destination. A readable transcript is not permission to type."""
 import time
-
 from python.kernel.errors import AppError
 from python.substrate.llm.browser import sites
 from python.substrate.llm.browser.page_origin import matches_saved_origin
 from python.substrate.llm.parsers.studio_draft import _READY, is_new_prompt, studio_route
 from python.substrate.llm.parsers.studio_navigation import matching_open_chat, restore_after_home, wait_blank
+from .provider_conversation import permanent, ready as provider_ready, recover_qwen, route
 
 
 def site_for_record(rec):
@@ -28,7 +28,21 @@ class SavedPage:
         studio = site and site['id'] == 'aistudio'
         history = (rec.get('primed') or rec.get('transcript_trimmed') or
                    any(r.get('role') in ('user','agent') for r in rec.get('transcript', [])))
-        target = studio_route(url) if studio else url
+        target = route(site, url)
+        if not studio and history and not permanent(site, url):
+            try:
+                candidate = None
+                if site and site['id']=='qwen' and target==site['new_chat_url']:
+                    driver = (current_driver() if current_driver else None) or wait_driver()
+                    if not route(site,driver.current_url): navigate(driver,target)
+                    candidate = recover_qwen(driver, rec, site)
+                if candidate and save_url and save_url(candidate):
+                    self.select(cid, driver, restored=True)
+                    return ''
+            except Exception:
+                pass
+            return ('Открыта только история: не сохранена ссылка на сам диалог. Откройте исходный чат '
+                    'в истории сайта во вкладке агента и повторите выбор в панели.')
         if studio and history:
             try:
                 driver = current_driver() if current_driver else None
@@ -43,7 +57,7 @@ class SavedPage:
             return ('Открыта только история: нет подтверждённой ссылки. Откройте исходный диалог '
                     'из библиотеки AI Studio во вкладке агента и повторно выберите этот чат.')
         try:
-            if not matches_saved_origin(site, url):
+            if not target or not matches_saved_origin(site, url):
                 return 'Открыта только история: адрес страницы чата не подтверждён.'
             driver = wait_driver()
         except ValueError:
@@ -52,7 +66,7 @@ class SavedPage:
             return 'Открыта только история. ' + str(exc)
         window, previous = None, None
         try:
-            window = driver.current_window_handle if studio else None
+            window = driver.current_window_handle
             previous = driver.current_url if studio else None
             if navigate(driver, target):
                 window = window or driver.current_window_handle
@@ -60,13 +74,13 @@ class SavedPage:
                 while True:
                     actual = driver.current_url
                     if window != driver.current_window_handle: break
-                    if (studio_route(actual) == studio_route(url) if studio else actual == url):
+                    if route(site, actual) == target:
                         if studio and is_new_prompt(target):
                             ready = wait_blank(driver, window, target, max(0, end - time.monotonic()))
                         elif studio:
                             ready = driver.execute_script(_READY, actual, bool(history))
                         else:
-                            ready = driver.execute_script('return document.readyState') == 'complete'
+                            ready = provider_ready(driver, site)
                         if ready:
                             if studio and target != url and save_url and not save_url(target):
                                 break
@@ -84,17 +98,13 @@ class SavedPage:
         return ('Открыта только история: браузер не подтвердил страницу диалога. '
                 'Откройте исходный диалог из библиотеки AI Studio во вкладке агента и повторите выбор.' if studio else
                 'Открыта только история: проверьте доступ к странице и снова откройте чат из списка.')
-
     def require(self, rec, driver):
         if self.cid == rec['id'] and driver is not None and driver is self.driver:
-            studio = (site_for_record(rec) or {}).get('id') == 'aistudio'
+            site = site_for_record(rec)
             try:
                 if not self.window or driver.current_window_handle != self.window: raise ValueError('tab changed')
-                if not self.restored and not studio: return
-                actual = driver.current_url
-                same = (studio_route(actual) is not None and studio_route(actual) == studio_route(rec.get('url'))
-                        if studio else actual == rec.get('url'))
-                if same: return
+                actual = route(site, driver.current_url)
+                if actual and actual == route(site, rec.get('url')): return
             except Exception:
                 pass
         raise AppError('conflict','Страница диалога не подтверждена. Откройте чат из списка сохранённых.')

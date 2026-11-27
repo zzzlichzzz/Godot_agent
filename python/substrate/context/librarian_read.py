@@ -4,6 +4,7 @@ No native initializer, migration, function-card dependency or network activation
 The shared lock protects legacy data/history overrides and cache-migration suppression.
 """
 import hashlib
+from contextlib import nullcontext
 import os
 from pathlib import Path
 from threading import RLock
@@ -21,6 +22,11 @@ def _contains(root, path):
 
 
 class LibrarianRead:
+    project_view = None
+
+    def view(self, **options):
+        return self.project_view(self._project,self.addon_dir,**options) if self.project_view else nullcontext(self._project)
+
     def __init__(self, project_root, state_dir, addon_dir):
         self._project = os.path.abspath(os.fspath(project_root))
         self._state = Path(state_dir).absolute()
@@ -69,9 +75,12 @@ class LibrarianRead:
                 if not routed or os.path.normcase(os.path.abspath(routed)) != os.path.normcase(str(self.log_path.parent)):
                     raise AppError("denied", "хранилище профиля ask недоступно")
                 self._guard_storage()
-                return librarian.answer(self._project, query, budget_chars=budget_chars,
-                    addon_dir=self.addon_dir, allow_addons=allow_addons,
-                    allow_self_edit=allow_self_edit)
+                from python.substrate.fs.project_view import view_addon
+                from .ml_project_index import EXTS
+                with self.view(allow_addons=allow_addons,allow_self_edit=allow_self_edit,indexed=True,suffixes=EXTS | {'.godot'}) as root:
+                    return librarian.answer(root, query, budget_chars=budget_chars,
+                        addon_dir=view_addon(root,self._project,self.addon_dir), allow_addons=allow_addons,
+                        allow_self_edit=allow_self_edit)
             finally:
                 ml_data._BASE_OVERRIDE = previous
                 history_manager._STORAGE_OVERRIDE = previous_history

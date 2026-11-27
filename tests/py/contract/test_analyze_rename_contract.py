@@ -177,11 +177,12 @@ def test_mode_is_echoed_exactly_like_the_reference():
         assert strict[field] == probable[field], field
 
 
-def test_allow_unverified_is_echoed_and_changes_nothing_else():
+def test_allow_unverified_adds_only_probable_targets_without_upgrading_confidence():
     plain = _preview()
     allowed = _preview(allow_unverified=True)
     assert allowed["allow_unverified"] is True
-    for field in ("usages", "affected_paths", "risks", "mode"):
+    assert allowed['affected_paths'] == sorted(plain['affected_paths'] + ['res://src/lab_root.gd'])
+    for field in ("usages", "risks", "mode"):
         assert plain[field] == allowed[field], field
 
 

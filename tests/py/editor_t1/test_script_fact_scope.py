@@ -19,4 +19,6 @@ def test_native_script_fact_scope_and_frozen_manifest_are_exact():
     paths=[row['path'] for row in extra['script_facts']]
     additions=json.loads((ROOT/'fixtures/corpus/scene_model/d122_script_facts/manifest.json').read_bytes())['script_facts']
     assert [row['path'] for row in additions]==['editor/native/agent_read_consent.gd']
-    assert len(paths)==len(set(paths))==36 and set(paths)==expected-{additions[0]['path']} and not set(paths)&known
+    io=json.loads((ROOT/'fixtures/corpus/scene_model/d134_script_facts/manifest.json').read_bytes())['script_facts']
+    assert [row['path'] for row in io]==['editor/core/project_file_io.gd']
+    assert len(paths)==len(set(paths))==36 and set(paths)==expected-{additions[0]['path'],io[0]['path']} and not set(paths)&known

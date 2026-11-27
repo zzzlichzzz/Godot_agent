@@ -22,7 +22,7 @@ USAGE_ITEM = {
         "line": {"type": "integer", "description": "Строка (1-based)."},
         "column": {"type": "integer", "description": "Колонка (1-based)."},
         "link": {"type": "string",
-                 "description": "declaration | call | member | identifier | type | string"},
+                 "description": "declaration | call | member | identifier | type | string | callable | signal | scene_connection"},
         "confidence": {"type": "string", "description": "proven | probable | dynamic"},
         "note": {"type": ["string", "null"],
                  "description": "Причина для probable/dynamic; null для proven."},
@@ -50,7 +50,7 @@ USAGES = ToolSpec(
         "(`function`, `signal`, `variable`, `const`, `enum`, "
         "`enum_member`, `class_name`) и его имя. Отдаёт места с координатами, "
         "типом связи (`declaration`, `call`, `member`, `identifier`, `type`, "
-        "`string`) и уверенностью: `proven` — связь доказана, `probable` — "
+        "`string`, `callable`, `signal`, `scene_connection`) и уверенностью: `proven` — связь доказана, `probable` — "
         "вероятна (в `note` причина, чего не хватает, чаще всего аннотации "
         "типа), `dynamic` — ссылка по строковому литералу. Ничего не меняет: "
         "можно уточнить объявление через declaration или declaration_path."
@@ -87,7 +87,7 @@ RENAME_FIELDS.update({
     "allow_unverified": {"type": "boolean"},
     "mode": {"type": "string", "description": "strict | probable (эхо запроса)."},
     "affected_paths": {"type": "array", "items": {"type": "string"},
-                       "description": "Файлы с доказанными ссылками: sorted, без дублей."},
+                       "description": "Файлы с доказанными ссылками и, при allow_unverified, с вероятными: sorted, без дублей."},
     "risks": {"type": "array", "items": {"type": "string"},
               "description": "Строки `path:line [link, confidence] — note`."},
 })
@@ -102,11 +102,10 @@ ANALYZE_RENAME = ToolSpec(
         "Предпросмотр переименования: что и где изменится. Вход — вид символа, "
         "старое и НОВОЕ имя, необязательный locator, плюс `mode` (`strict` по "
         "умолчанию) и `allow_unverified`. Отдаёт тот же список мест, что "
-        "`usages`, и дополнительно `affected_paths` (файлы с доказанными "
-        "ссылками), `risks` (строки `path:line [link, confidence] — причина` для "
+        "`usages`, и дополнительно `affected_paths` (доказанные места и, при "
+        "allow_unverified, вероятные), `risks` (строки `path:line [link, confidence] — причина` для "
         "вероятных и динамических ссылок) и разобранный locator. Ничего не пишет "
-        "и ничего не применяет: это ответ на вопрос «что затронет правка». Строки "
-        "в risks — места, которые переименование само не покроет."
+        "и ничего не применяет. Риски требуют проверки, даже если место включено в план."
     ),
     args={
         "type": "object",
@@ -126,7 +125,7 @@ ANALYZE_RENAME = ToolSpec(
             },
             "allow_unverified": {
                 "type": "boolean", "default": False,
-                "description": "В предпросмотре — эхо и флаг отчёта.",
+                "description": "Включить файлы с вероятными ссылками в affected_paths, сохранив исходную уверенность.",
             },
         },
         "required": ["kind", "old_name", "new_name"],

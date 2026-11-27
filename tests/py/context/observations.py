@@ -77,7 +77,8 @@ def references(sandbox, native=None):
         spec.loader.exec_module(module)
         return module
     try:
-        with patch.dict(os.environ, {'GODOT_AGENT_CONFIG_DIR': str(sandbox/'config')}, clear=True), \
+        local = {k: os.environ[k] for k in ('GODOT_AGENT_GODOT_BIN', 'SYSTEMROOT', 'TEMP', 'TMP', 'PATH') if k in os.environ}
+        with patch.dict(os.environ, dict(local, GODOT_AGENT_CONFIG_DIR=str(sandbox/'config')), clear=True), \
              patch.object(socket, 'getaddrinfo', offline), patch.object(socket.socket, 'connect', offline), \
              patch.object(socket.socket, 'connect_ex', offline):
             if native is not None:

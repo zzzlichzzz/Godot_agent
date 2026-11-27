@@ -32,6 +32,8 @@ def test_forbidden_target_never_launches_engine(tmp_path, relative):
                                       '../outside/include.gdshaderinc', '..\\outside\\include.gdshaderinc'])
 def test_shader_include_is_policy_checked_before_engine_io(tmp_path, reference):
     adapter, project, calls = fixture(tmp_path)
+    with (project/'level.tscn').open('ab') as scene:
+        scene.write(b'[ext_resource type="Shader" path="res://shader.gdshader" id="1"]\n')
     (project/'shader.gdshader').write_text('shader_type spatial;\n#include "'+reference+'"\n', encoding='utf-8')
     with pytest.raises(AppError) as caught: adapter.prepare(action())
     assert caught.value.kind == 'denied' and not calls

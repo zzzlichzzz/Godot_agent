@@ -304,7 +304,6 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
 
     ambiguities = []
     dynamic_references = []
-    unverified_references = []
     skipped_usages = []
     # Сколько правок-ССЫЛОК реально попало в план (P2). Объявления сюда не
     # считаются: сам символ и override в подклассах — носители имени, и их
@@ -387,8 +386,9 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                 # Ссылка наша, но доказать её не удалось. Раньше она
                 # отменяла ВСЮ операцию (одна неуверенность — ноль правок).
                 # Теперь поведение зависит от флага allow_unverified.
-                if (allow_unverified
-                        and (path, fact["start"], fact["end"]) not in proven_spans):
+                if (path, fact["start"], fact["end"]) in proven_spans:
+                    continue  # Another fact already proved and scheduled this exact edit.
+                if allow_unverified:
                     # Флаг включён: переименовываем, но ОБЯЗАТЕЛЬНО показываем
                     # причину. Молча переименовать недоказанное — это ровно тот
                     # молчаливый ущерб, ради устранения которого этап и делается.
@@ -400,14 +400,14 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
                         target_class, typed,
                         entry["semantic"].get("declarations", []),
                         subclasses, all_target_classes,
-                        declaration.get("owner"))
+                        declaration.get("owner"), suggest_annotation=False)
                     ambiguities.append(
                         {"path": path, "line": fact.get("line"),
-                         "column": fact.get("column"), "reason": reason})
+                         "column": fact.get("column"), "reason": reason, "included": True})
                 else:
                     ambiguities.append(
                         {"path": path, "line": fact.get("line"),
-                         "column": fact.get("column"),
+                         "column": fact.get("column"), "included": False,
                          "reason": "ссылка не доказана, имя не переименовано"})
         for fact in entry["semantic"].get("strings", []):
             if _exact_string_value(str(fact.get("value") or "")) != old_name:
@@ -596,9 +596,8 @@ def prepare_rename(project_root, action, allow_addons=False, addon_dir=None,
         "dynamic_references": dynamic_references,
         "warnings": warnings,
         "unverified_references": unverified_references,
-        # Счётчики обязаны быть в отчёте: пользователю нужно видеть масштаб
-        # правки, а не только список. unverified_count — сколько мест из
-        # переименованных мы НЕ смогли доказать.
+        "unverified_details": [(note, item["included"]) for note, item in zip(unverified_references, ambiguities)],
+        # Число недоказанных мест; включение каждого указано в unverified_details.
         "unverified_count": len(unverified_references),
         # renamed_count — сколько мест реально переименовано, ВКЛЮЧАЯ
         # недоказанные. Считаем по фактическим диапазонам правок, а не как

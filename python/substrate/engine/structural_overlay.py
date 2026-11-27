@@ -31,12 +31,14 @@ def contains(root, path):
 
 def walk_values(value):
     if isinstance(value, dict):
-        for item in value.values(): yield from walk_values(item)
+        for key, item in value.items():
+            if key != 'summary': yield from walk_values(item)
     elif isinstance(value, list):
         for item in value: yield from walk_values(item)
     else: yield value
 
 class EngineOverlay:
+    files = None
     def __init__(self, project, state, addon, *, godot_bin=None, runner=None):
         self.project = Path(os.path.abspath(project)); self.state = Path(os.path.abspath(state))
         self.addon = Path(os.path.abspath(addon))
@@ -57,41 +59,49 @@ class EngineOverlay:
                 raise AppError('denied', 'executable/binary structural dependency не изолирована')
         return rel
 
-    def _capture(self):
-        captured = {}; total = 0; policy = PathPolicy(self.project); plain(self.project)
-        for directory, dirs, files in os.walk(self.project, followlinks=False):
-            parent = Path(directory); dirs[:] = sorted(name for name in dirs if name not in SKIP)
-            for name in dirs: plain(parent / name)
-            for name in sorted(files):
-                path = parent / name; rel = path.relative_to(self.project).as_posix()
-                if not policy.can_read(rel) or path.suffix.lower() not in ASSETS: continue
-                plain(path)
-                if not stat.S_ISREG(path.lstat().st_mode): raise AppError('denied', 'необычный structural asset')
-                if path.stat().st_size > MAX_BYTES: raise AppError('invalid_input', 'structural asset превышает лимит')
-                raw = path.read_bytes(); total += len(raw)
-                if total > MAX_BYTES or len(captured) >= 4096: raise AppError('invalid_input', 'structural snapshot превышает лимит')
-                if path.suffix.lower() in ('.tscn', '.tres') and CODE.search(raw):
-                    raise AppError('denied', 'script-bearing structural asset не изолирован')
-                if path.suffix.lower() in ('.tscn', '.tres', '.godot', '.gdshader'):
-                    for token in re.findall(rb'"([^"\r\n]*)"', raw):
-                        value = token.decode('utf-8', 'strict')
-                        if path.suffix.lower() == '.gdshader':
-                            if '\\' in value: raise AppError('denied', 'encoded shader reference запрещён')
-                            if '://' not in value and not value.startswith('/') and not re.match(r'^[A-Za-z]:', value):
-                                relative = normalize_rel((Path(rel).parent / value).as_posix())
-                                if not relative: raise AppError('denied', 'traversal shader reference запрещён')
-                                value = 'res://' + relative
-                        if value.startswith('uid://') and path.suffix.lower() != '.gdshader': continue
-                        relative_unsafe = value == '..' or value.startswith(('./', '../')) or '\\' in value or value.lower().endswith(('.cfg', *CODES))
-                        if '://' in value or value.startswith('/') or re.match(r'^[A-Za-z]:[/\\]', value) or relative_unsafe:
-                            relative = value[6:] if value.startswith('res://') else ''
-                            if not relative or normalize_rel(relative) != relative or not policy.can_read(relative) or '\\' in relative or ':' in relative:
-                                raise AppError('denied', 'external/encoded engine reference запрещён')
-                            if relative.lower().endswith(CODES):
-                                raise AppError('denied', 'executable engine reference запрещён')
-                if rel == 'project.godot' and re.search(rb'(?im)^\s*\[autoload\]', raw):
-                    raise AppError('denied', 'autoload structural проект не изолирован')
-                captured[rel] = raw
+    def _references(self, rel, raw):
+        suffix = Path(rel).suffix.lower()
+        if suffix in ('.tscn', '.tres') and CODE.search(raw):
+            raise AppError('denied', 'Сцена или зависимость содержит скрипт или экранированное поле: res://'+rel+'. Выберите сцену или ресурс без скрипта.')
+        if rel == 'project.godot' and re.search(rb'(?im)^\s*\[autoload\]', raw):
+            raise AppError('denied', 'autoload structural проект не изолирован')
+        if suffix not in ('.tscn', '.tres', '.godot', '.gdshader'): return
+        for line in raw.splitlines():
+            for m in re.finditer(rb'"([^"\r\n]*)"', line):
+                value = m[1].decode('utf-8', 'strict')
+                path_field = line.lstrip().startswith(b'[ext_resource') and re.search(rb'\bpath\s*=\s*$', line[:m.start()])
+                if value.startswith('uid://') and suffix != '.gdshader' and not path_field: continue
+                if (suffix == '.gdshader' or path_field) and '://' not in value and not re.match(r'^[/\\]|^[A-Za-z]:', value):
+                    if normalize_rel(value) != value: raise AppError('denied', 'некорректная относительная ссылка Godot')
+                    value = 'res://'+(Path(rel).parent/value).as_posix()
+                if value.startswith('res://'):
+                    name = value[6:]; self._safe_asset(name)
+                    # --editor never runs the main scene; set_main_scene supplies its new target via the action.
+                    if rel != 'project.godot' or not re.match(rb'^\s*run/main_scene\s*=', line): yield name
+                elif ('://' in value or value.startswith(('/', './', '../')) or value == '..' or '\\' in value
+                      or re.match(r'^[A-Za-z]:', value) or value.lower().endswith(('.cfg', *CODES))):
+                    raise AppError('denied', 'external/encoded engine reference запрещён')
+
+    def _safe_asset(self, rel):
+        suffix = Path(rel).suffix.lower()
+        if (not rel or normalize_rel(rel) != rel or ':' in rel or '\\' in rel or not PathPolicy(self.project).can_read(rel)
+                or any(p.casefold() in SKIP for p in Path(rel).parts) or suffix not in ASSETS
+                or (rel != 'project.godot' and suffix == '.godot')):
+            raise AppError('denied', 'недопустимая зависимость structural операции')
+
+    def _capture(self, action, target):
+        pending = {'project.godot'} | {v[6:] for v in walk_values(action) if isinstance(v, str) and v.startswith('res://')}
+        captured = {}; total = 0
+        while pending:
+            rel = pending.pop(); self._safe_asset(rel); path = self.project/rel; plain(path)
+            if rel in captured: continue
+            if action['action'] == 'create_scene' and rel == target: continue
+            if not path.is_file(): raise AppError('invalid_input', 'Не найден файл structural операции: res://'+rel)
+            if path.stat().st_size > MAX_BYTES-total or len(captured) >= 4096: raise AppError('invalid_input', 'structural snapshot превышает лимит')
+            raw = self.files.read_raw(rel) if self.files else path.read_bytes(); total += len(raw)
+            if total > MAX_BYTES: raise AppError('invalid_input', 'structural snapshot превышает лимит')
+            captured[rel] = raw
+            pending.update(self._references(rel, raw))
         return captured
 
     def _run(self, argv, env):
@@ -108,18 +118,24 @@ class EngineOverlay:
             raise AppError('denied', 'overlay state должен быть внешним')
         if not self.godot_bin or not Path(self.godot_bin).is_absolute():
             raise AppError('unavailable', 'задайте абсолютный GODOT_AGENT_GODOT_BIN')
-        before = self._capture()
+        before = self._capture(action,rel)
         if 'project.godot' not in before: raise AppError('invalid_input', 'project.godot отсутствует')
         if action['action'] != 'create_scene' and rel not in before: raise AppError('invalid_input', 'structural target отсутствует')
         target = self.project / rel; plain(target)
-        if action['action'] == 'create_scene' and target.exists(): raise AppError('conflict', 'create_scene target уже существует')
+        exists=lambda: self.files.exists(rel) if self.files else target.exists()
+        if action['action'] == 'create_scene' and exists(): raise AppError('conflict', 'create_scene target уже существует')
         self.state.mkdir(parents=True, exist_ok=True); plain(self.state); self.last_report = None
         with tempfile.TemporaryDirectory(prefix='structural-', dir=self.state) as folder:
             scratch = Path(folder); project = scratch / 'project'; project.mkdir()
             for name, raw in before.items():
                 copied = project / name; copied.parent.mkdir(parents=True, exist_ok=True); copied.write_bytes(raw)
             internal = project / '_t1_overlay'; internal.mkdir()
-            for name in ('agent_scene_executor.gd', 'agent_resource_executor.gd', 'agent_project_settings_executor.gd'):
+            # The resource witness extends its SDK by canonical res:// path. Install
+            # that single trusted dependency, never the working project's add-ons.
+            sdk = project / 'addons/godot_agent/editor/native'; sdk.mkdir(parents=True)
+            resource = 'agent_resource_executor.gd'
+            (sdk/resource).write_bytes((self.addon/'editor/native'/resource).read_bytes())
+            for name in ('agent_scene_executor.gd', 'agent_project_settings_executor.gd'):
                 (internal / name).write_bytes((self.addon / 'editor/native' / name).read_bytes())
             for name, destination in (('structural_overlay.gd', 'harness.gd'), ('resource_publication_observer.gd', 'resource_observer.gd')):
                 (internal / destination).write_bytes((self.addon / 'editor/core' / name).read_bytes())
@@ -129,7 +145,7 @@ class EngineOverlay:
             env = dict(os.environ, GODOT_AGENT_OVERLAY_ROOT=str(project))
             self._run(['--headless', '--editor', '--import', '--path', project], env)
             self._run(['--headless', '--editor', '--path', project, '--script', 'res://_t1_overlay/harness.gd', '--', request, response], env)
-            if self._capture() != before or (target.exists() and rel not in before):
+            if self._capture(action,rel) != before or (exists() and rel not in before):
                 raise AppError('conflict', 'проект изменился во время structural prepare')
             if not response.is_file() or response.stat().st_size > MAX_BYTES: raise AppError('unavailable', 'нет ограниченного structural response')
             try: report = json.loads(response.read_bytes())

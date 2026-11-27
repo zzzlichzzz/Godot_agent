@@ -67,6 +67,34 @@ def reference_in_other_scope(fact, declaration, kind, declarations):
 
 
 
+def super_method(index, name):
+    """Resolve only an explicit super.method() with a unique indexed parent chain."""
+    by_path = {entry['path']: entry for entry in index['files']}
+    by_class = {}
+    for entry in index['files']:
+        for decl in entry['declarations']:
+            if decl['kind'] == 'class_name':
+                by_class.setdefault(decl['name'], []).append(entry)
+
+    def resolve(entry, fact, tokens):
+        recv, dot, call = token_neighbors(tokens, fact['start'])
+        if [(t or {}).get('value') for t in (recv, dot, call)] != ['super', '.', '(']:
+            return None
+        seen = {entry['path']}
+        while True:
+            parents = by_class.get(entry['parent_class'], [])
+            entry = (by_path.get(entry['parent_path']) if entry['parent_path'] else
+                     parents[0] if len(parents) == 1 else None)
+            if not entry or entry['path'] in seen:
+                return None
+            seen.add(entry['path'])
+            matches = [d for d in entry['declarations'] if d['owner'] == 'script'
+                       and d['name'] == name and d['kind'] == 'function']
+            if matches:
+                return matches[0] if len(matches) == 1 else None
+    return resolve
+
+
 def reference_is_safe(kind, fact, tokens, target_path, path, target_class,
                       declarations, subclasses, all_target_classes, root_owner,
                       typed=None):

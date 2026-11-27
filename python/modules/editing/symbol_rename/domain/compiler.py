@@ -16,6 +16,7 @@ import re
 
 from python.kernel.errors import AppError
 from python.kernel.write_plan import Step
+from python.formats.gdscript.method_guards import plan_guards
 
 from .collisions import name_conflict
 
@@ -77,8 +78,6 @@ def compile_plan(analysis, texts, mode, allow_unverified, exclude=(),
             _add_edit(edits_by_path, texts, usage, analysis["old_name"], new_name)
             continue
         if usage["confidence"] == "dynamic":
-            # Снятие не отменяет запрет strict: эталон гейтит по самому факту
-            # динамической ссылки, а не по тому, собираемся ли мы её править.
             dynamic.append(usage)
             if (path, line) in excluded:
                 skipped.append("%s:%s:%s — снято пользователем, имя не "
@@ -125,13 +124,15 @@ def compile_plan(analysis, texts, mode, allow_unverified, exclude=(),
                        details={"reason": "dynamic_references"})
     steps = []
     for path in sorted(edits_by_path):
+        if mode == 'probable' and analysis.get('kind') == 'function':
+            try: plan_guards(edits_by_path[path],path,texts[path],analysis['old_name'],new_name,excluded)
+            except ValueError as e: raise AppError('conflict',str(e),details={'reason':'partial_guard'}) from e
         edits = sorted(edits_by_path[path], key=lambda item: item["start"])
         steps.append(Step(op="script_edit", target=path,
                           payload={"edits": edits,
                                    "newline": (newlines or {}).get(path, "lf")},
                           expected_hash=_sha256(texts[path])))
-    stats = {
-        "files": len(steps),
+    stats = {"files": len(steps),
         "edits": sum(len(step.payload["edits"]) for step in steps),
         "proven": analysis.get("proven_count", 0),
         "probable": analysis.get("probable_count", 0),
@@ -156,8 +157,7 @@ def _add_edit(edits_by_path, texts, usage, old_name, new_name):
     if text is None:
         raise AppError("internal", "нет текста файла %s" % path)
     start = _offset(text, usage["line"], usage.get("column") or 1, old_name)
-    edit = {"start": start, "end": start + len(old_name),
-            "replacement": str(new_name)}
+    edit = {"start": start, "end": start + len(old_name), "replacement": str(new_name)}
     bucket = edits_by_path.setdefault(path, [])
     if edit not in bucket:
         bucket.append(edit)

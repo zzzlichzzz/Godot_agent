@@ -12,16 +12,17 @@ locator объявления → места использования с коо
 import re
 
 from python.formats import gdscript
+from python.formats.gdscript.method_guards import NOTE, pairs
 from python.kernel.errors import AppError
-from python.modules.code_intel.shared import symbol_index
+from python.modules.code_intel.shared import bound_names, symbol_index
 
 from .evidence import (owner_shadows_name, reference_in_other_scope,
-                       reference_is_safe, token_neighbors, unverified_reason)
+                       reference_is_safe, super_method, token_neighbors, unverified_reason)
 
 KINDS = ("class_name", "function", "signal", "variable", "const", "enum",
          "enum_member")
 
-#: Допустимые стратегии эталона. Предпросмотр их не применяет: только echo.
+#: Стратегии подготовки. Присвоенная месту уверенность от них не зависит.
 MODES = ("strict", "probable")
 
 KEYWORDS = {
@@ -114,9 +115,8 @@ def build_rename_query(kind, old_name, new_name, declaration, mode=None,
                        allow_unverified=None):
     """Запрос `analyze_rename`: тот же поиск плюс обязательное новое имя (R-15).
 
-    `mode` и `allow_unverified` эталон принимает и возвращает эхом; меняют они
-    решения только при подготовке и записи (`symbol_refactor_part3.py:477-498`),
-    то есть в `editing.symbol_rename`, а не в предпросмотре.
+    `allow_unverified` расширяет список затрагиваемых путей вероятными ссылками;
+    строгий отказ из-за динамических строк проверяет компилятор плана.
     """
     if not str(new_name or "").strip():
         raise AppError("invalid_input",
@@ -247,6 +247,8 @@ def find(index, query):
     usages = [{"path": declaration["path"], "line": declaration.get("line"),
                "column": declaration.get("column") or 1, "link": "declaration",
                "confidence": "proven", "note": None}]
+    resolve_super = (super_method(index, query.old_name) if query.kind == "function"
+                     and declaration["owner"] == "script" else None)
     for entry in index["files"]:
         tokens = gdscript.tokenize(entry["text"])
         typed = _typed(entry)
@@ -262,7 +264,10 @@ def find(index, query):
                     and owner_shadows_name(fact.get("owner"), fact.get("name"),
                                            entry["declarations"])):
                 continue
-            safe = reference_is_safe(
+            parent_method = resolve_super(entry, fact, tokens) if resolve_super else None
+            if parent_method is not None and parent_method != declaration:
+                continue
+            safe = parent_method is not None or reference_is_safe(
                 query.kind, fact, tokens, query.path, entry["path"], target_class,
                 declarations, subclass_paths, all_target_classes,
                 declaration.get("owner"), typed)
@@ -277,6 +282,7 @@ def find(index, query):
                         target_class, declarations, subclass_paths,
                         all_target_classes, declaration.get("owner"), typed)
                     or "не доказано: связь с символом не установлена")})
+        guards = {t['start'] for t,_ in pairs(tokens,query.old_name)} if query.kind == 'function' else set()
         for fact in entry["strings"]:
             if exact_string_value(str(fact.get("value") or "")) != query.old_name:
                 continue
@@ -285,7 +291,12 @@ def find(index, query):
                 usages.append({
                     "path": entry["path"], "line": fact.get("line"),
                     "column": fact.get("column") or 1, "link": "string",
-                    "confidence": "dynamic", "note": reason})
+                    "confidence": "dynamic", "note": NOTE if fact['start'] in guards else reason})
+    if query.kind in ('function','signal') and declaration['owner'] == 'script':
+        owners = bound_names.script_owners(index,declaration)
+        for path,text in bound_names.sources(index,owners):
+            usages.extend(dict(path=path,line=l,column=c,link=link,confidence='proven',note=None)
+                          for l,c,link in bound_names.places(path,text,query.kind,query.old_name,owners))
     usages.sort(key=lambda item: (item["path"], item["line"], item["column"]))
     by_link = {}
     for place in usages:
@@ -302,8 +313,8 @@ def analyze(index, query):
     """Предпросмотр переименования: тот же поиск, другой отчёт (part2:685-718).
 
     Второго обхода файлов нет: `find` уже дал места с доказательствами, здесь
-    только группировка — затронутые файлы (только `proven`, сортировка и
-    дедупликация множеством) и риски строками. Формат строки эталонный: его
+    только группировка — затронутые файлы с учётом allow_unverified
+    и риски строками. Формат строки эталонный: его
     читают человек и модель, поэтому в объекты он не превращается.
     """
     result = find(index, query)
@@ -315,7 +326,8 @@ def analyze(index, query):
         "mode": query.mode or "strict",
         "usages": usages,
         "affected_paths": sorted({item["path"] for item in usages
-                                  if item["confidence"] == "proven"}),
+                                   if item["confidence"] == "proven" or
+                                   (item["confidence"] == "probable" and query.allow_unverified)}),
         "risks": [risk_line(item) for item in usages
                   if item["confidence"] != "proven"],
         "by_link": result["by_link"],

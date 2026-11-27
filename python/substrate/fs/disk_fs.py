@@ -115,6 +115,9 @@ class DiskFileSystem:
         """Metadata only; same realpath containment, no content-size/read side effect."""
         return os.path.isfile(self._resolve(rel_path))
 
+    def is_dir(self, rel_path):
+        return os.path.isdir(self._resolve(rel_path) if rel_path else self._root)
+
     def exists(self, rel_path: str) -> bool:
         """Истинно для файла и каталога; is_file остаётся строго про обычный файл.
 

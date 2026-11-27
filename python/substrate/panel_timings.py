@@ -20,7 +20,7 @@ def _valid(row):
                     'not_found','denied','invalid_input','unavailable') for label in results)):
             return False
     return (row.keys() == fields
-            and row['kind'] in ('read','message')
+            and row['kind'] in ('read','message','rename_report')
             and row['outcome'] in ('error','final','pending_read','pending_confirmation')
             and number('utc_s', 2**40) and number('chars', 200_000) and number('total_ms', 86_400_000)
             and all(row[t] is None or number(t, row['total_ms']) for t in times))

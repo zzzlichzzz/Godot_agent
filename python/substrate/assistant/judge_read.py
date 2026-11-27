@@ -6,19 +6,24 @@ from python.substrate.context.librarian_read import LibrarianRead, _LOCK
 
 
 class JudgeRead(LibrarianRead):
-    def _public_value(self, value):
+    def _public_value(self, value, root):
         if isinstance(value, str):
-            for prefix in (self._project.replace('\\', '\\\\')+'\\\\',
-                           self._project+'\\', self._project.replace('\\', '/')+'/'):
+            for prefix in (root.replace('\\', '\\\\')+'\\\\', root+'\\', root.replace('\\', '/')+'/'):
                 value = value.replace(prefix, 'res://')
             return value
         if isinstance(value, dict):
-            return {key: self._public_value(item) for key, item in value.items()}
+            return {key: self._public_value(item,root) for key, item in value.items()}
         if isinstance(value, (list, tuple)):
-            return [self._public_value(item) for item in value]
+            return [self._public_value(item,root) for item in value]
         return value
 
     def judge(self, full_text, *, allow_addons=False, allow_self_edit=False):
+        return self._evaluate(full_text, False, allow_addons, allow_self_edit)
+
+    def select(self, variants):
+        return self._evaluate(variants, True, False, False)
+
+    def _evaluate(self, value, multiple, allow_addons, allow_self_edit):
         if not os.path.isdir(self._project):
             raise AppError('not_found', 'корень проекта не найден')
         self._guard_storage()
@@ -45,9 +50,15 @@ class JudgeRead(LibrarianRead):
                 if not routed or os.path.normcase(os.path.abspath(routed)) != os.path.normcase(str(self.log_path.parent)):
                     raise AppError('denied', 'хранилище профиля judge недоступно')
                 self._guard_storage()
-                return self._public_value(answer_judge.judge_answer(
-                    self._project, full_text, addon_dir=self.addon_dir,
-                    allow_addons=allow_addons, allow_self_edit=allow_self_edit))
+                with self.view(allow_addons=allow_addons,allow_self_edit=allow_self_edit) as root:
+                    from python.substrate.fs.project_view import view_addon
+                    evaluate=answer_judge.select_best_project_answer if multiple else answer_judge.judge_answer
+                    result=evaluate(root, value, addon_dir=view_addon(root,self._project,self.addon_dir),
+                                    allow_addons=allow_addons, allow_self_edit=allow_self_edit)
+                    if multiple:
+                        key,text,best,all_results=result
+                        return key,text,self._public_value(best,root),self._public_value(all_results,root)
+                    return self._public_value(result,root)
             finally:
                 ml_data._BASE_OVERRIDE = previous
                 history_manager._STORAGE_OVERRIDE = previous_history

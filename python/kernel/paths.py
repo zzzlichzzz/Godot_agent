@@ -87,3 +87,7 @@ class PathPolicy:
     def can_read(self, rel):
         return not self.deny_reason(rel)
 
+    def protected_override_candidate(self, rel):
+        """Deny-only integrity check, never permission to return or modify a script."""
+        return (normalize_rel(rel) == rel and rel.endswith('.gd') and not self.can_read(rel)
+                and (self.is_agent(rel) or self.is_addon(rel)) and not self.is_history(rel))

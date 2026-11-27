@@ -125,5 +125,5 @@ def register_project_routes(app,agent,session,services):
             result=answer['result']
             if result['state']=='pending_confirmation':session.pending=result['plan']
             services.log_sent(report);session.pending_log_report=None
-            return jsonify(dict(result,ok=True,**panel_chat_reply(result)))
+            return jsonify(dict(result,ok=True,**panel_chat_reply(result,services.preview_diffs)))
     app.register_blueprint(bp)

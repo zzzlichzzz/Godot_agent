@@ -209,7 +209,7 @@ func setup(vbox: VBoxContainer) -> void:
 
 func clear() -> void:
 	flush()
-	preload("agent_read_consent.gd").revoke(self)
+	set_meta("requested_grant", "")
 	_live_active = false
 	_live_agent_card = null
 	_live_sent = 0

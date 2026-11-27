@@ -607,7 +607,12 @@ func _launch_server_process() -> bool:
 ## там стоял taskkill /IM godot_agent_server.exe — он убивал серверы всех
 ## открытых проектов, включая чужой редактор.
 func _spawn_server(executable: String, args: Array = []) -> int:
+	var inherited := OS.has_environment("GODOT_AGENT_GODOT_BIN")
+	var previous := OS.get_environment("GODOT_AGENT_GODOT_BIN")
+	OS.set_environment("GODOT_AGENT_GODOT_BIN", OS.get_executable_path())
 	var pid := OS.create_process(executable, args, true)
+	if inherited: OS.set_environment("GODOT_AGENT_GODOT_BIN", previous)
+	else: OS.unset_environment("GODOT_AGENT_GODOT_BIN")
 	if pid > 0:
 		AgentServer.save_server_pid(pid)
 	return pid

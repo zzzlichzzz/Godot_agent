@@ -7,6 +7,10 @@ from pathlib import Path
 _REVISIONS = Path(__file__).resolve().parents[3] / 'fixtures/corpus/scene_model'
 D128 = json.loads((_REVISIONS / 'd128_revision.json').read_bytes())
 D129 = json.loads((_REVISIONS / 'd129_revision.json').read_bytes())
+D131 = json.loads((_REVISIONS / 'd131_revision.json').read_bytes())
+D132 = json.loads((_REVISIONS / 'd132_revision.json').read_bytes())
+D133 = json.loads((_REVISIONS / 'd133_revision.json').read_bytes())
+D134 = json.loads((_REVISIONS / 'd134_revision.json').read_bytes())
 
 
 def _before_revision(revision, path, current):
@@ -26,7 +30,9 @@ def _before_revision(revision, path, current):
 
 
 def before_d128(path, current):
-    return _before_revision(D128, path, _before_revision(D129, path, current))
+    for revision in (D134, D133, D132, D131, D129, D128):
+        current = _before_revision(revision, path, current)
+    return current
 
 PATH='editor/core/resource_publication_observer.gd'
 OLD_SHA='fa449727bf5b461b0cdff330bc4d60ced5a6a7765b665098486ea8bf05eb4706'

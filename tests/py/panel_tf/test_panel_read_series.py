@@ -80,6 +80,31 @@ def test_tickets_expire_and_new_prompts_replace_them(client, cold_tf6, monkeypat
     assert len(composer.submits)==2 and 'Результат чтения' not in ''.join(composer.submits)
 
 
+def test_one_consent_for_disjoint_lines_and_no_repeat(client,cold_tf6,monkeypatch):
+    http, headers, state, root, app = _setup_browser_chat(client,cold_tf6,monkeypatch)
+    chat=app.extensions['native_references'].state.STATE['current_chat_id']
+    original='Найди две части скрипта'
+    spans=[[2,3],[9,10]]
+    action=dict(action='read_file',path='res://hero.gd',ranges=spans)
+    prompts=[]
+    def reply(prompt):
+        prompts.append(prompt)
+        return dict(text='Чтение.\n===DONE===',actionRaw=json.dumps(dict(action,reason=str(len(prompts)))))
+    _install_composer(app,monkeypatch,'ok',reply)
+    def post(path,**args):
+        response=http.post(path,json=_body(app,state,chat_id=chat,**args),headers=headers)
+        assert response.status_code==200,response.json
+        return response.json
+    ticket=post('/chat',prompt=original)['read_request']
+    assert ticket['action']['ranges']==spans and len(prompts)==1
+    result=post('/chat/read/decision',request_id=ticket['id'],approved=True)
+    assert result['state']=='final' and 'Чтение остановлено' in result['answer'] and 'read_request' not in result
+    assert len(prompts)==3 and original in prompts[0] and all(original not in p for p in prompts[1:])
+    chunks=json.loads(prompts[1].split('Результат чтения:\n')[1]);lines=(root/'hero.gd').read_text().splitlines()
+    assert [(c['start_line'],c['end_line'],c['content'].splitlines()) for c in chunks]==[(a,b,lines[a-1:b]) for a,b in spans]
+    assert 'Результат чтения' not in prompts[2]
+
+
 def test_browser_progress_arrives_before_the_completed_http_turn(client,cold_tf6,monkeypatch):
     http, headers, state, _, app = _setup_browser_chat(client,cold_tf6,monkeypatch)
     from python.substrate.llm.parsers import deepseek_parser

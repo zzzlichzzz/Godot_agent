@@ -31,6 +31,7 @@ var _view
 var _current_chat_id := "chat-A"
 var _is_network_busy := false
 var _pending_request_kind := ""
+var _active_chat_turn := ""
 var http_request := Transport.new()
 func _set_ui_busy(flag): _is_network_busy = flag
 func _policy_json(body): return JSON.stringify(body)
@@ -67,22 +68,22 @@ func journey():
     offer("always")
     assert(http_request.calls.size() == 2 and http_request.calls.back().approved)
     click(1)
-    assert(not _view._auto_approve_all)
+    assert(_view.is_auto_approve() and _view._auto_bar != null)
     offer("auto")
-    assert(http_request.calls.back() == {"chat_id":"chat-A","request_id":"auto","approved":true})
+    assert(_active_chat_turn.length() == 32 and http_request.calls.back() == {"chat_id":"chat-A","request_id":"auto","approved":true,"turn_id":_active_chat_turn})
     _set_ui_busy(false)
     Consent.finish(self, true)
     offer("eighth", true)
     assert(http_request.calls.size() == 4)
     click(0)
-    _view._root_vbox.get_node(Consent.BADGE).pressed.emit()
+    _view._auto_bar.find_child("AutoApproveOffButton", true, false).pressed.emit()
     offer("ask_again")
     assert(http_request.calls.size() == 5)
     click(1)
     _view.clear()
     _current_chat_id = "chat-B"
     offer("switched")
-    assert(http_request.calls.size() == 6 and not _view._root_vbox.has_node(Consent.BADGE))
+    assert(http_request.calls.size() == 6 and not _view.is_auto_approve())
     print("READ_CONTROLS_OK")
     quit()
 ''', 'utf8')

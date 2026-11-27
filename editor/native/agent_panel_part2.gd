@@ -322,6 +322,20 @@ static func _export_api_to_server(panel, silent: bool) -> void:
 		panel._log_error(panel._t("api_export_err"))
 		panel._set_ui_busy(false)
 
+static func _request_rename_report(panel, ticket: Dictionary) -> void:
+	if ticket.get("chat_id") != panel._current_chat_id: return
+	panel._active_chat_turn = Crypto.new().generate_random_bytes(16).hex_encode()
+	panel._pending_request_kind = "rename_report"
+	panel._set_ui_busy(true)
+	var payload := ticket.duplicate()
+	payload["turn_id"] = panel._active_chat_turn
+	var error = panel.http_request.request(AgentServer.URL_CHAT + "/rename/report", panel._json_headers(),
+		HTTPClient.METHOD_POST, panel._policy_json(payload))
+	if error != OK:
+		panel._active_chat_turn = ""
+		panel._set_ui_busy(false)
+		panel._view.add_warning(panel._t("rename_report_missing"))
+
 static func _on_request_completed(panel, result: int, response_code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
 	if panel._link: panel._link.report_availability(result, response_code)
 	panel._set_ui_busy(false)
@@ -335,8 +349,28 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 	var json = null
 	if result == OK and not response_str.is_empty():
 		json = JSON.parse_string(response_str)
+	if kind in ["chat", "read_decision", "rename_report"]:
+		panel._active_chat_turn = ""
+		if panel._new_after_turn:
+			panel._new_after_turn = false
+			if kind == "read_decision": preload("agent_read_consent.gd").finish(panel, false)
+			panel._view.clear_pending_system()
+			# A preview can finish just before Stop reaches the listener. Keep its
+			# controls in the originating chat rather than orphan a pending write.
+			if not (json is Dictionary and json.get("pending_confirmation", false)):
+				panel._on_chat_new_pressed()
+				return
+			panel._view.add_warning(panel._t("resolve_action_first"))
 	if kind == "read_decision" and panel._view:
 		preload("agent_read_consent.gd").finish(panel, response_code == 200 and json is Dictionary)
+	if kind == "rename_report":
+		if response_code == 200 and json is Dictionary and json.get("answer", "") != "":
+			panel._view.add_agent_message(str(json.answer))
+		else:
+			panel._view.add_warning(panel._t("rename_report_missing"))
+		if json is Dictionary and json.has("transcript_warning"):
+			panel._view.add_warning(str(json.transcript_warning))
+		return
 
 	if response_code == 200 and json != null:
 		# ЗАДАЧА 3: единственный полный scan() во всём плагине, и он остаётся
@@ -353,7 +387,7 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 		if json.has("site_mismatch") and bool(json.get("site_mismatch", false)):
 			panel._handle_site_mismatch(str(json.get("site", "")), str(json.get("prompt", "")))
 			return
-		if kind == "chat":
+		if kind in ["chat", "read_decision"] and not json.has("read_request"):
 			panel._finish_chat_send()
 		if kind in ["chat", "read_decision", "confirm"]:
 			var transcript_warning := str(json.get("transcript_warning", ""))
@@ -822,6 +856,9 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 		# WRITE-действие, требующее подтверждения
 		var pending = json.get("pending_action")
 		if pending != null and panel.action_label and panel.pending_action_box:
+			var identity = json.get("preview", {})
+			if identity is Dictionary and identity.has("digest"):
+				panel.set_meta("confirm_identity", {"plan_id": identity.plan_id, "digest": identity.digest, "chat_id": panel._current_chat_id})
 			var description = json.get("pending_action_description", panel._t("agent_wants_action"))
 			if description == null: description = panel._t("agent_wants_action")
 			# Красивый предпросмотр: сервер присылает ЧИСТЫЙ код (без JSON-обёртки)
@@ -915,9 +952,11 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 			if not has_answer and (kind == "chat" or kind == "confirm"):
 				panel._view.add_system(panel._t("empty_response"))
 
+		if kind == "confirm" and json.get("rename_report_request") is Dictionary:
+			_request_rename_report(panel, json.rename_report_request)
 		await panel.get_tree().process_frame
 	else:
-		if kind == "chat":
+		if kind in ["chat", "read_decision"]:
 			# Неудачная отправка (таймаут, сервер не ответил, не-200 ответ):
 			# снимаем «Агент анализирует проект...» и сообщаем об ошибке, иначе
 			# строка висит вечно и выглядит как бесконечный коннект (v107).
@@ -925,6 +964,9 @@ static func _on_request_completed(panel, result: int, response_code: int, header
 				panel._view.clear_pending_system()
 				panel._view.add_system(panel._t("err_send"))
 			panel._restore_chat_draft()
+			if json is Dictionary and json.get("details", {}).get("retry_prompt", false):
+				panel._view.add_warning(str(json.get("error", "")) + " Чтобы повторить, нажмите «Отправить».")
+				return
 		if kind == "runtime_check_bind":
 			panel._send_runtime_check_result("bridge_unavailable", {})
 			return

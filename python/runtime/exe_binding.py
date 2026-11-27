@@ -5,14 +5,9 @@ import os
 from pathlib import Path
 import re
 import secrets
-import sys
-
-def ordinary(path):
-    for item in (path,*path.parents):
-        if item.exists() or item.is_symlink():
-            stat=item.lstat()
-            if item.is_symlink() or getattr(stat,'st_file_attributes',0)&0x400:
-                raise ValueError('Deployment and userdata must not traverse links')
+from python.runtime import launcher_engine
+from python.runtime.launcher_engine import ordinary
+from python.substrate.fs.godot_io import GodotFiles, MissingGodot, engine
 
 def safe_name(value):
     if (not value or value in ('.','..') or value[-1] in ('.',' ') or
@@ -20,6 +15,18 @@ def safe_name(value):
         {'CON','PRN','AUX','NUL',*(f'COM{i}' for i in range(1,10)),*(f'LPT{i}' for i in range(1,10))}):
         raise ValueError('Ambiguous Godot userdata name; use explicit --state')
     return value
+
+def bound_project(executable):
+    exe=Path(executable).absolute();ordinary(exe)
+    addons=[p for p in exe.parents if p.name=='godot_agent' and p.parent.name=='addons']
+    if len(addons)!=1:raise ValueError('Exe must belong to one addon deployment')
+    addon=addons[0];project=addon.parent.parent
+    if not (addon/'plugin.cfg').is_file() or not (project/'project.godot').is_file():raise ValueError('No bound Godot project')
+    return project
+
+def use_selected_editor(executable, value, environ):
+    editor=launcher_engine.editor_identity(value.strip().strip('"'),bound_project(executable))
+    environ[launcher_engine.ENGINE_ENV]=editor['path']
 
 def configuration(argv,executable,environ):
     parser=argparse.ArgumentParser(description='Godot Agent owned HTTP executable')
@@ -30,15 +37,15 @@ def configuration(argv,executable,environ):
         project=Path(args.project).absolute();state=Path(args.state).absolute()
         ordinary(project);ordinary(state)
         return project.resolve(),state.resolve(),args.port
-    exe=Path(executable).absolute();ordinary(exe)
-    addons=[p for p in exe.parents if p.name=='godot_agent' and p.parent.name=='addons']
-    if len(addons)!=1:raise ValueError('Exe must belong to one addon deployment')
-    addon=addons[0];project=addon.parent.parent;config=project/'project.godot'
-    if not (addon/'plugin.cfg').is_file() or not config.is_file():raise ValueError('No bound Godot project')
+    project=bound_project(executable);config=project/'project.godot'
     ordinary(config)
     if config.stat().st_size>1_000_000:raise ValueError('Project config too large')
     section='';values={}
-    for line in config.read_text('utf-8-sig').splitlines():
+    restored=launcher_engine.restore(project,environ)
+    binary=engine()
+    if not environ.get(launcher_engine.ENGINE_ENV) and Path(binary).resolve().is_relative_to(project.resolve()):
+        raise MissingGodot()  # A project-local program is not a system PATH installation.
+    for line in GodotFiles(project,1_000_000).read_raw('project.godot').decode('utf-8-sig').splitlines():
         line=line.strip()
         if line.startswith('['):section=line
         elif section=='[application]' and '=' in line:
@@ -59,6 +66,8 @@ def configuration(argv,executable,environ):
         if not isinstance(custom_name,str):raise ValueError('Custom userdata needs explicit name or --state')
         state=Path(appdata)/safe_name(custom_name)
     ordinary(state)
+    if not restored and environ.get(launcher_engine.ENGINE_ENV)==binary:
+        launcher_engine.remember(project,environ)
     return project.resolve(),state.absolute(),5000
 
 def ensure_token(project,state):

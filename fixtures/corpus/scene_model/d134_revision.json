@@ -1,0 +1,24 @@
+{
+  "editor/native/agent_server_link.gd": {
+    "before": [
+      30581,
+      "3b90312d4484eef82c3ddd285559a18674b0dab8768de863c03d8aa8750cea7f"
+    ],
+    "after": [
+      30902,
+      "495604c08758890f72eb27280fdc3abbac011fbacafb10724aedd0f193b12281"
+    ],
+    "reverse": [
+      [
+        609,
+        612,
+        ""
+      ],
+      [
+        613,
+        615,
+        ""
+      ]
+    ]
+  }
+}

@@ -503,6 +503,9 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		panel._switch_chat_draft(str(cur))
 	# While recovering, the restarted server's list may refer to another chat.
 	if cur != null and (kind in ["open", "new"] or not panel._needs_reopen):
+		if panel._view and str(cur) != panel._current_chat_id:
+			panel._view.set_meta("requested_grant", "")
+			panel._view.set_auto_approve(false)
 		panel._current_chat_id = str(cur)
 	if kind == "open" or kind == "new":
 		panel._history_only = bool(json.get("history_only", false))
@@ -619,6 +622,7 @@ static func _fill_chat_list(panel, chats) -> void:
 	if panel._chat_select == null or typeof(chats) != TYPE_ARRAY:
 		return
 	panel._suppress_chat_select = true
+	panel._chat_select.allow_reselect = true
 	panel._chat_select.clear()
 	var sel := -1
 	for i in chats.size():
@@ -643,7 +647,11 @@ static func _on_chat_selected(panel, index: int) -> void:
 	if panel._suppress_chat_select or panel._chat_select == null:
 		return
 	var id = str(panel._chat_select.get_item_metadata(index))
-	if id == "" or id == panel._current_chat_id:
+	if id == "" or panel._is_network_busy or panel._has_pending_action():
+		return
+	if id == panel._current_chat_id and panel._api_chat_model != "":
+		return
+	if panel._view and panel._view._chat_container and panel._view._chat_container.find_child("Choices", true, false):
 		return
 	if panel._start_screen:
 		panel._show_start_ui()
@@ -651,6 +659,11 @@ static func _on_chat_selected(panel, index: int) -> void:
 	panel._request_chats("open", {"id": id})
 
 static func _on_chat_new_pressed(panel) -> void:
+	if not panel._active_chat_turn.is_empty():
+		if not panel._new_after_turn:
+			panel._new_after_turn = true
+			panel._on_stop_pressed()
+		return
 	# «＋» в чате открывает выбор сайта (нейросети). Важно сначала
 	# показать стартовый экран — иначе экран загрузки останется невидимым.
 	panel._show_start_ui()

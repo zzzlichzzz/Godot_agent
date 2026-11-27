@@ -1,14 +1,28 @@
 """Native panel control payloads over the authenticated server-owned session."""
 import re
 from flask import Blueprint,current_app,jsonify,request
+from .rename_report import offer
 
-def panel_chat_reply(result):
+def rename_label(action):
+    return ('Переименование %s → %s' % (action['old_name'],action['new_name'])
+            if action and action.get('action')=='rename_symbol' else '')
+
+def receipt(plan,result):
+    if result['state']!='COMMITTED': return 'Отклонено. Файлы проекта не изменены.',[]
+    # A committed move is a single journal step but changes both names on disk.
+    paths=list(dict.fromkeys([row['path'] for row in result['result']['applied']]+[d['path'] for d in plan.get('diffs',[])]))
+    label=plan.get('rename_label','Изменения')+' — применено. Изменённые файлы:'
+    return '\n'.join([label,*paths,*plan.get('warnings',[])]),paths
+
+def panel_chat_reply(result,preview_diffs):
     plan=result.get('plan')
     paths=[item['path'] for item in (plan or {}).get('diffs',[])]
     pending=dict(action='transaction',paths=paths) if result.get('state')=='pending_confirmation' else None
+    label=rename_label(result.get('action'))
+    if pending and label: pending['action']='rename_symbol'
     return dict(answer=result['text'],pending_action=pending,
-                pending_action_description='Atomic journal transaction: '+', '.join(paths),
-                pending_action_diffs=(plan or {}).get('diffs',[]))
+                pending_action_description='\n'.join([label or 'Предпросмотр изменений:',*paths,*(plan or {}).get('warnings',[])]),
+                pending_action_diffs=preview_diffs((plan or {}).get('diffs',[])))
 
 def confirm_pending(agent,session,body):
     plan=session.pending
@@ -18,6 +32,8 @@ def confirm_pending(agent,session,body):
         return dict(ok=False,error='Server preview identity missing',kind='stale_plan'),409
     if body.get('plan_id',plan['plan_id'])!=plan['plan_id'] or body.get('digest',plan['digest'])!=plan['digest']:
         return dict(ok=False,error='Preview identity changed',kind='stale_plan'),409
+    if 'chat_id' in body and session.pending_chat and body['chat_id']!=session.pending_chat:
+        return dict(ok=False,error='Preview chat changed',kind='stale_plan'),409
     if body.get('exclude') or any(key in body for key in ('editor_semantic_hash','dependency_fingerprint')):
         return dict(ok=False,error='Changed selection requires a new immutable preview',kind='stale_plan'),409
     if type(body.get('approved')) is not bool:
@@ -27,10 +43,10 @@ def confirm_pending(agent,session,body):
         return dict(answer,error=answer.get('message','Confirmation refused')),409 if answer['kind'] in ('conflict','stale_plan') else 400
     result=answer['result'];session.pending=None;session.panel_preview=None
     if result['state']=='COMMITTED':session.last_receipt=result
-    text='Applied through the journal' if result['state']=='COMMITTED' else 'Rejected: no project file changed'
-    saved=session.finish_preview_note(text)
+    text,paths=receipt(plan,result)
+    saved=offer(session,plan,result,paths);saved.update(session.finish_preview_note(text))
     return dict(result,**saved,ok=True,answer=text,message=text,pending_action=None,plan_started=False,
-                plan_finished=result['state']=='COMMITTED',history_entry_id=result.get('entry_id')),200
+                plan_finished=result['state']=='COMMITTED',changed_paths=paths,history_entry_id=result.get('entry_id')),200
 
 def register_panel_routes(app,agent,session,services):
     bp=Blueprint('rebuild_panel',__name__)

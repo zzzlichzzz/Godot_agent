@@ -49,16 +49,21 @@ python -m pip install pytest Flask
 ```
 
 Проект и addon должны быть доступны в PYTHONPATH/cwd. Секреты, profile, WAL,
-token/endpoint и runtime logs хранятся вне проекта и addon. Для структурных
-операций задайте **абсолютный** путь к существующему Godot console binary:
+token/endpoint и runtime logs хранятся вне проекта и addon. Панель передаёт серверу путь
+к запущенному Godot автоматически. После такого запуска `python/dist/godot_agent_server.exe`
+можно открывать из Проводника: он запоминает редактор для этого проекта в профиле Windows.
+Если это первый самостоятельный запуск и Godot не найден, вставьте в окне сервера полный путь к редактору `.exe`.
+Для CLI/MCP задайте путь к Godot 4.6 (GUI или console):
 
 ```powershell
 $env:GODOT_AGENT_GODOT_BIN = "D:\Godot\Godot_v4.6-stable_win64_console.exe"
 $env:GODOT_AGENT_STATE_DIR = "C:\Users\<USER>\AppData\Local\godot_agent_state"
 ```
 
-Нет PATH-discovery, action-selected executable или shell. Без бинарника file
-operations/read-only chat доступны, структурная подготовка возвращает unavailable.
+Для чтения и изменения файлов используется `FileAccess`/`DirAccess` в отдельном
+Godot без запуска игры. Если переменная не задана, файловый порт ищет `godot4`
+или `godot` в PATH. Если движок недоступен, операция возвращает `unavailable`.
+Подтверждение, атомарная публикация и откат описаны в [ADR-0100](docs/adr/0100-project-file-io.md).
 Provider credentials задаются только внешней конфигурацией/разрешёнными
 GODOT_AGENT_* env; ключи не помещаются в проект, fixtures, отчёты или примеры.
 Сам факт наличия переменной не является разрешением агенту на live-сетевой тест.

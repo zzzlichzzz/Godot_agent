@@ -27,8 +27,8 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
         def leave_native_scope(error):
             scope=g.pop('godot_native_scope',None)
             if scope:scope.__exit__(None,None,None)
-    register_chat_routes(app,agent,session)
     services=PanelServices(project,state)
+    register_chat_routes(app,agent,session,services.preview_diffs)
     register_panel_routes(app,agent,session,services);register_project_routes(app,agent,session,services)
     @app.get('/health')
     def health():return jsonify(ok=True,name='Godot_Agent_Server',write_confirmation_required=True,provider_live_verified=False)
@@ -48,7 +48,7 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
         def dashboard_data():
             with session.lock:
                 pending=bool(session.pending)
-                try:status=refs.index_status()
+                try:status=services.index()
                 except Exception:status={'error':'Index status unavailable'}
                 return jsonify(uptime=refs.dashboard.uptime_text(),project_root=refs.project,
                     pending_action=pending,plan=dict(active=pending,index=0,total=int(pending)),
@@ -56,9 +56,9 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
         @app.get('/dashboard/state')
         def dashboard_state():return jsonify(ok=True,state={'project_root':str(project),'chat_busy':session.busy,'provider_live_verified':False})
         @app.post('/project/log/errors')
-        def log_errors():return jsonify(refs.log_errors())
+        def log_errors():return jsonify(services.log_report())
         @app.post('/librarian/index/rebuild')
-        def rebuild():return jsonify(ok=True,result=refs.rebuild_index())
+        def rebuild():return jsonify(ok=True,result=services.index(rebuild=True))
     @app.errorhandler(Exception)
     def unexpected(_error):return jsonify(ok=False,kind='internal',message='HTTP request failed; details redacted'),500
     return app

@@ -119,8 +119,10 @@ def test_deepseek_first_message_has_bounded_delivery(client, cold_tf6, monkeypat
         if mode == 'route':
             assert app.extensions['godot_session'].gateway._selection()['url'] == composer.current_url
     else:
-        assert response.status_code == 400, response.get_json()
-        assert 'DeepSeek' in response.json['error']
+        if mode == 'wrong-chat':
+            assert response.status_code == 409 and response.json['kind'] == 'conflict'
+        else:
+            assert response.status_code == 400 and 'DeepSeek' in response.json['error'], response.get_json()
         assert len(composer.submits) == (1 if mode in ('stale', 'unconfirmed') else 0)
         assert len(composer.insertions) == (0 if mode in ('old-files', 'wrong-chat', 'no-field') else 1)
         assert not composer.accepted

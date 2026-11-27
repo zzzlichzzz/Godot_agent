@@ -88,18 +88,6 @@ class NativeServerReferences:
             if not chat_id or chat_store.append_transcript_entries(self.user_data, chat_id, safe) is None:
                 raise OSError('Transcript destination unavailable')
 
-    def index_status(self):
-        import minilich
-        return minilich.status(self.project,str(Path(__file__).parents[2]))
-
-    def log_errors(self):
-        import log_reader
-        return log_reader.collect_errors(self.project,self.user_data)
-
-    def rebuild_index(self):
-        from python.substrate.context.librarian_read import LibrarianRead
-        return LibrarianRead(self.project,Path(self.user_data)/'rebuild_state',Path(__file__).parents[2]).answer('индекс',12000)
-
 def normalize_editor_snapshot(snapshot):
     from python.substrate.editor.references.editor_context import normalize_editor_snapshot as normalize
     return normalize(snapshot)
@@ -120,11 +108,18 @@ def build_http_agent(project,state,session,refs=None):
                                progress=session.report_progress,approved_read=session.approved_read,bind_chat=session.bind_turn_chat)
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
     gateway.report_read=session.report_read
+    gateway.judge=ports['librarian']
+    gateway.turn_cancelled=session.turns.cancelled
     session.timing_writer=TimingLog(state,project).append
     agent=build_agent(project_root=project,profile='cli',state_dir=state/'rebuild_state',ports=ports)
+    from python.modules.assistant.shared.read_actions import valid_read_proposal
+    gateway.valid_read_proposal=lambda action: valid_read_proposal(agent._registry,action)
     if refs is not None:
         from hashlib import sha256
         from python.modules.assistant.shared.prompts import panel_prompt
-        refs.routes.PROMPT_HASH=sha256(panel_prompt(agent._registry).encode()).hexdigest()
+        from .rename_feedback import install
+        system=panel_prompt(agent._registry)
+        refs.routes.PROMPT_HASH=sha256(system.encode()).hexdigest()
+        install(session,gateway,selected,system)
         refs.bind_browser(gateway);session.transcript_writer=refs.save_transcript
     return agent

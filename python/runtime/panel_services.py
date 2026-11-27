@@ -28,11 +28,24 @@ class PanelServices:
             finally:module._cache=previous
 
     def log_report(self):
+        from python.substrate.fs.project_view import project_view
         with self.reader._references():
             history=import_module('python.substrate.store.history_manager')
             reader=import_module('python.substrate.editor.references.log_reader')
             self.files.check(self.state/'logs/godot.log');self.files.check(self.reader.history_dir/'log_state.json')
-            return reader.collect_errors(str(self.state),self.project,history.get_storage_dir(self.project))
+            with project_view(self.project,self.reader.addon_dir,suffixes={'.gd','.godot','.cs','.tscn','.tres'}) as root:
+                return reader.collect_errors(str(self.state),root,history.get_storage_dir(self.project))
+
+    def index(self, rebuild=False):
+        from python.substrate.fs.project_view import project_view
+        with self.reader._references():
+            module=import_module('python.substrate.context.ml_project_index')
+            path=self.files.check(self.reader.log_path.parent/module.INDEX_FILE)
+            if rebuild:
+                with project_view(self.project,self.reader.addon_dir,indexed=True,suffixes=module.EXTS | {'.godot'}) as root:
+                    count=module.build_index(root)
+                return dict(files=count)
+            return dict(enabled=path.is_file(),training_active=False,disk_bytes=path.stat().st_size if path.is_file() else 0)
 
     def log_message(self,report):
         with self.reader._references():return import_module('python.substrate.editor.references.log_reader').format_log_report(report)
@@ -50,17 +63,24 @@ class PanelServices:
     def log_summary(self,report):
         return import_module('python.substrate.editor.references.log_reader').build_summary(report)
 
-    def describe(self,action):
+    def preview_diffs(self, deltas):
+        if not deltas: return []
         with self.reader._references():
+            render=import_module('python.substrate.project.project_tools').build_diff_preview
+            return [dict(path=row['path'], **(render(row['before'],row['after']) or {})) for row in deltas]
+
+    def describe(self,action):
+        from python.substrate.fs.project_view import project_view
+        with self.reader._references(), project_view(self.project,self.reader.addon_dir) as root:
             policy=dict(allow_addons=False,allow_self_edit=False,addon_dir=self.reader.addon_dir)
             if action['action']=='rename_file':
                 native=import_module('python.substrate.editing.file_refactor').prepare_file_rename(
-                    self.project,action['old_path'],action['new_path'],update_references=action['update_references'],**policy)
+                    root,action['old_path'],action['new_path'],update_references=action['update_references'],**policy)
                 keys=('old_path','new_path','companion_script','is_directory','moved_files','reference_count','affected_paths')
                 result={key:native.get(key) for key in keys}
             else:
                 module=import_module('python.substrate.editing.node_refactor')
-                base=[self.project,action['scene'],action['target_node_path']]
+                base=[root,action['scene'],action['target_node_path']]
                 if action['action']=='rename_node':native=module.prepare_node_rename(*base,action['new_name'],**policy)
                 elif action['action']=='reparent_node':native=module.prepare_node_reparent(*base,action['new_parent'],**policy)
                 else:native=module.prepare_node_deletion(*base,**policy)

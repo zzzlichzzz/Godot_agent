@@ -315,8 +315,8 @@ def check_gdscript():
     bad = []
     # ADR0086: inactive exact native sites, not a directory exemption.
     native_sites = {
-        'editor/native/agent_server_link.gd': ('3b90312d4484eef82c3ddd285559a18674b0dab8768de863c03d8aa8750cea7f',
-            {r'OS\.shell_open': (23408,), r'OS\.create_process': (29644,)}),
+        'editor/native/agent_server_link.gd': ('495604c08758890f72eb27280fdc3abbac011fbacafb10724aedd0f193b12281',
+            {r'OS\.shell_open': (23408,), r'OS\.create_process': (29841,)}),
         'editor/native/agent_updater.gd': ('0ced1dbd685551413afb857da22077f4ee64022396d25d833f0f5ea917400e7a',
             {r'OS\.execute': (18236,19214), r'OS\.shell_open': (19989,), r'OS\.create_process': (19674,)})}
     for base in GD_ROOTS:

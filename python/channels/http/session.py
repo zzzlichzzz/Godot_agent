@@ -2,6 +2,7 @@
 import threading
 from contextvars import ContextVar
 from .turn_clock import TurnClock
+from .turn_control import TurnControl
 
 
 class HttpSession:
@@ -10,7 +11,9 @@ class HttpSession:
         self.editor_snapshot={};self.busy=False;self.turn_context=ContextVar('http_chat_turn',default=(None,None))
         self.approved_read=ContextVar('http_approved_read',default=None);self.ticket=None;self.progress={}
         self.transcript_writer=None;self.pending_chat=None
+        self.report_ticket=None;self.rename_destination=lambda _cid: None
         self.clock=None;self.timing_writer=None
+        self.turns=TurnControl()
 
     def bind_turn_chat(self, chat_id):
         _, snapshot = self.turn_context.get()

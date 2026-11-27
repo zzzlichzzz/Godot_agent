@@ -1,25 +1,5 @@
 """AI Studio draft edits: one range replacement, never a send or a clear/retype retry."""
-import re
-from urllib.parse import urlsplit
-
-
-def studio_route(url):
-    try:
-        page=urlsplit(url or '')
-        if (page.scheme=='https' and page.netloc=='aistudio.google.com'
-                and re.fullmatch(r'/prompts/[A-Za-z0-9_-]+',page.path)):
-            # Studio's transient save flag and new-chat model selector aren't
-            # conversation identities. Keep account/unknown parameters intact.
-            query = '&'.join(part for part in page.query.split('&') if part != 'save=true' and
-                             not (page.path == '/prompts/new_chat' and part.startswith('model=')))
-            return page._replace(query=query, fragment='').geturl()
-    except ValueError:
-        pass
-    return None
-
-
-def is_new_prompt(url):
-    return bool(studio_route(url)) and urlsplit(url).path == '/prompts/new_chat'
+from ..browser.page_origin import is_new_prompt, studio_route
 
 
 _COMPOSER=r'''

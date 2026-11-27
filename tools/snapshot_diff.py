@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.corpus_replay import corpus_routes, records, selected_folders
+from tools.corpus_replay import corpus_routes, records, selected_folders, super_call_expected
 CORPUS_ROOT = ROOT / "fixtures" / "corpus"
 FIXTURES = ROOT / "fixtures" / "projects"
 
@@ -344,7 +344,8 @@ def run_corpus(agent_cache, folder, only=None):
             problem = _difference(projected, record["expect"], "")
         elif record.get("scenario"):
             answer = scenario_answer(record)
-            problem = describe(record.get("expect") or {}, answer, tool)
+            expect = super_call_expected(record) if folder == CORPUS_ROOT / 'editing' / 'write_apply' else record['expect']
+            problem = describe(expect, answer, tool)
         else:
             fixture = FIXTURES / str(record.get("fixture") or "minimal")
             if str(fixture) not in agent_cache:
@@ -354,6 +355,9 @@ def run_corpus(agent_cache, folder, only=None):
             expect = record.get("expect") or {}
             if folder == CORPUS_ROOT / "context" / "gather" and case_id == "001-all-sections":
                 expect = _context_inventory_expected(expect)
+            if ((folder.parent == CORPUS_ROOT / 'code_intel' and tool in ('usages', 'analyze_rename'))
+                    or folder == CORPUS_ROOT / 'editing' / 'write_preview'):
+                expect = super_call_expected(record)
             problem = describe(expect,
                                agent_cache[str(fixture)].call(tool, record.get("args") or {}),
                                tool)

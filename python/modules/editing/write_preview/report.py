@@ -20,13 +20,12 @@ RES = "res://"
 def read_texts(ctx, analysis):
     """Тексты, стиль переводов строк и хеши затронутых файлов.
 
-    Читается `read_raw` (байты как есть): только по байтам видно, был файл
-    CRLF или LF, — текстовое чтение через universal newlines эту разницу
-    скрывает. Смещения шагов считаются в нормализованном тексте, а хеш
-    «до правки» — по сырым байтам (контракт `expected`, ADR-0005): иначе
-    stale-check части 2 сравнивал бы разные вещи.
+    Смещения считаются в нормализованном тексте; хеш `expected` и стиль
+    переводов строк — по исходным байтам (ADR-0005).
     """
     fs = ctx.port("fs")
+    if getattr(fs, 'check_rename', None):
+        fs.check_rename(analysis, allow_addons=ctx.path_policy.allow_addons, allow_self_edit=ctx.path_policy.allow_self_edit)
     texts, newlines, expected = {}, {}, {}
     for path in sorted({usage["path"] for usage in analysis["usages"]}):
         try:
