@@ -20,7 +20,13 @@ def _label(value):
     return 'ok'
 
 
-def read_outcomes(feedback):
+def read_outcomes(tool, feedback):
     parsed = json.loads(feedback)
     rows = parsed if isinstance(parsed, list) else [parsed]
-    return [_label(row) if isinstance(row, dict) else 'error' for row in rows[:5]]
+    def outcome(row):
+        if isinstance(row, dict):
+            return _label(row) if tool != 'ask' or 'error' in row else 'error'
+        if tool == 'ask' and isinstance(row, str):
+            return 'ok' if row.strip() else 'empty'
+        return 'error'
+    return [outcome(row) for row in rows[:5]]

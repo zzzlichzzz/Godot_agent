@@ -20,16 +20,18 @@ def test_cold_reopen_only_visible_messages_in_selected_chat(cold_tf6, monkeypatc
     config = dict(provider='openrouter', model='synthetic-offline-model')
     post('/api/settings/set', key=key, **config)
     a, b = [post('/chats/new', kind='api', **config)['current_id'] for _ in range(2)]
-    replies = iter([('internal partial', 'length'), ('Первый ответ.', 'stop'), ('Второй ответ.', 'stop')])
+    first = '## Вывод\n**Важно:** *курсив* и `код[0]`.'
+    rendered = '[b][font_size=20]Вывод[/font_size][/b]\n[b]Важно:[/b] [i]курсив[/i] и [code]код[lb]0[rb][/code].'
+    replies = iter([('internal partial', 'length'), (first, 'stop'), ('Второй ответ.', 'stop')])
     def reply(self, prompt):
         text, finish = next(replies)
         return dict(text=text, raw=text, finish_reason=finish)
     monkeypatch.setattr(ApiBackend, 'send', reply)
-    assert post('/chat', chat_id=a, prompt='Запрос '+key)['answer'] == 'Первый ответ.'
+    assert post('/chat', chat_id=a, prompt='Запрос '+key)['answer'] == rendered
     assert post('/chat', prompt='Сообщение Б')['answer'] == 'Второй ответ.'
     app = create_app(project, state)
     http = app.test_client()
-    for cid, expected in [(a, 'Первый ответ.'), (b, 'Второй ответ.')]:
+    for cid, expected in [(a, rendered), (b, 'Второй ответ.')]:
         rows = [r for r in post('/chats/open', id=cid)['transcript'] if r['role'] != 'system']
         assert [r['role'] for r in rows] == ['user', 'agent']
         assert rows[1]['text'] == expected

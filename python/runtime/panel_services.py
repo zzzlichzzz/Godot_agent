@@ -92,6 +92,9 @@ class PanelServices:
             else:
                 module=import_module('python.substrate.llm.parsers.'+selected['parser'])
                 parser=getattr(module,'PARSER',module)
+                if selected['id']=='aistudio':
+                    from python.substrate.llm.parsers.studio_draft import StudioDraft
+                    parser=StudioDraft(parser)
             self._mirror_target=(driver,parser,url)
             if self._mirror is None:
                 from python.substrate.llm.browser.live_input import LiveInputMirror

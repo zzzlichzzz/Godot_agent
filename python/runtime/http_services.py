@@ -120,6 +120,10 @@ def build_http_agent(project,state,session,refs=None):
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
     gateway.report_read=session.report_read
     session.timing_writer=TimingLog(state,project).append
+    agent=build_agent(project_root=project,profile='cli',state_dir=state/'rebuild_state',ports=ports)
     if refs is not None:
+        from hashlib import sha256
+        from python.modules.assistant.shared.prompts import panel_prompt
+        refs.routes.PROMPT_HASH=sha256(panel_prompt(agent._registry).encode()).hexdigest()
         refs.bind_browser(gateway);session.transcript_writer=refs.save_transcript
-    return build_agent(project_root=project,profile='cli',state_dir=state/'rebuild_state',ports=ports)
+    return agent

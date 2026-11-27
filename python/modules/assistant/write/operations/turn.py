@@ -15,7 +15,7 @@ def read_feedback(ctx,action,user_prompt,report=None):
     except AppError as error:
         feedback=json.dumps({'error':{'kind':error.kind,'message':error.message}},ensure_ascii=False)
     if report:
-        report(READ_ACTIONS[action['action']][0],read_outcomes(feedback))
+        tool=READ_ACTIONS[action['action']][0];report(tool,read_outcomes(tool,feedback))
     return 'Результат чтения:\n'+feedback+'\nИсходный запрос: '+user_prompt[:2000]
 
 def call(args,ctx):

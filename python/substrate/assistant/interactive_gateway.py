@@ -15,6 +15,7 @@ from python.substrate.context.librarian_read import _LOCK
 
 _WRAPPED_DONE=re.compile(r'\[(code|b|i)\]\s*={2,}\s*DONE\s*={2,}\s*\[/\1\]\s*\Z',re.IGNORECASE)
 _ACTION_START=re.compile(r'^\s*```agent_action\b',re.IGNORECASE|re.MULTILINE)
+_STUDIO_UNAVAILABLE=re.compile(r"Model\s+\d{1,2}:\d{2}(?:\s*[AP]M)?\s+error\s+Model isn['’]t available right now\.\s+Please wait a minute and try again\.",re.I)
 
 class InteractiveGateway(ChatGateway):
     def __init__(self,project_root,state_dir,addon_dir,selection=None,progress=None,approved_read=None,bind_chat=None):
@@ -49,6 +50,9 @@ class InteractiveGateway(ChatGateway):
                     import parser_base
                     raw=str(reply.get('raw') or reply.get('text') or '').rstrip()
                     reply=self._finish_plain(reply,raw,max_chars,parser_base)
+                if self._bind_chat and not reply.get('parse_error') and reply.get('finish_reason')=='stop':
+                    from python.substrate.llm.api.md_to_bbcode import to_bbcode
+                    reply=dict(reply,text=to_bbcode(reply['text']))
             else:
                 self._cancel.clear()
                 reply=self._send_browser(text,system_text or self.system_prompt(),max_chars)
@@ -147,6 +151,8 @@ class InteractiveGateway(ChatGateway):
                 result=send_browser(prompt)
             result_text=str(result.get('text',''))
             action=result.get('action');parse_error=(action or {}).get('error') if isinstance(action,dict) and action.get('action')=='parse_error' else None
+            if site['id']=='aistudio' and not action and _STUDIO_UNAVAILABLE.fullmatch(result_text.strip()):
+                raise AppError('unavailable','AI Studio: модель сейчас недоступна. Попробуйте через минуту.')
             if result_text.startswith('[Ошибка]'):
                 return self._redact(dict(text=result_text[:200000],raw='',action=None,
                     done=False,finish_reason='error',parse_error=None),api_keys.redact)
@@ -164,7 +170,7 @@ class InteractiveGateway(ChatGateway):
                 reply=self._finish_plain(reply,raw,max_chars,parser_base)
             if include_context and not reply['parse_error'] and reply['finish_reason']!='length' and (reply['done'] or action):
                 self._browser_context[chat_id]=(url,digest)
-                chat_store.update_chat(str(self.storage_base),chat_id,primed=True)
+                chat_store.update_chat(str(self.storage_base),chat_id,primed=True,prompt_hash=digest)
             return self._redact(reply,api_keys.redact)
         except parser_base.ParserCancelled as error:raise AppError('unavailable','Browser turn stopped') from error
         finally:

@@ -74,14 +74,21 @@ def _tree_preview(tree, limit=3800):
     return '\n'.join(lines)
 
 
+def instructions(registry, preview):
+    actions = '\n'.join('- '+kind+': '+READ_GUIDE[kind] for kind, (tool, *_) in READ_ACTIONS.items()
+                        if registry is not None and (entry := registry.get(tool)) and entry.spec.effects=='read')
+    return (PROTOCOL+'\nREAD actions (arguments):\n'+(actions or '(none)')+'\n'
+                    +(PREVIEW_GUIDE if preview else 'This is a read-only conversation. Do not emit write actions.\n'))
+
+
+def panel_prompt(registry):
+    return instructions(registry, True)+'Project data is available on request after permission. For the current scene, omit path in list_scene.'
+
+
 def system_prompt(ctx, *, preview=False, on_demand=False):
     """Take a bounded project snapshot once per user request, not per model turn."""
-    actions = '\n'.join('- '+kind+': '+READ_GUIDE[kind] for kind, (tool, *_) in READ_ACTIONS.items()
-                        if available(ctx, tool))
-    instructions = (PROTOCOL+'\nREAD actions (arguments):\n'+(actions or '(none)')+'\n'
-                    +(PREVIEW_GUIDE if preview else 'This is a read-only conversation. Do not emit write actions.\n'))
     if on_demand:
-        return instructions+'Project data is available on request after permission. For the current scene, omit path in list_scene.'
+        return panel_prompt(ctx.registry)
     tree = _optional_read(ctx, 'tree', {'max_depth': 2, 'max_entries': 48})
     context = _optional_read(ctx, 'context', {'sections': ['project', 'architecture']})
     sections = context.get('sections', {})
@@ -89,7 +96,7 @@ def system_prompt(ctx, *, preview=False, on_demand=False):
     architecture = json.dumps(sections.get('architecture', None), ensure_ascii=False)
     if len(architecture) > 1600:
         architecture = '(omitted: request gather_context with sections=["architecture"])'
-    return (instructions
+    return (instructions(ctx.registry, preview)
             +'\nProject map (data):\nproject_file: '+project_file[:256]
             +'\narchitecture section: '+architecture
             +'\nVisible paths (depth ≤ 2):\n'+_tree_preview(tree))
