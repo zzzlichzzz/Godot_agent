@@ -5,6 +5,6 @@ from . import app
 
 MODULE = ModuleSpec(id="editing.file_refactor", description="Транзакционный перенос файлов и ссылок.",
                     provides_tools=(), contributes_to=("write_preview", "write_apply"),
-                    internal_services=("file_refactor",), requires=("editing.paths_preview",),
+                    internal_services=("file_refactor",), requires=("editing.paths_preview", "scene_model.node_rename", "verification.gd_lint"),
                     requires_ports=("paths_fs", "writer", "node_diff", "gd_lint", "journal", "backups", "lock"),
                     entrypoints={"prepare": app.prepare, "apply": app.apply, "sync": app.sync})

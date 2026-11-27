@@ -46,8 +46,8 @@ def test_owner_and_all_contributions_are_discovered(tmp_path):
 
 @pytest.mark.parametrize('suffix', ['gd', 'tscn'])
 def test_no_registered_contribution_is_disclosed(tmp_path, suffix):
-    agent = build_agent(project_root=CORPUS / 'project/common', state_dir=tmp_path)
-    agent._registry._contributions['verify'] = ()
+    agent = build_agent(project_root=CORPUS / 'project/common', state_dir=tmp_path,
+                        settings={'disabled_modules': ['verification.api_check', 'verification.gd_lint', 'verification.tscn_lint']})
     result = agent.call('verify', {'path': 'res://clean.' + suffix})['result']
     assert result['checked'] is False and result['kinds'] == []
     assert result['unavailable'][0] == {'kind': suffix, 'reason': 'no_module'}
@@ -91,9 +91,8 @@ def test_real_scanner_limits_are_concatenated_not_owner_truncated(tmp_path):
 
 def test_missing_api_contribution_is_not_false_clean(tmp_path):
     project = ROOT / 'fixtures/projects/corpus/verification/check/api'
-    agent = build_agent(project_root=project, state_dir=tmp_path)
-    agent._registry._contributions['verify'] = tuple(
-        c for c in agent._registry.contributions('verify') if c.name != 'api')
+    agent = build_agent(project_root=project, state_dir=tmp_path,
+                        settings={'disabled_modules': ['verification.api_check']})
     result = agent.call('verify', {'path': 'res://api_only.gd'})['result']
     assert result['checked'] is True and result['kinds'] == ['gd']
     assert result['unavailable'][0] == {'kind': 'api', 'reason': 'no_module'}

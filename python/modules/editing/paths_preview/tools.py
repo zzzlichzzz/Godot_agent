@@ -1,7 +1,7 @@
 """D1/D4: one native public read tool; projected references, never a write plan."""
 from python.kernel.tool_spec import ToolSpec
 
-MAX_FILE_BYTES = 5 * 1024 * 1024
+from python.kernel.read_limits import PATHS_FILE_BYTES as MAX_FILE_BYTES
 
 
 def object_schema(properties):

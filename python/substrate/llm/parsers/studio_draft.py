@@ -8,7 +8,11 @@ def studio_route(url):
         page=urlsplit(url or '')
         if (page.scheme=='https' and page.netloc=='aistudio.google.com'
                 and re.fullmatch(r'/prompts/[A-Za-z0-9_-]+',page.path)):
-            return page._replace(fragment='').geturl()
+            # Studio's transient save flag and new-chat model selector aren't
+            # conversation identities. Keep account/unknown parameters intact.
+            query = '&'.join(part for part in page.query.split('&') if part != 'save=true' and
+                             not (page.path == '/prompts/new_chat' and part.startswith('model=')))
+            return page._replace(query=query, fragment='').geturl()
     except ValueError:
         pass
     return None

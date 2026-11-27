@@ -2,12 +2,13 @@
 # tools: gd_lint
 from python.kernel.module_spec import ModuleSpec
 
-from . import app
+from . import app, lint_gdscript
 
 MODULE = ModuleSpec(
     id='verification.gd_lint',
     description='Консервативный текстовый линт GDScript без исполнения и записи.',
     provides_tools=('gd_lint',), requires_ports=('fs',),
+    port_factories={'gd_lint': lambda _fs: lint_gdscript},
     capabilities=('verification.gd_lint',),
     contributes_to=('verify',),
     entrypoints={'call': app.call}, corpus='corpus',

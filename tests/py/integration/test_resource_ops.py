@@ -40,13 +40,13 @@ def test_internal_route_compares_exact_error_text(monkeypatch, tmp_path):
     assert "message" in failed[0]
 
 
-def test_bootstrap_port_order_and_no_public_tools(tmp_path):
+def test_bootstrap_port_inventory_and_no_public_tools(tmp_path):
     from python.modules.editing.resource_ops.module import MODULE
     from python.modules.editing.resource_ops.ports import ResourceRead
     from python.runtime.bootstrap import default_ports, build_agent
     ports = default_ports(str(tmp_path), "test", str(tmp_path / "state"))
-    assert list(ports) == ["gd_lint", "node_diff", "fs", "paths_fs", "api_cache", "librarian", "chat_gateway", "native_planner", "journal",
-                           "writer", "backups", "lock", "editor", "resource_read", "project_text_fs"]
+    assert set(ports) == {"gd_lint", "node_diff", "fs", "paths_fs", "api_cache", "librarian", "chat_gateway", "native_planner", "journal",
+                          "writer", "backups", "lock", "editor", "resource_read", "project_text_fs"}
     assert isinstance(ports["resource_read"], ResourceRead)
     assert MODULE.provides_tools == ()
     agent = build_agent(str(tmp_path), "test", ports=ports)

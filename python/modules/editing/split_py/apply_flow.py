@@ -9,7 +9,7 @@ from python.kernel.schema import validate
 from python.kernel.write_plan import WritePlan, canonical_json, digest_of
 
 from .domain import apply, arch, core, inventory, plan, refs, walk
-from .tools_split_apply import APPLY_ARGS
+from .tools import APPLY_ARGS
 
 
 def call(args, ctx):

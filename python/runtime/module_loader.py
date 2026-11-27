@@ -48,8 +48,11 @@ def load_one(path):
         raise RuntimeError("%s: нет MODULE (R-05)" % package)
     tools_module = importlib.import_module(package.rsplit(".", 1)[0] + ".tools")
     tools = tuple(getattr(tools_module, "TOOLS", ()) or ())
-    if not (spec.provides_tools or spec.internal_services or spec.entrypoints):
+    if not (spec.provides_tools or spec.contributes_to or spec.internal_services or spec.entrypoints
+            or getattr(spec, 'port_factories', None)):
         raise RuntimeError("%s: нет TOOLS (ADR-0006)" % package)
+    if spec.id != _short_name(path):
+        raise ValueError('%s: manifest id must match its folder' % package)
     names = tuple(tool.name for tool in tools)
     if tuple(spec.provides_tools) != names:
         raise RuntimeError("%s: provides_tools %s != TOOLS %s"
@@ -57,16 +60,15 @@ def load_one(path):
     contributions = tuple(getattr(tools_module, "CONTRIBUTIONS", ()) or ())
     return LoadedModule(spec, tools, module, contributions)
 
-
-
 def discover(base=None):
     """Все модули проекта: `(loaded, failed)`; ни один отказ не прерывает обход."""
     loaded, failed = [], []
     for path in module_paths(base):
         try:
             loaded.append(load_one(path))
-        except Exception as exc:  # noqa: BLE001 - изоляция отказов модулей (R-03)
+        except Exception as exc:  # Manifest can be intact even when tools.py fails.
+            spec = getattr(sys.modules.get(package_name(path)), 'MODULE', None)
             failed.append({"module": _short_name(path),
+                           "provides_tools": getattr(spec, 'provides_tools', ()),
                            "reason": "%s: %s" % (type(exc).__name__, exc)})
     return loaded, failed
-

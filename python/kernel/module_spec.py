@@ -32,6 +32,8 @@ class ModuleSpec:
     capabilities: tuple = ()
     settings_schema: dict = field(default_factory=dict)
     entrypoints: dict = field(default_factory=dict)
+    # Optional feature-owned adapters, constructed from the profile's read filesystem.
+    port_factories: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not ID_RE.match(self.id):
@@ -43,11 +45,14 @@ class ModuleSpec:
             raise ValueError("corpus должен быть из %s: %r"
                              % (CORPUS_POLICIES, self.corpus))
         if not (self.provides_tools or self.contributes_to or self.internal_services
-                or self.entrypoints or self.capabilities):
+                or self.entrypoints or self.capabilities or self.port_factories):
             raise ValueError("модуль %r не объявляет ни provides_tools, "
                              "ни contributes_to" % (self.id,))
         if len(set(self.provides_tools)) != len(self.provides_tools):
             raise ValueError("повтор tool_name в %r" % (self.id,))
+        if not isinstance(self.port_factories, dict) or any(
+                not isinstance(k, str) or not k or not callable(v) for k, v in self.port_factories.items()):
+            raise ValueError('invalid port_factories: ' + self.id)
 
     @property
     def area(self):

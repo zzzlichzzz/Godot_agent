@@ -112,7 +112,8 @@ def test_native_prompt_not_duplicated_and_refreshed():
     assert port.system_prompt(tree='tree-two',architecture='arch',godot_version='4.5') != expected
 
 def test_bootstrap_exact_two_insertions_preserve_d65():
-    current = (ROOT/'python/runtime/bootstrap.py').read_bytes()
+    from tests.py.composition_revision import before_d130
+    current = before_d130('python/runtime/bootstrap.py')
     overlay_import = b'    from python.substrate.engine.structural_overlay import EngineOverlay\n'
     overlay_port = b'            "native_planner": NativePlanner(project_root, state, AGENT_DIR,\n                engine_overlay=EngineOverlay(project_root, state, AGENT_DIR)),\n'
     predecessor_port = b'            "native_planner": NativePlanner(project_root, state, AGENT_DIR),\n'

@@ -34,7 +34,7 @@ Headless editor/dock и captured UI transport не являются доказа
 Browser recorded-протокол отдельно от live; Qwen live-дефект отложен пользователем.
 NN, training/weights, `doh.py`, `n8n/scripts` исключены. Две исторические
 WinError1314 symlink-проверки остаются privilege coverage gap, не успехом.
-Исторические таблицы 44 модулей не означают, что каждый public MODULE завершён.
+При сборке D130 обнаруживаются 33 действующих манифеста и 13 заготовок; опубликовано 36 контрактов. Как добавить модуль и проверить отказ его зависимости — в [архитектуре](docs/architecture.md) и [примерах проверки](tests/py/integration/test_module_composition.py).
 T1: independent_acceptance=false до отдельного аудита; seal/ZIP — целостность,
 не самостоятельное принятие.
 

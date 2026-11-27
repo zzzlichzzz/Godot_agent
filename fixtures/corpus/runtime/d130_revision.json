@@ -1,0 +1,158 @@
+{
+  "python/runtime/bootstrap.py": {
+    "before": [
+      8892,
+      "f8351237fe25df80c73a0eec428e80838aeca64a69372dc417af8f034cf0c7a7"
+    ],
+    "after": [
+      10421,
+      "6d792f73ecd690224e40c19a1f35d632be61b821a2e8399758f238e6c9eb15df"
+    ],
+    "reverse": [
+      [
+        11,
+        12,
+        ""
+      ],
+      [
+        16,
+        18,
+        ""
+      ],
+      [
+        31,
+        33,
+        ""
+      ],
+      [
+        44,
+        53,
+        "def default_ports(project_root, profile, state_dir=None):\n"
+      ],
+      [
+        59,
+        59,
+        "    from python.modules.verification.gd_lint import lint_gdscript\n    from python.modules.scene_model.node_rename import preview_diff\n    from python.modules.editing.paths_preview.tools import MAX_FILE_BYTES\n    from python.modules.editing.resource_ops.ports import ResourceRead\n    from python.modules.project_text.shared.file_index import ProjectTextFileSystem\n"
+      ],
+      [
+        64,
+        66,
+        "    return {\"gd_lint\": lint_gdscript,\n            \"node_diff\": preview_diff,\n            \"fs\": DiskFileSystem(project_root),\n            \"paths_fs\": ReadOnlyFileSystem(project_root, max_bytes=MAX_FILE_BYTES),\n"
+      ],
+      [
+        75,
+        80,
+        "            \"editor\": EditorClient(),\n            \"resource_read\": ResourceRead(DiskFileSystem(project_root, max_bytes=sys.maxsize)),\n            \"project_text_fs\": ProjectTextFileSystem(DiskFileSystem(project_root, max_bytes=sys.maxsize))}\n"
+      ],
+      [
+        114,
+        115,
+        "    loaded, failed = discover()\n    if ports is None:\n        ports = default_ports(root, profile, state_dir)\n"
+      ],
+      [
+        116,
+        119,
+        ""
+      ],
+      [
+        120,
+        121,
+        ""
+      ],
+      [
+        122,
+        135,
+        "        ctx = _register(registry, item, profile, ports, policy, settings)\n        if ctx is not None:\n            contexts.append(ctx)\n    registry.mark_failures(failed)\n"
+      ],
+      [
+        138,
+        139,
+        "    _recover(ports)\n"
+      ],
+      [
+        142,
+        143,
+        "def _recover(ports):\n"
+      ],
+      [
+        147,
+        154,
+        "    try:\n        from python.modules.editing.rollback import recover\n        log.info(\"recovery: %s\", recover(ports, log))\n    except Exception:  # recovery не должен мешать старту, но и молчать нельзя\n        log.exception(\"recovery упал\")\n"
+      ],
+      [
+        169,
+        170,
+        "    if item.spec.environment == \"editor\" and profile != \"editor\":\n"
+      ],
+      [
+        171,
+        174,
+        "                                 \"reason\": \"нужен профиль editor (живой редактор)\"}])\n"
+      ],
+      [
+        176,
+        178,
+        "    internal = (getattr(item.spec, \"internal_services\", ()) or item.spec.entrypoints)\n"
+      ],
+      [
+        180,
+        182,
+        "        registry.mark_failures([{\"module\": item.spec.id, \"reason\": \"нет entrypoints['call']\"}])\n"
+      ],
+      [
+        190,
+        191,
+        "    registry.add_module(item.spec, item.tools, handlers, item.contributions)\n    _bind(item, ctx)\n"
+      ],
+      [
+        201,
+        207,
+        "        binder = getattr(contribution, \"bind\", None)\n        if binder is not None:\n            binder(ctx)\n"
+      ]
+    ]
+  },
+  "tests/py/integration/test_verify.py": {
+    "before": [
+      6572,
+      "2dc52186e32134ec885c9f0721c0e054482c6f6418d9a72f172b1be3348678c3"
+    ],
+    "after": [
+      6605,
+      "0d3e6cfb2fa5fc0dbaef3b16cd4852231101e3f85d17068a031ab926fbcb6b55"
+    ],
+    "reverse": [
+      [
+        48,
+        50,
+        "    agent = build_agent(project_root=CORPUS / 'project/common', state_dir=tmp_path)\n    agent._registry._contributions['verify'] = ()\n"
+      ],
+      [
+        93,
+        95,
+        "    agent = build_agent(project_root=project, state_dir=tmp_path)\n    agent._registry._contributions['verify'] = tuple(\n        c for c in agent._registry.contributions('verify') if c.name != 'api')\n"
+      ]
+    ]
+  },
+  "tests/py/integration/test_resource_ops.py": {
+    "before": [
+      2770,
+      "03ce87950c01be2e6f967c8d061afe3e078a3d69b5bda982e37c0678f48c1dc7"
+    ],
+    "after": [
+      2772,
+      "f54369c808f08961679daf3639e303348f256cf6864c3112efa918da0657fbef"
+    ],
+    "reverse": [
+      [
+        42,
+        43,
+        "def test_bootstrap_port_order_and_no_public_tools(tmp_path):\n"
+      ],
+      [
+        47,
+        49,
+        "    assert list(ports) == [\"gd_lint\", \"node_diff\", \"fs\", \"paths_fs\", \"api_cache\", \"librarian\", \"chat_gateway\", \"native_planner\", \"journal\",\n                           \"writer\", \"backups\", \"lock\", \"editor\", \"resource_read\", \"project_text_fs\"]\n"
+      ]
+    ]
+  }
+}

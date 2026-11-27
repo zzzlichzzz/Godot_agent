@@ -6,7 +6,7 @@ from python.kernel.errors import KINDS
 
 def _spec():
     module = importlib.import_module(
-        "python.modules.editing.split_py.tools_split_apply")
+        "python.modules.editing.split_py.tools")
     return module.APPLY
 
 

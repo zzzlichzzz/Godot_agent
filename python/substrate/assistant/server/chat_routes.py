@@ -24,7 +24,9 @@ import openai_compat
 import api_backend
 from agent_prompts import PROMPT_HASH
 from python.substrate.assistant.saved_page import SavedPage, site_for_record
-from python.substrate.llm.parsers.studio_draft import is_new_prompt
+from python.substrate.assistant.chat_navigation import navigate as _navigate
+from python.substrate.llm.parsers.studio_draft import studio_route
+from python.substrate.llm.parsers import studio_navigation
 
 chats_bp = Blueprint("chats", __name__)
 # Этот модуль создаётся отдельно для каждого экземпляра HTTP-сервера.
@@ -39,62 +41,6 @@ def _busy_error():
         return jsonify({"error": "Агент сейчас обрабатывает запрос — браузер занят. "
                                  "Дождитесь ответа или нажмите «Стоп»."}), 409
     return None
-
-
-def _navigate(driver, url):
-    """Неблокирующая навигация браузера на URL.
-
-    driver.get() у тяжёлого SPA (AI Studio) ждёт полной загрузки страницы
-    и может упереться в таймаут HTTP-запроса от плагина — тогда
-    браузер уже открыл страницу, а плагин так и не получил ответ и не открыл чат.
-    Меняем адрес через JS: браузер начинает грузить страницу, а сервер сразу
-    отвечает. Транскрипт диалога хранится локально, полная загрузка для ответа не нужна.
-    """
-    try:
-        # Короткие таймауты: на мёртвой/удалённой странице команды браузеру
-        # могут висеть до 300 с (дефолт Selenium) — отсюда «вечное» зависание.
-        driver.set_page_load_timeout(20)
-        driver.set_script_timeout(10)
-    except Exception:
-        pass
-    # v54: если вкладка с этим адресом уже открыта — просто переключаемся на неё,
-    # не перезагружая страницу и не занимая другую вкладку (иначе появлялись две
-    # вкладки одного чата, и агент мог печатать не в ту).
-    def _p54(u):
-        return (u or "").split("://", 1)[-1].split("?", 1)[0].split("#", 1)[0].rstrip("/")
-    try:
-        want = _p54(url)
-        cur_handle = driver.current_window_handle
-        found = False
-        for handle in driver.window_handles:
-            driver.switch_to.window(handle)
-            if _p54(driver.current_url or "") == want:
-                found = True
-                break
-        if found and not is_new_prompt(url):
-            return True
-        driver.switch_to.window(cur_handle)
-    except Exception:
-        pass
-    try:
-        driver.switch_to.window(driver.window_handles[-1])
-    except Exception:
-        pass
-    try:
-        driver.execute_script("window.location.href = arguments[0];", url)
-        return True
-    except Exception:
-        pass
-    # Фолбэк: обычная навигация с ограничением по времени, чтобы не зависнуть.
-    try:
-        driver.set_page_load_timeout(10)
-    except Exception:
-        pass
-    try:
-        driver.get(url)
-        return True
-    except Exception:
-        return False
 
 
 @chats_bp.route('/sites/list', methods=['POST'])
@@ -1009,9 +955,14 @@ def chats_new():
     except Exception as e:
         return jsonify({"error": str(e)}), 503
     try:
+        studio = site and site['id'] == 'aistudio'
+        window = driver.current_window_handle if studio else None
+        selected_page.select(None)
         if not _navigate(driver, target_url):
             return jsonify({"error": "Не удалось открыть новую страницу чата."}), 503
-        if not is_new_prompt(target_url):
+        if studio and not studio_navigation.open_blank(driver, window, target_url):
+            return jsonify({"error": "AI Studio не открыла пустой чат. Проверьте страницу и повторите создание."}), 409
+        if not studio:
             time.sleep(1.5)
     except Exception as e:
         return jsonify({"error": "Не удалось открыть новую страницу: %s" % e}), 500
@@ -1058,7 +1009,11 @@ def chats_open():
     site, page_note = None, ""
     if S.chat_kind(rec) != 'api':
         site = site_for_record(rec)
-        page_note = selected_page.restore(rec, S.wait_driver, _navigate, site)
+        def save_url(url):
+            if any(row['id'] != cid and studio_route(row.get('url')) == url for row in chat_store.list_chats(base)):
+                return False
+            return chat_store.update_chat(base, cid, url=url) is not None
+        page_note = selected_page.restore(rec, S.wait_driver, _navigate, site, current_driver=S.get_driver, save_url=save_url)
     else:
         selected_page.select(cid)
     S.STATE["current_chat_id"] = cid

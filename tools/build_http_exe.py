@@ -22,7 +22,8 @@ def main():
         if 'tests' in rel.parts or 'dist' in rel.parts or '__pycache__' in rel.parts:continue
         command+=['--add-data',str(path)+os.pathsep+str(rel.parent)]
         command+=['--hidden-import','.'.join(rel.with_suffix('').parts)]
-    command+=['--add-data',str(ROOT/'agent_api_cache')+os.pathsep+'agent_api_cache',
+    command+=['--add-data',str(ROOT/'contract/capabilities')+os.pathsep+'contract/capabilities',
+              '--add-data',str(ROOT/'agent_api_cache')+os.pathsep+'agent_api_cache',
               str(ROOT/'python/channels/http/exe_entry.py')]
     from PyInstaller.__main__ import run
     run(command)  # Python API avoids Windows' command-line length limit; no shell.

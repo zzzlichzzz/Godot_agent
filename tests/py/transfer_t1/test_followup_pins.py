@@ -29,7 +29,8 @@ D119={
 @pytest.mark.parametrize('name',CASES)
 def test_six_inventory_files_reconstruct_exact_pre_delta_bytes(name):
     expected,size,lf,edits=CASES[name]
-    raw=(ROOT/'tests/py/integration'/name).read_bytes()
+    from tests.py.composition_revision import before_d130
+    raw=before_d130('tests/py/integration/'+name)
     for before,after in reversed(edits+D119.get(name,[])):
         assert raw.count(after)==1,(name,after)
         raw=raw.replace(after,before,1)

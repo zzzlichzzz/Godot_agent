@@ -14,7 +14,7 @@ MODULE = ModuleSpec(
                  "затронутые файлы и WAL PREPARED. Проект не меняется."),
     provides_tools=("write_preview",),
     requires_ports=("fs", "journal"),
-    requires=("code_intel.usages",),
+    requires=("code_intel.usages", "editing.symbol_rename"),
     capabilities=("editing.write_preview",),
     entrypoints={"call": app.call},
 )

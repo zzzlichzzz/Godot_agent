@@ -44,7 +44,7 @@ def local_studio(tmp_path):
             with opener.open('http://'+debugger+'/json/list',timeout=3) as r: targets=json.load(r)
             target=next(t for t in targets if t['id']==browser.current_window_handle)
             ws=create_connection(target['webSocketDebuggerUrl'],suppress_origin=True,timeout=3)
-            ws.send(json.dumps(dict(id=1,method='Fetch.enable',params={'patterns':[{'urlPattern':START}]})))
+            ws.send(json.dumps(dict(id=1,method='Fetch.enable',params={'patterns':[{'urlPattern':'https://'+HOST+'/prompts/*'}]})))
             assert json.loads(ws.recv())['id']==1
             ws.settimeout(None)
             def serve():

@@ -9,10 +9,13 @@
 import logging
 import os
 import sys
+from copy import deepcopy
 
 from python.kernel import result
 from python.kernel.errors import AppError
 from python.kernel.paths import PathPolicy
+from python.kernel.read_limits import PATHS_FILE_BYTES
+from python.kernel.version import GODOT_BASELINE
 from python.protocol.dispatch import Dispatcher
 from python.protocol.registry import Registry
 from python.runtime.context import ModuleContext
@@ -26,6 +29,8 @@ from python.substrate.store.journal import FileJournal
 from python.substrate.store.lock import FileLock
 from python.substrate.store.api_cache_store import ApiCacheStore
 from python.runtime.config import journal_dir
+from python.runtime.composition import activation_order, install_feature_ports
+from python.runtime.contract_inventory import owners
 
 AGENT_DIR = str(ROOT)
 PROFILES = ("editor", "headless", "cli", "test")
@@ -37,27 +42,28 @@ def resolve_project_root(project_root=None):
     return os.path.abspath(str(root))
 
 
-def default_ports(project_root, profile, state_dir=None):
+def _plan(registry, settings, profile):
+    disabled = settings.get('disabled_modules', os.environ.get('GODOT_AGENT_DISABLED_MODULES', ''))
+    if isinstance(disabled, str):
+        disabled = {s.strip() for s in disabled.split(',') if s.strip()}
+    godot = settings.get('godot_version') or os.environ.get('GODOT_AGENT_GODOT_VERSION') or GODOT_BASELINE
+    return activation_order(*discover(), owners(), registry, disabled or (), godot, profile)
+
+
+def default_ports(project_root, profile, state_dir=None, *, loaded=None, registry=None):
     """Адаптеры профиля: файловая система, журнал и ленивый клиент моста.
 
     Порт `editor` присутствует во всех профилях (ADR-0007): клиент не
     соединяется, пока его не позовут, поэтому headless живёт без редактора.
     Отключение вклада идёт по профилю (`environment="editor"`), а не по порту.
     """
-    from python.modules.verification.gd_lint import lint_gdscript
-    from python.modules.scene_model.node_rename import preview_diff
-    from python.modules.editing.paths_preview.tools import MAX_FILE_BYTES
-    from python.modules.editing.resource_ops.ports import ResourceRead
-    from python.modules.project_text.shared.file_index import ProjectTextFileSystem
     from python.substrate.assistant.judge_read import JudgeRead
     from python.substrate.assistant.chat_gateway import ChatGateway
     from python.substrate.assistant.native_planner import NativePlanner
     from python.substrate.engine.structural_overlay import EngineOverlay
     state = os.path.dirname(journal_dir(profile, state_dir))
-    return {"gd_lint": lint_gdscript,
-            "node_diff": preview_diff,
-            "fs": DiskFileSystem(project_root),
-            "paths_fs": ReadOnlyFileSystem(project_root, max_bytes=MAX_FILE_BYTES),
+    ports = {"fs": DiskFileSystem(project_root),
+            "paths_fs": ReadOnlyFileSystem(project_root, max_bytes=PATHS_FILE_BYTES),
             "api_cache": ApiCacheStore(project_root, state_dir=state, addon_dir=AGENT_DIR),
             "librarian": JudgeRead(project_root, state, AGENT_DIR),
             "chat_gateway": ChatGateway(project_root, state, AGENT_DIR),
@@ -67,9 +73,11 @@ def default_ports(project_root, profile, state_dir=None):
             "writer": AtomicFileWriter(project_root),
             "backups": FileBackups(os.path.join(state, "backup")),
             "lock": FileLock(state),
-            "editor": EditorClient(),
-            "resource_read": ResourceRead(DiskFileSystem(project_root, max_bytes=sys.maxsize)),
-            "project_text_fs": ProjectTextFileSystem(DiskFileSystem(project_root, max_bytes=sys.maxsize))}
+            "editor": EditorClient()}
+    registry = Registry() if registry is None else registry
+    candidates = _plan(registry, {}, profile) if loaded is None else loaded
+    install_feature_ports(candidates, DiskFileSystem(project_root, max_bytes=sys.maxsize), ports, registry)
+    return ports
 
 
 class Agent:
@@ -104,33 +112,46 @@ def build_agent(project_root=None, profile="headless", ports=None, settings=None
     root = resolve_project_root(project_root)
     policy = PathPolicy(root, allow_addons=allow_addons,
                         allow_self_edit=allow_self_edit, agent_dir=AGENT_DIR)
-    loaded, failed = discover()
-    if ports is None:
-        ports = default_ports(root, profile, state_dir)
+    settings = settings or {}
     registry = Registry()
+    loaded = _plan(registry, settings, profile)
+    if ports is None:
+        ports = default_ports(root, profile, state_dir, loaded=loaded, registry=registry)
     contexts = []
+    active = []
     for item in loaded:
-        ctx = _register(registry, item, profile, ports, policy, settings)
-        if ctx is not None:
-            contexts.append(ctx)
-    registry.mark_failures(failed)
+        if item.spec.id in registry.disabled():
+            continue
+        dependency = next((d for d in item.spec.requires if d in registry.disabled()), None)
+        if dependency:
+            registry.mark_failures([{'module': item.spec.id, 'reason': 'dependency_unavailable: ' + dependency}])
+            continue
+        try:
+            ctx = _register(registry, item, profile, ports, policy, settings)
+            if ctx is not None and item.spec.id not in registry.disabled():
+                contexts.append(ctx)
+                active.append(item)
+        except Exception as exc:
+            registry.mark_failures([{'module': item.spec.id, 'reason': type(exc).__name__ + ': ' + str(exc)}])
     dispatcher = Dispatcher(registry, roots=(root,))
     for ctx in contexts:
         ctx.bind_caller(_caller(dispatcher))
-    _recover(ports)
+    _recover(ports, active)
     return Agent(dispatcher, registry)
 
 
-def _recover(ports):
+def _recover(ports, loaded):
     """Recovery WAL на старте: одна точка входа, вызов логируется (ADR-0005)."""
     if "journal" not in ports:
         return
     log = logging.getLogger("godot_agent.recovery")
-    try:
-        from python.modules.editing.rollback import recover
-        log.info("recovery: %s", recover(ports, log))
-    except Exception:  # recovery не должен мешать старту, но и молчать нельзя
-        log.exception("recovery упал")
+    for item in loaded:
+        recover = item.spec.entrypoints.get('recover')
+        if recover is not None:
+            try:
+                log.info('recovery: %s', recover(ports, log))
+            except Exception:
+                log.exception('recovery упал: %s', item.spec.id)
 
 
 def _caller(dispatcher):
@@ -146,15 +167,19 @@ def _register(registry, item, profile, ports, policy, settings):
                                  "provides_tools": item.spec.provides_tools,
                                  "reason": "нет портов: %s" % ", ".join(missing)}])
         return None
-    if item.spec.environment == "editor" and profile != "editor":
+    if item.spec.environment not in ('*', profile):
         registry.mark_failures([{"module": item.spec.id,
-                                 "reason": "нужен профиль editor (живой редактор)"}])
+                                 "provides_tools": item.spec.provides_tools,
+                                 "reason": ('нужен профиль editor (живой редактор)' if item.spec.environment == 'editor'
+                                            else 'нужен профиль ' + item.spec.environment)}])
         return None
     entrypoint = item.spec.entrypoints.get("call")
-    internal = (getattr(item.spec, "internal_services", ()) or item.spec.entrypoints)
+    internal = (getattr(item.spec, "internal_services", ()) or item.spec.entrypoints or
+                getattr(item.spec, 'port_factories', None))
     if entrypoint is None and (item.spec.provides_tools or not (
             item.spec.contributes_to or internal)):
-        registry.mark_failures([{"module": item.spec.id, "reason": "нет entrypoints['call']"}])
+        registry.mark_failures([{"module": item.spec.id, 'provides_tools': item.spec.provides_tools,
+                                 "reason": "нет entrypoints['call']"}])
         return None
     ctx = ModuleContext(profile=profile,
                         settings=(settings or {}).get(item.spec.id),
@@ -163,8 +188,7 @@ def _register(registry, item, profile, ports, policy, settings):
                         registry=registry)
     handlers = ({tool.name: _handler(entrypoint, tool.name, ctx)
                  for tool in item.tools} if entrypoint is not None else {})
-    registry.add_module(item.spec, item.tools, handlers, item.contributions)
-    _bind(item, ctx)
+    registry.add_module(item.spec, item.tools, handlers, tuple(_bind(item, ctx)))
     return ctx
 
 
@@ -175,9 +199,12 @@ def _bind(item, ctx):
     данные сам. Секции `editor` нужен порт, и его даёт композиция (ADR-0003).
     """
     for contribution in item.contributions:
-        binder = getattr(contribution, "bind", None)
-        if binder is not None:
-            binder(ctx)
+        if getattr(contribution, 'bind', None) is not None:
+            # A bound editor section must not inherit another project's context.
+            contribution = deepcopy(contribution)
+            bind_context = contribution.bind
+            bind_context(ctx)
+        yield contribution
 
 
 def _handler(entrypoint, tool_name, ctx):

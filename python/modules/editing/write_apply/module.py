@@ -13,7 +13,7 @@ MODULE = ModuleSpec(
                  "квитанции и entry_id для отката; stale-check по хешам байтов."),
     provides_tools=("write_apply",),
     requires_ports=("writer", "journal", "backups", "lock"),
-    requires=("editing.write_preview",),
+    requires=("editing.write_preview", "editing.rollback"),
     capabilities=("editing.write_apply",),
     entrypoints={"call": app.call},
 )

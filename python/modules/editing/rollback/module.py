@@ -4,7 +4,7 @@
 
 from python.kernel.module_spec import ModuleSpec
 
-from . import app
+from . import app, recover
 
 MODULE = ModuleSpec(
     id="editing.rollback",
@@ -13,7 +13,7 @@ MODULE = ModuleSpec(
                  "recovery недоделанных планов при старте."),
     provides_tools=("write_rollback",),
     requires_ports=("writer", "journal", "backups", "lock"),
-    requires=("editing.write_apply",),
+    # An existing journal must remain recoverable even when new writes are disabled.
     capabilities=("editing.rollback",),
-    entrypoints={"call": app.call},
+    entrypoints={"call": app.call, "recover": recover},
 )

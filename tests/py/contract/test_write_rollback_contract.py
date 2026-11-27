@@ -74,11 +74,13 @@ def test_result_schema_pins_the_report():
 
 
 def test_manifest_declares_the_tool():
+    from python.modules.editing.write_apply.module import MODULE as apply_manifest
     manifest = rollback_module.MODULE
     assert manifest.id == "editing.rollback"
     assert tuple(manifest.provides_tools) == ("write_rollback",)
     assert set(manifest.requires_ports) == {"writer", "journal", "backups", "lock"}
-    assert "editing.write_apply" in tuple(manifest.requires)
+    assert manifest.id in apply_manifest.requires
+    assert apply_manifest.id not in manifest.requires  # Existing receipts survive disabling new writes.
     assert tuple(manifest.provides_tools) == tuple(
         tool.name for tool in rollback_tools.TOOLS)
 
@@ -91,8 +93,13 @@ def test_generated_contract_matches_the_spec():
     assert artifact["input_schema"] == SPEC.args
     assert artifact["result_schema"] == SPEC.result
 
-def test_rollback_restores_the_bytes_and_reports_hashes(tmp_path):
+@pytest.mark.parametrize('reopen_without_apply', [False, True])
+def test_rollback_restores_the_bytes_and_reports_hashes(tmp_path, reopen_without_apply):
     agent, applied = _committed(tmp_path)
+    if reopen_without_apply:
+        agent = build_agent(tmp_path / 'project', profile='test', state_dir=tmp_path / 'state',
+                            settings={'disabled_modules': ['editing.write_apply']})
+        assert agent.call('write_apply', {})['kind'] == 'unavailable'
     hero = tmp_path / "project" / "src" / "hero.gd"
     answer = agent.call("write_rollback", {"entry_id": applied["entry_id"]})
     assert answer["ok"], answer

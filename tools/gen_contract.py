@@ -26,13 +26,26 @@ def verdict(status, detail):
 def rendered():
     """{имя файла: текст} - то, что должно лежать в contract/capabilities/."""
     from python.runtime.module_loader import discover
+    from python.protocol.registry import target_alias
 
-    loaded, _failed = discover()
+    loaded, failed = discover()
+    for error in failed:
+        if not error['reason'].endswith('нет MODULE (R-05)'):
+            raise ValueError('%s: %s' % (error['module'], error['reason']))
     files = {}
+    owners = {}
+    targets = {item.spec.id for item in loaded if target_alias(item.spec.id, item.spec.provides_tools)}
+    targets.update(t.name for item in loaded for t in item.tools)
     for item in loaded:
+        unknown = set(item.spec.contributes_to) - targets
+        if unknown:
+            raise ValueError('%s: unknown contribution target %s' % (item.spec.id, sorted(unknown)))
         capability = (item.spec.capabilities[0] if item.spec.capabilities
                       else item.spec.id)
         for tool in item.tools:
+            if tool.name in owners:
+                raise ValueError('duplicate tool_name %s: %s, %s' % (tool.name, owners[tool.name], item.spec.id))
+            owners[tool.name] = item.spec.id
             payload = tool.contract(item.spec.id, capability)
             files["%s.json" % tool.name] = json.dumps(
                 payload, ensure_ascii=False, indent=2) + "\n"
@@ -176,7 +189,10 @@ def main(argv):
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--write", action="store_true")
     options = parser.parse_args(argv[1:])
-    files = rendered()
+    try:
+        files = rendered()
+    except ValueError as exc:
+        return verdict('fail', str(exc))
     if not files:
         return verdict("fail", "ни одного ToolSpec не найдено (модули не загрузились)")
     problems, debt = check_editor_verbs(ROOT)
@@ -214,4 +230,3 @@ def main(argv):
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv))
-

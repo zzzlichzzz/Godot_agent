@@ -1,4 +1,4 @@
-"""The accepted C.17 scan descriptor; its declaration and schemas are unchanged."""
+"""C.17 scan descriptor."""
 from python.kernel.limits import READ_TEXT_MAX_BYTES
 from python.kernel.tool_spec import ToolSpec
 
