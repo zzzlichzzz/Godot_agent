@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/player.gd" id="1"]
+[node name="Player" type="Node"]
+script = ExtResource("1")
+[node name="FireButton" type="Button" parent="."]
+[node name="Timer" type="Timer" parent="."]

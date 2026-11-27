@@ -1,0 +1,129 @@
+{
+  "id": "sync-directory-case",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://src",
+    "new_path": "res://Src",
+    "is_directory": true
+  },
+  "fixture": {
+    "dirs": [
+      "Src"
+    ],
+    "files": {
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "Src/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "Src/orphan.uid": {
+        "bytes_b64": "dWlkOi8vb3JwaGFuCg=="
+      },
+      "view.gd": {
+        "bytes_b64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+      }
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "src/orphan.uid": {
+      "bytes_b64": "dWlkOi8vb3JwaGFuCg=="
+    },
+    "view.gd": {
+      "bytes_b64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "entry_id": "b7c336ea68eb",
+    "old_path": "res://src",
+    "new_path": "res://Src",
+    "is_directory": true,
+    "changed_paths": [
+      "res://view.gd"
+    ],
+    "reference_count": 1,
+    "file_count": 2,
+    "ok": true
+  },
+  "native_effects": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "Src/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "Src/orphan.uid": {
+      "$bytes_base64": "dWlkOi8vb3JwaGFuCg=="
+    },
+    "view.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9TcmMvYS5nZCIpCg=="
+    }
+  },
+  "rollback_result": {
+    "$tuple": [
+      true,
+      "Откачено: rename_file (2 файлов)",
+      false,
+      [
+        "res://view.gd",
+        "res://src"
+      ],
+      null
+    ]
+  },
+  "inverse_files": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "src/orphan.uid": {
+      "$bytes_base64": "dWlkOi8vb3JwaGFuCg=="
+    },
+    "view.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+    }
+  },
+  "inverse_byte_exact": true,
+  "stdout": "",
+  "native_prepared": [
+    {
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://view.gd",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory-case\\view.gd",
+          "before_hash": "f847087e1f52f57c491bbaacac0cffb2d65f4864e8f46747bdd6e945b7052b5d",
+          "before_bytes": {
+            "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+          },
+          "after_bytes": {
+            "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9TcmMvYS5nZCIpCg=="
+          },
+          "occurrences": 1
+        },
+        {
+          "action": "external_move_record",
+          "path": "res://src",
+          "dest": "res://Src",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory-case\\Src",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory-case\\Src",
+          "is_directory": true
+        }
+      ],
+      "old_path": "res://src",
+      "new_path": "res://Src",
+      "is_directory": true,
+      "reference_count": 1
+    }
+  ]
+}

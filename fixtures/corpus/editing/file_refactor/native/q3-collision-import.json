@@ -1,0 +1,73 @@
+{
+  "id": "q3-collision-import",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://asset.png",
+      "res://new.png"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "files": {
+      "asset.png": {
+        "bytes": 8,
+        "sha256": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed"
+      },
+      "asset.png.import": {
+        "bytes": 59,
+        "sha256": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01"
+      },
+      "asset.png.uid": {
+        "bytes": 13,
+        "sha256": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076"
+      },
+      "new.png.import": {
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": false,
+  "exception": {
+    "type": "FileExistsError",
+    "text": "Целевой файл .import уже существует: res://new.png.import"
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "asset.png": {
+        "bytes": 8,
+        "sha256": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed"
+      },
+      "asset.png.import": {
+        "bytes": 59,
+        "sha256": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01"
+      },
+      "asset.png.uid": {
+        "bytes": 13,
+        "sha256": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076"
+      },
+      "new.png.import": {
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "project_byte_tree_unchanged": true
+}

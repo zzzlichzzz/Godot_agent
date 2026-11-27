@@ -1,0 +1,18 @@
+{
+  "id": "150-raw_limit",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/raw_limit",
+  "args": {
+    "path": "res://donor.gd"
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: raw_limit",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

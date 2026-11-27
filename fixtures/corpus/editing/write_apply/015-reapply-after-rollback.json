@@ -1,0 +1,18 @@
+{
+  "id": "015-reapply-after-rollback",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "Безопасность ADR-0005: после отката тот же digest применить нельзя — conflict/already_rolled_back (у эталона отката нет, ожидание задано контрактом)",
+  "scenario": "apply_rollback_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "strike",
+    "new_name": "punch",
+    "declaration": "res://src/hero.gd:10",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

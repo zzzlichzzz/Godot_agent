@@ -1,0 +1,40 @@
+{
+  "id": "012-all-falsy-records",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/all-falsy",
+  "args": {
+    "class_name": "Some"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Some",
+      "found": false,
+      "cache_version": "4.6",
+      "inherits": [],
+      "methods": [],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Some",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6",
+    "record": {},
+    "chain": [],
+    "members": [
+      {},
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

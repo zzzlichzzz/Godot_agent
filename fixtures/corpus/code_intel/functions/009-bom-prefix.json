@@ -1,0 +1,27 @@
+{
+  "id": "009-bom-prefix",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Файл с BOM в начале: чтение utf-8-sig снимает BOM, номера строк как в файле, лишней пустой строки в теле нет",
+  "args": {
+    "path": "res://scripts/legacy_bom.gd",
+    "names": [
+      "_ready"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/legacy_bom.gd",
+      "functions": [
+        {
+          "name": "_ready",
+          "snippet": "# Файл сохранён с BOM: так делал старый редактор.\nfunc _ready() -> void:\n\tprint(\"bom ok\")",
+          "start_line": 3,
+          "end_line": 5
+        }
+      ],
+      "missing": []
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "expanded-hash-bom",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "bytes-bom",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "a3d927c2df6f33ccf49089cb3fa72c1d674207c123c605f1d3ac3f8fbe01ba5c"
+  },
+  "oracle": "native",
+  "raw_sha256": "7934d98a816c288d3cd3ca8abead0610c5f843fbce21eb3aed13702dce5b6784"
+}

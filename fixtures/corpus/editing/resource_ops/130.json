@@ -1,0 +1,41 @@
+{
+  "id": "expanded-op4-missing-data_type",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "theme_set_item",
+        "theme_type": "Button",
+        "name": "font_color",
+        "value": {
+          "type": "Color",
+          "value": [
+            1,
+            0.5,
+            0,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: data_type",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "d53c2807211a145115a739993c32893befeda4b8bd0adebbea52c704651fdbee"
+}

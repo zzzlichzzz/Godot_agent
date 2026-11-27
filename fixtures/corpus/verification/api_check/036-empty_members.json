@@ -1,0 +1,26 @@
+{
+  "id": "036-empty_members",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/no_members",
+  "note": "empty_members",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Empty\nself.nope()\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "Empty",
+      "checked": false,
+      "unavailable": [
+        {
+          "kind": "base_class",
+          "reason": "base_not_in_cache"
+        }
+      ]
+    }
+  }
+}

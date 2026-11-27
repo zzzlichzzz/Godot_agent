@@ -1,0 +1,48 @@
+{
+  "id": "042-f1_gd_colon",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://colon.gd"
+  },
+  "reference_result": {
+    "path": "res://colon.gd",
+    "problems": [
+      "строка 1: похоже, пропущено двоеточие в конце объявления"
+    ],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://colon.gd",
+      "problems": [
+        "строка 1: похоже, пропущено двоеточие в конце объявления"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "gd",
+        "api"
+      ],
+      "unavailable": [
+        {
+          "kind": "source",
+          "reason": "no_extends"
+        },
+        {
+          "kind": "headless",
+          "reason": ".gd проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

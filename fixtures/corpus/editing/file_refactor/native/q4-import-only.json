@@ -1,0 +1,110 @@
+{
+  "id": "q4-import-only",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://empty",
+      "res://new"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "files": {
+      "empty/only.import": {
+        "bytes": 31,
+        "sha256": "14a48c208c8eea7e3bfad53228483748d77454eb2c714dad0ae234e44806d4f5"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "empty"
+    ]
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "is_directory": true,
+    "old_path": "res://empty",
+    "new_path": "res://new",
+    "moved_files": {},
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://empty/only.import",
+        "dest": "res://new/only.import",
+        "absolute": "<PROJECT>\\empty\\only.import",
+        "dest_absolute": "<PROJECT>\\new\\only.import",
+        "before_hash": "14a48c208c8eea7e3bfad53228483748d77454eb2c714dad0ae234e44806d4f5",
+        "before_bytes": {
+          "$bytes_base64": "c291cmNlX2ZpbGU9InJlczovL2VtcHR5L29ubHkiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "c291cmNlX2ZpbGU9InJlczovL25ldy9vbmx5Igo="
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл импорта (.import) перемещён в res://new/only.import"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "source_file=\"res://empty/only\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "source_file=\"res://new/only\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://empty/only.import",
+          "dest": "res://new/only.import"
+        },
+        "occurrences": 1,
+        "is_companion": true
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://new/only.import"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "empty/only.import": {
+        "bytes": 31,
+        "sha256": "14a48c208c8eea7e3bfad53228483748d77454eb2c714dad0ae234e44806d4f5"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "empty"
+    ]
+  },
+  "project_byte_tree_unchanged": true
+}

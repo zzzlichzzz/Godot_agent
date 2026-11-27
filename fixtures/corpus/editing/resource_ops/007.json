@@ -1,0 +1,20 @@
+{
+  "id": "file-sha256",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "schema",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "903179589b96b3f8dde7fa3f73bbf6e9e764792b5c9a9a21b19fca5ccc7543d6"
+  },
+  "oracle": "native",
+  "raw_sha256": "c517e124670e26658f8b5d74343803f7d29482a3317be430ac0709030fb526f4"
+}

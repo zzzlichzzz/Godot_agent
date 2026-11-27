@@ -1,0 +1,14 @@
+{
+  "id": "019-new-not-res-before-missing",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://missing.gd",
+    "new_path": "other.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "Путь должен начинаться с res://: other.gd"
+}

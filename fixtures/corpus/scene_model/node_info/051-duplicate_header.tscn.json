@@ -1,0 +1,41 @@
+{
+  "id": "051-duplicate_header.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "duplicate_header.tscn: '%Same'",
+  "args": {
+    "path": "res://scenes/duplicate_header.tscn",
+    "node": "%Same"
+  },
+  "reference_node": {
+    "name": "Same",
+    "parent": ".",
+    "type": "",
+    "path": "Same",
+    "unique_name": true,
+    "script_id": null,
+    "header_span": [
+      238,
+      293
+    ],
+    "body_span": [
+      293,
+      322
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Same",
+      "type": "",
+      "parent": ".",
+      "path": "Same",
+      "depth": 1,
+      "script": null,
+      "instance": "res://second.tscn",
+      "unique_name": true,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "decision": "D103: retain auditor-owned UID files; frozen C.21 inputs/goldens unchanged",
+  "base_manifest_sha256": "645ad631a7d990768a4b72cb0f4267616d8925c840afc15388617e506b2465b2",
+  "added_inputs": {
+    "corpus/editing/paths_preview/directory/base.gd.uid": {"bytes": 20, "sha256": "0cce8302ee8408d89ed0f4a0be5badc192b4599445ed63f308f041fce6db4073"},
+    "corpus/editing/paths_preview/directory/combat/actor.gd.uid": {"bytes": 20, "sha256": "c7a3be40b636ee80461b5a747e80672d8094d78b2155d91acfe7c0b863e62bb3"},
+    "corpus/editing/paths_preview/directory/combat/weapon.gd.uid": {"bytes": 20, "sha256": "363c05373bae1730ebf3ca5900f6c1a6ffa8edbe380fec75f8c41c6082ce61fd"},
+    "corpus/editing/paths_preview/directory/main.gd.uid": {"bytes": 18, "sha256": "0e88e85269cca8226360c1d06e28b33e265cc8becb7e826c9d57736aeffef001"},
+    "corpus/editing/paths_preview/projection/base.gd.uid": {"bytes": 19, "sha256": "be25c4841bac6b3d9cd768d20665b343cfd6341e3a2a5986c379aaf9c812124a"},
+    "corpus/editing/paths_preview/projection/src/unit.gd.uid": {"bytes": 19, "sha256": "7dfa167910e65d059c251651d7d8931cf43216c106932bc59ff7274cd7bdb445"},
+    "corpus/editing/paths_preview/projection/src/weapon.gd.uid": {"bytes": 20, "sha256": "939a13c292488575b608eedb5901ae0556e99025203ebef9edeebe45ee79649c"}
+  }
+}

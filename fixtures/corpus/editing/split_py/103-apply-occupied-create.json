@@ -1,0 +1,38 @@
+{
+  "id": "103-apply-occupied-create",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_explicit",
+  "setup": {
+    "write_text": {
+      "part.py": "occupied\n"
+    }
+  },
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": {
+    "exception": "StaleSplitError",
+    "message": "целевой файл уже существует: part.py"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "stale_plan",
+    "tree_unchanged": true
+  },
+  "scenario": "split_plan_apply"
+}

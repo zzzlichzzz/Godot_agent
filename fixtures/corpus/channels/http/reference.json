@@ -1,0 +1,37 @@
+{
+  "source": {
+    "bytes": 12793,
+    "sha256": "809e64f5b496aa26caf3ee4a4248972e341d1df65767ddc09fdb43581aa1ea30",
+    "LF": 218,
+    "CRLF": 0
+  },
+  "observations": {
+    "open-dashboard": {
+      "ok": true,
+      "code": 0,
+      "bound": false
+    },
+    "unbound-no-project": {
+      "ok": true,
+      "code": 0,
+      "bound": false
+    },
+    "unbound-missing-token": {
+      "ok": true,
+      "code": 0,
+      "bound": false
+    },
+    "wrong-token": {
+      "ok": false,
+      "code": 403,
+      "bound": false
+    },
+    "valid-bind": {
+      "ok": true,
+      "code": 0,
+      "bound": true
+    }
+  },
+  "paired": true,
+  "adaptation": "missing/unbound native token fallback must be denied before native auth install; no real credentials/network"
+}

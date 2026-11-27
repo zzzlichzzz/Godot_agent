@@ -1,0 +1,31 @@
+{
+  "id": "014-malformed.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/malformed.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Open (Node)",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Open",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

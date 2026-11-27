@@ -1,0 +1,16 @@
+{
+  "id": "006-root_refusal",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/006-root_refusal",
+  "note": "actual-old prepare-only: root_refusal",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Root",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Нельзя перемещать корневой узел сцены"
+  }
+}

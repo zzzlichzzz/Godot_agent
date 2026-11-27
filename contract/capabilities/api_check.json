@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "module_id": "verification.api_check",
+  "capability_id": "verification.api_check",
+  "tool_name": "api_check",
+  "description": "Сверить self.* и connect() в тексте .gd с кэшем Godot API; честно сказать, что проверено.",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "path",
+      "content"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "content": {
+        "type": "string"
+      }
+    }
+  },
+  "result_schema": {
+    "type": "object",
+    "required": [
+      "path",
+      "problems",
+      "checked",
+      "base_class",
+      "unavailable"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "problems": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "checked": {
+        "type": "boolean"
+      },
+      "base_class": {
+        "type": "string"
+      },
+      "unavailable": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

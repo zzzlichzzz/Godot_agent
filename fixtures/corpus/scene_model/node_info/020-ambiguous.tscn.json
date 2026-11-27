@@ -1,0 +1,15 @@
+{
+  "id": "020-ambiguous.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "ambiguous.tscn: 'Leaf'",
+  "args": {
+    "path": "res://scenes/ambiguous.tscn",
+    "node": "Leaf"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Имя узла 'Leaf' неоднозначно (2 совпадений). Укажите полный путь: B/Leaf, A/Leaf"
+  }
+}

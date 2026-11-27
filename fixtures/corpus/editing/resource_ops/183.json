@@ -1,0 +1,20 @@
+{
+  "id": "expanded-hash-no-trailing",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "file_sha256"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "file_sha256"
+  },
+  "fixture": "bytes-no-trailing",
+  "input": "res://data.tres",
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": "0ed5b07cdebfa23525d9d0801757e87997de101c00acdea3e5d87835f0981e6c"
+  },
+  "oracle": "native",
+  "raw_sha256": "af794bcab7c663a693027d0c418287755ed9ba9586bd9dc8fc21828408e29d88"
+}

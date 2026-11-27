@@ -1,0 +1,60 @@
+{
+  "id": "limits-NodePath8",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "NodePath",
+          "value": "Root\n"
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "x",
+            "value": {
+              "type": "NodePath",
+              "value": "Root\n"
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://texture.png"
+        ],
+        "summary": "description"
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "ef59a64657e14bb0c995d2fb75964694fd5a302102a7a9197820fc289519187e"
+}

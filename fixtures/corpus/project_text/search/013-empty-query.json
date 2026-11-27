@@ -1,0 +1,16 @@
+{
+  "id": "013-empty-query",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "пустой запрос: пустой результат без ошибки",
+  "args": {
+    "query": "   "
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

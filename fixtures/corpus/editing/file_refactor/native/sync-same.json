@@ -1,0 +1,52 @@
+{
+  "id": "sync-same",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://src/a.gd",
+    "new_path": "res://src/a.gd",
+    "is_directory": false
+  },
+  "fixture": {
+    "dirs": [
+      "src"
+    ],
+    "files": {
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "src/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+      }
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "ok": true,
+    "entry_id": null,
+    "old_path": "res://src/a.gd",
+    "new_path": "res://src/a.gd",
+    "is_directory": false,
+    "reference_count": 0,
+    "file_count": 0,
+    "changed_paths": []
+  },
+  "native_effects": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    }
+  },
+  "stdout": "",
+  "native_prepared": []
+}

@@ -1,0 +1,21 @@
+{
+  "kind": "call",
+  "module": "anthropic_compat",
+  "function": "_content_parts",
+  "args": [
+    {
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "Ω"
+        },
+        {
+          "type": "text",
+          "text": "ёж"
+        }
+      ]
+    }
+  ],
+  "kwargs": {},
+  "id": "api-107"
+}

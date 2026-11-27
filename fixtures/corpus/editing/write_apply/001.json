@@ -1,0 +1,24 @@
+{
+  "id": "001",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "одна функция, один файл: strict-план применяется целиком",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "strike",
+    "new_name": "punch",
+    "declaration": "res://src/hero.gd:10",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "files": {
+        "src/enemy.gd": "1397340dcc3131da87a0d1e664c49279dc101d76ee83e26ea3765f1eb0c79da6",
+        "src/hero.gd": "6803b87b26f4181eb3a0583afaf69d421039d0bb6ad79c87ea20a3e8c749ec33",
+        "src/party.gd": "43baaf139ab8873866cf0af834cc0e826bbee1dba9c5818f5e7bddb60b65a3d7"
+      }
+    }
+  }
+}

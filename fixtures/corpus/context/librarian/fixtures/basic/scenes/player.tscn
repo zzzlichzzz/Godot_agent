@@ -1,0 +1,4 @@
+[gd_scene format=3]
+[node name="HeroUnit" type="Node2D"]
+[node name="HealthBar" type="Control" parent="."]
+[connection signal="health_changed" from="." to="HealthBar" method="_on_health_changed"]

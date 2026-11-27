@@ -1,0 +1,16 @@
+{
+  "id": "012-addon-hidden",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Аддон закрыт политикой путей (allow_addons по умолчанию false)",
+  "args": {
+    "kind": "function",
+    "old_name": "plugin_ready",
+    "new_name": "on_plugin_ready",
+    "declaration": "res://addons/other/plugin.gd:4"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "001-none.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "none.tscn",
+  "args": {
+    "path": "res://none.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [],
+      "text": ""
+    }
+  }
+}

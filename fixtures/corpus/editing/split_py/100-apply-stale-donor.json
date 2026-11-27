@@ -1,0 +1,38 @@
+{
+  "id": "100-apply-stale-donor",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_explicit",
+  "setup": {
+    "write_text": {
+      "donor.py": "def fn():\n    return 2\n"
+    }
+  },
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": {
+    "exception": "StaleSplitError",
+    "message": "файл-донор изменился после plan_split: donor.py"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "stale_plan",
+    "tree_unchanged": true
+  },
+  "scenario": "split_plan_apply"
+}

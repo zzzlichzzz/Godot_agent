@@ -1,0 +1,40 @@
+{
+  "id": "007-unique.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/unique.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n  - Unique",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Unique",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": ".",
+          "path": "Unique"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

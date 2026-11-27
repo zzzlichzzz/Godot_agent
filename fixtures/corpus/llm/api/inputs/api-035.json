@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_keys",
+  "function": "validate_base_url",
+  "args": [
+    "file:///fixture"
+  ],
+  "kwargs": {},
+  "id": "api-035"
+}

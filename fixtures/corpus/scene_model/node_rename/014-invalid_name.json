@@ -1,0 +1,17 @@
+{
+  "id": "014-invalid_name",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/014-invalid_name",
+  "note": "invalid_name",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "A/B"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Недопустимое имя узла: A/B",
+    "reference_exception": "NodeRefactorError"
+  }
+}

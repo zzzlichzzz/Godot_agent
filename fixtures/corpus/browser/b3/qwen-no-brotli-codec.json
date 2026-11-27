@@ -1,0 +1,9 @@
+{
+  "id": "qwen-no-brotli-codec",
+  "kind": "decode",
+  "native_case_source": "qwen_net.py:114-127 (optional dependency absent)",
+  "monitor": "qwen",
+  "body_b64": "bm90LXNzZS1vci1kZWNvZGVkLWJvZHk=",
+  "step": 3,
+  "codec_missing": true
+}

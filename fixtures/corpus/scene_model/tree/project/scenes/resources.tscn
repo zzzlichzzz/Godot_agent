@@ -1,0 +1,8 @@
+[ext_resource uid="uid://s" type="Script" path="res://scripts/a.gd" id="A"]
+[ext_resource id="only"]
+[ext_resource type="Texture2D"]
+[sub_resource id="Curve_1" type="Curve"]
+[sub_resource]
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+script=ExtResource("A")

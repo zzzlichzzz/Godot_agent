@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/editing/write_preview",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/symbol_refactor.py:prepare_rename",
+    "sha256": "93f8c8923703020fdf5a2dc31cc8e18654fa05f7833a86415a29a436758425b7"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001-one-file",
+      "file": "001-one-file.json",
+      "fixture": "rename",
+      "sha256": "db190089d0d2514cb85f865f6ea8cd2f476f0c896ed361fba323cb17e6c01ac9"
+    },
+    {
+      "id": "002-two-files-sorted",
+      "file": "002-two-files-sorted.json",
+      "fixture": "rename",
+      "sha256": "67bceffadf70136c671b153d2fa0a1fca4f84a972d16f96589b370b648769c23"
+    },
+    {
+      "id": "003-exclude-one",
+      "file": "003-exclude-one.json",
+      "fixture": "rename",
+      "sha256": "d6fd667a2aee746811c18851bd345c183554b98c67ca318d0ef9d2ab7340c04f"
+    },
+    {
+      "id": "004-exclude-all",
+      "file": "004-exclude-all.json",
+      "fixture": "rename",
+      "sha256": "81bffb977b9be3fd95119dbb9355a7d5647878f08a0d520816e7795858262c4a"
+    },
+    {
+      "id": "005-strict-unverified",
+      "file": "005-strict-unverified.json",
+      "fixture": "rename",
+      "sha256": "0720935ed91e5549c575465157094d94250683f7d0cfdddd721269a1a561e575"
+    },
+    {
+      "id": "006-allow-unverified",
+      "file": "006-allow-unverified.json",
+      "fixture": "rename",
+      "sha256": "91587d84c35276d149264fe3657dde70847628a5e19a839a2b7fbe5381097a60"
+    },
+    {
+      "id": "007-strict-dynamic",
+      "file": "007-strict-dynamic.json",
+      "fixture": "rename",
+      "sha256": "386f0deb2bc7542e4af0ec03fb8765758baa93a70d571d0f7bb4ecc787179241"
+    },
+    {
+      "id": "008-mode-probable",
+      "file": "008-mode-probable.json",
+      "fixture": "rename",
+      "sha256": "9530073d178233c379cb91e3c09431866a77c2707d70c372bc58dc592654f9b3"
+    },
+    {
+      "id": "009-name-conflict",
+      "file": "009-name-conflict.json",
+      "fixture": "rename",
+      "sha256": "fb24f21cdac5b83cc6462a4fb22279104ac7192596b8b48636dac227906bbc3e"
+    },
+    {
+      "id": "010-old-name-keyword",
+      "file": "010-old-name-keyword.json",
+      "fixture": "rename",
+      "sha256": "a28f51417d17e32b8a38f02e2e529144a9a8d1f899f0914cb275d295ec8895b6"
+    },
+    {
+      "id": "011-bad-new-name",
+      "file": "011-bad-new-name.json",
+      "fixture": "rename",
+      "sha256": "65ffc6b3eacf4203b4341ff874ad53f632c989a0454b8ecce804b4767e778cd8"
+    },
+    {
+      "id": "012-locator-mismatch",
+      "file": "012-locator-mismatch.json",
+      "fixture": "rename",
+      "sha256": "d213fdbd302b230c2d022ec7197a9dc42d9d1a6733e9b28885123ad785fcfc61"
+    },
+    {
+      "id": "013-addon-denied",
+      "file": "013-addon-denied.json",
+      "fixture": "rename",
+      "sha256": "ffa4232b3440879924666acd5c9467778cb3377a854ee1616f27f46746f4c74a"
+    },
+    {
+      "id": "014-path-outside",
+      "file": "014-path-outside.json",
+      "fixture": "rename",
+      "sha256": "bc16ef14f294f6777106ebe0067767db6211adffb468a199a6b27f8b23a005a4"
+    },
+    {
+      "id": "015-exclude-dynamic",
+      "file": "015-exclude-dynamic.json",
+      "fixture": "rename",
+      "sha256": "dfe0df1fcf25cdd71e82bd542bd2c0d8a2c56291c67c7645703b81473e8cb17b"
+    },
+    {
+      "id": "016-locator-column",
+      "file": "016-locator-column.json",
+      "fixture": "rename",
+      "sha256": "5c603d8eeaffb17a500adf6215925f52d273f49809bb0f77e328444c5d65ddf9"
+    }
+  ]
+}

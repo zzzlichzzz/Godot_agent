@@ -1,0 +1,21 @@
+{
+  "id": "008-plugin-readable",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://plugin.cfg",
+    "new_path": "res://other/plugin.cfg"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://plugin.cfg",
+      "new_path": "res://other/plugin.cfg",
+      "is_directory": false,
+      "file_count": 1,
+      "reference_count": 0,
+      "files": [],
+      "source_text": "[plugin]\nname=\"readable\"\n"
+    }
+  }
+}

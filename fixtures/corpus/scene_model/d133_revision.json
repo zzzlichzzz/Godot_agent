@@ -1,0 +1,149 @@
+{
+  "editor/native/agent_chat_view.gd": {
+    "before": [
+      46077,
+      "b571575a6263c00b7abad23ce2081d709f9d788d79e78d5dd3384b6ae231d2b9"
+    ],
+    "after": [
+      46063,
+      "24e69f8d1ca62742ed77ff18d60e10b48cc1655fa1ecf1b806ee71023660c11b"
+    ],
+    "reverse": [
+      [
+        211,
+        212,
+        "\tpreload(\"agent_read_consent.gd\").revoke(self)\n"
+      ]
+    ]
+  },
+  "editor/native/agent_locale.gd": {
+    "before": [
+      87351,
+      "89f8f958fe40b0e9c533a0d1525aa0ba59fb5b5d205c52bef4acfff23ede75c4"
+    ],
+    "after": [
+      87367,
+      "7a6c5ba9530d49fb4fcee01147e16301400d2de9e1577890667a6cdbc3c49735"
+    ],
+    "reverse": [
+      [
+        340,
+        341,
+        "\t\"allow_all_tip\": \"Разрешать все последующие действия агента без запроса — до конца текущей задачи или до нажатия «Отключить».\",\n"
+      ],
+      [
+        342,
+        343,
+        "\t\"auto_approve_bar\": \"Авто-подтверждение включено\",\n"
+      ],
+      [
+        795,
+        796,
+        "\t\"allow_all_tip\": \"Approve all following agent actions without asking — until the current task ends or you press «Turn off».\",\n"
+      ],
+      [
+        797,
+        798,
+        "\t\"auto_approve_bar\": \"Auto-approve is on\",\n"
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part1.gd": {
+    "before": [
+      65165,
+      "38194512014a642c2ce7ae06ea4fb126d02191d410fee02a041127912936bb59"
+    ],
+    "after": [
+      65338,
+      "cc9d564afbd7b4c6386f9ce05841aa76544f09da874e82d4395debad3a40b274"
+    ],
+    "reverse": [
+      [
+        364,
+        365,
+        ""
+      ],
+      [
+        1016,
+        1018,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part2.gd": {
+    "before": [
+      64747,
+      "c5268016c5d9d408adf10f758ee437c5754a991e47a4ca3b19fc76480fd335d5"
+    ],
+    "after": [
+      64978,
+      "e677d017e362e7d839df7a9ce9a25da42d0a0729f26b74dd58a055696a88b998"
+    ],
+    "reverse": [
+      [
+        836,
+        839,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part3.gd": {
+    "before": [
+      59564,
+      "1512644724fccda082a04d72f7f6691c1ddf6f5aff5ff0c9fcc67e26d9fa0fb7"
+    ],
+    "after": [
+      59707,
+      "4ee6a0600b3ec2a9f9c3fa72ff2de0eb46f355c51c042578c744ab2e363b9201"
+    ],
+    "reverse": [
+      [
+        505,
+        508,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_read_consent.gd": {
+    "before": [
+      6779,
+      "85ee03f77feb9b474c5f7595fce13ed68812687bce190e9a8707b8424bd0a6a1"
+    ],
+    "after": [
+      6013,
+      "d0870b17dce471f68ca9ecf166d0d02891085510e303fc7401439681ff9e43df"
+    ],
+    "reverse": [
+      [
+        4,
+        4,
+        "const BADGE := \"ReadConsentBadge\"\n"
+      ],
+      [
+        33,
+        33,
+        "static func revoke(view) -> void:\n\tif view._root_vbox != null:\n\t\tvar badge = view._root_vbox.get_node_or_null(BADGE)\n\t\tif badge != null:\n\t\t\tview._root_vbox.remove_child(badge)\n\t\t\tbadge.queue_free()\n\tview.set_meta(\"read_grant\", \"\")\n\tview.set_meta(\"requested_grant\", \"\")\n\n"
+      ],
+      [
+        39,
+        40,
+        "\trevoke(view)\n\tvar badge := Button.new()\n\tbadge.name = BADGE\n\tbadge.text = _words(\"Чтение в этом чате разрешено · Отменить\", \"Reads allowed in this chat · Revoke\")\n\tbadge.icon = DockTheme.first_icon([\"Unlock\", \"FileAccess\"])\n\tbadge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n\tbadge.pressed.connect(func(): revoke(view))\n\tview._root_vbox.add_child(badge)\n\tview._root_vbox.move_child(badge, view._input_row_index())\n\tview.set_meta(\"read_grant\", owner)\n"
+      ],
+      [
+        48,
+        49,
+        "\tif view.get_meta(\"read_grant\", \"\") == owner and not paused:\n"
+      ],
+      [
+        102,
+        103,
+        "\tfor choice in [[_words(\"Один раз\", \"Allow once\"), true, false], [_words(\"Всегда в этом чате\", \"Always in this chat\"), true, true], [_words(\"Отказать\", \"Deny\"), false, false]]:\n"
+      ],
+      [
+        105,
+        106,
+        ""
+      ]
+    ]
+  }
+}

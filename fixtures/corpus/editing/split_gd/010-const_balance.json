@@ -1,0 +1,120 @@
+{
+  "id": "010-const_balance",
+  "tool": "split_gd_scan",
+  "fixture": "corpus/editing/split_gd/const_balance",
+  "args": {
+    "path": "res://donor.gd"
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": {
+    "schema": 1,
+    "donor": "donor.gd",
+    "lines": 9,
+    "extends": "Node",
+    "class_name": "",
+    "funcs": 1,
+    "consts": 2,
+    "vars": 0,
+    "public_methods": [
+      "ping"
+    ],
+    "counts": {
+      "path": 1,
+      "source_read": 0,
+      "call": 0,
+      "doc": 0,
+      "mention": 0
+    },
+    "occurrences": [
+      {
+        "file": "plugin.cfg",
+        "line": 3,
+        "kind": "path",
+        "text": "script=\"donor.gd\""
+      }
+    ],
+    "truncated": false,
+    "hard_files": [],
+    "soft_files": [
+      "plugin.cfg"
+    ]
+  },
+  "reference_inventory": {
+    "extends": "Node",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [
+      {
+        "name": "A",
+        "start": 3,
+        "end": 6,
+        "block_start": 2,
+        "text": "# attached\nconst A = {\n \"x\": \"[\", # }\n \"b\": [1, 2]\n}"
+      },
+      {
+        "name": "B",
+        "start": 7,
+        "end": 7,
+        "block_start": 7,
+        "text": "const B = \"\\\"(\""
+      }
+    ],
+    "vars": [],
+    "funcs": [
+      {
+        "name": "ping",
+        "sig_start": 8,
+        "start": 8,
+        "block_start": 8,
+        "sig_lines": [
+          "func ping():"
+        ],
+        "sig_text": "func ping():",
+        "body_start": 9,
+        "end": 9,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 9
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.gd",
+      "lines": 9,
+      "extends": "Node",
+      "class_name": "",
+      "funcs": 1,
+      "consts": 2,
+      "vars": 0,
+      "public_methods": [
+        "ping"
+      ],
+      "counts": {
+        "path": 1,
+        "source_read": 0,
+        "call": 0,
+        "doc": 0,
+        "mention": 0
+      },
+      "occurrences": [
+        {
+          "file": "plugin.cfg",
+          "line": 3,
+          "kind": "path",
+          "text": "script=\"donor.gd\""
+        }
+      ],
+      "truncated": false,
+      "hard_files": [],
+      "soft_files": [
+        "plugin.cfg"
+      ]
+    }
+  }
+}

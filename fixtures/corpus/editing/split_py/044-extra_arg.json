@@ -1,0 +1,15 @@
+{
+  "id": "044-extra_arg",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/extra_arg",
+  "args": {
+    "path": "res://donor.py",
+    "extra": true
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

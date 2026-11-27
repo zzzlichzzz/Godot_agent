@@ -1,0 +1,25 @@
+{
+  "id": "006-arity_too_few",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "arity_too_few",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.f(1)\n"
+  },
+  "reference_result": [
+    "строка 3: self.f(...) вызван с 1 аргумент(ами), а у Node2D.f их должно быть 2-3"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 3: self.f(...) вызван с 1 аргумент(ами), а у Node2D.f их должно быть 2-3"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

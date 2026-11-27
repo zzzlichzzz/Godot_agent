@@ -1,0 +1,38 @@
+{
+  "id": "require_false_escape",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://../outside.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "int",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "kwargs": {
+    "require_exists": false
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Путь вне проекта отклонен: res://../outside.tres",
+    "hint": ""
+  },
+  "oracle": "native",
+  "native_raw_sha256": "78bd391664825c72d574dba8c1311497f89d5726f7773b4ddf02bedfda437e71"
+}

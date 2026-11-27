@@ -1,0 +1,10 @@
+{"post": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"response": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", 200, "text/event-stream"]}
+{"wait_stream": "r1"}
+{"chunk": ["r1", "0YHRgtCw0YDRi9C5INC+0YLQstC10YIKRE9ORQo="]}
+{"pin": {"text": "\u0441\u0442\u0430\u0440\u044b\u0439 \u043e\u0442\u0432\u0435\u0442", "message_status": "FINISHED", "chat_request_count": 1, "answer_request_count": 1, "assistant_message_count": 1}}
+{"post": ["r2", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"response": ["r2", "https://chat.qwen.ai/api/v2/chat/completions", 200, "text/event-stream"]}
+{"wait_stream": "r2"}
+{"pin": {"text": "", "chat_request_count": 2, "answer_request_count": 2}}
+{"finish": "r2"}

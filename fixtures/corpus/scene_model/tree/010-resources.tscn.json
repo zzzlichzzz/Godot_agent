@@ -1,0 +1,59 @@
+{
+  "id": "010-resources.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/resources.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)  [скрипт: res://scripts/a.gd]\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=A Script: res://scripts/a.gd (uid=uid://s)\n- ext id=only ?: ?\n- ext id=? Texture2D: ?\n- sub id=Curve_1 Curve\n- sub id=? ?",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/a.gd",
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "A",
+            "type": "Script",
+            "path": "res://scripts/a.gd",
+            "uid": "uid://s"
+          },
+          {
+            "id": "only",
+            "type": "?",
+            "path": "?",
+            "uid": null
+          },
+          {
+            "id": "?",
+            "type": "Texture2D",
+            "path": "?",
+            "uid": null
+          }
+        ],
+        "sub": [
+          {
+            "id": "Curve_1",
+            "type": "Curve"
+          },
+          {
+            "id": "?",
+            "type": "?"
+          }
+        ]
+      }
+    }
+  }
+}

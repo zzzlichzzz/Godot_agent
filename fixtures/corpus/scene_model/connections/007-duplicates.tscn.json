@@ -1,0 +1,29 @@
+{
+  "id": "007-duplicates.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "duplicates.tscn",
+  "args": {
+    "path": "res://duplicates.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_pressed"
+        },
+        {
+          "signal": "pressed",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_pressed"
+        }
+      ],
+      "text": "- Button.pressed -> <root>._on_button_pressed()\n- Button.pressed -> <root>._on_button_pressed()"
+    }
+  }
+}

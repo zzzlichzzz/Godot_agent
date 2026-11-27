@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "module_id": "assistant.judge",
+  "capability_id": "assistant.judge",
+  "tool_name": "judge",
+  "description": "Детерминированная оценка ответа по проекту; только чтение, без применения действий.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "full_text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200000
+      }
+    },
+    "required": [
+      "full_text"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "score": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "acceptable": {
+        "type": "boolean"
+      },
+      "vote_eligible": {
+        "type": "boolean"
+      },
+      "blocking": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocking",
+                "warning"
+              ]
+            },
+            "category": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "step": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "severity",
+            "category",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocking",
+                "warning"
+              ]
+            },
+            "category": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "step": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "severity",
+            "category",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "evidence": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 12
+      },
+      "action": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": true,
+        "description": "Opaque parsed answer JSON, including invalid/unknown fields; never executed."
+      },
+      "structural_score": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        },
+        "minItems": 7,
+        "maxItems": 7
+      }
+    },
+    "required": [
+      "score",
+      "acceptable",
+      "vote_eligible",
+      "blocking",
+      "warnings",
+      "evidence",
+      "action",
+      "structural_score"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "bounded",
+  "limits": {
+    "max_text_chars": 200000,
+    "max_evidence": 12
+  }
+}

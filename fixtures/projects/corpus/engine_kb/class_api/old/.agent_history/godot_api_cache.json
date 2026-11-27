@@ -1,0 +1,14 @@
+{
+  "godot_version": "4.0",
+  "classes": {
+    "Old": {
+      "inherits": null,
+      "methods": {
+        "old": [
+          0,
+          2
+        ]
+      }
+    }
+  }
+}

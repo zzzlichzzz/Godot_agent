@@ -1,0 +1,1822 @@
+{
+  "id": "cache-036-refresh-native-snapshot-bytes",
+  "input": {
+    "group": "cache",
+    "action": "save",
+    "native_snapshot": true,
+    "storage": "user"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "result": 1488,
+      "before": {
+        "bytes": 321,
+        "sha256": "ba0a4c6427781560aef8d6f5a9bc748c0c0c28e03cd81a6636961508a1e761c2"
+      },
+      "after": {
+        "bytes": 2004630,
+        "sha256": "7352d27c8d8ed77b84b3b98400093c85144c4b6f8b8919b147ca035a67c8a93c"
+      },
+      "query": {
+        "version": "4.6.3-stable (official)",
+        "has_cache": true,
+        "class": {
+          "inherits": "Object",
+          "methods": {
+            "_enter_tree": [
+              0,
+              0
+            ],
+            "_exit_tree": [
+              0,
+              0
+            ],
+            "_get_accessibility_configuration_warnings": [
+              0,
+              0
+            ],
+            "_get_configuration_warnings": [
+              0,
+              0
+            ],
+            "_get_focused_accessibility_element": [
+              0,
+              0
+            ],
+            "_input": [
+              1,
+              1
+            ],
+            "_physics_process": [
+              1,
+              1
+            ],
+            "_process": [
+              1,
+              1
+            ],
+            "_ready": [
+              0,
+              0
+            ],
+            "_set_property_pinned": [
+              2,
+              2
+            ],
+            "_shortcut_input": [
+              1,
+              1
+            ],
+            "_unhandled_input": [
+              1,
+              1
+            ],
+            "_unhandled_key_input": [
+              1,
+              1
+            ],
+            "add_child": [
+              1,
+              3
+            ],
+            "add_sibling": [
+              1,
+              2
+            ],
+            "add_to_group": [
+              1,
+              2
+            ],
+            "atr": [
+              1,
+              2
+            ],
+            "atr_n": [
+              3,
+              4
+            ],
+            "call_deferred_thread_group": [
+              1,
+              1
+            ],
+            "call_thread_safe": [
+              1,
+              1
+            ],
+            "can_auto_translate": [
+              0,
+              0
+            ],
+            "can_process": [
+              0,
+              0
+            ],
+            "create_tween": [
+              0,
+              0
+            ],
+            "duplicate": [
+              0,
+              1
+            ],
+            "find_child": [
+              1,
+              3
+            ],
+            "find_children": [
+              1,
+              4
+            ],
+            "find_parent": [
+              1,
+              1
+            ],
+            "get_accessibility_element": [
+              0,
+              0
+            ],
+            "get_auto_translate_mode": [
+              0,
+              0
+            ],
+            "get_child": [
+              1,
+              2
+            ],
+            "get_child_count": [
+              0,
+              1
+            ],
+            "get_children": [
+              0,
+              1
+            ],
+            "get_editor_description": [
+              0,
+              0
+            ],
+            "get_groups": [
+              0,
+              0
+            ],
+            "get_index": [
+              0,
+              1
+            ],
+            "get_last_exclusive_window": [
+              0,
+              0
+            ],
+            "get_multiplayer": [
+              0,
+              0
+            ],
+            "get_multiplayer_authority": [
+              0,
+              0
+            ],
+            "get_name": [
+              0,
+              0
+            ],
+            "get_node": [
+              1,
+              1
+            ],
+            "get_node_and_resource": [
+              1,
+              1
+            ],
+            "get_node_or_null": [
+              1,
+              1
+            ],
+            "get_node_rpc_config": [
+              0,
+              0
+            ],
+            "get_orphan_node_ids": [
+              0,
+              0
+            ],
+            "get_owner": [
+              0,
+              0
+            ],
+            "get_parent": [
+              0,
+              0
+            ],
+            "get_path": [
+              0,
+              0
+            ],
+            "get_path_to": [
+              1,
+              2
+            ],
+            "get_physics_interpolation_mode": [
+              0,
+              0
+            ],
+            "get_physics_process_delta_time": [
+              0,
+              0
+            ],
+            "get_physics_process_priority": [
+              0,
+              0
+            ],
+            "get_process_delta_time": [
+              0,
+              0
+            ],
+            "get_process_mode": [
+              0,
+              0
+            ],
+            "get_process_priority": [
+              0,
+              0
+            ],
+            "get_process_thread_group": [
+              0,
+              0
+            ],
+            "get_process_thread_group_order": [
+              0,
+              0
+            ],
+            "get_process_thread_messages": [
+              0,
+              0
+            ],
+            "get_scene_file_path": [
+              0,
+              0
+            ],
+            "get_scene_instance_load_placeholder": [
+              0,
+              0
+            ],
+            "get_tree": [
+              0,
+              0
+            ],
+            "get_tree_string": [
+              0,
+              0
+            ],
+            "get_tree_string_pretty": [
+              0,
+              0
+            ],
+            "get_viewport": [
+              0,
+              0
+            ],
+            "get_window": [
+              0,
+              0
+            ],
+            "has_node": [
+              1,
+              1
+            ],
+            "has_node_and_resource": [
+              1,
+              1
+            ],
+            "is_ancestor_of": [
+              1,
+              1
+            ],
+            "is_displayed_folded": [
+              0,
+              0
+            ],
+            "is_editable_instance": [
+              1,
+              1
+            ],
+            "is_greater_than": [
+              1,
+              1
+            ],
+            "is_in_group": [
+              1,
+              1
+            ],
+            "is_inside_tree": [
+              0,
+              0
+            ],
+            "is_multiplayer_authority": [
+              0,
+              0
+            ],
+            "is_node_ready": [
+              0,
+              0
+            ],
+            "is_part_of_edited_scene": [
+              0,
+              0
+            ],
+            "is_physics_interpolated": [
+              0,
+              0
+            ],
+            "is_physics_interpolated_and_enabled": [
+              0,
+              0
+            ],
+            "is_physics_processing": [
+              0,
+              0
+            ],
+            "is_physics_processing_internal": [
+              0,
+              0
+            ],
+            "is_processing": [
+              0,
+              0
+            ],
+            "is_processing_input": [
+              0,
+              0
+            ],
+            "is_processing_internal": [
+              0,
+              0
+            ],
+            "is_processing_shortcut_input": [
+              0,
+              0
+            ],
+            "is_processing_unhandled_input": [
+              0,
+              0
+            ],
+            "is_processing_unhandled_key_input": [
+              0,
+              0
+            ],
+            "is_unique_name_in_owner": [
+              0,
+              0
+            ],
+            "move_child": [
+              2,
+              2
+            ],
+            "notify_deferred_thread_group": [
+              1,
+              1
+            ],
+            "notify_thread_safe": [
+              1,
+              1
+            ],
+            "print_orphan_nodes": [
+              0,
+              0
+            ],
+            "print_tree": [
+              0,
+              0
+            ],
+            "print_tree_pretty": [
+              0,
+              0
+            ],
+            "propagate_call": [
+              1,
+              3
+            ],
+            "propagate_notification": [
+              1,
+              1
+            ],
+            "queue_accessibility_update": [
+              0,
+              0
+            ],
+            "queue_free": [
+              0,
+              0
+            ],
+            "remove_child": [
+              1,
+              1
+            ],
+            "remove_from_group": [
+              1,
+              1
+            ],
+            "reparent": [
+              1,
+              2
+            ],
+            "replace_by": [
+              1,
+              2
+            ],
+            "request_ready": [
+              0,
+              0
+            ],
+            "reset_physics_interpolation": [
+              0,
+              0
+            ],
+            "rpc": [
+              1,
+              1
+            ],
+            "rpc_config": [
+              2,
+              2
+            ],
+            "rpc_id": [
+              2,
+              2
+            ],
+            "set_auto_translate_mode": [
+              1,
+              1
+            ],
+            "set_deferred_thread_group": [
+              2,
+              2
+            ],
+            "set_display_folded": [
+              1,
+              1
+            ],
+            "set_editable_instance": [
+              2,
+              2
+            ],
+            "set_editor_description": [
+              1,
+              1
+            ],
+            "set_multiplayer_authority": [
+              1,
+              2
+            ],
+            "set_name": [
+              1,
+              1
+            ],
+            "set_owner": [
+              1,
+              1
+            ],
+            "set_physics_interpolation_mode": [
+              1,
+              1
+            ],
+            "set_physics_process": [
+              1,
+              1
+            ],
+            "set_physics_process_internal": [
+              1,
+              1
+            ],
+            "set_physics_process_priority": [
+              1,
+              1
+            ],
+            "set_process": [
+              1,
+              1
+            ],
+            "set_process_input": [
+              1,
+              1
+            ],
+            "set_process_internal": [
+              1,
+              1
+            ],
+            "set_process_mode": [
+              1,
+              1
+            ],
+            "set_process_priority": [
+              1,
+              1
+            ],
+            "set_process_shortcut_input": [
+              1,
+              1
+            ],
+            "set_process_thread_group": [
+              1,
+              1
+            ],
+            "set_process_thread_group_order": [
+              1,
+              1
+            ],
+            "set_process_thread_messages": [
+              1,
+              1
+            ],
+            "set_process_unhandled_input": [
+              1,
+              1
+            ],
+            "set_process_unhandled_key_input": [
+              1,
+              1
+            ],
+            "set_scene_file_path": [
+              1,
+              1
+            ],
+            "set_scene_instance_load_placeholder": [
+              1,
+              1
+            ],
+            "set_thread_safe": [
+              2,
+              2
+            ],
+            "set_translation_domain_inherited": [
+              0,
+              0
+            ],
+            "set_unique_name_in_owner": [
+              1,
+              1
+            ],
+            "update_configuration_warnings": [
+              0,
+              0
+            ]
+          },
+          "properties": [
+            "name",
+            "unique_name_in_owner",
+            "scene_file_path",
+            "owner",
+            "multiplayer",
+            "Process",
+            "process_mode",
+            "process_priority",
+            "process_physics_priority",
+            "Thread Group",
+            "process_thread_group",
+            "process_thread_group_order",
+            "process_thread_messages",
+            "Physics Interpolation",
+            "physics_interpolation_mode",
+            "Auto Translate",
+            "auto_translate_mode",
+            "Editor Description",
+            "editor_description"
+          ],
+          "signals": [
+            "ready",
+            "renamed",
+            "tree_entered",
+            "tree_exiting",
+            "tree_exited",
+            "child_entered_tree",
+            "child_exiting_tree",
+            "child_order_changed",
+            "replacing_by",
+            "editor_description_changed",
+            "editor_state_changed"
+          ],
+          "signatures": {
+            "_enter_tree": "_enter_tree() -> void",
+            "_exit_tree": "_exit_tree() -> void",
+            "_get_accessibility_configuration_warnings": "_get_accessibility_configuration_warnings() -> PackedStringArray",
+            "_get_configuration_warnings": "_get_configuration_warnings() -> PackedStringArray",
+            "_get_focused_accessibility_element": "_get_focused_accessibility_element() -> RID",
+            "_input": "_input(event: InputEvent) -> void",
+            "_physics_process": "_physics_process(delta: float) -> void",
+            "_process": "_process(delta: float) -> void",
+            "_ready": "_ready() -> void",
+            "_set_property_pinned": "_set_property_pinned(property: String, pinned: bool) -> void",
+            "_shortcut_input": "_shortcut_input(event: InputEvent) -> void",
+            "_unhandled_input": "_unhandled_input(event: InputEvent) -> void",
+            "_unhandled_key_input": "_unhandled_key_input(event: InputEvent) -> void",
+            "add_child": "add_child(node: Node, force_readable_name: bool = false, internal: int = 0) -> void",
+            "add_sibling": "add_sibling(sibling: Node, force_readable_name: bool = false) -> void",
+            "add_to_group": "add_to_group(group: StringName, persistent: bool = false) -> void",
+            "atr": "atr(message: String, context: StringName = \"\") -> String",
+            "atr_n": "atr_n(message: String, plural_message: StringName, n: int, context: StringName = \"\") -> String",
+            "call_deferred_thread_group": "call_deferred_thread_group(method: StringName) -> Variant",
+            "call_thread_safe": "call_thread_safe(method: StringName) -> Variant",
+            "can_auto_translate": "can_auto_translate() -> bool",
+            "can_process": "can_process() -> bool",
+            "create_tween": "create_tween() -> Tween",
+            "duplicate": "duplicate(flags: int = 15) -> Node",
+            "find_child": "find_child(pattern: String, recursive: bool = true, owned: bool = true) -> Node",
+            "find_children": "find_children(pattern: String, type: String = \"\", recursive: bool = true, owned: bool = true) -> Array",
+            "find_parent": "find_parent(pattern: String) -> Node",
+            "get_accessibility_element": "get_accessibility_element() -> RID",
+            "get_auto_translate_mode": "get_auto_translate_mode() -> int",
+            "get_child": "get_child(idx: int, include_internal: bool = false) -> Node",
+            "get_child_count": "get_child_count(include_internal: bool = false) -> int",
+            "get_children": "get_children(include_internal: bool = false) -> Array",
+            "get_editor_description": "get_editor_description() -> String",
+            "get_groups": "get_groups() -> Array",
+            "get_index": "get_index(include_internal: bool = false) -> int",
+            "get_last_exclusive_window": "get_last_exclusive_window() -> Window",
+            "get_multiplayer": "get_multiplayer() -> MultiplayerAPI",
+            "get_multiplayer_authority": "get_multiplayer_authority() -> int",
+            "get_name": "get_name() -> StringName",
+            "get_node": "get_node(path: NodePath) -> Node",
+            "get_node_and_resource": "get_node_and_resource(path: NodePath) -> Array",
+            "get_node_or_null": "get_node_or_null(path: NodePath) -> Node",
+            "get_node_rpc_config": "get_node_rpc_config() -> Variant",
+            "get_orphan_node_ids": "get_orphan_node_ids() -> Array",
+            "get_owner": "get_owner() -> Node",
+            "get_parent": "get_parent() -> Node",
+            "get_path": "get_path() -> NodePath",
+            "get_path_to": "get_path_to(node: Node, use_unique_path: bool = false) -> NodePath",
+            "get_physics_interpolation_mode": "get_physics_interpolation_mode() -> int",
+            "get_physics_process_delta_time": "get_physics_process_delta_time() -> float",
+            "get_physics_process_priority": "get_physics_process_priority() -> int",
+            "get_process_delta_time": "get_process_delta_time() -> float",
+            "get_process_mode": "get_process_mode() -> int",
+            "get_process_priority": "get_process_priority() -> int",
+            "get_process_thread_group": "get_process_thread_group() -> int",
+            "get_process_thread_group_order": "get_process_thread_group_order() -> int",
+            "get_process_thread_messages": "get_process_thread_messages() -> int",
+            "get_scene_file_path": "get_scene_file_path() -> String",
+            "get_scene_instance_load_placeholder": "get_scene_instance_load_placeholder() -> bool",
+            "get_tree": "get_tree() -> SceneTree",
+            "get_tree_string": "get_tree_string() -> String",
+            "get_tree_string_pretty": "get_tree_string_pretty() -> String",
+            "get_viewport": "get_viewport() -> Viewport",
+            "get_window": "get_window() -> Window",
+            "has_node": "has_node(path: NodePath) -> bool",
+            "has_node_and_resource": "has_node_and_resource(path: NodePath) -> bool",
+            "is_ancestor_of": "is_ancestor_of(node: Node) -> bool",
+            "is_displayed_folded": "is_displayed_folded() -> bool",
+            "is_editable_instance": "is_editable_instance(node: Node) -> bool",
+            "is_greater_than": "is_greater_than(node: Node) -> bool",
+            "is_in_group": "is_in_group(group: StringName) -> bool",
+            "is_inside_tree": "is_inside_tree() -> bool",
+            "is_multiplayer_authority": "is_multiplayer_authority() -> bool",
+            "is_node_ready": "is_node_ready() -> bool",
+            "is_part_of_edited_scene": "is_part_of_edited_scene() -> bool",
+            "is_physics_interpolated": "is_physics_interpolated() -> bool",
+            "is_physics_interpolated_and_enabled": "is_physics_interpolated_and_enabled() -> bool",
+            "is_physics_processing": "is_physics_processing() -> bool",
+            "is_physics_processing_internal": "is_physics_processing_internal() -> bool",
+            "is_processing": "is_processing() -> bool",
+            "is_processing_input": "is_processing_input() -> bool",
+            "is_processing_internal": "is_processing_internal() -> bool",
+            "is_processing_shortcut_input": "is_processing_shortcut_input() -> bool",
+            "is_processing_unhandled_input": "is_processing_unhandled_input() -> bool",
+            "is_processing_unhandled_key_input": "is_processing_unhandled_key_input() -> bool",
+            "is_unique_name_in_owner": "is_unique_name_in_owner() -> bool",
+            "move_child": "move_child(child_node: Node, to_index: int) -> void",
+            "notify_deferred_thread_group": "notify_deferred_thread_group(what: int) -> void",
+            "notify_thread_safe": "notify_thread_safe(what: int) -> void",
+            "print_orphan_nodes": "print_orphan_nodes() -> void",
+            "print_tree": "print_tree() -> void",
+            "print_tree_pretty": "print_tree_pretty() -> void",
+            "propagate_call": "propagate_call(method: StringName, args: Array = [], parent_first: bool = false) -> void",
+            "propagate_notification": "propagate_notification(what: int) -> void",
+            "queue_accessibility_update": "queue_accessibility_update() -> void",
+            "queue_free": "queue_free() -> void",
+            "remove_child": "remove_child(node: Node) -> void",
+            "remove_from_group": "remove_from_group(group: StringName) -> void",
+            "reparent": "reparent(new_parent: Node, keep_global_transform: bool = true) -> void",
+            "replace_by": "replace_by(node: Node, keep_groups: bool = false) -> void",
+            "request_ready": "request_ready() -> void",
+            "reset_physics_interpolation": "reset_physics_interpolation() -> void",
+            "rpc": "rpc(method: StringName) -> int",
+            "rpc_config": "rpc_config(method: StringName, config: Variant) -> void",
+            "rpc_id": "rpc_id(peer_id: int, method: StringName) -> int",
+            "set_auto_translate_mode": "set_auto_translate_mode(mode: int) -> void",
+            "set_deferred_thread_group": "set_deferred_thread_group(property: StringName, value: Variant) -> void",
+            "set_display_folded": "set_display_folded(fold: bool) -> void",
+            "set_editable_instance": "set_editable_instance(node: Node, is_editable: bool) -> void",
+            "set_editor_description": "set_editor_description(editor_description: String) -> void",
+            "set_multiplayer_authority": "set_multiplayer_authority(id: int, recursive: bool = true) -> void",
+            "set_name": "set_name(name: StringName) -> void",
+            "set_owner": "set_owner(owner: Node) -> void",
+            "set_physics_interpolation_mode": "set_physics_interpolation_mode(mode: int) -> void",
+            "set_physics_process": "set_physics_process(enable: bool) -> void",
+            "set_physics_process_internal": "set_physics_process_internal(enable: bool) -> void",
+            "set_physics_process_priority": "set_physics_process_priority(priority: int) -> void",
+            "set_process": "set_process(enable: bool) -> void",
+            "set_process_input": "set_process_input(enable: bool) -> void",
+            "set_process_internal": "set_process_internal(enable: bool) -> void",
+            "set_process_mode": "set_process_mode(mode: int) -> void",
+            "set_process_priority": "set_process_priority(priority: int) -> void",
+            "set_process_shortcut_input": "set_process_shortcut_input(enable: bool) -> void",
+            "set_process_thread_group": "set_process_thread_group(mode: int) -> void",
+            "set_process_thread_group_order": "set_process_thread_group_order(order: int) -> void",
+            "set_process_thread_messages": "set_process_thread_messages(flags: int) -> void",
+            "set_process_unhandled_input": "set_process_unhandled_input(enable: bool) -> void",
+            "set_process_unhandled_key_input": "set_process_unhandled_key_input(enable: bool) -> void",
+            "set_scene_file_path": "set_scene_file_path(scene_file_path: String) -> void",
+            "set_scene_instance_load_placeholder": "set_scene_instance_load_placeholder(load_placeholder: bool) -> void",
+            "set_thread_safe": "set_thread_safe(property: StringName, value: Variant) -> void",
+            "set_translation_domain_inherited": "set_translation_domain_inherited() -> void",
+            "set_unique_name_in_owner": "set_unique_name_in_owner(enable: bool) -> void",
+            "update_configuration_warnings": "update_configuration_warnings() -> void"
+          }
+        },
+        "chain": [
+          "Node",
+          "Object"
+        ],
+        "members": [
+          {
+            "_enter_tree": [
+              0,
+              0
+            ],
+            "_exit_tree": [
+              0,
+              0
+            ],
+            "_get_accessibility_configuration_warnings": [
+              0,
+              0
+            ],
+            "_get_configuration_warnings": [
+              0,
+              0
+            ],
+            "_get_focused_accessibility_element": [
+              0,
+              0
+            ],
+            "_input": [
+              1,
+              1
+            ],
+            "_physics_process": [
+              1,
+              1
+            ],
+            "_process": [
+              1,
+              1
+            ],
+            "_ready": [
+              0,
+              0
+            ],
+            "_set_property_pinned": [
+              2,
+              2
+            ],
+            "_shortcut_input": [
+              1,
+              1
+            ],
+            "_unhandled_input": [
+              1,
+              1
+            ],
+            "_unhandled_key_input": [
+              1,
+              1
+            ],
+            "add_child": [
+              1,
+              3
+            ],
+            "add_sibling": [
+              1,
+              2
+            ],
+            "add_to_group": [
+              1,
+              2
+            ],
+            "atr": [
+              1,
+              2
+            ],
+            "atr_n": [
+              3,
+              4
+            ],
+            "call_deferred_thread_group": [
+              1,
+              1
+            ],
+            "call_thread_safe": [
+              1,
+              1
+            ],
+            "can_auto_translate": [
+              0,
+              0
+            ],
+            "can_process": [
+              0,
+              0
+            ],
+            "create_tween": [
+              0,
+              0
+            ],
+            "duplicate": [
+              0,
+              1
+            ],
+            "find_child": [
+              1,
+              3
+            ],
+            "find_children": [
+              1,
+              4
+            ],
+            "find_parent": [
+              1,
+              1
+            ],
+            "get_accessibility_element": [
+              0,
+              0
+            ],
+            "get_auto_translate_mode": [
+              0,
+              0
+            ],
+            "get_child": [
+              1,
+              2
+            ],
+            "get_child_count": [
+              0,
+              1
+            ],
+            "get_children": [
+              0,
+              1
+            ],
+            "get_editor_description": [
+              0,
+              0
+            ],
+            "get_groups": [
+              0,
+              0
+            ],
+            "get_index": [
+              0,
+              1
+            ],
+            "get_last_exclusive_window": [
+              0,
+              0
+            ],
+            "get_multiplayer": [
+              0,
+              0
+            ],
+            "get_multiplayer_authority": [
+              0,
+              0
+            ],
+            "get_name": [
+              0,
+              0
+            ],
+            "get_node": [
+              1,
+              1
+            ],
+            "get_node_and_resource": [
+              1,
+              1
+            ],
+            "get_node_or_null": [
+              1,
+              1
+            ],
+            "get_node_rpc_config": [
+              0,
+              0
+            ],
+            "get_orphan_node_ids": [
+              0,
+              0
+            ],
+            "get_owner": [
+              0,
+              0
+            ],
+            "get_parent": [
+              0,
+              0
+            ],
+            "get_path": [
+              0,
+              0
+            ],
+            "get_path_to": [
+              1,
+              2
+            ],
+            "get_physics_interpolation_mode": [
+              0,
+              0
+            ],
+            "get_physics_process_delta_time": [
+              0,
+              0
+            ],
+            "get_physics_process_priority": [
+              0,
+              0
+            ],
+            "get_process_delta_time": [
+              0,
+              0
+            ],
+            "get_process_mode": [
+              0,
+              0
+            ],
+            "get_process_priority": [
+              0,
+              0
+            ],
+            "get_process_thread_group": [
+              0,
+              0
+            ],
+            "get_process_thread_group_order": [
+              0,
+              0
+            ],
+            "get_process_thread_messages": [
+              0,
+              0
+            ],
+            "get_scene_file_path": [
+              0,
+              0
+            ],
+            "get_scene_instance_load_placeholder": [
+              0,
+              0
+            ],
+            "get_tree": [
+              0,
+              0
+            ],
+            "get_tree_string": [
+              0,
+              0
+            ],
+            "get_tree_string_pretty": [
+              0,
+              0
+            ],
+            "get_viewport": [
+              0,
+              0
+            ],
+            "get_window": [
+              0,
+              0
+            ],
+            "has_node": [
+              1,
+              1
+            ],
+            "has_node_and_resource": [
+              1,
+              1
+            ],
+            "is_ancestor_of": [
+              1,
+              1
+            ],
+            "is_displayed_folded": [
+              0,
+              0
+            ],
+            "is_editable_instance": [
+              1,
+              1
+            ],
+            "is_greater_than": [
+              1,
+              1
+            ],
+            "is_in_group": [
+              1,
+              1
+            ],
+            "is_inside_tree": [
+              0,
+              0
+            ],
+            "is_multiplayer_authority": [
+              0,
+              0
+            ],
+            "is_node_ready": [
+              0,
+              0
+            ],
+            "is_part_of_edited_scene": [
+              0,
+              0
+            ],
+            "is_physics_interpolated": [
+              0,
+              0
+            ],
+            "is_physics_interpolated_and_enabled": [
+              0,
+              0
+            ],
+            "is_physics_processing": [
+              0,
+              0
+            ],
+            "is_physics_processing_internal": [
+              0,
+              0
+            ],
+            "is_processing": [
+              0,
+              0
+            ],
+            "is_processing_input": [
+              0,
+              0
+            ],
+            "is_processing_internal": [
+              0,
+              0
+            ],
+            "is_processing_shortcut_input": [
+              0,
+              0
+            ],
+            "is_processing_unhandled_input": [
+              0,
+              0
+            ],
+            "is_processing_unhandled_key_input": [
+              0,
+              0
+            ],
+            "is_unique_name_in_owner": [
+              0,
+              0
+            ],
+            "move_child": [
+              2,
+              2
+            ],
+            "notify_deferred_thread_group": [
+              1,
+              1
+            ],
+            "notify_thread_safe": [
+              1,
+              1
+            ],
+            "print_orphan_nodes": [
+              0,
+              0
+            ],
+            "print_tree": [
+              0,
+              0
+            ],
+            "print_tree_pretty": [
+              0,
+              0
+            ],
+            "propagate_call": [
+              1,
+              3
+            ],
+            "propagate_notification": [
+              1,
+              1
+            ],
+            "queue_accessibility_update": [
+              0,
+              0
+            ],
+            "queue_free": [
+              0,
+              0
+            ],
+            "remove_child": [
+              1,
+              1
+            ],
+            "remove_from_group": [
+              1,
+              1
+            ],
+            "reparent": [
+              1,
+              2
+            ],
+            "replace_by": [
+              1,
+              2
+            ],
+            "request_ready": [
+              0,
+              0
+            ],
+            "reset_physics_interpolation": [
+              0,
+              0
+            ],
+            "rpc": [
+              1,
+              1
+            ],
+            "rpc_config": [
+              2,
+              2
+            ],
+            "rpc_id": [
+              2,
+              2
+            ],
+            "set_auto_translate_mode": [
+              1,
+              1
+            ],
+            "set_deferred_thread_group": [
+              2,
+              2
+            ],
+            "set_display_folded": [
+              1,
+              1
+            ],
+            "set_editable_instance": [
+              2,
+              2
+            ],
+            "set_editor_description": [
+              1,
+              1
+            ],
+            "set_multiplayer_authority": [
+              1,
+              2
+            ],
+            "set_name": [
+              1,
+              1
+            ],
+            "set_owner": [
+              1,
+              1
+            ],
+            "set_physics_interpolation_mode": [
+              1,
+              1
+            ],
+            "set_physics_process": [
+              1,
+              1
+            ],
+            "set_physics_process_internal": [
+              1,
+              1
+            ],
+            "set_physics_process_priority": [
+              1,
+              1
+            ],
+            "set_process": [
+              1,
+              1
+            ],
+            "set_process_input": [
+              1,
+              1
+            ],
+            "set_process_internal": [
+              1,
+              1
+            ],
+            "set_process_mode": [
+              1,
+              1
+            ],
+            "set_process_priority": [
+              1,
+              1
+            ],
+            "set_process_shortcut_input": [
+              1,
+              1
+            ],
+            "set_process_thread_group": [
+              1,
+              1
+            ],
+            "set_process_thread_group_order": [
+              1,
+              1
+            ],
+            "set_process_thread_messages": [
+              1,
+              1
+            ],
+            "set_process_unhandled_input": [
+              1,
+              1
+            ],
+            "set_process_unhandled_key_input": [
+              1,
+              1
+            ],
+            "set_scene_file_path": [
+              1,
+              1
+            ],
+            "set_scene_instance_load_placeholder": [
+              1,
+              1
+            ],
+            "set_thread_safe": [
+              2,
+              2
+            ],
+            "set_translation_domain_inherited": [
+              0,
+              0
+            ],
+            "set_unique_name_in_owner": [
+              1,
+              1
+            ],
+            "update_configuration_warnings": [
+              0,
+              0
+            ],
+            "_get": [
+              1,
+              1
+            ],
+            "_get_property_list": [
+              0,
+              0
+            ],
+            "_init": [
+              0,
+              0
+            ],
+            "_iter_get": [
+              1,
+              1
+            ],
+            "_iter_init": [
+              1,
+              1
+            ],
+            "_iter_next": [
+              1,
+              1
+            ],
+            "_notification": [
+              1,
+              1
+            ],
+            "_property_can_revert": [
+              1,
+              1
+            ],
+            "_property_get_revert": [
+              1,
+              1
+            ],
+            "_set": [
+              2,
+              2
+            ],
+            "_to_string": [
+              0,
+              0
+            ],
+            "_validate_property": [
+              1,
+              1
+            ],
+            "add_user_signal": [
+              1,
+              2
+            ],
+            "call": [
+              1,
+              1
+            ],
+            "call_deferred": [
+              1,
+              1
+            ],
+            "callv": [
+              2,
+              2
+            ],
+            "can_translate_messages": [
+              0,
+              0
+            ],
+            "cancel_free": [
+              0,
+              0
+            ],
+            "connect": [
+              2,
+              3
+            ],
+            "disconnect": [
+              2,
+              2
+            ],
+            "emit_signal": [
+              1,
+              1
+            ],
+            "free": [
+              0,
+              0
+            ],
+            "get": [
+              1,
+              1
+            ],
+            "get_class": [
+              0,
+              0
+            ],
+            "get_incoming_connections": [
+              0,
+              0
+            ],
+            "get_indexed": [
+              1,
+              1
+            ],
+            "get_instance_id": [
+              0,
+              0
+            ],
+            "get_meta": [
+              1,
+              2
+            ],
+            "get_meta_list": [
+              0,
+              0
+            ],
+            "get_method_argument_count": [
+              1,
+              1
+            ],
+            "get_method_list": [
+              0,
+              0
+            ],
+            "get_property_list": [
+              0,
+              0
+            ],
+            "get_script": [
+              0,
+              0
+            ],
+            "get_signal_connection_list": [
+              1,
+              1
+            ],
+            "get_signal_list": [
+              0,
+              0
+            ],
+            "get_translation_domain": [
+              0,
+              0
+            ],
+            "has_connections": [
+              1,
+              1
+            ],
+            "has_meta": [
+              1,
+              1
+            ],
+            "has_method": [
+              1,
+              1
+            ],
+            "has_signal": [
+              1,
+              1
+            ],
+            "has_user_signal": [
+              1,
+              1
+            ],
+            "is_blocking_signals": [
+              0,
+              0
+            ],
+            "is_class": [
+              1,
+              1
+            ],
+            "is_connected": [
+              2,
+              2
+            ],
+            "is_queued_for_deletion": [
+              0,
+              0
+            ],
+            "notification": [
+              1,
+              2
+            ],
+            "notify_property_list_changed": [
+              0,
+              0
+            ],
+            "property_can_revert": [
+              1,
+              1
+            ],
+            "property_get_revert": [
+              1,
+              1
+            ],
+            "remove_meta": [
+              1,
+              1
+            ],
+            "remove_user_signal": [
+              1,
+              1
+            ],
+            "set": [
+              2,
+              2
+            ],
+            "set_block_signals": [
+              1,
+              1
+            ],
+            "set_deferred": [
+              2,
+              2
+            ],
+            "set_indexed": [
+              2,
+              2
+            ],
+            "set_message_translation": [
+              1,
+              1
+            ],
+            "set_meta": [
+              2,
+              2
+            ],
+            "set_script": [
+              1,
+              1
+            ],
+            "set_translation_domain": [
+              1,
+              1
+            ],
+            "to_string": [
+              0,
+              0
+            ],
+            "tr": [
+              1,
+              2
+            ],
+            "tr_n": [
+              3,
+              4
+            ]
+          },
+          [
+            "Auto Translate",
+            "Editor Description",
+            "Physics Interpolation",
+            "Process",
+            "Thread Group",
+            "auto_translate_mode",
+            "editor_description",
+            "multiplayer",
+            "name",
+            "owner",
+            "physics_interpolation_mode",
+            "process_mode",
+            "process_physics_priority",
+            "process_priority",
+            "process_thread_group",
+            "process_thread_group_order",
+            "process_thread_messages",
+            "scene_file_path",
+            "unique_name_in_owner"
+          ],
+          [
+            "child_entered_tree",
+            "child_exiting_tree",
+            "child_order_changed",
+            "editor_description_changed",
+            "editor_state_changed",
+            "property_list_changed",
+            "ready",
+            "renamed",
+            "replacing_by",
+            "script_changed",
+            "tree_entered",
+            "tree_exited",
+            "tree_exiting"
+          ]
+        ],
+        "signatures": {
+          "_enter_tree": "_enter_tree() -> void",
+          "_exit_tree": "_exit_tree() -> void",
+          "_get_accessibility_configuration_warnings": "_get_accessibility_configuration_warnings() -> PackedStringArray",
+          "_get_configuration_warnings": "_get_configuration_warnings() -> PackedStringArray",
+          "_get_focused_accessibility_element": "_get_focused_accessibility_element() -> RID",
+          "_input": "_input(event: InputEvent) -> void",
+          "_physics_process": "_physics_process(delta: float) -> void",
+          "_process": "_process(delta: float) -> void",
+          "_ready": "_ready() -> void",
+          "_set_property_pinned": "_set_property_pinned(property: String, pinned: bool) -> void",
+          "_shortcut_input": "_shortcut_input(event: InputEvent) -> void",
+          "_unhandled_input": "_unhandled_input(event: InputEvent) -> void",
+          "_unhandled_key_input": "_unhandled_key_input(event: InputEvent) -> void",
+          "add_child": "add_child(node: Node, force_readable_name: bool = false, internal: int = 0) -> void",
+          "add_sibling": "add_sibling(sibling: Node, force_readable_name: bool = false) -> void",
+          "add_to_group": "add_to_group(group: StringName, persistent: bool = false) -> void",
+          "atr": "atr(message: String, context: StringName = \"\") -> String",
+          "atr_n": "atr_n(message: String, plural_message: StringName, n: int, context: StringName = \"\") -> String",
+          "call_deferred_thread_group": "call_deferred_thread_group(method: StringName) -> Variant",
+          "call_thread_safe": "call_thread_safe(method: StringName) -> Variant",
+          "can_auto_translate": "can_auto_translate() -> bool",
+          "can_process": "can_process() -> bool",
+          "create_tween": "create_tween() -> Tween",
+          "duplicate": "duplicate(flags: int = 15) -> Node",
+          "find_child": "find_child(pattern: String, recursive: bool = true, owned: bool = true) -> Node",
+          "find_children": "find_children(pattern: String, type: String = \"\", recursive: bool = true, owned: bool = true) -> Array",
+          "find_parent": "find_parent(pattern: String) -> Node",
+          "get_accessibility_element": "get_accessibility_element() -> RID",
+          "get_auto_translate_mode": "get_auto_translate_mode() -> int",
+          "get_child": "get_child(idx: int, include_internal: bool = false) -> Node",
+          "get_child_count": "get_child_count(include_internal: bool = false) -> int",
+          "get_children": "get_children(include_internal: bool = false) -> Array",
+          "get_editor_description": "get_editor_description() -> String",
+          "get_groups": "get_groups() -> Array",
+          "get_index": "get_index(include_internal: bool = false) -> int",
+          "get_last_exclusive_window": "get_last_exclusive_window() -> Window",
+          "get_multiplayer": "get_multiplayer() -> MultiplayerAPI",
+          "get_multiplayer_authority": "get_multiplayer_authority() -> int",
+          "get_name": "get_name() -> StringName",
+          "get_node": "get_node(path: NodePath) -> Node",
+          "get_node_and_resource": "get_node_and_resource(path: NodePath) -> Array",
+          "get_node_or_null": "get_node_or_null(path: NodePath) -> Node",
+          "get_node_rpc_config": "get_node_rpc_config() -> Variant",
+          "get_orphan_node_ids": "get_orphan_node_ids() -> Array",
+          "get_owner": "get_owner() -> Node",
+          "get_parent": "get_parent() -> Node",
+          "get_path": "get_path() -> NodePath",
+          "get_path_to": "get_path_to(node: Node, use_unique_path: bool = false) -> NodePath",
+          "get_physics_interpolation_mode": "get_physics_interpolation_mode() -> int",
+          "get_physics_process_delta_time": "get_physics_process_delta_time() -> float",
+          "get_physics_process_priority": "get_physics_process_priority() -> int",
+          "get_process_delta_time": "get_process_delta_time() -> float",
+          "get_process_mode": "get_process_mode() -> int",
+          "get_process_priority": "get_process_priority() -> int",
+          "get_process_thread_group": "get_process_thread_group() -> int",
+          "get_process_thread_group_order": "get_process_thread_group_order() -> int",
+          "get_process_thread_messages": "get_process_thread_messages() -> int",
+          "get_scene_file_path": "get_scene_file_path() -> String",
+          "get_scene_instance_load_placeholder": "get_scene_instance_load_placeholder() -> bool",
+          "get_tree": "get_tree() -> SceneTree",
+          "get_tree_string": "get_tree_string() -> String",
+          "get_tree_string_pretty": "get_tree_string_pretty() -> String",
+          "get_viewport": "get_viewport() -> Viewport",
+          "get_window": "get_window() -> Window",
+          "has_node": "has_node(path: NodePath) -> bool",
+          "has_node_and_resource": "has_node_and_resource(path: NodePath) -> bool",
+          "is_ancestor_of": "is_ancestor_of(node: Node) -> bool",
+          "is_displayed_folded": "is_displayed_folded() -> bool",
+          "is_editable_instance": "is_editable_instance(node: Node) -> bool",
+          "is_greater_than": "is_greater_than(node: Node) -> bool",
+          "is_in_group": "is_in_group(group: StringName) -> bool",
+          "is_inside_tree": "is_inside_tree() -> bool",
+          "is_multiplayer_authority": "is_multiplayer_authority() -> bool",
+          "is_node_ready": "is_node_ready() -> bool",
+          "is_part_of_edited_scene": "is_part_of_edited_scene() -> bool",
+          "is_physics_interpolated": "is_physics_interpolated() -> bool",
+          "is_physics_interpolated_and_enabled": "is_physics_interpolated_and_enabled() -> bool",
+          "is_physics_processing": "is_physics_processing() -> bool",
+          "is_physics_processing_internal": "is_physics_processing_internal() -> bool",
+          "is_processing": "is_processing() -> bool",
+          "is_processing_input": "is_processing_input() -> bool",
+          "is_processing_internal": "is_processing_internal() -> bool",
+          "is_processing_shortcut_input": "is_processing_shortcut_input() -> bool",
+          "is_processing_unhandled_input": "is_processing_unhandled_input() -> bool",
+          "is_processing_unhandled_key_input": "is_processing_unhandled_key_input() -> bool",
+          "is_unique_name_in_owner": "is_unique_name_in_owner() -> bool",
+          "move_child": "move_child(child_node: Node, to_index: int) -> void",
+          "notify_deferred_thread_group": "notify_deferred_thread_group(what: int) -> void",
+          "notify_thread_safe": "notify_thread_safe(what: int) -> void",
+          "print_orphan_nodes": "print_orphan_nodes() -> void",
+          "print_tree": "print_tree() -> void",
+          "print_tree_pretty": "print_tree_pretty() -> void",
+          "propagate_call": "propagate_call(method: StringName, args: Array = [], parent_first: bool = false) -> void",
+          "propagate_notification": "propagate_notification(what: int) -> void",
+          "queue_accessibility_update": "queue_accessibility_update() -> void",
+          "queue_free": "queue_free() -> void",
+          "remove_child": "remove_child(node: Node) -> void",
+          "remove_from_group": "remove_from_group(group: StringName) -> void",
+          "reparent": "reparent(new_parent: Node, keep_global_transform: bool = true) -> void",
+          "replace_by": "replace_by(node: Node, keep_groups: bool = false) -> void",
+          "request_ready": "request_ready() -> void",
+          "reset_physics_interpolation": "reset_physics_interpolation() -> void",
+          "rpc": "rpc(method: StringName) -> int",
+          "rpc_config": "rpc_config(method: StringName, config: Variant) -> void",
+          "rpc_id": "rpc_id(peer_id: int, method: StringName) -> int",
+          "set_auto_translate_mode": "set_auto_translate_mode(mode: int) -> void",
+          "set_deferred_thread_group": "set_deferred_thread_group(property: StringName, value: Variant) -> void",
+          "set_display_folded": "set_display_folded(fold: bool) -> void",
+          "set_editable_instance": "set_editable_instance(node: Node, is_editable: bool) -> void",
+          "set_editor_description": "set_editor_description(editor_description: String) -> void",
+          "set_multiplayer_authority": "set_multiplayer_authority(id: int, recursive: bool = true) -> void",
+          "set_name": "set_name(name: StringName) -> void",
+          "set_owner": "set_owner(owner: Node) -> void",
+          "set_physics_interpolation_mode": "set_physics_interpolation_mode(mode: int) -> void",
+          "set_physics_process": "set_physics_process(enable: bool) -> void",
+          "set_physics_process_internal": "set_physics_process_internal(enable: bool) -> void",
+          "set_physics_process_priority": "set_physics_process_priority(priority: int) -> void",
+          "set_process": "set_process(enable: bool) -> void",
+          "set_process_input": "set_process_input(enable: bool) -> void",
+          "set_process_internal": "set_process_internal(enable: bool) -> void",
+          "set_process_mode": "set_process_mode(mode: int) -> void",
+          "set_process_priority": "set_process_priority(priority: int) -> void",
+          "set_process_shortcut_input": "set_process_shortcut_input(enable: bool) -> void",
+          "set_process_thread_group": "set_process_thread_group(mode: int) -> void",
+          "set_process_thread_group_order": "set_process_thread_group_order(order: int) -> void",
+          "set_process_thread_messages": "set_process_thread_messages(flags: int) -> void",
+          "set_process_unhandled_input": "set_process_unhandled_input(enable: bool) -> void",
+          "set_process_unhandled_key_input": "set_process_unhandled_key_input(enable: bool) -> void",
+          "set_scene_file_path": "set_scene_file_path(scene_file_path: String) -> void",
+          "set_scene_instance_load_placeholder": "set_scene_instance_load_placeholder(load_placeholder: bool) -> void",
+          "set_thread_safe": "set_thread_safe(property: StringName, value: Variant) -> void",
+          "set_translation_domain_inherited": "set_translation_domain_inherited() -> void",
+          "set_unique_name_in_owner": "set_unique_name_in_owner(enable: bool) -> void",
+          "update_configuration_warnings": "update_configuration_warnings() -> void",
+          "_get": "_get(property: StringName) -> Variant",
+          "_get_property_list": "_get_property_list() -> Array",
+          "_init": "_init() -> void",
+          "_iter_get": "_iter_get(iter: Variant) -> Variant",
+          "_iter_init": "_iter_init(iter: Array) -> bool",
+          "_iter_next": "_iter_next(iter: Array) -> bool",
+          "_notification": "_notification(what: int) -> void",
+          "_property_can_revert": "_property_can_revert(property: StringName) -> bool",
+          "_property_get_revert": "_property_get_revert(property: StringName) -> Variant",
+          "_set": "_set(property: StringName, value: Variant) -> bool",
+          "_to_string": "_to_string() -> String",
+          "_validate_property": "_validate_property(property: Dictionary) -> void",
+          "add_user_signal": "add_user_signal(signal: String, arguments: Array = []) -> void",
+          "call": "call(method: StringName) -> Variant",
+          "call_deferred": "call_deferred(method: StringName) -> Variant",
+          "callv": "callv(method: StringName, arg_array: Array) -> Variant",
+          "can_translate_messages": "can_translate_messages() -> bool",
+          "cancel_free": "cancel_free() -> void",
+          "connect": "connect(signal: StringName, callable: Callable, flags: int = 0) -> int",
+          "disconnect": "disconnect(signal: StringName, callable: Callable) -> void",
+          "emit_signal": "emit_signal(signal: StringName) -> int",
+          "free": "free() -> void",
+          "get": "get(property: StringName) -> Variant",
+          "get_class": "get_class() -> String",
+          "get_incoming_connections": "get_incoming_connections() -> Array",
+          "get_indexed": "get_indexed(property_path: NodePath) -> Variant",
+          "get_instance_id": "get_instance_id() -> int",
+          "get_meta": "get_meta(name: StringName, default: Variant = null) -> Variant",
+          "get_meta_list": "get_meta_list() -> Array",
+          "get_method_argument_count": "get_method_argument_count(method: StringName) -> int",
+          "get_method_list": "get_method_list() -> Array",
+          "get_property_list": "get_property_list() -> Array",
+          "get_script": "get_script() -> Variant",
+          "get_signal_connection_list": "get_signal_connection_list(signal: StringName) -> Array",
+          "get_signal_list": "get_signal_list() -> Array",
+          "get_translation_domain": "get_translation_domain() -> StringName",
+          "has_connections": "has_connections(signal: StringName) -> bool",
+          "has_meta": "has_meta(name: StringName) -> bool",
+          "has_method": "has_method(method: StringName) -> bool",
+          "has_signal": "has_signal(signal: StringName) -> bool",
+          "has_user_signal": "has_user_signal(signal: StringName) -> bool",
+          "is_blocking_signals": "is_blocking_signals() -> bool",
+          "is_class": "is_class(class: String) -> bool",
+          "is_connected": "is_connected(signal: StringName, callable: Callable) -> bool",
+          "is_queued_for_deletion": "is_queued_for_deletion() -> bool",
+          "notification": "notification(what: int, reversed: bool = false) -> void",
+          "notify_property_list_changed": "notify_property_list_changed() -> void",
+          "property_can_revert": "property_can_revert(property: StringName) -> bool",
+          "property_get_revert": "property_get_revert(property: StringName) -> Variant",
+          "remove_meta": "remove_meta(name: StringName) -> void",
+          "remove_user_signal": "remove_user_signal(signal: StringName) -> void",
+          "set": "set(property: StringName, value: Variant) -> void",
+          "set_block_signals": "set_block_signals(enable: bool) -> void",
+          "set_deferred": "set_deferred(property: StringName, value: Variant) -> void",
+          "set_indexed": "set_indexed(property_path: NodePath, value: Variant) -> void",
+          "set_message_translation": "set_message_translation(enable: bool) -> void",
+          "set_meta": "set_meta(name: StringName, value: Variant) -> void",
+          "set_script": "set_script(script: Variant) -> void",
+          "set_translation_domain": "set_translation_domain(domain: StringName) -> void",
+          "to_string": "to_string() -> String",
+          "tr": "tr(message: StringName, context: StringName = &\"\") -> String",
+          "tr_n": "tr_n(message: StringName, plural_message: StringName, n: int, context: StringName = &\"\") -> String"
+        }
+      },
+      "primary_preserved": false,
+      "input_snapshot_sha": "2a535d888ed0479ebf20938c227dff9992bb04e21946b874b60d885c1ea5fcc0"
+    },
+    "after": {
+      "files": {
+        "addon/agent_api_cache/.gdignore": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "addon/agent_api_cache/default_api_cache.json": {
+          "bytes": 2004630,
+          "sha256": "7352d27c8d8ed77b84b3b98400093c85144c4b6f8b8919b147ca035a67c8a93c"
+        },
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/godot_api_cache.json": {
+          "bytes": 2004630,
+          "sha256": "7352d27c8d8ed77b84b3b98400093c85144c4b6f8b8919b147ca035a67c8a93c"
+        }
+      },
+      "dirs": [
+        "addon",
+        "addon/agent_api_cache",
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

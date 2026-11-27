@@ -1,0 +1,52 @@
+{
+  "id": "c24-set-lone-CR",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "length",
+        "value": {
+          "type": "float",
+          "value": 2.0
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0NW3Jlc291cmNlXQ1yZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSINbGVuZ3RoID0gMS4wDQ=="
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0NW3Jlc291cmNlXQ1yZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSINbGVuZ3RoID0gMi4wDQ==",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "decision": "D18/SEC-24",
+    "source_sha256": "edef33817b0f5e9a9885dae55648b2c0c01fa2a8f908c07b10007fa1ff7fbbc5"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "a2429962a30bb92005df49befd75740d8402a836c82f5cc639572ee54681a00c",
+      "after_hash": "9c0d4912d1a8102be325de05f9afa6a71bf90ec3e7c9dc439e195508f2e3877a",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

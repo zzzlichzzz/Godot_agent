@@ -1,0 +1,38 @@
+{
+  "id": "expanded-value9",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "Color",
+          "value": [
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Color требует массив из 4 чисел",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "8acaeca8f012f860cd6761fa9c6003ea0096732a9d0b64091cbf22d17b757f65"
+}

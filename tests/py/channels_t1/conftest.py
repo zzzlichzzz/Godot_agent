@@ -1,0 +1,1 @@
+from tests.py.transfer_t1.conftest import isolated_chat_native_generation,extra_aliases

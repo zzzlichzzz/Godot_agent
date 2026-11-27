@@ -1,0 +1,6 @@
+[gd_scene format=3]
+[node name="Root" type="Node"]
+[node name="B" type="Node" parent="."]
+[node name="A" type="Node" parent="."]
+[node name="Leaf" type="Node" parent="B"]
+[node name="Leaf" type="Node" parent="A"]

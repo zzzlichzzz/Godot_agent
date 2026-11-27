@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.scene_ops",
+  "capability_id": "editing.scene_ops",
+  "tool_name": "scene_ops",
+  "description": "Правка открытой сцены одним батчем и одним undo-шагом. С `apply=false` — план: что изменится, отпечаток `plan_digest`, ничего не пишется. С `apply=true` и тем же `plan_digest` — применение: один undo на весь батч, квитанции по шагам, новая ревизия. Ревизия, изменившаяся после плана, — conflict/revision_mismatch; чужой отпечаток — stale_plan; ошибка на любом шаге откатывает батч целиком. Вызывать после `editor_state`, чтобы взять актуальную `expected_revision`.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "scene": {
+        "type": "string",
+        "description": "res:// путь открытой сцены (как в editor_state)."
+      },
+      "expected_revision": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Ревизия сцены, на которую рассчитан батч."
+      },
+      "operations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "add_node",
+                "set_property",
+                "attach_script",
+                "connect_signal"
+              ],
+              "description": "Операция батча; неизвестная рушит весь батч."
+            },
+            "parent": {
+              "type": "string",
+              "description": "add_node: родитель ('.' или '' — корень сцены)."
+            },
+            "name": {
+              "type": "string",
+              "description": "add_node: имя нового узла."
+            },
+            "type": {
+              "type": "string",
+              "description": "add_node: класс узла (Node2D, Label…)."
+            },
+            "node": {
+              "type": "string",
+              "description": "set_property/attach_script: путь узла."
+            },
+            "property": {
+              "type": "string",
+              "description": "set_property: имя свойства."
+            },
+            "value": {
+              "description": "set_property: новое значение (JSON, до 4 КиБ)."
+            },
+            "script": {
+              "type": "string",
+              "description": "attach_script: res:// путь скрипта."
+            },
+            "from": {
+              "type": "string",
+              "description": "connect_signal: узел-источник."
+            },
+            "signal": {
+              "type": "string",
+              "description": "connect_signal: имя сигнала."
+            },
+            "to": {
+              "type": "string",
+              "description": "connect_signal: узел-приёмник."
+            },
+            "method": {
+              "type": "string",
+              "description": "connect_signal: метод-приёмник."
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        "minItems": 1,
+        "maxItems": 64,
+        "description": "Операции в порядке применения; порядок значим."
+      },
+      "apply": {
+        "type": "boolean",
+        "description": "false (по умолчанию) — план; true — применить."
+      },
+      "plan_digest": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Отпечаток из плана; обязателен при apply."
+      },
+      "undo_label": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Имя undo-шага в редакторе."
+      }
+    },
+    "required": [
+      "scene",
+      "expected_revision",
+      "operations"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "applied": {
+        "type": "boolean",
+        "description": "План это или уже применённый батч."
+      },
+      "scene": {
+        "type": "string",
+        "description": "res:// путь сцены."
+      },
+      "revision": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "description": "Ревизия, на которой построен план."
+      },
+      "applied_revision": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "description": "Ревизия после применения батча."
+      },
+      "plan_digest": {
+        "type": "string",
+        "description": "Отпечаток батча."
+      },
+      "undo_label": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Имя undo-шага."
+      },
+      "steps": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Шаги плана (index, op, target_node, preview)."
+      },
+      "would_change": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Узлы и поля, которые изменятся."
+      },
+      "warnings": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Некритичные замечания плана."
+      },
+      "receipts": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Квитанции применения (step_id, op, node_path, applied)."
+      },
+      "changes": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "description": "Что изменилось: node_path, field, before, after."
+      }
+    },
+    "required": [
+      "applied",
+      "scene",
+      "revision",
+      "applied_revision",
+      "plan_digest",
+      "undo_label",
+      "steps",
+      "would_change",
+      "warnings",
+      "receipts",
+      "changes"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "write"
+  ],
+  "idempotent": false,
+  "requires_preview": true,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "conflict",
+    "stale_plan",
+    "engine_down",
+    "unavailable"
+  ],
+  "availability": "editor",
+  "cost": "heavy",
+  "limits": {
+    "operations": 64,
+    "value_bytes": 4096
+  }
+}

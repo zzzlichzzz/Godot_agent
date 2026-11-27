@@ -1,0 +1,6 @@
+{
+  "id": "split-kimi_parser-0",
+  "op": "split",
+  "text": "answer\n```agent_action\n{\"action\":\"done\"}\n```\n===DONE===",
+  "parser": "kimi_parser"
+}

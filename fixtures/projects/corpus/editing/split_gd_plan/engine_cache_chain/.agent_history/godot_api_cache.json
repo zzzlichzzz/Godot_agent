@@ -1,0 +1,22 @@
+{
+  "classes": {
+    "Node": {
+      "methods": {
+        "engine_call": {}
+      },
+      "properties": [
+        "engine_property"
+      ],
+      "inherits": "Object"
+    },
+    "Object": {
+      "methods": {
+        "object_call": {}
+      },
+      "properties": [
+        "object_property"
+      ]
+    }
+  },
+  "godot_version": "4.6.3"
+}

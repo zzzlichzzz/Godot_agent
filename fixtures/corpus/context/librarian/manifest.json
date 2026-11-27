@@ -1,0 +1,1570 @@
+{
+  "mechanic": "librarian",
+  "module": "context.ask",
+  "module_stage": 1,
+  "reference_only": false,
+  "provenance": "corrected native F1 after native security acceptance; measured twice, no native initializer",
+  "sources": {
+    "librarian": {
+      "pin": {
+        "bytes": 97676,
+        "sha256": "340b5dd2be96ebc4fd2e920889b275f66d9f70e4e1284bc11676db6a96551ad9",
+        "LF": 1551,
+        "CRLF": 1551
+      },
+      "imports": [
+        {
+          "line": 29,
+          "type": "import",
+          "names": [
+            "difflib"
+          ]
+        },
+        {
+          "line": 30,
+          "type": "import",
+          "names": [
+            "json"
+          ]
+        },
+        {
+          "line": 31,
+          "type": "import",
+          "names": [
+            "os"
+          ]
+        },
+        {
+          "line": 32,
+          "type": "import",
+          "names": [
+            "re"
+          ]
+        },
+        {
+          "line": 33,
+          "type": "import",
+          "names": [
+            "time"
+          ]
+        },
+        {
+          "line": 35,
+          "type": "import",
+          "names": [
+            "gd_api_cache"
+          ]
+        },
+        {
+          "line": 36,
+          "type": "from",
+          "module": "minilich",
+          "level": 0,
+          "names": [
+            "ml_project_index"
+          ]
+        },
+        {
+          "line": 37,
+          "type": "from",
+          "module": "project_tools",
+          "level": 0,
+          "names": [
+            "can_read_project_path",
+            "describe_scene",
+            "read_project_file",
+            "search_project_text"
+          ]
+        },
+        {
+          "line": 912,
+          "type": "from",
+          "module": "minilich",
+          "level": 0,
+          "names": [
+            "ml_data"
+          ]
+        },
+        {
+          "line": 1238,
+          "type": "import",
+          "names": [
+            "function_card"
+          ]
+        },
+        {
+          "line": 1245,
+          "type": "import",
+          "names": [
+            "function_card"
+          ]
+        }
+      ]
+    },
+    "ml_project_index": {
+      "pin": {
+        "bytes": 65753,
+        "sha256": "2f7694a91a48e294d40b70ada35feec355c16c7f2889d492900a5ff3839a18cb",
+        "LF": 1120,
+        "CRLF": 866
+      },
+      "imports": [
+        {
+          "line": 28,
+          "type": "import",
+          "names": [
+            "json"
+          ]
+        },
+        {
+          "line": 29,
+          "type": "import",
+          "names": [
+            "hashlib"
+          ]
+        },
+        {
+          "line": 30,
+          "type": "import",
+          "names": [
+            "os"
+          ]
+        },
+        {
+          "line": 31,
+          "type": "import",
+          "names": [
+            "re"
+          ]
+        },
+        {
+          "line": 32,
+          "type": "import",
+          "names": [
+            "threading"
+          ]
+        },
+        {
+          "line": 33,
+          "type": "import",
+          "names": [
+            "time"
+          ]
+        },
+        {
+          "line": 35,
+          "type": "from",
+          "module": null,
+          "level": 1,
+          "names": [
+            "ml_data"
+          ]
+        },
+        {
+          "line": 36,
+          "type": "import",
+          "names": [
+            "gd_semantic_parser"
+          ]
+        },
+        {
+          "line": 37,
+          "type": "from",
+          "module": "project_tools",
+          "level": 0,
+          "names": [
+            "can_read_project_path"
+          ]
+        }
+      ]
+    },
+    "ml_data": {
+      "pin": {
+        "bytes": 32324,
+        "sha256": "e13d56800d124627679af96f3259192f280dae0bbae9c637fa5832a446ae96bf",
+        "LF": 757,
+        "CRLF": 0
+      },
+      "imports": [
+        {
+          "line": 20,
+          "type": "import",
+          "names": [
+            "hashlib"
+          ]
+        },
+        {
+          "line": 21,
+          "type": "import",
+          "names": [
+            "json"
+          ]
+        },
+        {
+          "line": 22,
+          "type": "import",
+          "names": [
+            "os"
+          ]
+        },
+        {
+          "line": 23,
+          "type": "import",
+          "names": [
+            "re"
+          ]
+        },
+        {
+          "line": 25,
+          "type": "import",
+          "names": [
+            "history_manager"
+          ]
+        },
+        {
+          "line": 81,
+          "type": "import",
+          "names": [
+            "shutil"
+          ]
+        },
+        {
+          "line": 428,
+          "type": "import",
+          "names": [
+            "time"
+          ]
+        },
+        {
+          "line": 469,
+          "type": "import",
+          "names": [
+            "tscn_lint"
+          ]
+        },
+        {
+          "line": 618,
+          "type": "import",
+          "names": [
+            "tscn_lint"
+          ]
+        },
+        {
+          "line": 675,
+          "type": "import",
+          "names": [
+            "tscn_lint"
+          ]
+        }
+      ]
+    },
+    "gd_semantic_parser": {
+      "pin": {
+        "bytes": 15723,
+        "sha256": "bf35dcea5e77011dd758d7b0559c42cf61270d0361af3f62c65e63b6d4da8a8a",
+        "LF": 392,
+        "CRLF": 0
+      },
+      "imports": [
+        {
+          "line": 4,
+          "type": "import",
+          "names": [
+            "re"
+          ]
+        }
+      ]
+    }
+  },
+  "deployed_API": {
+    "bytes": 2004630,
+    "sha256": "7352d27c8d8ed77b84b3b98400093c85144c4b6f8b8919b147ca035a67c8a93c",
+    "LF": 0,
+    "CRLF": 0
+  },
+  "fixtures": {
+    "fixtures/corpus/context/librarian/fixtures/basic/project.godot": {
+      "bytes": 149,
+      "sha256": "006f7cdc9954af3ae2c9baa71009c6faf6c1f68be6df99b78cdeba7ba3b5bdc0",
+      "LF": 6,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/guard/public.gd": {
+      "bytes": 98,
+      "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+      "LF": 4,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/.agent_history/private.gd": {
+      "bytes": 41,
+      "sha256": "c91adb46f487c7de4c0874d6b637e17614f95bc5c134ae338c6518f316501447",
+      "LF": 2,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/data/binary.bin": {
+      "bytes": 19,
+      "sha256": "660e639b7aab52ec681a9a449828d1e706b8fe5da8a78111acfd425f5a071d92",
+      "LF": 0,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/docs/readme.md": {
+      "bytes": 66,
+      "sha256": "a4f6ed8d27bc1a64c0b6291136b0340eb664f7ab47076d754d314fdbc4d540d3",
+      "LF": 2,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scenes/player.tscn": {
+      "bytes": 196,
+      "sha256": "6ff287254c33a4e14ed9fdadbeb384c9295ea0b20e05d3ae2538b2c9b8667e78",
+      "LF": 4,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scripts/bom.gd": {
+      "bytes": 45,
+      "sha256": "790d869c532a99d5c356b36e5a9e73aecf9cb0c2fd3cf60f4d845cefe72bd2c0",
+      "LF": 3,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scripts/enemy.gd": {
+      "bytes": 281,
+      "sha256": "c9c6f422d2e4ef0bc038dd694945cd94b8a32a1197659dec5fffc5f529f58d39",
+      "LF": 11,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scripts/global.gd": {
+      "bytes": 60,
+      "sha256": "3ae35ba68104dc4d9e68135865212910c29117413ebafac2f627b0bec65abf9e",
+      "LF": 4,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scripts/invalid.gd": {
+      "bytes": 53,
+      "sha256": "6c35057a7662e57050c39ecac41b5041b5db8beedc147f68bc0811d23d3adad2",
+      "LF": 4,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scripts/player.gd": {
+      "bytes": 335,
+      "sha256": "18b33133d11c75154864436dd733e40b4c810466221536d3fc2d1395cace5d9d",
+      "LF": 16,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/scripts/unicode.gd": {
+      "bytes": 61,
+      "sha256": "64f7ceed587369f4e5fbb868418ab85eb35661169843e2b7aafa4341d2cf584e",
+      "LF": 3,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/fixtures/basic/Addons/vendor/private.gd": {
+      "bytes": 32,
+      "sha256": "699f61e64751661f8cc7a1e318f5b8d9ea372f7d408ddcb1874053c464120ce2",
+      "LF": 2,
+      "CRLF": 0
+    }
+  },
+  "observations": {
+    "fixtures/corpus/context/librarian/observations/001-tokens.json": {
+      "bytes": 5971,
+      "sha256": "c5a73fe54ede34dc3eb21c56386a69692defecdfacd982f657fe8a347123fbb8",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/002-tokens.json": {
+      "bytes": 5987,
+      "sha256": "9c253a5ba3fff8ae916004a3bd0697b2d05347417e4675663b429d2dc41cafdf",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/003-tokens.json": {
+      "bytes": 5838,
+      "sha256": "a80447e958a484be6969ff651beb16573f82d60e81ceaf6756e626b930ab6760",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/004-tokens.json": {
+      "bytes": 5826,
+      "sha256": "2cf474076ebc6e5ffc42b92c12becdab4425dd5618a30fa83bf296d3d84a4f4a",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/005-tokens.json": {
+      "bytes": 5912,
+      "sha256": "e8f4ae338ccc7a7bdf342317ff3ded46b58057707ef777fd5871d61a0b8ddf23",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/006-tokens.json": {
+      "bytes": 5826,
+      "sha256": "47365144751d8dd5a2ea399501582d22ff810262854559851a9613148809f6bc",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/007-tokens.json": {
+      "bytes": 5928,
+      "sha256": "cf38edaefb80b511c9cdc7dda66925be453c25596e5ec2e5bbb49b92354f85f9",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/008-tokens.json": {
+      "bytes": 6182,
+      "sha256": "5a4433b128d276dbb822416dd0156dcc3e5532d594f6a703ed4f4dea17e4d1d4",
+      "LF": 149,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/009-tokens.json": {
+      "bytes": 5935,
+      "sha256": "1554a5d382324a8ce12d83dd1fcfc7d6a37cd6302247edbf117145a1879cbd10",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/010-tokens.json": {
+      "bytes": 5892,
+      "sha256": "6a0e4519833d9e4e0794188936edd9a23239ccbcb3e3f39a8a817ff9502cb8d7",
+      "LF": 135,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/011-tokens.json": {
+      "bytes": 6084,
+      "sha256": "6914ca2db5c32cf6f59291afc27c823e0759b05f12fc4963d7627bc2da24d4cc",
+      "LF": 143,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/012-tokens.json": {
+      "bytes": 6075,
+      "sha256": "5e7388e1c0cd1aec2ff105801b493d5ba27455ae2339f577712d66c4ef0592c8",
+      "LF": 141,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/013-tokens.json": {
+      "bytes": 6101,
+      "sha256": "a9932d2cb1093b60e11cfcd1086a8acd656e5cbb6d9e240332f09f774ce44302",
+      "LF": 144,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/014-tokens.json": {
+      "bytes": 6213,
+      "sha256": "5db0c124472b1f74d0fefd00bdf12625db8ca28ca9920bb7916773c864cafcbb",
+      "LF": 146,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/015-tokens.json": {
+      "bytes": 6092,
+      "sha256": "36348ce45a6827130e71df2cbd4dce2066a8b35b8bfd3b7d2e160f6ff6535963",
+      "LF": 143,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/016-tokens.json": {
+      "bytes": 6012,
+      "sha256": "7daf1f7bf4d4a4f44a5bc79e1a776e757c86d6c04d11b26a9a5efcd7a2814d54",
+      "LF": 141,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/017-tokens.json": {
+      "bytes": 5872,
+      "sha256": "64f97f19ba50cfe17ba177609514a8b45a61a869719cbd713d0123ce104f5bf5",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/018-tokens.json": {
+      "bytes": 5899,
+      "sha256": "b102055811a4fde1a4906835a93ee855f562c21506782ac6e84ad7ca54e3c4a2",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/019-tokens.json": {
+      "bytes": 5892,
+      "sha256": "6fbd6ea1f6f8cfe0ce1d2f3dd104f34fc815a6a748eab376cf32d9efb02a9b91",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/020-tokens.json": {
+      "bytes": 6965,
+      "sha256": "442ae1d96e6abce8d371fac8ef5f81f6123c855c2ec152e8b29f48d6e7327b10",
+      "LF": 171,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/021-tokens.json": {
+      "bytes": 5991,
+      "sha256": "a9e40b3b9f2fbea81d5ffe1f2d5cc4d02b60aae27a088529738104eaf67c1728",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/022-tokens.json": {
+      "bytes": 6145,
+      "sha256": "9db1263cd36c130f48f855dc0ae22d66d6ca0f69412faea75c14ef7ab96e034a",
+      "LF": 143,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/023-tokens.json": {
+      "bytes": 6174,
+      "sha256": "127a3fc1968b5b6a712b72393edea3c1b4f68bf5c2632f9d0b09244ee439aae2",
+      "LF": 149,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/024-tokens.json": {
+      "bytes": 6459,
+      "sha256": "50bcf6aae98e1d17bc93d225cb454e1bb69a4de1af959a689f52de9c02840b7f",
+      "LF": 165,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/025-tokens.json": {
+      "bytes": 6111,
+      "sha256": "2fff6a0ecfcf92522dcc57b31f5bc24db6c8b4df5484b2c952a27e838a55c986",
+      "LF": 148,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/026-answer.json": {
+      "bytes": 24625,
+      "sha256": "0d0cea9ead91077df368112c64d35556ed7eeaa70b163e70cda1eef774bcc0e1",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/027-answer.json": {
+      "bytes": 25262,
+      "sha256": "58bce961d5bcc09c68dafd235cc92fdd95c8ac1381b2dd6973256f0a3e90e725",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/028-answer.json": {
+      "bytes": 23046,
+      "sha256": "8cefe841b83a1a527eb19f6aedbaed52f7810f44239e8a3925d8d52d1bf78594",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/029-answer.json": {
+      "bytes": 23313,
+      "sha256": "ecb53e43683223c6cf2ce9315c75ae69e98f3e0602a485a1bfa1631c3e8c7393",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/030-answer.json": {
+      "bytes": 24027,
+      "sha256": "faa123cb312731ac519ce7d8c1a06bba8ad1c1958295b6554d7a51e2a1c4d6dd",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/031-answer.json": {
+      "bytes": 22620,
+      "sha256": "a6be565bc20d84460c88969da8b4afb538004ba7da6df61e4c9d9e46073260cf",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/032-answer.json": {
+      "bytes": 23714,
+      "sha256": "47d0298fe6e9a4b071c303aa70d134b96c5adc3b137bc3a5d7fb03027f85895f",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/033-answer.json": {
+      "bytes": 23880,
+      "sha256": "946daec75d58d0664bb711be45c870617591b6fc270c9d34717baa60b8565ca6",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/034-answer.json": {
+      "bytes": 24181,
+      "sha256": "3c93a5cb73290483133356c22c36c1eb70dcc2387090bcf12137398f2e91d2e0",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/035-answer.json": {
+      "bytes": 23705,
+      "sha256": "082f5ba261ffbbc5692258803ec477b8bb907a4d93561d258c94fa94827f5e6a",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/036-answer.json": {
+      "bytes": 23894,
+      "sha256": "17fcbc415e4d2dbceacfda2992a51f32f35aae890c4d47996fe9ac2481fc0eee",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/037-answer.json": {
+      "bytes": 24254,
+      "sha256": "9322e0c597a6242687243b16fdd2d56f480b34a4007cac6fcfd2e883156e9b42",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/038-answer.json": {
+      "bytes": 24634,
+      "sha256": "8485b281597c23654094188168d1cb1339570724e5fc4424a9f54211ca34a728",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/039-answer.json": {
+      "bytes": 24094,
+      "sha256": "1cd805d8aabafa163b129ae962b38e2e7caa85a95d3b9a2957b9ac42e5f5dcd7",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/040-answer.json": {
+      "bytes": 23775,
+      "sha256": "99b1454a88109f606ee54c0f1f08f374cc720276911bf6e5bc7d9589dcfb97c5",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/041-answer.json": {
+      "bytes": 25163,
+      "sha256": "81298c5a5ab73eb122b407771f740f1d68b4367c07b193ee6b028c6a41ceb7d7",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/042-answer.json": {
+      "bytes": 23198,
+      "sha256": "339b7c88fed180df4c126bba0af3178da15dd59fdf450c4247eb5a9b3df4de2d",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/043-answer.json": {
+      "bytes": 22973,
+      "sha256": "896336eb95bf5338b6dbf0bcb1f85c2fc6b6ab17339e0573c6b1ed2bc513a3d1",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/044-answer.json": {
+      "bytes": 22647,
+      "sha256": "b0dd19a2e89fea6e63160455df1e8b7f7969ff8887e8cfafa33929d5dadd51b4",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/045-answer.json": {
+      "bytes": 23978,
+      "sha256": "005a466b78a3520aa29fa147c8f1b6f1588cb4ea7c5435f1d7ba04894483e5dd",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/046-answer.json": {
+      "bytes": 5712,
+      "sha256": "b91887d9458645eef42326c0ead6a7fcec4970bf407e38f00e7bbec58b713fee",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/047-answer.json": {
+      "bytes": 5712,
+      "sha256": "b91887d9458645eef42326c0ead6a7fcec4970bf407e38f00e7bbec58b713fee",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/048-answer.json": {
+      "bytes": 5737,
+      "sha256": "ca58d3176f83cb5daa2e078776b88b34d14f1dee1e662a944942560223dc4f3b",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/049-answer.json": {
+      "bytes": 5732,
+      "sha256": "3c6f5c23446927aef779ad9af49511bfc2779c354ee21fc9718a5710b4f10dba",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/050-answer.json": {
+      "bytes": 5733,
+      "sha256": "57c932b3e00efc741e78fc46f2ac30c90ebf4b3084a104ab84c551753bc55158",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/051-answer.json": {
+      "bytes": 5733,
+      "sha256": "59a6c563b9dc4640a6c53639451f2d689bec271ca2af721abdfdac2edaae0644",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/052-answer.json": {
+      "bytes": 24625,
+      "sha256": "0d0cea9ead91077df368112c64d35556ed7eeaa70b163e70cda1eef774bcc0e1",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/053-answer.json": {
+      "bytes": 24625,
+      "sha256": "0d0cea9ead91077df368112c64d35556ed7eeaa70b163e70cda1eef774bcc0e1",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/054-answer.json": {
+      "bytes": 22918,
+      "sha256": "7dfdbe5bbf8606d7917d578096085182e505a277d437e07b37bfb7dbdb2d3d7a",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/055-answer.json": {
+      "bytes": 22862,
+      "sha256": "9792a9e2c199651f6d43b3522b0a664a5ea3586072dccf871ce1c00e19884771",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/056-answer.json": {
+      "bytes": 22862,
+      "sha256": "9792a9e2c199651f6d43b3522b0a664a5ea3586072dccf871ce1c00e19884771",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/057-answer.json": {
+      "bytes": 22862,
+      "sha256": "9792a9e2c199651f6d43b3522b0a664a5ea3586072dccf871ce1c00e19884771",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/058-answer.json": {
+      "bytes": 22862,
+      "sha256": "9792a9e2c199651f6d43b3522b0a664a5ea3586072dccf871ce1c00e19884771",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/059-answer.json": {
+      "bytes": 22862,
+      "sha256": "9792a9e2c199651f6d43b3522b0a664a5ea3586072dccf871ce1c00e19884771",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/060-answer.json": {
+      "bytes": 22918,
+      "sha256": "7dfdbe5bbf8606d7917d578096085182e505a277d437e07b37bfb7dbdb2d3d7a",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/061-answer.json": {
+      "bytes": 23542,
+      "sha256": "aaa66942242fa306027e50538a6da57a5f4c4d56fdf99de22e01f03c684bfad8",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/062-answer.json": {
+      "bytes": 24625,
+      "sha256": "0d0cea9ead91077df368112c64d35556ed7eeaa70b163e70cda1eef774bcc0e1",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/063-budget-boundaries.json": {
+      "bytes": 91203,
+      "sha256": "db965110dae815c0dcf69f6a66c58c5cc450b7b60b76ec624d145d14e40c37e3",
+      "LF": 193,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/064-layers.json": {
+      "bytes": 24331,
+      "sha256": "7d812e8750bd344661678f069faccf711a64341a8617a2ea5e2a0fa9a8f928fd",
+      "LF": 185,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/065-layers.json": {
+      "bytes": 25422,
+      "sha256": "a06001eff30bd2efecbf601a30d6c03fe59f35ec0b5bbc23a88b62e51510128e",
+      "LF": 210,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/066-layers.json": {
+      "bytes": 22496,
+      "sha256": "74c3159b167dc535458edc9c908375bedddfdce9d60167582336ce3a01c8f65e",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/067-layers.json": {
+      "bytes": 22861,
+      "sha256": "e5c1f6343207ac51502d7a8485572dbca4fd51921fec6b18442d44a599de7495",
+      "LF": 151,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/068-layers.json": {
+      "bytes": 23759,
+      "sha256": "d9e974e271ba388d215c1cd40507c5bad5178d66be1c4145c738170d8ae64331",
+      "LF": 173,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/069-layers.json": {
+      "bytes": 22258,
+      "sha256": "9ea3a35d3ee9b080eee0c38bceca0517b719bf91c962d041a08c5871a60426bf",
+      "LF": 127,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/070-layers.json": {
+      "bytes": 23282,
+      "sha256": "17313c46567f6a44e42bbff2662a4f1328b5621ec94945d6be66a480a8779c0c",
+      "LF": 160,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/071-layers.json": {
+      "bytes": 23435,
+      "sha256": "5633bc01ec2a811ed848d6a22358584284667de9b143137766edbb575a980ab2",
+      "LF": 167,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/072-layers.json": {
+      "bytes": 24066,
+      "sha256": "20965fe19053e3458eff7fafe2e07bab9c5739d92f9934734543415a2d9a46e1",
+      "LF": 186,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/073-layers.json": {
+      "bytes": 23384,
+      "sha256": "8d02bcfcfc023ff7dfbaf022c137dc46f78fb38d91ba366aad50a597d408ca21",
+      "LF": 166,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/074-layers.json": {
+      "bytes": 23453,
+      "sha256": "f85e9c216283198b0a23a9666d991151401ee02bb56b63bcec5a8b01e0060a37",
+      "LF": 167,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/075-layers.json": {
+      "bytes": 24065,
+      "sha256": "47135a6a5c39db3f11f57aef97a9f8119213affb5b3f35ed3180709ae44e02d3",
+      "LF": 188,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/076-layers.json": {
+      "bytes": 24331,
+      "sha256": "7d812e8750bd344661678f069faccf711a64341a8617a2ea5e2a0fa9a8f928fd",
+      "LF": 185,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/077-layers.json": {
+      "bytes": 23974,
+      "sha256": "664789e19a230a4340abd3afa909e2331a4541f2ebeed08f76fe681fd9b12ba3",
+      "LF": 187,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/078-layers.json": {
+      "bytes": 23809,
+      "sha256": "8056bea99504111bb63b690482dbbbe3b2aefeb3ef546bd3e44ffda10c99037d",
+      "LF": 176,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/079-layers.json": {
+      "bytes": 25411,
+      "sha256": "ad1a94fd1f892efeaceecc242a9a2798866cf0190d6a4086b3160d389a3780b7",
+      "LF": 221,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/080-layers.json": {
+      "bytes": 22759,
+      "sha256": "ff45152d8fba6e64df7577ce496e41d3389d9783e13a2f12155539a41e79eb4f",
+      "LF": 147,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/081-index.json": {
+      "bytes": 48485,
+      "sha256": "9772b894317bea0df151848ab3c6e5c54a627315e56b7f6e7471543587734588",
+      "LF": 965,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/082-index.json": {
+      "bytes": 49202,
+      "sha256": "709596683af6013284a97ccda258f2b1c00f08fda01ec9a8da2aecebcad5d222",
+      "LF": 989,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/083-index.json": {
+      "bytes": 47447,
+      "sha256": "e925fa3f84f7f266c7be726755ea474b330b1d0f1e83d32c70311c57f01f5f54",
+      "LF": 932,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/084-index.json": {
+      "bytes": 47138,
+      "sha256": "92f232bae063e2312ebcb0f2634eb9daa7e320e68c6fcae911910e4021f89cd0",
+      "LF": 924,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/085-index.json": {
+      "bytes": 48074,
+      "sha256": "2519199d22fa955dab03c066f1a101a5c258d027ffe2fa80fa0e46bf63a20128",
+      "LF": 955,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/086-index.json": {
+      "bytes": 47084,
+      "sha256": "6fdda2d8a08df46bd646d0d842bd8a035a632f86f32e604726731b4e8b9a4946",
+      "LF": 924,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/087-index.json": {
+      "bytes": 47103,
+      "sha256": "8e005a2aafce6d7102ec3c0bb4aac71c7a125294db99969b20bcbad96610e0b4",
+      "LF": 924,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/088-index.json": {
+      "bytes": 46005,
+      "sha256": "64a1b47b282fad806cd7063896c729714969ffe9856db23008ac5a393b6b8e97",
+      "LF": 887,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/089-invalidate.json": {
+      "bytes": 70747,
+      "sha256": "77e0bf871834fd494c28af891d43e8ea0d8ca3f2520b0e120e653c3516db5df3",
+      "LF": 1674,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/090-card.json": {
+      "bytes": 22426,
+      "sha256": "5f98734ee2a5de21d74b3c8ec51fd234bb17bb02241ee6eca4696a32f649199d",
+      "LF": 126,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/091-card.json": {
+      "bytes": 22191,
+      "sha256": "513e09db717bc0c8909ec80476f2ccb74ab91b09f6901b4703de0fe608af7e62",
+      "LF": 121,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/092-card.json": {
+      "bytes": 22280,
+      "sha256": "3e44ceb08c0fda960b85ed95363092a2963ae65946e2ce31ae21028cd9858308",
+      "LF": 122,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/093-card.json": {
+      "bytes": 22383,
+      "sha256": "5647e005d0c89d3f253ecb57b02afcd892aa3840f581a4377dccfe2b399fd145",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/094-card.json": {
+      "bytes": 22307,
+      "sha256": "1a37e9aef407985a391a412cdc3595b4026c9beb603ea58078781681cba568bc",
+      "LF": 122,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/095-api.json": {
+      "bytes": 23053,
+      "sha256": "f7948d887628c3be2b5a1c304c0bc3fda2dac52b6b10f58bb064e7a56d4b10fe",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/096-api.json": {
+      "bytes": 23335,
+      "sha256": "9d712497210d72c6519c28cafb10cb454efa81ab265cfe8f9263fa49bd24fd3a",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/097-api.json": {
+      "bytes": 23441,
+      "sha256": "15804aa5573b037f01cd8bfca9c031686701407202758ac539e35c1e54ec8a69",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/098-api.json": {
+      "bytes": 22714,
+      "sha256": "a16db6b99b3fa51f4fd409466d1a9fcd9b167c0eb49cdb9138648b646b9ef545",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/099-api.json": {
+      "bytes": 23053,
+      "sha256": "f7948d887628c3be2b5a1c304c0bc3fda2dac52b6b10f58bb064e7a56d4b10fe",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/100-api.json": {
+      "bytes": 23335,
+      "sha256": "9d712497210d72c6519c28cafb10cb454efa81ab265cfe8f9263fa49bd24fd3a",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/101-api.json": {
+      "bytes": 23441,
+      "sha256": "15804aa5573b037f01cd8bfca9c031686701407202758ac539e35c1e54ec8a69",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/102-api.json": {
+      "bytes": 22714,
+      "sha256": "a16db6b99b3fa51f4fd409466d1a9fcd9b167c0eb49cdb9138648b646b9ef545",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/103-api.json": {
+      "bytes": 24109,
+      "sha256": "c5e85097011656f3c7f0c51dedc1da8139aac16e17e21afc2dcf8a853263c2c4",
+      "LF": 131,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/104-api.json": {
+      "bytes": 24211,
+      "sha256": "26dc76142147bc323ec2bcd1b64d0af76d1a423e3af64b8789a657bbd8afb1c6",
+      "LF": 131,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/105-api.json": {
+      "bytes": 24951,
+      "sha256": "f35714fc5cc784b9a522a89f40d30bb34057e4a2acec6b701cf27c2537d8f5e0",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/106-api.json": {
+      "bytes": 22713,
+      "sha256": "44457b588f7fdbab924d8829f3ae0d5895581d4139da8aee7a1e6f2cb461aaa2",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/107-log.json": {
+      "bytes": 6097,
+      "sha256": "42d53bc2b2decb6df46acc3eb0c54925f859615eaeac19ef1a950d7094152d04",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/108-log.json": {
+      "bytes": 6061,
+      "sha256": "d522384d9abb49218316003f0b54081506adc6222f4fbd50750909ce7864d7fe",
+      "LF": 128,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/109-log.json": {
+      "bytes": 5937,
+      "sha256": "e67b7643586121e34c50041d19bd195f3ad4b2dc75b288c7e11791f0a390792b",
+      "LF": 123,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/110-log.json": {
+      "bytes": 5705,
+      "sha256": "965bdd35c7b2fb3bc0cbbb3b5dbeff9b1a73d4ff4e745602d35ae658b30cee98",
+      "LF": 120,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/111-log.json": {
+      "bytes": 5705,
+      "sha256": "965bdd35c7b2fb3bc0cbbb3b5dbeff9b1a73d4ff4e745602d35ae658b30cee98",
+      "LF": 120,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/112-log.json": {
+      "bytes": 5705,
+      "sha256": "965bdd35c7b2fb3bc0cbbb3b5dbeff9b1a73d4ff4e745602d35ae658b30cee98",
+      "LF": 120,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/113-log.json": {
+      "bytes": 355485,
+      "sha256": "1a186b2722916c426da0189f4ffee97353af8aee36555e8115fc6610d1bf7ed7",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/114-log.json": {
+      "bytes": 355485,
+      "sha256": "0da2c8ff45ae6515d41fb918ed16f47a9c83de88848b620d66ef07aff02321de",
+      "LF": 124,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/115-log.json": {
+      "bytes": 355567,
+      "sha256": "3deaa165a2236249c562a141e975c2780a68f1e1e4b148fe0e26c5d17ec9b877",
+      "LF": 127,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/116-policy-path.json": {
+      "bytes": 5623,
+      "sha256": "84aeab4654e1210afa18107910d32ee7977ec26a0719b285590685fd630727e1",
+      "LF": 115,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/117-policy-path.json": {
+      "bytes": 5623,
+      "sha256": "84aeab4654e1210afa18107910d32ee7977ec26a0719b285590685fd630727e1",
+      "LF": 115,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/118-policy-path.json": {
+      "bytes": 5623,
+      "sha256": "84aeab4654e1210afa18107910d32ee7977ec26a0719b285590685fd630727e1",
+      "LF": 115,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/119-policy-path.json": {
+      "bytes": 5623,
+      "sha256": "84aeab4654e1210afa18107910d32ee7977ec26a0719b285590685fd630727e1",
+      "LF": 115,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/120-policy-path.json": {
+      "bytes": 5623,
+      "sha256": "84aeab4654e1210afa18107910d32ee7977ec26a0719b285590685fd630727e1",
+      "LF": 115,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/121-policy-path.json": {
+      "bytes": 5623,
+      "sha256": "84aeab4654e1210afa18107910d32ee7977ec26a0719b285590685fd630727e1",
+      "LF": 115,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/122-policy-path.json": {
+      "bytes": 14088,
+      "sha256": "04a388818dd90df8d0383707af99dd26d082ef6d7b07bc7d29201b2468284dda",
+      "LF": 409,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/123-policy-path.json": {
+      "bytes": 7066,
+      "sha256": "c647e1d7279569dbfdca04df1effcb908783ec4a65608d47a214d85533d5b027",
+      "LF": 174,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/124-policy-path.json": {
+      "bytes": 6251,
+      "sha256": "2d2f45a8b6f8afb05b30887ce1e33659c01c221857329201b40c07bc22f0f5ab",
+      "LF": 141,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/guard72.json": {
+      "bytes": 51200,
+      "sha256": "1eca40eec0df95ee8c2a5bc15ceb2af3f1d252a06364f4d023d8e6984a2afe32",
+      "LF": 1544,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/125-edge.json": {
+      "bytes": 212535,
+      "sha256": "6710e1bd6d3c2e588fc3fee68f90cbc0c7cf9824dd55c87ec24f061a588ee8fc",
+      "LF": 257,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/126-edge.json": {
+      "bytes": 293219,
+      "sha256": "b1d3fefd20434c9947b36f6f18e3ac5106c153c48264e553a01789b2f0213d83",
+      "LF": 284,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/127-edge.json": {
+      "bytes": 6323,
+      "sha256": "e78664f33f50612b034e6daa87b071c4a11d8f6e5e2cb5b3af4d2453fe2322f1",
+      "LF": 156,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/128-edge.json": {
+      "bytes": 6003,
+      "sha256": "c397a7d46cdd4e90ca7ccbf8829a3ed8dc0573881a93b012e2b3c3c9baec899c",
+      "LF": 140,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/129-edge.json": {
+      "bytes": 5993,
+      "sha256": "25ddddc5b4e9754f85fb623366c13155b1abecef0e2794d8faf92c109c0b6ae0",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/130-edge.json": {
+      "bytes": 6595,
+      "sha256": "213e8f572749d1109be6ea0ee503ef1eaf723fa580bd9daa6e4598ebeb058f13",
+      "LF": 169,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/131-edge.json": {
+      "bytes": 25614,
+      "sha256": "af70b9cbde14c7970cc93d2a06a7ba41c5bafd9181df2a3c232dc3112524711b",
+      "LF": 167,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/132-edge.json": {
+      "bytes": 25532,
+      "sha256": "40f2da779af9745bdf8f88d372a1f5e5de01b82252a0f30447696d80e586f987",
+      "LF": 163,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/133-edge.json": {
+      "bytes": 23846,
+      "sha256": "b9babd943cd268fcfa4c3e7197d7de788c62509fa694691b7afccc0c5a5fd72d",
+      "LF": 147,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/134-edge.json": {
+      "bytes": 24650,
+      "sha256": "48705877f60efbcc5d06186079a4311fc8e5a3af9296c23133ddb1ec3862a32d",
+      "LF": 156,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/135-edge.json": {
+      "bytes": 7754,
+      "sha256": "38f0fa62b6b7caa4fc4ef249837896bd766764274ffc638a9e1a4ab7eb79a84a",
+      "LF": 131,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/136-edge.json": {
+      "bytes": 6836,
+      "sha256": "a527db319b243eb350009f8b7327ba291fe8096ee3edc70b331b0f21c6d8e475",
+      "LF": 131,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/137-edge.json": {
+      "bytes": 13947,
+      "sha256": "c409691e5997575b127fbb9947ea756aa25962a1b26d54baed20fdcc1d693c8c",
+      "LF": 405,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/138-edge.json": {
+      "bytes": 11564,
+      "sha256": "2eb562bfe8481b427e706e00aaf541d7a4098a6a206ca19127ffbbb17cae2c7e",
+      "LF": 378,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/139-edge.json": {
+      "bytes": 5785,
+      "sha256": "39e20757798b1ff1caf053d737505cc76be310eaa8f27505a8dba12ec07e21f4",
+      "LF": 117,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/140-edge.json": {
+      "bytes": 23538,
+      "sha256": "200a152ef8dc6de8398a546c70ac060ec4fa9cbd45ff95efcc1702fbc2872a1e",
+      "LF": 183,
+      "CRLF": 0
+    },
+    "fixtures/corpus/context/librarian/observations/141-edge.json": {
+      "bytes": 24999,
+      "sha256": "aae06918a840a21cdb73c6b917e47051c1be6ac581b455b242f516eb61574123",
+      "LF": 252,
+      "CRLF": 0
+    }
+  },
+  "ordered_cases": [
+    "001-tokens",
+    "002-tokens",
+    "003-tokens",
+    "004-tokens",
+    "005-tokens",
+    "006-tokens",
+    "007-tokens",
+    "008-tokens",
+    "009-tokens",
+    "010-tokens",
+    "011-tokens",
+    "012-tokens",
+    "013-tokens",
+    "014-tokens",
+    "015-tokens",
+    "016-tokens",
+    "017-tokens",
+    "018-tokens",
+    "019-tokens",
+    "020-tokens",
+    "021-tokens",
+    "022-tokens",
+    "023-tokens",
+    "024-tokens",
+    "025-tokens",
+    "026-answer",
+    "027-answer",
+    "028-answer",
+    "029-answer",
+    "030-answer",
+    "031-answer",
+    "032-answer",
+    "033-answer",
+    "034-answer",
+    "035-answer",
+    "036-answer",
+    "037-answer",
+    "038-answer",
+    "039-answer",
+    "040-answer",
+    "041-answer",
+    "042-answer",
+    "043-answer",
+    "044-answer",
+    "045-answer",
+    "046-answer",
+    "047-answer",
+    "048-answer",
+    "049-answer",
+    "050-answer",
+    "051-answer",
+    "052-answer",
+    "053-answer",
+    "054-answer",
+    "055-answer",
+    "056-answer",
+    "057-answer",
+    "058-answer",
+    "059-answer",
+    "060-answer",
+    "061-answer",
+    "062-answer",
+    "063-budget-boundaries",
+    "064-layers",
+    "065-layers",
+    "066-layers",
+    "067-layers",
+    "068-layers",
+    "069-layers",
+    "070-layers",
+    "071-layers",
+    "072-layers",
+    "073-layers",
+    "074-layers",
+    "075-layers",
+    "076-layers",
+    "077-layers",
+    "078-layers",
+    "079-layers",
+    "080-layers",
+    "081-index",
+    "082-index",
+    "083-index",
+    "084-index",
+    "085-index",
+    "086-index",
+    "087-index",
+    "088-index",
+    "089-invalidate",
+    "090-card",
+    "091-card",
+    "092-card",
+    "093-card",
+    "094-card",
+    "095-api",
+    "096-api",
+    "097-api",
+    "098-api",
+    "099-api",
+    "100-api",
+    "101-api",
+    "102-api",
+    "103-api",
+    "104-api",
+    "105-api",
+    "106-api",
+    "107-log",
+    "108-log",
+    "109-log",
+    "110-log",
+    "111-log",
+    "112-log",
+    "113-log",
+    "114-log",
+    "115-log",
+    "116-policy-path",
+    "117-policy-path",
+    "118-policy-path",
+    "119-policy-path",
+    "120-policy-path",
+    "121-policy-path",
+    "122-policy-path",
+    "123-policy-path",
+    "124-policy-path",
+    "125-edge",
+    "126-edge",
+    "127-edge",
+    "128-edge",
+    "129-edge",
+    "130-edge",
+    "131-edge",
+    "132-edge",
+    "133-edge",
+    "134-edge",
+    "135-edge",
+    "136-edge",
+    "137-edge",
+    "138-edge",
+    "139-edge",
+    "140-edge",
+    "141-edge"
+  ],
+  "guard_cases": 72,
+  "guard_names": [
+    "allowed.public_declaration",
+    "allowed.project_bytes_unchanged",
+    "STOP.native_guard_denies",
+    "STOP.no_outside_read",
+    "STOP.snapshot_no_forbidden_fact",
+    "STOP.card_no_forbidden_declaration",
+    "STOP.answer_no_forbidden_declaration",
+    "STOP.project_bytes_unchanged",
+    "STOP.outside_bytes_unchanged",
+    "boundary.guard_denies.traversal",
+    "boundary.builder_omits.traversal",
+    "boundary.semantic_omits.traversal",
+    "boundary.reuse_omits.traversal",
+    "boundary.guard_denies.backslash",
+    "boundary.builder_omits.backslash",
+    "boundary.semantic_omits.backslash",
+    "boundary.reuse_omits.backslash",
+    "boundary.guard_denies.nested-traversal",
+    "boundary.builder_omits.nested-traversal",
+    "boundary.semantic_omits.nested-traversal",
+    "boundary.reuse_omits.nested-traversal",
+    "boundary.guard_denies.absolute",
+    "boundary.builder_omits.absolute",
+    "boundary.semantic_omits.absolute",
+    "boundary.reuse_omits.absolute",
+    "boundary.guard_denies.outside-junction",
+    "boundary.builder_omits.outside-junction",
+    "boundary.semantic_omits.outside-junction",
+    "boundary.reuse_omits.outside-junction",
+    "boundary.guard_denies.addon-junction",
+    "boundary.builder_omits.addon-junction",
+    "boundary.semantic_omits.addon-junction",
+    "boundary.reuse_omits.addon-junction",
+    "boundary.guard_denies.history-junction",
+    "boundary.builder_omits.history-junction",
+    "boundary.semantic_omits.history-junction",
+    "boundary.reuse_omits.history-junction",
+    "boundary.guard_denies.history",
+    "boundary.builder_omits.history",
+    "boundary.semantic_omits.history",
+    "boundary.reuse_omits.history",
+    "boundary.guard_denies.mixed-case-addon",
+    "boundary.builder_omits.mixed-case-addon",
+    "boundary.semantic_omits.mixed-case-addon",
+    "boundary.reuse_omits.mixed-case-addon",
+    "boundary.guard_denies.agent",
+    "boundary.builder_omits.agent",
+    "boundary.semantic_omits.agent",
+    "boundary.reuse_omits.agent",
+    "boundary.scan_no_forbidden_fact",
+    "boundary.scan_prunes_actual_identities",
+    "boundary.no_outside_read",
+    "stale.disk.no_forbidden_facts",
+    "stale.memory.no_forbidden_facts",
+    "librarian.semantic_both_passes_filter",
+    "librarian.near_hints_filter",
+    "librarian.single_token_near_hint_filter",
+    "librarian.structure_no_denied_header",
+    "librarian.callers_deny_source_symbols",
+    "librarian.signals_deny_source_symbols",
+    "librarian.grep_patterns_output_filter",
+    "librarian.fragments_output_guard",
+    "retarget.snapshot_filters_cached_path",
+    "retarget.search_filters_cached_path",
+    "capabilities.default.agent_symbol",
+    "capabilities.default.vendor_symbol",
+    "capabilities.addons.agent_symbol",
+    "capabilities.addons.vendor_symbol",
+    "capabilities.self.agent_symbol",
+    "capabilities.self.vendor_symbol",
+    "capabilities.invalid_identity.agent_symbol",
+    "capabilities.invalid_identity.vendor_symbol"
+  ],
+  "symlink_gaps": [
+    {
+      "case": "outside_symlink",
+      "winerror": 1314,
+      "reason": "genuine OS privilege gap"
+    },
+    {
+      "case": "private_symlink.gd",
+      "winerror": 1314,
+      "reason": "genuine OS privilege gap"
+    }
+  ],
+  "normalization": "only synthetic sandbox root + external fixed time1000; raw JSONL CRLF kept in base64; no output coercion",
+  "log_spec": "measured native UTF8/CRLF, strict >262144 rotation to .1; missing dependencies/storage failure swallowed",
+  "genuine_native_project_tools": true,
+  "network": false,
+  "NN": false,
+  "production_wiring": false,
+  "dependency_absence_correction": {
+    "case": "111-log",
+    "measured_twice": true,
+    "reason": "native filename-loader descendant sys.modules cache removed alongside parent attribute; genuine missing dependency",
+    "original_measurements_retained": true,
+    "native_source_unchanged": true
+  },
+  "quota_edge_extension": {
+    "genuine_native_twice": true,
+    "cases": [
+      {
+        "id": "125-edge",
+        "operation": "edge",
+        "mode": "exact-budget-edges",
+        "query": "take_damage"
+      },
+      {
+        "id": "126-edge",
+        "operation": "edge",
+        "mode": "exact-budget-edges",
+        "query": "health_changed"
+      },
+      {
+        "id": "127-edge",
+        "operation": "edge",
+        "mode": "ranking",
+        "query": "take damage"
+      },
+      {
+        "id": "128-edge",
+        "operation": "edge",
+        "mode": "ranking",
+        "query": "take_damage"
+      },
+      {
+        "id": "129-edge",
+        "operation": "edge",
+        "mode": "ranking",
+        "query": "health"
+      },
+      {
+        "id": "130-edge",
+        "operation": "edge",
+        "mode": "ranking",
+        "query": "unrelated"
+      },
+      {
+        "id": "131-edge",
+        "operation": "edge",
+        "mode": "quotas",
+        "query": "take_damage"
+      },
+      {
+        "id": "132-edge",
+        "operation": "edge",
+        "mode": "quotas",
+        "query": "health_changed"
+      },
+      {
+        "id": "133-edge",
+        "operation": "edge",
+        "mode": "quotas",
+        "query": "Global"
+      },
+      {
+        "id": "134-edge",
+        "operation": "edge",
+        "mode": "quotas",
+        "query": "health"
+      },
+      {
+        "id": "135-edge",
+        "operation": "edge",
+        "mode": "incomplete-index",
+        "query": "take_damage"
+      },
+      {
+        "id": "136-edge",
+        "operation": "edge",
+        "mode": "incomplete-index",
+        "query": "unmatched_value"
+      },
+      {
+        "id": "137-edge",
+        "operation": "edge",
+        "mode": "symbol-round-robin",
+        "query": ""
+      },
+      {
+        "id": "138-edge",
+        "operation": "edge",
+        "mode": "grep-budgets",
+        "query": "damage health speed inventory"
+      },
+      {
+        "id": "139-edge",
+        "operation": "edge",
+        "mode": "card-caps",
+        "query": "big_card"
+      },
+      {
+        "id": "140-edge",
+        "operation": "edge",
+        "mode": "cached-search",
+        "query": "take_damage"
+      },
+      {
+        "id": "141-edge",
+        "operation": "edge",
+        "mode": "cached-search",
+        "query": "health_changed"
+      }
+    ],
+    "injected_constants_and_semantics": "explicit test adapters, no native/source changes"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "id": "sync-single-uid-left",
+  "tool": "file_refactor",
+  "scenario": "external_sync",
+  "input": {
+    "old_path": "res://src/a.gd",
+    "new_path": "res://dst/a.gd",
+    "is_directory": false
+  },
+  "fixture": {
+    "dirs": [
+      "dst",
+      "src"
+    ],
+    "files": {
+      "dst/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlDQo="
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "ref.gd": {
+        "bytes_b64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+      },
+      "src/a.gd.uid": {
+        "bytes_b64": "dWlkOi8vYQ0K"
+      }
+    }
+  },
+  "native_result": {
+    "entry_id": "27ca05493c99",
+    "old_path": "res://src/a.gd",
+    "new_path": "res://dst/a.gd",
+    "is_directory": false,
+    "changed_paths": [
+      "res://dst/a.gd.uid",
+      "res://ref.gd"
+    ],
+    "reference_count": 1,
+    "file_count": 3,
+    "ok": true
+  },
+  "native_effects": {
+    "dst/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlDQo="
+    },
+    "dst/a.gd.uid": {
+      "$bytes_base64": "dWlkOi8vYQ0K"
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "ref.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9kc3QvYS5nZCIpCg=="
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "ref.gd": {
+      "bytes_b64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+    },
+    "src/a.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlDQo="
+    },
+    "src/a.gd.uid": {
+      "bytes_b64": "dWlkOi8vYQ0K"
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "inverse_byte_exact": true,
+  "native_capture": {
+    "raw_file": "native/sync-single-uid-left.json",
+    "sha256": "392689263fdb195659626a3a3d72cb6e6bd39164947053ef92df08c5f0ef3d4a"
+  }
+}

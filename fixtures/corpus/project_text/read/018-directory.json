@@ -1,0 +1,110 @@
+{
+  "id": "018-directory",
+  "fixture": {
+    "dirs": [
+      "empty",
+      "src/empty",
+      "src/deep/next",
+      "addons/agent/nested",
+      "addons/vendor",
+      ".godot",
+      ".import",
+      ".agent_history",
+      ".hidden",
+      "node_modules",
+      "minilich_brain"
+    ],
+    "files": {
+      "plain.txt": {
+        "text": "alpha\nbeta\n"
+      },
+      "empty.txt": {
+        "text": ""
+      },
+      "bom.txt": {
+        "b64": "77u/YWxwaGENCmJldGENCg=="
+      },
+      "cr.txt": {
+        "text": "a\rb\r"
+      },
+      "mixed.txt": {
+        "text": "a\r\nb\rc\n"
+      },
+      "binary.bin": {
+        "b64": "AP/+YQ=="
+      },
+      "тест # [x].txt": {
+        "text": "кириллица 🐉\n"
+      },
+      "project.godot": {
+        "text": "config_version=5\n"
+      },
+      "plugin.cfg": {
+        "text": "[plugin]\n"
+      },
+      "src/a.gd": {
+        "text": "extends Node\n"
+      },
+      "src/B.GD": {
+        "text": "extends Node\n"
+      },
+      "src/deep/next/a.txt": {
+        "text": "deep\n"
+      },
+      ".DS_Store": {
+        "text": "noise"
+      },
+      "a.gd.UID": {
+        "text": "uid"
+      },
+      ".godot/cache.txt": {
+        "text": "cache"
+      },
+      ".import/a.txt": {
+        "text": "cache"
+      },
+      ".agent_history/a.txt": {
+        "text": "history"
+      },
+      ".hidden/a.txt": {
+        "text": "hidden"
+      },
+      "node_modules/a.txt": {
+        "text": "noise"
+      },
+      "minilich_brain/a.txt": {
+        "text": "noise"
+      },
+      "addons/vendor/a.txt": {
+        "text": "vendor"
+      },
+      "addons/agent/nested/a.py": {
+        "text": "agent"
+      },
+      "addons/agent/plugin.cfg": {
+        "text": "wrapper"
+      }
+    }
+  },
+  "args": {
+    "path": "res://src"
+  },
+  "policy": {},
+  "agent_rel": "addons/agent/nested",
+  "native_result": null,
+  "native_exception": {
+    "type": "FileNotFoundError",
+    "message": "Файл не найден: res://src"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл не найден: res://src"
+  },
+  "native_non_effect": true,
+  "internal_call": {
+    "module_id": "project_text.read",
+    "entrypoint": "call",
+    "client": "project_text"
+  }
+}

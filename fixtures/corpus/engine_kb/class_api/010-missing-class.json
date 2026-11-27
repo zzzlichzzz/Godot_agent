@@ -1,0 +1,40 @@
+{
+  "id": "010-missing-class",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/chain",
+  "args": {
+    "class_name": "Unknown"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Unknown",
+      "found": false,
+      "cache_version": "4.6.3",
+      "inherits": [],
+      "methods": [],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Unknown",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6.3",
+    "record": null,
+    "chain": [],
+    "members": [
+      {},
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

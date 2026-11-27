@@ -1,0 +1,62 @@
+{
+  "id": "c24-sprite_frames_add_animation",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "walk",
+        "fps": 12,
+        "loop": true,
+        "frames": [
+          {
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://new.tres"
+            },
+            "duration": 1.5
+          }
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IlNwcml0ZUZyYW1lcyIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTMiXQ0NW3Jlc291cmNlXQ0="
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IlNwcml0ZUZyYW1lcyIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTMiXQ0NW2V4dF9yZXNvdXJjZSB0eXBlPSJUZXh0dXJlMkQiIHBhdGg9InJlczovL25ldy50cmVzIiBpZD0iYWdlbnRfMSJdDQ1bcmVzb3VyY2VdDWFuaW1hdGlvbnMgPSBbeyJmcmFtZXMiOiBbXSwgImxvb3AiOiB0cnVlLCAibmFtZSI6ICYiZGVmYXVsdCIsICJzcGVlZCI6IDUuMH0sIHsiZnJhbWVzIjogW3siZHVyYXRpb24iOiAxLjUsICJ0ZXh0dXJlIjogRXh0UmVzb3VyY2UoImFnZW50XzEiKX1dLCAibG9vcCI6IHRydWUsICJuYW1lIjogJiJ3YWxrIiwgInNwZWVkIjogMTIuMH1dDQ==",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_execute": "sprite_frames_add_animation-native.output.json",
+    "generated_load": "sprite_frames_add_animation-generated.output.json",
+    "projection_sha256": "aa720fbca519608fa6ff2a048e6be1ae0529e08985f0f775022ad4f74830bb07",
+    "semantic_hash": "e19027a875a4e078e0221d77286fb3039d757000041c3c90c4360768c6968337",
+    "proof_sha256": "9885f724f3b4458b25ba7dc9f872cf785c585ed9871e23ce591f5f7fc4e97d5f",
+    "decision": "D18"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "2df6f0646c66e3dd6bf0c45166ed635310a19759628328ae46d817487c325204",
+      "after_hash": "b08c3fee3dc94e95f41f36938547c37c02542d534828472b8c1e5f1fe58cac3a",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

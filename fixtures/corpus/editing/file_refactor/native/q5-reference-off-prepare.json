@@ -1,0 +1,261 @@
+{
+  "id": "q5-reference-off-prepare",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://src/item.gd",
+      "res://deep/item.gd"
+    ]
+  },
+  "kwargs": {
+    "update_references": false
+  },
+  "before": {
+    "files": {
+      "base.gd": {
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "ext/ref.bin": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.cfg": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.GD": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.gdshader": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.gdshaderinc": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.import": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.json": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.py": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.shader": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.tres": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.tscn": {
+        "bytes": 81,
+        "sha256": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4"
+      },
+      "ext/ref.txt": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.uid": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "project.godot": {
+        "bytes": 35,
+        "sha256": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395"
+      },
+      "ref.gd": {
+        "bytes": 134,
+        "sha256": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460"
+      },
+      "src/item.gd": {
+        "bytes": 78,
+        "sha256": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89"
+      },
+      "src/weapon.gd": {
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "texture.tres": {
+        "bytes": 64,
+        "sha256": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+      }
+    },
+    "dirs": [
+      "ext",
+      "src"
+    ]
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://src/item.gd",
+    "new_path": "res://deep/item.gd",
+    "companion_script": null,
+    "update_references": false,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://src/item.gd",
+        "dest": "res://deep/item.gd",
+        "absolute": "<PROJECT>\\src\\item.gd",
+        "dest_absolute": "<PROJECT>\\deep\\item.gd",
+        "before_hash": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+        "before_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgid2VhcG9uLmdkIikNY29uc3QgVT1sb2FkKCJ1aWQ6Ly9rZWVwIikK"
+        },
+        "after_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgicmVzOi8vc3JjL3dlYXBvbi5nZCIpDWNvbnN0IFU9bG9hZCgidWlkOi8va2VlcCIpCg=="
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://deep/item.gd (обновлено внутренних путей: 2)"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,2 +1,2 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "extends \"../base.gd\""
+            ],
+            [
+              "-",
+              2,
+              null,
+              "const W=preload(\"weapon.gd\")\rconst U=load(\"uid://keep\")"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "extends \"res://base.gd\""
+            ],
+            [
+              "+",
+              null,
+              2,
+              "const W=preload(\"res://src/weapon.gd\")\rconst U=load(\"uid://keep\")"
+            ]
+          ],
+          "added": 2,
+          "removed": 2,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://src/item.gd",
+          "dest": "res://deep/item.gd"
+        },
+        "occurrences": 2
+      }
+    ],
+    "reference_count": 2,
+    "affected_paths": [
+      "res://deep/item.gd"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "base.gd": {
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "ext/ref.bin": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.cfg": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.GD": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.gdshader": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.gdshaderinc": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.import": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.json": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.py": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.shader": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.tres": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.tscn": {
+        "bytes": 81,
+        "sha256": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4"
+      },
+      "ext/ref.txt": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.uid": {
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "project.godot": {
+        "bytes": 35,
+        "sha256": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395"
+      },
+      "ref.gd": {
+        "bytes": 134,
+        "sha256": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460"
+      },
+      "src/item.gd": {
+        "bytes": 78,
+        "sha256": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89"
+      },
+      "src/weapon.gd": {
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "texture.tres": {
+        "bytes": 64,
+        "sha256": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+      }
+    },
+    "dirs": [
+      "ext",
+      "src"
+    ]
+  },
+  "project_byte_tree_unchanged": true
+}

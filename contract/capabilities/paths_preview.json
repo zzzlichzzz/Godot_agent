@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.paths_preview",
+  "capability_id": "editing.paths_preview",
+  "tool_name": "paths_preview",
+  "description": "Ссылки на путь и проекция внутренних путей без записи.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "old_path": {
+        "type": "string"
+      },
+      "new_path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "old_path",
+      "new_path"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "old_path": {
+        "type": "string"
+      },
+      "new_path": {
+        "type": "string"
+      },
+      "is_directory": {
+        "type": "boolean"
+      },
+      "file_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "reference_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "occurrences": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "exact_matches": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "rel_matches": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "items": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                }
+              }
+            },
+            "bom": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "path",
+            "occurrences",
+            "exact_matches",
+            "rel_matches",
+            "bom"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "source_text": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "old_path",
+      "new_path",
+      "is_directory",
+      "file_count",
+      "reference_count",
+      "files",
+      "source_text"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "conflict",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 5242880
+  }
+}

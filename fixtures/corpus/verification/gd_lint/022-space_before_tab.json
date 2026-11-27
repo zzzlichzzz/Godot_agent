@@ -1,0 +1,23 @@
+{
+  "id": "022-space_before_tab",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "space_before_tab",
+  "args": {
+    "path": "res://scripts/space_before_tab.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "space_before_tab",
+          "line": 2,
+          "message": "строка 2: в отступе пробел ПЕРЕД табом — Godot такое не примет"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 17
+    }
+  }
+}

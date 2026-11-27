@@ -1,0 +1,36 @@
+{
+  "id": "invalid-class",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "NewSubresource",
+          "class": "Bad-Class"
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Недопустимый класс NewSubresource",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "662c8f55b6bd3c419335eb52481fd5e3db15e040e283750126e05def6a67d509"
+}

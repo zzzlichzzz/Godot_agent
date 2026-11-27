@@ -1,0 +1,23 @@
+{
+  "id": "006-unclosed_bracket",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "unclosed_bracket",
+  "args": {
+    "path": "res://scripts/unclosed_bracket.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "unclosed_bracket",
+          "line": 1,
+          "message": "строка 1: скобка «[» не закрыта"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 16
+    }
+  }
+}

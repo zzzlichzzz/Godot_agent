@@ -1,0 +1,89 @@
+{
+  "id": "history-062-batch-abort",
+  "input": {
+    "group": "history",
+    "action": "sequence",
+    "kind": "batch",
+    "finish": "abort",
+    "storage": "user"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "metadata": {
+        "id": "000000000001",
+        "type": "batch",
+        "path": "res://A.txt",
+        "overwrote": false,
+        "chat_title": "",
+        "ts": 1000,
+        "chain_id": "chain-one",
+        "chain_total": 1,
+        "paths": [
+          "res://A.txt",
+          "res://B.txt"
+        ],
+        "is_last": true,
+        "newer_same_file": []
+      },
+      "result": null,
+      "journal": [],
+      "files": {
+        "A.txt": {
+          "base64": "YWZ0ZXIgQQo="
+        },
+        "B.txt": {
+          "base64": "YWZ0ZXIgQgo="
+        },
+        "Moved.txt": null,
+        "new.txt": null
+      }
+    },
+    "after": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 8,
+          "sha256": "977ae12550d8a36833ff69b57fdbbad03244f3c3dbf5e57fcd09d37ae5685c31"
+        },
+        "project/B.txt": {
+          "bytes": 8,
+          "sha256": "0c5c2d307aa1d803ea070fc2a4ba37bbd15ace93257652b4370384dacb520817"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/journal.json": {
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

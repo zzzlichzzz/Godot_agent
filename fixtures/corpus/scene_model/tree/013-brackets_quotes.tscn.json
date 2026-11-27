@@ -1,0 +1,38 @@
+{
+  "id": "013-brackets_quotes.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/brackets_quotes.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- quo\\ (Node)\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=? ?: res://scripts/quo\\",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "quo\\",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "?",
+            "type": "?",
+            "path": "res://scripts/quo\\",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

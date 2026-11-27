@@ -1,0 +1,164 @@
+{
+  "id": "007-previous_name",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/007-previous_name",
+  "note": "previous_name",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm",
+    "scripts_only": true,
+    "previous_name": "ArmA"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Arm",
+      "new_name": "LongArm",
+      "old_path": "Arm",
+      "new_path": "LongArm",
+      "target_node_path": "Arm",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.gd",
+          "before_hash": "055ce9ec2f95e6b48fd69fa2e088c5bb1ca334712d5df08cd18cdee2cd158214",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkQXJtQQpAb25yZWFkeSB2YXIgYiA9ICRBcm1BL1RpcApAb25yZWFkeSB2YXIgYyA9ICQiQXJtQS9UaXAiCkBvbnJlYWR5IHZhciBkID0gJUFybUEKZnVuYyByZWFkeSgpOgogICAgZ2V0X25vZGUoIkFybUEvVGlwIikKICAgIGdldF9ub2RlX29yX251bGwoJ0FybUEnKQogICAgaGFzX25vZGUoIkFybUEiKQogICAgZmluZF9jaGlsZCgiQXJtQSIpCg==",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkTG9uZ0FybQpAb25yZWFkeSB2YXIgYiA9ICRMb25nQXJtL1RpcApAb25yZWFkeSB2YXIgYyA9ICQiTG9uZ0FybS9UaXAiCkBvbnJlYWR5IHZhciBkID0gJUxvbmdBcm0KZnVuYyByZWFkeSgpOgogICAgZ2V0X25vZGUoIkxvbmdBcm0vVGlwIikKICAgIGdldF9ub2RlX29yX251bGwoJ0xvbmdBcm0nKQogICAgaGFzX25vZGUoIkxvbmdBcm0iKQogICAgZmluZF9jaGlsZCgiTG9uZ0FybSIpCg==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,10 +1,10 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node2D"
+              ],
+              [
+                "-",
+                2,
+                null,
+                "@onready var a = $ArmA"
+              ],
+              [
+                "-",
+                3,
+                null,
+                "@onready var b = $ArmA/Tip"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "@onready var c = $\"ArmA/Tip\""
+              ],
+              [
+                "-",
+                5,
+                null,
+                "@onready var d = %ArmA"
+              ],
+              [
+                "+",
+                null,
+                2,
+                "@onready var a = $LongArm"
+              ],
+              [
+                "+",
+                null,
+                3,
+                "@onready var b = $LongArm/Tip"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "@onready var c = $\"LongArm/Tip\""
+              ],
+              [
+                "+",
+                null,
+                5,
+                "@onready var d = %LongArm"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "func ready():"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "    get_node(\"ArmA/Tip\")"
+              ],
+              [
+                "-",
+                8,
+                null,
+                "    get_node_or_null('ArmA')"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "    has_node(\"ArmA\")"
+              ],
+              [
+                "-",
+                10,
+                null,
+                "    find_child(\"ArmA\")"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "    get_node(\"LongArm/Tip\")"
+              ],
+              [
+                "+",
+                null,
+                8,
+                "    get_node_or_null('LongArm')"
+              ],
+              [
+                "+",
+                null,
+                9,
+                "    has_node(\"LongArm\")"
+              ],
+              [
+                "+",
+                null,
+                10,
+                "    find_child(\"LongArm\")"
+              ]
+            ],
+            "added": 8,
+            "removed": 8,
+            "truncated": false,
+            "path": "res://main.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 8
+        }
+      ],
+      "reference_count": 8,
+      "affected_paths": [
+        "res://main.gd"
+      ],
+      "scripts_only": true,
+      "previous_name": "ArmA"
+    }
+  }
+}

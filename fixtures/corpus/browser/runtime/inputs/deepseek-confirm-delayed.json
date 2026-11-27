@@ -1,0 +1,7 @@
+{
+  "id": "deepseek-confirm-delayed",
+  "op": "deepseek",
+  "had_text": true,
+  "leftover": "prompt",
+  "clear_at": 0.6
+}

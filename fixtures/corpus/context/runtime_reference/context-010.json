@@ -1,0 +1,266 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "status_prompt",
+    "args": [
+      {
+        "sessions": [
+          null,
+          {
+            "session_id": "bad"
+          },
+          {
+            "session_id": 0,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 1,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 2,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 3,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 4,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 5,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 6,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 7,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 8,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 9,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 10,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          },
+          {
+            "session_id": 11,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "capabilities": [
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x",
+              "x"
+            ]
+          }
+        ]
+      }
+    ],
+    "kwargs": {},
+    "id": "context-010"
+  },
+  "expect": "[Godot runtime status; no snapshot]\nRuntime debugger: 8 bridge-ready session(s): 0, 1, 2, 3, 4, 5, 6, 7.\n[/Godot runtime status]\n\n",
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "status_prompt",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

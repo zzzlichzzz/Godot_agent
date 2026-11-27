@@ -1,0 +1,15 @@
+{
+  "module": "channels.http",
+  "reference_only": true,
+  "cases": 5,
+  "source": "native server_auth.check paired before production",
+  "native_source": {
+    "bytes": 12793,
+    "sha256": "809e64f5b496aa26caf3ee4a4248972e341d1df65767ddc09fdb43581aa1ea30",
+    "LF": 218,
+    "CRLF": 0
+  },
+  "real_network": false,
+  "real_credentials": false,
+  "deviation": "Native unbound/missing-token allowance is measured, but stricter ProjectAuth denies it before native dispatch."
+}

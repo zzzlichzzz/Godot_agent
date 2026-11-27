@@ -1,0 +1,26 @@
+{
+  "id": "missing-before-empty-operations",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://missing.tres",
+    "operations": []
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Ресурс не найден: res://missing.tres",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "e22365dd72c477537a209aa5f240ea1eab2b42d2db8ca55fa1147f3c7a932828"
+}

@@ -1,0 +1,41 @@
+{
+  "id": "expanded-op5-missing-texture_region_size",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "tiles": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: texture_region_size",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "c823f9b464c8ca0e6f0a7d39f1160a01ba0ef87071437da448e12f38d3065aa2"
+}

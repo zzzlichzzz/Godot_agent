@@ -1,0 +1,3 @@
+# modules/engine_kb/engine_info/tests/test_core.py - unit-тесты домена.
+# Правила: R-07 (кейсы из корпуса), R-09 (без skip и xfail).
+# TODO: кейсы из fixtures/corpus/manifest.json.

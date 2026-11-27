@@ -1,0 +1,38 @@
+{
+  "id": "invalid-target",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [
+          "bad/name"
+        ],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "target содержит недопустимое имя свойства",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "bd18e0d66ef379dea0702a194fd475abbb93712d87be28abf266b6bb7ae98418"
+}

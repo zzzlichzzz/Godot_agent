@@ -1,0 +1,22 @@
+{
+  "id": "010-long-line-clipped",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "minified-строка: сниппет обрезан 300 символами с пометкой полной длины",
+  "args": {
+    "query": "level_03"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://data/levels.json",
+          "line": 1,
+          "snippet": "1: {\"levels\":[{\"id\":\"level_01\",\"name\":\"Первый уровень\",\"enemies\":3,\"par_time\":120,\"music\":\"res://assets/music/theme_loop.ogg\",\"background\":\"res://assets/backgrounds/forest_night.png\"},{\"id\":\"level_02\",\"name\":\"Второй уровень\",\"enemies\":5,\"par_time\":150,\"music\":\"res://assets/music/theme_loop.ogg\",\"backgr… [строка обрезана, всего 691 символов]\n2: "
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

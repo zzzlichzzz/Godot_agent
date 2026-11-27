@@ -1,0 +1,28 @@
+{
+  "input": {
+    "id": "routing030",
+    "label": "parse_action",
+    "function": "parse_action",
+    "args": [
+      "```agent_action\n{\"dir\":\"res://\"}\n```"
+    ]
+  },
+  "expect": {
+    "result": [
+      {
+        "action": "parse_error",
+        "raw": "{\"dir\":\"res://\"}\n",
+        "error": "в разобранном JSON нет обязательного поля \"action\" (получены ключи: dir)"
+      },
+      ""
+    ],
+    "stdout": "[api_backend] JSON действия не разобран: в разобранном JSON нет обязательного поля \"action\" (получены ключи: dir)\n[api_backend] RAW (17 симв.): {\"dir\":\"res://\"}\n\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "parse_action",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

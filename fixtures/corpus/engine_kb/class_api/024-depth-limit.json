@@ -1,0 +1,412 @@
+{
+  "id": "024-depth-limit",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/depth",
+  "args": {
+    "class_name": "C00"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "C00",
+      "found": true,
+      "cache_version": "4.6",
+      "inherits": [
+        "C00",
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C15",
+        "C16",
+        "C17",
+        "C18",
+        "C19",
+        "C20",
+        "C21",
+        "C22",
+        "C23",
+        "C24",
+        "C25",
+        "C26",
+        "C27",
+        "C28",
+        "C29"
+      ],
+      "methods": [
+        {
+          "name": "m00",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m01",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m02",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m03",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m04",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m05",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m06",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m07",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m08",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m09",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m10",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m11",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m12",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m13",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m14",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m15",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m16",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m17",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m18",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m19",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m20",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m21",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m22",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m23",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m24",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m25",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m26",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m27",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m28",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "m29",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        }
+      ],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "C00",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6",
+    "record": {
+      "inherits": "C01",
+      "methods": {
+        "m00": [
+          0,
+          0
+        ]
+      }
+    },
+    "chain": [
+      "C00",
+      "C01",
+      "C02",
+      "C03",
+      "C04",
+      "C05",
+      "C06",
+      "C07",
+      "C08",
+      "C09",
+      "C10",
+      "C11",
+      "C12",
+      "C13",
+      "C14",
+      "C15",
+      "C16",
+      "C17",
+      "C18",
+      "C19",
+      "C20",
+      "C21",
+      "C22",
+      "C23",
+      "C24",
+      "C25",
+      "C26",
+      "C27",
+      "C28",
+      "C29"
+    ],
+    "members": [
+      {
+        "m00": [
+          0,
+          0
+        ],
+        "m01": [
+          0,
+          0
+        ],
+        "m02": [
+          0,
+          0
+        ],
+        "m03": [
+          0,
+          0
+        ],
+        "m04": [
+          0,
+          0
+        ],
+        "m05": [
+          0,
+          0
+        ],
+        "m06": [
+          0,
+          0
+        ],
+        "m07": [
+          0,
+          0
+        ],
+        "m08": [
+          0,
+          0
+        ],
+        "m09": [
+          0,
+          0
+        ],
+        "m10": [
+          0,
+          0
+        ],
+        "m11": [
+          0,
+          0
+        ],
+        "m12": [
+          0,
+          0
+        ],
+        "m13": [
+          0,
+          0
+        ],
+        "m14": [
+          0,
+          0
+        ],
+        "m15": [
+          0,
+          0
+        ],
+        "m16": [
+          0,
+          0
+        ],
+        "m17": [
+          0,
+          0
+        ],
+        "m18": [
+          0,
+          0
+        ],
+        "m19": [
+          0,
+          0
+        ],
+        "m20": [
+          0,
+          0
+        ],
+        "m21": [
+          0,
+          0
+        ],
+        "m22": [
+          0,
+          0
+        ],
+        "m23": [
+          0,
+          0
+        ],
+        "m24": [
+          0,
+          0
+        ],
+        "m25": [
+          0,
+          0
+        ],
+        "m26": [
+          0,
+          0
+        ],
+        "m27": [
+          0,
+          0
+        ],
+        "m28": [
+          0,
+          0
+        ],
+        "m29": [
+          0,
+          0
+        ]
+      },
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

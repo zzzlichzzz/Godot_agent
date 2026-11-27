@@ -1,0 +1,15 @@
+{
+  "id": "013-hierarchy.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "hierarchy.tscn: 'NotFound'",
+  "args": {
+    "path": "res://scenes/hierarchy.tscn",
+    "node": "NotFound"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Узел 'NotFound' не найден в сцене"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "028-empty.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/empty.tscn"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "В файле не найдено ни одного узла [node]."
+  }
+}

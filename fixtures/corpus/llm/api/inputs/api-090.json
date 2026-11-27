@@ -1,0 +1,7 @@
+{
+  "kind": "stream",
+  "module": "anthropic_compat",
+  "chunk": 1,
+  "wire_base64": "OiBmaXh0dXJlIGtlZXBhbGl2ZQ0KDQpkYXRhOiB7InR5cGUiOiAibWVzc2FnZV9zdGFydCIsICJtZXNzYWdlIjogeyJtb2RlbCI6ICJmaXh0dXJlIiwgInVzYWdlIjogeyJpbnB1dF90b2tlbnMiOiAxMn19fQ0KDQpkYXRhOiB7InR5cGUiOiAiY29udGVudF9ibG9ja19kZWx0YSIsICJkZWx0YSI6IHsidHlwZSI6ICJ0aGlua2luZ19kZWx0YSIsICJ0aGlua2luZyI6ICLQn9GA0L7QstC10YDRj9GOIM6pIn19DQoNCg==",
+  "id": "api-090"
+}

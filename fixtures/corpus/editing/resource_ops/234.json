@@ -1,0 +1,54 @@
+{
+  "id": "parent_dependency_normalize_action",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "ResourcePath",
+          "value": "res://unused/../old.tres"
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "x",
+            "value": {
+              "type": "ResourcePath",
+              "value": "res://unused/../old.tres"
+            }
+          }
+        ],
+        "wait_for_import": [
+          "res://unused/../old.tres"
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "native_raw_sha256": "16241c89347d3dbce2223493b1829a480d6de1ee655655455fdc15183bb4c326"
+}

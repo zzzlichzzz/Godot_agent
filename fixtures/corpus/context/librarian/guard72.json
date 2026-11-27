@@ -1,0 +1,1544 @@
+{
+  "checks": [
+    {
+      "name": "allowed.public_declaration",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "allowed.project_bytes_unchanged",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "STOP.native_guard_denies",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "STOP.no_outside_read",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "STOP.snapshot_no_forbidden_fact",
+      "pass": true,
+      "actual": {
+        "files": [
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      }
+    },
+    {
+      "name": "STOP.card_no_forbidden_declaration",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "STOP.answer_no_forbidden_declaration",
+      "pass": true,
+      "actual": "[Librarian]: nothing in the project index matches «OUTSIDE_NATIVE_MARKER». Try other English terms (synonyms of function/class/signal/node names), or search_project for literal text, or list_files for a directory tree."
+    },
+    {
+      "name": "STOP.project_bytes_unchanged",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "STOP.outside_bytes_unchanged",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.backslash",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.backslash",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.backslash",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.backslash",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.nested-traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.nested-traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.nested-traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.nested-traversal",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.absolute",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.absolute",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.absolute",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.absolute",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.outside-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.outside-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.outside-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.outside-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.addon-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.addon-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.addon-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.addon-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.history-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.history-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.history-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.history-junction",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.history",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.history",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.history",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.history",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.mixed-case-addon",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.mixed-case-addon",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.mixed-case-addon",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.mixed-case-addon",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.guard_denies.agent",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.builder_omits.agent",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.semantic_omits.agent",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.reuse_omits.agent",
+      "pass": true,
+      "actual": null
+    },
+    {
+      "name": "boundary.scan_no_forbidden_fact",
+      "pass": true,
+      "actual": {
+        "files": [
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      }
+    },
+    {
+      "name": "boundary.scan_prunes_actual_identities",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "boundary.no_outside_read",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "stale.disk.no_forbidden_facts",
+      "pass": true,
+      "actual": {
+        "index": {
+          "root": "<sandbox>\\project",
+          "built": 1000,
+          "sym_limit": 400,
+          "complete": true,
+          "files": [
+            {
+              "path": "src/public.gd",
+              "kind": "gd",
+              "symbols": [
+                "func:public_symbol"
+              ]
+            }
+          ]
+        },
+        "snapshot": {
+          "files": [
+            {
+              "path": "src/public.gd",
+              "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+              "semantic": {
+                "parse_status": "ok",
+                "errors": [],
+                "declarations": [
+                  {
+                    "id": "gd:src/public.gd#script:function@18",
+                    "kind": "function",
+                    "name": "public_symbol",
+                    "owner": "script",
+                    "start": 18,
+                    "end": 31,
+                    "line": 2,
+                    "column": 6
+                  },
+                  {
+                    "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                    "kind": "parameter",
+                    "name": "amount",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "start": 32,
+                    "end": 38,
+                    "line": 2,
+                    "column": 20
+                  },
+                  {
+                    "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                    "kind": "variable",
+                    "name": "local_public",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "start": 55,
+                    "end": 67,
+                    "line": 3,
+                    "column": 6
+                  }
+                ],
+                "references": [
+                  {
+                    "name": "extends",
+                    "owner": "script",
+                    "context": "identifier",
+                    "start": 0,
+                    "end": 7,
+                    "line": 1,
+                    "column": 1
+                  },
+                  {
+                    "name": "Node",
+                    "owner": "script",
+                    "context": "type",
+                    "start": 8,
+                    "end": 12,
+                    "line": 1,
+                    "column": 9
+                  },
+                  {
+                    "name": "int",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "type",
+                    "start": 40,
+                    "end": 43,
+                    "line": 2,
+                    "column": 28
+                  },
+                  {
+                    "name": "amount",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "identifier",
+                    "start": 70,
+                    "end": 76,
+                    "line": 3,
+                    "column": 21
+                  },
+                  {
+                    "name": "return",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "identifier",
+                    "start": 78,
+                    "end": 84,
+                    "line": 4,
+                    "column": 2
+                  },
+                  {
+                    "name": "local_public",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "identifier",
+                    "start": 85,
+                    "end": 97,
+                    "line": 4,
+                    "column": 9
+                  }
+                ],
+                "strings": []
+              }
+            }
+          ],
+          "complete": true,
+          "skipped_files": 0
+        },
+        "search": [],
+        "declarations": [],
+        "facts": {
+          "declarations": [],
+          "references": [],
+          "strings": [],
+          "complete": true,
+          "skipped_files": 0,
+          "partial_files": []
+        }
+      }
+    },
+    {
+      "name": "stale.memory.no_forbidden_facts",
+      "pass": true,
+      "actual": {
+        "index": {
+          "root": "<sandbox>\\project",
+          "built": 1000,
+          "sym_limit": 400,
+          "complete": true,
+          "files": [
+            {
+              "path": "src/public.gd",
+              "kind": "gd",
+              "symbols": [
+                "func:public_symbol"
+              ]
+            }
+          ]
+        },
+        "snapshot": {
+          "files": [
+            {
+              "path": "src/public.gd",
+              "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+              "semantic": {
+                "parse_status": "ok",
+                "errors": [],
+                "declarations": [
+                  {
+                    "id": "gd:src/public.gd#script:function@18",
+                    "kind": "function",
+                    "name": "public_symbol",
+                    "owner": "script",
+                    "start": 18,
+                    "end": 31,
+                    "line": 2,
+                    "column": 6
+                  },
+                  {
+                    "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                    "kind": "parameter",
+                    "name": "amount",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "start": 32,
+                    "end": 38,
+                    "line": 2,
+                    "column": 20
+                  },
+                  {
+                    "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                    "kind": "variable",
+                    "name": "local_public",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "start": 55,
+                    "end": 67,
+                    "line": 3,
+                    "column": 6
+                  }
+                ],
+                "references": [
+                  {
+                    "name": "extends",
+                    "owner": "script",
+                    "context": "identifier",
+                    "start": 0,
+                    "end": 7,
+                    "line": 1,
+                    "column": 1
+                  },
+                  {
+                    "name": "Node",
+                    "owner": "script",
+                    "context": "type",
+                    "start": 8,
+                    "end": 12,
+                    "line": 1,
+                    "column": 9
+                  },
+                  {
+                    "name": "int",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "type",
+                    "start": 40,
+                    "end": 43,
+                    "line": 2,
+                    "column": 28
+                  },
+                  {
+                    "name": "amount",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "identifier",
+                    "start": 70,
+                    "end": 76,
+                    "line": 3,
+                    "column": 21
+                  },
+                  {
+                    "name": "return",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "identifier",
+                    "start": 78,
+                    "end": 84,
+                    "line": 4,
+                    "column": 2
+                  },
+                  {
+                    "name": "local_public",
+                    "owner": "gd:src/public.gd#script:function@18",
+                    "context": "identifier",
+                    "start": 85,
+                    "end": 97,
+                    "line": 4,
+                    "column": 9
+                  }
+                ],
+                "strings": []
+              }
+            }
+          ],
+          "complete": true,
+          "skipped_files": 0
+        },
+        "search": [],
+        "declarations": [],
+        "facts": {
+          "declarations": [],
+          "references": [],
+          "strings": [],
+          "complete": true,
+          "skipped_files": 0,
+          "partial_files": []
+        }
+      }
+    },
+    {
+      "name": "librarian.semantic_both_passes_filter",
+      "pass": true,
+      "actual": [
+        "SYMBOL (\"public_symbol\": 1 declaration, 0 references in 0 files):",
+        "- decl function res://src/public.gd:2",
+        "  params: amount",
+        "  locals: local_public (L3)",
+        "  uses: int"
+      ]
+    },
+    {
+      "name": "librarian.near_hints_filter",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "librarian.single_token_near_hint_filter",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "librarian.structure_no_denied_header",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "librarian.callers_deny_source_symbols",
+      "pass": true,
+      "actual": [
+        []
+      ]
+    },
+    {
+      "name": "librarian.signals_deny_source_symbols",
+      "pass": true,
+      "actual": [
+        []
+      ]
+    },
+    {
+      "name": "librarian.grep_patterns_output_filter",
+      "pass": true,
+      "actual": {}
+    },
+    {
+      "name": "librarian.fragments_output_guard",
+      "pass": true,
+      "actual": []
+    },
+    {
+      "name": "retarget.snapshot_filters_cached_path",
+      "pass": true,
+      "actual": {
+        "files": [
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      }
+    },
+    {
+      "name": "retarget.search_filters_cached_path",
+      "pass": true,
+      "actual": [
+        {
+          "path": "src/public.gd",
+          "kind": "gd",
+          "symbols": [
+            "func:public_symbol"
+          ],
+          "mtime": 1000.0,
+          "size": 98,
+          "score": 3
+        }
+      ]
+    },
+    {
+      "name": "capabilities.default.agent_symbol",
+      "pass": true,
+      "actual": {
+        "card": [],
+        "answer": "[Librarian] Project reference for query «agent_symbol»:\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.default.vendor_symbol",
+      "pass": true,
+      "actual": {
+        "card": [],
+        "answer": "[Librarian] Project reference for query «vendor_symbol»:\n(gamedev synonyms also searched: buy, merchant, price, sell, shop, store, trade)\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.addons.agent_symbol",
+      "pass": true,
+      "actual": {
+        "card": [],
+        "answer": "[Librarian] Project reference for query «agent_symbol»:\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.addons.vendor_symbol",
+      "pass": true,
+      "actual": {
+        "card": [
+          "SYMBOL (\"vendor_symbol\": 1 declaration, 0 references in 0 files):",
+          "- decl function res://Addons/vendor/vendor.gd:1"
+        ],
+        "answer": "[Librarian] Project reference for query «vendor_symbol»:\n(gamedev synonyms also searched: buy, merchant, price, sell, shop, store, trade)\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSYMBOL (\"vendor_symbol\": 1 declaration, 0 references in 0 files):\n- decl function res://Addons/vendor/vendor.gd:1\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.self.agent_symbol",
+      "pass": true,
+      "actual": {
+        "card": [
+          "SYMBOL (\"agent_symbol\": 1 declaration, 0 references in 0 files):",
+          "- decl function res://Addons/RenamedWrapper/core/agent.gd:1"
+        ],
+        "answer": "[Librarian] Project reference for query «agent_symbol»:\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSYMBOL (\"agent_symbol\": 1 declaration, 0 references in 0 files):\n- decl function res://Addons/RenamedWrapper/core/agent.gd:1\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.self.vendor_symbol",
+      "pass": true,
+      "actual": {
+        "card": [],
+        "answer": "[Librarian] Project reference for query «vendor_symbol»:\n(gamedev synonyms also searched: buy, merchant, price, sell, shop, store, trade)\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.invalid_identity.agent_symbol",
+      "pass": true,
+      "actual": {
+        "card": [],
+        "answer": "[Librarian] Project reference for query «agent_symbol»:\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    },
+    {
+      "name": "capabilities.invalid_identity.vendor_symbol",
+      "pass": true,
+      "actual": {
+        "card": [],
+        "answer": "[Librarian] Project reference for query «vendor_symbol»:\n(gamedev synonyms also searched: buy, merchant, price, sell, shop, store, trade)\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+      }
+    }
+  ],
+  "observations": {
+    "allowed": {
+      "build": 1,
+      "snapshot": {
+        "files": [
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      },
+      "search": [
+        {
+          "path": "src/public.gd",
+          "kind": "gd",
+          "symbols": [
+            "func:public_symbol"
+          ],
+          "mtime": 1000.0,
+          "size": 98,
+          "score": 3
+        }
+      ],
+      "card": [
+        "SYMBOL (\"public_symbol\": 1 declaration, 0 references in 0 files):",
+        "- decl function res://src/public.gd:2",
+        "  params: amount",
+        "  locals: local_public (L3)",
+        "  uses: int"
+      ],
+      "answer": "[Librarian] Project reference for query «public_symbol»:\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSYMBOL (\"public_symbol\": 1 declaration, 0 references in 0 files):\n- decl function res://src/public.gd:2\n  params: amount\n  locals: local_public (L3)\n  uses: int\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nFRAGMENTS (verbatim matches):\nres://src/public.gd line 2 (matched «public_symbol»):\n  1: extends Node\n  2: func public_symbol(amount: int = 1):\n  3: \tvar local_public = amount\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based.",
+      "typo": "[Librarian] Project reference for query «publik_symbol»:\nMAP (most relevant files, best first):\n- res://src/public.gd — func:public_symbol\nSTRUCTURE (declarations with line numbers):\nres://src/public.gd:\n  L1: extends Node\n  L2: func public_symbol(amount: int = 1):\nNext: use read_function for exact bodies (verbatim, usable as patch_file \"search\"); read_file only when a whole file is needed; ask_librarian again with other English terms to explore further. Line numbers are 1-based."
+    },
+    "STOP": {
+      "snapshot": {
+        "files": [
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      },
+      "card": [],
+      "answer": "[Librarian]: nothing in the project index matches «OUTSIDE_NATIVE_MARKER». Try other English terms (synonyms of function/class/signal/node names), or search_project for literal text, or list_files for a directory tree."
+    },
+    "retarget": {
+      "before": {
+        "files": [
+          {
+            "path": "alias/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:alias/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:alias/public.gd#gd:alias/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:alias/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:alias/public.gd#gd:alias/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:alias/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:alias/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:alias/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:alias/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:alias/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          },
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      },
+      "after": {
+        "files": [
+          {
+            "path": "src/public.gd",
+            "sha256": "b051be859755358a74bd932d0deab50a0de96a2cf862aabf6471e7fae27f0edb",
+            "semantic": {
+              "parse_status": "ok",
+              "errors": [],
+              "declarations": [
+                {
+                  "id": "gd:src/public.gd#script:function@18",
+                  "kind": "function",
+                  "name": "public_symbol",
+                  "owner": "script",
+                  "start": 18,
+                  "end": 31,
+                  "line": 2,
+                  "column": 6
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:parameter@32",
+                  "kind": "parameter",
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 32,
+                  "end": 38,
+                  "line": 2,
+                  "column": 20
+                },
+                {
+                  "id": "gd:src/public.gd#gd:src/public.gd#script:function@18:variable@55",
+                  "kind": "variable",
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "start": 55,
+                  "end": 67,
+                  "line": 3,
+                  "column": 6
+                }
+              ],
+              "references": [
+                {
+                  "name": "extends",
+                  "owner": "script",
+                  "context": "identifier",
+                  "start": 0,
+                  "end": 7,
+                  "line": 1,
+                  "column": 1
+                },
+                {
+                  "name": "Node",
+                  "owner": "script",
+                  "context": "type",
+                  "start": 8,
+                  "end": 12,
+                  "line": 1,
+                  "column": 9
+                },
+                {
+                  "name": "int",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "type",
+                  "start": 40,
+                  "end": 43,
+                  "line": 2,
+                  "column": 28
+                },
+                {
+                  "name": "amount",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 70,
+                  "end": 76,
+                  "line": 3,
+                  "column": 21
+                },
+                {
+                  "name": "return",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 78,
+                  "end": 84,
+                  "line": 4,
+                  "column": 2
+                },
+                {
+                  "name": "local_public",
+                  "owner": "gd:src/public.gd#script:function@18",
+                  "context": "identifier",
+                  "start": 85,
+                  "end": 97,
+                  "line": 4,
+                  "column": 9
+                }
+              ],
+              "strings": []
+            }
+          }
+        ],
+        "complete": true,
+        "skipped_files": 0
+      },
+      "search": [
+        {
+          "path": "src/public.gd",
+          "kind": "gd",
+          "symbols": [
+            "func:public_symbol"
+          ],
+          "mtime": 1000.0,
+          "size": 98,
+          "score": 3
+        }
+      ]
+    }
+  },
+  "skips": [
+    {
+      "case": "outside_symlink",
+      "winerror": 1314,
+      "reason": "genuine OS privilege gap"
+    },
+    {
+      "case": "private_symlink.gd",
+      "winerror": 1314,
+      "reason": "genuine OS privilege gap"
+    }
+  ]
+}

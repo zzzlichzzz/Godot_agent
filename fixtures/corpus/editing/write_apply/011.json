@@ -1,0 +1,18 @@
+{
+  "id": "011",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "old_name — ключевое слово: invalid_input",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "func",
+    "new_name": "punch",
+    "declaration": "res://src/hero.gd:10",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

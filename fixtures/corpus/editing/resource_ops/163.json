@@ -1,0 +1,40 @@
+{
+  "id": "expanded-operation-refusal-20",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": []
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "tiles должен содержать от 1 до 512 координат",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "ad99a6023de403f817ced56e31851340bd4564e3bfd02c6eccbc7b7c66f4f48a"
+}

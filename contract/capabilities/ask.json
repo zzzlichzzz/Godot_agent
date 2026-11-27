@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "module_id": "context.ask",
+  "capability_id": "context.ask",
+  "tool_name": "ask",
+  "description": "Компактная справка о проекте: релевантная карта кода, структура, точные фрагменты, вызовы и сигналы. Запрос — английские имена и термины кода; файлы проекта только читаются.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Непустой запрос об именах, терминах или пути проекта."
+      },
+      "budget_chars": {
+        "type": "integer",
+        "default": 8000,
+        "description": "Бюджет символов; нативный нижний порог 400."
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "string"
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "bounded",
+  "limits": {
+    "budget_chars_default": 8000,
+    "budget_chars_min": 400,
+    "map_files": 8,
+    "structure_files": 3,
+    "signatures_per_file": 24,
+    "scene_chars": 900,
+    "fragments": 6,
+    "fragment_tokens": 4,
+    "fragments_per_file": 2,
+    "fragment_pool": 12,
+    "callers": 6,
+    "caller_functions": 2,
+    "autoloads": 12,
+    "signals": 2,
+    "signal_links": 6,
+    "card_declarations": 4,
+    "card_parameters": 10,
+    "card_locals": 8,
+    "card_uses": 8,
+    "card_references": 8
+  }
+}

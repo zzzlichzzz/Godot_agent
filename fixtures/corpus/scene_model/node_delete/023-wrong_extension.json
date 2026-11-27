@@ -1,0 +1,15 @@
+{
+  "id": "023-wrong_extension",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/023-wrong_extension",
+  "note": "actual-old prepare-only: wrong_extension",
+  "args": {
+    "path": "res://main.tres",
+    "node": "Old"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "scene должен быть res:// путём к .tscn: res://main.tres"
+  }
+}

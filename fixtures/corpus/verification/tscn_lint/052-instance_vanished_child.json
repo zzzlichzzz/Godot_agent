@@ -1,0 +1,27 @@
+{
+  "id": "052-instance_vanished_child",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://child.tscn\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Inst\" parent=\".\" instance=ExtResource(\"1\")]\n[node name=\"Gone\" parent=\"Inst\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://child.tscn\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Inst\" parent=\".\" instance=ExtResource(\"1\")]\n[node name=\"Gone\" parent=\"Inst\"]\n",
+      "changed": false,
+      "problems": [
+        "узел «Gone» (без type=) — это правка узла ВНУТРИ инстанса сцены res://child.tscn, но узла «Gone» в той сцене НЕТ. Godot молча выбросит его вместе со всеми детьми: предупреждение «Node ... was modified from inside an instance, but it has vanished». Проверь точное имя узла в исходной сцене (вызови list_scene) или добавь type=\"...\", чтобы объявить НОВЫЙ узел."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://child.tscn\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Inst\" parent=\".\" instance=ExtResource(\"1\")]\n[node name=\"Gone\" parent=\"Inst\"]\n",
+    "changed": false,
+    "problems": [
+      "узел «Gone» (без type=) — это правка узла ВНУТРИ инстанса сцены res://child.tscn, но узла «Gone» в той сцене НЕТ. Godot молча выбросит его вместе со всеми детьми: предупреждение «Node ... was modified from inside an instance, but it has vanished». Проверь точное имя узла в исходной сцене (вызови list_scene) или добавь type=\"...\", чтобы объявить НОВЫЙ узел."
+    ]
+  },
+  "reference_api_classes": null
+}

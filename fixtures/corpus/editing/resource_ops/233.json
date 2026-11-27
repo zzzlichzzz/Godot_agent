@@ -1,0 +1,38 @@
+{
+  "id": "require_false_history",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://.agent_history/data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "int",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "kwargs": {
+    "require_exists": false
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Доступ к служебной папке истории запрещён.",
+    "hint": ""
+  },
+  "oracle": "native",
+  "native_raw_sha256": "ab364561f8adc26fb0bf36d27e8b6b9c8f0ef71ef7edf3b29e695c2e171deb04"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "wait-finishes",
+  "op": "wait",
+  "answer": {
+    "text": "complete"
+  },
+  "generating_until": 3
+}

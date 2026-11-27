@@ -1,0 +1,5 @@
+[ext_resource type="Script" path="res://scripts/old.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/new.gd" id="1"]
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+script=ExtResource("1")

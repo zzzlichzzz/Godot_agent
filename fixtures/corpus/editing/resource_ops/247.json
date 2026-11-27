@@ -1,0 +1,49 @@
+{
+  "id": "c24-BOM-refusal",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "length",
+        "value": {
+          "type": "float",
+          "value": 2.0
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "77u/W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQ0KDQo7IGlucHV0IGNvbW1lbnQgbXVzdCBub3QgYmUgbWlzdGFrZW4gZm9yIGFuIG9wZXJhdGlvbg0KW3Jlc291cmNlXQ0KcmVzb3VyY2VfbmFtZSA9ICJQcmVzZXJ2ZSB0aGlzIG5hbWUiDQpsZW5ndGggPSAxLjA="
+    }
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_diagnostic": "Parse Error: Expected '['.",
+    "native_code": "load_failed",
+    "decision": "D18 BOM refusal"
+  },
+  "expect": {
+    "kind": "invalid_input",
+    "message": "ResourceLoader не смог загрузить ресурс",
+    "hint": "",
+    "details": {
+      "native_code": "load_failed",
+      "native_diagnostic": "Parse Error: Expected '['."
+    },
+    "ok": false
+  }
+}

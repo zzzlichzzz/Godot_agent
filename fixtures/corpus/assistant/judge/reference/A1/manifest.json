@@ -1,0 +1,941 @@
+{
+  "schema": 1,
+  "module": "assistant.judge",
+  "stage": "A1/reference-only",
+  "public_judge_implemented": false,
+  "case_ids": [
+    "scene-valid",
+    "scene-missing-sub",
+    "scene-missing-ext",
+    "scene-duplicate-node",
+    "scene-missing-parent",
+    "scene-unknown-type",
+    "scene-two-roots",
+    "scene-no-root",
+    "scene-missing-path",
+    "scene-bad-ext-path",
+    "scene-duplicate-ext",
+    "scene-missing-instance",
+    "scene-header-angle",
+    "scene-closing-tag",
+    "scene-wrong-load-steps",
+    "scene-fenced",
+    "scene-outside-junk",
+    "scene-duplicate-property",
+    "scene-bad-vector",
+    "scene-bad-bool",
+    "scene-bad-name",
+    "scene-bad-connection",
+    "scene-parent-order",
+    "scene-resource-header",
+    "scene-embedded-ref-string",
+    "scene-empty",
+    "scene-none",
+    "scene-not-scene",
+    "scene-case-path",
+    "runtime-valid",
+    "runtime-no-assertion",
+    "runtime-unsafe-node",
+    "runtime-absolute-node",
+    "runtime-addons-blocked",
+    "runtime-scene-missing",
+    "runtime-scene-wrong-scheme",
+    "runtime-unknown-field",
+    "runtime-unknown-op",
+    "runtime-zero-steps",
+    "runtime-steps33",
+    "runtime-input17",
+    "runtime-assert17",
+    "runtime-wait-total",
+    "runtime-time-total",
+    "runtime-no-errors-twice",
+    "runtime-timeout-999",
+    "runtime-timeout-1000",
+    "runtime-timeout-20000",
+    "runtime-timeout-20001",
+    "runtime-frames-0",
+    "runtime-frames-1",
+    "runtime-frames-600",
+    "runtime-frames-601",
+    "runtime-bad-screenshot-fields",
+    "runtime-bad-screenshot-quality",
+    "runtime-bad-screenshot-size",
+    "runtime-released-strength",
+    "runtime-input-bool-number",
+    "runtime-property-position.x",
+    "runtime-property-position()",
+    "runtime-property-position-length",
+    "runtime-expected-61",
+    "runtime-expected-62",
+    "runtime-expected-63",
+    "runtime-tolerance-on-eq",
+    "runtime-nonfinite",
+    "runtime-request",
+    "runtime-final-pass",
+    "runtime-final-step-error",
+    "runtime-final-log-unavailable",
+    "runtime-final-log-error",
+    "runtime-final-mismatched-scene",
+    "runtime-final-empty-assertions",
+    "runtime-final-duplicate-assertion",
+    "runtime-final-wrong-op",
+    "runtime-final-read-failure",
+    "runtime-final-shot120001",
+    "runtime-result-not-object",
+    "runtime-result-protocol",
+    "runtime-result-size",
+    "runtime-result-bad-assertion",
+    "runtime-log-missing",
+    "runtime-log-append",
+    "runtime-log-oversize",
+    "runtime-log-truncate",
+    "runtime-log-deleted",
+    "runtime-log-wrong_inode",
+    "runtime-log-error_cap",
+    "headless-pass",
+    "headless-new-error",
+    "headless-new-warning",
+    "headless-preexisting",
+    "headless-explicit-check-preexisting",
+    "headless-required-unavailable-off",
+    "headless-optional-unavailable",
+    "headless-mode-off",
+    "headless-timeout",
+    "headless-no-result",
+    "headless-truncated-output",
+    "headless-stale-source",
+    "headless-stale-referencer",
+    "headless-stale-before-copy",
+    "headless-move-uid",
+    "headless-missing-patch",
+    "headless-ambiguous-patch",
+    "headless-unsafe-path",
+    "headless-new-file",
+    "headless-nonresource",
+    "headless-rename",
+    "headless-empty-rename",
+    "headless-digest-dedup",
+    "headless-malformed-0",
+    "headless-malformed-1",
+    "headless-malformed-2",
+    "headless-malformed-3",
+    "headless-malformed-4",
+    "headless-malformed-5",
+    "headless-malformed-6"
+  ],
+  "case_count": 118,
+  "catalog": {
+    "bytes": 357285,
+    "sha256": "1b1c181cdad448a4587ead8d2eab41585bb08f83a709857b1caca9a4da253aaa",
+    "LF": 3144,
+    "CRLF": 0
+  },
+  "provenance": {
+    "sources": {
+      "tscn_lint": {
+        "bytes": 74080,
+        "sha256": "118e9ddc0b776cd86974666ff42789a3b41b93ba2b404f06c78db605ca0ac3f8",
+        "LF": 1315,
+        "CRLF": 0
+      },
+      "runtime_checks": {
+        "bytes": 20148,
+        "sha256": "1ce232f17af8a5e15ceb30b6171cf2af1e5b7c24bdfd1fdc8cb462008100cbc1",
+        "LF": 433,
+        "CRLF": 0
+      },
+      "godot_headless_validation": {
+        "bytes": 21780,
+        "sha256": "a77aec0cf345964c29e6214a41d02de7268d8875fbd474d55c912be5b82eed6e",
+        "LF": 453,
+        "CRLF": 0
+      }
+    },
+    "case_sources": {
+      "test_runtime_checks.py": {
+        "bytes": 5336,
+        "sha256": "ef7ec41e1d9ec84edb8e978b8550c2c768bb40057682a013d6daf25c237254dd",
+        "LF": 108,
+        "CRLF": 0
+      },
+      "test_godot_headless_validation.py": {
+        "bytes": 10982,
+        "sha256": "06f9fce4e8a1016cb13a3125f0d7154cd22adffe6f87573f57ef77acdaf346b2",
+        "LF": 207,
+        "CRLF": 0
+      },
+      "test_answer_judge.py": {
+        "bytes": 16419,
+        "sha256": "c04bfd36c0b7fd541a75f57bd0b7890ab41c1e4e7e072b4c402f25eb7bd840bd",
+        "LF": 382,
+        "CRLF": 0
+      }
+    },
+    "dependencies": {
+      "text_sanitize": {
+        "bytes": 3305,
+        "sha256": "2c18bbefb0a08f0cf99a31cc27d67f49f7396ffc5fc29017d0733aefed5ac0db",
+        "LF": 52,
+        "CRLF": 0
+      },
+      "project_tools": {
+        "bytes": 102471,
+        "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877",
+        "LF": 1960,
+        "CRLF": 1960
+      },
+      "history_manager": {
+        "bytes": 48840,
+        "sha256": "f665517341abbab90e879f2d079f89532853ac89e3b1f93511cd099e1db9b897",
+        "LF": 939,
+        "CRLF": 939
+      },
+      "gd_api_cache": {
+        "bytes": 11545,
+        "sha256": "6e6f5e0c83de40d2469e167554cfa1084952f0812175bc4f67239a259650b65a",
+        "LF": 216,
+        "CRLF": 0
+      }
+    },
+    "native_api": {
+      "bytes": 2004630,
+      "sha256": "7352d27c8d8ed77b84b3b98400093c85144c4b6f8b8919b147ca035a67c8a93c",
+      "LF": 0,
+      "CRLF": 0
+    },
+    "canonical_api": {
+      "bytes": 2004630,
+      "sha256": "7352d27c8d8ed77b84b3b98400093c85144c4b6f8b8919b147ca035a67c8a93c",
+      "LF": 0,
+      "CRLF": 0
+    },
+    "normalization": [
+      "sandbox path prefix only",
+      "captured device/inode integer identity fields only; actual equality checks retained",
+      "headless elapsed duration_ms only, type and nonnegative checked",
+      "create_request entropy/time injected locally: non-secret a32/b48 and time1000; no real tokens captured"
+    ],
+    "process_worker": "simulated protocol integration, NOT real engine validation",
+    "new_tests_not_copied": true,
+    "native_bootstrap_not_loaded": true
+  },
+  "observations": {
+    "scene-valid": {
+      "bytes": 1793,
+      "sha256": "86584058857f2430c19a7ca86f145c73a6ce35f5e1629922c05d3e5ae16e6174",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-missing-sub": {
+      "bytes": 2161,
+      "sha256": "5d27cc30f9b55ba6e4caeef2180375ec8cb1383de601505bb09f8eaf36226af6",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-missing-ext": {
+      "bytes": 2159,
+      "sha256": "bd2fff3ae05b5c1c536060901327326d2824f2d74582583896beb9e1c9da2e5e",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-duplicate-node": {
+      "bytes": 2213,
+      "sha256": "a74d583d25df45e31b14b1f6d6a91b0d854957f5bd326161c8ac73526ecd2252",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-missing-parent": {
+      "bytes": 2887,
+      "sha256": "7a54b80a2f97e8d71047c3df36136ef7fa9d84e0a711e5fdc025bdcc0a1ed47a",
+      "LF": 59,
+      "CRLF": 0
+    },
+    "scene-unknown-type": {
+      "bytes": 2211,
+      "sha256": "6f44f815c81e2b523868e2adb18ef8753670f128506806d2fc8ae74a592f8cf7",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-two-roots": {
+      "bytes": 2147,
+      "sha256": "04101581bfc64cb04a519e479c5d8a1847b24f2f89b20747a6302bc2981d89ab",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-no-root": {
+      "bytes": 1717,
+      "sha256": "056067b97ba89acbcf19ac1bd2217485c0843b44ce870a4b3e95c09f5c1c4b28",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-missing-path": {
+      "bytes": 3679,
+      "sha256": "c6dc35eaaa7ef0243eb2f6f122b2394d26853dd3a6e64d2aef966aba86159efe",
+      "LF": 59,
+      "CRLF": 0
+    },
+    "scene-bad-ext-path": {
+      "bytes": 2607,
+      "sha256": "bf7ae95f362572ad07c41ab0ac970b516fccde82af77c101a02a207f99a1c8a8",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-duplicate-ext": {
+      "bytes": 2373,
+      "sha256": "7cc2366ca0566c15d6c5a1b10ffc946f0c01a97ebf1f0f4c8237d788c0403b5b",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-missing-instance": {
+      "bytes": 2105,
+      "sha256": "dff2f39ae1f6558cf12427b09e4c6b55784927bf5e9792638bd0baba44842ad3",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-header-angle": {
+      "bytes": 1819,
+      "sha256": "b775e3ad82d8eb6dbaa3b4a6e1f72595c16ee3212cd249de15b2a02e46eb89a7",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-closing-tag": {
+      "bytes": 1793,
+      "sha256": "86584058857f2430c19a7ca86f145c73a6ce35f5e1629922c05d3e5ae16e6174",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-wrong-load-steps": {
+      "bytes": 1819,
+      "sha256": "b775e3ad82d8eb6dbaa3b4a6e1f72595c16ee3212cd249de15b2a02e46eb89a7",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-fenced": {
+      "bytes": 2817,
+      "sha256": "e652ec4d79968e2784bc083b06551477d012bc37f2d5195794a30fd4a9081bf1",
+      "LF": 59,
+      "CRLF": 0
+    },
+    "scene-outside-junk": {
+      "bytes": 2765,
+      "sha256": "3a9feb9337ac169ddb8695cfa62c30aceb84415b4e0cab66a6cd2dfb3732b0c2",
+      "LF": 59,
+      "CRLF": 0
+    },
+    "scene-duplicate-property": {
+      "bytes": 1893,
+      "sha256": "98527ac559c63ec520315248245523af3acb59872ed7f352cd6bb39d217b033f",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-bad-vector": {
+      "bytes": 2099,
+      "sha256": "fff894ca61a3445531c32cdb917f13ca0e86ab6203d845e1119b4988c1590cd6",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-bad-bool": {
+      "bytes": 2445,
+      "sha256": "5f686daa69c3aa69fb219ffff4cd99df347f739981e0a0fbbfc8e1fdd68b492f",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-bad-name": {
+      "bytes": 2239,
+      "sha256": "6818b407a789c1b48c26cf25545625deea52444b604b7840b0596ce6a022ee18",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-bad-connection": {
+      "bytes": 2455,
+      "sha256": "74301686ae1b075c8a36eb9fb26f552085688a0c89cc0fe5f8705e7bde567a94",
+      "LF": 57,
+      "CRLF": 0
+    },
+    "scene-parent-order": {
+      "bytes": 2001,
+      "sha256": "00bf1dd5b0bc2f27f4a85232169ef3824835d0dcf66506cb72c2b4c7b1389ef8",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-resource-header": {
+      "bytes": 1779,
+      "sha256": "8cfbb3ccc650ef0959d987d6327d070ead7fdbcec7855bb01803d66fbbf16f14",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-embedded-ref-string": {
+      "bytes": 1895,
+      "sha256": "c79a686608d18fe85e9aafa6a315173c0b90cbd8dfe10e233628cb6763aa9166",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-empty": {
+      "bytes": 1671,
+      "sha256": "7e88234e27f302b5b2f6e6e10be61dbc1175e604b4cdcb3ec517ca3fae8f543b",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-none": {
+      "bytes": 1669,
+      "sha256": "9031404c68bf93bad636ae73e894ce35cd1060543a31a2e21bd2939ffe0a1511",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "scene-not-scene": {
+      "bytes": 1706,
+      "sha256": "a1e4714e933adabd63e16384ab34198747c3807d431d93f6bfc366fe38c55d7b",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "scene-case-path": {
+      "bytes": 1793,
+      "sha256": "86584058857f2430c19a7ca86f145c73a6ce35f5e1629922c05d3e5ae16e6174",
+      "LF": 53,
+      "CRLF": 0
+    },
+    "runtime-valid": {
+      "bytes": 2668,
+      "sha256": "6d3c291779d3c1044c6a45abb9ae960a5ed8864476442f217492fa58ff626634",
+      "LF": 100,
+      "CRLF": 0
+    },
+    "runtime-no-assertion": {
+      "bytes": 1660,
+      "sha256": "185c7798e810cb822acc6c617cbc40610179013dc8bfec2fcce08b3b58e17fec",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-unsafe-node": {
+      "bytes": 1655,
+      "sha256": "a0665ed9d7c660cf0e163eecbdbc75daab178c0bc416fb358b542a94b28a52cb",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-absolute-node": {
+      "bytes": 1662,
+      "sha256": "6033b98ccb2740afc72364aa91329db5863304cd62cfad485106862de79af2d0",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-addons-blocked": {
+      "bytes": 1672,
+      "sha256": "5f7faf50b19754c62d34dcc980ad01bde3deeb60dc2d596e92e2d29c1983ffb6",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-scene-missing": {
+      "bytes": 1661,
+      "sha256": "97bf68750feb08c26c60f45bfcbc8a5ab09945f0113faa64dcc5beadb53717c3",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-scene-wrong-scheme": {
+      "bytes": 1657,
+      "sha256": "bd649561bb4c8c799be9e8257d0d2d7841da6b4050417dab4e4809990c15a46e",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-unknown-field": {
+      "bytes": 1655,
+      "sha256": "cd519eb1000467267a26a0768d9274aeea762e84c844b54857251924ec2b593c",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-unknown-op": {
+      "bytes": 1651,
+      "sha256": "97308c41188bf3a761269b02ffebf1bd91b8f1dd15302a606b7132547e373c68",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-zero-steps": {
+      "bytes": 1654,
+      "sha256": "997b9d734d6601667db6bb2ef7f1cf842267d997e8b5fa9067300028992b7411",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-steps33": {
+      "bytes": 1654,
+      "sha256": "997b9d734d6601667db6bb2ef7f1cf842267d997e8b5fa9067300028992b7411",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-input17": {
+      "bytes": 1659,
+      "sha256": "b7faca8e5e4491107a70d0e5ed7a9ab837400c680a40eee50747c1527d2ec6cd",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-assert17": {
+      "bytes": 1659,
+      "sha256": "b7faca8e5e4491107a70d0e5ed7a9ab837400c680a40eee50747c1527d2ec6cd",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-wait-total": {
+      "bytes": 1654,
+      "sha256": "c4783e861e43552e5f83d63fe5b8869015c7bd1258bef7444d0f9a3be7366781",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-time-total": {
+      "bytes": 1654,
+      "sha256": "c4783e861e43552e5f83d63fe5b8869015c7bd1258bef7444d0f9a3be7366781",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-no-errors-twice": {
+      "bytes": 1656,
+      "sha256": "d043b84a76b8525a58f9349623b7c6e087e1d8ce7bb5ecb2301b83b423037435",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-timeout-999": {
+      "bytes": 1649,
+      "sha256": "970cabf602a69ed9df5802c1a8268450e1ca3bcebd6bc536f56630e4a4b71d98",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-timeout-1000": {
+      "bytes": 2667,
+      "sha256": "be9c2b556e4f6bd773d4497917c64493f50d001ba04ceefbfdb098f439bd10be",
+      "LF": 100,
+      "CRLF": 0
+    },
+    "runtime-timeout-20000": {
+      "bytes": 2668,
+      "sha256": "aa03f30eee66968c03c0193d907f62abadfff34a1ec77876840c72d5585dc318",
+      "LF": 100,
+      "CRLF": 0
+    },
+    "runtime-timeout-20001": {
+      "bytes": 1649,
+      "sha256": "970cabf602a69ed9df5802c1a8268450e1ca3bcebd6bc536f56630e4a4b71d98",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-frames-0": {
+      "bytes": 1652,
+      "sha256": "fc0902178874c0eef8cd7dff51ca349d1e31030fa6af098b00aa7ac1d6a2428d",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-frames-1": {
+      "bytes": 1974,
+      "sha256": "b6164d82d5f47c77706a165a6cba6e96c35a2f2d3cd599f12de063cd8d4501fc",
+      "LF": 65,
+      "CRLF": 0
+    },
+    "runtime-frames-600": {
+      "bytes": 1976,
+      "sha256": "afb2ec60cf89a9d96c8285fb9e33a3fca445dfe240bfe149f3ad1c09c546878b",
+      "LF": 65,
+      "CRLF": 0
+    },
+    "runtime-frames-601": {
+      "bytes": 1652,
+      "sha256": "fc0902178874c0eef8cd7dff51ca349d1e31030fa6af098b00aa7ac1d6a2428d",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-bad-screenshot-fields": {
+      "bytes": 1651,
+      "sha256": "aef47607fe06e1be3d1f986ba58d43f999ec82cb2461bebf6eb7f74771bf6d2b",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-bad-screenshot-quality": {
+      "bytes": 1679,
+      "sha256": "a0dad0fddf993c40017b80220ae71e1c8648a699dffb80a919aa4e01fe543a81",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-bad-screenshot-size": {
+      "bytes": 1679,
+      "sha256": "a0dad0fddf993c40017b80220ae71e1c8648a699dffb80a919aa4e01fe543a81",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-released-strength": {
+      "bytes": 1677,
+      "sha256": "9bd5a8189101fed3073f01f134b81d719c78cca8bcfafd2ad28877f0b31a0260",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-input-bool-number": {
+      "bytes": 1657,
+      "sha256": "dec1919f828760990ed945b9b000e5e23ae9b6dbbeb7435292fa2eb9fecda224",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-property-position.x": {
+      "bytes": 1666,
+      "sha256": "9220224271a281ae0393ee6fef6cec0445ba2a0b592428eb85c213a1331388f3",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-property-position()": {
+      "bytes": 1666,
+      "sha256": "9220224271a281ae0393ee6fef6cec0445ba2a0b592428eb85c213a1331388f3",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-property-position-length": {
+      "bytes": 1666,
+      "sha256": "9220224271a281ae0393ee6fef6cec0445ba2a0b592428eb85c213a1331388f3",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-expected-61": {
+      "bytes": 1657,
+      "sha256": "60bb63f6202ff61b0399da43ee3f39ead1bf8bf270771477be600ad92a32fb88",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-expected-62": {
+      "bytes": 1650,
+      "sha256": "def8526fa2423e4e7a9eb00e4f448eac3b996e16fdb7cbb8c15468e324f85b01",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-expected-63": {
+      "bytes": 1661,
+      "sha256": "db252f8710342457a6f8667f6ef3f1475f52e45fe8fceb2ecafba3cd927c9ab4",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-tolerance-on-eq": {
+      "bytes": 1653,
+      "sha256": "bfcdde6ac7b6c671988f5ec9c59a71d039bcd00567fe10ef9ba7a33cb1bc889a",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-nonfinite": {
+      "bytes": 1651,
+      "sha256": "38b8115f79df19edabd37180646fd89e886d98c2b9799bf846b73056394e7260",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-request": {
+      "bytes": 4944,
+      "sha256": "41796743904553171834528f3cb36ea1c8b1b95567834ba83e08f5a27d64223c",
+      "LF": 185,
+      "CRLF": 0
+    },
+    "runtime-final-pass": {
+      "bytes": 6798,
+      "sha256": "a1e67dc94a73acaba67d1df1182399eadbaffccae3365266253394efd5277571",
+      "LF": 223,
+      "CRLF": 0
+    },
+    "runtime-final-step-error": {
+      "bytes": 6977,
+      "sha256": "96b80e7745d0a8e41ecda8e87450f1cc65c0c644c076446d4ef1d0a8c0451f20",
+      "LF": 229,
+      "CRLF": 0
+    },
+    "runtime-final-log-unavailable": {
+      "bytes": 7189,
+      "sha256": "a95a80f4d7b2adfe4c814837a4392e91a7a7a7ba39c47f5c604cfca423cf44f8",
+      "LF": 233,
+      "CRLF": 0
+    },
+    "runtime-final-log-error": {
+      "bytes": 7224,
+      "sha256": "10e7735b98c816bd5044ece0d5b09f2d733c7be942f6a53401da8a13731db283",
+      "LF": 236,
+      "CRLF": 0
+    },
+    "runtime-final-mismatched-scene": {
+      "bytes": 5403,
+      "sha256": "420d635661af0a1336d6915d9d03e2628f8186576c4a7283f10a136974ac3b06",
+      "LF": 192,
+      "CRLF": 0
+    },
+    "runtime-final-empty-assertions": {
+      "bytes": 5407,
+      "sha256": "6862ba766ae49f436a3900e049b0b192b91b222a99164f21afd6074e854031b6",
+      "LF": 192,
+      "CRLF": 0
+    },
+    "runtime-final-duplicate-assertion": {
+      "bytes": 5387,
+      "sha256": "3875ce1eed2b95fad402f5159791a5ab970e36d5d65fb8646f35f15de9546be5",
+      "LF": 192,
+      "CRLF": 0
+    },
+    "runtime-final-wrong-op": {
+      "bytes": 5389,
+      "sha256": "e379e7eac11f83e17ce4dd4a686a3cf014ab7647443fca3c972580b2a9b0e56a",
+      "LF": 192,
+      "CRLF": 0
+    },
+    "runtime-final-read-failure": {
+      "bytes": 6959,
+      "sha256": "a37a977fe61acad81368972d65662272c781cab5990ff0ddb9fea5b376e6cbbf",
+      "LF": 229,
+      "CRLF": 0
+    },
+    "runtime-final-shot120001": {
+      "bytes": 6798,
+      "sha256": "a1e67dc94a73acaba67d1df1182399eadbaffccae3365266253394efd5277571",
+      "LF": 223,
+      "CRLF": 0
+    },
+    "runtime-result-not-object": {
+      "bytes": 1657,
+      "sha256": "8e4f66422dcb51b069e76731e70cebbef983190e8194faf36c912bf915de1b93",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-result-protocol": {
+      "bytes": 1650,
+      "sha256": "66cf537dc05d80254ba909697e523af15bea6659d249a9cdb2f8b7af45c69085",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-result-size": {
+      "bytes": 1655,
+      "sha256": "a48ba56a67e6a960ebd436f02be0d568abf684b0f65b43094716459a190dbc35",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-result-bad-assertion": {
+      "bytes": 1661,
+      "sha256": "064d189f40e644e3df8de716a80915111f2599f8fb9b540b56d795c98d5e668b",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "runtime-log-missing": {
+      "bytes": 1965,
+      "sha256": "b81f42cb8bca6795f81f39a506e5856601c177bac2454b71c57aa37de37e8ac1",
+      "LF": 60,
+      "CRLF": 0
+    },
+    "runtime-log-append": {
+      "bytes": 2202,
+      "sha256": "3dc0d020d36ffcb2e14453e84d8a29ff8d41fc505fcec9f331c60af15cbba630",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "runtime-log-oversize": {
+      "bytes": 2072,
+      "sha256": "a2e4cfcf2cc5a2bab7c50176db0e88837f007f869ac31e2735203ac2c1cfd3c8",
+      "LF": 64,
+      "CRLF": 0
+    },
+    "runtime-log-truncate": {
+      "bytes": 2072,
+      "sha256": "a2e4cfcf2cc5a2bab7c50176db0e88837f007f869ac31e2735203ac2c1cfd3c8",
+      "LF": 64,
+      "CRLF": 0
+    },
+    "runtime-log-deleted": {
+      "bytes": 2072,
+      "sha256": "a2e4cfcf2cc5a2bab7c50176db0e88837f007f869ac31e2735203ac2c1cfd3c8",
+      "LF": 64,
+      "CRLF": 0
+    },
+    "runtime-log-wrong_inode": {
+      "bytes": 2072,
+      "sha256": "a2e4cfcf2cc5a2bab7c50176db0e88837f007f869ac31e2735203ac2c1cfd3c8",
+      "LF": 64,
+      "CRLF": 0
+    },
+    "runtime-log-error_cap": {
+      "bytes": 3949,
+      "sha256": "ebe8d901585108c02a093fc6bd4b28a4554c8fab8198d6c504123de93a1c74d6",
+      "LF": 165,
+      "CRLF": 0
+    },
+    "headless-pass": {
+      "bytes": 3256,
+      "sha256": "08040d7fb86255a644ae0b96d3adf4ebcf7c73e3473f9952e86380fc57fb2c2c",
+      "LF": 95,
+      "CRLF": 0
+    },
+    "headless-new-error": {
+      "bytes": 4094,
+      "sha256": "1b1697c2b21e262adc1bc08fba81eaaa5f1ebad98311f3ec13e70e763de0406f",
+      "LF": 110,
+      "CRLF": 0
+    },
+    "headless-new-warning": {
+      "bytes": 3611,
+      "sha256": "5222d2633a91a8574fd30a5c646f5a2d791890b8324b4a2ab2bc494b8a010ee7",
+      "LF": 107,
+      "CRLF": 0
+    },
+    "headless-preexisting": {
+      "bytes": 3636,
+      "sha256": "8c499faebb1a6aea2dd1b2889e3d3c1ac0fa2526e43d53b2a02b2fb09b9b32af",
+      "LF": 107,
+      "CRLF": 0
+    },
+    "headless-explicit-check-preexisting": {
+      "bytes": 3959,
+      "sha256": "1b46f09a80830d6cc90bc36233c21261e10b5352355ec2a1a49d9772364596d6",
+      "LF": 111,
+      "CRLF": 0
+    },
+    "headless-required-unavailable-off": {
+      "bytes": 2806,
+      "sha256": "36f92d804452e2d60769c8ce7a9afbcb846b187dd74058800c6de1a4d48357de",
+      "LF": 80,
+      "CRLF": 0
+    },
+    "headless-optional-unavailable": {
+      "bytes": 2945,
+      "sha256": "66e90d1a05b81e3f82f6a62d34c6c1a85dfca6678551e97b17e45f4c0397c72e",
+      "LF": 88,
+      "CRLF": 0
+    },
+    "headless-mode-off": {
+      "bytes": 2913,
+      "sha256": "0492da910eff8f146a6a314460c939086fa2552f83349ea07cf9a4e958425aee",
+      "LF": 87,
+      "CRLF": 0
+    },
+    "headless-timeout": {
+      "bytes": 3558,
+      "sha256": "6bd9061d5cc6c8a8af4ab0e19531d08dd23b50c3ff7364d94fc623aed08d97fb",
+      "LF": 98,
+      "CRLF": 0
+    },
+    "headless-no-result": {
+      "bytes": 3989,
+      "sha256": "88dfd4b47ecbcb8b9de1ddbfe4fed8c8fb86db1bf58777a955485a8f73a2d1ba",
+      "LF": 110,
+      "CRLF": 0
+    },
+    "headless-truncated-output": {
+      "bytes": 3601,
+      "sha256": "98e49b305ffb062d9804c02616340e1f0f92d7a2fc9f3b4622eb7c8d4a653dac",
+      "LF": 98,
+      "CRLF": 0
+    },
+    "headless-stale-source": {
+      "bytes": 3416,
+      "sha256": "3add05c2e1596bc3d597a4a54dc7e628f855f6f9c7766c0d319194f8ac4a64ac",
+      "LF": 98,
+      "CRLF": 0
+    },
+    "headless-stale-referencer": {
+      "bytes": 3427,
+      "sha256": "393a5710e8d98ea617d9bb8ac2476caa92c2844a3e3257ac2213ea0b06eb7e9d",
+      "LF": 98,
+      "CRLF": 0
+    },
+    "headless-stale-before-copy": {
+      "bytes": 2490,
+      "sha256": "9b6a356fba80f120f861e97794efda34c36428807f919f4c9b406b14cf1a3055",
+      "LF": 72,
+      "CRLF": 0
+    },
+    "headless-move-uid": {
+      "bytes": 3394,
+      "sha256": "c09e48b620dce5d216060f5957f181a84ef7625881400313c78dc466b5ee738f",
+      "LF": 101,
+      "CRLF": 0
+    },
+    "headless-missing-patch": {
+      "bytes": 1687,
+      "sha256": "d8f78a3306baf131935fc46d935af843ec2c0606b8da2f7b9ca525f25b674c9a",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "headless-ambiguous-patch": {
+      "bytes": 1717,
+      "sha256": "370e8c74c19aa712b203fb10943d7c6727d998a9bc15980f5536355727a3bbaa",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "headless-unsafe-path": {
+      "bytes": 1698,
+      "sha256": "777c4ccbe8e5ecc89abaca778414acd6d1b5c4386e5a03a94590504363c138e1",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "headless-new-file": {
+      "bytes": 2019,
+      "sha256": "bfb5d1ad43816fd2a7d4b5bdfbaef92dfe7db21d96aaff76658276da1d26488b",
+      "LF": 63,
+      "CRLF": 0
+    },
+    "headless-nonresource": {
+      "bytes": 2680,
+      "sha256": "14221bee99d5829f912fab5381a72a9a72eaa6671acdab155bd6cb7c18aed118",
+      "LF": 84,
+      "CRLF": 0
+    },
+    "headless-rename": {
+      "bytes": 2152,
+      "sha256": "8721e59eede2c9f836fb4f63ccef79b56f056dd3395bc6e009149e59229baa2e",
+      "LF": 64,
+      "CRLF": 0
+    },
+    "headless-empty-rename": {
+      "bytes": 1683,
+      "sha256": "dcbed018cf90989349439e41b9461b405076bd0b987fbccaa0e76a60f65bd3aa",
+      "LF": 46,
+      "CRLF": 0
+    },
+    "headless-digest-dedup": {
+      "bytes": 1879,
+      "sha256": "94a899acf7e46b6f454be2502d0d30d3a4fb25dec010650441e2b669988d52f6",
+      "LF": 56,
+      "CRLF": 0
+    },
+    "headless-malformed-0": {
+      "bytes": 4067,
+      "sha256": "3e4e1f15ac150fc1889f5d4b131e35c6a6ee34da2cdc846274e40607bc915449",
+      "LF": 116,
+      "CRLF": 0
+    },
+    "headless-malformed-1": {
+      "bytes": 4115,
+      "sha256": "7826f66336f8cce84b53ed086cdada2ed9a4bf8a18d6f93213c8e7ece0d7965b",
+      "LF": 116,
+      "CRLF": 0
+    },
+    "headless-malformed-2": {
+      "bytes": 4171,
+      "sha256": "2b14a6276b09e62db60cad07dcf3f4a4d12e5f724e80c2315b9cb121d8da8f99",
+      "LF": 116,
+      "CRLF": 0
+    },
+    "headless-malformed-3": {
+      "bytes": 4171,
+      "sha256": "0dee9fe52a4605e88574d6d1189fbc7976e2e740328f30e100bc374271687858",
+      "LF": 116,
+      "CRLF": 0
+    },
+    "headless-malformed-4": {
+      "bytes": 4171,
+      "sha256": "28187ca310257fab258bba5780c5e04f4ce1e881974eff4a2532646776185202",
+      "LF": 116,
+      "CRLF": 0
+    },
+    "headless-malformed-5": {
+      "bytes": 4235,
+      "sha256": "f4491ab716de9186d8ec608d7cc07f8124d0c58006fe16dde2b20c12b1139d52",
+      "LF": 116,
+      "CRLF": 0
+    },
+    "headless-malformed-6": {
+      "bytes": 4179,
+      "sha256": "0f67c063739933af7a1093b8b7e81361446223a95b00be6cf0b5fca14c4f6cd2",
+      "LF": 116,
+      "CRLF": 0
+    }
+  },
+  "oracle_runs": 2,
+  "oracle_differences": 0,
+  "specification": {
+    "scene": "Full native (fixed text, ordered problems) and second lint result; native does not return fixes",
+    "runtime": "Exact native action/request/result/cursor/report envelopes and errors; game envelope excludes synthetic result token",
+    "headless": "Full native batches/digests, receipts, stale rejection and owned cleanup; simulated processes labelled",
+    "no_project_write": "Compare full source bytes and directories; explicit external-edit cases preserve separate validate before/after",
+    "bindings": "A1 imports canonical targets using real prior dependencies; append15 alias contract belongs to B"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "022-outside",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/022-outside",
+  "note": "actual-old prepare-only: outside",
+  "args": {
+    "path": "res://../main.tscn",
+    "node": "Old"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Сцена защищена текущей политикой доступа"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "wait-anti-stale",
+  "op": "wait",
+  "answer": {
+    "text": "old"
+  },
+  "count": 0,
+  "change_at": 2,
+  "changed_answer": {
+    "text": "new"
+  }
+}

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://main.gd" id="s"]
+[node name="Root" type="Node"]
+script = ExtResource("s")
+[node name="Button" type="Button" parent="."]
+[connection signal="pressed" from="Button" to="." method="_on_button_pressed"]

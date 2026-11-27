@@ -1,0 +1,29 @@
+{
+  "id": "mirror-busy-consumes-sequence",
+  "kind": "mirror",
+  "native_case_source": "test_v88_11_live_input.py:callback/seq/busy/error cases; new sequences",
+  "steps": [
+    {
+      "seq": 1,
+      "text": "a",
+      "settings": {
+        "busy": true
+      }
+    },
+    {
+      "seq": 1,
+      "text": "a"
+    },
+    {
+      "seq": 2,
+      "text": "b"
+    },
+    {
+      "seq": 3,
+      "text": "c",
+      "settings": {
+        "busy_error": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "select_session",
+    "args": [
+      {
+        "sessions": [
+          {
+            "session_id": 3,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true
+          },
+          {
+            "session_id": 3,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true
+          }
+        ]
+      },
+      3
+    ],
+    "kwargs": {},
+    "id": "context-028"
+  },
+  "expect": {
+    "session_id": 3,
+    "run_id": "synthetic-run",
+    "active": true,
+    "breaked": false,
+    "debuggable": false,
+    "bridge_ready": true,
+    "capabilities": []
+  },
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "select_session",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

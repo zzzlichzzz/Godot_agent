@@ -1,0 +1,642 @@
+{
+  "schema_version": 1,
+  "module": "editing.file_refactor",
+  "captured_at": "2026-11-02",
+  "reference": {
+    "file": "python/godot_tools/file_refactor.py",
+    "sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8"
+  },
+  "decisions": "D1-D10; internal contributor, no public ToolSpec",
+  "case_directory": "cases",
+  "format": "lossless prepare oracle; fixtures encoded as bytes_b64",
+  "capture_script_sha256": "3acaf5ba0515c4dc41d836bb024f312eeab9f18d6a4cc0829c9ec0028c77dd84",
+  "safety_cases": [
+    {
+      "file": "cases/safety-create-receipt-gap.json",
+      "sha256": "da785beb823d13b7efddd7dbe0d18ca21c8e27b228a336e3e44ec3f413cb1f12",
+      "oracle": "our safety behaviour, not native parity"
+    }
+  ],
+  "sync_cases": [
+    {"id": "sync-binary-no-refs", "file": "cases/sync-binary-no-refs.json", "sha256": "2fb6ea3e2ee4a8854f002f781b122e105b0e3e49e3b996bf4577d4f0bf69565f", "native_raw_file": "native/sync-binary-no-refs.json", "native_raw_sha256": "51571ce2b1697a7c9023ad5fb348dc0c2ca0d70423d3312a4f25c6d6e78258af"},
+    {"id": "sync-directory-case", "file": "cases/sync-directory-case.json", "sha256": "f3df0ed5e0cecc683ebb03fc7fd4ce4967780f39b08e794007167d852d578a48", "native_raw_file": "native/sync-directory-case.json", "native_raw_sha256": "0b608a34d53987e8a82de8a7a24c6fc30d2a8740a5855472adf8cb584b2c8a53"},
+    {"id": "sync-directory", "file": "cases/sync-directory.json", "sha256": "21025897590f7ad5f89f4ece024397ded745cb4c92406800f1f8e9d4aab3cf54", "native_raw_file": "native/sync-directory.json", "native_raw_sha256": "a67738320ca75101d52b72885f20b034496e4f4e62125030bdf583fe30f08c84"},
+    {"id": "sync-empty-directory", "file": "cases/sync-empty-directory.json", "sha256": "05a90d49795a917bc7a14c147a47345368a0b635e5a996af7ca89e4bff1ec2a9", "native_raw_file": "native/sync-empty-directory.json", "native_raw_sha256": "0f0fa9248925ab3cdfbb2e88f8a3e1720033bd801dbc752f5e02100b02fab3c6"},
+    {"id": "sync-import-left", "file": "cases/sync-import-left.json", "sha256": "d490557d7e2a65e549c37a4c6ce5773f06588ccec506af48a9a5cac60af7990b", "native_raw_file": "native/sync-import-left.json", "native_raw_sha256": "55507a402abf59597c25015f39f150a797b8b7ed6397a14855346f38dc12b6ec"},
+    {"id": "sync-import-moved", "file": "cases/sync-import-moved.json", "sha256": "e9c3b718c5cf56e58fa2426b4b5d6833eb10ef85e7a8bcbca5e4fd6a850a113c", "native_raw_file": "native/sync-import-moved.json", "native_raw_sha256": "d134ed128728d09c540907acaadc4ebeca23cee6afcd8567550ad532cf728767"},
+    {"id": "sync-internal", "file": "cases/sync-internal.json", "sha256": "230661ffbab87c8c3cdfa524b80f5b1c57f72ff6ada86affda01e9e63e554a20", "native_raw_file": "native/sync-internal.json", "native_raw_sha256": "0e14937e7c92962110836badd66d345e24f11aac035691e536fce29be93dc6a2"},
+    {"id": "sync-leaf-case", "file": "cases/sync-leaf-case.json", "sha256": "92b94de2a4277e982ebec19e0e26b3a16d47a0ef8a6c5cf3de00902867f032f3", "native_raw_file": "native/sync-leaf-case.json", "native_raw_sha256": "44dbc90ac0e4fbb1fb99102514eae7fc72aed7e71fa799e02ef7e8d755750106"},
+    {"id": "sync-lint-skip", "file": "cases/sync-lint-skip.json", "sha256": "3de9d0eb9c6f91503d067ea4f2b4d1ebdc946f46d590275786cc4308af9deb4d", "native_raw_file": "native/sync-lint-skip.json", "native_raw_sha256": "ce731e9a2727c90daac9b7a5982b9e84a9789bf39b76a2bb98f1f6c82fa8959e"},
+    {"id": "sync-same", "file": "cases/sync-same.json", "sha256": "a05c67a79154fba04a44a682bfd0d442f399d60bd5f1f121e0cff0341fcd52de", "native_raw_file": "native/sync-same.json", "native_raw_sha256": "520bded181e6cb7bda7c7e7f3ab8f42c966911f2b2cae6ca3dca3c5987e8a379"},
+    {"id": "sync-single-uid-left", "file": "cases/sync-single-uid-left.json", "sha256": "556f96c5d7dc0a8187a189e9072300f469b1b4c9d968bf47e04fb04d37489c63", "native_raw_file": "native/sync-single-uid-left.json", "native_raw_sha256": "392689263fdb195659626a3a3d72cb6e6bd39164947053ef92df08c5f0ef3d4a"},
+    {"id": "sync-single-uid-moved", "file": "cases/sync-single-uid-moved.json", "sha256": "069021939c1b3743d0c5226e29c78f5840d8db59b42e1a9abb39c8a1b68ab33a", "native_raw_file": "native/sync-single-uid-moved.json", "native_raw_sha256": "d2770cf38152dd81cd957cd52502e1528a5a8a815e9e40c5aaae572c9f63cfec"}
+  ],
+  "cases": [
+    {
+      "id": "q1-raw-prepare",
+      "file": "cases/q1-raw-prepare.json",
+      "sha256": "44b89972dc9e7ff8637c59da8abe2a94bf5228e1170fb32f1607c23f712f3883",
+      "native_raw_file": "native/q1-raw-prepare.json",
+      "native_raw_sha256": "91ad1b21166ab66fd49a3f310a411fc6f32485f8645664f9264590507232d1ea",
+      "native_original_raw_sha256": "381c2e804dd5140612d3dd01bcbe3d78cac3b9c6bb825007eeaebb6fb2977f94",
+      "fixture_sha256": {
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "src/item.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "src/item.bin.uid": "613ec758440319486c174a30016a4295b4b20e3f228d806bdbe6173bd8306e4a"
+      }
+    },
+    {
+      "id": "q1-source-missing-prepare",
+      "file": "cases/q1-source-missing-prepare.json",
+      "sha256": "b4624f2871888a56c0841810d4efd44d6989436a59bcc70025de8254652556c9",
+      "native_raw_file": "native/q1-source-missing-prepare.json",
+      "native_raw_sha256": "fcd7edc7bde26662e5f5061f892c2079205fa4b8e54b91081f2f049d48dc8b50",
+      "native_original_raw_sha256": "5c7b36377ba7417e1fc32b91f67c8abc5538f01567e5e3137118c4d892a39b3e",
+      "fixture_sha256": {
+        "item.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "ref.gd": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6"
+      }
+    },
+    {
+      "id": "q1-source-changed-prepare",
+      "file": "cases/q1-source-changed-prepare.json",
+      "sha256": "d29df37e622ee5e2a7f13600ca1983541244d29fee669e2d214a71c4d81ee41a",
+      "native_raw_file": "native/q1-source-changed-prepare.json",
+      "native_raw_sha256": "20bbffb8bf73a3589e07ea85459ceccb6901fc7b0eab70c2047a3d09c3ab081c",
+      "native_original_raw_sha256": "54ccc621c4de1a0e6e1581d73c04a26611c31461bda3297134468e5309559031",
+      "fixture_sha256": {
+        "item.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "ref.gd": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6"
+      }
+    },
+    {
+      "id": "q1-destination-prepare",
+      "file": "cases/q1-destination-prepare.json",
+      "sha256": "e397dc2d4f8375e4e98b557a0e7c5d753aa87b642acc1aa182d891a1289d5e56",
+      "native_raw_file": "native/q1-destination-prepare.json",
+      "native_raw_sha256": "a7c1e3d4bc5d5917cb0db9d5ac022003770715eb87a38e8f0e997d6ad0570ebe",
+      "native_original_raw_sha256": "307bbdf45763b18ba401161d5fc107a500eb757faca79e538d53eed7c29bae78",
+      "fixture_sha256": {
+        "item.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "ref.gd": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6"
+      }
+    },
+    {
+      "id": "q1-reference-missing-prepare",
+      "file": "cases/q1-reference-missing-prepare.json",
+      "sha256": "10e49651667cedc27ab4bafd8b99f9ad79cc00cea589c2c882dae87e7c49945e",
+      "native_raw_file": "native/q1-reference-missing-prepare.json",
+      "native_raw_sha256": "2f85b6837ea4f032c84f0b5812428c81b732fe517e6763e27c68fe4312b99144",
+      "native_original_raw_sha256": "dd7da2b014490b38ddefe357fd10037783d8c1afe8b0977d4a262357804a9436",
+      "fixture_sha256": {
+        "item.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "ref.gd": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6"
+      }
+    },
+    {
+      "id": "q1-reference-changed-prepare",
+      "file": "cases/q1-reference-changed-prepare.json",
+      "sha256": "8bfa87217f00ab84a20d05a44173da8a919ce051b28f3aa0b14185f7c7c23f64",
+      "native_raw_file": "native/q1-reference-changed-prepare.json",
+      "native_raw_sha256": "389419f94d04ee0314c7d0df3268ca6ec613255f3fff34749b6fea03ed0616d3",
+      "native_original_raw_sha256": "47ad7bf207ee0faba39484e1b01984f6753a90a9b3888f719ccb6467fb591299",
+      "fixture_sha256": {
+        "item.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "ref.gd": "cc1d130886aaee07f2b0ab0706663e502c9247bbac2e6ab9c050dec7f20e56f6"
+      }
+    },
+    {
+      "id": "q1-compensation-prepare",
+      "file": "cases/q1-compensation-prepare.json",
+      "sha256": "b9c2310d19d8fe93ea9089ef2b30ff0d61aa11126521b599fb08d67cdebf0244",
+      "native_raw_file": "native/q1-compensation-prepare.json",
+      "native_raw_sha256": "f165eb49bfb37f03c5ab82ae978520ddcd0c742f14611b5bdf6e33c8a1fc6d7d",
+      "native_original_raw_sha256": "392e09b997d021ec93daa4d791ca31226e44b08b1f9b00cb005542fc6dfa56b6",
+      "fixture_sha256": {
+        "item.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "item.bin.uid": "4be879dfbce5d2057c25377690aafe696ae2751bfc4fe807f283b6d180729b6c",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q2-leaf-prepare",
+      "file": "cases/q2-leaf-prepare.json",
+      "sha256": "fab21cf3e93c7911c36511816ad7e9b623e4a3829be36f01a0f20f75f491524a",
+      "native_raw_file": "native/q2-leaf-prepare.json",
+      "native_raw_sha256": "7485c05f41f7a0e6d160d05f224cbc56182185275e10bf6a77b0032c97fbc68a",
+      "native_original_raw_sha256": "160d3876a436d6617abb4a0566d119d7609d70f7721d76415cda82dce9e031b6",
+      "fixture_sha256": {
+        "chars/hero.gd": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "chars/hero.gd.uid": "3d7caf15d41a80f6ba85cf33aad19dcc8006a94d95a3ddc7eea6cca2edf85588",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q2-parent-prepare",
+      "file": "cases/q2-parent-prepare.json",
+      "sha256": "d2d42cad31539c8fc9bd47bfd030aa2cd1e9c56f2d31a4e6b959d0c7a63198c1",
+      "native_raw_file": "native/q2-parent-prepare.json",
+      "native_raw_sha256": "0d6fb6e0365e91bbf60db5029788e199a8ae96aab3336f00edd75581faa4f930",
+      "native_original_raw_sha256": "b1444d033d7b4df0c7511d876468c81b0a80410812858a5d1105f0418ee826c4",
+      "fixture_sha256": {
+        "chars/hero.gd": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "chars/hero.gd.uid": "3d7caf15d41a80f6ba85cf33aad19dcc8006a94d95a3ddc7eea6cca2edf85588",
+        "chars/other.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q2-directory-prepare",
+      "file": "cases/q2-directory-prepare.json",
+      "sha256": "64c09ab76199012d3d259423f2a86ff03006b341cf19d81f8296314484d2dd7b",
+      "native_raw_file": "native/q2-directory-prepare.json",
+      "native_raw_sha256": "61b2846e5bc1599bb0d723f9354e28af09279e87c8d8c49057ce4f2d17db102c",
+      "native_original_raw_sha256": "ced652ed71e3bd384f30e26e31ec3980b3dfa638e8229cc29241eeef13301fe7",
+      "fixture_sha256": {
+        "chars/.godot/cache.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "chars/hero.gd": "401eda33ee2974585827bd211c5ede699b1169ee416cb360f83f7ecea5b99f5e",
+        "chars/hero.gd.uid": "3d7caf15d41a80f6ba85cf33aad19dcc8006a94d95a3ddc7eea6cca2edf85588",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-auto-prepare",
+      "file": "cases/q3-auto-prepare.json",
+      "sha256": "6e7c3f100c3a5406c357c9726888cf99fad08a5d9cad7a8bb6b86a37d68a8ae3",
+      "native_raw_file": "native/q3-auto-prepare.json",
+      "native_raw_sha256": "ce8b81ff7336dbb38c82e5137ec46d7e61bfba7249d8f0358fda178a21fa4035",
+      "native_original_raw_sha256": "ff8d4b39012d88759ec1caf7c4d8cd5c92aa0d3b3c489d7586fc3ed62bbe62bb",
+      "fixture_sha256": {
+        "asset.png": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed",
+        "asset.png.import": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01",
+        "asset.png.uid": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-direct-import",
+      "file": "cases/q3-direct-import.json",
+      "sha256": "056073baeb40c072764f965cff3ff460cd43da8aac42c3906b20cc66c953b7a9",
+      "native_raw_file": "native/q3-direct-import.json",
+      "native_raw_sha256": "fcbcd79b4a06f192bb4edc8227ce2569d0dea3aa8213e14c15f60b11359a6087",
+      "native_original_raw_sha256": "0b549ce218be8d980a71c653e0cda56035eeae314df3c1a4646ebbe5c5dbc3b7",
+      "fixture_sha256": {
+        "asset.png": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed",
+        "asset.png.import": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01",
+        "asset.png.uid": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-collision-import",
+      "file": "cases/q3-collision-import.json",
+      "sha256": "b8a3842390a92fac7550033294729c05148d274e1abc39770968519a898d89f9",
+      "native_raw_file": "native/q3-collision-import.json",
+      "native_raw_sha256": "bf5189b999be0027395425150b671092f242f149b6a3b56276a3cb6f8c5dc0f5",
+      "native_original_raw_sha256": "1a455c8bc34173fd072bfd07de156387652310d69c37f1cbee09e264d33d8971",
+      "fixture_sha256": {
+        "asset.png": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed",
+        "asset.png.import": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01",
+        "asset.png.uid": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076",
+        "new.png.import": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-orphan-import",
+      "file": "cases/q3-orphan-import.json",
+      "sha256": "afc1eaac7dc84c0dba2d5cc215ded0cf657062a3be23ce03da98cfd7fa8a366e",
+      "native_raw_file": "native/q3-orphan-import.json",
+      "native_raw_sha256": "43e1d8c6dff9d9e6d3e9a17b24a9809ff1a18da7d866b7f635146049b7026ee4",
+      "native_original_raw_sha256": "3a387325e1f405bfb4694c3b35cc70f2a7f6423e1e8eb8121d1ef32439f75395",
+      "fixture_sha256": {
+        "orphan.import": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-direct-uid",
+      "file": "cases/q3-direct-uid.json",
+      "sha256": "d011646909a0111d361222c784a303bbe1e0fe5a37f5d967e656a273aa159798",
+      "native_raw_file": "native/q3-direct-uid.json",
+      "native_raw_sha256": "4cc7cd7d0a404cce73abea288467b3a208543b7e15e5daa0eaa8d0bb7cd319d2",
+      "native_original_raw_sha256": "55c3571af8e6191dd72beedb02474a7189575c4262087af04d6d086304f29608",
+      "fixture_sha256": {
+        "asset.png": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed",
+        "asset.png.import": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01",
+        "asset.png.uid": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-collision-uid",
+      "file": "cases/q3-collision-uid.json",
+      "sha256": "ea620a7decf773e7f32e647af1ae93913be2245c9c682fe173e09e6865f98bdc",
+      "native_raw_file": "native/q3-collision-uid.json",
+      "native_raw_sha256": "772f1532b7efd7ce932fc51b8c7ca27f1b7f98d42d44342be266ffb2a73dab12",
+      "native_original_raw_sha256": "bf4d3f5d539787e112ff89c2909bec56bebf08995fecdf1e0ce462e1de330718",
+      "fixture_sha256": {
+        "asset.png": "817fa18dd0a40dcb0dc6f5988ac037b57b9f9273f5066c8b0fe65b3f8aabdaed",
+        "asset.png.import": "a828d8e5c4b1e12655f7207001ff749ba05172610feb5555513fe7683c73df01",
+        "asset.png.uid": "f3e5a721e3bcf126d2d6eab4f410d52813f56ec74628f1c9e73150013f520076",
+        "new.png.uid": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-orphan-uid",
+      "file": "cases/q3-orphan-uid.json",
+      "sha256": "2a562002f86a1ec49d327ae2e40656460d2fc4a6e4c0bfe5515d5064a2449f8b",
+      "native_raw_file": "native/q3-orphan-uid.json",
+      "native_raw_sha256": "ffc62da6db1b03200ed498a8a1daac840429a80be346963ab0aaaaddd8671e9e",
+      "native_original_raw_sha256": "57ea9d179eb720c923dae19b39a04856a1e7dbd57588ca2753af8482d5cdb7ca",
+      "fixture_sha256": {
+        "orphan.uid": "1f70a4a19837985d6b510fb8a6bfb99d2a77877520c09ad7a8963e2ee3e58210",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-target-uid-no-source-uid-prepare",
+      "file": "cases/q3-target-uid-no-source-uid-prepare.json",
+      "sha256": "b30e7c7c960201677ca6ebcf18473efda8d937ea9c615ef1bc06920c5b136f29",
+      "native_raw_file": "native/q3-target-uid-no-source-uid-prepare.json",
+      "native_raw_sha256": "48a2fc7af803310ced0094b2fa942435d5d467dd71e6c2901868b27a0db4a3ed",
+      "native_original_raw_sha256": "f40db6c2eb2990644aa6b3a293444358e28a5c307cc121a0f097314311227c6e",
+      "fixture_sha256": {
+        "asset.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "dest.bin.uid": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q4-directory-prepare",
+      "file": "cases/q4-directory-prepare.json",
+      "sha256": "cd0151e8c13e38e9856432ec0ad501f3edf337c632c912775d0077f056cb77e6",
+      "native_raw_file": "native/q4-directory-prepare.json",
+      "native_raw_sha256": "337104d6f9b2d21e0417dbb50c710a314d8d0fc0294b661e178b308207407262",
+      "native_original_raw_sha256": "e4c74c8e9d1ec5898b1faf06d48ea5ff9166b47fe67e467b418ca6d3fc39656a",
+      "fixture_sha256": {
+        "outside.gd": "48fc2e7fc1a1f4f5d218077163f2980292f442774bcb70155dceb0db7976871d",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "tree/.agent_history/keep.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "tree/.git/keep.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "tree/.godot/keep.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "tree/.import/keep.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "tree/__pycache__/keep.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "tree/a.gd": "860b7a5b65d611bb21c452062c19a143bf609d8aac85ecf77355eed46ce02451",
+        "tree/a.gd.uid": "0c6da54f58570c33ce98c7f4a3ce7e56646f571992b08176cbf3664d74abb9f7",
+        "tree/addons/keep.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "tree/b.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "tree/b.gd.uid": "e53ae69da99369a33ae7ce6c6744598cf4998c514365b56d7323212e724986b5",
+        "tree/data.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "tree/data.bin.import": "0a85db71bce9b5fe0d2317c1df176627980cfe1eb182f33369697dc25a2a18ac",
+        "tree/orphan.uid": "8f6aecf405cf1d74477e7cffc89aede590991295419c67b86de06901416a2f72"
+      }
+    },
+    {
+      "id": "q4-empty",
+      "file": "cases/q4-empty.json",
+      "sha256": "7f97800e867cfba16361a0da1e7ddc11361dafe6b5c94535ec90283e53604a34",
+      "native_raw_file": "native/q4-empty.json",
+      "native_raw_sha256": "a665c4096033f2335ef31d3942edb457a0a42f622078e8365094c3c128e47a33",
+      "native_original_raw_sha256": "605991787341a81f8003dc174a162f12fdbef1249d197f566bdea083c022f99b",
+      "fixture_sha256": {
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q4-uid-only",
+      "file": "cases/q4-uid-only.json",
+      "sha256": "03ff799d827d9ad5a31ca68d95add75db34df52e01673db13988ce24a5cc19c6",
+      "native_raw_file": "native/q4-uid-only.json",
+      "native_raw_sha256": "2bb8b7bf9b9020bd7bc50fdf2a7697801dd297f2a8aebb9a0fad7dfaad9785b2",
+      "native_original_raw_sha256": "8b4aca001d8f4b5fa53cec169d8803f2830e900da095175206fd4fc515586368",
+      "fixture_sha256": {
+        "empty/only.uid": "4be879dfbce5d2057c25377690aafe696ae2751bfc4fe807f283b6d180729b6c",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q4-import-only",
+      "file": "cases/q4-import-only.json",
+      "sha256": "58e189ebd1b39e0f06314a50ff2bf791fb64746a70b222943a0fa8ac549d1b45",
+      "native_raw_file": "native/q4-import-only.json",
+      "native_raw_sha256": "72186b3cd622f95d3f994f7ab2a4a78df6f65b7f999927d2ee49e44ec3347a03",
+      "native_original_raw_sha256": "2c57c50341cb14c06d0329091a87d3b126e573f042cb257901012555d928c95c",
+      "fixture_sha256": {
+        "empty/only.import": "14a48c208c8eea7e3bfad53228483748d77454eb2c714dad0ae234e44806d4f5",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q5-reference-prepare",
+      "file": "cases/q5-reference-prepare.json",
+      "sha256": "c68fcfd3d0ef3eebfdf282185c2aa0b5094102936d9642110558846ee538ff43",
+      "native_raw_file": "native/q5-reference-prepare.json",
+      "native_raw_sha256": "c66aa92f8052275b5df53c166b4c0d85135a836ec7182806c6d3a93c84083c3f",
+      "native_original_raw_sha256": "b5901fb1afdc86e5384ad1f50c072d2333b9e25d03da1c0821097d84964e6405",
+      "fixture_sha256": {
+        "base.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "ext/ref.bin": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.cfg": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.GD": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.gdshader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.gdshaderinc": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.import": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.json": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.py": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.shader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.tres": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.tscn": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4",
+        "ext/ref.txt": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.uid": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "project.godot": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395",
+        "ref.gd": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460",
+        "src/item.gd": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+        "src/weapon.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "texture.tres": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+      }
+    },
+    {
+      "id": "q5-reference-off-prepare",
+      "file": "cases/q5-reference-off-prepare.json",
+      "sha256": "1b011c05855566c84e1983c92dd62dc361f75b907d7ae502d2d2e467365d17c0",
+      "native_raw_file": "native/q5-reference-off-prepare.json",
+      "native_raw_sha256": "fd9c45aa97f26e32e73f1430961cfed680b7499b9f85e6a281c3cd227530a669",
+      "native_original_raw_sha256": "a2a40d76802d388b845891ac069a691777c0629446f7fe60f359d8c44498aee1",
+      "fixture_sha256": {
+        "base.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "ext/ref.bin": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.cfg": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.GD": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.gdshader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.gdshaderinc": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.import": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.json": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.py": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.shader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.tres": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.tscn": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4",
+        "ext/ref.txt": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.uid": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "project.godot": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395",
+        "ref.gd": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460",
+        "src/item.gd": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+        "src/weapon.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "texture.tres": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+      }
+    },
+    {
+      "id": "q6-project",
+      "file": "cases/q6-project.json",
+      "sha256": "7966288e0c81f942f7918715c80f8ccb1fdc6f20890ab6c57e40d148fd3df483",
+      "native_raw_file": "native/q6-project.json",
+      "native_raw_sha256": "adfac950599e136b1875cc3895a10ddce4544adcc45ef35b08f6dc4b6729c49f",
+      "native_original_raw_sha256": "7382b876e59614df0044bc9884657c06864c88df9ba7320bdd85ef39f25969d7",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-plugin",
+      "file": "cases/q6-plugin.json",
+      "sha256": "bccb180aad11f30ec33c22c6169fd9cfcc76ca0152c007eada77e2fe0bbc27d4",
+      "native_raw_file": "native/q6-plugin.json",
+      "native_raw_sha256": "4b31a522bf327aecd7eea524c3d2383e729102e7aa652da3196e3bc2e38b5f27",
+      "native_original_raw_sha256": "4630b321d898dac33b18b26c3d90bbfbd1431712af2f27f690be824a67d49401",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-addons",
+      "file": "cases/q6-addons.json",
+      "sha256": "9bb7bb5f4104891f421f290e28f03033c40f9fd8de50ecbcce16df202292f11a",
+      "native_raw_file": "native/q6-addons.json",
+      "native_raw_sha256": "534d50ae4de885953cb89ac251a4e2cc48d670ac5f3a9006021d77f5a05abb4a",
+      "native_original_raw_sha256": "bce1997525eff90c582511ccd9c43541b52d23e04962d66dce9a73d89b5eb2c2",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-dest-addons",
+      "file": "cases/q6-dest-addons.json",
+      "sha256": "d1bdd782286554fe73afe1701941ccffdd7fc7a7c4122ec3829443be6937f422",
+      "native_raw_file": "native/q6-dest-addons.json",
+      "native_raw_sha256": "5cb896d2962976a11096d576dd9ddda795e1d0cd968f5f28b66b8f05ea5a6406",
+      "native_original_raw_sha256": "5cf133277800c904788817c82fdefee0c7f2dff2b1a2339c3bb64202a9bf73b2",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-same",
+      "file": "cases/q6-same.json",
+      "sha256": "96a202dbb590459ccf079a48c4a960c1bdccc173c9f65a0374768fd15d221ae1",
+      "native_raw_file": "native/q6-same.json",
+      "native_raw_sha256": "803fd53425a1a73868b3f3c0c7efed52713243741942b76c2402c8ac612ba675",
+      "native_original_raw_sha256": "6bfc19ca7879b87aff44d76db44f9da5736a4f2d251db3553e9210a757ba250d",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-missing",
+      "file": "cases/q6-missing.json",
+      "sha256": "69bcfcc1038c5dd67cd68f804811bdefc1d02d8eb1baf70aa600d6099a24a796",
+      "native_raw_file": "native/q6-missing.json",
+      "native_raw_sha256": "3dc0a6ce99870883ea294cc4d598aee7ec8e7735577f120297cd7880546be1eb",
+      "native_original_raw_sha256": "f9886edbde84ba161755385d046df676745b7bbd1bfd65767e05d7abdd876b10",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-outside",
+      "file": "cases/q6-outside.json",
+      "sha256": "aeb172b2821ec7093feacd9389279dad05da3c09e2290a38ba2e72a4a8447722",
+      "native_raw_file": "native/q6-outside.json",
+      "native_raw_sha256": "ab4cd169f931b1620295f3d16ef72ba3b57892d2019deeecde353333066bfa26",
+      "native_original_raw_sha256": "5c00a7470b90de62b5702b198d49a9641d1794791cb45a73ef015963c838137b",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-bad-prefix",
+      "file": "cases/q6-bad-prefix.json",
+      "sha256": "54cefda953becd769b9aba13a8c1720544ed5e87e6c3105989e94cee4ca54930",
+      "native_raw_file": "native/q6-bad-prefix.json",
+      "native_raw_sha256": "8ab6a2ab5965a3e4c3528e4b71afa373478c47b1bc19a478c44c30d88a27dac2",
+      "native_original_raw_sha256": "4e0c78fb15486370b03d298f1641ad5208c0f85274293b23d2a464031bed84c1",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-agent-tree",
+      "file": "cases/q6-agent-tree.json",
+      "sha256": "0f7c49af806b210ef4fd3b0d4ff1885274057747cfc49227fe00663d47097972",
+      "native_raw_file": "native/q6-agent-tree.json",
+      "native_raw_sha256": "0303c3740b614480577273ef2a3d4aa9c126aa09e64d07574a561f72f7a0e281",
+      "native_original_raw_sha256": "03e6214fb93a1a70e22eae4140cf887f7386401a6a1030c78cc86d7298cb0f17",
+      "fixture_sha256": {
+        "a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/foreign/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/a.bin": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "addons/godot_agent/plugin.cfg": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0",
+        "plugin.cfg": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-native-uppercase-addons",
+      "file": "cases/q6-native-uppercase-addons.json",
+      "sha256": "73ca0da3c5f1adfd9b4456f85b6c28b7a2223e6c0fff11758c040abd503d5009",
+      "native_raw_file": "native/q6-native-uppercase-addons.json",
+      "native_raw_sha256": "6be4cc27dae4ebb2983e7c36bbaeeab617400b494097fee59ef83bf4e69e4098",
+      "native_original_raw_sha256": "54eb7b2855bef62a9a21eae65243b3d05faf1a443e5db86946e81707a7bed75e",
+      "fixture_sha256": {
+        "a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/foreign/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/godot_agent/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "occupied.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-occupied-before-policy",
+      "file": "cases/q6-occupied-before-policy.json",
+      "sha256": "d43f27afa02ff5f11d1aef79a6cc20662ceead61eb2546f59ea734919145ce66",
+      "native_raw_file": "native/q6-occupied-before-policy.json",
+      "native_raw_sha256": "5d4747643cbf9f529e62a169ec6d039eb9a7f0231e424914d8f393100ba75cf8",
+      "native_original_raw_sha256": "5b6e641a503da436d4b9e242852a3258b3ca88e8ff39c63dba22d57eb03fc050",
+      "fixture_sha256": {
+        "a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/foreign/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/godot_agent/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "occupied.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-missing-before-policy",
+      "file": "cases/q6-missing-before-policy.json",
+      "sha256": "bbec7f863d73ea8e9a9afd92d6631d2d74ec6f187e48ee75a5a4c88f91dfc0e4",
+      "native_raw_file": "native/q6-missing-before-policy.json",
+      "native_raw_sha256": "c146e17dfe1f4cc99d3bfe2b89d9c3ec53889fbbe1d621d9047cd42bdd7f6966",
+      "native_original_raw_sha256": "70dbb5c403d828f57cf81ecd56c29a50b65cfb3f4f34bff468658493bcbd93d8",
+      "fixture_sha256": {
+        "a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/foreign/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/godot_agent/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "occupied.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q6-addon-flag-no-trusted-root",
+      "file": "cases/q6-addon-flag-no-trusted-root.json",
+      "sha256": "eac1166d1242faaf52b735aeceb08776d417cd9ca4e1e64e1c176260ccadd003",
+      "native_raw_file": "native/q6-addon-flag-no-trusted-root.json",
+      "native_raw_sha256": "20d7ac83f18d13b2faa18a7f014c25019c1d5635e9aa2af3b76b7b6aa2632737",
+      "native_original_raw_sha256": "81eadf45f4fb62bc0d9ccf21662f3b394210a4d19474499361aae85089e4ddb0",
+      "fixture_sha256": {
+        "a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/foreign/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "addons/godot_agent/a.bin": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+        "occupied.bin": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    {
+      "id": "q3-tscn-companion-script-info",
+      "file": "cases/q3-tscn-companion-script-info.json",
+      "sha256": "7e021a33d60de521328601b9c15d99428bdcc2eaaf708fa4100e426da5f9842b",
+      "native_raw_file": "native/q3-tscn-companion-script-info.json",
+      "native_raw_sha256": "415f68076db865a01153fde6738f2454a6136490c2bd09fb08eed0b57c6d6f6f",
+      "native_original_raw_sha256": "7d79c2bd9eda5d0353407ba653b877efb350a2493bd1c999105f5145f6a9d224",
+      "fixture_sha256": {
+        "old.tscn": "d3321d3399c4cfa346600add7fa00d6f035a5c5cbc3c9727df8e9afbecb93f71",
+        "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+        "relative.tres": "750229f796e6fb585c66f560d649f4a6abdf92eeeae273dc49d25f72f50cd6d6",
+        "script.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      }
+    },
+    {
+      "id": "q5-reference-actual-prepare",
+      "file": "cases/q5-reference-actual-prepare.json",
+      "sha256": "60914e69d0fd6ef188f8cfc52f324ec6dbe756d57a91b8a3bb09f4267eeecc55",
+      "native_raw_file": "native/q5-reference-actual-prepare.json",
+      "native_raw_sha256": "3136da24f82936ed963716c1d03f201d8e605c4e12f5cded4206ee338ffa6523",
+      "native_original_raw_sha256": "c123750b264688dd50a6c038564d88f811dc705971a22fcbbe59b704ae403cbc",
+      "fixture_sha256": {
+        "base.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "ext/ref.bin": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.cfg": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.GD": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.gdshader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.gdshaderinc": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.import": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.json": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.py": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.shader": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.tres": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.tscn": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4",
+        "ext/ref.txt": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "ext/ref.uid": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d",
+        "project.godot": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395",
+        "ref.gd": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460",
+        "src/item.gd": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+        "src/weapon.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "texture.tres": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+      }
+    }
+  ]
+}

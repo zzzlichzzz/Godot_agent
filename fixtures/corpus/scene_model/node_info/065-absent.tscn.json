@@ -1,0 +1,15 @@
+{
+  "id": "065-absent.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "absent.tscn: '.'",
+  "args": {
+    "path": "res://scenes/absent.tscn",
+    "node": "."
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл сцены не найден: res://scenes/absent.tscn"
+  }
+}

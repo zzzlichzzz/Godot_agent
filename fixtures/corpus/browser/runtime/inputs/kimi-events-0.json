@@ -1,0 +1,25 @@
+{
+  "id": "kimi-events-0",
+  "op": "kimi",
+  "events": [
+    {
+      "op": "set",
+      "block": {
+        "id": "1",
+        "text": {
+          "content": "\u041f\u0440\u0438"
+        }
+      }
+    },
+    {
+      "op": "append",
+      "block": {
+        "id": "1",
+        "text": {
+          "content": "\u0432\u0435\u0442 \ud83e\udd94"
+        }
+      }
+    }
+  ],
+  "reset": false
+}

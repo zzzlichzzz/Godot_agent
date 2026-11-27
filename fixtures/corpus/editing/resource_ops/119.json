@@ -1,0 +1,31 @@
+{
+  "id": "expanded-op2-missing-keys",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "animation_add_value_track",
+        "path": "Node:position"
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: keys",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "2a7212e8ff43ee4ebc8e6b9cabd61bae3ca1d0225611afe66b1a77ff9a551755"
+}

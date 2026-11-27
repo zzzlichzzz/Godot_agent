@@ -1,0 +1,2379 @@
+{
+  "before": {
+    "files": {
+      "notes.txt": {
+        "base64": "cmVhZC1vbmx5IGZpeHR1cmUNCg=="
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJKMSBBMiIKcnVuL21haW5fc2NlbmU9InJlczovL3NjZW5lLnRzY24iCg=="
+      },
+      "scene.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NjcmlwdHMvcGxheWVyLmdkIiBpZD0iMSJdCltub2RlIG5hbWU9IlBsYXllciIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iRmlyZUJ1dHRvbiIgdHlwZT0iQnV0dG9uIiBwYXJlbnQ9Ii4iXQpbbm9kZSBuYW1lPSJUaW1lciIgdHlwZT0iVGltZXIiIHBhcmVudD0iLiJdCg=="
+      },
+      ".godot/ignored.gd": {
+        "base64": "Y29uc3QgUCA9IHByZWxvYWQoInJlczovL3NjcmlwdHMvcGxheWVyLmdkIikK"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iQTIgb3duZWQgZml4dHVyZSIK"
+      },
+      "addons/godot_agent/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/icon.png.import": {
+        "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "scripts/helper.gd": {
+        "base64": "ZXh0ZW5kcyBSZWZDb3VudGVkCg=="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBocCA9IDEwCmZ1bmMgX3JlYWR5KCk6CglwYXNzCg=="
+      },
+      "scripts/player.gd.uid": {
+        "base64": "dWlkOi8vajFhMmZpeHR1cmUK"
+      },
+      "scripts/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCIuL3BsYXllci5nZCIpCmNvbnN0IFEgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      }
+    },
+    "dirs": [
+      ".godot",
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "scripts"
+    ]
+  },
+  "result": {
+    "normalized": {
+      "action": "transaction",
+      "operations": [
+        {
+          "action": "create_file",
+          "path": "res://file0.txt",
+          "content": "0"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file1.txt",
+          "content": "1"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file2.txt",
+          "content": "2"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file3.txt",
+          "content": "3"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file4.txt",
+          "content": "4"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file5.txt",
+          "content": "5"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file6.txt",
+          "content": "6"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file7.txt",
+          "content": "7"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file8.txt",
+          "content": "8"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file9.txt",
+          "content": "9"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file10.txt",
+          "content": "10"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file11.txt",
+          "content": "11"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file12.txt",
+          "content": "12"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file13.txt",
+          "content": "13"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file14.txt",
+          "content": "14"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file15.txt",
+          "content": "15"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file16.txt",
+          "content": "16"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file17.txt",
+          "content": "17"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file18.txt",
+          "content": "18"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file19.txt",
+          "content": "19"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file20.txt",
+          "content": "20"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file21.txt",
+          "content": "21"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file22.txt",
+          "content": "22"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file23.txt",
+          "content": "23"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file24.txt",
+          "content": "24"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file25.txt",
+          "content": "25"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file26.txt",
+          "content": "26"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file27.txt",
+          "content": "27"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file28.txt",
+          "content": "28"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file29.txt",
+          "content": "29"
+        }
+      ],
+      "checks": [],
+      "summary": ""
+    },
+    "normalized_again": {
+      "action": "transaction",
+      "operations": [
+        {
+          "action": "create_file",
+          "path": "res://file0.txt",
+          "content": "0"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file1.txt",
+          "content": "1"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file2.txt",
+          "content": "2"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file3.txt",
+          "content": "3"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file4.txt",
+          "content": "4"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file5.txt",
+          "content": "5"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file6.txt",
+          "content": "6"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file7.txt",
+          "content": "7"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file8.txt",
+          "content": "8"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file9.txt",
+          "content": "9"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file10.txt",
+          "content": "10"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file11.txt",
+          "content": "11"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file12.txt",
+          "content": "12"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file13.txt",
+          "content": "13"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file14.txt",
+          "content": "14"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file15.txt",
+          "content": "15"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file16.txt",
+          "content": "16"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file17.txt",
+          "content": "17"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file18.txt",
+          "content": "18"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file19.txt",
+          "content": "19"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file20.txt",
+          "content": "20"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file21.txt",
+          "content": "21"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file22.txt",
+          "content": "22"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file23.txt",
+          "content": "23"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file24.txt",
+          "content": "24"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file25.txt",
+          "content": "25"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file26.txt",
+          "content": "26"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file27.txt",
+          "content": "27"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file28.txt",
+          "content": "28"
+        },
+        {
+          "action": "create_file",
+          "path": "res://file29.txt",
+          "content": "29"
+        }
+      ],
+      "checks": [],
+      "summary": ""
+    },
+    "prepared": {
+      "transaction_id": "<transaction_id:uuid4hex>",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://file0.txt",
+            "content": "0"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file1.txt",
+            "content": "1"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file2.txt",
+            "content": "2"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file3.txt",
+            "content": "3"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file4.txt",
+            "content": "4"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file5.txt",
+            "content": "5"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file6.txt",
+            "content": "6"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file7.txt",
+            "content": "7"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file8.txt",
+            "content": "8"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file9.txt",
+            "content": "9"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file10.txt",
+            "content": "10"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file11.txt",
+            "content": "11"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file12.txt",
+            "content": "12"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file13.txt",
+            "content": "13"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file14.txt",
+            "content": "14"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file15.txt",
+            "content": "15"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file16.txt",
+            "content": "16"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file17.txt",
+            "content": "17"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file18.txt",
+            "content": "18"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file19.txt",
+            "content": "19"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file20.txt",
+            "content": "20"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file21.txt",
+            "content": "21"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file22.txt",
+            "content": "22"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file23.txt",
+            "content": "23"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file24.txt",
+            "content": "24"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file25.txt",
+            "content": "25"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file26.txt",
+            "content": "26"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file27.txt",
+            "content": "27"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file28.txt",
+            "content": "28"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file29.txt",
+            "content": "29"
+          }
+        ],
+        "checks": [],
+        "summary": ""
+      },
+      "files": [
+        {
+          "path": "res://file0.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MA=="
+          },
+          "before_hash": null,
+          "after_hash": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+        },
+        {
+          "path": "res://file1.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MQ=="
+          },
+          "before_hash": null,
+          "after_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        },
+        {
+          "path": "res://file10.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTA="
+          },
+          "before_hash": null,
+          "after_hash": "4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5"
+        },
+        {
+          "path": "res://file11.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTE="
+          },
+          "before_hash": null,
+          "after_hash": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8"
+        },
+        {
+          "path": "res://file12.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTI="
+          },
+          "before_hash": null,
+          "after_hash": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918"
+        },
+        {
+          "path": "res://file13.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTM="
+          },
+          "before_hash": null,
+          "after_hash": "3fdba35f04dc8c462986c992bcf875546257113072a909c162f7e470e581e278"
+        },
+        {
+          "path": "res://file14.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTQ="
+          },
+          "before_hash": null,
+          "after_hash": "8527a891e224136950ff32ca212b45bc93f69fbb801c3b1ebedac52775f99e61"
+        },
+        {
+          "path": "res://file15.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTU="
+          },
+          "before_hash": null,
+          "after_hash": "e629fa6598d732768f7c726b4b621285f9c3b85303900aa912017db7617d8bdb"
+        },
+        {
+          "path": "res://file16.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTY="
+          },
+          "before_hash": null,
+          "after_hash": "b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9"
+        },
+        {
+          "path": "res://file17.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTc="
+          },
+          "before_hash": null,
+          "after_hash": "4523540f1504cd17100c4835e85b7eefd49911580f8efff0599a8f283be6b9e3"
+        },
+        {
+          "path": "res://file18.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTg="
+          },
+          "before_hash": null,
+          "after_hash": "4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a"
+        },
+        {
+          "path": "res://file19.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTk="
+          },
+          "before_hash": null,
+          "after_hash": "9400f1b21cb527d7fa3d3eabba93557a18ebe7a2ca4e471cfe5e4c5b4ca7f767"
+        },
+        {
+          "path": "res://file2.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mg=="
+          },
+          "before_hash": null,
+          "after_hash": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        },
+        {
+          "path": "res://file20.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjA="
+          },
+          "before_hash": null,
+          "after_hash": "f5ca38f748a1d6eaf726b8a42fb575c3c71f1864a8143301782de13da2d9202b"
+        },
+        {
+          "path": "res://file21.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjE="
+          },
+          "before_hash": null,
+          "after_hash": "6f4b6612125fb3a0daecd2799dfd6c9c299424fd920f9b308110a2c1fbd8f443"
+        },
+        {
+          "path": "res://file22.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjI="
+          },
+          "before_hash": null,
+          "after_hash": "785f3ec7eb32f30b90cd0fcf3657d388b5ff4297f2f9716ff66e9b69c05ddd09"
+        },
+        {
+          "path": "res://file23.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjM="
+          },
+          "before_hash": null,
+          "after_hash": "535fa30d7e25dd8a49f1536779734ec8286108d115da5045d77f3b4185d8f790"
+        },
+        {
+          "path": "res://file24.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjQ="
+          },
+          "before_hash": null,
+          "after_hash": "c2356069e9d1e79ca924378153cfbbfb4d4416b1f99d41a2940bfdb66c5319db"
+        },
+        {
+          "path": "res://file25.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjU="
+          },
+          "before_hash": null,
+          "after_hash": "b7a56873cd771f2c446d369b649430b65a756ba278ff97ec81bb6f55b2e73569"
+        },
+        {
+          "path": "res://file26.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjY="
+          },
+          "before_hash": null,
+          "after_hash": "5f9c4ab08cac7457e9111a30e4664920607ea2c115a1433d7be98e97e64244ca"
+        },
+        {
+          "path": "res://file27.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mjc="
+          },
+          "before_hash": null,
+          "after_hash": "670671cd97404156226e507973f2ab8330d3022ca96e0c93bdbdb320c41adcaf"
+        },
+        {
+          "path": "res://file28.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mjg="
+          },
+          "before_hash": null,
+          "after_hash": "59e19706d51d39f66711c2653cd7eb1291c94d9b55eb14bda74ce4dc636d015a"
+        },
+        {
+          "path": "res://file29.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mjk="
+          },
+          "before_hash": null,
+          "after_hash": "35135aaa6cc23891b40cb3f378c53a17a1127210ce60e125ccf03efcfdaec458"
+        },
+        {
+          "path": "res://file3.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mw=="
+          },
+          "before_hash": null,
+          "after_hash": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+        },
+        {
+          "path": "res://file4.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "NA=="
+          },
+          "before_hash": null,
+          "after_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+        },
+        {
+          "path": "res://file5.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "NQ=="
+          },
+          "before_hash": null,
+          "after_hash": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d"
+        },
+        {
+          "path": "res://file6.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Ng=="
+          },
+          "before_hash": null,
+          "after_hash": "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683"
+        },
+        {
+          "path": "res://file7.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Nw=="
+          },
+          "before_hash": null,
+          "after_hash": "7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451"
+        },
+        {
+          "path": "res://file8.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "OA=="
+          },
+          "before_hash": null,
+          "after_hash": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3"
+        },
+        {
+          "path": "res://file9.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "OQ=="
+          },
+          "before_hash": null,
+          "after_hash": "19581e27de7ced00ff1ce50b2047e7a567c76b1cbaebabe5ef03f7c3017bb5b7"
+        }
+      ],
+      "paths": [
+        "res://file0.txt",
+        "res://file1.txt",
+        "res://file10.txt",
+        "res://file11.txt",
+        "res://file12.txt",
+        "res://file13.txt",
+        "res://file14.txt",
+        "res://file15.txt",
+        "res://file16.txt",
+        "res://file17.txt",
+        "res://file18.txt",
+        "res://file19.txt",
+        "res://file2.txt",
+        "res://file20.txt",
+        "res://file21.txt",
+        "res://file22.txt",
+        "res://file23.txt",
+        "res://file24.txt",
+        "res://file25.txt",
+        "res://file26.txt",
+        "res://file27.txt",
+        "res://file28.txt",
+        "res://file29.txt",
+        "res://file3.txt",
+        "res://file4.txt",
+        "res://file5.txt",
+        "res://file6.txt",
+        "res://file7.txt",
+        "res://file8.txt",
+        "res://file9.txt"
+      ],
+      "batch": {
+        "schema_version": 1,
+        "action_kind": "transaction",
+        "operations": [
+          {
+            "op": "write",
+            "path": "res://file0.txt",
+            "content": {
+              "base64": "MA=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file1.txt",
+            "content": {
+              "base64": "MQ=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file10.txt",
+            "content": {
+              "base64": "MTA="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file11.txt",
+            "content": {
+              "base64": "MTE="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file12.txt",
+            "content": {
+              "base64": "MTI="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file13.txt",
+            "content": {
+              "base64": "MTM="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file14.txt",
+            "content": {
+              "base64": "MTQ="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file15.txt",
+            "content": {
+              "base64": "MTU="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file16.txt",
+            "content": {
+              "base64": "MTY="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file17.txt",
+            "content": {
+              "base64": "MTc="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file18.txt",
+            "content": {
+              "base64": "MTg="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file19.txt",
+            "content": {
+              "base64": "MTk="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file2.txt",
+            "content": {
+              "base64": "Mg=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file20.txt",
+            "content": {
+              "base64": "MjA="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file21.txt",
+            "content": {
+              "base64": "MjE="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file22.txt",
+            "content": {
+              "base64": "MjI="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file23.txt",
+            "content": {
+              "base64": "MjM="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file24.txt",
+            "content": {
+              "base64": "MjQ="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file25.txt",
+            "content": {
+              "base64": "MjU="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file26.txt",
+            "content": {
+              "base64": "MjY="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file27.txt",
+            "content": {
+              "base64": "Mjc="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file28.txt",
+            "content": {
+              "base64": "Mjg="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file29.txt",
+            "content": {
+              "base64": "Mjk="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file3.txt",
+            "content": {
+              "base64": "Mw=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file4.txt",
+            "content": {
+              "base64": "NA=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file5.txt",
+            "content": {
+              "base64": "NQ=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file6.txt",
+            "content": {
+              "base64": "Ng=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file7.txt",
+            "content": {
+              "base64": "Nw=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file8.txt",
+            "content": {
+              "base64": "OA=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file9.txt",
+            "content": {
+              "base64": "OQ=="
+            }
+          }
+        ],
+        "targets": [],
+        "required_targets": [],
+        "source_hashes": {
+          "res://file0.txt": null,
+          "res://file1.txt": null,
+          "res://file10.txt": null,
+          "res://file11.txt": null,
+          "res://file12.txt": null,
+          "res://file13.txt": null,
+          "res://file14.txt": null,
+          "res://file15.txt": null,
+          "res://file16.txt": null,
+          "res://file17.txt": null,
+          "res://file18.txt": null,
+          "res://file19.txt": null,
+          "res://file2.txt": null,
+          "res://file20.txt": null,
+          "res://file21.txt": null,
+          "res://file22.txt": null,
+          "res://file23.txt": null,
+          "res://file24.txt": null,
+          "res://file25.txt": null,
+          "res://file26.txt": null,
+          "res://file27.txt": null,
+          "res://file28.txt": null,
+          "res://file29.txt": null,
+          "res://file3.txt": null,
+          "res://file4.txt": null,
+          "res://file5.txt": null,
+          "res://file6.txt": null,
+          "res://file7.txt": null,
+          "res://file8.txt": null,
+          "res://file9.txt": null
+        },
+        "candidate_digest": "377f98f75457aecd44f6d25c55325abd4830cd49fbf2883bf047cd72bde2af27"
+      },
+      "state": "preview",
+      "already_satisfied": false,
+      "effective_operation_count": 30,
+      "skipped_operation_count": 0
+    },
+    "public": {
+      "action": "transaction",
+      "transaction_id": "<transaction_id:uuid4hex>",
+      "summary": "",
+      "paths": [
+        "res://file0.txt",
+        "res://file1.txt",
+        "res://file10.txt",
+        "res://file11.txt",
+        "res://file12.txt",
+        "res://file13.txt",
+        "res://file14.txt",
+        "res://file15.txt",
+        "res://file16.txt",
+        "res://file17.txt",
+        "res://file18.txt",
+        "res://file19.txt",
+        "res://file2.txt",
+        "res://file20.txt",
+        "res://file21.txt",
+        "res://file22.txt",
+        "res://file23.txt",
+        "res://file24.txt",
+        "res://file25.txt",
+        "res://file26.txt",
+        "res://file27.txt",
+        "res://file28.txt",
+        "res://file29.txt",
+        "res://file3.txt",
+        "res://file4.txt",
+        "res://file5.txt",
+        "res://file6.txt",
+        "res://file7.txt",
+        "res://file8.txt",
+        "res://file9.txt"
+      ],
+      "operation_count": 30,
+      "check_count": 0,
+      "file_count": 30,
+      "already_satisfied": false,
+      "effective_operation_count": 30,
+      "skipped_operation_count": 0
+    },
+    "prepared_again": {
+      "transaction_id": "<transaction_id:uuid4hex>",
+      "action": {
+        "action": "transaction",
+        "operations": [
+          {
+            "action": "create_file",
+            "path": "res://file0.txt",
+            "content": "0"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file1.txt",
+            "content": "1"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file2.txt",
+            "content": "2"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file3.txt",
+            "content": "3"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file4.txt",
+            "content": "4"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file5.txt",
+            "content": "5"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file6.txt",
+            "content": "6"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file7.txt",
+            "content": "7"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file8.txt",
+            "content": "8"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file9.txt",
+            "content": "9"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file10.txt",
+            "content": "10"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file11.txt",
+            "content": "11"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file12.txt",
+            "content": "12"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file13.txt",
+            "content": "13"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file14.txt",
+            "content": "14"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file15.txt",
+            "content": "15"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file16.txt",
+            "content": "16"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file17.txt",
+            "content": "17"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file18.txt",
+            "content": "18"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file19.txt",
+            "content": "19"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file20.txt",
+            "content": "20"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file21.txt",
+            "content": "21"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file22.txt",
+            "content": "22"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file23.txt",
+            "content": "23"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file24.txt",
+            "content": "24"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file25.txt",
+            "content": "25"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file26.txt",
+            "content": "26"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file27.txt",
+            "content": "27"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file28.txt",
+            "content": "28"
+          },
+          {
+            "action": "create_file",
+            "path": "res://file29.txt",
+            "content": "29"
+          }
+        ],
+        "checks": [],
+        "summary": ""
+      },
+      "files": [
+        {
+          "path": "res://file0.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MA=="
+          },
+          "before_hash": null,
+          "after_hash": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+        },
+        {
+          "path": "res://file1.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MQ=="
+          },
+          "before_hash": null,
+          "after_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        },
+        {
+          "path": "res://file10.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTA="
+          },
+          "before_hash": null,
+          "after_hash": "4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5"
+        },
+        {
+          "path": "res://file11.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTE="
+          },
+          "before_hash": null,
+          "after_hash": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8"
+        },
+        {
+          "path": "res://file12.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTI="
+          },
+          "before_hash": null,
+          "after_hash": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918"
+        },
+        {
+          "path": "res://file13.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTM="
+          },
+          "before_hash": null,
+          "after_hash": "3fdba35f04dc8c462986c992bcf875546257113072a909c162f7e470e581e278"
+        },
+        {
+          "path": "res://file14.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTQ="
+          },
+          "before_hash": null,
+          "after_hash": "8527a891e224136950ff32ca212b45bc93f69fbb801c3b1ebedac52775f99e61"
+        },
+        {
+          "path": "res://file15.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTU="
+          },
+          "before_hash": null,
+          "after_hash": "e629fa6598d732768f7c726b4b621285f9c3b85303900aa912017db7617d8bdb"
+        },
+        {
+          "path": "res://file16.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTY="
+          },
+          "before_hash": null,
+          "after_hash": "b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9"
+        },
+        {
+          "path": "res://file17.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTc="
+          },
+          "before_hash": null,
+          "after_hash": "4523540f1504cd17100c4835e85b7eefd49911580f8efff0599a8f283be6b9e3"
+        },
+        {
+          "path": "res://file18.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTg="
+          },
+          "before_hash": null,
+          "after_hash": "4ec9599fc203d176a301536c2e091a19bc852759b255bd6818810a42c5fed14a"
+        },
+        {
+          "path": "res://file19.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MTk="
+          },
+          "before_hash": null,
+          "after_hash": "9400f1b21cb527d7fa3d3eabba93557a18ebe7a2ca4e471cfe5e4c5b4ca7f767"
+        },
+        {
+          "path": "res://file2.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mg=="
+          },
+          "before_hash": null,
+          "after_hash": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        },
+        {
+          "path": "res://file20.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjA="
+          },
+          "before_hash": null,
+          "after_hash": "f5ca38f748a1d6eaf726b8a42fb575c3c71f1864a8143301782de13da2d9202b"
+        },
+        {
+          "path": "res://file21.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjE="
+          },
+          "before_hash": null,
+          "after_hash": "6f4b6612125fb3a0daecd2799dfd6c9c299424fd920f9b308110a2c1fbd8f443"
+        },
+        {
+          "path": "res://file22.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjI="
+          },
+          "before_hash": null,
+          "after_hash": "785f3ec7eb32f30b90cd0fcf3657d388b5ff4297f2f9716ff66e9b69c05ddd09"
+        },
+        {
+          "path": "res://file23.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjM="
+          },
+          "before_hash": null,
+          "after_hash": "535fa30d7e25dd8a49f1536779734ec8286108d115da5045d77f3b4185d8f790"
+        },
+        {
+          "path": "res://file24.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjQ="
+          },
+          "before_hash": null,
+          "after_hash": "c2356069e9d1e79ca924378153cfbbfb4d4416b1f99d41a2940bfdb66c5319db"
+        },
+        {
+          "path": "res://file25.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjU="
+          },
+          "before_hash": null,
+          "after_hash": "b7a56873cd771f2c446d369b649430b65a756ba278ff97ec81bb6f55b2e73569"
+        },
+        {
+          "path": "res://file26.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "MjY="
+          },
+          "before_hash": null,
+          "after_hash": "5f9c4ab08cac7457e9111a30e4664920607ea2c115a1433d7be98e97e64244ca"
+        },
+        {
+          "path": "res://file27.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mjc="
+          },
+          "before_hash": null,
+          "after_hash": "670671cd97404156226e507973f2ab8330d3022ca96e0c93bdbdb320c41adcaf"
+        },
+        {
+          "path": "res://file28.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mjg="
+          },
+          "before_hash": null,
+          "after_hash": "59e19706d51d39f66711c2653cd7eb1291c94d9b55eb14bda74ce4dc636d015a"
+        },
+        {
+          "path": "res://file29.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mjk="
+          },
+          "before_hash": null,
+          "after_hash": "35135aaa6cc23891b40cb3f378c53a17a1127210ce60e125ccf03efcfdaec458"
+        },
+        {
+          "path": "res://file3.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Mw=="
+          },
+          "before_hash": null,
+          "after_hash": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+        },
+        {
+          "path": "res://file4.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "NA=="
+          },
+          "before_hash": null,
+          "after_hash": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+        },
+        {
+          "path": "res://file5.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "NQ=="
+          },
+          "before_hash": null,
+          "after_hash": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d"
+        },
+        {
+          "path": "res://file6.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Ng=="
+          },
+          "before_hash": null,
+          "after_hash": "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683"
+        },
+        {
+          "path": "res://file7.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "Nw=="
+          },
+          "before_hash": null,
+          "after_hash": "7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451"
+        },
+        {
+          "path": "res://file8.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "OA=="
+          },
+          "before_hash": null,
+          "after_hash": "2c624232cdd221771294dfbb310aca000a0df6ac8b66b696d90ef06fdefb64a3"
+        },
+        {
+          "path": "res://file9.txt",
+          "before_bytes": null,
+          "after_bytes": {
+            "base64": "OQ=="
+          },
+          "before_hash": null,
+          "after_hash": "19581e27de7ced00ff1ce50b2047e7a567c76b1cbaebabe5ef03f7c3017bb5b7"
+        }
+      ],
+      "paths": [
+        "res://file0.txt",
+        "res://file1.txt",
+        "res://file10.txt",
+        "res://file11.txt",
+        "res://file12.txt",
+        "res://file13.txt",
+        "res://file14.txt",
+        "res://file15.txt",
+        "res://file16.txt",
+        "res://file17.txt",
+        "res://file18.txt",
+        "res://file19.txt",
+        "res://file2.txt",
+        "res://file20.txt",
+        "res://file21.txt",
+        "res://file22.txt",
+        "res://file23.txt",
+        "res://file24.txt",
+        "res://file25.txt",
+        "res://file26.txt",
+        "res://file27.txt",
+        "res://file28.txt",
+        "res://file29.txt",
+        "res://file3.txt",
+        "res://file4.txt",
+        "res://file5.txt",
+        "res://file6.txt",
+        "res://file7.txt",
+        "res://file8.txt",
+        "res://file9.txt"
+      ],
+      "batch": {
+        "schema_version": 1,
+        "action_kind": "transaction",
+        "operations": [
+          {
+            "op": "write",
+            "path": "res://file0.txt",
+            "content": {
+              "base64": "MA=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file1.txt",
+            "content": {
+              "base64": "MQ=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file10.txt",
+            "content": {
+              "base64": "MTA="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file11.txt",
+            "content": {
+              "base64": "MTE="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file12.txt",
+            "content": {
+              "base64": "MTI="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file13.txt",
+            "content": {
+              "base64": "MTM="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file14.txt",
+            "content": {
+              "base64": "MTQ="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file15.txt",
+            "content": {
+              "base64": "MTU="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file16.txt",
+            "content": {
+              "base64": "MTY="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file17.txt",
+            "content": {
+              "base64": "MTc="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file18.txt",
+            "content": {
+              "base64": "MTg="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file19.txt",
+            "content": {
+              "base64": "MTk="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file2.txt",
+            "content": {
+              "base64": "Mg=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file20.txt",
+            "content": {
+              "base64": "MjA="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file21.txt",
+            "content": {
+              "base64": "MjE="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file22.txt",
+            "content": {
+              "base64": "MjI="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file23.txt",
+            "content": {
+              "base64": "MjM="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file24.txt",
+            "content": {
+              "base64": "MjQ="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file25.txt",
+            "content": {
+              "base64": "MjU="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file26.txt",
+            "content": {
+              "base64": "MjY="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file27.txt",
+            "content": {
+              "base64": "Mjc="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file28.txt",
+            "content": {
+              "base64": "Mjg="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file29.txt",
+            "content": {
+              "base64": "Mjk="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file3.txt",
+            "content": {
+              "base64": "Mw=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file4.txt",
+            "content": {
+              "base64": "NA=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file5.txt",
+            "content": {
+              "base64": "NQ=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file6.txt",
+            "content": {
+              "base64": "Ng=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file7.txt",
+            "content": {
+              "base64": "Nw=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file8.txt",
+            "content": {
+              "base64": "OA=="
+            }
+          },
+          {
+            "op": "write",
+            "path": "res://file9.txt",
+            "content": {
+              "base64": "OQ=="
+            }
+          }
+        ],
+        "targets": [],
+        "required_targets": [],
+        "source_hashes": {
+          "res://file0.txt": null,
+          "res://file1.txt": null,
+          "res://file10.txt": null,
+          "res://file11.txt": null,
+          "res://file12.txt": null,
+          "res://file13.txt": null,
+          "res://file14.txt": null,
+          "res://file15.txt": null,
+          "res://file16.txt": null,
+          "res://file17.txt": null,
+          "res://file18.txt": null,
+          "res://file19.txt": null,
+          "res://file2.txt": null,
+          "res://file20.txt": null,
+          "res://file21.txt": null,
+          "res://file22.txt": null,
+          "res://file23.txt": null,
+          "res://file24.txt": null,
+          "res://file25.txt": null,
+          "res://file26.txt": null,
+          "res://file27.txt": null,
+          "res://file28.txt": null,
+          "res://file29.txt": null,
+          "res://file3.txt": null,
+          "res://file4.txt": null,
+          "res://file5.txt": null,
+          "res://file6.txt": null,
+          "res://file7.txt": null,
+          "res://file8.txt": null,
+          "res://file9.txt": null
+        },
+        "candidate_digest": "377f98f75457aecd44f6d25c55325abd4830cd49fbf2883bf047cd72bde2af27"
+      },
+      "state": "preview",
+      "already_satisfied": false,
+      "effective_operation_count": 30,
+      "skipped_operation_count": 0
+    },
+    "diffs": [
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "0"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file0.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "1"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file1.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "10"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file10.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "11"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file11.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "12"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file12.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "13"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file13.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "14"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file14.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "15"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file15.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "16"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file16.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "17"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file17.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "18"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file18.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "19"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file19.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "2"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file2.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "20"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file20.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "21"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file21.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "22"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file22.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "23"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file23.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "24"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file24.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "25"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file25.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "26"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file26.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "27"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file27.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "28"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file28.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "29"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file29.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "3"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file3.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "4"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file4.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "5"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file5.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "6"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file6.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "7"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file7.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "8"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file8.txt",
+        "action": "transaction"
+      },
+      {
+        "lines": [
+          [
+            "+",
+            null,
+            1,
+            "9"
+          ]
+        ],
+        "added": 1,
+        "removed": 0,
+        "truncated": false,
+        "path": "res://file9.txt",
+        "action": "transaction"
+      }
+    ]
+  },
+  "after": {
+    "files": {
+      "notes.txt": {
+        "base64": "cmVhZC1vbmx5IGZpeHR1cmUNCg=="
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJKMSBBMiIKcnVuL21haW5fc2NlbmU9InJlczovL3NjZW5lLnRzY24iCg=="
+      },
+      "scene.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NjcmlwdHMvcGxheWVyLmdkIiBpZD0iMSJdCltub2RlIG5hbWU9IlBsYXllciIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iRmlyZUJ1dHRvbiIgdHlwZT0iQnV0dG9uIiBwYXJlbnQ9Ii4iXQpbbm9kZSBuYW1lPSJUaW1lciIgdHlwZT0iVGltZXIiIHBhcmVudD0iLiJdCg=="
+      },
+      ".godot/ignored.gd": {
+        "base64": "Y29uc3QgUCA9IHByZWxvYWQoInJlczovL3NjcmlwdHMvcGxheWVyLmdkIikK"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iQTIgb3duZWQgZml4dHVyZSIK"
+      },
+      "addons/godot_agent/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/icon.png.import": {
+        "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "scripts/helper.gd": {
+        "base64": "ZXh0ZW5kcyBSZWZDb3VudGVkCg=="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBocCA9IDEwCmZ1bmMgX3JlYWR5KCk6CglwYXNzCg=="
+      },
+      "scripts/player.gd.uid": {
+        "base64": "dWlkOi8vajFhMmZpeHR1cmUK"
+      },
+      "scripts/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCIuL3BsYXllci5nZCIpCmNvbnN0IFEgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      }
+    },
+    "dirs": [
+      ".godot",
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "scripts"
+    ]
+  }
+}

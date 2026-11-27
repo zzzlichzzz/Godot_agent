@@ -1,0 +1,29 @@
+{
+  "id": "012-connection_missing_endpoints",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[connection signal=\"pressed\" from=\"Ghost\" to=\"Other\" method=\"_on_pressed\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[connection signal=\"pressed\" from=\"Ghost\" to=\"Other\" method=\"_on_pressed\"]\n",
+      "changed": false,
+      "problems": [
+        "[connection signal=\"pressed\"]: from=\"Ghost\" — такого узла в сцене нет, Godot не сможет подключить сигнал. Укажи путь существующего узла (например \".\" для корня).",
+        "[connection signal=\"pressed\"]: to=\"Other\" — такого узла в сцене нет, Godot не сможет подключить сигнал. Укажи путь существующего узла (например \".\" для корня)."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[connection signal=\"pressed\" from=\"Ghost\" to=\"Other\" method=\"_on_pressed\"]\n",
+    "changed": false,
+    "problems": [
+      "[connection signal=\"pressed\"]: from=\"Ghost\" — такого узла в сцене нет, Godot не сможет подключить сигнал. Укажи путь существующего узла (например \".\" для корня).",
+      "[connection signal=\"pressed\"]: to=\"Other\" — такого узла в сцене нет, Godot не сможет подключить сигнал. Укажи путь существующего узла (например \".\" для корня)."
+    ]
+  },
+  "reference_api_classes": null
+}

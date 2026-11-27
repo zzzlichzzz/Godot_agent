@@ -1,0 +1,45 @@
+{
+  "id": "q4-empty",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://empty",
+      "res://new"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "files": {
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "empty"
+    ]
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": false,
+  "exception": {
+    "type": "FileRefactorError",
+    "text": "Папка res://empty не содержит подходящих файлов для перемещения"
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "empty"
+    ]
+  },
+  "project_byte_tree_unchanged": true
+}

@@ -1,0 +1,20 @@
+{
+  "id": "035-missing",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/missing",
+  "args": {
+    "path": "res://donor.py"
+  },
+  "reference_error": {
+    "ok": false,
+    "exception": "SplitError",
+    "message": "файл не найден: donor.py"
+  },
+  "contract_boundary": "not_found",
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  },
+  "expected_message": "файл не найден: donor.py"
+}

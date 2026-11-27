@@ -1,0 +1,4 @@
+extends Node
+@onready var item = $"../Old"
+@onready var tip = get_node("../Old/Tip")
+@onready var end = get_node_or_null("../Old/Tip/End")

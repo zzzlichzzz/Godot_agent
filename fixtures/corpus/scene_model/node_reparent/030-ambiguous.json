@@ -1,0 +1,16 @@
+{
+  "id": "030-ambiguous",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/030-ambiguous",
+  "note": "actual-old prepare-only: ambiguous",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Имя узла 'Old' неоднозначно (2 совпадений). Укажите полный путь: New/Old, Other/Old"
+  }
+}

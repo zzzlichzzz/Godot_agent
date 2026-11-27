@@ -1,0 +1,33 @@
+{
+  "id": "expanded-op1-missing-op",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "target": [],
+        "old": "res://old.tres",
+        "new": "res://new.tres",
+        "expected_count": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестная операция ресурса: None",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "e9dc24efde6a090df9354c7a10fdd00455742dbf0657ec52615910582da611fd"
+}

@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://src/combatant.gd" id="1"]
+[node name="FightRoot" type="Node"]
+script = ExtResource("1")
+health = 14
+[node name="Peer" type="Node" parent="."]
+script = ExtResource("1")
+health = 9
+[node name="Foreign" type="Node" parent="."]
+[connection signal="injured" from="." to="Peer" method="receive"]
+[connection signal="injured" from="." to="Foreign" method="receive"]

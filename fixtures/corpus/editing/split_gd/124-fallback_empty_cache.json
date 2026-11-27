@@ -1,0 +1,471 @@
+{
+  "id": "124-fallback_empty_cache",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/fallback_empty_cache",
+  "args": {
+    "path": "res://donor.gd",
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ]
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": {
+    "schema": 1,
+    "kind": "split_gd",
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\124-fallback_empty_cache",
+    "project_root": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\124-fallback_empty_cache",
+    "donor": "donor.gd",
+    "donor_abs": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\124-fallback_empty_cache\\donor.gd",
+    "donor_sha256": "4e4b1431e47bb54be8119993aa8563bfda4e045b4687e8d95db0deccf7415f0c",
+    "newline": "\n",
+    "target_lines": 1100,
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "rel": "part_one.gd",
+        "const": "PartOne",
+        "funcs": [
+          "alpha"
+        ],
+        "content": "@tool\nextends RefCounted\n\n# Модуль part_one: методы вынесены «пилой» split_gd из donor.gd.\n# Реализация живёт ЗДЕСЬ; в доноре на месте метода — тонкая обёртка,\n# поэтому connect()/call() по исходным именам продолжают работать.\n# Тело работает через параметр panel: к членам донора — panel.<член>,\n# к другим методам донора — panel.<метод> (через его обёртку).\n\nstatic func alpha(panel):\n\tvar x = panel.get_tree()\n\treturn panel.visible\n",
+        "lines": 13
+      }
+    ],
+    "donor_content": "extends Node\n\n# --- части (вынесены «пилой» split_gd) ---\nconst PartOne = preload(\"part_one.gd\")\n# split_gd: тело — part_one.gd\nfunc alpha():\n\tPartOne.alpha(self)\n",
+    "wrappers": [
+      {
+        "name": "alpha",
+        "module": "part_one",
+        "await": false
+      }
+    ],
+    "warnings": [],
+    "stats": {
+      "moved": 1,
+      "modules": 1,
+      "donor_before": 4,
+      "donor_after": 8
+    }
+  },
+  "reference_public": {
+    "schema": 1,
+    "kind": "split_gd",
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\124-fallback_empty_cache",
+    "project_root": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\124-fallback_empty_cache",
+    "donor": "donor.gd",
+    "donor_abs": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c15-split-gd-plan-20261031-preflight-88e4b\\resume-01\\capture-projects\\124-fallback_empty_cache\\donor.gd",
+    "donor_sha256": "4e4b1431e47bb54be8119993aa8563bfda4e045b4687e8d95db0deccf7415f0c",
+    "newline": "\n",
+    "target_lines": 1100,
+    "groups": [
+      {
+        "module": "part_one",
+        "funcs": [
+          "alpha"
+        ]
+      }
+    ],
+    "modules": [
+      {
+        "rel": "part_one.gd",
+        "const": "PartOne",
+        "funcs": [
+          "alpha"
+        ],
+        "lines": 13
+      }
+    ],
+    "donor_content": null,
+    "wrappers": [
+      {
+        "name": "alpha",
+        "module": "part_one",
+        "await": false
+      }
+    ],
+    "warnings": [],
+    "stats": {
+      "moved": 1,
+      "modules": 1,
+      "donor_before": 4,
+      "donor_after": 8
+    }
+  },
+  "reference_error": null,
+  "contract_refusal": null,
+  "expect": {
+    "ok": true,
+    "result": {
+      "schema": 1,
+      "kind": "split_gd",
+      "donor": "donor.gd",
+      "donor_sha256": "4e4b1431e47bb54be8119993aa8563bfda4e045b4687e8d95db0deccf7415f0c",
+      "newline": "\n",
+      "target_lines": 1100,
+      "groups": [
+        {
+          "module": "part_one",
+          "funcs": [
+            "alpha"
+          ]
+        }
+      ],
+      "modules": [
+        {
+          "rel": "part_one.gd",
+          "const": "PartOne",
+          "funcs": [
+            "alpha"
+          ],
+          "lines": 13
+        }
+      ],
+      "wrappers": [
+        {
+          "name": "alpha",
+          "module": "part_one",
+          "await": false
+        }
+      ],
+      "warnings": [],
+      "stats": {
+        "moved": 1,
+        "modules": 1,
+        "donor_before": 4,
+        "donor_after": 8
+      }
+    }
+  },
+  "reference_inventory": {
+    "extends": "Node",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [],
+    "vars": [],
+    "funcs": [
+      {
+        "name": "alpha",
+        "sig_start": 2,
+        "start": 2,
+        "block_start": 2,
+        "sig_lines": [
+          "func alpha():"
+        ],
+        "sig_text": "func alpha():",
+        "body_start": 3,
+        "end": 4,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 4
+  },
+  "reference_tokens": [
+    {
+      "kind": "identifier",
+      "value": "extends",
+      "start": 0,
+      "end": 7,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "Node",
+      "start": 8,
+      "end": 12,
+      "line": 1
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 12,
+      "end": 13,
+      "line": 1
+    },
+    {
+      "kind": "identifier",
+      "value": "func",
+      "start": 13,
+      "end": 17,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "alpha",
+      "start": 18,
+      "end": 23,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 23,
+      "end": 24,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 24,
+      "end": 25,
+      "line": 2
+    },
+    {
+      "kind": "symbol",
+      "value": ":",
+      "start": 25,
+      "end": 26,
+      "line": 2
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 26,
+      "end": 27,
+      "line": 2
+    },
+    {
+      "kind": "identifier",
+      "value": "var",
+      "start": 28,
+      "end": 31,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "x",
+      "start": 32,
+      "end": 33,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": ":=",
+      "start": 34,
+      "end": 36,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "get_tree",
+      "start": 37,
+      "end": 45,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": "(",
+      "start": 45,
+      "end": 46,
+      "line": 3
+    },
+    {
+      "kind": "symbol",
+      "value": ")",
+      "start": 46,
+      "end": 47,
+      "line": 3
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 47,
+      "end": 48,
+      "line": 3
+    },
+    {
+      "kind": "identifier",
+      "value": "return",
+      "start": 49,
+      "end": 55,
+      "line": 4
+    },
+    {
+      "kind": "identifier",
+      "value": "visible",
+      "start": 56,
+      "end": 63,
+      "line": 4
+    },
+    {
+      "kind": "newline",
+      "value": "\n",
+      "start": 63,
+      "end": 64,
+      "line": 4
+    }
+  ],
+  "reference_locals": {
+    "alpha": [
+      "x"
+    ]
+  },
+  "reference_engine": {
+    "methods": [
+      "accept_event",
+      "add_child",
+      "add_theme_color_override",
+      "add_theme_constant_override",
+      "add_theme_font_override",
+      "add_theme_font_size_override",
+      "add_theme_stylebox_override",
+      "add_to_group",
+      "call",
+      "call_deferred",
+      "connect",
+      "disconnect",
+      "duplicate",
+      "emit_signal",
+      "find_child",
+      "force_update_transform",
+      "get",
+      "get_child",
+      "get_child_count",
+      "get_children",
+      "get_class",
+      "get_index",
+      "get_meta",
+      "get_node",
+      "get_node_or_null",
+      "get_parent",
+      "get_path",
+      "get_scene_file_path",
+      "get_script",
+      "get_theme_color",
+      "get_theme_constant",
+      "get_theme_default_font",
+      "get_theme_default_font_size",
+      "get_theme_font",
+      "get_theme_font_size",
+      "get_theme_stylebox",
+      "get_tree",
+      "get_viewport",
+      "get_window",
+      "grab_focus",
+      "has_focus",
+      "has_meta",
+      "has_method",
+      "has_node",
+      "has_theme_color",
+      "has_theme_constant",
+      "has_theme_font",
+      "has_theme_font_size",
+      "has_theme_stylebox",
+      "hide",
+      "is_class",
+      "is_connected",
+      "is_in_group",
+      "is_inside_tree",
+      "is_node_ready",
+      "is_visible_in_tree",
+      "move_child",
+      "move_to_front",
+      "notification",
+      "notify_property_list_changed",
+      "queue_free",
+      "release_focus",
+      "remove_child",
+      "remove_from_group",
+      "remove_meta",
+      "remove_theme_color_override",
+      "remove_theme_constant_override",
+      "remove_theme_font_override",
+      "remove_theme_font_size_override",
+      "remove_theme_stylebox_override",
+      "set",
+      "set_deferred",
+      "set_meta",
+      "set_physics_process",
+      "set_process",
+      "set_process_input",
+      "set_process_unhandled_input",
+      "set_script",
+      "show"
+    ],
+    "properties": [
+      "alignment",
+      "anchor_bottom",
+      "anchor_left",
+      "anchor_right",
+      "anchor_top",
+      "anchors_preset",
+      "autowrap_mode",
+      "bbcode_enabled",
+      "button_pressed",
+      "clip_contents",
+      "context_menu_enabled",
+      "custom_minimum_size",
+      "disabled",
+      "editable",
+      "flat",
+      "focus_mode",
+      "icon",
+      "layout_mode",
+      "modulate",
+      "mouse_filter",
+      "name",
+      "offset_bottom",
+      "offset_left",
+      "offset_right",
+      "offset_top",
+      "owner",
+      "pivot_offset",
+      "placeholder_text",
+      "position",
+      "pressed",
+      "rotation",
+      "scale",
+      "scroll_following",
+      "selection_enabled",
+      "self_modulate",
+      "size",
+      "size_flags_horizontal",
+      "size_flags_vertical",
+      "text",
+      "theme_type_variation",
+      "tooltip_text",
+      "top_level",
+      "visible",
+      "wrap_mode"
+    ]
+  },
+  "capture_tree": {
+    "files": {
+      ".agent_history/godot_api_cache.json": {
+        "bytes": 48,
+        "sha256": "e6e480259981d60908dde3d7ecb4353ff76dfd176e285c32dd960ca43522b9d0"
+      },
+      "donor.gd": {
+        "bytes": 64,
+        "sha256": "4e4b1431e47bb54be8119993aa8563bfda4e045b4687e8d95db0deccf7415f0c"
+      },
+      "plugin.cfg": {
+        "bytes": 28,
+        "sha256": "b1f19cfdd95c7ac7092291eae8d46885b97fc6b1253180b554545405dda4cda1"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      ".agent_history"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "001-happy-path",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "happy path: несколько файлов, порядок обхода, окно context_lines=2 по умолчанию",
+  "args": {
+    "query": "func _ready",
+    "max_results": 5
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://scripts/crlf_line.gd",
+          "line": 4,
+          "snippet": "2: \n3: # Файл сохранён с CRLF: проверяем нормализацию переводов строк.\n4: func _ready() -> void:\n5: \tprint(\"crlf ok\")\n6: "
+        },
+        {
+          "path": "res://scripts/legacy_bom.gd",
+          "line": 4,
+          "snippet": "2: \n3: # Файл сохранён с BOM: так делал старый редактор.\n4: func _ready() -> void:\n5: \tprint(\"bom ok\")\n6: "
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 9,
+          "snippet": "7: \n8: \n9: func _ready() -> void:\n10: \thealth = health_max\n11: \tposition = Vector2.ZERO"
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

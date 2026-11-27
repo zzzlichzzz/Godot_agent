@@ -1,0 +1,92 @@
+{
+  "id": "q3-target-uid-no-source-uid-prepare",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://asset.bin",
+      "res://dest.bin"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "files": {
+      "asset.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "dest.bin.uid": {
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://asset.bin",
+    "new_path": "res://dest.bin",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://asset.bin",
+        "dest": "res://dest.bin",
+        "absolute": "<PROJECT>\\asset.bin",
+        "dest_absolute": "<PROJECT>\\dest.bin",
+        "before_hash": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "before_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "diff": {
+          "path": "res://asset.bin",
+          "action": "move_file",
+          "dest": "res://dest.bin",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://dest.bin"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://dest.bin"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "asset.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "dest.bin.uid": {
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": []
+  },
+  "project_byte_tree_unchanged": true
+}

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/code_intel/functions",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/gd_functions.py:list_functions/extract_functions",
+    "sha256": "efa80db641f97dbe02ed23a119639f966b2b05d38e3e7ebacc6338c1a10fb72d"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001-list-declaration-order",
+      "file": "001-list-declaration-order.json",
+      "fixture": "minimal",
+      "sha256": "a5c899f97667be059ff574d0ab9cc37f7449bae4b34e0c02292f8caa80f0e0af"
+    },
+    {
+      "id": "002-list-static-and-nested",
+      "file": "002-list-static-and-nested.json",
+      "fixture": "minimal",
+      "sha256": "7b17335e2b5482786511a2a6e07af245bcfaf2504555dc1367847763028a381a"
+    },
+    {
+      "id": "003-extract-one",
+      "file": "003-extract-one.json",
+      "fixture": "minimal",
+      "sha256": "865ddb174f2cab07862e9d50438308762aea6c10e619d139cd5ce7e72e6a7ee6"
+    },
+    {
+      "id": "004-extract-several-missing",
+      "file": "004-extract-several-missing.json",
+      "fixture": "minimal",
+      "sha256": "f5913a073e5dbd2f0b5313469cd4b365b5e38037b600a365f9eef463a29d7434"
+    },
+    {
+      "id": "005-duplicate-first-declaration",
+      "file": "005-duplicate-first-declaration.json",
+      "fixture": "minimal",
+      "sha256": "0841afbd9d998d0f6e43d12826c28e6d799f7701366c3b4879a86401bb22567e"
+    },
+    {
+      "id": "006-annotations-in-snippet",
+      "file": "006-annotations-in-snippet.json",
+      "fixture": "minimal",
+      "sha256": "4982d92e9bea74849bcef91c39a76c6bf7ab6fbd54c37380bce1cbe3b6ae42fc"
+    },
+    {
+      "id": "007-blank-lines-in-body",
+      "file": "007-blank-lines-in-body.json",
+      "fixture": "minimal",
+      "sha256": "5aa3ffc564f57fb9b5aa6f5b3452c41c0e9e2bffecf9d95e1b62a69a9266c003"
+    },
+    {
+      "id": "008-nested-class-function",
+      "file": "008-nested-class-function.json",
+      "fixture": "minimal",
+      "sha256": "798c3b5309eec6bb0cdb342e6de817575b6a77411e2e9d1113f8267f789c3401"
+    },
+    {
+      "id": "009-bom-prefix",
+      "file": "009-bom-prefix.json",
+      "fixture": "minimal",
+      "sha256": "a581268e4934116204bff0915e858b1361435ec0812bddacfff63dfdba658c20"
+    },
+    {
+      "id": "010-crlf-lines",
+      "file": "010-crlf-lines.json",
+      "fixture": "minimal",
+      "sha256": "2424b4c4f15078f2d04fba9502a57f6bdfebfee83c839b87aee98b1a9d1c499d"
+    },
+    {
+      "id": "011-commented-function",
+      "file": "011-commented-function.json",
+      "fixture": "minimal",
+      "sha256": "55941ed73bbca7bc4b3ee40390932a9515220695b6b6a85b4c55d48b8094fa52"
+    },
+    {
+      "id": "012-not-gd-script",
+      "file": "012-not-gd-script.json",
+      "fixture": "minimal",
+      "sha256": "e020fb99dbca0eadb317d54c7b4e1d1d1bad67f6243b0c0322416c99bd8c5a0a"
+    },
+    {
+      "id": "013-missing-file",
+      "file": "013-missing-file.json",
+      "fixture": "minimal",
+      "sha256": "f5168e95939193ea9afb5979b165c00660db079c46397968a0da9c994f8cc306"
+    },
+    {
+      "id": "014-parent-traversal",
+      "file": "014-parent-traversal.json",
+      "fixture": "minimal",
+      "sha256": "eefb63cea18389d8ef4921caf6d1dcd2f42273eb23b65c37aa12adac1c3e6b16"
+    },
+    {
+      "id": "015-absolute-path",
+      "file": "015-absolute-path.json",
+      "fixture": "minimal",
+      "sha256": "6cd4fb9a98e4c3b366d03c9eeabdd36a65a85124ccdf8e32966bd6c3e191af8f"
+    },
+    {
+      "id": "016-addon-hidden",
+      "file": "016-addon-hidden.json",
+      "fixture": "minimal",
+      "sha256": "c40a232c848b5021bf364e8747d6e36873c5d86cc0a24cba66b17495f7d4ed5d"
+    },
+    {
+      "id": "017-func-inside-func",
+      "file": "017-func-inside-func.json",
+      "fixture": "minimal",
+      "sha256": "12defa9551049ac367c6072cd46f245e5074d9faab2fe9327c7d74fa1f739c2e"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "005-hierarchy.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "hierarchy.tscn: 'Main'",
+  "args": {
+    "path": "res://scenes/hierarchy.tscn",
+    "node": "Main"
+  },
+  "reference_node": {
+    "name": "Main",
+    "parent": ".",
+    "type": "Node2D",
+    "path": "Main",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      53,
+      96
+    ],
+    "body_span": [
+      96,
+      97
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Main",
+      "type": "Node2D",
+      "parent": ".",
+      "path": "Main",
+      "depth": 1,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": [
+        "Main/Arm",
+        "Main/Side"
+      ]
+    }
+  }
+}

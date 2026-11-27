@@ -1,0 +1,23 @@
+{
+  "id": "034-escaped_newline",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "escaped_newline",
+  "args": {
+    "path": "res://scripts/escaped_newline.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "missing_colon",
+          "line": 3,
+          "message": "строка 3: похоже, пропущено двоеточие в конце объявления"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 43
+    }
+  }
+}

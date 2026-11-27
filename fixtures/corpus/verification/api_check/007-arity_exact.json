@@ -1,0 +1,25 @@
+{
+  "id": "007-arity_exact",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "arity_exact",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.one()\n"
+  },
+  "reference_result": [
+    "строка 3: self.one(...) вызван с 0 аргумент(ами), а у Node2D.one их должно быть 1"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 3: self.one(...) вызван с 0 аргумент(ами), а у Node2D.one их должно быть 1"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

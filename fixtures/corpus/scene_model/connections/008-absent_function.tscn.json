@@ -1,0 +1,23 @@
+{
+  "id": "008-absent_function.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "absent_function.tscn",
+  "args": {
+    "path": "res://absent_function.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "Button",
+          "to": ".",
+          "method": "does_not_exist"
+        }
+      ],
+      "text": "- Button.pressed -> <root>.does_not_exist()"
+    }
+  }
+}

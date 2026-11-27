@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_keys",
+  "function": "validate_base_url",
+  "args": [
+    "http://user:pass@example.invalid/v1"
+  ],
+  "kwargs": {},
+  "id": "api-037"
+}

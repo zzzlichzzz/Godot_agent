@@ -1,0 +1,23 @@
+{
+  "module": "assistant.chat",
+  "module_stage": 1,
+  "module_stage_transition": "0->1",
+  "reference_only": false,
+  "source": "K1 D70-D73 new semantic specification; synthetic offline OpenAI SSE",
+  "real_provider_calls": false,
+  "normalization": [],
+  "required_classes": ["direct", "read_file_then_answer", "unknown_action", "write_refusal", "DONE", "SSE_error", "truncated_stream", "key_rotation", "budget_truncation", "low_judge_retry"],
+  "expected_summary": "last native judge score/acceptable; domain STRING; app closed object",
+  "observations": {
+    "cases": 10,
+    "runs": 2,
+    "byte_equal": true,
+    "bytes": 685926,
+    "sha256": "bbd5d1da3b6e87ee83cb3aebbb7b63ef6c589ce22692f46e6f476eefd9c9b9bf",
+    "normalization": [],
+    "route": "unchanged snapshot_diff -> actual build_agent -> actual Agent.call",
+    "dossier": "C:/Users/Lich/AppData/Local/Temp/opencode/c8_audit/agent-loop-K1c-20261120/",
+    "evidence": "corpus-observations-byte-equal.json",
+    "real_provider_calls": 0
+  }
+}

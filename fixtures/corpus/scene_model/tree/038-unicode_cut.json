@@ -1,0 +1,41 @@
+{
+  "id": "038-unicode_cut",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/unicode.tscn",
+    "max_chars": 4
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Иг\n… (сводка обрезана — сцена очень большая)",
+      "truncated": true,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Игрок🙂",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Оружие",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": ".",
+          "path": "Оружие"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

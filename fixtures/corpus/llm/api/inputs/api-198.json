@@ -1,0 +1,73 @@
+{
+  "kind": "state",
+  "operations": [
+    {
+      "module": "chat_store",
+      "function": "create_chat",
+      "args": [],
+      "kwargs": {
+        "url": "https://fixture.invalid/chat"
+      },
+      "base": true
+    },
+    {
+      "module": "chat_store",
+      "function": "update_chat",
+      "args": [
+        "0123456789ab"
+      ],
+      "kwargs": {
+        "kind": "api",
+        "primed": true
+      },
+      "base": true
+    },
+    {
+      "module": "chat_store",
+      "function": "append_transcript_entries",
+      "args": [
+        "0123456789ab",
+        [
+          [
+            "user",
+            "ёж"
+          ],
+          [
+            "assistant",
+            "[b]ответ[/b]"
+          ]
+        ]
+      ],
+      "kwargs": {},
+      "base": true
+    },
+    {
+      "module": "chat_store",
+      "function": "list_chats",
+      "args": [],
+      "kwargs": {
+        "current_prompt_hash": "new"
+      },
+      "base": true
+    },
+    {
+      "module": "chat_store",
+      "function": "find_chat",
+      "args": [
+        "0123456789ab"
+      ],
+      "kwargs": {},
+      "base": true
+    },
+    {
+      "module": "chat_store",
+      "function": "delete_chat",
+      "args": [
+        "0123456789ab"
+      ],
+      "kwargs": {},
+      "base": true
+    }
+  ],
+  "id": "api-198"
+}

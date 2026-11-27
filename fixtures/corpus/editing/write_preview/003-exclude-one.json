@@ -1,0 +1,50 @@
+{
+  "id": "003-exclude-one",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Снятое место не правится и попадает в skipped_usages",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/hero.gd:6",
+    "mode": "probable",
+    "allow_unverified": true,
+    "exclude": [
+      "res://src/party.gd:6"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "take_damage",
+      "new_name": "apply_damage",
+      "declaration": "res://src/hero.gd:6",
+      "mode": "probable",
+      "allow_unverified": true,
+      "state": "PREPARED",
+      "steps": [
+        {
+          "path": "res://src/enemy.gd",
+          "edits": 3
+        },
+        {
+          "path": "res://src/hero.gd",
+          "edits": 2
+        }
+      ],
+      "steps_count": 2,
+      "affected_paths": [
+        "res://src/enemy.gd",
+        "res://src/hero.gd"
+      ],
+      "stats": {
+        "files": 2,
+        "edits": 5,
+        "dynamic": 1
+      },
+      "excluded": 1
+    }
+  }
+}

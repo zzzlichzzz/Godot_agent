@@ -1,0 +1,378 @@
+{
+  "id": "029-unicode_name",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/029-unicode_name",
+  "note": "unicode_name",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "Узел"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Arm",
+      "new_name": "Узел",
+      "old_path": "Arm",
+      "new_path": "Узел",
+      "target_node_path": "Arm",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "088bc1fea8b1c68dfc0588d60c90b4703b406d786b77844190c4455dd817aba0",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiJUFybTpyb3RhdGlvbiIpCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMiIpCltub2RlIG5hbWU9Ikdsb3ciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0vVGlwIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwIiBtZXRob2Q9InJlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iV2luZyIgdG89IkFybSIgbWV0aG9kPSJyZWFkeSJdCg==",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoItCj0LfQtdC7L1RpcDpwb3NpdGlvbjp4IikKdHJhY2tzLzEvcGF0aCA9IE5vZGVQYXRoKCIl0KPQt9C10Ls6cm90YXRpb24iKQpbbm9kZSBuYW1lPSJNYWluIiB0eXBlPSJOb2RlMkQiXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCltub2RlIG5hbWU9ItCj0LfQtdC7IiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSLQo9C30LXQuyJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIyIikKW25vZGUgbmFtZT0iR2xvdyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9ItCj0LfQtdC7L1RpcCJdCltub2RlIG5hbWU9IldpbmciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0i0KPQt9C10LsiIHRvPSLQo9C30LXQuy9UaXAiIG1ldGhvZD0icmVhZHkiXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJXaW5nIiB0bz0i0KPQt9C10LsiIG1ldGhvZD0icmVhZHkiXQo=",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                2,
+                2,
+                "@@ -2,15 +2,15 @@"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "[ext_resource type=\"Script\" path=\"res://main.gd\" id=\"1\"]"
+              ],
+              [
+                " ",
+                3,
+                3,
+                "[ext_resource type=\"Script\" path=\"res://tip.gd\" id=\"2\"]"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "[sub_resource type=\"Animation\" id=\"A\"]"
+              ],
+              [
+                "-",
+                5,
+                null,
+                "tracks/0/path = NodePath(\"Arm/Tip:position:x\")"
+              ],
+              [
+                "-",
+                6,
+                null,
+                "tracks/1/path = NodePath(\"%Arm:rotation\")"
+              ],
+              [
+                "+",
+                null,
+                5,
+                "tracks/0/path = NodePath(\"Узел/Tip:position:x\")"
+              ],
+              [
+                "+",
+                null,
+                6,
+                "tracks/1/path = NodePath(\"%Узел:rotation\")"
+              ],
+              [
+                " ",
+                7,
+                7,
+                "[node name=\"Main\" type=\"Node2D\"]"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "[node name=\"Arm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "+",
+                null,
+                9,
+                "[node name=\"Узел\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "unique_name_in_owner = true"
+              ],
+              [
+                "-",
+                11,
+                null,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"Arm\"]"
+              ],
+              [
+                "+",
+                null,
+                11,
+                "[node name=\"Tip\" type=\"Node2D\" parent=\"Узел\"]"
+              ],
+              [
+                " ",
+                12,
+                12,
+                "script = ExtResource(\"2\")"
+              ],
+              [
+                "-",
+                13,
+                null,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"Arm/Tip\"]"
+              ],
+              [
+                "+",
+                null,
+                13,
+                "[node name=\"Glow\" type=\"Node2D\" parent=\"Узел/Tip\"]"
+              ],
+              [
+                " ",
+                14,
+                14,
+                "[node name=\"Wing\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                "-",
+                15,
+                null,
+                "[connection signal=\"ready\" from=\"Arm\" to=\"Arm/Tip\" method=\"ready\"]"
+              ],
+              [
+                "-",
+                16,
+                null,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"Arm\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                15,
+                "[connection signal=\"ready\" from=\"Узел\" to=\"Узел/Tip\" method=\"ready\"]"
+              ],
+              [
+                "+",
+                null,
+                16,
+                "[connection signal=\"ready\" from=\"Wing\" to=\"Узел\" method=\"ready\"]"
+              ]
+            ],
+            "added": 7,
+            "removed": 7,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 7
+        },
+        {
+          "action": "patch_file",
+          "path": "res://main.gd",
+          "before_hash": "1c345a1347fb5482dddcce99b9efaa38cb3bc8577c70cc96e504dd2fdea5207c",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAkQXJtCkBvbnJlYWR5IHZhciBiID0gJEFybS9UaXAKQG9ucmVhZHkgdmFyIGMgPSAkIkFybS9UaXAiCkBvbnJlYWR5IHZhciBkID0gJUFybQpmdW5jIHJlYWR5KCk6CiAgICBnZXRfbm9kZSgiQXJtL1RpcCIpCiAgICBnZXRfbm9kZV9vcl9udWxsKCdBcm0nKQogICAgaGFzX25vZGUoIkFybSIpCiAgICBmaW5kX2NoaWxkKCJBcm0iKQo=",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlMkQKQG9ucmVhZHkgdmFyIGEgPSAk0KPQt9C10LsKQG9ucmVhZHkgdmFyIGIgPSAk0KPQt9C10LsvVGlwCkBvbnJlYWR5IHZhciBjID0gJCLQo9C30LXQuy9UaXAiCkBvbnJlYWR5IHZhciBkID0gJdCj0LfQtdC7CmZ1bmMgcmVhZHkoKToKICAgIGdldF9ub2RlKCLQo9C30LXQuy9UaXAiKQogICAgZ2V0X25vZGVfb3JfbnVsbCgn0KPQt9C10LsnKQogICAgaGFzX25vZGUoItCj0LfQtdC7IikKICAgIGZpbmRfY2hpbGQoItCj0LfQtdC7IikK",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,10 +1,10 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node2D"
+              ],
+              [
+                "-",
+                2,
+                null,
+                "@onready var a = $Arm"
+              ],
+              [
+                "-",
+                3,
+                null,
+                "@onready var b = $Arm/Tip"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "@onready var c = $\"Arm/Tip\""
+              ],
+              [
+                "-",
+                5,
+                null,
+                "@onready var d = %Arm"
+              ],
+              [
+                "+",
+                null,
+                2,
+                "@onready var a = $Узел"
+              ],
+              [
+                "+",
+                null,
+                3,
+                "@onready var b = $Узел/Tip"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "@onready var c = $\"Узел/Tip\""
+              ],
+              [
+                "+",
+                null,
+                5,
+                "@onready var d = %Узел"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "func ready():"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "    get_node(\"Arm/Tip\")"
+              ],
+              [
+                "-",
+                8,
+                null,
+                "    get_node_or_null('Arm')"
+              ],
+              [
+                "-",
+                9,
+                null,
+                "    has_node(\"Arm\")"
+              ],
+              [
+                "-",
+                10,
+                null,
+                "    find_child(\"Arm\")"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "    get_node(\"Узел/Tip\")"
+              ],
+              [
+                "+",
+                null,
+                8,
+                "    get_node_or_null('Узел')"
+              ],
+              [
+                "+",
+                null,
+                9,
+                "    has_node(\"Узел\")"
+              ],
+              [
+                "+",
+                null,
+                10,
+                "    find_child(\"Узел\")"
+              ]
+            ],
+            "added": 8,
+            "removed": 8,
+            "truncated": false,
+            "path": "res://main.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 8
+        },
+        {
+          "action": "patch_file",
+          "path": "res://tip.gd",
+          "before_hash": "91f60317125d8372ed8fe4d9902658d21079316ea71674d08bf8fff2d1271bd1",
+          "before_bytes": "ZXh0ZW5kcyBOb2RlMkQKZnVuYyByZWFkeSgpOgogICAgZmluZF9jaGlsZCgiQXJtIikKICAgIGdldF9ub2RlKCIuLi9UaXAiKQo=",
+          "after_bytes": "ZXh0ZW5kcyBOb2RlMkQKZnVuYyByZWFkeSgpOgogICAgZmluZF9jaGlsZCgi0KPQt9C10LsiKQogICAgZ2V0X25vZGUoIi4uLy4uL9Cj0LfQtdC7L1RpcCIpCg==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,4 +1,4 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node2D"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "func ready():"
+              ],
+              [
+                "-",
+                3,
+                null,
+                "    find_child(\"Arm\")"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "    get_node(\"../Tip\")"
+              ],
+              [
+                "+",
+                null,
+                3,
+                "    find_child(\"Узел\")"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "    get_node(\"../../Узел/Tip\")"
+              ]
+            ],
+            "added": 2,
+            "removed": 2,
+            "truncated": false,
+            "path": "res://tip.gd",
+            "action": "patch_file"
+          },
+          "occurrences": 2
+        }
+      ],
+      "reference_count": 17,
+      "affected_paths": [
+        "res://main.tscn",
+        "res://main.gd",
+        "res://tip.gd"
+      ],
+      "scripts_only": false,
+      "previous_name": ""
+    }
+  }
+}

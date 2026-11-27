@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "source": "native python/browser/net_monitor.py + native tests observations (v88_6, v88_8, v88_12, qwen_dual, net_monitor_lifecycle, rate_limit_sleep); recorded event sequences, frames are data, not code",
+  "source_sha256": "54167afbb87d9a9bf862df0a74c5a7bd24bb129661968682201c329d4297866b",
+  "protocol_note": "wire subclass: line-framed ascii, apply DONE -> FINISHED, RAISE -> exception; corpus frames are inert data (SEC-03)",
+  "cases": [
+    {
+      "id": "c01_match_requests",
+      "fixture": "cases/c01_match_requests.jsonl",
+      "sha256": "18f0f3f6adbf2e900b1f17b1f1afacc95a841019090927ed10c87ce2a9ff2958",
+      "source": "native test_v88_6_qwen_net.py / test_v88_8_net_first.py: chat POST counting",
+      "expected": {
+        "chat_request_count": 2,
+        "answer_request_count": 0,
+        "generating": false,
+        "assistant_message_count": 0,
+        "message_status": null,
+        "text": "",
+        "pop_http_error": null
+      }
+    },
+    {
+      "id": "c02_http_error_429_pop_once",
+      "fixture": "cases/c02_http_error_429_pop_once.jsonl",
+      "sha256": "a6888de69dfda905775ffbcee6163caba16c8da5e53a7fbf7ec0466dd9f3ce0c",
+      "source": "native test_rate_limit_sleep.py:120-187 (v104.12)",
+      "expected": {
+        "pop_http_error": null,
+        "chat_request_count": 0,
+        "generating": false,
+        "message_status": null,
+        "text": ""
+      }
+    },
+    {
+      "id": "c03_stream_incremental_unicode",
+      "fixture": "cases/c03_stream_incremental_unicode.jsonl",
+      "sha256": "b6f8786e0604c43134d526e02b2370a28e12af7eab0a882a7a2d117dd0106dcf",
+      "source": "native test_v88_6_qwen_net.py SSE-чанки: частичные кадры + юникод",
+      "expected": {
+        "text": "Саламчастичный кадр",
+        "message_status": "FINISHED",
+        "assistant_message_count": 1,
+        "generating": false,
+        "chat_request_count": 1,
+        "answer_request_count": 1,
+        "pop_http_error": null
+      }
+    },
+    {
+      "id": "c04_chunk_boundary_126_127",
+      "fixture": "cases/c04_chunk_boundary_126_127.jsonl",
+      "sha256": "a9807311fd343c4b0fd3458488d906d8a1a36015ebcca8ca44623f0d89ff6370",
+      "source": "native v88.6 chunked replay: границы чанков 126/127 байт",
+      "expected": {
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbz",
+        "message_status": "FINISHED",
+        "assistant_message_count": 1,
+        "generating": false,
+        "answer_request_count": 1
+      }
+    },
+    {
+      "id": "c05_stale_body_ignored",
+      "fixture": "cases/c05_stale_body_ignored.jsonl",
+      "sha256": "bfcec7dfe7c4ea213eb1a7349db2b3dfea6ca44892c1152ec86c52d50c5d6fd6",
+      "source": "native test_net_monitor_lifecycle.py: тело старого запроса не применяется",
+      "expected": {
+        "text": "",
+        "message_status": null,
+        "assistant_message_count": 0,
+        "generating": false,
+        "chat_request_count": 2,
+        "get_response_body_calls": 0
+      }
+    },
+    {
+      "id": "c06_buffer_reset_on_response",
+      "fixture": "cases/c06_buffer_reset_on_response.jsonl",
+      "sha256": "c501e7a773cf4e12344fa1691344a7808143806beefb0adf4d136a1fef8530ab",
+      "source": "native test_v88_8_net_first.py v88.10: буфер привязан к новому POST",
+      "expected": {
+        "text": "",
+        "message_status": null,
+        "assistant_message_count": 1,
+        "generating": false,
+        "chat_request_count": 2,
+        "answer_request_count": 2,
+        "pop_http_error": null
+      }
+    },
+    {
+      "id": "c07_loading_failed_cleanup",
+      "fixture": "cases/c07_loading_failed_cleanup.jsonl",
+      "sha256": "17c6e885c93ff505ddf5c88d7bf8b6781a2c8159591b3c73837f248647522d1b",
+      "source": "native test_net_monitor_lifecycle.py: обрыв ответа -> FAILED",
+      "expected": {
+        "text": "часть",
+        "message_status": "FAILED",
+        "assistant_message_count": 0,
+        "generating": false,
+        "pop_http_error": null
+      }
+    },
+    {
+      "id": "c08_fallback_get_response_body",
+      "fixture": "cases/c08_fallback_get_response_body.jsonl",
+      "sha256": "b8118556738539b0c012f39d11d826e65563387ede4f5c6fa22c733d13b466e7",
+      "source": "native test_net_monitor_lifecycle.py: запасной путь v87.8",
+      "expected": {
+        "text": "тело ответа",
+        "message_status": "FINISHED",
+        "assistant_message_count": 1,
+        "generating": false,
+        "get_response_body_calls": 1
+      }
+    },
+    {
+      "id": "c09_stream_parse_fail_terminal",
+      "fixture": "cases/c09_stream_parse_fail_terminal.jsonl",
+      "sha256": "a2f460c376361a2a85420e74256fddcdb46946fe18278ce7631686ac832ebf00",
+      "source": "native test_net_monitor_lifecycle.py: исключение разбора терминально",
+      "expected": {
+        "text": "",
+        "message_status": "FAILED",
+        "assistant_message_count": 0,
+        "generating": false,
+        "get_response_body_calls": 0
+      }
+    },
+    {
+      "id": "c10_final_tail_discarded",
+      "fixture": "cases/c10_final_tail_discarded.jsonl",
+      "sha256": "a840fa3487125bd0e3ed2d4a78485d14c20fd962e40839fdf0a4e581d2182865",
+      "source": "native test_net_monitor_lifecycle.py: хвост без делимитера не применяется",
+      "expected": {
+        "text": "ответ",
+        "message_status": null,
+        "assistant_message_count": 0,
+        "generating": false
+      }
+    },
+    {
+      "id": "c11_final_tail_applied_once",
+      "fixture": "cases/c11_final_tail_applied_once.jsonl",
+      "sha256": "3605e5bd99c0e3092e93e7e2193fc19ce85faf3038e06798733b9a2e88892feb",
+      "source": "native test_net_monitor_lifecycle.py: line-протокол применяет хвост ОДИН раз",
+      "expected": {
+        "text": "ответ",
+        "message_status": "FINISHED",
+        "assistant_message_count": 1,
+        "generating": false
+      }
+    },
+    {
+      "id": "c12_stream_setup_parse_fail",
+      "fixture": "cases/c12_stream_setup_parse_fail.jsonl",
+      "sha256": "623489c95c343b4c4dc3fc2d9eb0b93e51991eaca3b78d6d2c8fb1b65700f95f",
+      "source": "native test_net_monitor_lifecycle.py: сбой разбора буфера не реплеит текст",
+      "expected": {
+        "text": "answer",
+        "message_status": "FAILED",
+        "assistant_message_count": 0,
+        "generating": false,
+        "get_response_body_calls": 0
+      }
+    }
+  ]
+}

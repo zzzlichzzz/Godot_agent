@@ -1,0 +1,7 @@
+{
+  "kind": "stream",
+  "module": "openai_compat",
+  "chunk": 1,
+  "wire_base64": "ZGF0YToge2JhZC1qc29ufQoKOiBmaXh0dXJlIGtlZXBhbGl2ZQ0KDQpkYXRhOiB7Im1vZGVsIjogImZpeHR1cmUiLCAiY2hvaWNlcyI6IFt7ImRlbHRhIjogeyJyZWFzb25pbmciOiAi0J/RgNC+0LLQtdGA0Y/RjiDOqSJ9fV19DQoNCmRhdGE6IHsiY2hvaWNlcyI6IFt7ImRlbHRhIjogeyJjb250ZW50IjogItCe0YLQstC10YI6INGR0LYg8J+mlCJ9fV19DQoNCmRhdGE6IHsiY2hvaWNlcyI6IFt7ImRlbHRhIjoge30sICJmaW5pc2hfcmVhc29uIjogInN0b3AifV0sICJ1c2FnZSI6IHsicHJvbXB0X3Rva2VucyI6IDEyLCAiY29tcGxldGlvbl90b2tlbnMiOiAzfX0NCg0KZGF0YTogW0RPTkVdDQoNCg==",
+  "id": "api-076"
+}

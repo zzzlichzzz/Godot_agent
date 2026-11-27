@@ -1,0 +1,43 @@
+{
+  "id": "046-unicode.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "unicode.tscn: 'Корень'",
+  "args": {
+    "path": "res://scenes/unicode.tscn",
+    "node": "Корень"
+  },
+  "reference_node": {
+    "name": "Корень",
+    "parent": null,
+    "type": "Node",
+    "path": ".",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      20,
+      52
+    ],
+    "body_span": [
+      52,
+      53
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Корень",
+      "type": "Node",
+      "parent": null,
+      "path": ".",
+      "depth": 0,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": null,
+      "children": [
+        "Узел"
+      ]
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "ai-no-false-finish",
+  "kind": "decode",
+  "monitor": "ai",
+  "step": 7,
+  "body_b64": "W1tbW1tbW251bGwsICLQn9GA0L7QstC10YDRj9GOIM6pIiwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgMV1dLCAibW9kZWwiXV1dLCBudWxsXSwgW1tbW1tbbnVsbCwgItCe0YLQstC10YI6ICJdXSwgIm1vZGVsIl1dXSwgbnVsbF0sIFtbW1tbW251bGwsICLRkdC2IPCfppQiXV0sICJtb2RlbCJdXV0sIG51bGxdXQ==",
+  "trace": true,
+  "native_case_source": "test_v88_0_aistudio.py:161-169; new answer/thought without finish"
+}

@@ -1,0 +1,23 @@
+{
+  "id": "014-escaped.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "escaped.tscn",
+  "args": {
+    "path": "res://escaped.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "Button\\\"quoted",
+          "to": ".",
+          "method": "_on_button_pressed"
+        }
+      ],
+      "text": "- Button\\.pressed -> <root>._on_button_pressed()"
+    }
+  }
+}

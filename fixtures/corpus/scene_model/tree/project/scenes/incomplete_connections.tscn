@@ -1,0 +1,5 @@
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+[connection signal="" from="." to="." method="a"]
+[connection signal="go" from="." method="a"]
+[connection signal="go" from="." to="." method="a"]

@@ -1,0 +1,58 @@
+{
+  "id": "003-nested.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/nested.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n  - Gun (Node2D)\n    - Muzzle\n      - Spark (Marker2D)",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Gun",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": ".",
+          "path": "Gun"
+        },
+        {
+          "depth": 2,
+          "name": "Muzzle",
+          "type": "",
+          "script": null,
+          "instance": null,
+          "parent": "Gun",
+          "path": "Gun/Muzzle"
+        },
+        {
+          "depth": 3,
+          "name": "Spark",
+          "type": "Marker2D",
+          "script": null,
+          "instance": null,
+          "parent": "Gun/Muzzle",
+          "path": "Gun/Muzzle/Spark"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

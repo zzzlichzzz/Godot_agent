@@ -1,0 +1,1 @@
+{"zones": [{"glob": "**/*.py", "role": "core", "new_files": "allow"}]}

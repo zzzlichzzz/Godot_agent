@@ -1,0 +1,15 @@
+{
+  "id": "019-empty_scene",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/019-empty_scene",
+  "note": "actual-old prepare-only: empty_scene",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "."
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Корневой узел сцены не найден"
+  }
+}

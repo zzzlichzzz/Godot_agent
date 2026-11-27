@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "reason_from_text",
+  "args": [
+    "rate limit",
+    {
+      "action": "done"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-192"
+}

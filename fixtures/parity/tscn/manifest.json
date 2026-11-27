@@ -1,0 +1,102 @@
+{
+  "captured": "2026-10-29",
+  "reference_commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+  "capture": "One-off python -B script, ordinary imports via old _bootstrap; script removed after capture.",
+  "text_decode": "utf-8 (BOM and CRLF retained)",
+  "references": {
+    "godot_tools/node_refactor.py": {
+      "function": "parse_tscn_structure",
+      "lines": [
+        73,
+        160
+      ],
+      "sha256": "2d708a384177fa0a8d4636f3f2dd373508ee316216319edf7d793255d8918a29"
+    },
+    "godot_tools/scene_deps.py": {
+      "function": "parse_scene",
+      "lines": [
+        120,
+        172
+      ],
+      "helpers": [
+        "_ATTR_RE:68",
+        "_parse_attrs:102-108",
+        "_attr_id:111-117"
+      ],
+      "sha256": "dbd502afeca7fa2fe97d49a995438c551d313d1713e6591865ab2bf3b053067b"
+    }
+  },
+  "files": {
+    "anim.tscn": {
+      "sha256": "21317f6706b2f71467bc0b61f76a0b9ebc0fa36d33bf39c913880c70fcb7741b",
+      "bytes": 424
+    },
+    "basic.tscn": {
+      "sha256": "c22f447613fa48c4536489744ceb8b22c9135329a444a4a75de2b985e4d3cfdd",
+      "bytes": 377
+    },
+    "bom.tscn": {
+      "sha256": "aec0d95a3a1260af46debc5657882bb8efca855dbdf83f32f860cbe2a3073848",
+      "bytes": 290
+    },
+    "bom_crlf.tscn": {
+      "sha256": "d0e3fdab7cd7f979f21fa3205f5ee93c88d8c90e26facce92212329e68d50e6d",
+      "bytes": 300
+    },
+    "connections.tscn": {
+      "sha256": "311d93fa342ff3738338d307a55706dc1e049f0734d8297d84fae648945a993b",
+      "bytes": 382
+    },
+    "crlf.tscn": {
+      "sha256": "0c850d8b3e5a5a4a8d95f108ca1e4edbeb37fdde7c3915d7306efcf831f9ea4e",
+      "bytes": 285
+    },
+    "curve.tres": {
+      "sha256": "24f7c2670f21dbd38f2fc9e0fd70a716a44e253ae10f9137501732def9e57a15",
+      "bytes": 315
+    },
+    "editable.tscn": {
+      "sha256": "36f909df8f5fbc9007d7a93fc9c77a2abf843c651832727ef1ecaf5c5d8b1a87",
+      "bytes": 250
+    },
+    "empty.tscn": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "flat.tres": {
+      "sha256": "f2699d1f2c3b26e78e30fd89a9c34a41f73672fe1b70cd6313bf5929d54b6e2e",
+      "bytes": 123
+    },
+    "instance.tscn": {
+      "sha256": "4e26be844fbc70ba0a3b1c2d65d2bc1122bc31d7b57e21689dfe685ba13ea38e",
+      "bytes": 406
+    },
+    "player.tscn": {
+      "sha256": "76500b7ac09ea3abca81372831fedeadcdd8a3803179613362ab3cac3bf4dec5",
+      "bytes": 271
+    },
+    "quirks.tscn": {
+      "sha256": "1ff751a2e8f9a0098a985f83a3b9f9fcf0edf9a23de7df897292266b1cadb6b1",
+      "bytes": 437
+    },
+    "spans.tscn": {
+      "sha256": "8497cae84d4ee355cbe5c175a3f7b794f607a7a6a4259220be417afdd9d911f6",
+      "bytes": 479
+    },
+    "sub.tscn": {
+      "sha256": "d186b1fa747043029710ae299dc135633b6e7aa37c9e944ecd49f9ed93ae9115",
+      "bytes": 315
+    },
+    "unique.tscn": {
+      "sha256": "6d2a58640b6396e57c1a7b7b54f89966d84a0e2e2098f2bb6d4779bef7593122",
+      "bytes": 204
+    }
+  },
+  "expected": {
+    "expected.structure.json": "7fb386da37f881cb1343eaa3a818fda254911b48e9f557a2dab3cdad3483d1a7",
+    "expected.fields.json": "badd12c0a547a4d3aeaac665722024b2951cbd9af71ddaa734a8cf889084405a"
+  },
+  "copied": {
+    "player.tscn": "fixtures/projects/minimal/scenes/player.tscn"
+  }
+}

@@ -1,0 +1,963 @@
+{
+  "before": {
+    "files": {
+      "fight.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCnJ1bi9tYWluX3NjZW5lPSJyZXM6Ly9maWdodC50c2NuIgo="
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iR29kb3QgQWdlbnQiCg=="
+      },
+      "addons/other/observer.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "src/combatant.gd": {
+        "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+      },
+      "src/combatant.gd.uid": {
+        "base64": "dWlkOi8vYTNyZWZlcmVuY2UK"
+      },
+      "src/control.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+      },
+      "src/load.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFVOSVQgPSBwcmVsb2FkKCJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIikK"
+      },
+      "src/reflect.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMgaW52b2tlKHRhcmdldCk6Cgl0YXJnZXQuY2FsbCgicmVjZWl2ZSIsIDIpCg=="
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "src"
+    ]
+  },
+  "result": {
+    "find_references": {
+      "action": "find_symbol_usages",
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 7,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 12,
+          "column": 14,
+          "link": "member",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/control.gd",
+          "line": 4,
+          "column": 15,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «actor»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/reflect.gd",
+          "line": 3,
+          "column": 14,
+          "link": "string",
+          "confidence": "dynamic",
+          "note": "call() по имени"
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 2,
+        "string": 1
+      },
+      "proven_count": 2,
+      "probable_count": 1,
+      "dynamic_count": 1
+    },
+    "find_references_again": {
+      "action": "find_symbol_usages",
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 7,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 12,
+          "column": 14,
+          "link": "member",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/control.gd",
+          "line": 4,
+          "column": 15,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «actor»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/reflect.gd",
+          "line": 3,
+          "column": 14,
+          "link": "string",
+          "confidence": "dynamic",
+          "note": "call() по имени"
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 2,
+        "string": 1
+      },
+      "proven_count": 2,
+      "probable_count": 1,
+      "dynamic_count": 1
+    },
+    "analyze_rename": {
+      "action": "analyze_rename",
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "allow_unverified": false,
+      "mode": "probable",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 7,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 12,
+          "column": 14,
+          "link": "member",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/control.gd",
+          "line": 4,
+          "column": 15,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «actor»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/reflect.gd",
+          "line": 3,
+          "column": 14,
+          "link": "string",
+          "confidence": "dynamic",
+          "note": "call() по имени"
+        }
+      ],
+      "affected_paths": [
+        "res://src/combatant.gd"
+      ],
+      "risks": [
+        "res://src/control.gd:4 [member, probable] — не удалось доказать тип ресивера «actor»: добавь аннотацию типа, и ссылка переименуется сама",
+        "res://src/reflect.gd:3 [string, dynamic] — call() по имени"
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 2,
+        "string": 1
+      },
+      "proven_count": 2,
+      "probable_count": 1,
+      "dynamic_count": 1,
+      "declaration_path": "res://src/combatant.gd",
+      "declaration_line": 7
+    },
+    "analyze_rename_again": {
+      "action": "analyze_rename",
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "allow_unverified": false,
+      "mode": "probable",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 7,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 12,
+          "column": 14,
+          "link": "member",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/control.gd",
+          "line": 4,
+          "column": 15,
+          "link": "member",
+          "confidence": "probable",
+          "note": "не удалось доказать тип ресивера «actor»: добавь аннотацию типа, и ссылка переименуется сама"
+        },
+        {
+          "path": "res://src/reflect.gd",
+          "line": 3,
+          "column": 14,
+          "link": "string",
+          "confidence": "dynamic",
+          "note": "call() по имени"
+        }
+      ],
+      "affected_paths": [
+        "res://src/combatant.gd"
+      ],
+      "risks": [
+        "res://src/control.gd:4 [member, probable] — не удалось доказать тип ресивера «actor»: добавь аннотацию типа, и ссылка переименуется сама",
+        "res://src/reflect.gd:3 [string, dynamic] — call() по имени"
+      ],
+      "by_link": {
+        "declaration": 1,
+        "member": 2,
+        "string": 1
+      },
+      "proven_count": 2,
+      "probable_count": 1,
+      "dynamic_count": 1,
+      "declaration_path": "res://src/combatant.gd",
+      "declaration_line": 7
+    },
+    "prepare_rename": {
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "files": [
+        {
+          "path": "res://src/combatant.gd",
+          "absolute": "<sandbox>\\project\\src\\combatant.gd",
+          "before_hash": "a3e634a54867af97cc02df707f08e26a98f2ad3fe9906cb4ce9bea02a657e913",
+          "before_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+          },
+          "after_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyBhY2NlcHQoYW1vdW50OiBpbnQpIC0+IGludDoKCWluanVyZWQuZW1pdCgpCgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCmZ1bmMgbG9vcF9jYWxsKCkgLT4gaW50OgoJcmV0dXJuIHNlbGYuYWNjZXB0KDEpCg=="
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                4,
+                4,
+                "@@ -4,9 +4,9 @@"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "@export var health: int = 10"
+              ],
+              [
+                " ",
+                5,
+                5,
+                "const LIMIT = 20"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "enum Phase { WAIT, ACTIVE }"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "func receive(amount: int) -> int:"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "func accept(amount: int) -> int:"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "\tinjured.emit()"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "\thealth -= amount"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "\treturn health"
+              ],
+              [
+                " ",
+                11,
+                11,
+                "func loop_call() -> int:"
+              ],
+              [
+                "-",
+                12,
+                null,
+                "\treturn self.receive(1)"
+              ],
+              [
+                "+",
+                null,
+                12,
+                "\treturn self.accept(1)"
+              ]
+            ],
+            "added": 2,
+            "removed": 2,
+            "truncated": false,
+            "path": "res://src/combatant.gd",
+            "action": "rename_symbol"
+          },
+          "occurrences": 2
+        },
+        {
+          "path": "res://src/control.gd",
+          "absolute": "<sandbox>\\project\\src\\control.gd",
+          "before_hash": "617fe80cf6c55a379b74efefa6d8e64a4fc09280ed3ad2c77310734694256eb2",
+          "before_bytes": {
+            "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+          },
+          "after_bytes": {
+            "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IuYWNjZXB0KDIpCg=="
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,4 +1,4 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "var actor: Combatant"
+              ],
+              [
+                " ",
+                3,
+                3,
+                "func dispatch() -> int:"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "\treturn actor.receive(2)"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "\treturn actor.accept(2)"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://src/control.gd",
+            "action": "rename_symbol"
+          },
+          "occurrences": 1
+        },
+        {
+          "path": "res://fight.tscn",
+          "absolute": "<sandbox>\\project\\fight.tscn",
+          "before_hash": "927033763e2be3808e251d07cf1f34373ee0142a34327064bfad4101e68a78d2",
+          "before_bytes": {
+            "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+          },
+          "after_bytes": {
+            "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJhY2NlcHQiXQpbY29ubmVjdGlvbiBzaWduYWw9ImluanVyZWQiIGZyb209Ii4iIHRvPSJGb3JlaWduIiBtZXRob2Q9InJlY2VpdmUiXQo="
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                7,
+                7,
+                "@@ -7,5 +7,5 @@"
+              ],
+              [
+                " ",
+                7,
+                7,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "health = 9"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "[node name=\"Foreign\" type=\"Node\" parent=\".\"]"
+              ],
+              [
+                "-",
+                10,
+                null,
+                "[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"receive\"]"
+              ],
+              [
+                "+",
+                null,
+                10,
+                "[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"accept\"]"
+              ],
+              [
+                " ",
+                11,
+                11,
+                "[connection signal=\"injured\" from=\".\" to=\"Foreign\" method=\"receive\"]"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://fight.tscn",
+            "action": "rename_symbol"
+          },
+          "occurrences": 1
+        }
+      ],
+      "file_rename": null,
+      "file_rename_diff": null,
+      "dynamic_references": [
+        "res://src/reflect.gd:3 — call() по имени(\"receive\"); проверьте вручную"
+      ],
+      "warnings": [],
+      "unverified_references": [],
+      "unverified_count": 0,
+      "renamed_count": 4,
+      "skipped_usages": [],
+      "mode": "probable",
+      "allow_unverified": false,
+      "reference_count": 3
+    },
+    "prepare_rename_again": {
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "files": [
+        {
+          "path": "res://src/combatant.gd",
+          "absolute": "<sandbox>\\project\\src\\combatant.gd",
+          "before_hash": "a3e634a54867af97cc02df707f08e26a98f2ad3fe9906cb4ce9bea02a657e913",
+          "before_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+          },
+          "after_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyBhY2NlcHQoYW1vdW50OiBpbnQpIC0+IGludDoKCWluanVyZWQuZW1pdCgpCgloZWFsdGggLT0gYW1vdW50CglyZXR1cm4gaGVhbHRoCmZ1bmMgbG9vcF9jYWxsKCkgLT4gaW50OgoJcmV0dXJuIHNlbGYuYWNjZXB0KDEpCg=="
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                4,
+                4,
+                "@@ -4,9 +4,9 @@"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "@export var health: int = 10"
+              ],
+              [
+                " ",
+                5,
+                5,
+                "const LIMIT = 20"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "enum Phase { WAIT, ACTIVE }"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "func receive(amount: int) -> int:"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "func accept(amount: int) -> int:"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "\tinjured.emit()"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "\thealth -= amount"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "\treturn health"
+              ],
+              [
+                " ",
+                11,
+                11,
+                "func loop_call() -> int:"
+              ],
+              [
+                "-",
+                12,
+                null,
+                "\treturn self.receive(1)"
+              ],
+              [
+                "+",
+                null,
+                12,
+                "\treturn self.accept(1)"
+              ]
+            ],
+            "added": 2,
+            "removed": 2,
+            "truncated": false,
+            "path": "res://src/combatant.gd",
+            "action": "rename_symbol"
+          },
+          "occurrences": 2
+        },
+        {
+          "path": "res://src/control.gd",
+          "absolute": "<sandbox>\\project\\src\\control.gd",
+          "before_hash": "617fe80cf6c55a379b74efefa6d8e64a4fc09280ed3ad2c77310734694256eb2",
+          "before_bytes": {
+            "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+          },
+          "after_bytes": {
+            "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IuYWNjZXB0KDIpCg=="
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,4 +1,4 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "extends Node"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "var actor: Combatant"
+              ],
+              [
+                " ",
+                3,
+                3,
+                "func dispatch() -> int:"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "\treturn actor.receive(2)"
+              ],
+              [
+                "+",
+                null,
+                4,
+                "\treturn actor.accept(2)"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://src/control.gd",
+            "action": "rename_symbol"
+          },
+          "occurrences": 1
+        },
+        {
+          "path": "res://fight.tscn",
+          "absolute": "<sandbox>\\project\\fight.tscn",
+          "before_hash": "927033763e2be3808e251d07cf1f34373ee0142a34327064bfad4101e68a78d2",
+          "before_bytes": {
+            "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+          },
+          "after_bytes": {
+            "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJhY2NlcHQiXQpbY29ubmVjdGlvbiBzaWduYWw9ImluanVyZWQiIGZyb209Ii4iIHRvPSJGb3JlaWduIiBtZXRob2Q9InJlY2VpdmUiXQo="
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                7,
+                7,
+                "@@ -7,5 +7,5 @@"
+              ],
+              [
+                " ",
+                7,
+                7,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "health = 9"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "[node name=\"Foreign\" type=\"Node\" parent=\".\"]"
+              ],
+              [
+                "-",
+                10,
+                null,
+                "[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"receive\"]"
+              ],
+              [
+                "+",
+                null,
+                10,
+                "[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"accept\"]"
+              ],
+              [
+                " ",
+                11,
+                11,
+                "[connection signal=\"injured\" from=\".\" to=\"Foreign\" method=\"receive\"]"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://fight.tscn",
+            "action": "rename_symbol"
+          },
+          "occurrences": 1
+        }
+      ],
+      "file_rename": null,
+      "file_rename_diff": null,
+      "dynamic_references": [
+        "res://src/reflect.gd:3 — call() по имени(\"receive\"); проверьте вручную"
+      ],
+      "warnings": [],
+      "unverified_references": [],
+      "unverified_count": 0,
+      "renamed_count": 4,
+      "skipped_usages": [],
+      "mode": "probable",
+      "allow_unverified": false,
+      "reference_count": 3
+    },
+    "public": {
+      "kind": "function",
+      "old_name": "receive",
+      "new_name": "accept",
+      "declaration": "res://src/combatant.gd:7",
+      "paths": [
+        "res://src/combatant.gd",
+        "res://src/control.gd",
+        "res://fight.tscn"
+      ],
+      "file_count": 3,
+      "reference_count": 3,
+      "dynamic_references": [
+        "res://src/reflect.gd:3 — call() по имени(\"receive\"); проверьте вручную"
+      ],
+      "warnings": [],
+      "unverified_references": [],
+      "unverified_count": 0,
+      "renamed_count": 4,
+      "skipped_usages": [],
+      "mode": "probable",
+      "allow_unverified": false,
+      "file_rename": null
+    },
+    "diffs": [
+      {
+        "lines": [
+          [
+            "@",
+            4,
+            4,
+            "@@ -4,9 +4,9 @@"
+          ],
+          [
+            " ",
+            4,
+            4,
+            "@export var health: int = 10"
+          ],
+          [
+            " ",
+            5,
+            5,
+            "const LIMIT = 20"
+          ],
+          [
+            " ",
+            6,
+            6,
+            "enum Phase { WAIT, ACTIVE }"
+          ],
+          [
+            "-",
+            7,
+            null,
+            "func receive(amount: int) -> int:"
+          ],
+          [
+            "+",
+            null,
+            7,
+            "func accept(amount: int) -> int:"
+          ],
+          [
+            " ",
+            8,
+            8,
+            "\tinjured.emit()"
+          ],
+          [
+            " ",
+            9,
+            9,
+            "\thealth -= amount"
+          ],
+          [
+            " ",
+            10,
+            10,
+            "\treturn health"
+          ],
+          [
+            " ",
+            11,
+            11,
+            "func loop_call() -> int:"
+          ],
+          [
+            "-",
+            12,
+            null,
+            "\treturn self.receive(1)"
+          ],
+          [
+            "+",
+            null,
+            12,
+            "\treturn self.accept(1)"
+          ]
+        ],
+        "added": 2,
+        "removed": 2,
+        "truncated": false,
+        "path": "res://src/combatant.gd",
+        "action": "rename_symbol"
+      },
+      {
+        "lines": [
+          [
+            "@",
+            1,
+            1,
+            "@@ -1,4 +1,4 @@"
+          ],
+          [
+            " ",
+            1,
+            1,
+            "extends Node"
+          ],
+          [
+            " ",
+            2,
+            2,
+            "var actor: Combatant"
+          ],
+          [
+            " ",
+            3,
+            3,
+            "func dispatch() -> int:"
+          ],
+          [
+            "-",
+            4,
+            null,
+            "\treturn actor.receive(2)"
+          ],
+          [
+            "+",
+            null,
+            4,
+            "\treturn actor.accept(2)"
+          ]
+        ],
+        "added": 1,
+        "removed": 1,
+        "truncated": false,
+        "path": "res://src/control.gd",
+        "action": "rename_symbol"
+      },
+      {
+        "lines": [
+          [
+            "@",
+            7,
+            7,
+            "@@ -7,5 +7,5 @@"
+          ],
+          [
+            " ",
+            7,
+            7,
+            "script = ExtResource(\"1\")"
+          ],
+          [
+            " ",
+            8,
+            8,
+            "health = 9"
+          ],
+          [
+            " ",
+            9,
+            9,
+            "[node name=\"Foreign\" type=\"Node\" parent=\".\"]"
+          ],
+          [
+            "-",
+            10,
+            null,
+            "[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"receive\"]"
+          ],
+          [
+            "+",
+            null,
+            10,
+            "[connection signal=\"injured\" from=\".\" to=\"Peer\" method=\"accept\"]"
+          ],
+          [
+            " ",
+            11,
+            11,
+            "[connection signal=\"injured\" from=\".\" to=\"Foreign\" method=\"receive\"]"
+          ]
+        ],
+        "added": 1,
+        "removed": 1,
+        "truncated": false,
+        "path": "res://fight.tscn",
+        "action": "rename_symbol"
+      }
+    ]
+  },
+  "after": {
+    "files": {
+      "fight.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCnJ1bi9tYWluX3NjZW5lPSJyZXM6Ly9maWdodC50c2NuIgo="
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iR29kb3QgQWdlbnQiCg=="
+      },
+      "addons/other/observer.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "src/combatant.gd": {
+        "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+      },
+      "src/combatant.gd.uid": {
+        "base64": "dWlkOi8vYTNyZWZlcmVuY2UK"
+      },
+      "src/control.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+      },
+      "src/load.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFVOSVQgPSBwcmVsb2FkKCJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIikK"
+      },
+      "src/reflect.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMgaW52b2tlKHRhcmdldCk6Cgl0YXJnZXQuY2FsbCgicmVjZWl2ZSIsIDIpCg=="
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "src"
+    ]
+  }
+}

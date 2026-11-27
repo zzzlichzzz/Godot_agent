@@ -1,0 +1,41 @@
+{
+  "id": "052-spaced_instance.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "spaced_instance.tscn: 'Weapon'",
+  "args": {
+    "path": "res://scenes/spaced_instance.tscn",
+    "node": "Weapon"
+  },
+  "reference_node": {
+    "name": "Weapon",
+    "parent": ".",
+    "type": "",
+    "path": "Weapon",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      117,
+      176
+    ],
+    "body_span": [
+      176,
+      177
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Weapon",
+      "type": "",
+      "parent": ".",
+      "path": "Weapon",
+      "depth": 1,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

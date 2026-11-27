@@ -1,0 +1,446 @@
+[
+  {
+    "id": "plain-done",
+    "args": {
+      "full_text": "Need to clarify the movement requirement.\n===DONE==="
+    }
+  },
+  {
+    "id": "plain-unfinished",
+    "args": {
+      "full_text": "First inspect the project before editing."
+    }
+  },
+  {
+    "id": "plain-marker-only",
+    "args": {
+      "full_text": "===DONE==="
+    }
+  },
+  {
+    "id": "broken-fence",
+    "args": {
+      "full_text": "```agent_action\n{\"action\":\"read_file\"}\n===DONE==="
+    }
+  },
+  {
+    "id": "broken-json",
+    "args": {
+      "full_text": "```agent_action\n{\"action\":\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "incomplete-ref",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content_ref\": \"SCRIPT\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-exact",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://project.godot\"]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-gd",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://src/combatant.gd\"]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-missing",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://missing.gd\"]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-escape",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://../secret\"]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-addon",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://addons/other/helper.gd\"]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-no-paths",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-wrong-paths",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": \"res://project.godot\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-function",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_function\", \"path\": \"res://src/combatant.gd\", \"functions\": [\"receive\"]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-function-names",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_function\", \"path\": \"res://src/combatant.gd\", \"functions\": \"receive\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "librarian-hits",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"ask_librarian\", \"query\": \"Combatant receive health\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "librarian-no-hits",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"ask_librarian\", \"query\": \"qxz absent unlikely needle\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "librarian-empty",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"ask_librarian\", \"query\": \"\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "gather-context",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"query\": \"Combatant receive\", \"symbols\": [\"Combatant.receive\"], \"godot_api\": [\"Node\"], \"max_chars\": 12000}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "gather-context-lower",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"max_chars\": 2000}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "gather-context-upper",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"max_chars\": 20000}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "gather-context-wrong",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"symbols\": \"Combatant.receive\", \"max_chars\": 50000}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "gather-context-bool",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"gather_context\", \"max_chars\": true}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "inspect-runtime",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"inspect_runtime\", \"sections\": [\"tree\", \"metrics\", \"errors\"], \"max_age_ms\": 1000}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "inspect-runtime-bad",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"inspect_runtime\", \"sections\": [\"properties\"], \"properties\": [{\"node\": \"../Outside\", \"names\": [\"health\"]}], \"set_property\": true}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "run-check",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"run_check\", \"scene\": \"res://fight.tscn\", \"steps\": [{\"op\": \"wait_frames\", \"frames\": 2}, {\"op\": \"assert_node\", \"node\": \".\", \"exists\": true}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "run-check-bad",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"run_check\", \"scene\": \"res://fight.tscn\", \"steps\": [{\"op\": \"assert_property\", \"node\": \"../Outside\", \"property\": \"health\", \"operator\": \"eq\", \"expected\": 0}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "list-scenes",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"list_scene\", \"scene\": \"res://fight.tscn\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "list-scene-missing",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"list_scene\", \"scene\": \"res://missing.tscn\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "list-files",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"list_files\", \"path\": \"res://\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "search",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"search_project\", \"query\": \"health\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "search-empty",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"search_project\", \"query\": \"\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "unknown",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"do_not_execute\", \"payload\": {\"arbitrary_key\": \"inert data\"}}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "read-extra-data",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"read_file\", \"paths\": [\"res://project.godot\"], \"extra\": {\"arbitrary_key\": 123}}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "patch-good",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "patch-missing",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"not present\", \"replace\": \"health: int = 20\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "patch-crlf",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://notes/crlf.txt\", \"search\": \"one\\r\\ntwo\", \"replace\": \"three\\r\\nfour\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "patch-no-search",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"replace\": \"x\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "patch-multiple",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health\", \"replace\": \"hp\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "create-valid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\r\\n\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "create-broken",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\nfunc broken(\\n\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "create-content-wrong",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": false}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "create-escape",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://../new.gd\", \"content\": \"x\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "move-valid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"move_file\", \"path\": \"res://src/combatant.gd\", \"dest\": \"res://src/moved.gd\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "move-conflict",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"move_file\", \"path\": \"res://src/combatant.gd\", \"dest\": \"res://src/control.gd\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "scene-raw-create",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://raw.tscn\", \"content\": \"x\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "scene-raw-patch",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://fight.tscn\", \"search\": \"Root\", \"replace\": \"Other\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "scene-raw-move",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"move_file\", \"path\": \"res://fight.tscn\", \"dest\": \"res://moved.tscn\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "scene-edit",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_scene\", \"scene\": \"res://fight.tscn\", \"operations\": [{\"op\": \"add_node\", \"parent\": \".\", \"name\": \"HUD\", \"type\": \"CanvasLayer\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "scene-bad-node",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_scene\", \"scene\": \"res://fight.tscn\", \"operations\": [{\"op\": \"set_node_property\", \"node\": \"../Outside\", \"property\": \"visible\", \"value\": {\"type\": \"bool\", \"value\": true}}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "scene-create",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_scene\", \"scene\": \"res://new.tscn\", \"root\": {\"name\": \"New\", \"type\": \"Node\"}, \"operations\": []}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "settings-valid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_project_settings\", \"operations\": [{\"op\": \"add_input_action\", \"name\": \"jump\", \"deadzone\": 0.2}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "settings-invalid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_project_settings\", \"operations\": [{\"op\": \"set_display_settings\", \"renderer\": \"unknown\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "resource-valid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_resource\", \"resource\": \"res://data/resource.tres\", \"operations\": [{\"op\": \"set_property\", \"target\": [], \"property\": \"value\", \"value\": {\"type\": \"int\", \"value\": 1}}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "resource-invalid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"edit_resource\", \"resource\": \"res://data/resource.tres\", \"operations\": [{\"op\": \"set_property\", \"target\": \"root\", \"property\": \"value\", \"value\": {\"type\": \"int\", \"value\": 1}}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "transaction-valid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\n\"}, {\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "transaction-protected",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://project.godot\", \"content\": \"x\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "transaction-noop",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://src/combatant.gd\", \"content\": \"class_name Combatant\\nextends Node\\nsignal injured\\n@export var health: int = 10\\nconst LIMIT = 20\\nenum Phase { WAIT, ACTIVE }\\nfunc receive(amount: int) -> int:\\n\\tinjured.emit()\\n\\thealth -= amount\\n\\treturn health\\nfunc loop_call() -> int:\\n\\treturn self.receive(1)\\n\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "transaction-noop-check",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://src/combatant.gd\", \"content\": \"class_name Combatant\\nextends Node\\nsignal injured\\n@export var health: int = 10\\nconst LIMIT = 20\\nenum Phase { WAIT, ACTIVE }\\nfunc receive(amount: int) -> int:\\n\\tinjured.emit()\\n\\thealth -= amount\\n\\treturn health\\nfunc loop_call() -> int:\\n\\treturn self.receive(1)\\n\"}], \"checks\": [{\"type\": \"parse_script\", \"path\": \"res://src/combatant.gd\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "transaction-overlay",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"transaction\", \"operations\": [{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\nvar hp = 1\\n\"}, {\"action\": \"patch_file\", \"path\": \"res://new.gd\", \"search\": \"hp = 1\", \"replace\": \"hp = 2\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "rename-valid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"function\", \"declaration\": \"res://src/combatant.gd:7\", \"old_name\": \"receive\", \"new_name\": \"accept\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "rename-locator",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"function\", \"declaration\": \"res://src/combatant.gd:99\", \"old_name\": \"receive\", \"new_name\": \"accept\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "rename-class_name",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"class_name\", \"declaration\": \"res://src/combatant.gd:1\", \"old_name\": \"Combatant\", \"new_name\": \"Fighter\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "rename-signal",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"signal\", \"declaration\": \"res://src/combatant.gd:3\", \"old_name\": \"injured\", \"new_name\": \"hit\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "rename-variable",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"rename_symbol\", \"kind\": \"variable\", \"declaration\": \"res://src/combatant.gd:4\", \"old_name\": \"health\", \"new_name\": \"hp\"}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "high-atomic",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"atomic_files\", \"operations\": [{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}]}}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "high-invalid",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"atomic_files\", \"operations\": [{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"absent\", \"replace\": \"health: int = 20\"}]}}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "high-component",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"create_scene_component\", \"scene\": \"res://fight.tscn\", \"parent\": \".\", \"name\": \"HUD\", \"node_type\": \"CanvasLayer\"}}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "high-unknown",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"project_command\", \"command\": {\"type\": \"unknown\"}}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "plan-overlay",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"plan\", \"steps\": [{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\nvar hp = 1\\n\"}, {\"action\": \"patch_file\", \"path\": \"res://new.gd\", \"search\": \"hp = 1\", \"replace\": \"hp = 2\"}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "plan-missing",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"plan\", \"steps\": []}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "plan-wrong-step",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"plan\", \"steps\": [{\"action\": \"read_file\", \"paths\": [\"res://project.godot\"]}]}\n```\n===DONE==="
+    }
+  },
+  {
+    "id": "content-ref",
+    "args": {
+      "full_text": "```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content_ref\": \"SCRIPT\", \"content_ref_lines\": 1}\n```\n===SCRIPT===\nextends Node\n===END_SCRIPT===\n===DONE==="
+    }
+  },
+  {
+    "id": "multi-fences",
+    "args": {
+      "full_text": "Reviewing the project.\n```agent_action\n{\"action\": \"create_file\", \"path\": \"res://new.gd\", \"content\": \"extends Node\\n\"}\n```\n===DONE===\nReviewing the project.\n```agent_action\n{\"action\": \"patch_file\", \"path\": \"res://src/combatant.gd\", \"search\": \"health: int = 10\", \"replace\": \"health: int = 20\"}\n```\n===DONE==="
+    }
+  }
+]

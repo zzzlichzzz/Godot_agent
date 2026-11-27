@@ -1,0 +1,15 @@
+{
+  "id": "047-sections.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "sections.tscn: '%Inst'",
+  "args": {
+    "path": "res://scenes/sections.tscn",
+    "node": "%Inst"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Уникальный узел %Inst не найден в сцене"
+  }
+}

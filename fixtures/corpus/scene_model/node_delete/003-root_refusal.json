@@ -1,0 +1,15 @@
+{
+  "id": "003-root_refusal",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/003-root_refusal",
+  "note": "actual-old prepare-only: root_refusal",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "."
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Нельзя удалить корневой узел сцены"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "id": "009-directory-projection",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/directory",
+  "args": {
+    "old_path": "res://combat",
+    "new_path": "res://systems/battle"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://combat",
+      "new_path": "res://systems/battle",
+      "is_directory": true,
+      "file_count": 4,
+      "reference_count": 4,
+      "files": [
+        {
+          "path": "res://combat/actor.gd",
+          "occurrences": 2,
+          "exact_matches": 1,
+          "rel_matches": [
+            [
+              9,
+              19,
+              "../base.gd"
+            ]
+          ],
+          "bom": false
+        },
+        {
+          "path": "res://combat/broken.tscn",
+          "occurrences": 0,
+          "exact_matches": 0,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://combat/weapon.gd",
+          "occurrences": 0,
+          "exact_matches": 0,
+          "rel_matches": [],
+          "bom": false
+        },
+        {
+          "path": "res://main.gd",
+          "occurrences": 2,
+          "exact_matches": 0,
+          "rel_matches": [
+            [
+              14,
+              29,
+              "combat/actor.gd"
+            ],
+            [
+              49,
+              67,
+              "./combat/weapon.gd"
+            ]
+          ],
+          "bom": false
+        }
+      ],
+      "source_text": null
+    }
+  }
+}

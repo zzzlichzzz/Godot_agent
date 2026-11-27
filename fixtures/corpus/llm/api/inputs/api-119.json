@@ -1,0 +1,13 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "models_stale",
+  "args": [
+    "fixture"
+  ],
+  "kwargs": {
+    "stats": {},
+    "now": 1000
+  },
+  "id": "api-119"
+}

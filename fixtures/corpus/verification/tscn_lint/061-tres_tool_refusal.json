@@ -1,0 +1,19 @@
+{
+  "id": "061-tres_tool_refusal",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tres",
+    "content": "[gd_resource type=\"Resource\" format=3]\n[resource]\nvalue = bare\n"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "reference_result": {
+    "fixed": "[gd_resource type=\"Resource\" format=3]\n[resource]\nvalue = bare\n",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

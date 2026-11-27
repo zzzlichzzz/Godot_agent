@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.split_py",
+  "capability_id": "editing.split_py",
+  "tool_name": "split_scan",
+  "description": "Карта ссылок на .py агента: импорты, патчи, чтение исходника, упоминания. Только чтение.",
+  "input_schema": {
+    "type": "object",
+    "required": [
+      "path"
+    ],
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "required": [
+      "donor",
+      "stem",
+      "counts",
+      "occurrences",
+      "truncated",
+      "hard_files",
+      "soft_files"
+    ],
+    "properties": {
+      "donor": {
+        "type": "string",
+        "minLength": 1
+      },
+      "stem": {
+        "type": "string",
+        "minLength": 1
+      },
+      "counts": {
+        "type": "object",
+        "required": [
+          "import",
+          "source_read",
+          "patch",
+          "mention",
+          "doc"
+        ],
+        "properties": {
+          "import": {
+            "type": "integer"
+          },
+          "source_read": {
+            "type": "integer"
+          },
+          "patch": {
+            "type": "integer"
+          },
+          "mention": {
+            "type": "integer"
+          },
+          "doc": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "occurrences": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "file",
+            "line",
+            "kind",
+            "text"
+          ],
+          "properties": {
+            "file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "line": {
+              "type": "integer"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "import",
+                "source_read",
+                "patch",
+                "mention",
+                "doc"
+              ]
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "truncated": {
+        "type": "boolean"
+      },
+      "hard_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "soft_files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "cheap",
+  "limits": {
+    "max_file_bytes": 4194304
+  }
+}

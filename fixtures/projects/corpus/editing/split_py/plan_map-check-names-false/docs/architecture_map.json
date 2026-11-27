@@ -1,0 +1,1 @@
+{"zones": [{"glob": "python/godot_tools/**", "check_names": false}, {"glob": "**/*.py", "new_files": "allow"}]}

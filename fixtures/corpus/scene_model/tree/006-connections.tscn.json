@@ -1,0 +1,50 @@
+{
+  "id": "006-connections.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/connections.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n\nСигналы ([connection]):\n- <root>.ready -> <root>.start()\n- Gun.fired -> <root>.receive()\n- <root>.hit -> Gun/Muzzle.spark()",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [
+        {
+          "from": ".",
+          "to": "",
+          "signal": "ready",
+          "method": "start"
+        },
+        {
+          "from": "Gun",
+          "to": ".",
+          "signal": "fired",
+          "method": "receive"
+        },
+        {
+          "from": "",
+          "to": "Gun/Muzzle",
+          "signal": "hit",
+          "method": "spark"
+        }
+      ],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

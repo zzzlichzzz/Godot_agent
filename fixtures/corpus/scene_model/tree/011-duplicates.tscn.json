@@ -1,0 +1,44 @@
+{
+  "id": "011-duplicates.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/duplicates.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)  [скрипт: res://scripts/new.gd]\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=1 Script: res://scripts/old.gd\n- ext id=1 Script: res://scripts/new.gd",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/new.gd",
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/old.gd",
+            "uid": null
+          },
+          {
+            "id": "1",
+            "type": "Script",
+            "path": "res://scripts/new.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "before": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  },
+  "result": {
+    "lint": [
+      "[gd_scene format=3]\n\n[node name=\"Main\" type=\"Node2D\"]\nvisible = True\n",
+      [
+        "строка 4: значение свойства visible не в кавычках и не является числом, true/false или конструктором вида Vector3(...): «True». Строку пиши в кавычках, иначе Godot упадёт с «Parse Error»."
+      ]
+    ],
+    "again": [
+      "[gd_scene format=3]\n\n[node name=\"Main\" type=\"Node2D\"]\nvisible = True\n",
+      [
+        "строка 4: значение свойства visible не в кавычках и не является числом, true/false или конструктором вида Vector3(...): «True». Строку пиши в кавычках, иначе Godot упадёт с «Parse Error»."
+      ]
+    ],
+    "scene_path": true
+  },
+  "after": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  }
+}

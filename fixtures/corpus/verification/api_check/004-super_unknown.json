@@ -1,0 +1,25 @@
+{
+  "id": "004-super_unknown",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "super_unknown",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tsuper.nope()\n"
+  },
+  "reference_result": [
+    "строка 3: super.nope — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 3: super.nope — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

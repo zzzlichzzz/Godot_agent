@@ -1,0 +1,77 @@
+{
+  "id": "sync-empty-directory",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://src",
+    "new_path": "res://dest",
+    "is_directory": true
+  },
+  "fixture": {
+    "dirs": [
+      "dest"
+    ],
+    "files": {
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      }
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "entry_id": "9aa17be803e5",
+    "old_path": "res://src",
+    "new_path": "res://dest",
+    "is_directory": true,
+    "changed_paths": [],
+    "reference_count": 0,
+    "file_count": 1,
+    "ok": true
+  },
+  "native_effects": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "rollback_result": {
+    "$tuple": [
+      true,
+      "Откачено: rename_file (1 файлов)",
+      false,
+      [
+        "res://src"
+      ],
+      null
+    ]
+  },
+  "inverse_files": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "inverse_byte_exact": true,
+  "stdout": "",
+  "native_prepared": [
+    {
+      "files": [
+        {
+          "action": "external_move_record",
+          "path": "res://src",
+          "dest": "res://dest",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\empty-directory\\src",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\empty-directory\\dest",
+          "is_directory": true
+        }
+      ],
+      "old_path": "res://src",
+      "new_path": "res://dest",
+      "is_directory": true,
+      "reference_count": 0
+    }
+  ]
+}

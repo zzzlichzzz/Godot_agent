@@ -1,0 +1,29 @@
+{
+  "id": "038-phase_order",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "phase_order",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tconnect(\"bare\", Callable())\n\tself.connect(\"scoped\", Callable())\n\tself.typo()\n"
+  },
+  "reference_result": [
+    "строка 5: self.typo — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)",
+    "строка 4: connect(\"scoped\", ...) — сигнала «scoped» нет у Node2D и он не объявлен в этом скрипте",
+    "строка 3: connect(\"bare\", ...) — сигнала «bare» нет у Node2D и он не объявлен в этом скрипте"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 5: self.typo — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)",
+        "строка 4: connect(\"scoped\", ...) — сигнала «scoped» нет у Node2D и он не объявлен в этом скрипте",
+        "строка 3: connect(\"bare\", ...) — сигнала «bare» нет у Node2D и он не объявлен в этом скрипте"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

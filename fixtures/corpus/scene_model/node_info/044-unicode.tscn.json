@@ -1,0 +1,41 @@
+{
+  "id": "044-unicode.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "unicode.tscn: '%Узел'",
+  "args": {
+    "path": "res://scenes/unicode.tscn",
+    "node": "%Узел"
+  },
+  "reference_node": {
+    "name": "Узел",
+    "parent": ".",
+    "type": "Node",
+    "path": "Узел",
+    "unique_name": true,
+    "script_id": null,
+    "header_span": [
+      53,
+      94
+    ],
+    "body_span": [
+      94,
+      123
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Узел",
+      "type": "Node",
+      "parent": ".",
+      "path": "Узел",
+      "depth": 1,
+      "script": null,
+      "instance": null,
+      "unique_name": true,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

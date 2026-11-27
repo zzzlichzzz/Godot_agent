@@ -1,0 +1,14 @@
+{
+  "id": "040-not_res",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/not_res",
+  "args": {
+    "path": "donor.py"
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

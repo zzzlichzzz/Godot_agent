@@ -1,0 +1,17 @@
+{
+  "id": "024-empty_scene",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/024-empty_scene",
+  "note": "empty_scene",
+  "args": {
+    "path": "res://main.tscn",
+    "node": ".",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Корневой узел сцены не найден",
+    "reference_exception": "NodeRefactorError"
+  }
+}

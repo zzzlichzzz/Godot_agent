@@ -1,0 +1,33 @@
+{
+  "id": "expanded-op1-missing-old",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "replace_reference",
+        "target": [],
+        "new": "res://new.tres",
+        "expected_count": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: old",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "2befa0033764601d1dee08f5fbb5a68ef3c8b8220265036a2859401de394dc3c"
+}

@@ -1,0 +1,41 @@
+{
+  "id": "expanded-op2-extra",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "animation_add_value_track",
+        "path": "Node:position",
+        "keys": [
+          {
+            "time": 0,
+            "value": {
+              "type": "float",
+              "value": 0
+            }
+          }
+        ],
+        "extra": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неизвестные поля: extra",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "0cd6822efb15fa65214c74fa40b0319d9a354fd1623797b550a95af15fea5cf6"
+}

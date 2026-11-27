@@ -1,0 +1,29 @@
+{
+  "id": "062-f1_unsupported",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://notes.md"
+  },
+  "reference_result": {
+    "path": "res://notes.md",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": false,
+    "unchecked_reason": "расширение .md не проверяется этим каналом (проверяются: .cfg, .gd, .gdshader, .json, .py, .shader, .tres, .tscn)"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://notes.md",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [],
+      "unavailable": [],
+      "unchecked_reason": "расширение .md не проверяется этим каналом (проверяются: .cfg, .gd, .gdshader, .json, .py, .shader, .tres, .tscn)"
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

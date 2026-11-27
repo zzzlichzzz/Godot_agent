@@ -1,0 +1,84 @@
+{
+  "kind": "state",
+  "operations": [
+    {
+      "module": "model_cache",
+      "function": "put",
+      "args": [
+        "fixture",
+        [
+          {
+            "id": "a",
+            "free": true,
+            "cost_in": 0,
+            "context": 8192,
+            "catalog_free": true,
+            "from_catalog": [
+              "context"
+            ]
+          },
+          {
+            "id": "a"
+          },
+          "b",
+          {
+            "id": "c",
+            "context": true,
+            "cost_in": true
+          },
+          {
+            "id": ""
+          },
+          null
+        ]
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "model_cache",
+      "function": "get",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "model_cache",
+      "function": "index",
+      "args": [],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "model_cache",
+      "function": "put",
+      "args": [
+        "fixture",
+        []
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "model_cache",
+      "function": "get",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "model_cache",
+      "function": "forget",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-135"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "kimi-events-3",
+  "op": "kimi",
+  "events": [
+    {
+      "op": "set",
+      "message": {
+        "id": "m",
+        "role": "assistant",
+        "status": "MESSAGE_STATUS_GENERATING"
+      }
+    },
+    {
+      "op": "set",
+      "message": {
+        "id": "m",
+        "status": "MESSAGE_STATUS_COMPLETED"
+      }
+    }
+  ],
+  "reset": false
+}

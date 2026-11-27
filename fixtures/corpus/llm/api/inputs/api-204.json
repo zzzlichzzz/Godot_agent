@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_history",
+  "function": "estimate_tokens",
+  "args": [
+    "ёж Ω"
+  ],
+  "kwargs": {},
+  "id": "api-204"
+}

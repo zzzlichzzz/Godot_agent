@@ -1,0 +1,18 @@
+{
+  "id": "006",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "переменная strict: неразмеченные приёмники — отказ",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "variable",
+    "old_name": "hp",
+    "new_name": "health",
+    "declaration": "res://src/hero.gd:4",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

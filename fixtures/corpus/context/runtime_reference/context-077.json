@@ -1,0 +1,117 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "kind": "request",
+    "action": {
+      "action": "inspect_runtime",
+      "sections": [
+        "tree",
+        "metrics",
+        "errors"
+      ]
+    },
+    "status": {
+      "enabled": true,
+      "sessions": [
+        {
+          "session_id": 3,
+          "run_id": "synthetic-run",
+          "active": true,
+          "bridge_ready": true
+        }
+      ]
+    },
+    "timeout_ms": 0,
+    "snapshot": {
+      "protocol": 1,
+      "tree": {
+        "nodes": [
+          {
+            "path": ".",
+            "type": "Node2D"
+          }
+        ]
+      },
+      "metrics": {
+        "fps": 60
+      },
+      "errors": {
+        "items": []
+      }
+    },
+    "id": "context-077"
+  },
+  "expect": {
+    "pending": {
+      "protocol": 1,
+      "request_id": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "result_token": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "chat_id": "synthetic-chat",
+      "turn_id": 7,
+      "session_id": 3,
+      "run_id": "synthetic-run",
+      "sections": [
+        "tree",
+        "metrics",
+        "errors"
+      ],
+      "properties": [],
+      "max_age_ms": 1000,
+      "timeout_ms": 0,
+      "deadline": 1002.0
+    },
+    "public": {
+      "protocol": 1,
+      "request_id": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "result_token": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "session_id": 3,
+      "run_id": "synthetic-run",
+      "sections": [
+        "tree",
+        "metrics",
+        "errors"
+      ],
+      "properties": [],
+      "max_age_ms": 1000,
+      "timeout_ms": 0
+    },
+    "runtime": {
+      "protocol": 1,
+      "request_id": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+      "run_id": "synthetic-run",
+      "sections": [
+        "tree",
+        "metrics",
+        "errors"
+      ],
+      "properties": [],
+      "max_age_ms": 1000
+    },
+    "snapshot": {
+      "protocol": 1,
+      "tree": {
+        "nodes": [
+          {
+            "path": ".",
+            "type": "Node2D"
+          }
+        ]
+      },
+      "errors": {
+        "items": []
+      },
+      "metrics": {
+        "fps": 60
+      },
+      "captured_at_ticks_ms": 0
+    },
+    "report": "[Godot runtime snapshot; read-only evidence from the running game]\n{\n  \"captured_at_ticks_ms\": 0,\n  \"errors\": {\n    \"items\": []\n  },\n  \"metrics\": {\n    \"fps\": 60\n  },\n  \"protocol\": 1,\n  \"tree\": {\n    \"nodes\": [\n      {\n        \"path\": \".\",\n        \"type\": \"Node2D\"\n      }\n    ]\n  }\n}\n[/Godot runtime snapshot]\nAnalyze all requested sections together. Do not invent omitted runtime data."
+  },
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "create_request",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

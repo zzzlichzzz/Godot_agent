@@ -1,0 +1,38 @@
+{
+  "id": "027-headless_shader",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://material.shader"
+  },
+  "reference_result": {
+    "path": "res://material.shader",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": false,
+    "unchecked_reason": ".shader проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://material.shader",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [],
+      "unchecked_reason": ".shader проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен",
+      "unavailable": [
+        {
+          "kind": "headless",
+          "reason": ".shader проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

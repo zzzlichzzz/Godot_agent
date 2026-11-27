@@ -1,0 +1,8 @@
+{
+  "kind": "stream",
+  "module": "anthropic_compat",
+  "chunk": 7,
+  "wire_base64": "OiBmaXh0dXJlIGtlZXBhbGl2ZQ0KDQpkYXRhOiB7InR5cGUiOiAibWVzc2FnZV9zdGFydCIsICJtZXNzYWdlIjogeyJtb2RlbCI6ICJmaXh0dXJlIiwgInVzYWdlIjogeyJpbnB1dF90b2tlbnMiOiAxMn19fQ0KDQo=",
+  "cancel": true,
+  "id": "api-099"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "102-apply-facade-compile",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_explicit",
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "test_hook": {
+    "facade_text": "return 1\n"
+  },
+  "native_capture": {
+    "exception": "SplitError",
+    "message_contains": "donor.py: текст фасада не компилируется",
+    "native_left_partial_file": true
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "tree_unchanged": true
+  },
+  "scenario": "split_plan_apply"
+}

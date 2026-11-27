@@ -1,0 +1,41 @@
+{
+  "id": "limits-NodePath2",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "NodePath",
+          "value": "Root/"
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "value.value должен быть путём относительно корня сцены",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "09a2087afda371f61ed6e28b926b09900ffa9453a2d6822625b23aa880da3301"
+}

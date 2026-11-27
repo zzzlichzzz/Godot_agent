@@ -1,0 +1,5 @@
+[application]
+config/name="J1 A1 reference"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"

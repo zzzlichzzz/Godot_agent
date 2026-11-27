@@ -1,0 +1,14 @@
+{
+  "id": "025-parent-D5",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://../outside.gd",
+    "new_path": "res://next/item.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "Путь вне проекта отклонен: res://../outside.gd"
+}

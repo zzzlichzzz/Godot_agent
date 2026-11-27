@@ -1,90 +1,17 @@
-# Godot
-.godot/
-*.translation
-
-# Python cache & bytecode
-**/__pycache__/
+# Python-часть: мусор прогонов не должен попадать в res:// и в git.
+__pycache__/
 *.py[cod]
-*$py.class
-
-# PyInstaller intermediate build workspace (temporary compilation cache)
-build/
-**/build/
-*.spec.bak
-
-# Windows shortcuts & temporary test dumps
-*.lnk
-godot_agent/python/pc.txt
-godot_agent/python/r.txt
-godot_agent/python/sc.txt
-godot_agent/python/t87.txt
-godot_agent/python/tab.txt
-godot_agent/python/verify_out.txt
-
-# Temporary local directories
-временно/
-godot_agent/временно/
-.agents/
-.freebuff/
-minilich_brain/
-**/minilich_brain/
-*.npz
-
-# Local workspace custom ignore
-godot_agent/agent_panel.tscn
-
-
-
-# Runtime "golden corpus": raw unparseable model replies dumped by
-# parser_base._save_corpus_sample(). The directory is derived from
-# sys.argv[0], so it lands next to whatever ran the server:
-# python/parser_corpus/ for source runs, dist/.../ for the frozen exe.
-# Diagnostics only - never a source file or a test fixture.
-parser_corpus/
-
-# Local MCP Alpha repro scripts (python/tests/repro_*.py). They are
-# standalone reproductions of past bridge bugs, not unittest cases, so
-# `unittest discover` never picks them up. Kept locally as living
-# documentation of what the audit reproduced; the same guarantees are
-# covered by test_agent_bridge.py, which IS tracked and run in CI.
-godot_agent/python/tests/repro_*.py
-
-# Agent runtime state: semantic index cache, rename journal and snapshots.
-# Rebuilt by itself on the next run and empty by default, so it is never
-# something to commit. The pattern has no leading slash because the journal
-# follows the project root and can land next to the addon as well as inside
-# it - history_manager.migrate_from_project() moves an older one on startup.
-.agent_history/
-
-# Одноразовые аудит-скрипты и выгрузки (godot_agent/python/audit/).
-# Локальная диагностика циклов n8n: дампы исполнений, разбор тулколлов.
-# В репозитории не нужны: пересоздаются под текущую задачу и мешают обзору.
-godot_agent/python/audit/
-
-
-# One-off diagnostic probes for a specific build (python/tests/_probe_*.py).
-# Same policy as repro_* and audit/: local snapshots of how a frozen dist
-# (PYZ from build/) was compared with the fresh sources right after a rebuild.
-# Depends on the PyInstaller workspace, so it is never a test fixture.
-godot_agent/python/tests/_probe_*.py
-
-# Секреты — страховка на всё дерево (в n8n/ есть свой .gitignore).
-# Ключи плагина живут в %APPDATA%\Godot_agent\api_keys.json, а не в
-# репозитории (python/api/api_keys.py: «ничего секретного внутри рабочей
-# области, даже временно»). Случайный .env или файл ключа рядом с кодом
-# коммитить нельзя никогда.
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+*.egg-info/
 .env
 .env.*
 *.key
-*.pem
-*.pfx
-api_keys.json
-secrets/
-
-# Рантайм-кэш API, созданный запуском из ИСХОДНИКОВ: путь считается от sys.argv[0],
-# поэтому рядом с python/ появляется своя копия вшитого справочника. Это данные
-# прогона, а не исходник (сам вшитый кэш лежит в godot_agent/agent_api_cache/).
-godot_agent/python/agent_api_cache/
-
-# Выгрузка godot_agent/python/tools/arch_audit.py по текущему дереву.
-arch_audit_out.txt
+secrets*
+python/build/
+python/dist/
+reports/
+*.log

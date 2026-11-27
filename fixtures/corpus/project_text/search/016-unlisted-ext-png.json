@@ -1,0 +1,16 @@
+{
+  "id": "016-unlisted-ext-png",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "расширение .png вне набора расширений поиска",
+  "args": {
+    "query": "PNG_ATLAS_MARKER"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

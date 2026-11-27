@@ -1,0 +1,21 @@
+{
+  "id": "004-internal-three",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/projection",
+  "args": {
+    "old_path": "res://src/unit.gd",
+    "new_path": "res://src/entities/unit.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://src/unit.gd",
+      "new_path": "res://src/entities/unit.gd",
+      "is_directory": false,
+      "file_count": 1,
+      "reference_count": 3,
+      "files": [],
+      "source_text": "extends \"res://base.gd\"\r\nconst A=preload(\"res://src/weapon.gd\")\rconst U=preload(\"uid://unchanged\")\nconst S=preload(\"res://src/shield.tres\")\nconst M=preload(\"missing.gd\")\nconst RAW=\"weapon.gd\"\n# load(\"res://src/weapon.gd\")\n"
+    }
+  }
+}

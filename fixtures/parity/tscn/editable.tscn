@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/gun.tscn" id="1_gun"]
+
+[node name="Root" type="Node2D"]
+
+[node name="Gun" parent="." instance=ExtResource("1_gun")]
+position = Vector2(4, 0)
+
+[editable path="Gun"]

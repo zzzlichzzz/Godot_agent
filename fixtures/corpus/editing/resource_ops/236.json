@@ -1,0 +1,56 @@
+{
+  "id": "c24-set_property",
+  "native_call": {
+    "module": "resource_actions+agent_resource_executor",
+    "function": "prepare/execute"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare_write"
+  },
+  "fixture": "apply-c24",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "length",
+        "value": {
+          "type": "float",
+          "value": 2.0
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "resource_write_scenario": {
+    "seed_bytes": {
+      "data.tres": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQoKOyBpbnB1dCBjb21tZW50IG11c3Qgbm90IGJlIG1pc3Rha2VuIGZvciBhbiBvcGVyYXRpb24KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSIKbGVuZ3RoID0gMS4w"
+    },
+    "after_bytes_b64": "W2dkX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgZm9ybWF0PTMgdWlkPSJ1aWQ6Ly9jMjRwcm9iZTEiXQoKOyBpbnB1dCBjb21tZW50IG11c3Qgbm90IGJlIG1pc3Rha2VuIGZvciBhbiBvcGVyYXRpb24KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIlByZXNlcnZlIHRoaXMgbmFtZSIKbGVuZ3RoID0gMi4w",
+    "repeat": true
+  },
+  "oracle": "native-semantics+D18-byte-contract",
+  "provenance": {
+    "native_execute": "set_property-native.output.json",
+    "generated_load": "set_property-generated.output.json",
+    "projection_sha256": "207541017b27760c3833f67e999af037e2aa25df749f3749446b5242eaf71539",
+    "semantic_hash": "da78c6ccaf5bb3d9b7622b918038534f5782da3dad1e46fff949835f2370aa69",
+    "proof_sha256": "9885f724f3b4458b25ba7dc9f872cf785c585ed9871e23ce591f5f7fc4e97d5f",
+    "decision": "D18"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "target": "res://data.tres",
+      "before_hash": "e43c5463ce12e86f54d2e5fed856e4c48512a61cff9ad824b74e2deed21757f5",
+      "after_hash": "d1234ce51666f293cabdd1c3fab44a03e9d139d1aca2174acd17bc7978d076cd",
+      "steps": 1,
+      "op": "replace_raw",
+      "rollback_exact": true,
+      "repeat_kind": "stale_plan"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": "expanded-prepare-mixed",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "prepare"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "prepare"
+  },
+  "fixture": "bytes-mixed",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action_id": "<ACTION_ID>",
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "set_property",
+            "target": [],
+            "property": "value",
+            "value": {
+              "type": "int",
+              "value": 2
+            }
+          }
+        ]
+      },
+      "resource": "res://data.tres",
+      "target": "res://data.tres",
+      "action_digest": "a49753f4d352da1bfa67aabcb5ef831cfe61f2fd58b09dcd1c37a931f1e08071",
+      "before_hash": "43c6f28970df0b6bddfbfd1ceefdc52243dc907cb0a77cb4c6ef6fa8c638b8f9",
+      "state": "preview"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "d6d7adc9c781974b0f65f944cc04a6fb293ab69cb8634cd44e08051f2fd484ff"
+}

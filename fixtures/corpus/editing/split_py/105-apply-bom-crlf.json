@@ -1,0 +1,52 @@
+{
+  "id": "105-apply-bom-crlf",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_bom-crlf",
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "res://donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": {
+    "result": {
+      "donor": "donor.py",
+      "written": [
+        "part.py"
+      ],
+      "moved": [
+        "fn"
+      ],
+      "facade_lines": 3
+    }
+  },
+  "expect": {
+    "ok": true,
+    "donor_bom": true,
+    "donor_newline": "crlf",
+    "receipts_count": 2,
+    "result": {
+      "donor": "donor.py",
+      "written": [
+        "part.py"
+      ],
+      "moved": [
+        "fn"
+      ],
+      "facade_lines": 3
+    }
+  },
+  "scenario": "split_plan_apply"
+}

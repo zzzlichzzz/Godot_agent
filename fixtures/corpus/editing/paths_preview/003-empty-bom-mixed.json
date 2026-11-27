@@ -1,0 +1,21 @@
+{
+  "id": "003-empty-bom-mixed",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://empty/source.gd",
+    "new_path": "res://other/source.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://empty/source.gd",
+      "new_path": "res://other/source.gd",
+      "is_directory": false,
+      "file_count": 1,
+      "reference_count": 0,
+      "files": [],
+      "source_text": "# donor\r\n# lone\r# end\n"
+    }
+  }
+}

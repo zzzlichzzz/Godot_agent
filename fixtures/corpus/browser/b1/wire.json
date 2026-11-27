@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "source": "pinned native cdp_ws.py; own synthetic RFC6455/Connect bytes; no sites",
+  "source_sha256": "3b5298dd76c061ce082828d9778b006b7fc68ed6dd1442e0bb4b95b5f95d339b",
+  "random_key_hex": "11223344",
+  "receive": [
+    {
+      "id": "unicode",
+      "input": {
+        "file": "ws_unicode.bin",
+        "bytes": 15,
+        "sha256": "2082ea2aceab99ef11860a27e0ba1ae744cbcba580c54c12feb002d63531fec2"
+      },
+      "expected_none": false,
+      "expected_bytes": 13,
+      "expected_sha256": "fc8bcc1626079068484389526151a158f7dd9b539bd9667cc1a7cc9c585679ca",
+      "control_frames_hex": [],
+      "idle_timeout": null,
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "fragment_ping",
+      "input": {
+        "file": "ws_fragment_ping.bin",
+        "bytes": 26,
+        "sha256": "9cd387ce3b6441232e25c7d565917b578d73003dcd2053c1e3173b5f7220b732"
+      },
+      "expected_none": false,
+      "expected_bytes": 10,
+      "expected_sha256": "132bc34b95425d54216cb7bd3a0e3a33fde077ab2a1ebef5b8d4dc3f538f8004",
+      "control_frames_hex": [
+        "8a811122334441"
+      ],
+      "idle_timeout": null,
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "masked",
+      "input": {
+        "file": "ws_masked.bin",
+        "bytes": 16,
+        "sha256": "a5ffa3b19b2e8d9ca9a25168fedacac411855db908005db9b60c468f0c1235ba"
+      },
+      "expected_none": false,
+      "expected_bytes": 10,
+      "expected_sha256": "1076ae95e2921814eba579d388f5b4a43cd3da1107095a19501bda012df14a4d",
+      "control_frames_hex": [],
+      "idle_timeout": null,
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "length126",
+      "input": {
+        "file": "ws_length126.bin",
+        "bytes": 130,
+        "sha256": "72fb60021e7499e68fc75dee8556a6757b0a66703f85bfb6780a2abe0591e58e"
+      },
+      "expected_none": false,
+      "expected_bytes": 126,
+      "expected_sha256": "9b77e96cc3dea83a3b2b9d3865c4faf159766f40c07db67849f3a47696c16a6e",
+      "control_frames_hex": [],
+      "idle_timeout": null,
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "length127",
+      "input": {
+        "file": "ws_length127.bin",
+        "bytes": 65546,
+        "sha256": "3b612b9a1b7b8010d275e9d0c4e5703d71f0066648678cb5547edc02dde19bdd"
+      },
+      "expected_none": false,
+      "expected_bytes": 65536,
+      "expected_sha256": "fe6eacdc96297d25999ecef8aed549094a25a6baa699a0b60cdc5fba75ce5291",
+      "control_frames_hex": [],
+      "idle_timeout": null,
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "close",
+      "input": {
+        "file": "ws_close.bin",
+        "bytes": 2,
+        "sha256": "4ed3faf468082eac4eda4924e4673874e50c30f816c05c73246fd56cf78163d0"
+      },
+      "expected_none": true,
+      "expected_bytes": null,
+      "expected_sha256": null,
+      "control_frames_hex": [],
+      "idle_timeout": null,
+      "post_close_socket_closed": false
+    }
+  ],
+  "send": [
+    {
+      "id": "short125",
+      "input": {
+        "file": "send_short125.txt",
+        "bytes": 125,
+        "sha256": "35c28ee2e25f5ad70384f1ca9723f520c955fb5fe9f2e56b9dc809479a9ca8cc"
+      },
+      "expected_wire_bytes": 131,
+      "expected_wire_sha256": "119fcb44504bc960c55b4a34a429bbf871e853d147ef5b1da1b527d8f9d9da53",
+      "expected_prefix_hex": "81fd1122334450637205",
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "extended126",
+      "input": {
+        "file": "send_extended126.txt",
+        "bytes": 126,
+        "sha256": "05549c3a122bbe17a02f1ffbfbf5a28257bb8c7c588703c7a85b6d003d717c38"
+      },
+      "expected_wire_bytes": 134,
+      "expected_wire_sha256": "7db8bdf72401494f7a2be2892c3965c569a741de03846498b429edf1f58fbcfa",
+      "expected_prefix_hex": "81fe007e112233445360",
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "extended127",
+      "input": {
+        "file": "send_extended127.txt",
+        "bytes": 65536,
+        "sha256": "b5b0b24ef14b848aa9fef2ae58fa73040e631e0915f28ec6095edf305528d202"
+      },
+      "expected_wire_bytes": 65550,
+      "expected_wire_sha256": "4ff59e02365cd33239ecd2d3cc952c049782ef26fd6fd5a90881ed93f139587e",
+      "expected_prefix_hex": "81ff0000000000010000",
+      "post_close_socket_closed": true
+    },
+    {
+      "id": "unicode",
+      "input": {
+        "file": "send_unicode.txt",
+        "bytes": 13,
+        "sha256": "fc8bcc1626079068484389526151a158f7dd9b539bd9667cc1a7cc9c585679ca"
+      },
+      "expected_wire_bytes": 19,
+      "expected_wire_sha256": "ebdba520740ae89112fba9f7bc0b89528369796201759016ff7d185b7a44c787",
+      "expected_prefix_hex": "818d11223344c183e3f6",
+      "post_close_socket_closed": true
+    }
+  ],
+  "connect": [
+    {
+      "id": "unicode",
+      "input": {
+        "file": "connect_unicode.bin",
+        "bytes": 28,
+        "sha256": "2a2391c615731fdb01dbb592c6f2d99b2362a382c75da3095f6461b11bd49537"
+      },
+      "expected": [
+        [
+          0,
+          {
+            "own": "Свой 🐉"
+          }
+        ]
+      ],
+      "consumed": 28
+    },
+    {
+      "id": "ordered",
+      "input": {
+        "file": "connect_ordered.bin",
+        "bytes": 43,
+        "sha256": "e0c1a1e3b3fa638d8eefceaf6aba79a45bed2df776b8338068b9f97d44672d9b"
+      },
+      "expected": [
+        [
+          0,
+          {
+            "own": "Свой 🐉"
+          }
+        ],
+        [
+          2,
+          {
+            "step": 2
+          }
+        ]
+      ],
+      "consumed": 43
+    },
+    {
+      "id": "incomplete",
+      "input": {
+        "file": "connect_incomplete.bin",
+        "bytes": 41,
+        "sha256": "5ec1b71db8060e4caa8b0c150698f0219459aa03656694c23f591d51634fe31a"
+      },
+      "expected": [
+        [
+          0,
+          {
+            "own": "Свой 🐉"
+          }
+        ]
+      ],
+      "consumed": 28
+    },
+    {
+      "id": "bad_json",
+      "input": {
+        "file": "connect_bad_json.bin",
+        "bytes": 21,
+        "sha256": "fa598ef5cddcd36e37158bf80fa8c9c1ae2b9b69c883c9e53fa9bd08127268ba"
+      },
+      "expected": [
+        [
+          2,
+          {
+            "step": 2
+          }
+        ]
+      ],
+      "consumed": 21
+    }
+  ]
+}

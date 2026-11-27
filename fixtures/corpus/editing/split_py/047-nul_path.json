@@ -1,0 +1,14 @@
+{
+  "id": "047-nul_path",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/nul_path",
+  "args": {
+    "path": "res://donor\u0000.py"
+  },
+  "contract_boundary": "denied",
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

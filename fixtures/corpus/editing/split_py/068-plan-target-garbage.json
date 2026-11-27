@@ -1,0 +1,38 @@
+{
+  "id": "068-plan-target-garbage",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_target-garbage",
+  "args": {
+    "path": "res://donor.py",
+    "groups": [
+      {
+        "module": "part",
+        "symbols": [
+          "fn"
+        ]
+      }
+    ],
+    "target_lines": "garbage"
+  },
+  "reference_result": null,
+  "reference_error": {
+    "ok": false,
+    "exception": "ValueError",
+    "message": "invalid literal for int() with base 10: 'garbage'"
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  },
+  "expected_message": "(аргументы).target_lines: ожидался integer",
+  "app_expected_message": "target_lines must be an integer",
+  "schema_boundary": "strict integer rejects the string before app; native bridge text is preserved below",
+  "reference_hook": "bridge_target",
+  "bridge_observation": {
+    "exit": 4,
+    "stdout": "",
+    "stderr": "bridge: usage: target_lines must be an integer\n",
+    "hooks": "root/policy/target/request only; native cmd_split/_finish unchanged"
+  }
+}

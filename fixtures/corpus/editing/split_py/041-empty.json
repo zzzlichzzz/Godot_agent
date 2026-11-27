@@ -1,0 +1,14 @@
+{
+  "id": "041-empty",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/empty",
+  "args": {
+    "path": ""
+  },
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

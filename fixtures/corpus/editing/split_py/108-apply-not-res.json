@@ -1,0 +1,30 @@
+{
+  "id": "108-apply-not-res",
+  "tool": "split_apply",
+  "fixture": "corpus/editing/split_py/plan_explicit",
+  "prepare": {
+    "tool": "split_plan",
+    "args": {
+      "path": "res://donor.py",
+      "groups": [
+        {
+          "module": "part",
+          "symbols": [
+            "fn"
+          ]
+        }
+      ]
+    }
+  },
+  "args": {
+    "path": "donor.py",
+    "plan": "$prepare.result"
+  },
+  "native_capture": null,
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "tree_unchanged": true
+  },
+  "scenario": "split_plan_apply"
+}

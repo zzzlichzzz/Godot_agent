@@ -1,0 +1,23 @@
+{
+  "id": "010-resource_constructor",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"MeshInstance3D\"]\nmesh = PlaneMesh.new()\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_1\"]\n\n[node name=\"Root\" type=\"MeshInstance3D\"]\nmesh = SubResource(\"auto_planemesh_1\")\n",
+      "changed": true,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_1\"]\n\n[node name=\"Root\" type=\"MeshInstance3D\"]\nmesh = SubResource(\"auto_planemesh_1\")\n",
+    "changed": true,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

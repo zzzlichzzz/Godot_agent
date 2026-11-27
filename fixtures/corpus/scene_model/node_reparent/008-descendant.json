@@ -1,0 +1,16 @@
+{
+  "id": "008-descendant",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/008-descendant",
+  "note": "actual-old prepare-only: descendant",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "Old/Tip/End"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Нельзя переместить узел в его собственного потомка"
+  }
+}

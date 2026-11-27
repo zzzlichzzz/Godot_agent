@@ -1,0 +1,25 @@
+{
+  "id": "002-list-static-and-nested",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "static func попадает в список; _process вперемешку с обычными; дубли имён повторяются; func внутри class Inner тоже виден (regex разрешает отступ)",
+  "args": {
+    "path": "res://scripts/func_lab.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/func_lab.gd",
+      "names": [
+        "_process",
+        "make",
+        "compute_score",
+        "rpc_ping",
+        "spaced_lines",
+        "inner_helper",
+        "duplicated",
+        "duplicated"
+      ]
+    }
+  }
+}

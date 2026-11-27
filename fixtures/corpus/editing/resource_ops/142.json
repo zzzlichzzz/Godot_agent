@@ -1,0 +1,72 @@
+{
+  "id": "expanded-op5-success",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": [
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "tileset_add_atlas_source",
+            "source_id": 1,
+            "texture": {
+              "type": "ResourcePath",
+              "value": "res://texture.png"
+            },
+            "texture_region_size": [
+              16,
+              16
+            ],
+            "tiles": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "wait_for_import": [
+          "res://texture.png"
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "825cc59715392aa9d621fb02be57eda2784df73a000df168e48fab7467ef037a"
+}

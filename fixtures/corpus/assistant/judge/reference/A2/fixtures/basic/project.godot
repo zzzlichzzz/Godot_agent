@@ -1,0 +1,4 @@
+config_version=5
+[application]
+config/name="J1 A2"
+run/main_scene="res://scene.tscn"

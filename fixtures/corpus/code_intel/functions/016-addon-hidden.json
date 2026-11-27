@@ -1,0 +1,13 @@
+{
+  "id": "016-addon-hidden",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Файл в addons/ закрыт политикой (как кейс 011 поиска) -> denied",
+  "args": {
+    "path": "res://addons/other_plugin/plugin.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

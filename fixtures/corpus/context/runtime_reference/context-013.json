@@ -1,0 +1,43 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "normalize_status",
+    "args": [
+      {
+        "sessions": [
+          {
+            "session_id": 3,
+            "run_id": "synthetic-run",
+            "active": true,
+            "bridge_ready": true,
+            "breaked": true
+          }
+        ]
+      }
+    ],
+    "kwargs": {},
+    "id": "context-013"
+  },
+  "expect": {
+    "enabled": true,
+    "protocol": 1,
+    "sessions": [
+      {
+        "session_id": 3,
+        "run_id": "synthetic-run",
+        "active": true,
+        "breaked": true,
+        "debuggable": false,
+        "bridge_ready": true,
+        "capabilities": []
+      }
+    ]
+  },
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "normalize_status",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

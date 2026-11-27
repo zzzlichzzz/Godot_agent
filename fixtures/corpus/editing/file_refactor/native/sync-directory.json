@@ -1,0 +1,218 @@
+{
+  "id": "sync-directory",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://src",
+    "new_path": "res://deep/tree",
+    "is_directory": true
+  },
+  "fixture": {
+    "dirs": [
+      "deep",
+      "deep/tree",
+      "deep/tree/.godot"
+    ],
+    "files": {
+      "base.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "deep/tree/.godot/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg=="
+      },
+      "deep/tree/a.bin": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/"
+      },
+      "deep/tree/a.bin.import": {
+        "bytes_b64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL3NyYy9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+      },
+      "deep/tree/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IEI9bG9hZCgiYi5nZCIpCg=="
+      },
+      "deep/tree/a.gd.uid": {
+        "bytes_b64": "dWlkOi8vYQo="
+      },
+      "deep/tree/b.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "deep/tree/orphan.uid": {
+        "bytes_b64": "dWlkOi8vb3JwaGFuCg=="
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "view.gd": {
+        "bytes_b64": "Y29uc3QgQT1sb2FkKCJzcmMvYS5nZCIpCmNvbnN0IEI9bG9hZCgic3JjL2IuZ2QiKQo="
+      }
+    }
+  },
+  "original": {
+    "base.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/.godot/keep.bin": {
+      "bytes_b64": "Zm9yZWlnbg=="
+    },
+    "src/a.bin": {
+      "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/"
+    },
+    "src/a.bin.import": {
+      "bytes_b64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL3NyYy9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+    },
+    "src/a.gd": {
+      "bytes_b64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IEI9bG9hZCgiYi5nZCIpCg=="
+    },
+    "src/a.gd.uid": {
+      "bytes_b64": "dWlkOi8vYQo="
+    },
+    "src/b.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "src/orphan.uid": {
+      "bytes_b64": "dWlkOi8vb3JwaGFuCg=="
+    },
+    "view.gd": {
+      "bytes_b64": "Y29uc3QgQT1sb2FkKCJzcmMvYS5nZCIpCmNvbnN0IEI9bG9hZCgic3JjL2IuZ2QiKQo="
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "entry_id": "c030ec8ed194",
+    "old_path": "res://src",
+    "new_path": "res://deep/tree",
+    "is_directory": true,
+    "changed_paths": [
+      "res://deep/tree/a.gd",
+      "res://deep/tree/a.bin.import"
+    ],
+    "reference_count": 2,
+    "file_count": 3,
+    "ok": true
+  },
+  "native_effects": {
+    "base.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "deep/tree/.godot/keep.bin": {
+      "$bytes_base64": "Zm9yZWlnbg=="
+    },
+    "deep/tree/a.bin": {
+      "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+    },
+    "deep/tree/a.bin.import": {
+      "$bytes_base64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL2RlZXAvdHJlZS9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+    },
+    "deep/tree/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCmNvbnN0IEI9bG9hZCgiYi5nZCIpCg=="
+    },
+    "deep/tree/a.gd.uid": {
+      "$bytes_base64": "dWlkOi8vYQo="
+    },
+    "deep/tree/b.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "deep/tree/orphan.uid": {
+      "$bytes_base64": "dWlkOi8vb3JwaGFuCg=="
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "view.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJzcmMvYS5nZCIpCmNvbnN0IEI9bG9hZCgic3JjL2IuZ2QiKQo="
+    }
+  },
+  "rollback_result": {
+    "$tuple": [
+      true,
+      "Откачено: rename_file (3 файлов)",
+      false,
+      [
+        "res://deep/tree/a.gd",
+        "res://deep/tree/a.bin.import",
+        "res://src"
+      ],
+      null
+    ]
+  },
+  "inverse_files": {
+    "base.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/.godot/keep.bin": {
+      "$bytes_base64": "Zm9yZWlnbg=="
+    },
+    "src/a.bin": {
+      "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+    },
+    "src/a.bin.import": {
+      "$bytes_base64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL3NyYy9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+    },
+    "src/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IEI9bG9hZCgiYi5nZCIpCg=="
+    },
+    "src/a.gd.uid": {
+      "$bytes_base64": "dWlkOi8vYQo="
+    },
+    "src/b.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "src/orphan.uid": {
+      "$bytes_base64": "dWlkOi8vb3JwaGFuCg=="
+    },
+    "view.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJzcmMvYS5nZCIpCmNvbnN0IEI9bG9hZCgic3JjL2IuZ2QiKQo="
+    }
+  },
+  "inverse_byte_exact": true,
+  "stdout": "",
+  "native_prepared": [
+    {
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://deep/tree/a.gd",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory\\deep\\tree\\a.gd",
+          "before_hash": "475715509589817766c882cc75f5dea399a9ae38004d1c3af40f6c9a205ab65c",
+          "before_bytes": {
+            "$bytes_base64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IEI9bG9hZCgiYi5nZCIpCg=="
+          },
+          "after_bytes": {
+            "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCmNvbnN0IEI9bG9hZCgiYi5nZCIpCg=="
+          },
+          "occurrences": 1
+        },
+        {
+          "action": "patch_file",
+          "path": "res://deep/tree/a.bin.import",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory\\deep\\tree\\a.bin.import",
+          "before_hash": "74bdf47acec0ff1a0a3e402435a35aa30649e7e36e97cd298c1fb68091463c2a",
+          "before_bytes": {
+            "$bytes_base64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL3NyYy9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+          },
+          "after_bytes": {
+            "$bytes_base64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL2RlZXAvdHJlZS9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+          },
+          "occurrences": 1
+        },
+        {
+          "action": "external_move_record",
+          "path": "res://src",
+          "dest": "res://deep/tree",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory\\src",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\directory\\deep\\tree",
+          "is_directory": true
+        }
+      ],
+      "old_path": "res://src",
+      "new_path": "res://deep/tree",
+      "is_directory": true,
+      "reference_count": 2
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "151-groups_not_list",
+  "tool": "split_gd_plan",
+  "fixture": "corpus/editing/split_gd_plan/groups_not_list",
+  "args": {
+    "path": "res://donor.gd",
+    "groups": {}
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": null,
+  "reference_public": null,
+  "reference_error": null,
+  "contract_refusal": "plan/bridge/path-policy contract boundary: groups_not_list",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

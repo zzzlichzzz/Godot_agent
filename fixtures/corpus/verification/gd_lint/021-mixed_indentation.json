@@ -1,0 +1,23 @@
+{
+  "id": "021-mixed_indentation",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "mixed_indentation",
+  "args": {
+    "path": "res://scripts/mixed_indentation.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "mixed_indentation",
+          "line": null,
+          "message": "смешаны отступы: табы (например, строка 2) и пробелы (например, строка 4) — Godot выдаст ошибку «Mixed use of tabs and spaces»"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 35
+    }
+  }
+}

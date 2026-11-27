@@ -1,0 +1,64 @@
+{
+  "id": "sync-lint-skip",
+  "tool": "file_refactor",
+  "scenario": "external_sync",
+  "input": {
+    "old_path": "res://src",
+    "new_path": "res://dest",
+    "is_directory": true
+  },
+  "fixture": {
+    "dirs": [
+      "dest"
+    ],
+    "files": {
+      "dest/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "view.gd": {
+        "bytes_b64": "ZnVuYyBicm9rZW4oCmNvbnN0IEE9bG9hZCgicmVzOi8vc3JjL2EuZ2QiKQo="
+      }
+    }
+  },
+  "native_result": {
+    "entry_id": "d89715c991dc",
+    "old_path": "res://src",
+    "new_path": "res://dest",
+    "is_directory": true,
+    "changed_paths": [],
+    "reference_count": 0,
+    "file_count": 1,
+    "ok": true
+  },
+  "native_effects": {
+    "dest/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "view.gd": {
+      "$bytes_base64": "ZnVuYyBicm9rZW4oCmNvbnN0IEE9bG9hZCgicmVzOi8vc3JjL2EuZ2QiKQo="
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlCg=="
+    },
+    "view.gd": {
+      "bytes_b64": "ZnVuYyBicm9rZW4oCmNvbnN0IEE9bG9hZCgicmVzOi8vc3JjL2EuZ2QiKQo="
+    }
+  },
+  "inverse_byte_exact": true,
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_capture": {
+    "raw_file": "native/sync-lint-skip.json",
+    "sha256": "ce731e9a2727c90daac9b7a5982b9e84a9789bf39b76a2bb98f1f6c82fa8959e"
+  }
+}

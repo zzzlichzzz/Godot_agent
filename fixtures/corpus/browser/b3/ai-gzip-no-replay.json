@@ -1,0 +1,8 @@
+{
+  "id": "ai-gzip-no-replay",
+  "kind": "decode",
+  "native_case_source": "test_v88_0_aistudio.py:136-212; new minimal model/part protocol data",
+  "monitor": "ai",
+  "body_b64": "H4sIAAAAAAAC/4uOBoO80pwcHQWlC/MvNlzYd2HTha0XGy72X+xTOLdSSUcBIkkeaRgbCzQ3Nz8lNUcpFsQGCQMpVGvnXWwCW9pkpaBEjIaLEy9sU/gwf9kU/KphylFUgd0EUxkLAOcXS4gAAQAA",
+  "step": 7
+}

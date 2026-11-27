@@ -1,0 +1,102 @@
+{
+  "id": "004-root",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/004-root",
+  "note": "root",
+  "args": {
+    "path": "res://main.tscn",
+    "node": ".",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "rename_node",
+      "scene": "res://main.tscn",
+      "old_name": "Main",
+      "new_name": "LongArm",
+      "old_path": ".",
+      "new_path": ".",
+      "target_node_path": ".",
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "088bc1fea8b1c68dfc0588d60c90b4703b406d786b77844190c4455dd817aba0",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiJUFybTpyb3RhdGlvbiIpCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMiIpCltub2RlIG5hbWU9Ikdsb3ciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0vVGlwIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwIiBtZXRob2Q9InJlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iV2luZyIgdG89IkFybSIgbWV0aG9kPSJyZWFkeSJdCg==",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NCBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL21haW4uZ2QiIGlkPSIxIl0KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3RpcC5nZCIgaWQ9IjIiXQpbc3ViX3Jlc291cmNlIHR5cGU9IkFuaW1hdGlvbiIgaWQ9IkEiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIkFybS9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiJUFybTpyb3RhdGlvbiIpCltub2RlIG5hbWU9IkxvbmdBcm0iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iQXJtIiB0eXBlPSJOb2RlMkQiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMiIpCltub2RlIG5hbWU9Ikdsb3ciIHR5cGU9Ik5vZGUyRCIgcGFyZW50PSJBcm0vVGlwIl0KW25vZGUgbmFtZT0iV2luZyIgdHlwZT0iTm9kZTJEIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJBcm0iIHRvPSJBcm0vVGlwIiBtZXRob2Q9InJlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iV2luZyIgdG89IkFybSIgbWV0aG9kPSJyZWFkeSJdCg==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                4,
+                4,
+                "@@ -4,7 +4,7 @@"
+              ],
+              [
+                " ",
+                4,
+                4,
+                "[sub_resource type=\"Animation\" id=\"A\"]"
+              ],
+              [
+                " ",
+                5,
+                5,
+                "tracks/0/path = NodePath(\"Arm/Tip:position:x\")"
+              ],
+              [
+                " ",
+                6,
+                6,
+                "tracks/1/path = NodePath(\"%Arm:rotation\")"
+              ],
+              [
+                "-",
+                7,
+                null,
+                "[node name=\"Main\" type=\"Node2D\"]"
+              ],
+              [
+                "+",
+                null,
+                7,
+                "[node name=\"LongArm\" type=\"Node2D\"]"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "script = ExtResource(\"1\")"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "[node name=\"Arm\" type=\"Node2D\" parent=\".\"]"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "unique_name_in_owner = true"
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 1
+        }
+      ],
+      "reference_count": 1,
+      "affected_paths": [
+        "res://main.tscn"
+      ],
+      "scripts_only": false,
+      "previous_name": ""
+    }
+  }
+}

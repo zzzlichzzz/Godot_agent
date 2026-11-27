@@ -1,0 +1,33 @@
+{
+  "id": "052-f1_json_duplicate",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/f1_bom",
+  "args": {
+    "path": "res://duplicate.json"
+  },
+  "reference_result": {
+    "path": "res://duplicate.json",
+    "problems": [
+      "json syntax: duplicate JSON key: a"
+    ],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://duplicate.json",
+      "problems": [
+        "json syntax: duplicate JSON key: a"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "json"
+      ],
+      "unavailable": []
+    }
+  },
+  "note": "F1 main-file BOM boundary; actual-old source decode, no implementation imports"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "030-script_existing",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/030-script_existing",
+  "note": "script_existing",
+  "args": {
+    "path": "res://main.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": null,
+      "added": [],
+      "notes": []
+    }
+  }
+}

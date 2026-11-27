@@ -1,0 +1,41 @@
+{
+  "id": "024-exact_wins.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "exact_wins.tscn: 'Branch/Leaf'",
+  "args": {
+    "path": "res://scenes/exact_wins.tscn",
+    "node": "Branch/Leaf"
+  },
+  "reference_node": {
+    "name": "Leaf",
+    "parent": "Branch",
+    "type": "Node",
+    "path": "Branch/Leaf",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      95,
+      141
+    ],
+    "body_span": [
+      141,
+      142
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Leaf",
+      "type": "Node",
+      "parent": "Branch",
+      "path": "Branch/Leaf",
+      "depth": 2,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

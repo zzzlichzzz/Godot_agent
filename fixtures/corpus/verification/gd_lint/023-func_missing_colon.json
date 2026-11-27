@@ -1,0 +1,23 @@
+{
+  "id": "023-func_missing_colon",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "func_missing_colon",
+  "args": {
+    "path": "res://scripts/func_missing_colon.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "missing_colon",
+          "line": 1,
+          "message": "строка 1: похоже, пропущено двоеточие в конце объявления"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 32
+    }
+  }
+}

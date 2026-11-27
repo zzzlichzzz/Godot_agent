@@ -1,0 +1,17 @@
+{
+  "id": "021-missing_scene",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/021-missing_scene",
+  "note": "missing_scene",
+  "args": {
+    "path": "res://missing.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл сцены не найден: res://missing.tscn",
+    "reference_exception": "FileNotFoundError"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "043-missing_arg",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/missing_arg",
+  "args": {},
+  "contract_boundary": "invalid_input",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

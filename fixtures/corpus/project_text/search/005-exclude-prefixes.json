@@ -1,0 +1,20 @@
+{
+  "id": "005-exclude-prefixes",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "exclude_rel_prefixes отсеивает файлы ДО набора квоты",
+  "args": {
+    "query": "health",
+    "exclude_rel_prefixes": [
+      "scripts/"
+    ],
+    "max_results": 10
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

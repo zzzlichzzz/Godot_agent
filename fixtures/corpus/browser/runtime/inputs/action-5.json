@@ -1,0 +1,5 @@
+{
+  "id": "action-5",
+  "op": "action",
+  "raw": "{\"action\":\"write_file\",\"path\":\"res://a.gd\",\"content_ref\":\"A\"}\n===A===\n\u0451\u0436\n===END_A==="
+}

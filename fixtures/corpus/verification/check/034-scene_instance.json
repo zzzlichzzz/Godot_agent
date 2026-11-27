@@ -1,0 +1,38 @@
+{
+  "id": "034-scene_instance",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://instance.tscn"
+  },
+  "reference_result": {
+    "path": "res://instance.tscn",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://instance.tscn",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "tscn"
+      ],
+      "unavailable": [
+        {
+          "kind": "headless",
+          "reason": ".tscn проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

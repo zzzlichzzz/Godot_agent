@@ -1,0 +1,11 @@
+[gd_resource type="Curve" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/curve.gd" id="1_curve"]
+
+[sub_resource type="Curve" id="Curve_nested"]
+_data = [Vector2(0, 0), 0.0, 1.0, 0, 0]
+point_count = 1
+
+[resource]
+script = ExtResource("1_curve")
+metadata/nested = SubResource("Curve_nested")

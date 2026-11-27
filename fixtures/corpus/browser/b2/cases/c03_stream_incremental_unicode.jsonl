@@ -1,0 +1,7 @@
+{"buffered": "0KHQsNC70LDQvAo="}
+{"post": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"response": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", 200, "text/event-stream"]}
+{"wait_stream": "r1"}
+{"chunk": ["r1", "0YfQsNGB0YLQuNGH"]}
+{"chunk": ["r1", "0L3Ri9C5INC60LDQtNGACkRPTkUK"]}
+{"finish": "r1"}

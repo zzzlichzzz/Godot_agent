@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "transport_for_npm",
+  "args": [
+    "@ai-sdk/anthropic"
+  ],
+  "kwargs": {},
+  "id": "api-152"
+}

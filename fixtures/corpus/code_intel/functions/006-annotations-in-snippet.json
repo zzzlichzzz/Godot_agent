@@ -1,0 +1,27 @@
+{
+  "id": "006-annotations-in-snippet",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Прилегающие сверху #-комментарии и @-аннотации (@tool, @rpc(\"any_peer\")) входят в сниппет. Фикстура текстовая: аннотации проверяют скан вверх, Godot её не компилирует",
+  "args": {
+    "path": "res://scripts/func_lab.gd",
+    "names": [
+      "rpc_ping"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/func_lab.gd",
+      "functions": [
+        {
+          "name": "rpc_ping",
+          "snippet": "# Прилегающий комментарий: он входит в сниппет функции ниже.\n# Второй комментарий тоже.\n@tool\n@rpc(\"any_peer\")\nfunc rpc_ping() -> void:\n\tpass",
+          "start_line": 19,
+          "end_line": 24
+        }
+      ],
+      "missing": []
+    }
+  }
+}

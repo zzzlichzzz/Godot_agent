@@ -1,0 +1,23 @@
+{
+  "id": "011-missing_signal.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "missing_signal.tscn",
+  "args": {
+    "path": "res://missing_signal.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_pressed"
+        }
+      ],
+      "text": ""
+    }
+  }
+}

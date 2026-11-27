@@ -1,0 +1,122 @@
+{
+  "id": "history-dependency",
+  "origin": "native",
+  "function": "normalize_action",
+  "args": [
+    "<PROJECT>",
+    {
+      "action": "edit_resource",
+      "resource": "res://data.tres",
+      "operations": [
+        {
+          "op": "set_property",
+          "target": [],
+          "property": "value",
+          "value": {
+            "type": "ResourcePath",
+            "value": "res://.agent_history/data.tres"
+          }
+        }
+      ]
+    }
+  ],
+  "kwargs": {},
+  "before": {
+    ".agent_history/data.tres": {
+      "bytes": 7,
+      "sha256": "259aa8ef98a8b91de574cd904138ef643240c23080cf24da4793a6f10a43fa9d"
+    },
+    "addons/godot_agent/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "addons/godot_agent/private.tres": {
+      "bytes": 5,
+      "sha256": "d4f0bc5a29de06b510f9aa428f1eedba926012b591fef7a518e776a7c9bd1824"
+    },
+    "addons/tool/private.tres": {
+      "bytes": 5,
+      "sha256": "613c3abf0f077f31505d3c8cc0fed9a94a49cf025af3e604c4d38259c1cdf4c7"
+    },
+    "data.tres": {
+      "bytes": 54,
+      "sha256": "903179589b96b3f8dde7fa3f73bbf6e9e764792b5c9a9a21b19fca5ccc7543d6"
+    },
+    "new.tres": {
+      "bytes": 3,
+      "sha256": "11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437"
+    },
+    "old.tres": {
+      "bytes": 3,
+      "sha256": "cba06b5736faf67e54b07b561eae94395e774c517a7d910a54369e1263ccfbd4"
+    },
+    "plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "project.godot": {
+      "bytes": 17,
+      "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+    },
+    "texture.png": {
+      "bytes": 3,
+      "sha256": "8f8cbb7dcf46e0bc7d53265749a6c17d116093a6ba95e442764060c76fd4a86c"
+    },
+    "wrong.txt": {
+      "bytes": 5,
+      "sha256": "8810ad581e59f2bc3928b261707a71308f7e139eb04820366dc4d5c18d980225"
+    }
+  },
+  "status": "error",
+  "error": {
+    "class": "ResourceActionError",
+    "message": "Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа",
+    "kind": null
+  },
+  "after": {
+    ".agent_history/data.tres": {
+      "bytes": 7,
+      "sha256": "259aa8ef98a8b91de574cd904138ef643240c23080cf24da4793a6f10a43fa9d"
+    },
+    "addons/godot_agent/plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "addons/godot_agent/private.tres": {
+      "bytes": 5,
+      "sha256": "d4f0bc5a29de06b510f9aa428f1eedba926012b591fef7a518e776a7c9bd1824"
+    },
+    "addons/tool/private.tres": {
+      "bytes": 5,
+      "sha256": "613c3abf0f077f31505d3c8cc0fed9a94a49cf025af3e604c4d38259c1cdf4c7"
+    },
+    "data.tres": {
+      "bytes": 54,
+      "sha256": "903179589b96b3f8dde7fa3f73bbf6e9e764792b5c9a9a21b19fca5ccc7543d6"
+    },
+    "new.tres": {
+      "bytes": 3,
+      "sha256": "11507a0e2f5e69d5dfa40a62a1bd7b6ee57e6bcd85c67c9b8431b36fff21c437"
+    },
+    "old.tres": {
+      "bytes": 3,
+      "sha256": "cba06b5736faf67e54b07b561eae94395e774c517a7d910a54369e1263ccfbd4"
+    },
+    "plugin.cfg": {
+      "bytes": 9,
+      "sha256": "c8698802d10ec56fb9238d0b6279ac673bd1b04db8a7056b080ceae3c3ebc6fc"
+    },
+    "project.godot": {
+      "bytes": 17,
+      "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+    },
+    "texture.png": {
+      "bytes": 3,
+      "sha256": "8f8cbb7dcf46e0bc7d53265749a6c17d116093a6ba95e442764060c76fd4a86c"
+    },
+    "wrong.txt": {
+      "bytes": 5,
+      "sha256": "8810ad581e59f2bc3928b261707a71308f7e139eb04820366dc4d5c18d980225"
+    }
+  }
+}

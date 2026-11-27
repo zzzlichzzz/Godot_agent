@@ -1,0 +1,46 @@
+{
+  "id": "006-allow-unverified",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "allow_unverified=true: вероятные ссылки правятся",
+  "args": {
+    "kind": "variable",
+    "old_name": "hp",
+    "new_name": "health",
+    "declaration": "res://src/hero.gd:4",
+    "allow_unverified": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "variable",
+      "old_name": "hp",
+      "new_name": "health",
+      "declaration": "res://src/hero.gd:4",
+      "mode": "strict",
+      "allow_unverified": true,
+      "state": "PREPARED",
+      "steps": [
+        {
+          "path": "res://src/hero.gd",
+          "edits": 3
+        },
+        {
+          "path": "res://src/party.gd",
+          "edits": 1
+        }
+      ],
+      "steps_count": 2,
+      "affected_paths": [
+        "res://src/hero.gd",
+        "res://src/party.gd"
+      ],
+      "stats": {
+        "files": 2,
+        "edits": 4,
+        "dynamic": 0
+      },
+      "excluded": 0
+    }
+  }
+}

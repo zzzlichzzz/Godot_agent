@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://first.gd" id="1_script" uid="uid://reference"]
+[ext_resource type="Script" path="res://last.gd" id="1_script"]
+[ext_resource type="Resource" path="res://no_id.tres"]
+
+[node name="Root" type="Node"]
+script = ExtResource('1_script')
+
+[node name="Trailing" parent="Root/" instance=ExtResource("1_script")]
+script = ExtResource( "1_script" )
+
+[connection signal="ready" from="."]

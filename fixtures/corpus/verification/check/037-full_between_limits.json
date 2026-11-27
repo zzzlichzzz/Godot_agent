@@ -1,0 +1,52 @@
+{
+  "id": "037-full_between_limits",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/between",
+  "args": {
+    "path": "res://between.gd"
+  },
+  "reference_result": {
+    "path": "res://between.gd",
+    "problems": [
+      "частичная проверка: линтер получил только первые 2097152 символов из 2097271, остаток файла НЕ проверен — не считай файл чистым"
+    ],
+    "auto_fixable": false,
+    "truncated": true,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "reference_full_text_problems": [
+    "строка 699086: скобка «(» не закрыта"
+  ],
+  "contract_boundary": "user approved full check <=4 MiB instead of legacy 2 Mi-character truncation; full-text problems from old gd_lint",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://between.gd",
+      "problems": [
+        "строка 699086: скобка «(» не закрыта"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "gd",
+        "api"
+      ],
+      "unavailable": [
+        {
+          "kind": "source",
+          "reason": "no_extends"
+        },
+        {
+          "kind": "headless",
+          "reason": ".gd проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

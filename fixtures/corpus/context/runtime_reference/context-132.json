@@ -1,0 +1,142 @@
+{
+  "input": {
+    "module": "editor_context",
+    "function": "format_editor_snapshot",
+    "args": [
+      {
+        "schema_version": 1,
+        "scene": {
+          "active": "res://main.tscn",
+          "open": [
+            "res://main.tscn",
+            "outside"
+          ]
+        },
+        "selection": {
+          "nodes": [
+            {
+              "path": "Main/Player",
+              "type": "Node2D",
+              "script": "res://player.gd",
+              "groups": [
+                "player"
+              ],
+              "properties": {
+                "hp": 10,
+                "bad": {}
+              }
+            }
+          ]
+        },
+        "script": {
+          "path": "res://player.gd",
+          "dirty": true,
+          "caret": {
+            "line": 10,
+            "column": 2
+          },
+          "selection": {
+            "from_line": 9,
+            "to_line": 10,
+            "text": "code\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\ncode\n"
+          },
+          "caret_context": {
+            "text": "NEAR CURSOR MUST LOSE"
+          },
+          "open": [
+            "res://other.gd"
+          ]
+        },
+        "diagnostics": {
+          "items": [
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            },
+            {
+              "path": "res://player.gd",
+              "line": 10,
+              "message": "synthetic diagnostic"
+            }
+          ]
+        },
+        "run": {
+          "playing": false
+        },
+        "unknown": 1
+      },
+      0
+    ],
+    "kwargs": {},
+    "id": "context-132"
+  },
+  "expect": [
+    "[Godot editor context v1; snapshot at send time, user request has priority]\nSelected nodes:\n- Main/Player (Node2D); script=res://player.gd; groups=player; properties=hp=10\nRecent diagnostics:\n- res://player.gd:10: synthetic diagnostic\n- res://player.gd:10: synthetic diagnostic\n- res://player.gd:10: synthetic diagnostic\n- res://player.gd:10: synthetic diagnostic\n- res://player.gd:10: synthetic diagnostic\n- res://player.gd:10: synthetic diagnostic\n- res://player\n[context truncated]\n[/Godot editor context]",
+    {
+      "scene": 29,
+      "selection": 95,
+      "script": 8222,
+      "diagnostics": 363,
+      "run": 18,
+      "total": 508
+    }
+  ],
+  "provenance": {
+    "source": "server/editor_context.py",
+    "source_sha256": "32613d28449674134888ecf8e1b9088ff9b30f30c9baeecacf1fe799f6349362",
+    "function": "format_editor_snapshot",
+    "case_source": "test_editor_context.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

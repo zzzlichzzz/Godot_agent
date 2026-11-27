@@ -1,0 +1,1 @@
+"res://assets/item.gd"

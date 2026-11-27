@@ -1,0 +1,45 @@
+{
+  "id": "015-broken-cache",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/broken",
+  "args": {
+    "class_name": "Node2D"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Node2D",
+      "found": false,
+      "cache_version": "",
+      "inherits": [],
+      "methods": [],
+      "properties": [],
+      "signals": [],
+      "unavailable": [
+        {
+          "kind": "api_cache",
+          "reason": "no_cache"
+        }
+      ]
+    }
+  },
+  "oracle_class_name": "Node2D",
+  "reference_result": {
+    "has_cache": false,
+    "version": "",
+    "record": null,
+    "chain": [],
+    "members": [
+      {},
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

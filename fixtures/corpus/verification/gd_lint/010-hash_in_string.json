@@ -1,0 +1,17 @@
+{
+  "id": "010-hash_in_string",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "hash_in_string",
+  "args": {
+    "path": "res://scripts/hash_in_string.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 30
+    }
+  }
+}

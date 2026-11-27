@@ -1,0 +1,17 @@
+{
+  "id": "016-lint_refusal",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/016-lint_refusal",
+  "note": "lint_refusal",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "После обновления узла в скрипте res://main.gd обнаружена синтаксическая ошибка: строка 3: скобка «(» не закрыта",
+    "reference_exception": "NodeRefactorError"
+  }
+}

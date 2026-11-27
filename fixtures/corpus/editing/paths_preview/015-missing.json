@@ -1,0 +1,14 @@
+{
+  "id": "015-missing",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://missing.gd",
+    "new_path": "res://next/item.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  },
+  "expected_message": "Исходный файл не найден: res://missing.gd"
+}

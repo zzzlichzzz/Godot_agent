@@ -1,0 +1,148 @@
+{
+  "id": "052-plan-imports-other",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_imports-other",
+  "args": {
+    "path": "res://donor.py",
+    "groups": [
+      {
+        "module": "part",
+        "symbols": [
+          "fn"
+        ]
+      }
+    ]
+  },
+  "reference_result": {
+    "schema": 1,
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c18-split-py-plan-20261101-resume\\corpus-staging\\plan_imports-other",
+    "donor": "donor.py",
+    "donor_sha256": "d6f806c74932efea5b5aab36a9e91fbe1e7dc54c2711ba61cbef31dd08d86d8f",
+    "donor_lines": 8,
+    "target_lines": 900,
+    "auto_groups": false,
+    "modules": [
+      {
+        "module": "part",
+        "rel": "part.py",
+        "names": [
+          "fn"
+        ],
+        "lines": 14,
+        "text": "# -*- coding: utf-8 -*-\n\n\"\"\"part — часть donor.py (вынесено split_refactor).\n\nФасад и точка входа — donor.py: он реэкспортирует имена модуля.\n\"\"\"\n\ntry:\n    import math as m\nexcept ImportError:\n    m = None\n\ndef fn():\n    return m.sqrt(4)\n"
+      }
+    ],
+    "facade": {
+      "rel": "donor.py",
+      "text": "import os.path as path\n# --- фасад: код разнесён по модулям (split_refactor) ---\nfrom part import fn\n__all__ = [\"fn\"]\ntry:\n    import math as m\nexcept ImportError:\n    m = None\nx = y = 1\n",
+      "lines": 9,
+      "reexports": [
+        {
+          "module": "part",
+          "names": [
+            "fn"
+          ]
+        }
+      ]
+    },
+    "moved_names": [
+      "fn"
+    ],
+    "errors": [],
+    "warnings": [
+      "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+      "part.py: зона ? (unknown)"
+    ],
+    "inventory": {
+      "symbols": [
+        {
+          "name": "fn",
+          "kind": "def",
+          "lines": 2,
+          "is_public": true,
+          "state": false
+        }
+      ],
+      "imports": 1,
+      "other": 2,
+      "docstring": false
+    },
+    "refs": {
+      "counts": {
+        "import": 0,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 0,
+        "doc": 0
+      },
+      "hard_files": [],
+      "soft_files": [],
+      "truncated": false
+    }
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "donor_sha256": "d6f806c74932efea5b5aab36a9e91fbe1e7dc54c2711ba61cbef31dd08d86d8f",
+      "donor_lines": 8,
+      "target_lines": 900,
+      "auto_groups": false,
+      "moved_names": [
+        "fn"
+      ],
+      "errors": [],
+      "warnings": [
+        "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+        "part.py: зона ? (unknown)"
+      ],
+      "inventory": {
+        "symbols": [
+          {
+            "name": "fn",
+            "kind": "def",
+            "lines": 2,
+            "is_public": true,
+            "state": false
+          }
+        ],
+        "imports": 1,
+        "other": 2,
+        "docstring": false
+      },
+      "refs": {
+        "counts": {
+          "import": 0,
+          "source_read": 0,
+          "patch": 0,
+          "mention": 0,
+          "doc": 0
+        },
+        "hard_files": [],
+        "soft_files": [],
+        "truncated": false
+      },
+      "modules": [
+        {
+          "rel": "part.py",
+          "names": [
+            "fn"
+          ],
+          "lines": 14
+        }
+      ],
+      "facade": {
+        "rel": "donor.py",
+        "lines": 9,
+        "reexports": [
+          {
+            "module": "part",
+            "names": [
+              "fn"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

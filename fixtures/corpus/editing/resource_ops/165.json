@@ -1,0 +1,45 @@
+{
+  "id": "expanded-operation-refusal-22",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "tileset_add_atlas_source",
+        "source_id": 1,
+        "texture": {
+          "type": "ResourcePath",
+          "value": "res://texture.png"
+        },
+        "texture_region_size": [
+          16,
+          16
+        ],
+        "tiles": [
+          [
+            -1,
+            0
+          ]
+        ]
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Координата TileSet должна содержать два неотрицательных целых",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "ab2a9f9fddfce81753b0a4a9865045d039c18b0efdd9fe20e2f205d5ae577d8d"
+}

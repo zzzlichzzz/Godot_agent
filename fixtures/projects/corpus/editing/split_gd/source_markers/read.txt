@@ -1,0 +1,8 @@
+donor.gd open(
+donor.gd read_text
+donor.gd read_bytes
+donor.gd read_string
+donor.gd check-only
+donor.gd --script
+donor.gd source_code
+donor.gd get_script

@@ -1,0 +1,41 @@
+{
+  "id": "034-scripts.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "scripts.tscn: 'Missing'",
+  "args": {
+    "path": "res://scenes/scripts.tscn",
+    "node": "Missing"
+  },
+  "reference_node": {
+    "name": "Missing",
+    "parent": ".",
+    "type": "Node",
+    "path": "Missing",
+    "unique_name": false,
+    "script_id": "unknown",
+    "header_span": [
+      291,
+      335
+    ],
+    "body_span": [
+      335,
+      368
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Missing",
+      "type": "Node",
+      "parent": ".",
+      "path": "Missing",
+      "depth": 1,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

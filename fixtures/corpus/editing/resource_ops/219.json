@@ -1,0 +1,45 @@
+{
+  "id": "limits-Color0",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "Color",
+          "value": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Color требует массив из 4 чисел",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "138a26c912fb57b5b51e78bf6932b3e35565cd052883796c52b29209b6427bce"
+}

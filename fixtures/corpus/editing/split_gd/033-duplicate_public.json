@@ -1,0 +1,155 @@
+{
+  "id": "033-duplicate_public",
+  "tool": "split_gd_scan",
+  "fixture": "corpus/editing/split_gd/duplicate_public",
+  "args": {
+    "path": "res://donor.gd"
+  },
+  "reference_addon": "",
+  "reference_donor": "donor.gd",
+  "reference_result": {
+    "schema": 1,
+    "donor": "donor.gd",
+    "lines": 8,
+    "extends": "",
+    "class_name": "",
+    "funcs": 4,
+    "consts": 0,
+    "vars": 0,
+    "public_methods": [
+      "alpha",
+      "zebra"
+    ],
+    "counts": {
+      "path": 1,
+      "source_read": 0,
+      "call": 0,
+      "doc": 0,
+      "mention": 0
+    },
+    "occurrences": [
+      {
+        "file": "plugin.cfg",
+        "line": 3,
+        "kind": "path",
+        "text": "script=\"donor.gd\""
+      }
+    ],
+    "truncated": false,
+    "hard_files": [],
+    "soft_files": [
+      "plugin.cfg"
+    ]
+  },
+  "reference_inventory": {
+    "extends": "",
+    "class_name": "",
+    "header_end": 0,
+    "consts": [],
+    "vars": [],
+    "funcs": [
+      {
+        "name": "zebra",
+        "sig_start": 1,
+        "start": 1,
+        "block_start": 1,
+        "sig_lines": [
+          "func zebra():"
+        ],
+        "sig_text": "func zebra():",
+        "body_start": 2,
+        "end": 2,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      },
+      {
+        "name": "alpha",
+        "sig_start": 3,
+        "start": 3,
+        "block_start": 3,
+        "sig_lines": [
+          "func alpha():"
+        ],
+        "sig_text": "func alpha():",
+        "body_start": 4,
+        "end": 4,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      },
+      {
+        "name": "zebra",
+        "sig_start": 5,
+        "start": 5,
+        "block_start": 5,
+        "sig_lines": [
+          "func zebra():"
+        ],
+        "sig_text": "func zebra():",
+        "body_start": 6,
+        "end": 6,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      },
+      {
+        "name": "_x",
+        "sig_start": 7,
+        "start": 7,
+        "block_start": 7,
+        "sig_lines": [
+          "func _x():"
+        ],
+        "sig_text": "func _x():",
+        "body_start": 8,
+        "end": 8,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 8
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.gd",
+      "lines": 8,
+      "extends": "",
+      "class_name": "",
+      "funcs": 4,
+      "consts": 0,
+      "vars": 0,
+      "public_methods": [
+        "alpha",
+        "zebra"
+      ],
+      "counts": {
+        "path": 1,
+        "source_read": 0,
+        "call": 0,
+        "doc": 0,
+        "mention": 0
+      },
+      "occurrences": [
+        {
+          "file": "plugin.cfg",
+          "line": 3,
+          "kind": "path",
+          "text": "script=\"donor.gd\""
+        }
+      ],
+      "truncated": false,
+      "hard_files": [],
+      "soft_files": [
+        "plugin.cfg"
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "012-local_const",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "local_const",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nconst LOCAL = 1\nfunc run():\n\tself.LOCAL\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

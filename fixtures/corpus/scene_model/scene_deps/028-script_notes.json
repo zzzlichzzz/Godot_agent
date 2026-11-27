@@ -1,0 +1,19 @@
+{
+  "id": "028-script_notes",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/028-script_notes",
+  "note": "script_notes",
+  "args": {
+    "path": "res://main.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": null,
+      "added": [],
+      "notes": [
+        "в скрипте res://main.gd есть обработчик _on_button_pressed, но в сцене res://scenes/main.tscn нет [connection] для него (похоже на сигнал pressed узла Button) — добавь подключение в сцену или через connect() в _ready()"
+      ]
+    }
+  }
+}

@@ -1,0 +1,142 @@
+"""modules/editing/write_preview/tools.py - дескриптор предпросмотра (R-05, ADR-0006).
+
+`write_preview` — первая механика с `effects="write"`, хотя в проект она не
+пишет: единственный эффект — запись `PREPARED` в WAL вне проекта (ADR-0005).
+Поэтому `idempotent=false` (каждый вызов создаёт новый `plan_id`), а
+`requires_preview` не ставится: предпросмотр и есть preview.
+
+Источник правды: `contract/capabilities/write_preview.json` генерируется из
+этого файла (`python tools/gen_contract.py --write`), руками не правится.
+"""
+
+from python.kernel.tool_spec import ToolSpec
+
+KIND_ARG = {
+    "type": "string",
+    "enum": ["class_name", "function", "signal", "variable", "const", "enum",
+             "enum_member"],
+    "description": "Вид символа — как в объявлении.",
+}
+EDIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "start": {"type": "integer", "description": "Смещение начала (символы)."},
+        "end": {"type": "integer", "description": "Смещение конца (не включая)."},
+        "replacement": {"type": "string", "description": "Новое имя."},
+    },
+    "required": ["start", "end", "replacement"],
+    "additionalProperties": False,
+}
+STEP_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "op": {"type": "string", "enum": ["script_edit"]},
+        "target": {"type": "string", "description": "Файл шага: `res://path.gd`."},
+        "payload": {
+            "type": "object",
+            "properties": {
+                "edits": {"type": "array", "items": EDIT_SCHEMA},
+                "newline": {"type": "string", "enum": ["lf", "crlf"],
+                            "description": "Стиль переводов строк исходника."},
+            },
+            "required": ["edits", "newline"],
+            "additionalProperties": False,
+        },
+        "expected_hash": {"type": "string",
+                          "description": "sha256 нормализованного текста до правки."},
+    },
+    "required": ["op", "target", "payload", "expected_hash"],
+    "additionalProperties": False,
+}
+DIFF_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "path": {"type": "string"},
+        "patch": {"type": "string", "description": "Унифицированный diff по строкам."},
+    },
+    "required": ["path", "patch"],
+    "additionalProperties": False,
+}
+STATS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "files": {"type": "integer"},
+        "edits": {"type": "integer"},
+        "proven": {"type": "integer"},
+        "probable": {"type": "integer"},
+        "dynamic": {"type": "integer"},
+        "skipped": {"type": "integer"},
+    },
+    "required": ["files", "edits", "proven", "probable", "dynamic", "skipped"],
+    "additionalProperties": False,
+}
+RESULT_FIELDS = {
+    "plan_id": {"type": "string", "description": "Новый на каждый вызов."},
+    "digest": {"type": "string", "description": "sha256 плана: тот же вход — тот же digest."},
+    "state": {"type": "string", "enum": ["PREPARED"]},
+    "kind": {"type": "string"},
+    "old_name": {"type": "string"},
+    "new_name": {"type": "string"},
+    "declaration": {"type": "string"},
+    "mode": {"type": "string", "enum": ["strict", "probable"]},
+    "allow_unverified": {"type": "boolean"},
+    "steps_count": {"type": "integer"},
+    "affected_paths": {"type": "array", "items": {"type": "string"},
+                       "description": "По одному шагу на файл, sorted."},
+    "skipped_usages": {"type": "array", "items": {"type": "string"},
+                       "description": "Места, оставленные как есть: `path:line — причина`."},
+    "risks": {"type": "array", "items": {"type": "string"},
+              "description": "Строки `path:line [link, confidence] — причина`."},
+    "diffs": {"type": "array", "items": DIFF_SCHEMA},
+    "steps": {"type": "array", "items": STEP_SCHEMA,
+              "description": "План целиком: то, что применит часть 2."},
+    "stats": STATS_SCHEMA,
+    "confirm_ttl": {"type": "integer", "description": "Секунды жизни плана (900)."},
+}
+RESULT_REQUIRED = ["plan_id", "digest", "state", "kind", "old_name", "new_name",
+                   "declaration", "mode", "allow_unverified", "steps_count",
+                   "affected_paths", "skipped_usages", "risks", "diffs", "steps",
+                   "stats", "confirm_ttl"]
+
+WRITE_PREVIEW = ToolSpec(
+    name="write_preview",
+    description=(
+        "Предпросмотр переименования символа: строит план правок, показывает "
+        "диффы, затронутые файлы, пропущенные места и риски, и записывает план "
+        "в журнал (`state=PREPARED`). В проект не пишет ни байта: применение — "
+        "`write_apply` с этим `plan_id` и `digest`. `mode=strict` отказывает, "
+        "если есть недоказанные ссылки (нужен `allow_unverified`) или "
+        "динамическая ссылка по строке; `mode=probable` принимает динамическую "
+        "ссылку, оставляя её в `risks`. `exclude` снимает конкретные места: "
+        "снять все ссылки нельзя (отказ `all_usages_excluded`)."
+    ),
+    args={
+        "type": "object",
+        "properties": {
+            "kind": KIND_ARG,
+            "old_name": {"type": "string", "description": "Имя символа."},
+            "new_name": {"type": "string", "minLength": 1,
+                         "description": "Новое имя (идентификатор GDScript)."},
+            "declaration": {"type": "string",
+                            "description": "locator: `res://path.gd:line`."},
+            "mode": {"type": "string", "enum": ["strict", "probable"],
+                     "default": "strict",
+                     "description": "strict — отказ на любую недоказанность."},
+            "allow_unverified": {"type": "boolean", "default": False,
+                                 "description": "Править вероятные ссылки тоже."},
+            "exclude": {"type": "array", "items": {"type": "string"},
+                        "description": "Места `res://path.gd:line`, которые не трогать."},
+        },
+        "required": ["kind", "old_name", "new_name", "declaration"],
+        "additionalProperties": False,
+    },
+    result={"type": "object", "properties": RESULT_FIELDS,
+            "required": RESULT_REQUIRED, "additionalProperties": False},
+    effects="write",
+    idempotent=False,
+    errors=("invalid_input", "not_found", "denied", "conflict"),
+    availability="*",
+    cost="heavy",
+)
+
+TOOLS = (WRITE_PREVIEW,)

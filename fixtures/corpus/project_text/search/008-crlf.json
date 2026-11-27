@@ -1,0 +1,22 @@
+{
+  "id": "008-crlf",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "файл с CRLF: переводы строк нормализованы, сниппет многострочный",
+  "args": {
+    "query": "crlf ok"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://scripts/crlf_line.gd",
+          "line": 5,
+          "snippet": "3: # Файл сохранён с CRLF: проверяем нормализацию переводов строк.\n4: func _ready() -> void:\n5: \tprint(\"crlf ok\")\n6: "
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

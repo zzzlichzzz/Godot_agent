@@ -1,0 +1,89 @@
+{
+  "id": "history-035-reserved-34",
+  "input": {
+    "group": "history",
+    "action": "reserved",
+    "storage": "user",
+    "absent": true,
+    "remove_created": true,
+    "no_hash": true
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "result": [
+        false,
+        "Созданный файл не подтверждён хэшем; резерв истории сохранён",
+        []
+      ],
+      "file": {
+        "base64": "ZXh0ZXJuYWwtc3RhZ2UNCg=="
+      },
+      "journal": [
+        {
+          "id": "000000000001",
+          "ts": 1000,
+          "type": "batch",
+          "path": "res://A.txt",
+          "paths": [
+            "res://A.txt"
+          ],
+          "files": [
+            {
+              "path": "res://A.txt",
+              "before_present": false,
+              "after_present": true
+            }
+          ],
+          "committed": false
+        }
+      ]
+    },
+    "after": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 16,
+          "sha256": "7af3278df8871a57cd41fb5c813e6f6ec3c4cf58b67787d17c1033b1672ccf8f"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/journal.json": {
+          "bytes": 275,
+          "sha256": "8e3d9fba5b48379f9db14aac454cbfa281e233f6c4ca0873e6ee2eeb8cfa6ab2"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

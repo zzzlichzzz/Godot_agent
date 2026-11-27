@@ -1,0 +1,431 @@
+{
+  "anim.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Gun",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Gun",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Muzzle",
+        "type": "Marker2D",
+        "parent": "Gun",
+        "path": "Gun/Muzzle",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "basic.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd"
+      }
+    },
+    [
+      {
+        "name": "Player",
+        "type": "CharacterBody2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "1_player",
+        "instance_id": null
+      },
+      {
+        "name": "Gun",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Gun",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Muzzle",
+        "type": "Marker2D",
+        "parent": "Gun",
+        "path": "Gun/Muzzle",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "bom.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd"
+      }
+    },
+    [
+      {
+        "name": "Корень",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "1_player",
+        "instance_id": null
+      },
+      {
+        "name": "Child",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Child",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "bom_crlf.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd"
+      }
+    },
+    [
+      {
+        "name": "Корень",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "1_player",
+        "instance_id": null
+      },
+      {
+        "name": "Child",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Child",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "connections.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Gun",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Gun",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Muzzle",
+        "type": "Marker2D",
+        "parent": "Gun",
+        "path": "Gun/Muzzle",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    [
+      {
+        "signal": "fired",
+        "from": "Gun",
+        "to": ".",
+        "method": "_on_gun_fired"
+      },
+      {
+        "signal": "sparked",
+        "from": "Gun/Muzzle",
+        "to": "Gun",
+        "method": "_on_sparked"
+      },
+      {
+        "signal": "ready",
+        "from": ".",
+        "to": "Gun/Muzzle",
+        "method": "_on_root_ready"
+      }
+    ]
+  ],
+  "crlf.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd"
+      }
+    },
+    [
+      {
+        "name": "Root",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "1_player",
+        "instance_id": null
+      },
+      {
+        "name": "Child",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Child",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "curve.tres": [
+    {
+      "1_curve": {
+        "type": "Script",
+        "path": "res://scripts/curve.gd"
+      }
+    },
+    [],
+    []
+  ],
+  "editable.tscn": [
+    {
+      "1_gun": {
+        "type": "PackedScene",
+        "path": "res://scenes/gun.tscn"
+      }
+    },
+    [
+      {
+        "name": "Root",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Gun",
+        "type": null,
+        "parent": ".",
+        "path": "Gun",
+        "script_id": null,
+        "instance_id": "1_gun"
+      }
+    ],
+    []
+  ],
+  "empty.tscn": [
+    {},
+    [],
+    []
+  ],
+  "flat.tres": [
+    {},
+    [],
+    []
+  ],
+  "instance.tscn": [
+    {
+      "1_gun": {
+        "type": "PackedScene",
+        "path": "res://scenes/gun.tscn"
+      },
+      "2_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd"
+      }
+    },
+    [
+      {
+        "name": "Player",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "2_player",
+        "instance_id": null
+      },
+      {
+        "name": "Gun",
+        "type": null,
+        "parent": ".",
+        "path": "Gun",
+        "script_id": null,
+        "instance_id": "1_gun"
+      },
+      {
+        "name": "Muzzle",
+        "type": null,
+        "parent": "Gun",
+        "path": "Gun/Muzzle",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "player.tscn": [
+    {
+      "1_player": {
+        "type": "Script",
+        "path": "res://scripts/player.gd"
+      }
+    },
+    [
+      {
+        "name": "Player",
+        "type": "CharacterBody2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "1_player",
+        "instance_id": null
+      },
+      {
+        "name": "Sprite",
+        "type": "Sprite2D",
+        "parent": ".",
+        "path": "Sprite",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "quirks.tscn": [
+    {
+      "1_script": {
+        "type": "Script",
+        "path": "res://last.gd"
+      }
+    },
+    [
+      {
+        "name": "Root",
+        "type": "Node",
+        "parent": null,
+        "path": ".",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Trailing",
+        "type": null,
+        "parent": "Root/",
+        "path": "Root//Trailing",
+        "script_id": "1_script",
+        "instance_id": "1_script"
+      }
+    ],
+    [
+      {
+        "signal": "ready",
+        "from": ".",
+        "to": "",
+        "method": ""
+      }
+    ]
+  ],
+  "spans.tscn": [
+    {
+      "1_odd": {
+        "type": "Script",
+        "path": "res://scripts/odd\\\"name.gd"
+      }
+    },
+    [
+      {
+        "name": "Корень",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": "1_odd",
+        "instance_id": null
+      },
+      {
+        "name": "Quoted\\\"Child",
+        "type": "Node2D",
+        "parent": "Корень/",
+        "path": "Корень//Quoted\\\"Child",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Bracket]Child",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Bracket]Child",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "sub.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Body",
+        "type": "CollisionShape2D",
+        "parent": ".",
+        "path": "Body",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ],
+  "unique.tscn": [
+    {},
+    [
+      {
+        "name": "Root",
+        "type": "Node2D",
+        "parent": null,
+        "path": ".",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Gun",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Gun",
+        "script_id": null,
+        "instance_id": null
+      },
+      {
+        "name": "Ordinary",
+        "type": "Node2D",
+        "parent": ".",
+        "path": "Ordinary",
+        "script_id": null,
+        "instance_id": null
+      }
+    ],
+    []
+  ]
+}

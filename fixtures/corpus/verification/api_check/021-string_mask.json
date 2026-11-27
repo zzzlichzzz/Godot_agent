@@ -1,0 +1,21 @@
+{
+  "id": "021-string_mask",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "string_mask",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tvar text = \"self.fake()\"\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

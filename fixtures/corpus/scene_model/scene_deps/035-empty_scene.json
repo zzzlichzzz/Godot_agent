@@ -1,0 +1,17 @@
+{
+  "id": "035-empty_scene",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/035-empty_scene",
+  "note": "empty_scene",
+  "args": {
+    "path": "res://main.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "",
+      "added": [],
+      "notes": []
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "002-one.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "one.tscn",
+  "args": {
+    "path": "res://one.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_pressed"
+        }
+      ],
+      "text": "- Button.pressed -> <root>._on_button_pressed()"
+    }
+  }
+}

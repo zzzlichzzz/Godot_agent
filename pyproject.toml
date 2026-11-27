@@ -1,0 +1,24 @@
+# pyproject.toml - конфиг Python-части (R-01: всё внутри папки плагина).
+[project]
+name = "godot-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = []
+
+# Тесты гоняются через `python -m pytest` (Q-23): pytest не попадает в рантайм
+# агента, он нужен только разработке и `tools/selfcheck.py`.
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/modules", "tests/py"]
+# importlib: у каждой фичи свой `tests/test_core.py`, а `__init__.py` в тестовых
+# папках не обязателен — без этого режима pytest падает на одинаковых именах.
+# no:cacheprovider: прогон не оставляет `.pytest_cache` в дереве плагина (R-06,
+# гигиена: `__pycache__`/`.pytest_cache` = 0), поэтому тесты гоняются без флагов.
+addopts = "-q --import-mode=importlib -p no:cacheprovider"
+# needs_live: живой прогон с настоящим движком (`tests/py/live/`). Без бинаря Godot
+# тест пропускается, а не «проходит» - это видимый долг, а не зелёный вердикт.
+markers = [
+	"needs_live: нужен установленный Godot (headless), иначе skip",
+]

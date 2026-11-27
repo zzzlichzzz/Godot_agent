@@ -1,0 +1,16 @@
+{
+  "id": "024-outside",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/024-outside",
+  "note": "actual-old prepare-only: outside",
+  "args": {
+    "path": "res://../main.tscn",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Сцена защищена текущей политикой доступа"
+  }
+}

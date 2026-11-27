@@ -1,0 +1,50 @@
+{
+  "python/godot_tools/arch_map.py": {
+    "bytes": 22088,
+    "sha256": "042f7a66f89d7ae1f63a3c69293ae7d2e5489411a1e81ec48f9e7b0777d6d547",
+    "LF": 454,
+    "CRLF": 0
+  },
+  "python/godot_tools/gd_functions.py": {
+    "bytes": 3367,
+    "sha256": "efa80db641f97dbe02ed23a119639f966b2b05d38e3e7ebacc6338c1a10fb72d",
+    "LF": 81,
+    "CRLF": 0
+  },
+  "python/server/log_reader.py": {
+    "bytes": 13864,
+    "sha256": "b3f746b86cd43bf19e47d944089502ed5a6853f0a08c99191ab118f48b76ad17",
+    "LF": 276,
+    "CRLF": 0
+  },
+  "python/godot_tools/node_refactor.py": {
+    "bytes": 46881,
+    "sha256": "2d708a384177fa0a8d4636f3f2dd373508ee316216319edf7d793255d8918a29",
+    "LF": 1095,
+    "CRLF": 1095
+  },
+  "python/godot_tools/split_gd.py": {
+    "bytes": 63421,
+    "sha256": "18f05d10b8e875ed77040b8a47beb6ccbdb409b55d791ec0318466473969bfc7",
+    "LF": 1333,
+    "CRLF": 0
+  },
+  "python/godot_tools/split_refactor.py": {
+    "bytes": 44114,
+    "sha256": "87cb4d5209c070f2f65ad45c16086e7c99b561ce677c6f8b1d1fd57b545526e7",
+    "LF": 872,
+    "CRLF": 872
+  },
+  "python/godot_tools/function_card.py": {
+    "bytes": 37878,
+    "sha256": "1e14a9c1ad09efddfd737c3834df9564077380513be0024a4284c599594f7486",
+    "LF": 751,
+    "CRLF": 751
+  },
+  "python/godot_tools/gather_context.py": {
+    "bytes": 17226,
+    "sha256": "061a6e9a6bd561a56ea53b0df2677251a9ba214e7b208728cafa134c03150648",
+    "LF": 404,
+    "CRLF": 404
+  }
+}

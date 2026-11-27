@@ -1,0 +1,91 @@
+{
+  "id": "q6-project",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://project.godot",
+      "res://moved.godot"
+    ]
+  },
+  "kwargs": {
+    "addon_dir": "<PROJECT>\\addons\\godot_agent"
+  },
+  "before": {
+    "files": {
+      "a.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "addons/foreign/a.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "addons/godot_agent/a.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "bytes": 24,
+        "sha256": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0"
+      },
+      "plugin.cfg": {
+        "bytes": 18,
+        "sha256": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/foreign",
+      "addons/godot_agent"
+    ]
+  },
+  "fs_attempts": [],
+  "injection": null,
+  "observation": "CPython audit hook; no success-path substitution",
+  "ok": false,
+  "exception": {
+    "type": "FileRefactorError",
+    "text": "Путь защищён текущей политикой доступа: res://project.godot"
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "files": {
+      "a.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "addons/foreign/a.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "addons/godot_agent/a.bin": {
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "bytes": 24,
+        "sha256": "d2363da071fa476387306994d9ea5a2e16b94ff1aafa6d6dc805448438db00a0"
+      },
+      "plugin.cfg": {
+        "bytes": 18,
+        "sha256": "bb2dd556db45c862a0f499c2076887a9bd5306f1b8e333118e24c9fe88a89b75"
+      },
+      "project.godot": {
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/foreign",
+      "addons/godot_agent"
+    ]
+  },
+  "project_byte_tree_unchanged": true
+}

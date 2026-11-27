@@ -1,0 +1,26 @@
+{
+  "id": "032-unknown_base",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "unknown_base",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends ProjectBase\nfunc run():\n\tself.nope()\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "ProjectBase",
+      "checked": false,
+      "unavailable": [
+        {
+          "kind": "base_class",
+          "reason": "base_not_in_cache"
+        }
+      ]
+    }
+  }
+}

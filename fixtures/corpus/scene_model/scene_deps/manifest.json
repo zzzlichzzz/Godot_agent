@@ -1,0 +1,3590 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-29",
+  "reference": {
+    "commit": "ba0535d4dec43c32750e601a6ca86e377abc6af3",
+    "files": {
+      "godot_tools/scene_deps.py": {
+        "sha256": "dbd502afeca7fa2fe97d49a995438c551d313d1713e6591865ab2bf3b053067b",
+        "bytes": 19866
+      },
+      "godot_tools/project_tools.py": {
+        "sha256": "79e9b035bd211f4a44623573d64f88f5bf47a049725c18dc90d985f47c6a7877",
+        "bytes": 102471
+      },
+      "main.py": {
+        "sha256": "c5b3edd1a1528d8662b49081880549b2f4cd1f9eed108030605fdaf2c6a17d0b",
+        "bytes": 304431
+      }
+    }
+  },
+  "capture": "one disposable python -B script, ordinary _bootstrap/project_tools/scene_deps imports; actual functions, not copied code; removed before implementation",
+  "projection": "scene tuple -> {text,added,notes}; script native list -> {text:null,added:[],notes}; path/missing/extension wrapper refusals borrowed from actual describe_scene/_resolve_safe_path, not native analyzer failures",
+  "decoding": "utf-8 replace/universal newlines, reference open; primary read-only candidate projection",
+  "inputs": {
+    "001-scene_no_scripts/main.tscn": {
+      "sha256": "aa051d429cf1dca156c2011a24b02e6c0a480dc53fdb2abe8a5049988a40bdf6",
+      "bytes": 97
+    },
+    "002-unique_handler/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "002-unique_handler/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "004-self_handler/main.gd": {
+      "sha256": "6d7b79f79314c1ed246ba6d95d91ee1bece49a2636e4db923998f2f3fbff8bfd",
+      "bytes": 35
+    },
+    "004-self_handler/main.tscn": {
+      "sha256": "3664fa5fa4bf360a52c848f7a754c1be7c0afa5e013f0f9c91daddfab94a54bf",
+      "bytes": 182
+    },
+    "005-custom_signal/main.gd": {
+      "sha256": "19d57af08d327c4b2fd723e1242f70bc5b50a61a95b3819ada101383bf636737",
+      "bytes": 27
+    },
+    "005-custom_signal/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "006-orphan_unknown/main.gd": {
+      "sha256": "5615afa70975ecd9a45ecbdbc88d04ab78b3df56c41f71ede594ecbd07f57998",
+      "bytes": 32
+    },
+    "006-orphan_unknown/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "007-existing_method/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "007-existing_method/main.tscn": {
+      "sha256": "567d4cfea392e796c9fc8dc2e1c827f102c5ea1fe313057a0c63254b4d97a3b8",
+      "bytes": 259
+    },
+    "008-conflicting_method/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "008-conflicting_method/main.tscn": {
+      "sha256": "23bcab92a3e4a1510f9ff9382d59abbe9dbe790d82fca01047d56358bd9af421",
+      "bytes": 253
+    },
+    "009-quoted_reference/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "009-quoted_reference/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "010-callable_reference/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "010-callable_reference/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "011-connect_reference/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "011-connect_reference/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "012-other_scene_reference/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "012-other_scene_reference/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "013-comment_scene_reference/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "013-comment_scene_reference/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "014-ambiguous_sources/main.gd": {
+      "sha256": "92460976a68a68e542d49d0dfbcc474f6c544492339de58b043275d235d94109",
+      "bytes": 37
+    },
+    "014-ambiguous_sources/main.tscn": {
+      "sha256": "a25257bbc07f429aeb026eadb99a1b0d4100626f09b82cf3109fdc07e9ea53a5",
+      "bytes": 234
+    },
+    "015-instance_unknown/child.tscn": {
+      "sha256": "aa051d429cf1dca156c2011a24b02e6c0a480dc53fdb2abe8a5049988a40bdf6",
+      "bytes": 97
+    },
+    "015-instance_unknown/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "015-instance_unknown/main.tscn": {
+      "sha256": "f7822d8f829c469ac0dffb66313b2ec923658f9772c80e1f1a3405870a301730",
+      "bytes": 257
+    },
+    "016-cyclic_instances/child.tscn": {
+      "sha256": "8b1856ef563faca62969d4566e69743bd8369016baa9ac01ba2cef1ae1bec7a6",
+      "bytes": 161
+    },
+    "016-cyclic_instances/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "016-cyclic_instances/main.tscn": {
+      "sha256": "e9974e1d116aeed543e3140a755ebdefcc16efc7e64ed1537216128af695bda3",
+      "bytes": 245
+    },
+    "017-rigidbody_note/main.gd": {
+      "sha256": "116fc8409a1a20c8313965d575149ba08474bd052cc0a11a86ef5f7bd935c8d6",
+      "bytes": 40
+    },
+    "017-rigidbody_note/main.tscn": {
+      "sha256": "6446e74ed714eafdc38d0f397186312576a28f548b4cd1e2c19ae270d6da7d1c",
+      "bytes": 183
+    },
+    "018-broken_script/main.gd": {
+      "sha256": "b767641a56cab6b6d1ff0d061049a48e1738b72c89e49fd84c6a981dbfa5a18a",
+      "bytes": 26
+    },
+    "018-broken_script/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "019-crlf_scene/main.gd": {
+      "sha256": "fc0ebd7fa281d826924aad4f9cc6ff9de94a1046dabee080e04d8ccca3344011",
+      "bytes": 35
+    },
+    "019-crlf_scene/main.tscn": {
+      "sha256": "5b7868bec2c62bbdb408034ced62a5052155258d29dafc64b019eea01da981c8",
+      "bytes": 185
+    },
+    "020-bom_handler/main.gd": {
+      "sha256": "3c6fbefdb7ebbf553b72595236a33ac6ec3c4bd1a7e230d51636b8c69e454e90",
+      "bytes": 36
+    },
+    "020-bom_handler/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "021-large_attached/main.gd": {
+      "sha256": "52f20b13ba2da3f4ee732bf6cca7ab07a4b5edd675cdcb8bfa7672df5dd65b0b",
+      "bytes": 524323
+    },
+    "021-large_attached/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "022-scan_at_limit/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "022-scan_at_limit/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "023-scan_above_limit/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "023-scan_above_limit/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "024-skip_godot/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "024-skip_godot/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "025-skip_git/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "025-skip_git/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "026-skip_import/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "026-skip_import/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "027-missing_attached/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "028-script_notes/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "029-script_unused/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "030-script_existing/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "031-script_custom_only/main.gd": {
+      "sha256": "ebabf88c113d4ed77d8fa14636a6dd192e4912a6a8f75e9190a6422c4bd75298",
+      "bytes": 43
+    },
+    "032-script_ambiguous/main.gd": {
+      "sha256": "92460976a68a68e542d49d0dfbcc474f6c544492339de58b043275d235d94109",
+      "bytes": 37
+    },
+    "033-script_comment_use/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    },
+    "034-script_no_handlers/main.gd": {
+      "sha256": "b6b6a8d5e9c6e654fbb15eb573bf79fc407c5df99e4d69db7ec645ab5cb1ba7c",
+      "bytes": 23
+    },
+    "035-empty_scene/main.tscn": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "036-not_scene/main.tscn": {
+      "sha256": "4f52aaae3308fa249dbe5f2d37c65f452539423a9eedc8cb0d7519d0eefdf56a",
+      "bytes": 21
+    },
+    "037-resource_refusal/other.tres": {
+      "sha256": "6f570d6f28170f51d612a65e726239dd178885beaa2a8d003ce2958a4fbea5e7",
+      "bytes": 14
+    },
+    "040-injection_data/main.gd": {
+      "sha256": "3ebc30b9d99ec08db56315b8f688986af2b58507350ce57e372922053fb240e1",
+      "bytes": 76
+    },
+    "040-injection_data/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "033-script_comment_use/scenes/main.tscn": {
+      "sha256": "96c83431f4cdd3a16dbdae553cb84cc2d4f8f9dfc59c53f539e326535d31fb8d",
+      "bytes": 203
+    },
+    "032-script_ambiguous/scenes/main.tscn": {
+      "sha256": "a25257bbc07f429aeb026eadb99a1b0d4100626f09b82cf3109fdc07e9ea53a5",
+      "bytes": 234
+    },
+    "031-script_custom_only/scenes/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "030-script_existing/scenes/main.tscn": {
+      "sha256": "567d4cfea392e796c9fc8dc2e1c827f102c5ea1fe313057a0c63254b4d97a3b8",
+      "bytes": 259
+    },
+    "028-script_notes/scenes/main.tscn": {
+      "sha256": "e6746db74cb952b0c4c401f225f9417f4b38fc39934b9360ab475351f8567521",
+      "bytes": 180
+    },
+    "026-skip_import/.import/other.gd": {
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23
+    },
+    "025-skip_git/.git/other.gd": {
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23
+    },
+    "024-skip_godot/.godot/other.gd": {
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23
+    },
+    "023-scan_above_limit/nested/other.gd": {
+      "sha256": "a645be9dc2429341cbfed8456a4d85a7e808bde25cf328c3413c0ef68e466447",
+      "bytes": 524289
+    },
+    "022-scan_at_limit/nested/other.gd": {
+      "sha256": "65e3da768ce18c446e2f5460326b1f4d50a4a5cc3addf25c1cf9b6602f528937",
+      "bytes": 524288
+    },
+    "013-comment_scene_reference/nested/other.tscn": {
+      "sha256": "628d93cd5dc34a261bb10e80fa8f482766d893f2f93a62d6777389c3de2e4da0",
+      "bytes": 30
+    },
+    "012-other_scene_reference/nested/other.tscn": {
+      "sha256": "f2a5b0ab982a5a5b2070d354f31eb4e3886f90144779c8f4a2f401d032d79a9e",
+      "bytes": 176
+    },
+    "011-connect_reference/nested/other.gd": {
+      "sha256": "7ae30cda41426332df734ceb36e78943af97a3369aadcaa693cb0adf3581e4a3",
+      "bytes": 46
+    },
+    "010-callable_reference/nested/other.gd": {
+      "sha256": "233e9cdeda36e29d541038f58656b27f6304648a5034539eaa7be8f322dca390",
+      "bytes": 37
+    },
+    "009-quoted_reference/nested/other.gd": {
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23
+    },
+    "005-custom_signal/nested/signals.gd": {
+      "sha256": "c9bacff12df8bae2f0fba3a0f0d147d584ee3f54fd325613c331ec1d69fe3090",
+      "bytes": 16
+    },
+    "003-nested_handler/scenes/main.tscn": {
+      "sha256": "99e14299de60cba5ff7669b6cffc50aca46167c9bff8dcaf5cc9e5b1c8d3c1a8",
+      "bytes": 188
+    },
+    "003-nested_handler/scripts/main.gd": {
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33
+    }
+  },
+  "cases": {
+    "001-scene_no_scripts.json": "5a3a15f6f98e363cea7f775459ca98ace3c25fb998af486c5c90c93b002e7714",
+    "002-unique_handler.json": "056ba05a39565c29259970c660ae6a02288e120f7543f6e3b4b19f2e9021f67b",
+    "003-nested_handler.json": "b6d71ef0d1def448dda1fdfe953b844b7b5577defafe50216e95d3f6e5a0b064",
+    "004-self_handler.json": "1d073136c39dd35fb4011eea5ddc918300976e728513c0e17f5682e2c80f3138",
+    "005-custom_signal.json": "18679f8947ef47b62451969475fe4f69130ea5575fd2c6213a62ded57a4eb655",
+    "006-orphan_unknown.json": "c97d9a2cce16a916b8af6283dfb65eb1c802a01a65f291cd1c91b25b2a40bb23",
+    "007-existing_method.json": "b808463398dcdf0fbbf4ac8fcb7f60d5c7e3775d31ce9d10edaf0870c6ced1d1",
+    "008-conflicting_method.json": "6d3759800e972a891f4e97a76fca59883b4fb3c65cce02417f7ed685d7b3db60",
+    "009-quoted_reference.json": "62bc5df3e1d613ff9ef97d19c7e41573a903132a0ab64ca746dda9447ca65811",
+    "010-callable_reference.json": "a7dddd03b6613580dce952a6a729d930d92fae1dcb94844d069cf786165391aa",
+    "011-connect_reference.json": "776e71c4f94dbc69f88424a4263dac4f72d3a845221302714186f1eee53c4a96",
+    "012-other_scene_reference.json": "15c4933128583aae4978214609f34fc3eae8148b05d6c59ae63c13cb6e560520",
+    "013-comment_scene_reference.json": "42b1eb1a0500e09e43207b6c951ba9a8aa457b4b32b89a567b9016177614c2c4",
+    "014-ambiguous_sources.json": "7a19f7d975f327dac44a0d3bc8aa0ad18fe927271013877a25cd7ff45badbfa5",
+    "015-instance_unknown.json": "9f1e9c85c667bfa5910e5ae8120ae0ac8b0691290e95ac3ab524444bf5898984",
+    "016-cyclic_instances.json": "840852c4c422f8147dc0d83ba7d8fdec92e179105d5ac2a8b5ac4ddc598efaad",
+    "017-rigidbody_note.json": "1120163802772422e489f67cdac1106e62c7d33127e30d9821946741af64a725",
+    "018-broken_script.json": "ef3d0f326102d135f3ef0244b90e96f5fe4afc782635daf20cb7277b83352fa5",
+    "019-crlf_scene.json": "25ef79fcdf190442d0d5ff0894ffe37ce064798a083a0819a8c3f187755d8650",
+    "020-bom_handler.json": "e9ffed4ec2708ecbb417508b9580d0f14ee87369d11ac3be4dbf8c7615c5880d",
+    "021-large_attached.json": "ddc2fc7c4cd271c8e9b739c606f9653bd58697ec01262df9faec75fd88d72050",
+    "022-scan_at_limit.json": "3c3cf6d5fa90b1c82bddb0a3a6cfedef81e282ff5399bb237f2eb9da2ba6f29a",
+    "023-scan_above_limit.json": "aa21e7e8f50b11cadacdf4ce6481aa00d71ce228de001559261ed41410143dc0",
+    "024-skip_godot.json": "7075c8992318208ab1720a026e0cfbc09d3cfa5d34d49396fa68f607c786ba51",
+    "025-skip_git.json": "f8e8d0d510bed8137dc118e50430715a7c495647ed6bc37e08951d04d3db366c",
+    "026-skip_import.json": "6e5857d2c9259486400fc9b74b68844e244eb6e2073429af3fb5730833f1ec3d",
+    "027-missing_attached.json": "0ad27b3d319b33399b322c0d23662a6ccb1bba0c9e2bc2dc4d7623d3a00f7195",
+    "028-script_notes.json": "e65d058ab533a2baf2a9a7f4669a012041013676d28bb67aa2ec3d9098cb3326",
+    "029-script_unused.json": "580443d46731ae8c206fdaa52527d054b802f2e2f164b8ede582c3ea8b474b2d",
+    "030-script_existing.json": "7a91021904b752a4ef4f160782626c5c4837c73059319004350c1734faa49879",
+    "031-script_custom_only.json": "cf008ff993d983c2377a8b00887b2bae81c90337a36bec102e2c9c6001349fd3",
+    "032-script_ambiguous.json": "2be34ff33a8c11788e7f0790ac2a1d586bcd92a5c54c455030e104f2f2aaa62e",
+    "033-script_comment_use.json": "e3bcaa338044618cc59ef9c9959efdd3389c68f714c3729136ba5b329850822e",
+    "034-script_no_handlers.json": "52c31fd2515ea1d8990ecbc9d3f205f6e7789171e063fec112778e9398fb2eef",
+    "035-empty_scene.json": "3aff47f563fc601da9e40ee371cf17a71072802762e572019a35bbcca610e226",
+    "036-not_scene.json": "3f01cb8164f0d119dec329346175604f58b52849208b29903ce636743c9b7c25",
+    "037-resource_refusal.json": "5c5b171a507021d2388993c162c3b0f46534b3caa7a10d5ddcc38d14323b5cb2",
+    "038-missing_file.json": "385f113e6e66cfdcc4ee0cca99323288c4a1595d68221c9e917f1655266e9f24",
+    "039-outside_script.json": "798aa43bab66ecd532c8dd97eba4977e765ad77e9dadc41b62301d99fa2cb818",
+    "040-injection_data.json": "074f9fc671490bf1fa02421d4d85316c46ee2acf04dfaa33dd3311c154107f0c"
+  },
+  "copied_source": null,
+  "script_facts": [
+    {
+      "path": "editor/bridge/dispatch/dispatcher.gd",
+      "sha256": "7a5b23ab20d9eea26f98fd2ca2ccfba3708d5c0f1304906d55ced4a3518d6217",
+      "bytes": 1082,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/dispatch/error_codes.gd",
+      "sha256": "ac633c093ae840ff24ead6df275c8a4d3648a674797a3dfa3d63d54ba9dab64d",
+      "bytes": 1592,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/dispatch/main_thread_queue.gd",
+      "sha256": "bd4a0bea47516db3c60b1485c89404a66995b525fb320e71774a50d0b50f6667",
+      "bytes": 875,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/dispatch/router.gd",
+      "sha256": "220cf3b86f8c3c957249d121065fc35ec429c92dbb150630e1ad7ed1d76ea9ec",
+      "bytes": 1129,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/server/debugger_session.gd",
+      "sha256": "32cf775af19d109e9b60cf6d602fa0946877a8673aa032f3192e58af6968e0e9",
+      "bytes": 332,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/server/endpoints.gd",
+      "sha256": "b8e7b6a174b9cd6467179d55377e2dfa517bb729d38547b2c01cdef118919020",
+      "bytes": 914,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/server/framing.gd",
+      "sha256": "5d5bf8a2f91a3de84fdda7cbe55c030c7572abfd08849c83ce18ab3b2e7c01d7",
+      "bytes": 2320,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/server/session.gd",
+      "sha256": "699b3fbf16aef49e13ece8bf28c7cce71a154e52e162e7dacc690a153d41833d",
+      "bytes": 3446,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/server/socket_server.gd",
+      "sha256": "193033f399d9a0b7787a195ee12181cf441e5695aaba2b8c930e1869b03bf938",
+      "bytes": 2691,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/editors/context_snapshot.gd",
+      "sha256": "859a67cec125d6bc800de28d24f06624644e07277f4c237e19ea9aed3b471c5b",
+      "bytes": 5450,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/editors/editor_verbs.gd",
+      "sha256": "584cd405eed8757071a509e6dc98bdc9718ab85b6d82834fb4c9a0047a69c4b8",
+      "bytes": 1303,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/glue/executor_calls.gd",
+      "sha256": "38d11a572ca1f2a0778073d1a4ea502b86bcfb2fe8dc1ea0c83a08ac79354a42",
+      "bytes": 263,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/guard/mutation_gate.gd",
+      "sha256": "19fe962b57664024a65e698eaf14c0f6d0fe0251e8336130c861f6fc9edb5d12",
+      "bytes": 289,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/project/project_verbs.gd",
+      "sha256": "bb4893759ad36670e17e28b1908b03162ad32ddce9b0b518cfb140d56ca4e3d4",
+      "bytes": 310,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/project/resource_verbs.gd",
+      "sha256": "f5751b4a2e29c26843ab8a3534bade41fdafe8a1c5d72b9eebb70d0143a35c8f",
+      "bytes": 261,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/project/settings_executor.gd",
+      "sha256": "877cdfd2eb1b4656d81d18850ce104eb4189d5335002a3e6170bbe3d87949cc7",
+      "bytes": 268,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/project/settings_verbs.gd",
+      "sha256": "4451c7223c36bcde83392ad1fa750a82bdb1a918555a08d7158740ac023ffa94",
+      "bytes": 276,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/resource/resource_verbs.gd",
+      "sha256": "a32cf0be5d4cebffe4c21201165e568b4aa68f4fffa83ce450e06884858da1b2",
+      "bytes": 285,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/runtime/headless_verbs.gd",
+      "sha256": "a8108274742ba315e9603c027d23c990a1fe9fc3a36533922424fea46b6cbad2",
+      "bytes": 279,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/runtime/runtime_verbs.gd",
+      "sha256": "355a375eac75e42097e3a96aad744bd7038d4b1410d7eb4de07826e594248e37",
+      "bytes": 281,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/scene/node_verbs.gd",
+      "sha256": "ea339e2a50bbc46b9741acbe39ff05abaee60b3240868af800d0404985c637ea",
+      "bytes": 313,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/scene/scene_executor.gd",
+      "sha256": "b7aff592b75dc53e17f2da588ae1b0f76dcc7a8ecf1f2fbb4e9ed4f06a865322",
+      "bytes": 19131,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/scene/scene_verbs.gd",
+      "sha256": "712bdb4949955316edc80db98fb3611f58c3d0504ab5df8c750ae5971664a066",
+      "bytes": 1269,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/bridge/verbs/ui/ui_verbs.gd",
+      "sha256": "b824196c26cfcb4cb058167201849ae7039553de53c2e2fc69505f814cc750bd",
+      "bytes": 306,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/config.gd",
+      "sha256": "341d25de853afb965115e39183b6e19bbea7bc5bb5f52ad6ad779892c1895f87",
+      "bytes": 283,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/editor_hooks.gd",
+      "sha256": "4728496dcad8fd064bb151957f1e399af8f99e38f11e1fbc227e72cabc80572a",
+      "bytes": 298,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/i18n/en.gd",
+      "sha256": "6a776274e96a6f5df7ee9414efc72235b51c40686ff6e22f2aad1181c3640804",
+      "bytes": 104,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/i18n/locale.gd",
+      "sha256": "765cf89522446b5a1affb9bd8aae329547bdaf6463cfd09d80b69b3c0cbba722",
+      "bytes": 260,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/i18n/ru.gd",
+      "sha256": "98f5de1c8bb78c32cb52ac9dec8e9c91a6ad0d54308365f8d1f9cfbcd7df999c",
+      "bytes": 146,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/lifecycle.gd",
+      "sha256": "25ade23cbaba3ad18c27f41bf53f390d7d25d6b62778e00d535025d411416210",
+      "bytes": 1359,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/logging.gd",
+      "sha256": "5c02bd07f72cba9b901486ee623ce6cc9bd882040e54eefa701d6b4b92b736f7",
+      "bytes": 247,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/process_supervisor.gd",
+      "sha256": "dedbdd52673d5fba39753bfb0485bf6e08fe58aa36968d26121a4b95ffae51ab",
+      "bytes": 341,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/state.gd",
+      "sha256": "2ecee9d3910bdf70856990693ab8d1a2bce2715141229a194b18473d8874ccfe",
+      "bytes": 282,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/core/updater.gd",
+      "sha256": "731641e2ef5cffdbc90e57e7502c47a266a3f5360eb0e7450ac05250b5073749",
+      "bytes": 271,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/harness/bridge_probe.gd",
+      "sha256": "b0f4c4c767bb4b9103c0e47849a84e7fa1fb2a34fe25fe609e1079c668d903a9",
+      "bytes": 6701,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/harness/validate.gd",
+      "sha256": "94280bfbadb20a41baaa1f83ae0811269a40b3a81d9e535603b8d53d239f681d",
+      "bytes": 1836,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/settings/plugin_settings.gd",
+      "sha256": "daee855234d073fd638e2b60752d787582c496ad81788f307edd5c3c506450b8",
+      "bytes": 263,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/settings/settings_panel.gd",
+      "sha256": "8cad91c0381410912f70d3bc20cb4d79ceeb9fa7c0e62a645345185772e2f3b0",
+      "bytes": 244,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/cards/diff_preview_card.gd",
+      "sha256": "91650a24f5bcb28bf84d09b455cd0db011aa60cc07c58e6537d70ce595649914",
+      "bytes": 269,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/cards/message_card.gd",
+      "sha256": "afa61fd042f7abc07c749b4bad21d0bbcf16559961a781d5ab92943f608d174b",
+      "bytes": 251,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/cards/plan_checklist_card.gd",
+      "sha256": "f6fe915248e8a6c7f2a65774e3c481851d05ccbead9ec8b83cacd5fd7d013c0b",
+      "bytes": 263,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/cards/plan_step_item.gd",
+      "sha256": "71517c0556e4af4e41cc291979fde4556b3c32203d1fef6ae80b0cee568dc762",
+      "bytes": 249,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/cards/tool_call_card.gd",
+      "sha256": "e223691aa0cf07c041179d8035a0bc72cdebba08cd36688627b2dc9d117cb7e5",
+      "bytes": 270,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/cards_factory.gd",
+      "sha256": "cf74a5032fe28f17fa8b4507141e1b45f82820a3ff1ba89c8fccbf8b07f4b712",
+      "bytes": 149,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/chat_confirm.gd",
+      "sha256": "0d7eaa685a96ece70075f2847c9d9df58ef8695a6fb8e28d74a939fb10cc61c3",
+      "bytes": 154,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/chat_messages.gd",
+      "sha256": "238714c08c979a5ce5cea4abccb92f11c1bf67212dc2dd6207ce5e0d6e51363a",
+      "bytes": 134,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/chat_plan_diff.gd",
+      "sha256": "3bc3118e8593925f91cd7c0ea7cea1f0eb332ebfab378eba39ce3013321ea315",
+      "bytes": 148,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/chat_stream.gd",
+      "sha256": "72a26976a7f6011c7a45277d700df31aee3feee7b94a5c56044a27fc74a5baa8",
+      "bytes": 220,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/chat_view.gd",
+      "sha256": "81b6d6e6d1390cd142b2364d17b0ecabf62f535be6d09c0f63d36056b3314659",
+      "bytes": 255,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/chat/composer.gd",
+      "sha256": "352a96a27c64a1c63415616841feb16deab6b2017fd59d94f7f3855a003cff2d",
+      "bytes": 249,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/dialogs/safe_node_rename.gd",
+      "sha256": "e729171a4da860540eaeae54d9e67b2dffb0a11acfd83f401d7539ea9d2564a0",
+      "bytes": 163,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/dialogs/safe_rename.gd",
+      "sha256": "4f33d8769a1b48bc5136511e21a6de049e3131cbbe351545b00ff8f26952d3a2",
+      "bytes": 172,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/editor/highlight.gd",
+      "sha256": "fb953243e413e51e329a207d25c906d046e527998e2da864cee2ff1288d020d4",
+      "bytes": 281,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/agent_panel.gd",
+      "sha256": "5360ca984997f355c40dff88f1ed652c30cce8a108c8038beff864576ce923a1",
+      "bytes": 254,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/confirm_flow.gd",
+      "sha256": "e996d909331dd7a1e57f47bc9255f6f016c1a6f1b7c9e2b33eb7dd468a16a926",
+      "bytes": 276,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/panel_layout.gd",
+      "sha256": "6b73e774edb7784e0199c393f9d75a989be62aacda513fe92cad3c3e3d09db6d",
+      "bytes": 256,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/plan_flow.gd",
+      "sha256": "d60e3a726c2b4f9ab07ec6d70846ec6cab76f7f97cd5a68cbdd7a717423965e2",
+      "bytes": 221,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/rename_flow.gd",
+      "sha256": "1eed488f55a35901fce90e5cc20a26043bbd5ffb219c6f30ed054bce4d0ac4d4",
+      "bytes": 318,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/scene_reload.gd",
+      "sha256": "3f54257ebf93f483a191aced857d3db14b6fa0562ac9260f9d839b0acf0201b7",
+      "bytes": 336,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/send_flow.gd",
+      "sha256": "e01f44384d755d8c6a1181c3aaddc4ca217606214dd92552824d35f26179d046",
+      "bytes": 241,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/settings_toggles.gd",
+      "sha256": "cb8f4598599e7f2b00314fb0dfcae51662c3ee689ecc5b392b0afb05625f7e64",
+      "bytes": 249,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/panel/tab_sync.gd",
+      "sha256": "3317abb5075d0d0aae6d700d531beb60110b7043c1749ddfb00743f34b2c6a7a",
+      "bytes": 241,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/api_catalog_fmt.gd",
+      "sha256": "fd2e1f1706dde9233a183536471d0a068bab9262c10454f8c24b246644e22d1a",
+      "bytes": 251,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/api_picker.gd",
+      "sha256": "657014424f8c472167f95b4510d5353cef0b5951ab0d37b5df54606c57ef486e",
+      "bytes": 149,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/api_settings.gd",
+      "sha256": "3fe731807ac0f2087934ea19ee5cc67cd0d59a2579bd59f36fffc15f210d9486",
+      "bytes": 221,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/chats_list.gd",
+      "sha256": "80d047da53808e300b005c30a6d6ff1ffaf682986cc9d5c8d2e57aff1cfd8765",
+      "bytes": 166,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/home.gd",
+      "sha256": "b9e6eb86904320b3863fc5d308d2fa4b4ecd18b0ddad16e8eba7b98be346794c",
+      "bytes": 207,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/sites_list.gd",
+      "sha256": "f3ea45f2b68552d9a229e673af56dc15af9fd1a6280c84a2fcd201e407ca0395",
+      "bytes": 161,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/start_screen.gd",
+      "sha256": "10c0fec1f88971a9ee7bfd46ea94d05886b743dd85286fa10f8073e65de9d295",
+      "bytes": 282,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/start/status_loading.gd",
+      "sha256": "22af6fdf1782c126d43a61de79a497e1db6624a737bdcb374f2b5f6bd0cfbc71",
+      "bytes": 156,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/status/status_bar.gd",
+      "sha256": "0637a53a721cdeefead47e865d75a10bc6db7ff1f914d05736f728d32a91930c",
+      "bytes": 258,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "editor/ui/theme/agent_theme.gd",
+      "sha256": "322b22757b206619929fedb3bc1d78edefe10134959aa5da95e8138a20b719bd",
+      "bytes": 246,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/002-unique_handler/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/003-nested_handler/scripts/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/004-self_handler/main.gd",
+      "sha256": "6d7b79f79314c1ed246ba6d95d91ee1bece49a2636e4db923998f2f3fbff8bfd",
+      "bytes": 35,
+      "handlers": [
+        "_on_body_entered"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_body_entered": false,
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/005-custom_signal/main.gd",
+      "sha256": "19d57af08d327c4b2fd723e1242f70bc5b50a61a95b3819ada101383bf636737",
+      "bytes": 27,
+      "handlers": [
+        "_on_my_event"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_my_event": false,
+        "_on_button_pressed": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/005-custom_signal/nested/signals.gd",
+      "sha256": "c9bacff12df8bae2f0fba3a0f0d147d584ee3f54fd325613c331ec1d69fe3090",
+      "bytes": 16,
+      "handlers": [],
+      "custom_signals": [
+        "my_event"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/006-orphan_unknown/main.gd",
+      "sha256": "5615afa70975ecd9a45ecbdbc88d04ab78b3df56c41f71ede594ecbd07f57998",
+      "bytes": 32,
+      "handlers": [
+        "_on_nothing_known"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_nothing_known": false,
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/007-existing_method/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/008-conflicting_method/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/009-quoted_reference/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/009-quoted_reference/nested/other.gd",
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/010-callable_reference/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/010-callable_reference/nested/other.gd",
+      "sha256": "233e9cdeda36e29d541038f58656b27f6304648a5034539eaa7be8f322dca390",
+      "bytes": 37,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/011-connect_reference/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/011-connect_reference/nested/other.gd",
+      "sha256": "7ae30cda41426332df734ceb36e78943af97a3369aadcaa693cb0adf3581e4a3",
+      "bytes": 46,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/012-other_scene_reference/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/013-comment_scene_reference/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/014-ambiguous_sources/main.gd",
+      "sha256": "92460976a68a68e542d49d0dfbcc474f6c544492339de58b043275d235d94109",
+      "bytes": 37,
+      "handlers": [
+        "_on_wall_north_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_wall_north_pressed": false,
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/015-instance_unknown/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/016-cyclic_instances/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/017-rigidbody_note/main.gd",
+      "sha256": "116fc8409a1a20c8313965d575149ba08474bd052cc0a11a86ef5f7bd935c8d6",
+      "bytes": 40,
+      "handlers": [
+        "_on_body_body_entered"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_body_body_entered": false,
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/018-broken_script/main.gd",
+      "sha256": "b767641a56cab6b6d1ff0d061049a48e1738b72c89e49fd84c6a981dbfa5a18a",
+      "bytes": 26,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/019-crlf_scene/main.gd",
+      "sha256": "fc0ebd7fa281d826924aad4f9cc6ff9de94a1046dabee080e04d8ccca3344011",
+      "bytes": 35,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/020-bom_handler/main.gd",
+      "sha256": "3c6fbefdb7ebbf553b72595236a33ac6ec3c4bd1a7e230d51636b8c69e454e90",
+      "bytes": 36,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/021-large_attached/main.gd",
+      "sha256": "52f20b13ba2da3f4ee732bf6cca7ab07a4b5edd675cdcb8bfa7672df5dd65b0b",
+      "bytes": 524323,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/022-scan_at_limit/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/022-scan_at_limit/nested/other.gd",
+      "sha256": "65e3da768ce18c446e2f5460326b1f4d50a4a5cc3addf25c1cf9b6602f528937",
+      "bytes": 524288,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/023-scan_above_limit/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/023-scan_above_limit/nested/other.gd",
+      "sha256": "a645be9dc2429341cbfed8456a4d85a7e808bde25cf328c3413c0ef68e466447",
+      "bytes": 524289,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/024-skip_godot/.godot/other.gd",
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/024-skip_godot/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/025-skip_git/.git/other.gd",
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/025-skip_git/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/026-skip_import/.import/other.gd",
+      "sha256": "5a8aff8d901222c86a766c5331a79188ae84a06cc22410fed5dd7822b7f653c0",
+      "bytes": 23,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": true,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/026-skip_import/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/028-script_notes/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/029-script_unused/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/030-script_existing/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/031-script_custom_only/main.gd",
+      "sha256": "ebabf88c113d4ed77d8fa14636a6dd192e4912a6a8f75e9190a6422c4bd75298",
+      "bytes": 43,
+      "handlers": [
+        "_on_my_event"
+      ],
+      "custom_signals": [
+        "my_event"
+      ],
+      "connected": {
+        "_on_my_event": false,
+        "_on_button_pressed": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/032-script_ambiguous/main.gd",
+      "sha256": "92460976a68a68e542d49d0dfbcc474f6c544492339de58b043275d235d94109",
+      "bytes": 37,
+      "handlers": [
+        "_on_wall_north_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_wall_north_pressed": false,
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/033-script_comment_use/main.gd",
+      "sha256": "0e89d0cad892d91844c2b767984630005946420299bd7722f5ab30c94f861059",
+      "bytes": 33,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/034-script_no_handlers/main.gd",
+      "sha256": "b6b6a8d5e9c6e654fbb15eb573bf79fc407c5df99e4d69db7ec645ab5cb1ba7c",
+      "bytes": 23,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/corpus/scene_model/scene_deps/project/040-injection_data/main.gd",
+      "sha256": "3ebc30b9d99ec08db56315b8f688986af2b58507350ce57e372922053fb240e1",
+      "bytes": 76,
+      "handlers": [
+        "_on_button_pressed"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/addons/other_plugin/plugin.gd",
+      "sha256": "d71726577d5eb7b45c80473afcd231d2bae174fae4b5c44046e4d59b38715178",
+      "bytes": 168,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/scripts/crlf_line.gd",
+      "sha256": "1133433def847e849d338626c5f593630eda2effb4bd05b1c950f0aa161604e4",
+      "bytes": 172,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/scripts/func_lab.gd",
+      "sha256": "3c99984b4f6eab57f08b7d5b8072ae6eb841cd750e216c666d173b4b61659cfe",
+      "bytes": 899,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/scripts/health_hud.gd",
+      "sha256": "e6b17180eb7c504bc9792c7abd5c9aef525ce58e298a6021a52ef56118f524d3",
+      "bytes": 215,
+      "handlers": [],
+      "custom_signals": [
+        "HealthChanged"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/scripts/legacy_bom.gd",
+      "sha256": "ccc164c438006d028134c77ce5f7ec3129b83be1a61e0b50ef473b027d825bc5",
+      "bytes": 147,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/scripts/nested_func.gd",
+      "sha256": "34bbd77fa5c016af1e0ba2cc92088aa8f3e2c1e8addcfea2facbfa73e500d6af",
+      "bytes": 312,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/minimal/scripts/player.gd",
+      "sha256": "b93ec31f6027467ad8d78b2a13a7a21308ed9bedfa2dfe97423a2db2301719ba",
+      "bytes": 370,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/rename/addons/other/plugin.gd",
+      "sha256": "7d7678b92a8cb01ec0f24d9724395d92563285948dca417d6e0f0c8edcda9c7e",
+      "bytes": 195,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/rename/src/enemy.gd",
+      "sha256": "1397340dcc3131da87a0d1e664c49279dc101d76ee83e26ea3765f1eb0c79da6",
+      "bytes": 180,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/rename/src/hero.gd",
+      "sha256": "80c26e1077670a8d91d586b0a032d09744783f4d8a8b93844babb66bab1fa88d",
+      "bytes": 165,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/rename/src/party.gd",
+      "sha256": "43baaf139ab8873866cf0af834cc0e826bbee1dba9c5818f5e7bddb60b65a3d7",
+      "bytes": 172,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/addons/other/plugin.gd",
+      "sha256": "812016e5d9da0715cbc5521dcd15f9b9a92eb7d0493189b02f9bf187ec4cb28c",
+      "bytes": 68,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_dynamic.gd",
+      "sha256": "cea68608451a988e9efa40d4ece08a8ce7428a1cb5f826b14706466dc4eb591b",
+      "bytes": 115,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_entity.gd",
+      "sha256": "382c98b3efe9d08427923f096945d6eaa1259182dcdc8d4f7de4b9697e7145b7",
+      "bytes": 328,
+      "handlers": [],
+      "custom_signals": [
+        "damaged"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_root.gd",
+      "sha256": "b49e69ff556f4ad7a54a81f1f46db196740b5dfcd3c4a51bda006c52fc0f9899",
+      "bytes": 395,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_shadow.gd",
+      "sha256": "8b9445d9ac9a145d3d723d608492b7385889ae35b21a32f39fb7ef68c1fc5428",
+      "bytes": 139,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_state.gd",
+      "sha256": "e6be37c89c5fcbd7d99588f53cbab5d3d8317cdf6eaea61d47f49ad26e087ba8",
+      "bytes": 57,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_strings.gd",
+      "sha256": "7391bf13367ab39b950914904c9f9f1ed849c219ee04d521898ca14fa05c8826",
+      "bytes": 109,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/usages/src/lab_turret.gd",
+      "sha256": "ec9333cc60b7fa3b95234231c4bc200a1d4f048132d1ce77f597cb89a8dc8574",
+      "bytes": 136,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/api/api_only.gd",
+      "sha256": "24d5bdb7498b5d433b17e1e621b3b70052610b671b072e361599eee3a18f9a22",
+      "bytes": 44,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/api/clean.gd",
+      "sha256": "eece4eba788b3fcde03a405a54346c161d79c6677e4125c080b130d216729d21",
+      "bytes": 136,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/api/lint_api.gd",
+      "sha256": "83829f7c405b126ab2fc56586bf07f6d22bf2acfdf8bb08c4f5f71b638f12f1f",
+      "bytes": 69,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/api/no_extends.gd",
+      "sha256": "79739926b68cbb872ced2d44877c4f408dcd6a6d78ed562590bcf1548989e58e",
+      "bytes": 29,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/api/quota.gd",
+      "sha256": "2cb02b964281da41d661598810f7605baccc66726478374d7f53533c66f00bd5",
+      "bytes": 278,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/api/unknown_base.gd",
+      "sha256": "397e06baf57118c33b6e2dd00359425f1306e1ed7d9413f7f23d6382a4a8a2e7",
+      "bytes": 49,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/verification/check/no_cache/source.gd",
+      "sha256": "24d5bdb7498b5d433b17e1e621b3b70052610b671b072e361599eee3a18f9a22",
+      "bytes": 44,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/annotations_signal/donor.gd",
+      "bytes": 121,
+      "sha256": "3a6dc166dba38ef60de92e8b9512b809c4dfff0623e247410037a85e8bb7905a",
+      "handlers": [],
+      "custom_signals": [
+        "custom_signal"
+      ],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/big_neighbor/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/bom/donor.gd",
+      "bytes": 61,
+      "sha256": "488a467455f9a79dd239d06f47d8b0b1daad400d570096f467280c05d4c35d0c",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/broken_signature/donor.gd",
+      "bytes": 33,
+      "sha256": "65790a5887794bda580561cfbe8b6038c31b0be7f2d69068feccefc7a846ae99",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/call_dot/caller.gd",
+      "bytes": 21,
+      "sha256": "6db98b339d4aaecb3a388116c90e8519c130aa7fd504301ed19ea34fc9b889d4",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/call_dot/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/call_string/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/comment_reference/comment.gd",
+      "bytes": 21,
+      "sha256": "32ea27add308f31ea6be84cd8b10da4a538bbd0effc2b518cc85468548361b1b",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/comment_reference/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/const_balance/donor.gd",
+      "bytes": 101,
+      "sha256": "9198279bacc8771aa5805f72bf1edc897bc63924e7ac87dc219100bead8910ed",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/crlf/donor.gd",
+      "bytes": 63,
+      "sha256": "1cc25fd92395ee5928ca96711e3b26a570c50d8fb5dc955c337e3756e6647a76",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/doc_priority/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/double_bom/donor.gd",
+      "bytes": 64,
+      "sha256": "7661c3abe521c4ca06789b09a5e35193bd80cf2e252bf36a883e952d4800ee4d",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/duplicate_public/donor.gd",
+      "bytes": 77,
+      "sha256": "6a37c9ee2b087137dc8f9753efd26dbbf52baada5fd3c7d137a8b34de9a3f14f",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/extension_case/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/hard_soft/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/headers/donor.gd",
+      "bytes": 81,
+      "sha256": "f6391dabc59b1bfbaeabb9c9e3e4bcecd12673e2c7b53ea84261c6c6c871e521",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/invalid_utf8/donor.gd",
+      "bytes": 36,
+      "sha256": "c82021f36062bc451ba9652c4ff999338f339bb21b2b85ab79a8647dacb39562",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/limit_1000/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/limit_1001/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/lone_cr/donor.gd",
+      "bytes": 58,
+      "sha256": "ccd2066d8be5fab0b6e41102feabb0bcb9eced6b25d32340482229baf9cb0898",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/mention_zero/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/mixed/caller.gd",
+      "bytes": 21,
+      "sha256": "a2c4c94580fde6fe04394a41f4b4d8cd084c77a3455f646d52f281ed924bd971",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/mixed/dist/gen.gd",
+      "bytes": 8,
+      "sha256": "7bc5e632472eec7b42a50722dc110191f84507d33abf40aed9a118edc05b1487",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/mixed/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/mixed/plain.gd",
+      "bytes": 12,
+      "sha256": "d00b8b8327663b84a64f7eee68d31c7d16ced56b572bbcddf3367992ade0da14",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/multiline/donor.gd",
+      "bytes": 114,
+      "sha256": "33510a0f72b5a5b8e0f60e358aeff7a71e891a3c1bdaf4c6b02207a9b48caccf",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/nested_root/inner/src/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/no_addon/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/no_public/donor.gd",
+      "bytes": 25,
+      "sha256": "e5875397163593e53f4329f657aae054fb25e3a8d3d7074e243439b3ac97819a",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/no_refs/donor.gd",
+      "bytes": 87,
+      "sha256": "701486d6e5293ad20597bdf7d3b65372d694b44d1135f938654a303dc3163fe1",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/partial_bom/donor.gd",
+      "bytes": 2,
+      "sha256": "f257f0501a5e137710e26f1c35ddd32ce2b5752f20274a648cb6d0347849a5a9",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/path_only/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/private_only/a.gd",
+      "bytes": 23,
+      "sha256": "9d276033582aa706193af1e0cb4dc11b140b72b7fa16beba45b1fda62d6dee18",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/private_only/donor.gd",
+      "bytes": 36,
+      "sha256": "d931f24e4653000e3503262539a126b61856dfb54dc5c4713456af6738023610",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/quoted_signature/donor.gd",
+      "bytes": 33,
+      "sha256": "22a270b5907f379d206da562f83fa769ab40cf79b9b60cea3bf00ffc78baee2e",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/refusals/addons/example/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/refusals/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/refusals/huge.gd",
+      "bytes": 4194305,
+      "sha256": "e7f8552c8468c30c049e993f0ab9afd2363b94987a74adc7c47bff43b3887fbe",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/.agent_history/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/.git/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/.godot/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/.hidden/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/.import/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/.venv/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/__pycache__/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/_tmp/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/agent_api_cache/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/build/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/dist/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/minilich_brain/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/node_modules/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/skip_dirs/parser_corpus/ref.gd",
+      "bytes": 17,
+      "sha256": "2c23b0ea749c2853458e6b950d5bee24445b818194658cef27d75cc076584300",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/source_markers/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/stem_substring/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/text_160/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd/walk_order/donor.gd",
+      "bytes": 58,
+      "sha256": "055d3f8bfec8ef73f834161f3af9a3eb2e80e7c828dded06fb101af0ab1b3399",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/addons_policy/addons/probe/donor.gd",
+      "bytes": 45,
+      "sha256": "b93f307c2968e9a742cc6ba22250c14f472ec3c35fb9c5b1ba48dc559d936de3",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/annotation_refusal/donor.gd",
+      "bytes": 69,
+      "sha256": "7e0dcf89f26ab03961c8d431658a97a390825e63822e5e8135b37ca4e46c6153",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/auto_missing_target/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/auto_zero_target/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/bom_crlf/donor.gd",
+      "bytes": 380,
+      "sha256": "19861f80a8d05163585a28a2ca7e505dda81ea78f5b3025f9a693a4c541a07fe",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/cr_only/donor.gd",
+      "bytes": 354,
+      "sha256": "21fa9bdcc3e1103882201a193586d046fb5c5e12dc340eaee016a9192106ba36",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/crlf/donor.gd",
+      "bytes": 377,
+      "sha256": "801158a2ce3d4ef325497ac264c878881609b7dc23069863d562d4442a4ffc63",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/default_member_refusal/donor.gd",
+      "bytes": 56,
+      "sha256": "3fea4fa26c51ba77ccaae1a570b5040bf95f1526a8cef90e75486b88fc3e7977",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/donor_maximum_warning/donor.gd",
+      "bytes": 31813,
+      "sha256": "3ef8128035ab521dd6debfb58df59c5a6f26b3c059f05c9a85e72860bfc73d34",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/donor_warning/donor.gd",
+      "bytes": 23313,
+      "sha256": "9c7f2be3405f73a0f2dec49980e681d7bcfe5220ec30fb13749509e70eacb343",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/duplicate_function/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/duplicate_module/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/empty_body/donor.gd",
+      "bytes": 41,
+      "sha256": "3ea8814b96d000b311063ff6437d8f1a7fbe2d4588234958383ea059857a8b2c",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/empty_funcs/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/empty_groups_auto/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/engine_cache_chain/donor.gd",
+      "bytes": 75,
+      "sha256": "d3eb2a40768733b7573386fef957f618cc9615682b8aaa288b43a817c628b331",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/engine_cache_control/donor.gd",
+      "bytes": 75,
+      "sha256": "d3eb2a40768733b7573386fef957f618cc9615682b8aaa288b43a817c628b331",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/engine_cache_cycle/donor.gd",
+      "bytes": 75,
+      "sha256": "d3eb2a40768733b7573386fef957f618cc9615682b8aaa288b43a817c628b331",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/existing_module_dir/editor/donor.gd",
+      "bytes": 45,
+      "sha256": "b93f307c2968e9a742cc6ba22250c14f472ec3c35fb9c5b1ba48dc559d936de3",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/existing_module_file/editor/donor.gd",
+      "bytes": 45,
+      "sha256": "b93f307c2968e9a742cc6ba22250c14f472ec3c35fb9c5b1ba48dc559d936de3",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/existing_module_file/editor/part_one.gd",
+      "bytes": 19,
+      "sha256": "c73d1366ec40d23336ad7ae26fe2a73a3126c6110a121774ff3c2dd068216a14",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/explicit_three_groups/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/explicit_two_groups/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/fallback_empty_cache/donor.gd",
+      "bytes": 64,
+      "sha256": "4e4b1431e47bb54be8119993aa8563bfda4e045b4687e8d95db0deccf7415f0c",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/groups_not_list/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/inference_downgrade/donor.gd",
+      "bytes": 155,
+      "sha256": "9ada4026297b1f00ed7cb96def2eda477eb37bc381c4ea07214951f9586899ae",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/invalid_module_name/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/lambda_panel_conflict/donor.gd",
+      "bytes": 72,
+      "sha256": "2c32e92891217ffd676c609024df9d24892b5e1fe615df7a2523ee8d5467761c",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/module_maximum_refusal/donor.gd",
+      "bytes": 12027,
+      "sha256": "0b2744ee656778705069d1902b0c08fe22966b0d29ba1cce563b8b42e7052854",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/module_warning/donor.gd",
+      "bytes": 9027,
+      "sha256": "cc3ad4a6296b779d0c49c0fe8ab6ef6502218f1c96aa84462639c60a73b2b807",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/multiline_defaults_export_lambda/donor.gd",
+      "bytes": 264,
+      "sha256": "022065af0bbe147d3d39fecf8ce0b4c36f07d66e7472359399c6b462f53f6656",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/nested_addon/nested/deep/donor.gd",
+      "bytes": 45,
+      "sha256": "b93f307c2968e9a742cc6ba22250c14f472ec3c35fb9c5b1ba48dc559d936de3",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/no_extends/donor.gd",
+      "bytes": 20,
+      "sha256": "9d0cb2d4516564741824e7af0a9903101113838a505d1a22079ef420bf80d3a7",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/no_functions/donor.gd",
+      "bytes": 27,
+      "sha256": "6bda3a616977d19f81702380d446f10fd6b2d1089394e492cd2f0ac9117ed279",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/no_plugin/donor.gd",
+      "bytes": 45,
+      "sha256": "b93f307c2968e9a742cc6ba22250c14f472ec3c35fb9c5b1ba48dc559d936de3",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/nonempty_methods_missing_fallback/donor.gd",
+      "bytes": 64,
+      "sha256": "4e4b1431e47bb54be8119993aa8563bfda4e045b4687e8d95db0deccf7415f0c",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/only_virtuals/donor.gd",
+      "bytes": 34,
+      "sha256": "b51145e8f3721bef2869ae5d644b532356aa8ad415dc2677ebd6a95436562a46",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/preload_conflict/donor.gd",
+      "bytes": 51,
+      "sha256": "112ca0bb9b184ba48179dc580efd37a30bbfb4bd18e5fb17ff2c478c32f73dd4",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/private_static_await/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/raw_limit/donor.gd",
+      "bytes": 4194305,
+      "sha256": "e7f8552c8468c30c049e993f0ab9afd2363b94987a74adc7c47bff43b3887fbe",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/reserved_panel_local/donor.gd",
+      "bytes": 56,
+      "sha256": "16e1dd2e36608b0d11c63fbe6215f0169525bf69a573eed46526f122decf1ee6",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/reserved_panel_param/donor.gd",
+      "bytes": 46,
+      "sha256": "6dbbba7e3edf7f9beddb601d8c3359b4d1bd00996d65ec7091fac4b845f9d5b4",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/single_function/donor.gd",
+      "bytes": 45,
+      "sha256": "b93f307c2968e9a742cc6ba22250c14f472ec3c35fb9c5b1ba48dc559d936de3",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/super_in_comment_refusal/donor.gd",
+      "bytes": 53,
+      "sha256": "44e7a134c1c291a372dcf9e676ee82d0d0d7ef4a074ac8d3b2997526e37b9846",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/super_refusal/donor.gd",
+      "bytes": 36,
+      "sha256": "acca0c55581d14288765235f81b6506534ab2d3ec3e4fe0a86de8c4c868e41af",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/target_above_maximum/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/target_below_minimum/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/target_maximum/donor.gd",
+      "bytes": 881,
+      "sha256": "6dc036e54ab438197bb76310052fb59610590f630c47968cb3240b3540eb0807",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/target_minimum/donor.gd",
+      "bytes": 881,
+      "sha256": "6dc036e54ab438197bb76310052fb59610590f630c47968cb3240b3540eb0807",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/target_not_integer/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/unclosed_signature/donor.gd",
+      "bytes": 31,
+      "sha256": "c4d582e60e7e02a1916ecf824d8800dee2eac6029cc1efd88827769ccb4f02bc",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/unknown_function/donor.gd",
+      "bytes": 354,
+      "sha256": "3e0179c085e79ab55c8dfd400675818019f7c826da995b3393d2ef325bcd7759",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/virtuals_auto/donor.gd",
+      "bytes": 82,
+      "sha256": "6e6f40abde4f3609c69124477fcc5fc9916cb23bbdcf185ed1b795258e5d5e20",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    },
+    {
+      "path": "fixtures/projects/corpus/editing/split_gd_plan/virtuals_explicit/donor.gd",
+      "bytes": 62,
+      "sha256": "926fc482d310d9800970c3fecc0c67ecdaf63fda003673ed3fb02e263f5f19d2",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_button_pressed": false,
+        "_on_my_event": false
+      }
+    }
+  ],
+  "format_facts": [
+    {
+      "text": "",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "func _on_a():\npass",
+      "handlers": [
+        "_on_a"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "static func _on_a():\npass",
+      "handlers": [
+        "_on_a"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": " func _on_a():\npass",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "# func _on_a():\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "\"\"\"\nfunc _on_literal():\n\"\"\"",
+      "handlers": [
+        "_on_literal"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "func _on_a():\nfunc _on_a():\n",
+      "handlers": [
+        "_on_a"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "static\nfunc _on_multi (",
+      "handlers": [
+        "_on_multi"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "func _on_сигнал():\n",
+      "handlers": [
+        "_on_сигнал"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "﻿func _on_bom():\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "\tsignal custom\n# signal ignored\nsignal custom\n",
+      "handlers": [],
+      "custom_signals": [
+        "custom"
+      ],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "signal\nmultiline\n",
+      "handlers": [],
+      "custom_signals": [
+        "multiline"
+      ],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "foo.connect (_on_a)\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "Callable(self, _on_a_suffix)\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "connect(_on_a)\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": true,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "var s=\"_on_a\"\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": true,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "connect(_on_a)\r\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": true,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "func _on_a(\n",
+      "handlers": [
+        "_on_a"
+      ],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    },
+    {
+      "text": "func _on_():\n",
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {
+        "_on_a": false,
+        "_on_literal": false,
+        "_on_": false
+      }
+    }
+  ],
+  "snake_cases": [
+    {
+      "name": "Camera3D",
+      "expect": "camera_3d"
+    },
+    {
+      "name": "Wall_North",
+      "expect": "wall_north"
+    },
+    {
+      "name": "HTTPRequest",
+      "expect": "http_request"
+    },
+    {
+      "name": "FooBAR",
+      "expect": "foo_bar"
+    },
+    {
+      "name": "Area2D",
+      "expect": "area_2d"
+    },
+    {
+      "name": "HTTP2Request",
+      "expect": "http2request"
+    },
+    {
+      "name": "a__b",
+      "expect": "a_b"
+    },
+    {
+      "name": "-Name. x-",
+      "expect": "name_x"
+    },
+    {
+      "name": "",
+      "expect": ""
+    },
+    {
+      "name": "Étage2D",
+      "expect": "étage_2d"
+    },
+    {
+      "name": "ABC",
+      "expect": "abc"
+    },
+    {
+      "name": "A1B2",
+      "expect": "a1b2"
+    },
+    {
+      "name": "Wall-North",
+      "expect": "wall_north"
+    },
+    {
+      "name": "Wall_North",
+      "expect": "wall_north"
+    },
+    {
+      "name": "x.y z",
+      "expect": "x_y_z"
+    },
+    {
+      "name": "a123",
+      "expect": "a_123"
+    },
+    {
+      "name": "GPUParticles3D",
+      "expect": "gpu_particles_3d"
+    },
+    {
+      "name": "Node 2D",
+      "expect": "node_2d"
+    }
+  ],
+  "scene_facts": [
+    {
+      "text": "",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": false,
+      "script_referenced": false
+    },
+    {
+      "text": "method=\"_on_a\"",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": true,
+      "script_referenced": false
+    },
+    {
+      "text": "# method=\"_on_a\"",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": true,
+      "script_referenced": false
+    },
+    {
+      "text": "method='_on_a'",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": false,
+      "script_referenced": false
+    },
+    {
+      "text": "method=\"_on_abc\"",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": false,
+      "script_referenced": false
+    },
+    {
+      "text": "path=\"res://main.gd\"",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": false,
+      "script_referenced": true
+    },
+    {
+      "text": "path='res://main.gd'",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": false,
+      "script_referenced": false
+    },
+    {
+      "text": "# path=\"res://main.gd\"",
+      "method": "_on_a",
+      "path": "res://main.gd",
+      "method_referenced": false,
+      "script_referenced": true
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "expanded-value1",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": []
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "value должен быть tagged JSON-объектом",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "a4f4e6b9b732a99189fce161bfbda6de49c32e38f5fcd1cc3db3ae7788b73418"
+}

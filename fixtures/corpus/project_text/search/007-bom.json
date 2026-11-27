@@ -1,0 +1,27 @@
+{
+  "id": "007-bom",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "файл с BOM: первая строка читается без BOM",
+  "args": {
+    "query": "extends Node"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://scripts/crlf_line.gd",
+          "line": 1,
+          "snippet": "1: extends Node\n2: \n3: # Файл сохранён с CRLF: проверяем нормализацию переводов строк."
+        },
+        {
+          "path": "res://scripts/legacy_bom.gd",
+          "line": 1,
+          "snippet": "1: extends Node\n2: \n3: # Файл сохранён с BOM: так делал старый редактор."
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

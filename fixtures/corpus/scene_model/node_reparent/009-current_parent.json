@@ -1,0 +1,16 @@
+{
+  "id": "009-current_parent",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/009-current_parent",
+  "note": "actual-old prepare-only: current_parent",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old",
+    "new_parent": "."
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Узел 'Old' уже находится у этого родителя"
+  }
+}

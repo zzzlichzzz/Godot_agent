@@ -1,0 +1,17 @@
+{
+  "id": "021-missing",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://missing.gd"
+  },
+  "reference_error": {
+    "type": "FileNotFoundError",
+    "message": "Файл не найден: res://missing.gd"
+  },
+  "contract_refusal": "missing",
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  }
+}

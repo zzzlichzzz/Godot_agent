@@ -1,0 +1,14 @@
+{
+  "id": "003-inert-command",
+  "tool": "assistant_plan",
+  "args": {
+    "action": {
+      "action": "command",
+      "command": "unsafe"
+    }
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "024-missing.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "missing.tscn",
+  "args": {
+    "path": "res://missing.tscn"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found",
+    "message": "Файл не найден: res://missing.tscn",
+    "reference_exception": "FileNotFoundError"
+  }
+}

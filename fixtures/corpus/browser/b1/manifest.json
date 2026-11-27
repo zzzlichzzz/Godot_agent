@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "source": "native cdp_ws.py; D24/D25 external oracle; own file:// only",
+  "source_sha256": "3b5298dd76c061ce082828d9778b006b7fc68ed6dd1442e0bb4b95b5f95d339b",
+  "expression": "({title:document.title,text:document.body.textContent,\nwebdriver:navigator.webdriver,webdriverNative:Function.prototype.toString.call(\nObject.getOwnPropertyDescriptor(Navigator.prototype,'webdriver').get).includes('[native code]'),\nhasFocusNative:Function.prototype.toString.call(document.hasFocus).includes('[native code]'),\nownVisibility:Object.hasOwn(document,'visibilityState'),ownHidden:Object.hasOwn(document,'hidden')})",
+  "cases": [
+    {
+      "fixture": "plain.html",
+      "sha256": "516f9d5991444c22c5828be58904fafbfc5b95287d5f02e7c2dc7238d5d20a3a",
+      "expected": {
+        "title": "B-1 plain",
+        "text": "Собственная страница B-1Только чтение 🐉 & CDP.\n",
+        "webdriver": false,
+        "webdriverNative": true,
+        "hasFocusNative": true,
+        "ownVisibility": false,
+        "ownHidden": false
+      }
+    },
+    {
+      "fixture": "lines.html",
+      "sha256": "a064f76606bd5764cfa8af72ecd2808b088bed494346e07a4b2d85f9178d5d38",
+      "expected": {
+        "title": "B-1 lines",
+        "text": "first\nsecond\tcolumn\nthird <literal>\n",
+        "webdriver": false,
+        "webdriverNative": true,
+        "hasFocusNative": true,
+        "ownVisibility": false,
+        "ownHidden": false
+      }
+    }
+  ]
+}

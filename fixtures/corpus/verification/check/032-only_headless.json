@@ -1,0 +1,41 @@
+{
+  "id": "032-only_headless",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://clean.tscn",
+    "kinds": [
+      "headless"
+    ]
+  },
+  "reference_result": {
+    "path": "res://clean.tscn",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "contract_boundary": "new kinds filter; unavailable providers are never run",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.tscn",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [],
+      "unchecked_reason": "ни один из запрошенных kinds (headless) не относится к расширению .tscn — файл НЕ проверен",
+      "unavailable": [
+        {
+          "kind": "headless",
+          "reason": ".tscn проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

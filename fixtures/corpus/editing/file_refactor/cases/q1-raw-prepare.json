@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "q1-raw-prepare",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://src/item.bin",
+    "new_path": "res://deep/new/item.bin",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      },
+      "src/item.bin": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/",
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "src/item.bin.uid": {
+        "bytes_b64": "dWlkOi8vcmF3DQo=",
+        "bytes": 11,
+        "sha256": "613ec758440319486c174a30016a4295b4b20e3f228d806bdbe6173bd8306e4a"
+      }
+    },
+    "dirs": [
+      "src"
+    ]
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "old_path": "res://src/item.bin",
+    "new_path": "res://deep/new/item.bin",
+    "companion_script": null,
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://src/item.bin",
+        "dest": "res://deep/new/item.bin",
+        "absolute": "<PROJECT>\\src\\item.bin",
+        "dest_absolute": "<PROJECT>\\deep\\new\\item.bin",
+        "before_hash": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "before_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "diff": {
+          "path": "res://src/item.bin",
+          "action": "move_file",
+          "dest": "res://deep/new/item.bin",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://deep/new/item.bin"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://deep/new/item.bin"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "381c2e804dd5140612d3dd01bcbe3d78cac3b9c6bb825007eeaebb6fb2977f94"
+}

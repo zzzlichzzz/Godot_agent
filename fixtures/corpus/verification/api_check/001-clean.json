@@ -1,0 +1,21 @@
+{
+  "id": "001-clean",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "clean",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.one(1)\n\tself.position\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

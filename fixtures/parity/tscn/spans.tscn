@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/odd\"name.gd" id="1_odd"]
+
+[node name="Корень" type="Node2D"]
+script = ExtResource("1_odd")
+metadata/text = "bracket ] and escaped \"quotes\" and [literal]"
+metadata/points = PackedVector2Array([
+    Vector2(1, 2),
+    Vector2(3, 4)
+])
+
+[node name="Quoted\"Child" type="Node2D" parent="Корень/"]
+position = Vector2(7, 9)
+
+[node name="Bracket]Child" type="Node2D" parent="."]
+metadata/text = "tail"

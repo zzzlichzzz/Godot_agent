@@ -1,0 +1,27 @@
+{
+  "id": "007-blank-lines-in-body",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Пустая строка внутри тела сохраняется, хвостовые пустые строки после тела обрезаются",
+  "args": {
+    "path": "res://scripts/func_lab.gd",
+    "names": [
+      "spaced_lines"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/func_lab.gd",
+      "functions": [
+        {
+          "name": "spaced_lines",
+          "snippet": "func spaced_lines() -> int:\n\tvar first := 1\n\n\tvar second := 2\n\treturn first + second",
+          "start_line": 27,
+          "end_line": 31
+        }
+      ],
+      "missing": []
+    }
+  }
+}

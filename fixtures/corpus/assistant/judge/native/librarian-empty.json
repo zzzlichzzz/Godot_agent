@@ -1,0 +1,136 @@
+{
+  "before": {
+    "files": {
+      "fight.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCnJ1bi9tYWluX3NjZW5lPSJyZXM6Ly9maWdodC50c2NuIgo="
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iR29kb3QgQWdlbnQiCg=="
+      },
+      "addons/other/observer.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "notes/crlf.txt": {
+        "base64": "b25lDQp0d28NCg=="
+      },
+      "src/combatant.gd": {
+        "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+      },
+      "src/combatant.gd.uid": {
+        "base64": "dWlkOi8vYTNyZWZlcmVuY2UK"
+      },
+      "src/control.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+      },
+      "src/load.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFVOSVQgPSBwcmVsb2FkKCJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIikK"
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "notes",
+      "src"
+    ]
+  },
+  "answer": {
+    "ok": true,
+    "result": {
+      "score": 45,
+      "acceptable": false,
+      "vote_eligible": true,
+      "blocking": [
+        {
+          "severity": "blocking",
+          "category": "schema",
+          "message": "ask_librarian requires a non-empty query"
+        }
+      ],
+      "warnings": [],
+      "evidence": [],
+      "action": {
+        "action": "ask_librarian",
+        "query": ""
+      },
+      "structural_score": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        22,
+        94
+      ]
+    }
+  },
+  "after": {
+    "files": {
+      "fight.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCnJ1bi9tYWluX3NjZW5lPSJyZXM6Ly9maWdodC50c2NuIgo="
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iR29kb3QgQWdlbnQiCg=="
+      },
+      "addons/other/observer.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "notes/crlf.txt": {
+        "base64": "b25lDQp0d28NCg=="
+      },
+      "src/combatant.gd": {
+        "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkK"
+      },
+      "src/combatant.gd.uid": {
+        "base64": "dWlkOi8vYTNyZWZlcmVuY2UK"
+      },
+      "src/control.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+      },
+      "src/load.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFVOSVQgPSBwcmVsb2FkKCJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIikK"
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "notes",
+      "src"
+    ]
+  }
+}

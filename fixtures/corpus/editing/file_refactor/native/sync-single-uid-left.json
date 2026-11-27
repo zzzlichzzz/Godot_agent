@@ -1,0 +1,148 @@
+{
+  "id": "sync-single-uid-left",
+  "scenario": "external_sync",
+  "tool": "file_refactor",
+  "input": {
+    "old_path": "res://src/a.gd",
+    "new_path": "res://dst/a.gd",
+    "is_directory": false
+  },
+  "fixture": {
+    "dirs": [
+      "dst",
+      "src"
+    ],
+    "files": {
+      "dst/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlDQo="
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      },
+      "ref.gd": {
+        "bytes_b64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+      },
+      "src/a.gd.uid": {
+        "bytes_b64": "dWlkOi8vYQ0K"
+      }
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "ref.gd": {
+      "bytes_b64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+    },
+    "src/a.gd": {
+      "bytes_b64": "ZXh0ZW5kcyBOb2RlDQo="
+    },
+    "src/a.gd.uid": {
+      "bytes_b64": "dWlkOi8vYQ0K"
+    }
+  },
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_result": {
+    "entry_id": "27ca05493c99",
+    "old_path": "res://src/a.gd",
+    "new_path": "res://dst/a.gd",
+    "is_directory": false,
+    "changed_paths": [
+      "res://dst/a.gd.uid",
+      "res://ref.gd"
+    ],
+    "reference_count": 1,
+    "file_count": 3,
+    "ok": true
+  },
+  "native_effects": {
+    "dst/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlDQo="
+    },
+    "dst/a.gd.uid": {
+      "$bytes_base64": "dWlkOi8vYQ0K"
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "ref.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9kc3QvYS5nZCIpCg=="
+    }
+  },
+  "rollback_result": {
+    "$tuple": [
+      true,
+      "Откачено: rename_file (4 файлов)",
+      false,
+      [
+        "res://ref.gd",
+        "res://src/a.gd.uid",
+        "res://dst/a.gd.uid",
+        "res://src/a.gd"
+      ],
+      null
+    ]
+  },
+  "inverse_files": {
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "ref.gd": {
+      "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+    },
+    "src/a.gd": {
+      "$bytes_base64": "ZXh0ZW5kcyBOb2RlDQo="
+    },
+    "src/a.gd.uid": {
+      "$bytes_base64": "dWlkOi8vYQ0K"
+    }
+  },
+  "inverse_byte_exact": true,
+  "stdout": "",
+  "native_prepared": [
+    {
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://ref.gd",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\single-uid-left\\ref.gd",
+          "before_hash": "f847087e1f52f57c491bbaacac0cffb2d65f4864e8f46747bdd6e945b7052b5d",
+          "before_bytes": {
+            "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9zcmMvYS5nZCIpCg=="
+          },
+          "after_bytes": {
+            "$bytes_base64": "Y29uc3QgQT1sb2FkKCJyZXM6Ly9kc3QvYS5nZCIpCg=="
+          },
+          "occurrences": 1
+        },
+        {
+          "action": "move_file",
+          "path": "res://src/a.gd.uid",
+          "dest": "res://dst/a.gd.uid",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\single-uid-left\\src\\a.gd.uid",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\single-uid-left\\dst\\a.gd.uid",
+          "before_hash": "7a2b0ed81cc9682a3abe8fd5dfe3cac383fdb799bd1409551bcc369938defae3",
+          "before_bytes": {
+            "$bytes_base64": "dWlkOi8vYQ0K"
+          },
+          "after_bytes": {
+            "$bytes_base64": "dWlkOi8vYQ0K"
+          },
+          "occurrences": 0
+        },
+        {
+          "action": "external_move_record",
+          "path": "res://src/a.gd",
+          "dest": "res://dst/a.gd",
+          "absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\single-uid-left\\src\\a.gd",
+          "dest_absolute": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c22-d12-20261102\\sync-native\\projects\\single-uid-left\\dst\\a.gd",
+          "is_directory": false
+        }
+      ],
+      "old_path": "res://src/a.gd",
+      "new_path": "res://dst/a.gd",
+      "is_directory": false,
+      "reference_count": 1
+    }
+  ]
+}

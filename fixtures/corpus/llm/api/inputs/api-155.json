@@ -1,0 +1,30 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "_clean_provider_meta",
+  "args": [
+    "fixture",
+    {
+      "api": "http://127.0.0.1:1/v1",
+      "name": "Fixture",
+      "npm": "@ai-sdk/anthropic",
+      "env": [
+        "FIXTURE_API_KEY",
+        "BAD-NAME"
+      ],
+      "models": {
+        "a": {
+          "cost": {
+            "input": 0,
+            "output": 0
+          }
+        },
+        "b": {
+          "status": "deprecated"
+        }
+      }
+    }
+  ],
+  "kwargs": {},
+  "id": "api-155"
+}

@@ -1,0 +1,91 @@
+{
+  "input": {
+    "id": "routing174",
+    "label": "all keys spent no request",
+    "kind": "send",
+    "responses": [],
+    "record": {
+      "provider": "openrouter"
+    },
+    "keys": 2,
+    "spent": true
+  },
+  "expect": {
+    "result": {
+      "reply": {
+        "text": "[Ключи кончились]: у «OpenRouter» исчерпаны все ключи (2):\n  • fixtur...0001 — synthetic spent, можно пробовать через 2 мин\n  • fixtur...0002 — synthetic spent, можно пробовать через 2 мин\nДобавьте ещё один ключ в настройках, дождитесь сброса квоты или продолжите этот чат на другой модели.",
+        "action": null,
+        "raw": "",
+        "usage": null,
+        "finish_reason": "error",
+        "model": "fixture/model"
+      },
+      "requests": [],
+      "deltas": [],
+      "progress": [],
+      "messages_built": [],
+      "saved_messages": [],
+      "files": {
+        "runtime/config/api_keys.json": {
+          "version": 2,
+          "providers": {
+            "openrouter": {
+              "keys": [
+                {
+                  "key": "fixture-routing-key-0001",
+                  "cooldown_until": 1120.0,
+                  "cooldown_reason": "synthetic spent"
+                },
+                {
+                  "key": "fixture-routing-key-0002",
+                  "cooldown_until": 1120.0,
+                  "cooldown_reason": "synthetic spent"
+                }
+              ],
+              "model": "not-the-chat-model",
+              "base_url": "http://127.0.0.1:1/v1"
+            }
+          },
+          "defaults": {
+            "provider": "",
+            "model": ""
+          },
+          "proxy": {
+            "enabled": false,
+            "host": "",
+            "port": 0,
+            "user": "",
+            "password": ""
+          },
+          "dns": {
+            "enabled": false,
+            "url": ""
+          },
+          "provider_stats": {},
+          "catalog": {
+            "enabled": false
+          },
+          "recent": []
+        }
+      },
+      "rate_status": [
+        null,
+        null
+      ],
+      "retry_after": [
+        null,
+        null
+      ],
+      "usable_key_indices": [],
+      "description": "openrouter / fixture/model"
+    },
+    "stdout": "--> Ключ провайдера openrouter сохранён (fixtur...0001)\n--> Провайдеру openrouter добавлен ключ №2 (fixtur...0002)\n--> Ключ 1 (fixtur...0001) исчерпан на 120 с по слову провайдера: synthetic spent\n--> Ключ 2 (fixtur...0002) исчерпан на 120 с по слову провайдера: synthetic spent\n<-- API openrouter / fixture/model: [Ключи кончились]: у «OpenRouter» исчерпаны все ключи (2):\n  • fixtur...0001 — synthetic spent, можно пробовать через 2 мин\n  • fixtur...0002 — synthetic spent, можно пробовать через 2 мин\nДобавьте ещё один ключ в настройках, дождитесь сброса квоты или продолжите этот чат на другой модели.\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "ApiBackend.send",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

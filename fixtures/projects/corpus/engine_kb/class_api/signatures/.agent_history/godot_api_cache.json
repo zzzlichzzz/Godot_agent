@@ -1,0 +1,36 @@
+{
+  "godot_version": "4.6",
+  "classes": {
+    "S": {
+      "inherits": "P",
+      "methods": {
+        "bad": [
+          0,
+          0
+        ],
+        "empty": [
+          0,
+          0
+        ],
+        "fallback": [
+          0,
+          0
+        ]
+      },
+      "signatures": {
+        "bad": 12,
+        "empty": "",
+        "fallback": null,
+        "ghost": "ghost()"
+      }
+    },
+    "P": {
+      "inherits": null,
+      "signatures": {
+        "bad": "bad() -> void",
+        "empty": "parent()",
+        "fallback": "fallback() -> bool"
+      }
+    }
+  }
+}

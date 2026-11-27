@@ -1,0 +1,34 @@
+{
+  "id": "expanded-operation-refusal-11",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "sprite_frames_add_animation",
+        "name": "idle",
+        "fps": 8,
+        "loop": true,
+        "frames": []
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "frames должен содержать от 1 до 256 кадров",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "f8cd6fa106837c6af010b3006e6caf173ec66299d8c36099077b8d96df938394"
+}

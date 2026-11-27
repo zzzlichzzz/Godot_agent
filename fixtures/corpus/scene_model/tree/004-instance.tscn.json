@@ -1,0 +1,47 @@
+{
+  "id": "004-instance.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/instance.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n  - Gun (инстанс: res://scenes/gun.tscn)\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=1_gun PackedScene: res://scenes/gun.tscn",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Gun",
+          "type": "",
+          "script": null,
+          "instance": "res://scenes/gun.tscn",
+          "parent": ".",
+          "path": "Gun"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1_gun",
+            "type": "PackedScene",
+            "path": "res://scenes/gun.tscn",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

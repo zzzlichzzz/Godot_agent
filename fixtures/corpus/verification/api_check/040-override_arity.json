@@ -1,0 +1,25 @@
+{
+  "id": "040-override_arity",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "override_arity",
+  "args": {
+    "path": "res://scripts/candidate.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.overridden(1)\n"
+  },
+  "reference_result": [
+    "строка 3: self.overridden(...) вызван с 1 аргумент(ами), а у Node2D.overridden их должно быть 0"
+  ],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/candidate.gd",
+      "problems": [
+        "строка 3: self.overridden(...) вызван с 1 аргумент(ами), а у Node2D.overridden их должно быть 0"
+      ],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "021-protected_scene",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/021-protected_scene",
+  "note": "actual-old prepare-only: protected_scene",
+  "args": {
+    "path": "res://addons/c7/main.tscn",
+    "node": "Old"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Сцена защищена текущей политикой доступа"
+  }
+}

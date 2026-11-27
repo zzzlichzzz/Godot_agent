@@ -1,0 +1,27 @@
+{
+  "id": "045-duplicate_node_path",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Child\" type=\"Node\" parent=\".\"]\n[node name=\"Child\" type=\"Node\" parent=\".\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Child\" type=\"Node\" parent=\".\"]\n[node name=\"Child\" type=\"Node\" parent=\".\"]\n",
+      "changed": false,
+      "problems": [
+        "узел с путём «Child» объявлен дважды — конфликт имён"
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Child\" type=\"Node\" parent=\".\"]\n[node name=\"Child\" type=\"Node\" parent=\".\"]\n",
+    "changed": false,
+    "problems": [
+      "узел с путём «Child» объявлен дважды — конфликт имён"
+    ]
+  },
+  "reference_api_classes": null
+}

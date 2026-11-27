@@ -1,0 +1,11 @@
+{
+  "id": "ready-kimi_parser-dead",
+  "op": "ready",
+  "parser": "kimi_parser",
+  "answer_count": 4,
+  "sent_count": 999,
+  "before": 3,
+  "alive": false,
+  "finished": true,
+  "status": "MESSAGE_STATUS_COMPLETED"
+}

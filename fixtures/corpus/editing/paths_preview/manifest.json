@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "module": "editing.paths_preview",
+  "captured_at": "2026-11-02",
+  "reference": {
+    "file": "godot_agent/python/godot_tools/file_refactor.py",
+    "sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8"
+  },
+  "capture_script_sha256": "50f41b9a0c39509ab1b0747cf1db94cabbdffe69c7147538ac0735809dcf00ff",
+  "projection": "D4: published reference fields; native preparation counters; donor helper text; sorted files",
+  "decisions": "D1-D9; parent rejection message explicitly D5 rather than native lexical rejection",
+  "inputs": {
+    "corpus/editing/paths_preview/basic/.agent_history/ref.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/.agent_history/source.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/basic/.git/ref.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/.godot/ref.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/.import/ref.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/__pycache__/ref.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/a.gd": {"bytes": 153, "sha256": "d5cf3660f65e98acf475ea707787acd0f31d00ca1bf895872f3aaaac91904d06"},
+    "corpus/editing/paths_preview/basic/addons/other/ref.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/addons/other/source.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/basic/assets/item.gd": {"bytes": 56, "sha256": "6d64981f7230bba52e2dd889ea7acb66180f49d5948a5ff7b2a2842edd98f44c"},
+    "corpus/editing/paths_preview/basic/assets/other.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/basic/b.gd": {"bytes": 145, "sha256": "62fe8993a3ce5462b0d46c3f21ffc92a1113eb32a5238cc8b71941a1792f5df0"},
+    "corpus/editing/paths_preview/basic/bom/ref.gd": {"bytes": 60, "sha256": "810bb0e28fe1b3a9515cbcc4c63781db4469e0c6f35196ce3c15ee83726b4d05"},
+    "corpus/editing/paths_preview/basic/broken/source.tscn": {"bytes": 49, "sha256": "332721c1452d2f872ece579dad490ef5265a34e11b50d16eb38c46aae75a122f"},
+    "corpus/editing/paths_preview/basic/broken.tscn": {"bytes": 52, "sha256": "ffdeb5563a8114f1633c809ec85ba87b5a7784f64f7235cafbedcb5c51b6573b"},
+    "corpus/editing/paths_preview/basic/dir.gd": {"bytes": 52, "sha256": "9378eb3c7b2d23972d1088d993985d20145761dfe486605016f6a9927a13b7ea"},
+    "corpus/editing/paths_preview/basic/e.gdshader": {"bytes": 32, "sha256": "3c7d59e652d5a1efe00b2735546d259616dd94571288d7ff6ca4af0465a2f6c5"},
+    "corpus/editing/paths_preview/basic/e.gdshaderinc": {"bytes": 32, "sha256": "3c7d59e652d5a1efe00b2735546d259616dd94571288d7ff6ca4af0465a2f6c5"},
+    "corpus/editing/paths_preview/basic/e.tres": {"bytes": 41, "sha256": "6bd17edc2545843db56e655db9f15513faa54136e1095c1b337be23d6e4e1434"},
+    "corpus/editing/paths_preview/basic/empty/source.gd": {"bytes": 25, "sha256": "e6377cb36be22256362566e7418c1e52a5c2cf4151e9bb84013ed6a52fffe3c6"},
+    "corpus/editing/paths_preview/basic/excluded/PROJECT.GODOT": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.bin": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.cfg": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.import": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.json": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.py": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.shader": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.txt": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/excluded/ref.uid": {"bytes": 23, "sha256": "5ec2ae8aa5582311284fea98d87cce880569860d7a5e1f33d8a89503eb067c74"},
+    "corpus/editing/paths_preview/basic/extra/project.godot": {"bytes": 40, "sha256": "7707559a65b0860cbdcc0a74547f5ecee06df59273e9f280a6eab4b2bfb86833"},
+    "corpus/editing/paths_preview/basic/plugin.cfg": {"bytes": 25, "sha256": "73181d44550b5ea6cdedb1b420911951b43ad5106337df3e7a19728a254922a6"},
+    "corpus/editing/paths_preview/basic/project.godot": {"bytes": 40, "sha256": "7707559a65b0860cbdcc0a74547f5ecee06df59273e9f280a6eab4b2bfb86833"},
+    "corpus/editing/paths_preview/basic/src/r.gd": {"bytes": 65, "sha256": "ca11044a161ec660930534179928daf9012dcb6d8a7f6956587463d94989b205"},
+    "corpus/editing/paths_preview/basic/unreferenced.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/basic/upper.GD": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/basic/кириллица/ref.gd": {"bytes": 52, "sha256": "2a5d0961e5e306a065a0440c6110f00e0c0b20169a38fbbea2ae7d3cbe0d6924"},
+    "corpus/editing/paths_preview/basic/кириллица/донор.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/basic/кириллица.gd": {"bytes": 34, "sha256": "bab024a18f752ee5fe132eba1681ece63b728f63cc0f072569e01158c4c3f45b"},
+    "corpus/editing/paths_preview/directory/base.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/directory/combat/actor.gd": {"bytes": 120, "sha256": "01e5cba2206262f16bca5a90a7bf2e5cd232b031ab60f6e2bd53e588aadccaaf"},
+    "corpus/editing/paths_preview/directory/combat/broken.tscn": {"bytes": 41, "sha256": "20f36c474939710b631e7448b6bc171e01c0e3a5c86bfdbcf0b59c073bf0b754"},
+    "corpus/editing/paths_preview/directory/combat/weapon.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/directory/main.gd": {"bytes": 70, "sha256": "df5e6152aadcb556a4a10a54e2096921621f0b6e97e02a5ce95a7e8d863c51f2"},
+    "corpus/editing/paths_preview/projection/base.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"},
+    "corpus/editing/paths_preview/projection/src/shield.tres": {"bytes": 11, "sha256": "d6e7a088b1c0e2092a7770e32b744e35894b08fb6c044f8d154bf556c7409493"},
+    "corpus/editing/paths_preview/projection/src/unit.gd": {"bytes": 202, "sha256": "9bd3427375392ec94d5b85c1158ab6eba8a680bbf4608cec764584b91d19892a"},
+    "corpus/editing/paths_preview/projection/src/weapon.gd": {"bytes": 13, "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"}
+  },
+  "cases": [
+    {
+      "id": "001-file-12-13",
+      "file": "001-file-12-13.json",
+      "sha256": "f0a8910392aaee6bad0bf8dd88f48e6ebc316e1cba65e3a123a8673a10f2ef0b",
+      "native_raw_sha256": "f8212406d60d4b2c4924a4e22b4e3246d4b5344503de3ec39fafc0c8d21192d9"
+    },
+    {
+      "id": "002-directory-15-22",
+      "file": "002-directory-15-22.json",
+      "sha256": "a9979afbcce36e33fb06cc786ee8086e2a2e343490749f56882b0da6d5d3dcc4",
+      "native_raw_sha256": "75d5703254664bd071816d654ad823b7be1c28530bd3b690df7d275f9a15baa5"
+    },
+    {
+      "id": "003-empty-bom-mixed",
+      "file": "003-empty-bom-mixed.json",
+      "sha256": "420ab0449f484a5de499a9a227b5a56a5d5269fa2cd812cc1d4c5ee39b8b665e",
+      "native_raw_sha256": "ab2ec48966b81237a8aef4e5ac2bcc0b9dc4b5f02f09f043b696e2ca857ed090"
+    },
+    {
+      "id": "004-internal-three",
+      "file": "004-internal-three.json",
+      "sha256": "4076638c9847616a365c900a865e51da10f2cd9f99146acd8e7334d6a8a919b8",
+      "native_raw_sha256": "44f012a446ba9f3d05a8eac9b8d23222d5ae629904fd6ffd93537435353b43d4"
+    },
+    {
+      "id": "005-same-directory",
+      "file": "005-same-directory.json",
+      "sha256": "c452e7ac4f49feb0d2c2520f90dd9c5c43126982d0daeafd039895565d5d0466",
+      "native_raw_sha256": "61c13a7ddb01b4bbcefad0b9fc399d1b1d02a59b8efe4ab405880fd83bcc90df"
+    },
+    {
+      "id": "006-broken-scene-zero",
+      "file": "006-broken-scene-zero.json",
+      "sha256": "b4d41e2d9d44ac599801e1dff4b19ab3820ae66c873b319916a63d028c3b0259",
+      "native_raw_sha256": "fc2cd934c877f556a6e3ea2726dd9c6037463bb1738ad0324a115c384f587a50"
+    },
+    {
+      "id": "007-cyrillic",
+      "file": "007-cyrillic.json",
+      "sha256": "260393216fff0b8018a25d787a2454a94202b228884078ebba1b646764c712e1",
+      "native_raw_sha256": "693afe00a38900a54bbffcc6e90339f115cc6468e782d9a40d26f4f5d114df48"
+    },
+    {
+      "id": "008-plugin-readable",
+      "file": "008-plugin-readable.json",
+      "sha256": "7b9ab818f453f2dbe99bc26913bb10aa99a01121b2c322737ed3737ef6cd548e",
+      "native_raw_sha256": "b333b2b3b753fea2d360568410a1b500c8bbb6662967ae860d5dafe73bdda4f9"
+    },
+    {
+      "id": "009-directory-projection",
+      "file": "009-directory-projection.json",
+      "sha256": "381312a099ae71b9b6a25d6e65ec8b686deb4b0575ea0a718589c6214b8a5e8b",
+      "native_raw_sha256": "70b4840c933b1130bf3bf1187ee591d7d5c75dbfab37cdb53220afc668d3989b"
+    },
+    {
+      "id": "010-unreferenced",
+      "file": "010-unreferenced.json",
+      "sha256": "03e92a4babe45ba9c53d5ceec176ca828e53b977557dfb7f6396ddcf3cc56acf",
+      "native_raw_sha256": "948062f5faf585af902606a171082d27f85cd246f6de4ac238493ef96428d566"
+    },
+    {
+      "id": "011-outer-normalization",
+      "file": "011-outer-normalization.json",
+      "sha256": "0fa488d4fe4aa3dc5e70d5a0efbb61d97c7ee43c99c97ef077e61c938df58ab6",
+      "native_raw_sha256": "5baf3b40560c43188697aa684a7f3d52bebdf6d06b993848eadcee8388443f7a"
+    },
+    {
+      "id": "012-not-res",
+      "file": "012-not-res.json",
+      "sha256": "737185acb5dd16c5c0aabc041e04b5d849913ebf09d5cb6fb848296b279118d7",
+      "native_raw_sha256": "4893419067ad80b7cee41da026b39e97f8252c1779058aa0461456a2094f6be2"
+    },
+    {
+      "id": "013-dot",
+      "file": "013-dot.json",
+      "sha256": "373e0eb9c2103b2e60b3c3b6e9e12777109ada0534858f5ee911b1c442c745b7",
+      "native_raw_sha256": "8fac619fe5737fa7b84671072440f7e30be6eeb21bfc681627158714c5a8b5c4"
+    },
+    {
+      "id": "014-double-slash",
+      "file": "014-double-slash.json",
+      "sha256": "a9378b7453b29c19796df57d7a97b0a7c59ebed5b5eba7eb59db20021ab19db7",
+      "native_raw_sha256": "4ca0100d6c551788db432f5f36eea8f6fe0c0d727bef6d5a83a896c5d25c39c7"
+    },
+    {
+      "id": "015-missing",
+      "file": "015-missing.json",
+      "sha256": "0b0a40dc2e94d4b3e551f21646d8e6f2e492c76eca454a7977732641eab0afbd",
+      "native_raw_sha256": "14f30f196fc076e3cbcead13d6429249e27421cba76f5abb6edffe28b032cce3"
+    },
+    {
+      "id": "016-occupied",
+      "file": "016-occupied.json",
+      "sha256": "96946ad2e1408dd7e18f9a30b2c9aa259cbff68e6e094d2961222abf2e4ea90f",
+      "native_raw_sha256": "79953438da4a1ac46cce203110e3ba7066875c657461936d51a90a4e1cd19802"
+    },
+    {
+      "id": "017-addon",
+      "file": "017-addon.json",
+      "sha256": "71fcbb51cac353af07211b03de5826ee930a61055eb6f7a3b1426447a4465708",
+      "native_raw_sha256": "cc75e7f46a418ebf9a4d6381565e4cbf47ba937dee3a9ef07e586d036c69ca59"
+    },
+    {
+      "id": "018-history",
+      "file": "018-history.json",
+      "sha256": "02480c7d07db9302a425ef0d4f53aa56dc0082bd255dd49cdc723889b4657458",
+      "native_raw_sha256": "59a8f907ce94c2f4fdfa4058f5503aaf4e75935025d4993cce16710896d2c2fd"
+    },
+    {
+      "id": "019-new-not-res-before-missing",
+      "file": "019-new-not-res-before-missing.json",
+      "sha256": "300b85463bae5875ff597fe6daefb55b4cccd8fd963d0af52312655f37fd04de",
+      "native_raw_sha256": "65149168821b24bf348fe04a99416a94567338895d9d390ab15e0dbd36427f10"
+    },
+    {
+      "id": "020-same-before-missing",
+      "file": "020-same-before-missing.json",
+      "sha256": "18105ed6ab3d5c6f9664197d15e5b626b3c0d9497e2e3e3f9b834d754e45b287",
+      "native_raw_sha256": "5637836e31f24994af2ea4445bdd8f91ef66e174d1ca8c9ce2f432246da77c77"
+    },
+    {
+      "id": "021-missing-before-addon",
+      "file": "021-missing-before-addon.json",
+      "sha256": "e41ce03da36d7de2b6625bfa762ce21bc621a10d457d6d3adf97f1e8bb5dce4f",
+      "native_raw_sha256": "04de57d8c058f3cd7d2bf65f88f0e47bd72df1d15dbbcbb0351fb0a8bb092eb6"
+    },
+    {
+      "id": "022-occupied-before-addon",
+      "file": "022-occupied-before-addon.json",
+      "sha256": "bcdfcbb5fd98fab2e3d46f99f34fed0793c0fb7530ec95e52015006730db98ba",
+      "native_raw_sha256": "978ebfb1407b96940411531c5b49b4819b0f3cba9cdac96aee8952fbde0461ce"
+    },
+    {
+      "id": "023-directory-occupied",
+      "file": "023-directory-occupied.json",
+      "sha256": "b3d7e6d0432ee93654bb82335df9a7700839a169ff05de0d558f14426a9419fd",
+      "native_raw_sha256": "88fdf8257ed42fe546e9f280ecf98cae7090503ad1b34aa0e2851c8439c1d1a6"
+    },
+    {
+      "id": "024-directory-nested",
+      "file": "024-directory-nested.json",
+      "sha256": "5dcfa596d1ac7b8bd2c45faba22d4267cf2c1a9a2ae43a5c4d340b0c03a2d261",
+      "native_raw_sha256": "b5573f996795443de850ccb68aa3b08e8d2e011b6cbbd4a8e748afb70334f4f8"
+    },
+    {
+      "id": "025-parent-D5",
+      "file": "025-parent-D5.json",
+      "sha256": "c78405ca6c201e8b61942907bb7a8d1b9582263c55df5588da34cc8e391d1e7a",
+      "native_raw_sha256": "20bef2ad87c53057e87e57e94d6f7b62706b6cd930e1c4b0369fd6f087b90aa4"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "id": "expanded-operation-refusal-15",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "theme_set_item",
+        "data_type": "color",
+        "theme_type": "Button",
+        "name": "font_color",
+        "value": {
+          "type": "Color",
+          "value": [
+            1,
+            0.5,
+            0,
+            1
+          ]
+        },
+        "overwrite": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "overwrite должен быть bool",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "62c4c1ea2b54780bd62728a36e4ba613da3f2c11c988b86a4b156135c21f0e29"
+}

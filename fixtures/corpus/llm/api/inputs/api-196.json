@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "chat_store",
+  "function": "title_from_prompt",
+  "args": [
+    "  first\nsecond"
+  ],
+  "kwargs": {},
+  "id": "api-196"
+}

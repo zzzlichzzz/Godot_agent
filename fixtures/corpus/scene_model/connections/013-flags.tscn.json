@@ -1,0 +1,23 @@
+{
+  "id": "013-flags.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "flags.tscn",
+  "args": {
+    "path": "res://flags.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "Button",
+          "to": ".",
+          "method": "_on_button_pressed"
+        }
+      ],
+      "text": "- Button.pressed -> <root>._on_button_pressed()"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "036-no_root.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "no_root.tscn: ''",
+  "args": {
+    "path": "res://scenes/no_root.tscn",
+    "node": ""
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Корневой узел сцены не найден"
+  }
+}

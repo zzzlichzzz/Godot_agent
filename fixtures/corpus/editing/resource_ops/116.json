@@ -1,0 +1,51 @@
+{
+  "id": "expanded-op1-success",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "replace_reference",
+        "target": [],
+        "old": "res://old.tres",
+        "new": "res://new.tres",
+        "expected_count": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": {
+        "action": "edit_resource",
+        "resource": "res://data.tres",
+        "operations": [
+          {
+            "op": "replace_reference",
+            "target": [],
+            "old": "res://old.tres",
+            "new": "res://new.tres",
+            "expected_count": 1
+          }
+        ],
+        "wait_for_import": [
+          "res://old.tres",
+          "res://new.tres"
+        ]
+      },
+      "target": "res://data.tres"
+    }
+  },
+  "oracle": "native",
+  "raw_sha256": "88fd7a56b6c44bbbd78295113d9888dba0b5f3a58dc8f57cac028bb8216796f8"
+}

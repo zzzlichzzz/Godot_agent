@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "module_id": "assistant.write",
+  "capability_id": "assistant.write",
+  "tool_name": "assistant_turn",
+  "description": "Диалог с нативным парсером; запись только после отдельного подтверждения.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200000
+      },
+      "max_turns": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 8
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "state": {
+        "type": "string",
+        "enum": [
+          "final",
+          "pending_confirmation",
+          "pending_read"
+        ]
+      },
+      "text": {
+        "type": "string"
+      },
+      "action": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "additionalProperties": true
+      },
+      "plan": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "PREPARED",
+              "ALREADY_SATISFIED"
+            ]
+          },
+          "plan_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "diffs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000
+                },
+                "before": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "after": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "path",
+                "before",
+                "after"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100
+          },
+          "steps_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 356
+          },
+          "confirm_ttl": {
+            "type": "integer"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "state",
+          "plan_id",
+          "digest",
+          "diffs",
+          "steps_count",
+          "confirm_ttl",
+          "warnings"
+        ],
+        "additionalProperties": false
+      },
+      "turns_used": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 8
+      }
+    },
+    "required": [
+      "state",
+      "text",
+      "action",
+      "plan",
+      "turns_used"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "write"
+  ],
+  "idempotent": false,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied",
+    "stale_plan",
+    "conflict",
+    "unavailable",
+    "internal"
+  ],
+  "availability": "*",
+  "cost": "bounded",
+  "limits": {
+    "max_files": 100,
+    "max_action_chars": 200000
+  }
+}

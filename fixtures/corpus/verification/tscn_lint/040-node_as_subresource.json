@@ -1,0 +1,27 @@
+{
+  "id": "040-node_as_subresource",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"Node2D\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"Node2D\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+      "changed": false,
+      "problems": [
+        "[sub_resource type=\"Node2D\"]: Node2D — это УЗЕЛ (Node), а НЕ ресурс. Godot откажется грузить сцену («Can't create sub resource of type 'Node2D' as it's not a resource type»). Объяви его секцией [node name=\"...\" type=\"Node2D\" parent=\"...\"], а [sub_resource] оставь только для ресурсов (RectangleShape2D, CircleShape2D, Theme, Animation, Material и т.п.). Для цветной заглушки-прямоугольника используй ДОЧЕРНИЙ узел ColorRect со свойствами color и offset/size."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"Node2D\" id=\"a\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+    "changed": false,
+    "problems": [
+      "[sub_resource type=\"Node2D\"]: Node2D — это УЗЕЛ (Node), а НЕ ресурс. Godot откажется грузить сцену («Can't create sub resource of type 'Node2D' as it's not a resource type»). Объяви его секцией [node name=\"...\" type=\"Node2D\" parent=\"...\"], а [sub_resource] оставь только для ресурсов (RectangleShape2D, CircleShape2D, Theme, Animation, Material и т.п.). Для цветной заглушки-прямоугольника используй ДОЧЕРНИЙ узел ColorRect со свойствами color и offset/size."
+    ]
+  },
+  "reference_api_classes": null
+}

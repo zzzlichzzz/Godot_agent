@@ -1,0 +1,15 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "_clean_model",
+  "args": [
+    {
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    }
+  ],
+  "kwargs": {},
+  "id": "api-139"
+}

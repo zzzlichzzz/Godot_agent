@@ -1,0 +1,14 @@
+{
+  "id": "046-absolute",
+  "tool": "split_scan",
+  "reference_result": null,
+  "fixture": "corpus/editing/split_py/absolute",
+  "args": {
+    "path": "res://C:/donor.py"
+  },
+  "contract_boundary": "denied",
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

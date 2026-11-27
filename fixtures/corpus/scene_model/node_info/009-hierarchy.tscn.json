@@ -1,0 +1,41 @@
+{
+  "id": "009-hierarchy.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "hierarchy.tscn: 'Tip'",
+  "args": {
+    "path": "res://scenes/hierarchy.tscn",
+    "node": "Tip"
+  },
+  "reference_node": {
+    "name": "Tip",
+    "parent": "Main/Arm/End",
+    "type": "Marker2D",
+    "path": "Main/Arm/End/Tip",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      195,
+      250
+    ],
+    "body_span": [
+      250,
+      251
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Tip",
+      "type": "Marker2D",
+      "parent": "Main/Arm/End",
+      "path": "Main/Arm/End/Tip",
+      "depth": 4,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

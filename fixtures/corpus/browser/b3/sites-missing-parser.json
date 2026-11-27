@@ -1,0 +1,5 @@
+{
+  "id": "sites-missing-parser",
+  "kind": "sites-error",
+  "native_case_source": "native sites.py:get_parser_module; parsers deferred"
+}

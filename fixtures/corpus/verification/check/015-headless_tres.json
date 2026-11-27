@@ -1,0 +1,38 @@
+{
+  "id": "015-headless_tres",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://resource.tres"
+  },
+  "reference_result": {
+    "path": "res://resource.tres",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": false,
+    "unchecked_reason": ".tres проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://resource.tres",
+      "problems": [],
+      "checked": false,
+      "auto_fixable": false,
+      "kinds": [],
+      "unchecked_reason": ".tres проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен",
+      "unavailable": [
+        {
+          "kind": "headless",
+          "reason": ".tres проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

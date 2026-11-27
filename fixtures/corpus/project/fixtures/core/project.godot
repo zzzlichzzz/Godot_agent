@@ -1,0 +1,10 @@
+config_version=5
+
+[application]
+config/name="Synthetic project-core"
+run/main_scene="res://scenes/main.tscn"
+
+[autoload]
+Game="*res://src/state.gd"
+Agent="*res://Addons/RenamedWrapper/core/agent.gd"
+Extra="*res://Addons/RenamedWrapperExtra/extra.gd"

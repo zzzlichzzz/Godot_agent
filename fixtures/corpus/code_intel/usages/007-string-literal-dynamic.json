@@ -1,0 +1,45 @@
+{
+  "id": "007-string-literal-dynamic",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Строковый литерал рядом с call(): dynamic с причиной в note",
+  "args": {
+    "kind": "function",
+    "old_name": "on_hit",
+    "declaration": "res://src/lab_strings.gd:6"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "on_hit",
+      "new_name": "",
+      "declaration": "res://src/lab_strings.gd:6",
+      "usages": [
+        {
+          "path": "res://src/lab_strings.gd",
+          "line": 4,
+          "column": 12,
+          "link": "string",
+          "confidence": "dynamic",
+          "note": "call() по имени"
+        },
+        {
+          "path": "res://src/lab_strings.gd",
+          "line": 6,
+          "column": 6,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "string": 1,
+        "declaration": 1
+      },
+      "proven_count": 1,
+      "probable_count": 0,
+      "dynamic_count": 1
+    }
+  }
+}

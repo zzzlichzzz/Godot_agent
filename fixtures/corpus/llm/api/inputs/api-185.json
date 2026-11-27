@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "rate_limit",
+  "function": "reason_from_status",
+  "args": [
+    "transport"
+  ],
+  "kwargs": {},
+  "id": "api-185"
+}

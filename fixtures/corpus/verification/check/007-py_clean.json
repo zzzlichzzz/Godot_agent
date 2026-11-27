@@ -1,0 +1,28 @@
+{
+  "id": "007-py_clean",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://clean.py"
+  },
+  "reference_result": {
+    "path": "res://clean.py",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.py",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "py"
+      ],
+      "unavailable": []
+    }
+  }
+}

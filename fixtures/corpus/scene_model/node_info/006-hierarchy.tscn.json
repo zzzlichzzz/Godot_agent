@@ -1,0 +1,43 @@
+{
+  "id": "006-hierarchy.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "hierarchy.tscn: 'Arm'",
+  "args": {
+    "path": "res://scenes/hierarchy.tscn",
+    "node": "Arm"
+  },
+  "reference_node": {
+    "name": "Arm",
+    "parent": "Main",
+    "type": "Node2D",
+    "path": "Main/Arm",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      97,
+      142
+    ],
+    "body_span": [
+      142,
+      143
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Arm",
+      "type": "Node2D",
+      "parent": "Main",
+      "path": "Main/Arm",
+      "depth": 2,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": [
+        "Main/Arm/End"
+      ]
+    }
+  }
+}

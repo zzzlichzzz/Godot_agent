@@ -1,0 +1,14 @@
+{
+  "script_facts": [
+    {
+      "path": "editor/core/project_file_io.gd",
+      "bytes": 3245,
+      "sha256": "687d669d917c53ff402214cce6a42a10b13d8b5118f9c95d6b77dcb4729606a5",
+      "LF": 78,
+      "CRLF": 0,
+      "handlers": [],
+      "custom_signals": [],
+      "connected": {"_on_button_pressed": false, "_on_my_event": false}
+    }
+  ]
+}

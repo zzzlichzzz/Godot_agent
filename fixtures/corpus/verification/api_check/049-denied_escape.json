@@ -1,0 +1,17 @@
+{
+  "id": "049-denied_escape",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "denied_escape",
+  "args": {
+    "path": "res://../x.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.nope()\n"
+  },
+  "reference_result": [
+    "строка 3: self.nope — такого метода нет у Node2D и он не объявлен в этом скрипте (возможно, опечатка или несуществующий в этой версии Godot API)"
+  ],
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

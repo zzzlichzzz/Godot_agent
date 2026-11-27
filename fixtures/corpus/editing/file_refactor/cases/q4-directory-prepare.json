@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "id": "q4-directory-prepare",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://tree",
+    "new_path": "res://nested/moved",
+    "update_references": true
+  },
+  "native_kwargs": {},
+  "fixture": {
+    "files": {
+      "outside.gd": {
+        "bytes_b64": "Y29uc3QgQj1wcmVsb2FkKCJyZXM6Ly90cmVlL2IuZ2QiKQo=",
+        "bytes": 35,
+        "sha256": "48fc2e7fc1a1f4f5d218077163f2980292f442774bcb70155dceb0db7976871d"
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo=",
+        "bytes": 17,
+        "sha256": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99"
+      },
+      "tree/.agent_history/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg==",
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "tree/.git/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg==",
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "tree/.godot/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg==",
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "tree/.import/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg==",
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "tree/__pycache__/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg==",
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "tree/a.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IEI9cHJlbG9hZCgiYi5nZCIpCmNvbnN0IFM9InJlczovL3RyZWUiCg==",
+        "bytes": 58,
+        "sha256": "860b7a5b65d611bb21c452062c19a143bf609d8aac85ecf77355eed46ce02451"
+      },
+      "tree/a.gd.uid": {
+        "bytes_b64": "dWlkOi8vYQo=",
+        "bytes": 8,
+        "sha256": "0c6da54f58570c33ce98c7f4a3ce7e56646f571992b08176cbf3664d74abb9f7"
+      },
+      "tree/addons/keep.bin": {
+        "bytes_b64": "Zm9yZWlnbg==",
+        "bytes": 7,
+        "sha256": "656771905e1ef731f65cd0a0d9fb061238380a1a012e6abdf846ecc7d2ea36fd"
+      },
+      "tree/b.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg==",
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "tree/b.gd.uid": {
+        "bytes_b64": "dWlkOi8vYgo=",
+        "bytes": 8,
+        "sha256": "e53ae69da99369a33ae7ce6c6744598cf4998c514365b56d7323212e724986b5"
+      },
+      "tree/data.bin": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/",
+        "bytes": 18,
+        "sha256": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d"
+      },
+      "tree/data.bin.import": {
+        "bytes_b64": "c291cmNlX2ZpbGU9InJlczovL3RyZWUvZGF0YS5iaW4iCg==",
+        "bytes": 34,
+        "sha256": "0a85db71bce9b5fe0d2317c1df176627980cfe1eb182f33369697dc25a2a18ac"
+      },
+      "tree/orphan.uid": {
+        "bytes_b64": "dWlkOi8vb3JwaGFuCg==",
+        "bytes": 13,
+        "sha256": "8f6aecf405cf1d74477e7cffc89aede590991295419c67b86de06901416a2f72"
+      }
+    },
+    "dirs": [
+      "tree",
+      "tree/.agent_history",
+      "tree/.git",
+      "tree/.godot",
+      "tree/.import",
+      "tree/__pycache__",
+      "tree/addons"
+    ]
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "is_directory": true,
+    "old_path": "res://tree",
+    "new_path": "res://nested/moved",
+    "moved_files": {
+      "res://tree/a.gd": "res://nested/moved/a.gd",
+      "res://tree/b.gd": "res://nested/moved/b.gd",
+      "res://tree/data.bin": "res://nested/moved/data.bin"
+    },
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://tree/a.gd",
+        "dest": "res://nested/moved/a.gd",
+        "absolute": "<PROJECT>\\tree\\a.gd",
+        "dest_absolute": "<PROJECT>\\nested\\moved\\a.gd",
+        "before_hash": "860b7a5b65d611bb21c452062c19a143bf609d8aac85ecf77355eed46ce02451",
+        "before_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IEI9cHJlbG9hZCgiYi5nZCIpCmNvbnN0IFM9InJlczovL3RyZWUiCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IEI9cHJlbG9hZCgiYi5nZCIpCmNvbnN0IFM9InJlczovL25lc3RlZC9tb3ZlZCIK"
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://nested/moved/a.gd (обновлено путей: 1)"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,3 +1,3 @@"
+            ],
+            [
+              " ",
+              1,
+              1,
+              "extends Node"
+            ],
+            [
+              " ",
+              2,
+              2,
+              "const B=preload(\"b.gd\")"
+            ],
+            [
+              "-",
+              3,
+              null,
+              "const S=\"res://tree\""
+            ],
+            [
+              "+",
+              null,
+              3,
+              "const S=\"res://nested/moved\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://tree/a.gd",
+          "dest": "res://nested/moved/a.gd"
+        },
+        "occurrences": 1
+      },
+      {
+        "action": "move_file",
+        "path": "res://tree/b.gd",
+        "dest": "res://nested/moved/b.gd",
+        "absolute": "<PROJECT>\\tree\\b.gd",
+        "dest_absolute": "<PROJECT>\\nested\\moved\\b.gd",
+        "before_hash": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a",
+        "before_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyBOb2RlCg=="
+        },
+        "diff": {
+          "path": "res://tree/b.gd",
+          "action": "move_file",
+          "dest": "res://nested/moved/b.gd",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://nested/moved/b.gd"
+            }
+          ]
+        },
+        "occurrences": 0
+      },
+      {
+        "action": "move_file",
+        "path": "res://tree/data.bin",
+        "dest": "res://nested/moved/data.bin",
+        "absolute": "<PROJECT>\\tree\\data.bin",
+        "dest_absolute": "<PROJECT>\\nested\\moved\\data.bin",
+        "before_hash": "e7aaed8cb3c31734a7a8ba5966052ac44a3708dad4d82809d52e81f2ed73d11d",
+        "before_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "after_bytes": {
+          "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+        },
+        "diff": {
+          "path": "res://tree/data.bin",
+          "action": "move_file",
+          "dest": "res://nested/moved/data.bin",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://nested/moved/data.bin"
+            }
+          ]
+        },
+        "occurrences": 0
+      },
+      {
+        "action": "move_file",
+        "path": "res://tree/data.bin.import",
+        "dest": "res://nested/moved/data.bin.import",
+        "absolute": "<PROJECT>\\tree\\data.bin.import",
+        "dest_absolute": "<PROJECT>\\nested\\moved\\data.bin.import",
+        "before_hash": "0a85db71bce9b5fe0d2317c1df176627980cfe1eb182f33369697dc25a2a18ac",
+        "before_bytes": {
+          "$bytes_base64": "c291cmNlX2ZpbGU9InJlczovL3RyZWUvZGF0YS5iaW4iCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "c291cmNlX2ZpbGU9InJlczovL25lc3RlZC9tb3ZlZC9kYXRhLmJpbiIK"
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл импорта (.import) перемещён в res://nested/moved/data.bin.import"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "source_file=\"res://tree/data.bin\""
+            ],
+            [
+              "+",
+              null,
+              1,
+              "source_file=\"res://nested/moved/data.bin\""
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://tree/data.bin.import",
+          "dest": "res://nested/moved/data.bin.import"
+        },
+        "occurrences": 1,
+        "is_companion": true
+      },
+      {
+        "action": "patch_file",
+        "path": "res://outside.gd",
+        "absolute": "<PROJECT>\\outside.gd",
+        "before_hash": "48fc2e7fc1a1f4f5d218077163f2980292f442774bcb70155dceb0db7976871d",
+        "before_bytes": {
+          "$bytes_base64": "Y29uc3QgQj1wcmVsb2FkKCJyZXM6Ly90cmVlL2IuZ2QiKQo="
+        },
+        "after_bytes": {
+          "$bytes_base64": "Y29uc3QgQj1wcmVsb2FkKCJyZXM6Ly9uZXN0ZWQvbW92ZWQvYi5nZCIpCg=="
+        },
+        "diff": {
+          "lines": [
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,1 +1,1 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "const B=preload(\"res://tree/b.gd\")"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "const B=preload(\"res://nested/moved/b.gd\")"
+            ]
+          ],
+          "added": 1,
+          "removed": 1,
+          "truncated": false,
+          "path": "res://outside.gd",
+          "action": "patch_file"
+        },
+        "occurrences": 1
+      }
+    ],
+    "reference_count": 2,
+    "affected_paths": [
+      "res://nested/moved/a.gd",
+      "res://nested/moved/b.gd",
+      "res://nested/moved/data.bin",
+      "res://nested/moved/data.bin.import",
+      "res://outside.gd"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "e4c74c8e9d1ec5898b1faf06d48ea5ff9166b47fe67e467b418ca6d3fc39656a"
+}

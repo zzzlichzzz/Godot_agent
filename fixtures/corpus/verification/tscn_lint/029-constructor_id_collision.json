@@ -1,0 +1,27 @@
+{
+  "id": "029-constructor_id_collision",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_1\"]\n\n[node name=\"Root\" type=\"Node\"]\nmesh = PlaneMesh.new()\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_1\"]\n\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_2\"]\n\n[node name=\"Root\" type=\"Node\"]\nmesh = SubResource(\"auto_planemesh_2\")\n",
+      "changed": true,
+      "problems": [
+        "[sub_resource id=\"auto_planemesh_1\"] объявлен, но нигде не используется через SubResource(\"auto_planemesh_1\") — Godot удалит его при пересохранении сцены. Сошлись на него в свойстве узла/ресурса или убери объявление."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_1\"]\n\n[sub_resource type=\"PlaneMesh\" id=\"auto_planemesh_2\"]\n\n[node name=\"Root\" type=\"Node\"]\nmesh = SubResource(\"auto_planemesh_2\")\n",
+    "changed": true,
+    "problems": [
+      "[sub_resource id=\"auto_planemesh_1\"] объявлен, но нигде не используется через SubResource(\"auto_planemesh_1\") — Godot удалит его при пересохранении сцены. Сошлись на него в свойстве узла/ресурса или убери объявление."
+    ]
+  },
+  "reference_api_classes": null
+}

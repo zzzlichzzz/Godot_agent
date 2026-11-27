@@ -1,0 +1,15 @@
+{
+  "id": "027-duplicate_unique.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "duplicate_unique.tscn: 'Unique'",
+  "args": {
+    "path": "res://scenes/duplicate_unique.tscn",
+    "node": "Unique"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Имя узла 'Unique' неоднозначно (2 совпадений). Укажите полный путь: First/Unique, Second/Unique"
+  }
+}

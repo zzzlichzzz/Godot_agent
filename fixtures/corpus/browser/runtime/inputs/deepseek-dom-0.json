@@ -1,0 +1,10 @@
+{
+  "id": "deepseek-dom-0",
+  "op": "dom",
+  "parser": "deepseek_parser",
+  "dom": {
+    "text": "DOM",
+    "actionRaw": null,
+    "error": null
+  }
+}

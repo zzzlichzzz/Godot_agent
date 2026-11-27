@@ -1,0 +1,61 @@
+{
+  "id": "api-021-021-string_mask",
+  "input": {
+    "group": "api",
+    "old_case": "021-string_mask.json"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/.agent_history/godot_api_cache.json": {
+          "bytes": 1074,
+          "sha256": "228db75c65960a657ade2526a8ada9159a52f06deb3d138edc78bb412898d6af"
+        },
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 59,
+          "sha256": "62d5f0073eebfad01a6999a7395d6106cd850658d43f5b1210a5256b6d3d75c3"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "project/.agent_history"
+      ]
+    },
+    "result": [],
+    "after": {
+      "files": {
+        "project/.agent_history/godot_api_cache.json": {
+          "bytes": 1074,
+          "sha256": "228db75c65960a657ade2526a8ada9159a52f06deb3d138edc78bb412898d6af"
+        },
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 59,
+          "sha256": "62d5f0073eebfad01a6999a7395d6106cd850658d43f5b1210a5256b6d3d75c3"
+        }
+      },
+      "dirs": [
+        "config",
+        "project",
+        "project/.agent_history",
+        "project/.agent_history/snapshots"
+      ]
+    }
+  }
+}

@@ -1,0 +1,467 @@
+{
+  "before": {
+    "files": {
+      "fight.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCnJ1bi9tYWluX3NjZW5lPSJyZXM6Ly9maWdodC50c2NuIgo="
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iR29kb3QgQWdlbnQiCg=="
+      },
+      "addons/other/observer.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "src/combatant.gd": {
+        "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkKY2xhc3MgSW5uZXI6CglmdW5jIGlubmVyKCk6CgkJaW5uZXIoKQo="
+      },
+      "src/combatant.gd.uid": {
+        "base64": "dWlkOi8vYTNyZWZlcmVuY2UK"
+      },
+      "src/control.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+      },
+      "src/load.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFVOSVQgPSBwcmVsb2FkKCJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIikK"
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "src"
+    ]
+  },
+  "result": {
+    "find_references": {
+      "action": "find_symbol_usages",
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 14,
+          "column": 7,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 15,
+          "column": 3,
+          "link": "call",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "call": 1
+      },
+      "proven_count": 2,
+      "probable_count": 0,
+      "dynamic_count": 0
+    },
+    "find_references_again": {
+      "action": "find_symbol_usages",
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 14,
+          "column": 7,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 15,
+          "column": 3,
+          "link": "call",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "call": 1
+      },
+      "proven_count": 2,
+      "probable_count": 0,
+      "dynamic_count": 0
+    },
+    "analyze_rename": {
+      "action": "analyze_rename",
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "allow_unverified": false,
+      "mode": "strict",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 14,
+          "column": 7,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 15,
+          "column": 3,
+          "link": "call",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "affected_paths": [
+        "res://src/combatant.gd"
+      ],
+      "risks": [],
+      "by_link": {
+        "declaration": 1,
+        "call": 1
+      },
+      "proven_count": 2,
+      "probable_count": 0,
+      "dynamic_count": 0,
+      "declaration_path": "res://src/combatant.gd",
+      "declaration_line": 14
+    },
+    "analyze_rename_again": {
+      "action": "analyze_rename",
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "allow_unverified": false,
+      "mode": "strict",
+      "usages": [
+        {
+          "path": "res://src/combatant.gd",
+          "line": 14,
+          "column": 7,
+          "link": "declaration",
+          "confidence": "proven"
+        },
+        {
+          "path": "res://src/combatant.gd",
+          "line": 15,
+          "column": 3,
+          "link": "call",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "affected_paths": [
+        "res://src/combatant.gd"
+      ],
+      "risks": [],
+      "by_link": {
+        "declaration": 1,
+        "call": 1
+      },
+      "proven_count": 2,
+      "probable_count": 0,
+      "dynamic_count": 0,
+      "declaration_path": "res://src/combatant.gd",
+      "declaration_line": 14
+    },
+    "prepare_rename": {
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "files": [
+        {
+          "path": "res://src/combatant.gd",
+          "absolute": "<sandbox>\\project\\src\\combatant.gd",
+          "before_hash": "53974cdd6efaaa00db2553b381639bb5c1fcd78fa61b6adca0817fbf4f6c3771",
+          "before_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkKY2xhc3MgSW5uZXI6CglmdW5jIGlubmVyKCk6CgkJaW5uZXIoKQo="
+          },
+          "after_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkKY2xhc3MgSW5uZXI6CglmdW5jIGNoYW5nZWQoKToKCQljaGFuZ2VkKCkK"
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                11,
+                11,
+                "@@ -11,5 +11,5 @@"
+              ],
+              [
+                " ",
+                11,
+                11,
+                "func loop_call() -> int:"
+              ],
+              [
+                " ",
+                12,
+                12,
+                "\treturn self.receive(1)"
+              ],
+              [
+                " ",
+                13,
+                13,
+                "class Inner:"
+              ],
+              [
+                "-",
+                14,
+                null,
+                "\tfunc inner():"
+              ],
+              [
+                "-",
+                15,
+                null,
+                "\t\tinner()"
+              ],
+              [
+                "+",
+                null,
+                14,
+                "\tfunc changed():"
+              ],
+              [
+                "+",
+                null,
+                15,
+                "\t\tchanged()"
+              ]
+            ],
+            "added": 2,
+            "removed": 2,
+            "truncated": false,
+            "path": "res://src/combatant.gd",
+            "action": "rename_symbol"
+          },
+          "occurrences": 2
+        }
+      ],
+      "file_rename": null,
+      "file_rename_diff": null,
+      "dynamic_references": [],
+      "warnings": [],
+      "unverified_references": [],
+      "unverified_count": 0,
+      "renamed_count": 2,
+      "skipped_usages": [],
+      "mode": "strict",
+      "allow_unverified": false,
+      "reference_count": 1
+    },
+    "prepare_rename_again": {
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "files": [
+        {
+          "path": "res://src/combatant.gd",
+          "absolute": "<sandbox>\\project\\src\\combatant.gd",
+          "before_hash": "53974cdd6efaaa00db2553b381639bb5c1fcd78fa61b6adca0817fbf4f6c3771",
+          "before_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkKY2xhc3MgSW5uZXI6CglmdW5jIGlubmVyKCk6CgkJaW5uZXIoKQo="
+          },
+          "after_bytes": {
+            "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkKY2xhc3MgSW5uZXI6CglmdW5jIGNoYW5nZWQoKToKCQljaGFuZ2VkKCkK"
+          },
+          "diff": {
+            "lines": [
+              [
+                "@",
+                11,
+                11,
+                "@@ -11,5 +11,5 @@"
+              ],
+              [
+                " ",
+                11,
+                11,
+                "func loop_call() -> int:"
+              ],
+              [
+                " ",
+                12,
+                12,
+                "\treturn self.receive(1)"
+              ],
+              [
+                " ",
+                13,
+                13,
+                "class Inner:"
+              ],
+              [
+                "-",
+                14,
+                null,
+                "\tfunc inner():"
+              ],
+              [
+                "-",
+                15,
+                null,
+                "\t\tinner()"
+              ],
+              [
+                "+",
+                null,
+                14,
+                "\tfunc changed():"
+              ],
+              [
+                "+",
+                null,
+                15,
+                "\t\tchanged()"
+              ]
+            ],
+            "added": 2,
+            "removed": 2,
+            "truncated": false,
+            "path": "res://src/combatant.gd",
+            "action": "rename_symbol"
+          },
+          "occurrences": 2
+        }
+      ],
+      "file_rename": null,
+      "file_rename_diff": null,
+      "dynamic_references": [],
+      "warnings": [],
+      "unverified_references": [],
+      "unverified_count": 0,
+      "renamed_count": 2,
+      "skipped_usages": [],
+      "mode": "strict",
+      "allow_unverified": false,
+      "reference_count": 1
+    },
+    "public": {
+      "kind": "function",
+      "old_name": "inner",
+      "new_name": "changed",
+      "declaration": "res://src/combatant.gd:14",
+      "paths": [
+        "res://src/combatant.gd"
+      ],
+      "file_count": 1,
+      "reference_count": 1,
+      "dynamic_references": [],
+      "warnings": [],
+      "unverified_references": [],
+      "unverified_count": 0,
+      "renamed_count": 2,
+      "skipped_usages": [],
+      "mode": "strict",
+      "allow_unverified": false,
+      "file_rename": null
+    },
+    "diffs": [
+      {
+        "lines": [
+          [
+            "@",
+            11,
+            11,
+            "@@ -11,5 +11,5 @@"
+          ],
+          [
+            " ",
+            11,
+            11,
+            "func loop_call() -> int:"
+          ],
+          [
+            " ",
+            12,
+            12,
+            "\treturn self.receive(1)"
+          ],
+          [
+            " ",
+            13,
+            13,
+            "class Inner:"
+          ],
+          [
+            "-",
+            14,
+            null,
+            "\tfunc inner():"
+          ],
+          [
+            "-",
+            15,
+            null,
+            "\t\tinner()"
+          ],
+          [
+            "+",
+            null,
+            14,
+            "\tfunc changed():"
+          ],
+          [
+            "+",
+            null,
+            15,
+            "\t\tchanged()"
+          ]
+        ],
+        "added": 2,
+        "removed": 2,
+        "truncated": false,
+        "path": "res://src/combatant.gd",
+        "action": "rename_symbol"
+      }
+    ]
+  },
+  "after": {
+    "files": {
+      "fight.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NyYy9jb21iYXRhbnQuZ2QiIGlkPSIxIl0KW25vZGUgbmFtZT0iRmlnaHRSb290IiB0eXBlPSJOb2RlIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoIjEiKQpoZWFsdGggPSAxNApbbm9kZSBuYW1lPSJQZWVyIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgiMSIpCmhlYWx0aCA9IDkKW25vZGUgbmFtZT0iRm9yZWlnbiIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iUGVlciIgbWV0aG9kPSJyZWNlaXZlIl0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJpbmp1cmVkIiBmcm9tPSIuIiB0bz0iRm9yZWlnbiIgbWV0aG9kPSJyZWNlaXZlIl0K"
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCnJ1bi9tYWluX3NjZW5lPSJyZXM6Ly9maWdodC50c2NuIgo="
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iR29kb3QgQWdlbnQiCg=="
+      },
+      "addons/other/observer.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCg=="
+      },
+      "src/combatant.gd": {
+        "base64": "Y2xhc3NfbmFtZSBDb21iYXRhbnQKZXh0ZW5kcyBOb2RlCnNpZ25hbCBpbmp1cmVkCkBleHBvcnQgdmFyIGhlYWx0aDogaW50ID0gMTAKY29uc3QgTElNSVQgPSAyMAplbnVtIFBoYXNlIHsgV0FJVCwgQUNUSVZFIH0KZnVuYyByZWNlaXZlKGFtb3VudDogaW50KSAtPiBpbnQ6Cglpbmp1cmVkLmVtaXQoKQoJaGVhbHRoIC09IGFtb3VudAoJcmV0dXJuIGhlYWx0aApmdW5jIGxvb3BfY2FsbCgpIC0+IGludDoKCXJldHVybiBzZWxmLnJlY2VpdmUoMSkKY2xhc3MgSW5uZXI6CglmdW5jIGlubmVyKCk6CgkJaW5uZXIoKQo="
+      },
+      "src/combatant.gd.uid": {
+        "base64": "dWlkOi8vYTNyZWZlcmVuY2UK"
+      },
+      "src/control.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBhY3RvcjogQ29tYmF0YW50CmZ1bmMgZGlzcGF0Y2goKSAtPiBpbnQ6CglyZXR1cm4gYWN0b3IucmVjZWl2ZSgyKQo="
+      },
+      "src/load.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFVOSVQgPSBwcmVsb2FkKCJyZXM6Ly9zcmMvY29tYmF0YW50LmdkIikK"
+      }
+    },
+    "dirs": [
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "src"
+    ]
+  }
+}

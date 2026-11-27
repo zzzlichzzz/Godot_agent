@@ -1,0 +1,23 @@
+{
+  "id": "030-subresource_toposort",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"a\"]\nnext = SubResource(\"b\")\n[sub_resource type=\"Resource\" id=\"b\"]\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"b\"]\n[sub_resource type=\"Resource\" id=\"a\"]\nnext = SubResource(\"b\")\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+      "changed": true,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[sub_resource type=\"Resource\" id=\"b\"]\n[sub_resource type=\"Resource\" id=\"a\"]\nnext = SubResource(\"b\")\n[node name=\"Root\" type=\"Node\"]\nvalue = SubResource(\"a\")\n",
+    "changed": true,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

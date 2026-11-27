@@ -1,0 +1,14 @@
+{
+  "id": "023-directory-occupied",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://assets",
+    "new_path": "res://empty"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  },
+  "expected_message": "Целевая папка уже существует: res://empty"
+}

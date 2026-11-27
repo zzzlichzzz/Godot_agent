@@ -1,0 +1,135 @@
+{
+  "id": "031-nested_root",
+  "tool": "split_gd_scan",
+  "fixture": "corpus/editing/split_gd/nested_root",
+  "args": {
+    "path": "res://inner/src/donor.gd"
+  },
+  "reference_addon": "inner",
+  "reference_donor": "src/donor.gd",
+  "reference_result": {
+    "schema": 1,
+    "donor": "src/donor.gd",
+    "lines": 5,
+    "extends": "Control",
+    "class_name": "",
+    "funcs": 2,
+    "consts": 0,
+    "vars": 0,
+    "public_methods": [
+      "ping"
+    ],
+    "counts": {
+      "path": 2,
+      "source_read": 0,
+      "call": 0,
+      "doc": 0,
+      "mention": 0
+    },
+    "occurrences": [
+      {
+        "file": "a.txt",
+        "line": 1,
+        "kind": "path",
+        "text": "donor.gd"
+      },
+      {
+        "file": "plugin.cfg",
+        "line": 3,
+        "kind": "path",
+        "text": "script=\"donor.gd\""
+      }
+    ],
+    "truncated": false,
+    "hard_files": [],
+    "soft_files": [
+      "a.txt",
+      "plugin.cfg"
+    ]
+  },
+  "reference_inventory": {
+    "extends": "Control",
+    "class_name": "",
+    "header_end": 1,
+    "consts": [],
+    "vars": [],
+    "funcs": [
+      {
+        "name": "ping",
+        "sig_start": 2,
+        "start": 2,
+        "block_start": 2,
+        "sig_lines": [
+          "func ping():"
+        ],
+        "sig_text": "func ping():",
+        "body_start": 3,
+        "end": 3,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      },
+      {
+        "name": "_private",
+        "sig_start": 4,
+        "start": 4,
+        "block_start": 4,
+        "sig_lines": [
+          "func _private():"
+        ],
+        "sig_text": "func _private():",
+        "body_start": 5,
+        "end": 5,
+        "params": [],
+        "ret": "",
+        "has_await": false,
+        "anns": []
+      }
+    ],
+    "errors": [],
+    "lines": 5
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "src/donor.gd",
+      "lines": 5,
+      "extends": "Control",
+      "class_name": "",
+      "funcs": 2,
+      "consts": 0,
+      "vars": 0,
+      "public_methods": [
+        "ping"
+      ],
+      "counts": {
+        "path": 2,
+        "source_read": 0,
+        "call": 0,
+        "doc": 0,
+        "mention": 0
+      },
+      "occurrences": [
+        {
+          "file": "a.txt",
+          "line": 1,
+          "kind": "path",
+          "text": "donor.gd"
+        },
+        {
+          "file": "plugin.cfg",
+          "line": 3,
+          "kind": "path",
+          "text": "script=\"donor.gd\""
+        }
+      ],
+      "truncated": false,
+      "hard_files": [],
+      "soft_files": [
+        "a.txt",
+        "plugin.cfg"
+      ]
+    }
+  }
+}

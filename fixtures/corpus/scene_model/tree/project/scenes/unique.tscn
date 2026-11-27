@@ -1,0 +1,5 @@
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+unique_name_in_owner = true
+[node name="Unique" parent="."]
+unique_name_in_owner = false

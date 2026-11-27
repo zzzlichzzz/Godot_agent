@@ -1,0 +1,67 @@
+{
+  "id": "sync-import-moved",
+  "tool": "file_refactor",
+  "scenario": "external_sync",
+  "input": {
+    "old_path": "res://src/a.bin",
+    "new_path": "res://dst/a.bin",
+    "is_directory": false
+  },
+  "fixture": {
+    "dirs": [
+      "dst",
+      "src"
+    ],
+    "files": {
+      "dst/a.bin": {
+        "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/"
+      },
+      "dst/a.bin.import": {
+        "bytes_b64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL3NyYy9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+      },
+      "project.godot": {
+        "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+      }
+    }
+  },
+  "native_result": {
+    "entry_id": "52ac0009a095",
+    "old_path": "res://src/a.bin",
+    "new_path": "res://dst/a.bin",
+    "is_directory": false,
+    "changed_paths": [
+      "res://dst/a.bin.import"
+    ],
+    "reference_count": 0,
+    "file_count": 2,
+    "ok": true
+  },
+  "native_effects": {
+    "dst/a.bin": {
+      "$bytes_base64": "77u/UkFXDQpMT05FDUxGCgD/"
+    },
+    "dst/a.bin.import": {
+      "$bytes_base64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL2RzdC9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+    },
+    "project.godot": {
+      "$bytes_base64": "Y29uZmlnX3ZlcnNpb249NQo="
+    }
+  },
+  "original": {
+    "project.godot": {
+      "bytes_b64": "Y29uZmlnX3ZlcnNpb249NQo="
+    },
+    "src/a.bin": {
+      "bytes_b64": "77u/UkFXDQpMT05FDUxGCgD/"
+    },
+    "src/a.bin.import": {
+      "bytes_b64": "W3JlbWFwXQ0Kc291cmNlX2ZpbGU9InJlczovL3NyYy9hLmJpbiIKdWlkPSJ1aWQ6Ly9rZWVwIg0="
+    }
+  },
+  "inverse_byte_exact": true,
+  "reference_sha256": "61171473c1bb67359d551f10ef460b95790e32414696a2d1e30bfd1eabe407d8",
+  "native_capture": {
+    "raw_file": "native/sync-import-moved.json",
+    "sha256": "d134ed128728d09c540907acaadc4ebeca23cee6afcd8567550ad532cf728767"
+  }
+}

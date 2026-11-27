@@ -1,0 +1,64 @@
+{
+  "id": "005-old-no-signatures",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/old",
+  "args": {
+    "class_name": "Old"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "Old",
+      "found": true,
+      "cache_version": "4.0",
+      "inherits": [
+        "Old"
+      ],
+      "methods": [
+        {
+          "name": "old",
+          "min_args": 0,
+          "max_args": 2,
+          "signature": ""
+        }
+      ],
+      "properties": [],
+      "signals": [],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "Old",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.0",
+    "record": {
+      "inherits": null,
+      "methods": {
+        "old": [
+          0,
+          2
+        ]
+      }
+    },
+    "chain": [
+      "Old"
+    ],
+    "members": [
+      {
+        "old": [
+          0,
+          2
+        ]
+      },
+      [],
+      []
+    ],
+    "signatures": {}
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

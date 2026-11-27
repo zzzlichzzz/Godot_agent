@@ -1,0 +1,21 @@
+{
+  "id": "006-broken-scene-zero",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://broken/source.tscn",
+    "new_path": "res://other/source.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "old_path": "res://broken/source.tscn",
+      "new_path": "res://other/source.tscn",
+      "is_directory": false,
+      "file_count": 1,
+      "reference_count": 0,
+      "files": [],
+      "source_text": "[gd_scene\n[ext_resource path=\"../assets/item.gd\"\n"
+    }
+  }
+}

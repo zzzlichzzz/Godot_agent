@@ -1,0 +1,40 @@
+{
+  "id": "001-one-file",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Объявление и вызов в одном файле: один шаг, strict проходит",
+  "args": {
+    "kind": "function",
+    "old_name": "strike",
+    "new_name": "punch",
+    "declaration": "res://src/hero.gd:10"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "function",
+      "old_name": "strike",
+      "new_name": "punch",
+      "declaration": "res://src/hero.gd:10",
+      "mode": "strict",
+      "allow_unverified": false,
+      "state": "PREPARED",
+      "steps": [
+        {
+          "path": "res://src/hero.gd",
+          "edits": 1
+        }
+      ],
+      "steps_count": 1,
+      "affected_paths": [
+        "res://src/hero.gd"
+      ],
+      "stats": {
+        "files": 1,
+        "edits": 1,
+        "dynamic": 0
+      },
+      "excluded": 0
+    }
+  }
+}

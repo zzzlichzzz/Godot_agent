@@ -1,0 +1,41 @@
+{
+  "id": "033-scripts.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "scripts.tscn: 'Child'",
+  "args": {
+    "path": "res://scenes/scripts.tscn",
+    "node": "Child"
+  },
+  "reference_node": {
+    "name": "Child",
+    "parent": ".",
+    "type": "Node",
+    "path": "Child",
+    "unique_name": false,
+    "script_id": "child",
+    "header_span": [
+      218,
+      260
+    ],
+    "body_span": [
+      260,
+      291
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Child",
+      "type": "Node",
+      "parent": ".",
+      "path": "Child",
+      "depth": 1,
+      "script": "res://scripts/child.gd",
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": []
+    }
+  }
+}

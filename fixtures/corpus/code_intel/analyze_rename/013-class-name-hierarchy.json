@@ -1,0 +1,105 @@
+{
+  "id": "013-class-name-hierarchy",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "class_name: затронуты объявление и наследники, affected_paths отсортирован",
+  "args": {
+    "kind": "class_name",
+    "old_name": "LabEntity",
+    "new_name": "LabUnit",
+    "declaration": "res://src/lab_entity.gd:1"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "kind": "class_name",
+      "old_name": "LabEntity",
+      "new_name": "LabUnit",
+      "declaration": "res://src/lab_entity.gd:1",
+      "allow_unverified": false,
+      "mode": "strict",
+      "affected_paths": [
+        "res://src/lab_entity.gd",
+        "res://src/lab_root.gd",
+        "res://src/lab_turret.gd"
+      ],
+      "risks": [],
+      "declaration_path": "res://src/lab_entity.gd",
+      "declaration_line": 1,
+      "usages": [
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 1,
+          "column": 12,
+          "link": "declaration",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 20,
+          "column": 23,
+          "link": "type",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_entity.gd",
+          "line": 21,
+          "column": 9,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_root.gd",
+          "line": 5,
+          "column": 18,
+          "link": "type",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_root.gd",
+          "line": 11,
+          "column": 14,
+          "link": "type",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_root.gd",
+          "line": 13,
+          "column": 22,
+          "link": "type",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_root.gd",
+          "line": 14,
+          "column": 8,
+          "link": "identifier",
+          "confidence": "proven",
+          "note": null
+        },
+        {
+          "path": "res://src/lab_turret.gd",
+          "line": 1,
+          "column": 9,
+          "link": "type",
+          "confidence": "proven",
+          "note": null
+        }
+      ],
+      "by_link": {
+        "declaration": 1,
+        "type": 5,
+        "identifier": 2
+      },
+      "proven_count": 8,
+      "probable_count": 0,
+      "dynamic_count": 0
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "018-history",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://.agent_history/source.gd",
+    "new_path": "res://next/item.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  },
+  "expected_message": "Доступ к служебной папке истории запрещён."
+}

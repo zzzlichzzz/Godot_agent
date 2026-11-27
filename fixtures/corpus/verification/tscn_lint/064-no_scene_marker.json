@@ -1,0 +1,23 @@
+{
+  "id": "064-no_scene_marker",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "a non-scene text with eval(\"never-execute\")\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "a non-scene text with eval(\"never-execute\")\n",
+      "changed": false,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "a non-scene text with eval(\"never-execute\")\n",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

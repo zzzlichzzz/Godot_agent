@@ -1,0 +1,234 @@
+{
+  "id": "051-plan-inventory-doc-private-all",
+  "tool": "split_plan",
+  "fixture": "corpus/editing/split_py/plan_inventory-doc-private-all",
+  "args": {
+    "path": "res://donor.py",
+    "groups": [
+      {
+        "module": "part",
+        "symbols": [
+          "STATE",
+          "VALUE",
+          "fn",
+          "_private",
+          "Public"
+        ]
+      }
+    ]
+  },
+  "reference_result": {
+    "schema": 1,
+    "addon_dir": "C:\\Users\\Lich\\AppData\\Local\\Temp\\opencode\\c18-split-py-plan-20261101-resume\\corpus-staging\\plan_inventory-doc-private-all",
+    "donor": "donor.py",
+    "donor_sha256": "944d2106324273648440f1b22c42771db204850e7485c31feace97f9aae843a0",
+    "donor_lines": 14,
+    "target_lines": 900,
+    "auto_groups": false,
+    "modules": [
+      {
+        "module": "part",
+        "rel": "part.py",
+        "names": [
+          "STATE",
+          "VALUE",
+          "fn",
+          "_private",
+          "Public"
+        ],
+        "lines": 25,
+        "text": "# -*- coding: utf-8 -*-\n\n\"\"\"part — часть donor.py (вынесено split_refactor).\n\nФасад и точка входа — donor.py: он реэкспортирует имена модуля.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport math as m\nfrom pathlib import Path as P\n\nSTATE = {}\n\nVALUE = 3\n\n# sticky\ndef fn():\n    return m.sqrt(VALUE)\n\nasync def _private():\n    return P(\"x\")\n\nclass Public:\n    pass\n"
+      }
+    ],
+    "facade": {
+      "rel": "donor.py",
+      "text": "\"\"\"Donor doc.\"\"\"\nfrom __future__ import annotations\nimport math as m\nfrom pathlib import Path as P\n# --- фасад: код разнесён по модулям (split_refactor) ---\nfrom part import Public, STATE, VALUE, _private, fn\n__all__ = [\"Public\", \"STATE\", \"VALUE\", \"fn\"]\n",
+      "lines": 7,
+      "reexports": [
+        {
+          "module": "part",
+          "names": [
+            "Public",
+            "STATE",
+            "VALUE",
+            "_private",
+            "fn"
+          ]
+        }
+      ]
+    },
+    "moved_names": [
+      "Public",
+      "STATE",
+      "VALUE",
+      "_private",
+      "fn"
+    ],
+    "errors": [],
+    "warnings": [
+      "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+      "part.py: зона ? (unknown)",
+      "старый __all__ заменён генерацией фасада"
+    ],
+    "inventory": {
+      "symbols": [
+        {
+          "name": "STATE",
+          "kind": "assign",
+          "lines": 1,
+          "is_public": true,
+          "state": true
+        },
+        {
+          "name": "VALUE",
+          "kind": "assign",
+          "lines": 1,
+          "is_public": true,
+          "state": false
+        },
+        {
+          "name": "fn",
+          "kind": "def",
+          "lines": 3,
+          "is_public": true,
+          "state": false
+        },
+        {
+          "name": "_private",
+          "kind": "def",
+          "lines": 2,
+          "is_public": false,
+          "state": false
+        },
+        {
+          "name": "Public",
+          "kind": "class",
+          "lines": 2,
+          "is_public": true,
+          "state": false
+        }
+      ],
+      "imports": 3,
+      "other": 1,
+      "docstring": true
+    },
+    "refs": {
+      "counts": {
+        "import": 0,
+        "source_read": 0,
+        "patch": 0,
+        "mention": 0,
+        "doc": 0
+      },
+      "hard_files": [],
+      "soft_files": [],
+      "truncated": false
+    }
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "donor": "donor.py",
+      "donor_sha256": "944d2106324273648440f1b22c42771db204850e7485c31feace97f9aae843a0",
+      "donor_lines": 14,
+      "target_lines": 900,
+      "auto_groups": false,
+      "moved_names": [
+        "Public",
+        "STATE",
+        "VALUE",
+        "_private",
+        "fn"
+      ],
+      "errors": [],
+      "warnings": [
+        "карта архитектуры не найдена — зоны, лимиты и дубли имён не проверены",
+        "part.py: зона ? (unknown)",
+        "старый __all__ заменён генерацией фасада"
+      ],
+      "inventory": {
+        "symbols": [
+          {
+            "name": "STATE",
+            "kind": "assign",
+            "lines": 1,
+            "is_public": true,
+            "state": true
+          },
+          {
+            "name": "VALUE",
+            "kind": "assign",
+            "lines": 1,
+            "is_public": true,
+            "state": false
+          },
+          {
+            "name": "fn",
+            "kind": "def",
+            "lines": 3,
+            "is_public": true,
+            "state": false
+          },
+          {
+            "name": "_private",
+            "kind": "def",
+            "lines": 2,
+            "is_public": false,
+            "state": false
+          },
+          {
+            "name": "Public",
+            "kind": "class",
+            "lines": 2,
+            "is_public": true,
+            "state": false
+          }
+        ],
+        "imports": 3,
+        "other": 1,
+        "docstring": true
+      },
+      "refs": {
+        "counts": {
+          "import": 0,
+          "source_read": 0,
+          "patch": 0,
+          "mention": 0,
+          "doc": 0
+        },
+        "hard_files": [],
+        "soft_files": [],
+        "truncated": false
+      },
+      "modules": [
+        {
+          "rel": "part.py",
+          "names": [
+            "STATE",
+            "VALUE",
+            "fn",
+            "_private",
+            "Public"
+          ],
+          "lines": 25
+        }
+      ],
+      "facade": {
+        "rel": "donor.py",
+        "lines": 7,
+        "reexports": [
+          {
+            "module": "part",
+            "names": [
+              "Public",
+              "STATE",
+              "VALUE",
+              "_private",
+              "fn"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

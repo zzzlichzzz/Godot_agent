@@ -1,0 +1,241 @@
+{
+  "input": {
+    "id": "routing153",
+    "label": "blank continuation stops",
+    "kind": "send",
+    "responses": [
+      {
+        "wire_base64": "ZGF0YTogeyJtb2RlbCI6ICJmaXh0dXJlL21vZGVsIiwgImNob2ljZXMiOiBbeyJkZWx0YSI6IHsiY29udGVudCI6ICJwaWVjZSAxIn19XX0KCmRhdGE6IHsiY2hvaWNlcyI6IFt7ImRlbHRhIjoge30sICJmaW5pc2hfcmVhc29uIjogImxlbmd0aCJ9XSwgInVzYWdlIjogeyJwcm9tcHRfdG9rZW5zIjogNzAsICJjb21wbGV0aW9uX3Rva2VucyI6IDZ9fQoKZGF0YTogW0RPTkVdCgo=",
+        "chunk": 17
+      },
+      {
+        "wire_base64": "ZGF0YTogeyJjaG9pY2VzIjogW3siZGVsdGEiOiB7fSwgImZpbmlzaF9yZWFzb24iOiAic3RvcCJ9XSwgInVzYWdlIjogeyJwcm9tcHRfdG9rZW5zIjogNzAsICJjb21wbGV0aW9uX3Rva2VucyI6IDZ9fQoKZGF0YTogW0RPTkVdCgo=",
+        "chunk": 17
+      }
+    ]
+  },
+  "expect": {
+    "result": {
+      "reply": {
+        "text": "piece 1\n[color=#c08040]— ответ обрезан лимитом вывода модели —[/color]\n\n[color=#888888]· 140 → 12 tok · Σ 152 · 1 запр.[/color]",
+        "action": null,
+        "raw": "piece 1",
+        "usage": {
+          "prompt_tokens": 140,
+          "completion_tokens": 12
+        },
+        "finish_reason": "length",
+        "model": "fixture/model"
+      },
+      "requests": [
+        {
+          "url": "http://127.0.0.1:1/v1/chat/completions",
+          "payload": {
+            "model": "fixture/model",
+            "messages": [
+              {
+                "role": "system",
+                "content": "synthetic system instructions"
+              },
+              {
+                "role": "user",
+                "content": "synthetic user request"
+              }
+            ],
+            "stream": true,
+            "max_tokens": 1000,
+            "temperature": 0.25
+          },
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": "GodotAgent/0.6"
+          },
+          "proxy": null,
+          "accept": "text/event-stream",
+          "timeout": 30.0,
+          "method": "POST",
+          "key_slot": -1
+        },
+        {
+          "url": "http://127.0.0.1:1/v1/chat/completions",
+          "payload": {
+            "model": "fixture/model",
+            "messages": [
+              {
+                "role": "system",
+                "content": "synthetic system instructions"
+              },
+              {
+                "role": "user",
+                "content": "synthetic user request"
+              },
+              {
+                "role": "assistant",
+                "content": "piece 1"
+              },
+              {
+                "role": "user",
+                "content": "[Система]: твой предыдущий ответ оборвался на середине — у него кончился лимит вывода. Продолжи РОВНО с того символа, на котором остановился. Не начинай заново, не повторяй уже присланное, не пересказывай и не извиняйся — просто продолжай текст с места обрыва. Если обрыв случился внутри блока ```agent_action, допиши его и закрой ``` — блок должен остаться ОДНИМ целым блоком, а не двумя."
+              }
+            ],
+            "stream": true,
+            "max_tokens": 1000,
+            "temperature": 0.25
+          },
+          "headers": {
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "User-Agent": "GodotAgent/0.6"
+          },
+          "proxy": null,
+          "accept": "text/event-stream",
+          "timeout": 30.0,
+          "method": "POST",
+          "key_slot": -1
+        }
+      ],
+      "deltas": [
+        {
+          "protocol": "openai",
+          "text": "piece 1",
+          "reasoning": false
+        }
+      ],
+      "progress": [
+        {
+          "phase": "запрос к Свой адрес (OpenAI-совместимый)",
+          "chars": 0,
+          "elapsed": 0,
+          "stream": ""
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 7,
+          "elapsed": 0,
+          "stream": "piece 1"
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 7,
+          "elapsed": 0,
+          "stream": "piece 1"
+        },
+        {
+          "phase": "model дописывает ответ (1/3)",
+          "chars": 7,
+          "elapsed": 0,
+          "stream": "piece 1"
+        },
+        {
+          "phase": "model отвечает",
+          "chars": 7,
+          "elapsed": 0,
+          "stream": "piece 1"
+        }
+      ],
+      "messages_built": [
+        {
+          "budget": 16000,
+          "messages": [
+            {
+              "role": "system",
+              "content": "synthetic system instructions"
+            },
+            {
+              "role": "user",
+              "content": "synthetic user request"
+            }
+          ]
+        }
+      ],
+      "saved_messages": [
+        {
+          "role": "user",
+          "content": "synthetic user request",
+          "kind": "prompt",
+          "ts": 1000.0
+        },
+        {
+          "role": "assistant",
+          "content": "piece 1",
+          "kind": "answer",
+          "ts": 1000.0
+        }
+      ],
+      "files": {
+        "history/agent_api_history/fixturechat0001.json": {
+          "version": 1,
+          "messages": [
+            {
+              "role": "user",
+              "content": "synthetic user request",
+              "kind": "prompt",
+              "ts": 1000.0
+            },
+            {
+              "role": "assistant",
+              "content": "piece 1",
+              "kind": "answer",
+              "ts": 1000.0
+            }
+          ],
+          "usage_total": {
+            "prompt_tokens": 140,
+            "completion_tokens": 12,
+            "requests": 1
+          },
+          "trimmed": 0
+        },
+        "runtime/config/api_keys.json": {
+          "version": 2,
+          "providers": {
+            "custom": {
+              "keys": [],
+              "model": "not-the-chat-model",
+              "base_url": "http://127.0.0.1:1/v1"
+            }
+          },
+          "defaults": {
+            "provider": "",
+            "model": ""
+          },
+          "proxy": {
+            "enabled": false,
+            "host": "",
+            "port": 0,
+            "user": "",
+            "password": ""
+          },
+          "dns": {
+            "enabled": false,
+            "url": ""
+          },
+          "provider_stats": {},
+          "catalog": {
+            "enabled": false
+          },
+          "recent": []
+        }
+      },
+      "rate_status": [
+        null,
+        null
+      ],
+      "retry_after": [
+        null,
+        null
+      ],
+      "usable_key_indices": [],
+      "description": "custom / fixture/model"
+    },
+    "stdout": "--> Бюджеты токенов для fixture/model: окно 32000 (оценка по умолчанию), история 16000, ответ 1000\n<-- API custom / fixture/model: 7 симв., finish=length, событий=2, 0.0 с\n    токены: запрос 70, ответ 6\n--> API custom / fixture/model: ответ упёрся в лимит вывода — прошу дописать (1/3, уже 7 симв.)\n<-- API custom / fixture/model: дописывание ничего не добавило — прекращаю.\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "ApiBackend.send",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

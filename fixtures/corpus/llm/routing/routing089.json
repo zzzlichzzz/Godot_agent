@@ -1,0 +1,22 @@
+{
+  "input": {
+    "id": "routing089",
+    "label": "_merge_usage",
+    "function": "_merge_usage",
+    "args": [
+      null,
+      null
+    ]
+  },
+  "expect": {
+    "result": null,
+    "stdout": ""
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "_merge_usage",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

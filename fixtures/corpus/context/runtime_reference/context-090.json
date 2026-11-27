@@ -1,0 +1,30 @@
+{
+  "input": {
+    "module": "runtime_debug",
+    "function": "validate_snapshot_request",
+    "args": [
+      {
+        "tree": []
+      },
+      {
+        "sections": [
+          "tree",
+          "metrics"
+        ]
+      }
+    ],
+    "kwargs": {},
+    "id": "context-090"
+  },
+  "expect": {
+    "error": "RuntimeDebugError",
+    "message": "runtime snapshot misses requested sections: metrics"
+  },
+  "provenance": {
+    "source": "godot_tools/runtime_debug.py",
+    "source_sha256": "ed7d6087c84f1634ad5c7a5479f01ab4204f862aa8bd0b6823a745c49514be2f",
+    "function": "validate_snapshot_request",
+    "case_source": "test_runtime_debug.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

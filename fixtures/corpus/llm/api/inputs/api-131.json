@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "model_cache",
+  "function": "_clean_records",
+  "args": [
+    []
+  ],
+  "kwargs": {},
+  "id": "api-131"
+}

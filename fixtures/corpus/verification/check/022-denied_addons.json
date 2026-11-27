@@ -1,0 +1,17 @@
+{
+  "id": "022-denied_addons",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://addons/vendor/a.gd"
+  },
+  "reference_error": {
+    "type": "ValueError",
+    "message": "Путь отклонён политикой доступа (read): res://addons/vendor/a.gd"
+  },
+  "contract_refusal": "denied_addons",
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "017-unique.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "unique.tscn: '%Missing'",
+  "args": {
+    "path": "res://scenes/unique.tscn",
+    "node": "%Missing"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Уникальный узел %Missing не найден в сцене"
+  }
+}

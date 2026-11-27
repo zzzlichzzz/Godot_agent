@@ -1,0 +1,26 @@
+{
+  "id": "expanded-operations2",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": "x"
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "operations должен содержать от 1 до 20 операций",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "2f46de78cfb784083c298f8d9bcd129038c4e9047314035715d6273cf98cf5cd"
+}

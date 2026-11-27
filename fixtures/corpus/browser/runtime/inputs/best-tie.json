@@ -1,0 +1,14 @@
+{
+  "id": "best-tie",
+  "op": "best",
+  "variants": [
+    [
+      "left",
+      "same"
+    ],
+    [
+      "right",
+      "same"
+    ]
+  ]
+}

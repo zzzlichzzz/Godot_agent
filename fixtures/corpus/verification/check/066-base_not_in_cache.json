@@ -1,0 +1,46 @@
+{
+  "id": "066-base_not_in_cache",
+  "tool": "verify",
+  "fixture": "corpus/verification/check/api",
+  "args": {
+    "path": "res://unknown_base.gd"
+  },
+  "reference_result": {
+    "path": "res://unknown_base.gd",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "reference_lint": [],
+  "reference_api": [],
+  "contract_boundary": "C.13: kinds/availability projection; actual-old lint+API observations retained",
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://unknown_base.gd",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "gd",
+        "api"
+      ],
+      "unavailable": [
+        {
+          "kind": "base_class",
+          "reason": "base_not_in_cache"
+        },
+        {
+          "kind": "headless",
+          "reason": ".gd проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

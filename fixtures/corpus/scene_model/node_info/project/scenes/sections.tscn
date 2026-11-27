@@ -1,0 +1,7 @@
+[gd_scene format=3]
+[node name="Root" type="Node"]
+[node name="Inst" type="Node" parent="."]
+[editable path="Inst"]
+unique_name_in_owner = true
+[node name="Last" type="Node" parent="."]
+[connection signal="ready" from="." to="Last" method="_on_ready"]

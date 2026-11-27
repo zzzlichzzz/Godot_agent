@@ -1,0 +1,185 @@
+{
+  "before": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  },
+  "result": {
+    "pending": {
+      "protocol": 1,
+      "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "result_token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "chat_id": "fixture-chat",
+      "turn_id": 3,
+      "project_root": "<sandbox>\\project",
+      "state": "bound",
+      "session_id": 4,
+      "run_id": "fixture-run",
+      "action": {
+        "action": "run_check",
+        "scene": "res://scenes/main.tscn",
+        "steps": [
+          {
+            "op": "wait_frames",
+            "frames": 2,
+            "index": 0
+          },
+          {
+            "op": "input_action",
+            "name": "jump",
+            "pressed": true,
+            "strength": 1.0,
+            "index": 1
+          },
+          {
+            "op": "input_action",
+            "name": "jump",
+            "pressed": false,
+            "strength": 0.0,
+            "index": 2
+          },
+          {
+            "op": "assert_node",
+            "node": ".",
+            "exists": true,
+            "index": 3
+          },
+          {
+            "op": "assert_property",
+            "node": ".",
+            "property": "position",
+            "operator": "approx",
+            "expected": {
+              "type": "Vector2",
+              "value": [
+                1,
+                2
+              ]
+            },
+            "tolerance": 0.01,
+            "index": 4
+          },
+          {
+            "op": "assert_no_errors",
+            "index": 5
+          }
+        ],
+        "timeout_ms": 12000,
+        "screenshot": {
+          "when": "failure",
+          "max_width": 320,
+          "max_height": 180,
+          "quality": 0.6
+        },
+        "reason": ""
+      },
+      "deadline": 1024.0,
+      "log_cursor": {
+        "path": "<sandbox>\\user\\logs\\godot.log",
+        "offset": 0,
+        "available": false,
+        "complete": false
+      }
+    },
+    "public": {
+      "protocol": 1,
+      "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "result_token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scene": "res://scenes/main.tscn",
+      "timeout_ms": 12000
+    },
+    "game": {
+      "protocol": 1,
+      "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "run_id": "fixture-run",
+      "steps": [
+        {
+          "op": "wait_frames",
+          "frames": 2,
+          "index": 0
+        },
+        {
+          "op": "input_action",
+          "name": "jump",
+          "pressed": true,
+          "strength": 1.0,
+          "index": 1
+        },
+        {
+          "op": "input_action",
+          "name": "jump",
+          "pressed": false,
+          "strength": 0.0,
+          "index": 2
+        },
+        {
+          "op": "assert_node",
+          "node": ".",
+          "exists": true,
+          "index": 3
+        },
+        {
+          "op": "assert_property",
+          "node": ".",
+          "property": "position",
+          "operator": "approx",
+          "expected": {
+            "type": "Vector2",
+            "value": [
+              1,
+              2
+            ]
+          },
+          "tolerance": 0.01,
+          "index": 4
+        },
+        {
+          "op": "assert_no_errors",
+          "index": 5
+        }
+      ],
+      "timeout_ms": 12000,
+      "screenshot": {
+        "when": "failure",
+        "max_width": 320,
+        "max_height": 180,
+        "quality": 0.6
+      }
+    }
+  },
+  "after": {
+    "files": {
+      "player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCgpmdW5jIHJlYWR5KCk6CglwYXNzCg=="
+      },
+      "project.godot": {
+        "base64": "W2FwcGxpY2F0aW9uXQpjb25maWcvbmFtZT0iSjEgQTEgcmVmZXJlbmNlIgoKW3JlbmRlcmluZ10KcmVuZGVyZXIvcmVuZGVyaW5nX21ldGhvZD0iZ2xfY29tcGF0aWJpbGl0eSIK"
+      },
+      "Addons/tool.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQoKW25vZGUgbmFtZT0iVG9vbCIgdHlwZT0iTm9kZSJdCg=="
+      },
+      "scenes/main.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9wbGF5ZXIuZ2QiIGlkPSIxIl0KCltub2RlIG5hbWU9Ik1haW4iIHR5cGU9Ik5vZGUyRCJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikK"
+      }
+    },
+    "dirs": [
+      "Addons",
+      "scenes"
+    ]
+  }
+}

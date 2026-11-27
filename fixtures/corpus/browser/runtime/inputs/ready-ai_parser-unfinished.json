@@ -1,0 +1,11 @@
+{
+  "id": "ready-ai_parser-unfinished",
+  "op": "ready",
+  "parser": "ai_parser",
+  "answer_count": 4,
+  "sent_count": 999,
+  "before": 3,
+  "alive": true,
+  "finished": false,
+  "status": "MESSAGE_STATUS_GENERATING"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "009-sub.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/sub.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- sub id=Shape_1 RectangleShape2D\n- sub id=late ?",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": [
+          {
+            "id": "Shape_1",
+            "type": "RectangleShape2D"
+          },
+          {
+            "id": "late",
+            "type": "?"
+          }
+        ]
+      }
+    }
+  }
+}

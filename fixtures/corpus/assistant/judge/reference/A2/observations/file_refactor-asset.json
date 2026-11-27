@@ -1,0 +1,344 @@
+{
+  "before": {
+    "files": {
+      "notes.txt": {
+        "base64": "cmVhZC1vbmx5IGZpeHR1cmUNCg=="
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJKMSBBMiIKcnVuL21haW5fc2NlbmU9InJlczovL3NjZW5lLnRzY24iCg=="
+      },
+      "scene.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NjcmlwdHMvcGxheWVyLmdkIiBpZD0iMSJdCltub2RlIG5hbWU9IlBsYXllciIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iRmlyZUJ1dHRvbiIgdHlwZT0iQnV0dG9uIiBwYXJlbnQ9Ii4iXQpbbm9kZSBuYW1lPSJUaW1lciIgdHlwZT0iVGltZXIiIHBhcmVudD0iLiJdCg=="
+      },
+      ".godot/ignored.gd": {
+        "base64": "Y29uc3QgUCA9IHByZWxvYWQoInJlczovL3NjcmlwdHMvcGxheWVyLmdkIikK"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iQTIgb3duZWQgZml4dHVyZSIK"
+      },
+      "addons/godot_agent/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/icon.png.import": {
+        "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "scripts/helper.gd": {
+        "base64": "ZXh0ZW5kcyBSZWZDb3VudGVkCg=="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBocCA9IDEwCmZ1bmMgX3JlYWR5KCk6CglwYXNzCg=="
+      },
+      "scripts/player.gd.uid": {
+        "base64": "dWlkOi8vajFhMmZpeHR1cmUK"
+      },
+      "scripts/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCIuL3BsYXllci5nZCIpCmNvbnN0IFEgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      }
+    },
+    "dirs": [
+      ".godot",
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "scripts"
+    ]
+  },
+  "result": {
+    "prepared": {
+      "action": "rename_file",
+      "old_path": "res://assets/icon.png",
+      "new_path": "res://assets/moved.png",
+      "companion_script": null,
+      "update_references": true,
+      "files": [
+        {
+          "action": "move_file",
+          "path": "res://assets/icon.png",
+          "dest": "res://assets/moved.png",
+          "absolute": "<sandbox>\\project\\assets\\icon.png",
+          "dest_absolute": "<sandbox>\\project\\assets\\moved.png",
+          "before_hash": "2640059609118b695c139804676372eca75c30d30e5906775902d13e44f5356c",
+          "before_bytes": {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+          },
+          "after_bytes": {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+          },
+          "diff": {
+            "path": "res://assets/icon.png",
+            "action": "move_file",
+            "dest": "res://assets/moved.png",
+            "lines": [
+              {
+                "type": "info",
+                "text": "Файл перемещён в res://assets/moved.png"
+              }
+            ]
+          },
+          "occurrences": 0
+        },
+        {
+          "action": "move_file",
+          "path": "res://assets/icon.png.import",
+          "dest": "res://assets/moved.png.import",
+          "absolute": "<sandbox>\\project\\assets\\icon.png.import",
+          "dest_absolute": "<sandbox>\\project\\assets\\moved.png.import",
+          "before_hash": "63743435a0970072548fd20bcc2ef4b34d3e2fd675f6a40b9c028a76d2b32d9f",
+          "before_bytes": {
+            "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+          },
+          "after_bytes": {
+            "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvbW92ZWQucG5nIgo="
+          },
+          "diff": {
+            "lines": [
+              {
+                "type": "info",
+                "text": "Файл импорта (.import) перемещён в res://assets/moved.png.import"
+              },
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,4 +1,4 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "[remap]"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "importer=\"texture\""
+              ],
+              [
+                " ",
+                3,
+                3,
+                "[deps]"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "source_file=\"res://assets/icon.png\""
+              ],
+              [
+                "+",
+                null,
+                4,
+                "source_file=\"res://assets/moved.png\""
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "action": "move_file",
+            "path": "res://assets/icon.png.import",
+            "dest": "res://assets/moved.png.import"
+          },
+          "occurrences": 1,
+          "is_companion": true
+        }
+      ],
+      "reference_count": 0,
+      "affected_paths": [
+        "res://assets/moved.png",
+        "res://assets/moved.png.import"
+      ]
+    },
+    "again": {
+      "action": "rename_file",
+      "old_path": "res://assets/icon.png",
+      "new_path": "res://assets/moved.png",
+      "companion_script": null,
+      "update_references": true,
+      "files": [
+        {
+          "action": "move_file",
+          "path": "res://assets/icon.png",
+          "dest": "res://assets/moved.png",
+          "absolute": "<sandbox>\\project\\assets\\icon.png",
+          "dest_absolute": "<sandbox>\\project\\assets\\moved.png",
+          "before_hash": "2640059609118b695c139804676372eca75c30d30e5906775902d13e44f5356c",
+          "before_bytes": {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+          },
+          "after_bytes": {
+            "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+          },
+          "diff": {
+            "path": "res://assets/icon.png",
+            "action": "move_file",
+            "dest": "res://assets/moved.png",
+            "lines": [
+              {
+                "type": "info",
+                "text": "Файл перемещён в res://assets/moved.png"
+              }
+            ]
+          },
+          "occurrences": 0
+        },
+        {
+          "action": "move_file",
+          "path": "res://assets/icon.png.import",
+          "dest": "res://assets/moved.png.import",
+          "absolute": "<sandbox>\\project\\assets\\icon.png.import",
+          "dest_absolute": "<sandbox>\\project\\assets\\moved.png.import",
+          "before_hash": "63743435a0970072548fd20bcc2ef4b34d3e2fd675f6a40b9c028a76d2b32d9f",
+          "before_bytes": {
+            "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+          },
+          "after_bytes": {
+            "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvbW92ZWQucG5nIgo="
+          },
+          "diff": {
+            "lines": [
+              {
+                "type": "info",
+                "text": "Файл импорта (.import) перемещён в res://assets/moved.png.import"
+              },
+              [
+                "@",
+                1,
+                1,
+                "@@ -1,4 +1,4 @@"
+              ],
+              [
+                " ",
+                1,
+                1,
+                "[remap]"
+              ],
+              [
+                " ",
+                2,
+                2,
+                "importer=\"texture\""
+              ],
+              [
+                " ",
+                3,
+                3,
+                "[deps]"
+              ],
+              [
+                "-",
+                4,
+                null,
+                "source_file=\"res://assets/icon.png\""
+              ],
+              [
+                "+",
+                null,
+                4,
+                "source_file=\"res://assets/moved.png\""
+              ]
+            ],
+            "added": 1,
+            "removed": 1,
+            "truncated": false,
+            "action": "move_file",
+            "path": "res://assets/icon.png.import",
+            "dest": "res://assets/moved.png.import"
+          },
+          "occurrences": 1,
+          "is_companion": true
+        }
+      ],
+      "reference_count": 0,
+      "affected_paths": [
+        "res://assets/moved.png",
+        "res://assets/moved.png.import"
+      ]
+    }
+  },
+  "after": {
+    "files": {
+      "notes.txt": {
+        "base64": "cmVhZC1vbmx5IGZpeHR1cmUNCg=="
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJKMSBBMiIKcnVuL21haW5fc2NlbmU9InJlczovL3NjZW5lLnRzY24iCg=="
+      },
+      "scene.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NjcmlwdHMvcGxheWVyLmdkIiBpZD0iMSJdCltub2RlIG5hbWU9IlBsYXllciIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iRmlyZUJ1dHRvbiIgdHlwZT0iQnV0dG9uIiBwYXJlbnQ9Ii4iXQpbbm9kZSBuYW1lPSJUaW1lciIgdHlwZT0iVGltZXIiIHBhcmVudD0iLiJdCg=="
+      },
+      ".godot/ignored.gd": {
+        "base64": "Y29uc3QgUCA9IHByZWxvYWQoInJlczovL3NjcmlwdHMvcGxheWVyLmdkIikK"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iQTIgb3duZWQgZml4dHVyZSIK"
+      },
+      "addons/godot_agent/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/icon.png.import": {
+        "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "scripts/helper.gd": {
+        "base64": "ZXh0ZW5kcyBSZWZDb3VudGVkCg=="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBocCA9IDEwCmZ1bmMgX3JlYWR5KCk6CglwYXNzCg=="
+      },
+      "scripts/player.gd.uid": {
+        "base64": "dWlkOi8vajFhMmZpeHR1cmUK"
+      },
+      "scripts/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCIuL3BsYXllci5nZCIpCmNvbnN0IFEgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      }
+    },
+    "dirs": [
+      ".godot",
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "scripts"
+    ]
+  }
+}

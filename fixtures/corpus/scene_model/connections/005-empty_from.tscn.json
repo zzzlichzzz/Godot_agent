@@ -1,0 +1,23 @@
+{
+  "id": "005-empty_from.tscn",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "empty_from.tscn",
+  "args": {
+    "path": "res://empty_from.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "connections": [
+        {
+          "signal": "pressed",
+          "from": "",
+          "to": ".",
+          "method": "_on_button_pressed"
+        }
+      ],
+      "text": "- <root>.pressed -> <root>._on_button_pressed()"
+    }
+  }
+}

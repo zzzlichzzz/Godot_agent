@@ -1,0 +1,15 @@
+{
+  "id": "008-locator-syntax",
+  "tool": "usages",
+  "fixture": "usages",
+  "note": "Синтаксически кривой locator: отказ invalid_input, а не падение",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "declaration": "res://src/lab_entity.gd:abc"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

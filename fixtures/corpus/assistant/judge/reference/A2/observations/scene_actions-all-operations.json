@@ -1,0 +1,330 @@
+{
+  "before": {
+    "files": {
+      "notes.txt": {
+        "base64": "cmVhZC1vbmx5IGZpeHR1cmUNCg=="
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJKMSBBMiIKcnVuL21haW5fc2NlbmU9InJlczovL3NjZW5lLnRzY24iCg=="
+      },
+      "scene.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NjcmlwdHMvcGxheWVyLmdkIiBpZD0iMSJdCltub2RlIG5hbWU9IlBsYXllciIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iRmlyZUJ1dHRvbiIgdHlwZT0iQnV0dG9uIiBwYXJlbnQ9Ii4iXQpbbm9kZSBuYW1lPSJUaW1lciIgdHlwZT0iVGltZXIiIHBhcmVudD0iLiJdCg=="
+      },
+      ".godot/ignored.gd": {
+        "base64": "Y29uc3QgUCA9IHByZWxvYWQoInJlczovL3NjcmlwdHMvcGxheWVyLmdkIikK"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iQTIgb3duZWQgZml4dHVyZSIK"
+      },
+      "addons/godot_agent/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/icon.png.import": {
+        "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "scripts/helper.gd": {
+        "base64": "ZXh0ZW5kcyBSZWZDb3VudGVkCg=="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBocCA9IDEwCmZ1bmMgX3JlYWR5KCk6CglwYXNzCg=="
+      },
+      "scripts/player.gd.uid": {
+        "base64": "dWlkOi8vajFhMmZpeHR1cmUK"
+      },
+      "scripts/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCIuL3BsYXllci5nZCIpCmNvbnN0IFEgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      }
+    },
+    "dirs": [
+      ".godot",
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "scripts"
+    ]
+  },
+  "result": {
+    "normalized": [
+      {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "attach_script",
+            "node": "Child",
+            "script": "res://scripts/player.gd",
+            "replace_existing": false
+          },
+          {
+            "op": "connect_signal",
+            "source": "FireButton",
+            "signal": "pressed",
+            "target": ".",
+            "method": "_on_pressed"
+          },
+          {
+            "op": "reparent_node",
+            "node": "Child",
+            "new_parent": "Timer",
+            "keep_global_transform": false
+          }
+        ],
+        "summary": "текст"
+      },
+      "<sandbox>\\project\\scene.tscn"
+    ],
+    "digest": "0547e43867763b3ce8a61fc423ec754702e8dec1a32cd370f0ac7d13847abee1",
+    "summary": [
+      "1. добавить узел",
+      "2. изменить свойство",
+      "3. назначить скрипт",
+      "4. подключить сигнал",
+      "5. переместить узел"
+    ],
+    "normalized_again": [
+      {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "attach_script",
+            "node": "Child",
+            "script": "res://scripts/player.gd",
+            "replace_existing": false
+          },
+          {
+            "op": "connect_signal",
+            "source": "FireButton",
+            "signal": "pressed",
+            "target": ".",
+            "method": "_on_pressed"
+          },
+          {
+            "op": "reparent_node",
+            "node": "Child",
+            "new_parent": "Timer",
+            "keep_global_transform": false
+          }
+        ],
+        "summary": "текст"
+      },
+      "<sandbox>\\project\\scene.tscn"
+    ],
+    "prepared": {
+      "action_id": "<action_id:uuid4hex>",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "attach_script",
+            "node": "Child",
+            "script": "res://scripts/player.gd",
+            "replace_existing": false
+          },
+          {
+            "op": "connect_signal",
+            "source": "FireButton",
+            "signal": "pressed",
+            "target": ".",
+            "method": "_on_pressed"
+          },
+          {
+            "op": "reparent_node",
+            "node": "Child",
+            "new_parent": "Timer",
+            "keep_global_transform": false
+          }
+        ],
+        "summary": "текст"
+      },
+      "scene": "res://scene.tscn",
+      "action_digest": "0547e43867763b3ce8a61fc423ec754702e8dec1a32cd370f0ac7d13847abee1",
+      "before_hash": "a0cedec524942a75f9ba800fa3b481100a5ae91a0f547cc53a0d7a135f7ab487",
+      "state": "preview"
+    },
+    "public": {
+      "action_id": "<action_id:uuid4hex>",
+      "action_digest": "0547e43867763b3ce8a61fc423ec754702e8dec1a32cd370f0ac7d13847abee1",
+      "expected_scene_hash": "a0cedec524942a75f9ba800fa3b481100a5ae91a0f547cc53a0d7a135f7ab487",
+      "prepare_in_editor": true
+    },
+    "prepared_again": {
+      "action_id": "<action_id:uuid4hex>",
+      "action": {
+        "action": "edit_scene",
+        "scene": "res://scene.tscn",
+        "operations": [
+          {
+            "op": "add_node",
+            "parent": ".",
+            "name": "Child",
+            "type": "Node"
+          },
+          {
+            "op": "set_node_property",
+            "node": "Child",
+            "property": "visible",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          },
+          {
+            "op": "attach_script",
+            "node": "Child",
+            "script": "res://scripts/player.gd",
+            "replace_existing": false
+          },
+          {
+            "op": "connect_signal",
+            "source": "FireButton",
+            "signal": "pressed",
+            "target": ".",
+            "method": "_on_pressed"
+          },
+          {
+            "op": "reparent_node",
+            "node": "Child",
+            "new_parent": "Timer",
+            "keep_global_transform": false
+          }
+        ],
+        "summary": "текст"
+      },
+      "scene": "res://scene.tscn",
+      "action_digest": "0547e43867763b3ce8a61fc423ec754702e8dec1a32cd370f0ac7d13847abee1",
+      "before_hash": "a0cedec524942a75f9ba800fa3b481100a5ae91a0f547cc53a0d7a135f7ab487",
+      "state": "preview"
+    }
+  },
+  "after": {
+    "files": {
+      "notes.txt": {
+        "base64": "cmVhZC1vbmx5IGZpeHR1cmUNCg=="
+      },
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJKMSBBMiIKcnVuL21haW5fc2NlbmU9InJlczovL3NjZW5lLnRzY24iCg=="
+      },
+      "scene.tscn": {
+        "base64": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9MiBmb3JtYXQ9M10KW2V4dF9yZXNvdXJjZSB0eXBlPSJTY3JpcHQiIHBhdGg9InJlczovL3NjcmlwdHMvcGxheWVyLmdkIiBpZD0iMSJdCltub2RlIG5hbWU9IlBsYXllciIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCIxIikKW25vZGUgbmFtZT0iRmlyZUJ1dHRvbiIgdHlwZT0iQnV0dG9uIiBwYXJlbnQ9Ii4iXQpbbm9kZSBuYW1lPSJUaW1lciIgdHlwZT0iVGltZXIiIHBhcmVudD0iLiJdCg=="
+      },
+      ".godot/ignored.gd": {
+        "base64": "Y29uc3QgUCA9IHByZWxvYWQoInJlczovL3NjcmlwdHMvcGxheWVyLmdkIikK"
+      },
+      "addons/godot_agent/plugin.cfg": {
+        "base64": "W3BsdWdpbl0KbmFtZT0iQTIgb3duZWQgZml4dHVyZSIK"
+      },
+      "addons/godot_agent/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      },
+      "addons/other/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "assets/icon.png": {
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=="
+      },
+      "assets/icon.png.import": {
+        "base64": "W3JlbWFwXQppbXBvcnRlcj0idGV4dHVyZSIKW2RlcHNdCnNvdXJjZV9maWxlPSJyZXM6Ly9hc3NldHMvaWNvbi5wbmciCg=="
+      },
+      "assets/new.png": {
+        "base64": "b3duZWQgQTIgYWx0ZXJuYXRlIGFzc2V0AA=="
+      },
+      "data/other.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "data/resource.tres": {
+        "base64": "W2dkX3Jlc291cmNlIHR5cGU9IlJlc291cmNlIiBmb3JtYXQ9M10KW3Jlc291cmNlXQpyZXNvdXJjZV9uYW1lID0gIkEyIgo="
+      },
+      "scripts/helper.gd": {
+        "base64": "ZXh0ZW5kcyBSZWZDb3VudGVkCg=="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBocCA9IDEwCmZ1bmMgX3JlYWR5KCk6CglwYXNzCg=="
+      },
+      "scripts/player.gd.uid": {
+        "base64": "dWlkOi8vajFhMmZpeHR1cmUK"
+      },
+      "scripts/reference.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNvbnN0IFAgPSBwcmVsb2FkKCIuL3BsYXllci5nZCIpCmNvbnN0IFEgPSBwcmVsb2FkKCJyZXM6Ly9zY3JpcHRzL3BsYXllci5nZCIpCg=="
+      }
+    },
+    "dirs": [
+      ".godot",
+      "addons",
+      "addons/godot_agent",
+      "addons/other",
+      "assets",
+      "data",
+      "scripts"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "011-path-outside",
+  "tool": "analyze_rename",
+  "fixture": "usages",
+  "note": "Путь вне проекта закрыт политикой путей",
+  "args": {
+    "kind": "function",
+    "old_name": "x",
+    "new_name": "y",
+    "declaration": "res://../outside.gd:1"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

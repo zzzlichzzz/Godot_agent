@@ -1,0 +1,27 @@
+{
+  "input": {
+    "id": "routing042",
+    "label": "parse_action",
+    "function": "parse_action",
+    "args": [
+      "<tool_call><action><name>list_files</name><arguments>{\"dir\":\"res://\"}</arguments></action></tool_call>"
+    ]
+  },
+  "expect": {
+    "result": [
+      {
+        "dir": "res://",
+        "action": "list_files"
+      },
+      ""
+    ],
+    "stdout": "[api_backend] XML tool call приведён к agent_action\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "parse_action",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

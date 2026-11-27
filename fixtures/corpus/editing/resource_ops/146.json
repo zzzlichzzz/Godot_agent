@@ -1,0 +1,34 @@
+{
+  "id": "expanded-operation-refusal-3",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "replace_reference",
+        "target": [],
+        "old": "res://old.tres",
+        "new": "res://old.tres",
+        "expected_count": 1
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "old и new должны различаться",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "1e1f494f26ea993b94af09b0937bbd3d670d1c3eb7d8757b924ee9ce10b151da"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "scene_deps-snake-collision-ambiguity",
+  "group": "scene_deps",
+  "function": "analyze_scene_action",
+  "text": "[gd_scene load_steps=2 format=3]\n[ext_resource type=\"Script\" path=\"res://scripts/player.gd\" id=\"1\"]\n[node name=\"Player\" type=\"Node\"]\nscript = ExtResource(\"1\")\n[node name=\"FireButton\" type=\"Button\" parent=\".\"]\n[node name=\"Timer\" type=\"Timer\" parent=\".\"]\n[node name=\"fire_button\" type=\"Button\" parent=\".\"]\n",
+  "files": {
+    "scripts/player.gd": "extends Node\nfunc _on_fire_button_pressed():\n\tpass\n"
+  }
+}

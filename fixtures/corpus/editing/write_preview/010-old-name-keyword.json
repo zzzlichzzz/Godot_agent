@@ -1,0 +1,16 @@
+{
+  "id": "010-old-name-keyword",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Старое имя — ключевое слово: invalid_input",
+  "args": {
+    "kind": "function",
+    "old_name": "func",
+    "new_name": "run",
+    "declaration": "res://src/hero.gd:6"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

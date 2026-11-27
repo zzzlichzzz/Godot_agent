@@ -1,0 +1,15 @@
+{
+  "kind": "call",
+  "module": "catalog",
+  "function": "_clean_model",
+  "args": [
+    {
+      "limit": {
+        "context": true
+      },
+      "status": "unknown"
+    }
+  ],
+  "kwargs": {},
+  "id": "api-142"
+}

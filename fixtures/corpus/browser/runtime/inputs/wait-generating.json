@@ -1,0 +1,8 @@
+{
+  "id": "wait-generating",
+  "op": "wait",
+  "answer": {
+    "text": "partial"
+  },
+  "generating_until": 100
+}

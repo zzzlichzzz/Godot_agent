@@ -1,0 +1,622 @@
+{
+  "module": "assistant.judge",
+  "stage": "A3/reference-read-prepare-only",
+  "public_judge_implemented": false,
+  "case_count": 80,
+  "case_ids": [
+    "kind-function",
+    "kind-class_name",
+    "kind-signal",
+    "kind-variable",
+    "kind-const",
+    "kind-enum",
+    "kind-enum_member",
+    "search-without-new",
+    "search-comments",
+    "unknown-receiver",
+    "unknown-probable-False",
+    "unknown-strict-True",
+    "unknown-probable-True",
+    "dynamic-strict",
+    "dynamic-probable",
+    "class-API-string",
+    "class-ordinary-string",
+    "dictionary-not-typed",
+    "override",
+    "override-self-call",
+    "grandchild",
+    "subclass-typed",
+    "relative-extends",
+    "hidden-addon-override",
+    "allowed-addon-override",
+    "hidden-own-addon-override",
+    "subclass-wrong-kind",
+    "nested-foreign-scope",
+    "variable-shadow",
+    "local-variable",
+    "nested-member",
+    "same-space-collision",
+    "global-class-collision",
+    "engine-class-collision",
+    "autoload-collision",
+    "input-collision",
+    "class-foreign-local-warning",
+    "class-duplicate",
+    "class-file-move",
+    "class-file-collision",
+    "variable-instanced-scene",
+    "CRLF",
+    "BOM",
+    "invalid-UTF8",
+    "missing-source",
+    "locator-wrong-line",
+    "locator-wrong-column",
+    "locator-correct-column",
+    "escape",
+    "excluded-declaration",
+    "excluded-one-usage",
+    "excluded-all-usages",
+    "excluded-path-only",
+    "excluded-bad-tail",
+    "excluded-invalid",
+    "schema-bad-kind",
+    "schema-bad-name",
+    "schema-keyword",
+    "schema-same-name",
+    "schema-bad-mode",
+    "schema-coerced-mode",
+    "schema-rename-file-wrong-kind",
+    "schema-string-boolean",
+    "schema-integer-boolean",
+    "schema-nullable-boolean",
+    "exclude-parser-0",
+    "exclude-parser-1",
+    "exclude-parser-2",
+    "exclude-parser-3",
+    "exclude-parser-4",
+    "exclude-parser-5",
+    "exclude-parser-6",
+    "exclude-parser-7",
+    "exclude-parser-8",
+    "locator-parser-0",
+    "locator-parser-1",
+    "locator-parser-2",
+    "locator-parser-3",
+    "locator-parser-4",
+    "locator-parser-5"
+  ],
+  "oracle_runs": 2,
+  "oracle_differences": 0,
+  "catalog": {
+    "bytes": 28331,
+    "sha256": "45d300c2865952d22f65851aa5ddd131b9d651c1e5a8adb1cef94703c990d83c",
+    "LF": 946,
+    "CRLF": 0
+  },
+  "observations": {
+    "kind-function": {
+      "bytes": 29043,
+      "sha256": "5e3d6beb054ef9a4f011be5bbd5b97e00bbb9e3be80685849129aac62b6262a1",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "kind-class_name": {
+      "bytes": 17948,
+      "sha256": "732124c137f2b743e0ebf8bdc5bd16597a2b9676ebda1438d453f0de9b58c3e0",
+      "LF": 593,
+      "CRLF": 0
+    },
+    "kind-signal": {
+      "bytes": 23593,
+      "sha256": "d90b439003ff650307f2190afab38e805d5f0809e1f70658a2afa27a26cf8cff",
+      "LF": 753,
+      "CRLF": 0
+    },
+    "kind-variable": {
+      "bytes": 27655,
+      "sha256": "48cdfbee8131c5d32d375942ab5cf63816efdd152d745b7b3e711547c8498667",
+      "LF": 929,
+      "CRLF": 0
+    },
+    "kind-const": {
+      "bytes": 14047,
+      "sha256": "a960614156d54982df24c9c7419c90ab2e4b51fef7af74949cbb6647c5eed7bd",
+      "LF": 449,
+      "CRLF": 0
+    },
+    "kind-enum": {
+      "bytes": 14945,
+      "sha256": "ec5aa7983b109af8259741acc59d2d73cb5efc3b2bb7a778a3bdde519b8a4722",
+      "LF": 485,
+      "CRLF": 0
+    },
+    "kind-enum_member": {
+      "bytes": 14110,
+      "sha256": "01180e7cf0d4d82c58964ec02a8970a710e540367e20e956627167d691d4c943",
+      "LF": 449,
+      "CRLF": 0
+    },
+    "search-without-new": {
+      "bytes": 6012,
+      "sha256": "aede1ec8a98fb0f3c66a890a5c1ed660044a401a96f2600de09a3d45060aa714",
+      "LF": 150,
+      "CRLF": 0
+    },
+    "search-comments": {
+      "bytes": 29658,
+      "sha256": "8c26bb889e31b005c55f8f46338f54440a210693b50365fa648eac557fac342d",
+      "LF": 931,
+      "CRLF": 0
+    },
+    "unknown-receiver": {
+      "bytes": 12220,
+      "sha256": "ad28dfd04ce637319b7b290b42d77e42c1f902490882dfcb9862e18d8f00848c",
+      "LF": 298,
+      "CRLF": 0
+    },
+    "unknown-probable-False": {
+      "bytes": 31552,
+      "sha256": "0d66c09398dd73c3435d4fc22bd04fa24759f9cd10984fe07e3062931032fe34",
+      "LF": 959,
+      "CRLF": 0
+    },
+    "unknown-strict-True": {
+      "bytes": 35356,
+      "sha256": "92365c72e9a799f377cb1afaba3091572b64a642d1d5c6bff55f893f86171d28",
+      "LF": 1101,
+      "CRLF": 0
+    },
+    "unknown-probable-True": {
+      "bytes": 35366,
+      "sha256": "58804bfac6c87392184b88c072542bde2ca5054a3e2060ded07d344b703e8880",
+      "LF": 1101,
+      "CRLF": 0
+    },
+    "dynamic-strict": {
+      "bytes": 11596,
+      "sha256": "048494d40d28d631bc27f32b0008d729b514ae5c6c242afd70f3c2bec2716f3c",
+      "LF": 302,
+      "CRLF": 0
+    },
+    "dynamic-probable": {
+      "bytes": 30776,
+      "sha256": "3dd0cf6bb74b677a971c7d7d2b7c98b5eee165b2ec2c9b9d45154ca3e2111ce7",
+      "LF": 963,
+      "CRLF": 0
+    },
+    "class-API-string": {
+      "bytes": 23132,
+      "sha256": "bad4832f6cb8ab2352e136a64053a7967dd0af356b789188f631590ae60d1c52",
+      "LF": 781,
+      "CRLF": 0
+    },
+    "class-ordinary-string": {
+      "bytes": 18188,
+      "sha256": "3d50a7c2e6505366935e519b8c9f81d8337167f998d52c8bfcce8a9036a28fc2",
+      "LF": 599,
+      "CRLF": 0
+    },
+    "dictionary-not-typed": {
+      "bytes": 12278,
+      "sha256": "b851c1378868e0b40dc6dca3f0ec4be90b969282d775e4fa5cb2ecf4fefac19d",
+      "LF": 298,
+      "CRLF": 0
+    },
+    "override": {
+      "bytes": 33566,
+      "sha256": "5a75a88a113c4a02a175c7cc377f899ed6f3a7f75c12036071597f6f607a7b72",
+      "LF": 1079,
+      "CRLF": 0
+    },
+    "override-self-call": {
+      "bytes": 34955,
+      "sha256": "e8d1f010d40878450705213e07dd70970e9e063191053e2b73ab2aa283a20488",
+      "LF": 1131,
+      "CRLF": 0
+    },
+    "grandchild": {
+      "bytes": 37602,
+      "sha256": "208dd09861931f3f73089adc7d6aafd12c692fd7f9cc4aeb9d5274b38234d9c2",
+      "LF": 1227,
+      "CRLF": 0
+    },
+    "subclass-typed": {
+      "bytes": 39826,
+      "sha256": "cba73fe416aa2d11e4e8996022c8051cd4929848cd38bb919dad6ce8e26bfdf8",
+      "LF": 1279,
+      "CRLF": 0
+    },
+    "relative-extends": {
+      "bytes": 33641,
+      "sha256": "aa7ee812e987e2ab2e9d5b86f4e089474df78ada6856269dde1fba92e9bb7332",
+      "LF": 1079,
+      "CRLF": 0
+    },
+    "hidden-addon-override": {
+      "bytes": 10090,
+      "sha256": "c926ff057512d95be6bf2b40037879b573ae99d6f00f20b30a9ccb192a8e8481",
+      "LF": 264,
+      "CRLF": 0
+    },
+    "allowed-addon-override": {
+      "bytes": 29409,
+      "sha256": "6e9a1bf5ce98bff26cb3141256b54eece12c12beac9fe9fc9f99018d9f5768d6",
+      "LF": 919,
+      "CRLF": 0
+    },
+    "hidden-own-addon-override": {
+      "bytes": 10114,
+      "sha256": "f2f002dd609487229097d60ad7b49c3fb970d8911d1204e10d31e50819490434",
+      "LF": 264,
+      "CRLF": 0
+    },
+    "subclass-wrong-kind": {
+      "bytes": 10020,
+      "sha256": "7298990011cb4fe7847281c382fb6960ced216a8e6a4268b545f3ac03a08620a",
+      "LF": 264,
+      "CRLF": 0
+    },
+    "nested-foreign-scope": {
+      "bytes": 30456,
+      "sha256": "a528511a226209aa50e7fb56bc9562d431ee384500ca3bd049a302c39d54c56e",
+      "LF": 967,
+      "CRLF": 0
+    },
+    "variable-shadow": {
+      "bytes": 8618,
+      "sha256": "1438054e89a273c2f40e6a0e6fd99d673d0564eb7a26566a85acd11cd90720dd",
+      "LF": 254,
+      "CRLF": 0
+    },
+    "local-variable": {
+      "bytes": 14177,
+      "sha256": "27d78e8d4aad34930731e8d561f31daa92c167594dfe35fcf2012c0de4cc26f3",
+      "LF": 431,
+      "CRLF": 0
+    },
+    "nested-member": {
+      "bytes": 14838,
+      "sha256": "a1e765e08728a27fe4b693b51ea94e2ed2ef9734c206a12bd80fdf1ddba14de9",
+      "LF": 467,
+      "CRLF": 0
+    },
+    "same-space-collision": {
+      "bytes": 9648,
+      "sha256": "76e91dd4ff2bce07b411e966a9fb17122d73195ac3870fface26a231123363df",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "global-class-collision": {
+      "bytes": 7956,
+      "sha256": "5daa7a038b93c5bca918c7d1567b57cbac4dd99b19800f005dcb9da729500cdd",
+      "LF": 230,
+      "CRLF": 0
+    },
+    "engine-class-collision": {
+      "bytes": 9502,
+      "sha256": "cc0ca3060d7140e19516663ca2dbe9dc6d82ba1abba6ed91a919dfcebb0de808",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "autoload-collision": {
+      "bytes": 9524,
+      "sha256": "80db78d868e7ee4b6ff3ce41bce4673e2b29e9feaaa4c2782275f4f72b815800",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "input-collision": {
+      "bytes": 9442,
+      "sha256": "16620ac2cbb6e1bfac683f563860d53b55eb8cf9d6f9f8329c3fbe1b4f2be25d",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "class-foreign-local-warning": {
+      "bytes": 18977,
+      "sha256": "e846d6c505b735e7413a2095cabc00bd848ed0662cadc90b90eea0be4ffe4611",
+      "LF": 605,
+      "CRLF": 0
+    },
+    "class-duplicate": {
+      "bytes": 7894,
+      "sha256": "bc772d3e33401e23cb3eed9732a490e6a6717a44dde7a71b8c85c38d9868dcbb",
+      "LF": 230,
+      "CRLF": 0
+    },
+    "class-file-move": {
+      "bytes": 29166,
+      "sha256": "3bc4566bc5e0ec9d8e0b0df268faf151e4da768265a6794d8f7303e93fdee66b",
+      "LF": 935,
+      "CRLF": 0
+    },
+    "class-file-collision": {
+      "bytes": 7864,
+      "sha256": "b4a613a08edcca90d297737bf6ad17efafc64bc620a1dc7eb1557f6d09c1b89b",
+      "LF": 230,
+      "CRLF": 0
+    },
+    "variable-instanced-scene": {
+      "bytes": 32920,
+      "sha256": "68bb535468bbccac63bb5d3772ce206d7efcecef29ba8f68851c876015f4b221",
+      "LF": 1095,
+      "CRLF": 0
+    },
+    "CRLF": {
+      "bytes": 29235,
+      "sha256": "d76f227c1d5895f2bbe71c9172c7f0e2f184fccf401b735e8b6d3e008eaf5fca",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "BOM": {
+      "bytes": 29187,
+      "sha256": "ffc567d233c7301ecc605009abe4d18e57ace243c61c3c1c1fcb1096611f0589",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "invalid-UTF8": {
+      "bytes": 5328,
+      "sha256": "8462c3974687f19e02ece739ab7f619fd40a7fc153f597d1bf4e930141291603",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "missing-source": {
+      "bytes": 5988,
+      "sha256": "cff9990e32b841587e9117084c0326b9539019dc94a6852b96bebfe9cf434c7f",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "locator-wrong-line": {
+      "bytes": 6462,
+      "sha256": "a908762d944deb86908614cf50ec764100920656770bcafe7302752b568f95c6",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "locator-wrong-column": {
+      "bytes": 6456,
+      "sha256": "b29ab3ba037b7c64d15ee674699c1adfc031ceca181cdd90807c7fcee70811f0",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "locator-correct-column": {
+      "bytes": 29057,
+      "sha256": "fe5adef68fd2704e7c567b9eb64e77cb90c24ba35a4e10eced52de78ce70363f",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "escape": {
+      "bytes": 4768,
+      "sha256": "c5a546766d6ff6681d3b579515b32f9381804430d5781522492e239f0c3839be",
+      "LF": 98,
+      "CRLF": 0
+    },
+    "excluded-declaration": {
+      "bytes": 10024,
+      "sha256": "c473ced28cc33e6d8a95bfef3a1831b68e708191d9b99776380c3d1ac67ab3a3",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "excluded-one-usage": {
+      "bytes": 25301,
+      "sha256": "f374f167395e4e402265850bf020fba75e4182906649d8d571c1fc47a373175d",
+      "LF": 759,
+      "CRLF": 0
+    },
+    "excluded-all-usages": {
+      "bytes": 10048,
+      "sha256": "014a3ca1fbe51c98e2114e99f5d6eac26a4baca823f030dda4f457e6c40d469b",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "excluded-path-only": {
+      "bytes": 10242,
+      "sha256": "3e81c49dbe94562e38f6b1c9992b99b8542015658d395213362a64cc9a57fb90",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "excluded-bad-tail": {
+      "bytes": 10252,
+      "sha256": "2327a5db64225613b7e4a30deb7c8729d2b5cba0209e09192c0d7bdac01d6b4d",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "excluded-invalid": {
+      "bytes": 29043,
+      "sha256": "5e3d6beb054ef9a4f011be5bbd5b97e00bbb9e3be80685849129aac62b6262a1",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "schema-bad-kind": {
+      "bytes": 5030,
+      "sha256": "1f43e097448b1e0a2d3a2821ebef121484e2ca36a406d235058a2c5c7d430502",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "schema-bad-name": {
+      "bytes": 5030,
+      "sha256": "1cf257b436a615ab1553816800ed5ee5700177de633a6fdca8859d7dab434b2a",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "schema-keyword": {
+      "bytes": 5030,
+      "sha256": "1cf257b436a615ab1553816800ed5ee5700177de633a6fdca8859d7dab434b2a",
+      "LF": 102,
+      "CRLF": 0
+    },
+    "schema-same-name": {
+      "bytes": 9504,
+      "sha256": "907fbbbe687c83041cb2e325cffa4e83ff1056e36a7bd58d47d3df9d0cffbe7b",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "schema-bad-mode": {
+      "bytes": 9492,
+      "sha256": "b91b83156073ef7e23a5ee2d6dc237f21cbb23ba2e15b83b2502e354861be205",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "schema-coerced-mode": {
+      "bytes": 29057,
+      "sha256": "d82f84780650a94a9a3d50c68fff98fb79798522e23eadd10baf0fc4c445bd94",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "schema-rename-file-wrong-kind": {
+      "bytes": 9502,
+      "sha256": "097866e97d756095523127953ffb9bceeb536abb3bb580edb23965f24d5c22c6",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "schema-string-boolean": {
+      "bytes": 9558,
+      "sha256": "45b950f03c1fbb1cc9fdb013afa4292a18ce7de8dc0b6cfc5dd554e5ba437848",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "schema-integer-boolean": {
+      "bytes": 9546,
+      "sha256": "95ce7826b511e7fdc54871948c6ae215dd7b6510f7002fd2fae7ecf430056d3a",
+      "LF": 258,
+      "CRLF": 0
+    },
+    "schema-nullable-boolean": {
+      "bytes": 29043,
+      "sha256": "5e3d6beb054ef9a4f011be5bbd5b97e00bbb9e3be80685849129aac62b6262a1",
+      "LF": 913,
+      "CRLF": 0
+    },
+    "exclude-parser-0": {
+      "bytes": 3822,
+      "sha256": "d1d306ff6ad22543b6b2c027613a5c4389f4cd2418f67411d3094634b0a60326",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-1": {
+      "bytes": 3822,
+      "sha256": "d1d306ff6ad22543b6b2c027613a5c4389f4cd2418f67411d3094634b0a60326",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-2": {
+      "bytes": 3800,
+      "sha256": "ee0558fa76301a88d92a3501e6156b312e2a95fcdf52a08fc5ebc04dee499c3e",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-3": {
+      "bytes": 3800,
+      "sha256": "ee0558fa76301a88d92a3501e6156b312e2a95fcdf52a08fc5ebc04dee499c3e",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-4": {
+      "bytes": 3800,
+      "sha256": "ee0558fa76301a88d92a3501e6156b312e2a95fcdf52a08fc5ebc04dee499c3e",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-5": {
+      "bytes": 3800,
+      "sha256": "ee0558fa76301a88d92a3501e6156b312e2a95fcdf52a08fc5ebc04dee499c3e",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-6": {
+      "bytes": 3800,
+      "sha256": "ee0558fa76301a88d92a3501e6156b312e2a95fcdf52a08fc5ebc04dee499c3e",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-7": {
+      "bytes": 3800,
+      "sha256": "ee0558fa76301a88d92a3501e6156b312e2a95fcdf52a08fc5ebc04dee499c3e",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "exclude-parser-8": {
+      "bytes": 3822,
+      "sha256": "d1d306ff6ad22543b6b2c027613a5c4389f4cd2418f67411d3094634b0a60326",
+      "LF": 71,
+      "CRLF": 0
+    },
+    "locator-parser-0": {
+      "bytes": 3849,
+      "sha256": "1c8b967c4363f0939fbe4e44c315e9d380e21213100b3c23979b73201d9b3e3c",
+      "LF": 75,
+      "CRLF": 0
+    },
+    "locator-parser-1": {
+      "bytes": 3846,
+      "sha256": "9076133286d988c3a2622443aea792ba524f1c3ddb04a8f26861d84463123b7c",
+      "LF": 75,
+      "CRLF": 0
+    },
+    "locator-parser-2": {
+      "bytes": 3966,
+      "sha256": "cb791f948f3cb04cc06ab59156e391a4042d3b2f0f9020019674aeb8d24ad43f",
+      "LF": 75,
+      "CRLF": 0
+    },
+    "locator-parser-3": {
+      "bytes": 3966,
+      "sha256": "cb791f948f3cb04cc06ab59156e391a4042d3b2f0f9020019674aeb8d24ad43f",
+      "LF": 75,
+      "CRLF": 0
+    },
+    "locator-parser-4": {
+      "bytes": 3943,
+      "sha256": "4f10aed77e0f6bd743154ee996a834406339608a7254b5aa1728d1f0266333d3",
+      "LF": 75,
+      "CRLF": 0
+    },
+    "locator-parser-5": {
+      "bytes": 3943,
+      "sha256": "4f10aed77e0f6bd743154ee996a834406339608a7254b5aa1728d1f0266333d3",
+      "LF": 75,
+      "CRLF": 0
+    }
+  },
+  "sources": {
+    "symbol_refactor_data": {
+      "bytes": 974,
+      "sha256": "96b31fa44154d593505e81859d40a8c9604e1ae73edac1f51c522d02bfd9b0a9",
+      "LF": 18,
+      "CRLF": 0
+    },
+    "symbol_refactor_part1": {
+      "bytes": 43259,
+      "sha256": "b83f4ab5504de7a5e97a0b3cd0b08fdfc5243a1bc6ecdcda0bff0d42656bb125",
+      "LF": 824,
+      "CRLF": 824
+    },
+    "symbol_refactor_part2": {
+      "bytes": 42744,
+      "sha256": "4889c9b118cad3b072375eb0b0f35710efc87851dc2bbb7d921b1d98b87677a4",
+      "LF": 718,
+      "CRLF": 0
+    },
+    "symbol_refactor_part3": {
+      "bytes": 49533,
+      "sha256": "93f8c8923703020fdf5a2dc31cc8e18654fa05f7833a86415a29a436758425b7",
+      "LF": 714,
+      "CRLF": 0
+    },
+    "symbol_refactor": {
+      "bytes": 3964,
+      "sha256": "92448cdb5d59116f0cedc123e9c6068c994f43dc7d57803083a2ad89ff3355f8",
+      "LF": 120,
+      "CRLF": 0
+    }
+  },
+  "normalization": [
+    "owned sandbox absolute prefixes",
+    "raw bytes base64"
+  ],
+  "errors_preserve_class_message_code": true,
+  "actual_canonical_required": true,
+  "scope_excludes": [
+    "public judge",
+    "apply/rollback",
+    "semantic editor execution"
+  ],
+  "corrected_native_quartet_common_dependency": true
+}

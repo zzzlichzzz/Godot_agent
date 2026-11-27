@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "module_id": "code_intel.usages",
+  "capability_id": "code_intel.usages",
+  "tool_name": "analyze_rename",
+  "description": "Предпросмотр переименования: что и где изменится. Вход — вид символа, старое и НОВОЕ имя, необязательный locator, плюс `mode` (`strict` по умолчанию) и `allow_unverified`. Отдаёт тот же список мест, что `usages`, и дополнительно `affected_paths` (доказанные места и, при allow_unverified, вероятные), `risks` (строки `path:line [link, confidence] — причина` для вероятных и динамических ссылок) и разобранный locator. Ничего не пишет и ничего не применяет. Риски требуют проверки, даже если место включено в план.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "enum": [
+          "class_name",
+          "function",
+          "signal",
+          "variable",
+          "const",
+          "enum",
+          "enum_member"
+        ],
+        "description": "Вид символа — как в объявлении."
+      },
+      "old_name": {
+        "type": "string",
+        "description": "Имя символа (идентификатор GDScript)."
+      },
+      "new_name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Новое имя символа (идентификатор GDScript), обязательно."
+      },
+      "declaration": {
+        "type": "string",
+        "description": "Точный locator `res://path.gd:line[:column]`. Без него требуется одно совпадение по виду и имени в видимых скриптах."
+      },
+      "declaration_path": {
+        "type": "string",
+        "minLength": 7,
+        "maxLength": 1024,
+        "description": "Ограничить поиск объявления одним res:// скриптом вместо точного locator."
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "strict",
+          "probable"
+        ],
+        "default": "strict",
+        "description": "Стратегия эталона: в предпросмотре — эхо запроса."
+      },
+      "allow_unverified": {
+        "type": "boolean",
+        "default": false,
+        "description": "Включить файлы с вероятными ссылками в affected_paths, сохранив исходную уверенность."
+      }
+    },
+    "required": [
+      "kind",
+      "old_name",
+      "new_name"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string"
+      },
+      "old_name": {
+        "type": "string"
+      },
+      "new_name": {
+        "type": "string"
+      },
+      "declaration": {
+        "type": "string",
+        "description": "Переданный или найденный точный locator."
+      },
+      "usages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "res:// путь файла."
+            },
+            "line": {
+              "type": "integer",
+              "description": "Строка (1-based)."
+            },
+            "column": {
+              "type": "integer",
+              "description": "Колонка (1-based)."
+            },
+            "link": {
+              "type": "string",
+              "description": "declaration | call | member | identifier | type | string | callable | signal | scene_connection"
+            },
+            "confidence": {
+              "type": "string",
+              "description": "proven | probable | dynamic"
+            },
+            "note": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Причина для probable/dynamic; null для proven."
+            }
+          },
+          "required": [
+            "path",
+            "line",
+            "column",
+            "link",
+            "confidence",
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "by_link": {
+        "type": "object",
+        "description": "Счётчик мест по типу связи."
+      },
+      "proven_count": {
+        "type": "integer"
+      },
+      "probable_count": {
+        "type": "integer"
+      },
+      "dynamic_count": {
+        "type": "integer"
+      },
+      "declaration_path": {
+        "type": "string",
+        "description": "Файл объявления из locator'а."
+      },
+      "declaration_line": {
+        "type": "integer",
+        "description": "Строка объявления из locator'а."
+      },
+      "allow_unverified": {
+        "type": "boolean"
+      },
+      "mode": {
+        "type": "string",
+        "description": "strict | probable (эхо запроса)."
+      },
+      "affected_paths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Файлы с доказанными ссылками и, при allow_unverified, с вероятными: sorted, без дублей."
+      },
+      "risks": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Строки `path:line [link, confidence] — note`."
+      }
+    },
+    "required": [
+      "kind",
+      "old_name",
+      "new_name",
+      "declaration",
+      "allow_unverified",
+      "mode",
+      "usages",
+      "affected_paths",
+      "risks",
+      "by_link",
+      "proven_count",
+      "probable_count",
+      "dynamic_count",
+      "declaration_path",
+      "declaration_line"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "heavy",
+  "limits": {}
+}

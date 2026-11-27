@@ -1,0 +1,8 @@
+{
+  "id": "ai-wire-gzip-no-replay",
+  "kind": "wire",
+  "monitor": "ai",
+  "step": 7,
+  "body_b64": "H4sIAAAAAAAC/4uOBoO80pwcHQWlC/MvNlzYd2HTha0XGy72X+xTOLdSSUcBIkkeaRgbCzQ3Nz8lNUcpFsQGCQMpVGvnXWwCW9pkpaBEjIaLEy9sU/gwf9kU/KphylFUgd0EUxkLAOcXS4gAAQAA",
+  "native_case_source": "test_v88_0_aistudio.py:189-201; new gzip stream and finalization"
+}

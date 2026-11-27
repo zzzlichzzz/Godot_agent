@@ -1,0 +1,14 @@
+{
+  "id": "best-malformed",
+  "op": "best",
+  "variants": [
+    [
+      "bad",
+      "```agent_action\n{\"action\":"
+    ],
+    [
+      "plain",
+      "plain"
+    ]
+  ]
+}

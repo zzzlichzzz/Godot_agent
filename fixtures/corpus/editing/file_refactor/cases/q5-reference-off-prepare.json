@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "id": "q5-reference-off-prepare",
+  "native_call": "file_refactor.prepare_file_rename",
+  "input": {
+    "old_path": "res://src/item.gd",
+    "new_path": "res://deep/item.gd",
+    "update_references": false
+  },
+  "native_kwargs": {
+    "update_references": false
+  },
+  "fixture": {
+    "files": {
+      "base.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg==",
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "ext/ref.bin": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.cfg": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.GD": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.gdshader": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.gdshaderinc": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.import": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.json": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.py": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.shader": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.tres": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.tscn": {
+        "bytes_b64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiIGlkPSIxIl0K",
+        "bytes": 81,
+        "sha256": "a9bb8334e858add6d0d9142840b4e773ff082ca5fad0c186024f85a7bd9ab7d4"
+      },
+      "ext/ref.txt": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "ext/ref.uid": {
+        "bytes_b64": "cGF0aD0icmVzOi8vc3JjL2l0ZW0uZ2QiCg==",
+        "bytes": 25,
+        "sha256": "4ae0ea4eade0e51fb0faeedf1b8f9be81cf9eb6e781d2aa0284a842e77f8d74d"
+      },
+      "project.godot": {
+        "bytes_b64": "W2F1dG9sb2FkXQ0KWD0iKnJlczovL3NyYy9pdGVtLmdkIgo=",
+        "bytes": 35,
+        "sha256": "e822a428bee435230ca94d0a2b9f0554b96c5f7ba7ce4bf3252580ef2368a395"
+      },
+      "ref.gd": {
+        "bytes_b64": "77u/Y29uc3QgQT1wcmVsb2FkKCJyZXM6Ly9zcmMvaXRlbS5nZCIpDQpjb25zdCBCPWxvYWQoInNyYy9pdGVtLmdkIikNIyBsb2FkKCJzcmMvaXRlbS5nZCIpCmNvbnN0IFQ9InNyYy9pdGVtLmdkIgpjb25zdCBVPSJ1aWQ6Ly9rZWVwIgo=",
+        "bytes": 134,
+        "sha256": "6f40a36cbe6638f0f5a5e9f4aa51c80cf7bf0da01cfbe67dc2a301f19547b460"
+      },
+      "src/item.gd": {
+        "bytes_b64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgid2VhcG9uLmdkIikNY29uc3QgVT1sb2FkKCJ1aWQ6Ly9rZWVwIikK",
+        "bytes": 78,
+        "sha256": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89"
+      },
+      "src/weapon.gd": {
+        "bytes_b64": "ZXh0ZW5kcyBOb2RlCg==",
+        "bytes": 13,
+        "sha256": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+      },
+      "texture.tres": {
+        "bytes_b64": "W2V4dF9yZXNvdXJjZSB0eXBlPSJUZXh0dXJlMkQiIHBhdGg9InJlczovL3NyYy9pdGVtLmdkIiBpZD0iMSJdCg==",
+        "bytes": 64,
+        "sha256": "f906dca89a22eb7cb0f4bbdb28c3d4731d5bae88d7721e611ff7a0fe6b89c95f"
+      }
+    },
+    "dirs": [
+      "ext",
+      "src"
+    ]
+  },
+  "native_ok": true,
+  "native_result": {
+    "action": "rename_file",
+    "old_path": "res://src/item.gd",
+    "new_path": "res://deep/item.gd",
+    "companion_script": null,
+    "update_references": false,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://src/item.gd",
+        "dest": "res://deep/item.gd",
+        "absolute": "<PROJECT>\\src\\item.gd",
+        "dest_absolute": "<PROJECT>\\deep\\item.gd",
+        "before_hash": "2859cf6d57037f4da2227e938f8e3350d08f3fece3a9e3e110582e6cd09a0a89",
+        "before_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyAiLi4vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgid2VhcG9uLmdkIikNY29uc3QgVT1sb2FkKCJ1aWQ6Ly9rZWVwIikK"
+        },
+        "after_bytes": {
+          "$bytes_base64": "ZXh0ZW5kcyAicmVzOi8vYmFzZS5nZCINCmNvbnN0IFc9cHJlbG9hZCgicmVzOi8vc3JjL3dlYXBvbi5nZCIpDWNvbnN0IFU9bG9hZCgidWlkOi8va2VlcCIpCg=="
+        },
+        "diff": {
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://deep/item.gd (обновлено внутренних путей: 2)"
+            },
+            [
+              "@",
+              1,
+              1,
+              "@@ -1,2 +1,2 @@"
+            ],
+            [
+              "-",
+              1,
+              null,
+              "extends \"../base.gd\""
+            ],
+            [
+              "-",
+              2,
+              null,
+              "const W=preload(\"weapon.gd\")\rconst U=load(\"uid://keep\")"
+            ],
+            [
+              "+",
+              null,
+              1,
+              "extends \"res://base.gd\""
+            ],
+            [
+              "+",
+              null,
+              2,
+              "const W=preload(\"res://src/weapon.gd\")\rconst U=load(\"uid://keep\")"
+            ]
+          ],
+          "added": 2,
+          "removed": 2,
+          "truncated": false,
+          "action": "move_file",
+          "path": "res://src/item.gd",
+          "dest": "res://deep/item.gd"
+        },
+        "occurrences": 2
+      }
+    ],
+    "reference_count": 2,
+    "affected_paths": [
+      "res://deep/item.gd"
+    ]
+  },
+  "native_exception": null,
+  "native_original_raw_sha256": "a2a40d76802d388b845891ac069a691777c0629446f7fe60f359d8c44498aee1"
+}

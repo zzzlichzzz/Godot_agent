@@ -1,0 +1,8 @@
+{
+  "id": "qwen-service-ignored",
+  "kind": "decode",
+  "native_case_source": "test_v88_6_qwen_net.py:125-165; independent Unicode SSE deltas",
+  "monitor": "qwen",
+  "body_b64": "OiBwaW5nCgpldmVudDogbm90aWNlCmRhdGE6IFtET05FXQpkYXRhOiBpbnZhbGlkCmRhdGE6IFtdCmRhdGE6IHsiY2hvaWNlcyI6W119CgpkYXRhOiB7ImNob2ljZXMiOlt7ImRlbHRhIjpudWxsfV19CgpkYXRhOiB7ImNob2ljZXMiOlt7ImRlbHRhIjp7InBoYXNlIjoid2ViX3NlYXJjaCIsImNvbnRlbnQiOiJpZ25vcmUifX1dfQoK",
+  "step": 7
+}

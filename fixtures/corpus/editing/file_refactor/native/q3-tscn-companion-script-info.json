@@ -1,0 +1,69 @@
+{
+  "id": "q3-tscn-companion-script-info",
+  "call": "file_refactor.prepare_file_rename",
+  "args": {
+    "$tuple": [
+      "<PROJECT>",
+      "res://old.tscn",
+      "res://new.tscn"
+    ]
+  },
+  "kwargs": {},
+  "before": {
+    "old.tscn": "d3321d3399c4cfa346600add7fa00d6f035a5c5cbc3c9727df8e9afbecb93f71",
+    "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+    "relative.tres": "750229f796e6fb585c66f560d649f4a6abdf92eeeae273dc49d25f72f50cd6d6",
+    "script.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+  },
+  "apply_argument_observations": [],
+  "ok": true,
+  "result": {
+    "action": "rename_file",
+    "old_path": "res://old.tscn",
+    "new_path": "res://new.tscn",
+    "companion_script": "res://script.gd",
+    "update_references": true,
+    "files": [
+      {
+        "action": "move_file",
+        "path": "res://old.tscn",
+        "dest": "res://new.tscn",
+        "absolute": "<PROJECT>\\old.tscn",
+        "dest_absolute": "<PROJECT>\\new.tscn",
+        "before_hash": "d3321d3399c4cfa346600add7fa00d6f035a5c5cbc3c9727df8e9afbecb93f71",
+        "before_bytes": {
+          "$bytes_base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vc2NyaXB0LmdkIiBpZD0iMSJdCg=="
+        },
+        "after_bytes": {
+          "$bytes_base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vc2NyaXB0LmdkIiBpZD0iMSJdCg=="
+        },
+        "diff": {
+          "path": "res://old.tscn",
+          "action": "move_file",
+          "dest": "res://new.tscn",
+          "lines": [
+            {
+              "type": "info",
+              "text": "Файл перемещён в res://new.tscn"
+            }
+          ]
+        },
+        "occurrences": 0
+      }
+    ],
+    "reference_count": 0,
+    "affected_paths": [
+      "res://new.tscn"
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "after": {
+    "old.tscn": "d3321d3399c4cfa346600add7fa00d6f035a5c5cbc3c9727df8e9afbecb93f71",
+    "project.godot": "37e4e67eb903e86489f3bddb2a50edfe3a3a6b0a07c14f3e255017e78d990e99",
+    "relative.tres": "750229f796e6fb585c66f560d649f4a6abdf92eeeae273dc49d25f72f50cd6d6",
+    "script.gd": "006c373933f8e49903c974a70b81864df932f34b72076a11916696e4577e804a"
+  },
+  "observation": "sys.setprofile observes only actual apply argument; never replaces native call",
+  "byte_files_unchanged": true
+}

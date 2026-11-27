@@ -1,0 +1,41 @@
+{
+  "id": "limits-type37",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "x",
+        "value": {
+          "type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "value": 1
+        }
+      }
+    ],
+    "summary": "  description  ",
+    "wait_for_import": [
+      "res://texture.png",
+      "res://texture.png"
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "value.type должен быть непустой строкой до 30 символов",
+    "hint": ""
+  },
+  "oracle": "native read-only capture",
+  "raw_sha256": "93822e8b0f924a52d9c09a8df790cf6d8812c7ad0ee69af2c19bd8c6f2f04f56"
+}

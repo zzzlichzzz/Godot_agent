@@ -1,0 +1,17 @@
+{
+  "id": "026-expressions_ignored",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "expressions_ignored",
+  "args": {
+    "path": "res://scripts/expressions_ignored.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [],
+      "truncated": false,
+      "checked_bytes": 81
+    }
+  }
+}

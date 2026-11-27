@@ -1,0 +1,6 @@
+{
+  "id": "incomplete-no-refs",
+  "op": "incomplete",
+  "raw": "{\"action\":\"done\"}",
+  "text": "answer"
+}

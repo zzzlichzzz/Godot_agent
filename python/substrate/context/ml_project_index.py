@@ -1,0 +1,1120 @@
+# -*- coding: utf-8 -*-
+"""Индекс структуры проекта пользователя для mini-lich и Библиотекаря (v105).
+
+Задача: какой бы проект ни был, агент быстро понимает его структуру
+(файлы, узлы сцен, функции скриптов) и помогает искать информацию
+по проекту для отправки крупной модели — без чтения всех файлов целиком.
+
+Индекс — компактный json в хранилище minilich, перестраивается по запросу
+или если устарел. Поиск — скоринг по пересечению токенов запроса с путём
+и символами файла. Это НЕ нейросеть — и не должна ею быть: для точного
+поиска по структуре детерминированный индекс надёжнее и быстрее,
+а сцены из индекса заодно служат сырьём для синтетического обучения.
+
+v105 (Библиотекарь):
+1) токены дополнительно разбиваются на подтокены по snake_case и camelCase
+   (take_damage -> take_damage, take, damage; CharacterBody2D -> character,
+   body2d) — запрос "damage" теперь находит take_damage;
+2) update_entries() — микро-обновление индекса по списку изменённых/удалённых
+   файлов БЕЗ полной пересборки: агент сам знает, что менял
+   (_apply_write_step/copy_file), внешние правки приходят из diff_snapshots.
+   Метка built при этом сохраняется: страховочная полная пересборка по
+   STALE_SEC продолжает работать как раньше;
+3) v105.7: топ-уровневые var/const/@export индексируются как символы
+   (var:health, const:MAX_LEVEL) — поиск, скоринг и подсказки при опечатках
+   видят имена переменных, а не только функций. Локальные переменные
+   (с отступом) не индексируются — это шум.
+"""
+import json
+import hashlib
+import os
+import re
+import threading
+import time
+
+from . import ml_data
+import gd_semantic_parser
+from project_tools import can_read_project_path
+
+INDEX_FILE = "project_index.json"
+SEMANTIC_INDEX_FILE = "project_semantic_index.json"
+# v105.13 (патч производительности, п.1): было MAX_FILES = 2000 — потолок
+# из времён, когда индекс строился на демо-проектах. Реальный крупный
+# проект (несколько тысяч сцен и скриптов) в него не влезал, и лишние
+# файлы отбрасывались МОЛЧА: агент уверенно отвечал по половине проекта.
+# Новое значение выбрано замером, а не на глаз (см. tests/test_librarian.py,
+# test_index_size_budget): типичный проект — ~0.2 КБ индекса на файл,
+# «болтливый» (длинные вложенные пути + упор в лимит 60 символов на файл) —
+# до ~3 КБ. При 12000 файлах это ~2.5 МБ на типичном проекте и ~10 МБ на
+# смешанном профиле (~0.8 КБ/файл) — верхняя граница, за которой разбор
+# json начинает стоить заметную долю времени ответа.
+MAX_FILES = 12000
+STALE_SEC = 300  # перестроить, если индексу больше 5 минут
+EXTS = {".tscn", ".gd", ".tres", ".cfg", ".md", ".txt", ".json", ".import"}
+SKIP_DIRS = {".git", ".godot", ".import", "addons", ".agent_history", "__pycache__", "dist", "build"}
+
+_NODE_RE = re.compile(r"^\[node name=\"([^\"]+)\"[^\]]*?(?:type=\"([^\"]+)\")?[^\]]*\]", re.M)
+# v105.10 (шаг 3): имена — юникодные. GDScript разрешает кириллицу в
+# идентификаторах, а шаблон [A-Za-z_] терял «func лечить()» целиком:
+# файл попадал в MAP, но без единого символа. [^\W\d]\w* = буква/_
+# в начале, дальше буквы/цифры/_ (в Python 3 \w юникодный по умолчанию).
+_FUNC_RE = re.compile(r"^(?:static\s+)?func\s+([^\W\d]\w*)", re.M | re.U)
+_CLASS_RE = re.compile(r"^class_name\s+([^\W\d]\w*)", re.M | re.U)
+_SIGNAL_RE = re.compile(r"^signal\s+([^\W\d]\w*)", re.M | re.U)
+# Только топ-уровень (без отступа): локальные var внутри функций — шум.
+# (?:@[^\n]*?\s+)? покрывает @export var, @onready var, @export_range(...) var.
+_VAR_RE = re.compile(r"^(?:@[^\n]*?\s+)?var\s+([^\W\d]\w*)", re.M | re.U)
+_CONST_RE = re.compile(r"^const\s+([^\W\d]\w*)", re.M | re.U)
+
+# v105.12 (раунд 4, п.3): все регулярки выше — ^-якорные, поэтому члены
+# вложенных классов в индекс не попадали. STRUCTURE в раунде 3 починили,
+# а индекс — нет: файл с FSM-паттерном (class Idle: / class Run: внутри
+# одного скрипта) давал символы только топ-уровня, и запрос «field_a Inner»
+# не находил файл вообще — ответ шёл без MAP и без STRUCTURE.
+_NESTED_CLASS_RE = re.compile(r"^[ \t]*class\s+([^\W\d]\w*)\s*(?:extends\s+\S+\s*)?:", re.U)
+_NESTED_FUNC_RE = re.compile(r"^[ \t]+(?:static\s+)?func\s+([^\W\d]\w*)", re.U)
+_NESTED_VAR_RE = re.compile(r"^[ \t]+(?:@[^\n]*?\s+)?var\s+([^\W\d]\w*)", re.U)
+_NESTED_CONST_RE = re.compile(r"^[ \t]+const\s+([^\W\d]\w*)", re.U)
+
+
+def _nested_symbols(text):
+    """Символы вложенных классов: class Inner: и его члены.
+
+    Голой регуляркой вида «\\s+var» это не решается: локальные var внутри тел
+    функций — тоже строки с отступом, и в индекс уехал бы весь шум, от
+    которого избавлялись раньше (см. комментарий к _VAR_RE). Поэтому идём
+    построчно и следим за отступами (та же механика, что в
+    librarian._gd_signatures): берём только члены НЕПОСРЕДСТВЕННО внутри
+    class-блока и вне тел его функций.
+    """
+    out = []
+    class_indent = None
+    func_indent = None
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        # Порядок важен: сначала закрываем тело функции, потом блок класса,
+        # и только затем распознаём объявление нового класса.
+        if func_indent is not None and indent <= func_indent:
+            func_indent = None
+        if class_indent is not None and indent <= class_indent:
+            class_indent = None
+            func_indent = None
+        m = _NESTED_CLASS_RE.match(line)
+        if m:
+            out.append("class:" + m.group(1))
+            class_indent = indent
+            func_indent = None
+            continue
+        # Топ-уровень уже разобран ^-якорными регулярками; тело функции — шум.
+        if class_indent is None or func_indent is not None:
+            continue
+        mf = _NESTED_FUNC_RE.match(line)
+        if mf:
+            out.append("func:" + mf.group(1))
+            func_indent = indent
+            continue
+        mv = _NESTED_VAR_RE.match(line)
+        if mv:
+            out.append("var:" + mv.group(1))
+            continue
+        mc = _NESTED_CONST_RE.match(line)
+        if mc:
+            out.append("const:" + mc.group(1))
+    return out
+
+
+_CAMEL_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+
+# v105.13 (п.1): приоритет расширения при обрезке по MAX_FILES. Раньше
+# лимит применялся в порядке os.walk (фактически почти алфавитно по
+# каталогам): на проекте с большим docs/ в индекс уезжала документация,
+# а скрипты из src/, идущие позже, выпадали — то есть терялось ровно то,
+# ради чего индекс и существует. Теперь порядок обхода решает только
+# внутри одного приоритета: 0 — код и сцены, 1 — ресурсы/конфиги и всё
+# незнакомое, 2 — текст и данные (их всегда много, а пользы для поиска
+# по структуре меньше всего).
+_EXT_PRIORITY = {
+    ".gd": 0, ".tscn": 0,
+    ".tres": 1, ".cfg": 1, ".import": 1,
+    ".md": 2, ".txt": 2, ".json": 2,
+}
+
+
+def _ext_priority(rel):
+    """Приоритет файла при обрезке индекса: меньше — важнее (0..2)."""
+    ext = os.path.splitext(str(rel or ""))[1].lower()
+    return _EXT_PRIORITY.get(ext, 1)
+
+
+# v105.15: лимит символов на файл резал ПО КАТЕГОРИЯМ, а не по важности.
+# Символы добавляются фиксированными пачками (class -> func -> signal ->
+# var -> const -> вложенные), поэтому у скрипта с 60+ функциями срез [:60]
+# убивал ВСЕ signal/var/const и вложенные классы целиком. Последствия
+# тихие и неприятные: слой SIGNALS у больших скриптов пропадал (он ищет
+# имена по префиксу "signal:" в индексе), словарь подсказок при опечатках
+# терял эти идентификаторы, а MAP переставал видеть их в скоринге.
+# Ровно те файлы, где справка нужнее всего, отдавали её хуже прочих.
+#
+# L5 (15.10.2026): лимит 60 резал реальный проект, а не только патологию.
+# Замер на полигоне (131 .gd, 3665 объявлений в сумме): при 60 в индексе
+# 3082 символа, то есть 583 объявления (16 %) не находились поиском ВООБЩЕ,
+# и это были не только редкие категории — в больших скриптах пропадали и
+# функции. Качество на golden-set (150 запросов, см. docs/librarian_search_plan.md
+# §3.1): hit@8 0.860 → 0.993, mrr@8 0.757 → 0.907; ведро `capped` 0.400 → 1.000,
+# `rare_func` 0.816 → 1.000. Цена снятия лимита: индекс 90 → 104 КБ (+15 %),
+# сборка 3.0 → 2.3 с, поиск не изменился (150 запросов: 0.12 с).
+# Значение 400 оставлено предохранителем от СГЕНЕРИРОВАННЫХ файлов: самый
+# большой живой скрипт полигона (< 300 объявлений) под него не попадает,
+# то есть на нормальном проекте лимит не срабатывает вообще, а индекс
+# остаётся ограниченным по размеру.
+MAX_SYMBOLS = 400
+
+# Порядок раздачи квот. Сигналы/константы/классы в реальных скриптах
+# немногочисленны, но ценны для поиска, а функций бывают сотни — поэтому
+# круговая раздача (по одному из каждой категории за круг) пускает
+# «редкие» категории вперёд, не отбирая у функций львиную долю мест.
+_SYM_ROUND_ROBIN = ("class", "signal", "const", "var", "func")
+
+
+def _cap_symbols(symbols, limit=MAX_SYMBOLS):
+    """Честно урезать символы одного .gd до limit штук.
+
+    Пока лимит не сработал — список возвращается КАК ЕСТЬ: на обычном
+    проекте содержимое и порядок индекса не меняются вообще (тот же
+    принцип совместимости, что и при обрезке по MAX_FILES).
+    """
+    if len(symbols) <= limit:
+        return symbols
+    buckets = {}
+    for i, s in enumerate(symbols):
+        kind = s.split(":", 1)[0] if ":" in s else ""
+        buckets.setdefault(kind, []).append((i, s))
+    # Известные категории — в заданном порядке, незнакомые — следом,
+    # чтобы неожиданный префикс не выпал из раздачи молча.
+    order = [k for k in _SYM_ROUND_ROBIN if k in buckets]
+    order += [k for k in buckets if k not in _SYM_ROUND_ROBIN]
+    picked = []
+    pos = dict((k, 0) for k in buckets)
+    while len(picked) < limit:
+        moved = False
+        for k in order:
+            if len(picked) >= limit:
+                break
+            b = buckets[k]
+            if pos[k] < len(b):
+                picked.append(b[pos[k]])
+                pos[k] += 1
+                moved = True
+        if not moved:  # все категории исчерпаны раньше лимита
+            break
+    # Возвращаем выживших в исходном порядке файла: STRUCTURE и глазами
+    # читают индекс сверху вниз, перетасовка сбивала бы и то, и другое.
+    picked.sort(key=lambda t: t[0])
+    return [s for _, s in picked]
+
+
+# v105.13 (п.2): кэш распарсенного индекса в памяти процесса.
+# Было: _read_index_raw() читал и разбирал json НА КАЖДЫЙ вызов —
+# и на search(), и на update_entries(), и на каждый слой ответа
+# Библиотекаря. На индексе в 2000 файлов это доли миллисекунды, но после
+# п.1 индекс вырастает до мегабайтов, и разбор становится заметной частью
+# времени ответа — при том, что между вызовами файл обычно не менялся.
+# Ключ — abs_root (как и везде в модуле: при «мозге в папке плагина»
+# индексы разных проектов живут в одном файле, путать их нельзя).
+# Инвалидация — по (mtime, size) файла индекса: если его переписал кто-то
+# другой, отпечаток не совпадёт и данные перечитаются. size добавлен к
+# mtime не из паранойи: на Windows/FAT гранулярность mtime грубая, и две
+# записи подряд могут получить одинаковую метку.
+_MEM_CACHE = {}  # abs_root -> {"stamp": (mtime, size), "data": dict}
+_SEM_MEM_CACHE = {}  # v105.16 (L7): см. _MEM_CACHE — семантический индекс
+_PROJECT_LOCKS = {}
+_PROJECT_LOCKS_GUARD = threading.Lock()
+
+
+def _project_lock(project_root):
+    key = _cache_key(project_root)
+    with _PROJECT_LOCKS_GUARD:
+        lock = _PROJECT_LOCKS.get(key)
+        if lock is None:
+            lock = threading.RLock()
+            _PROJECT_LOCKS[key] = lock
+        return lock
+
+
+def _cache_key(project_root):
+    return os.path.abspath(project_root or ".")
+
+
+def _index_stamp(path):
+    """Отпечаток файла индекса (mtime, size) или None, если файла нет.
+    Ввод-вывод обёрнут, как и весь остальной в модуле: отсутствие индекса —
+    штатная ситуация, а не ошибка."""
+    try:
+        st = os.stat(path)
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+
+
+def _cache_store(project_root, data):
+    """Положить только что сохранённые данные в кэш вместе со свежим
+    отпечатком файла — чтобы следующий локальный вызов не читал диск."""
+    try:
+        stamp = _index_stamp(_index_path(project_root))
+        if stamp is not None:
+            _MEM_CACHE[_cache_key(project_root)] = {"stamp": stamp, "data": data}
+    except Exception:
+        _MEM_CACHE.pop(_cache_key(project_root), None)  # лучше без кэша, чем с враньём
+
+
+def _sem_cache_store(project_root, data):
+    """То же для семантического индекса (v105.16, L7: его читает карточка
+    символа на каждый запрос-одиночку — парсить файл заново нельзя)."""
+    try:
+        stamp = _index_stamp(_semantic_index_path(project_root))
+        if stamp is not None:
+            _SEM_MEM_CACHE[_cache_key(project_root)] = {"stamp": stamp, "data": data}
+    except Exception:
+        _SEM_MEM_CACHE.pop(_cache_key(project_root), None)
+
+
+def _index_path(project_root):
+    return os.path.join(ml_data.storage_dir(project_root), INDEX_FILE)
+
+
+def _semantic_index_path(project_root):
+    return os.path.join(ml_data.storage_dir(project_root), SEMANTIC_INDEX_FILE)
+
+
+def _file_stamp(full):
+    """Отпечаток файла проекта (mtime, size) или None, если файла нет."""
+    try:
+        st = os.stat(full)
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+
+
+def _reuse_or_build(root, rel, prev):
+    """v105.15: запись индекса — переиспользованная или собранная заново.
+
+    build_index читал и разбирал регулярками КАЖДЫЙ файл при каждой
+    пересборке, а она случается раз в STALE_SEC (5 минут) на первом же
+    запросе. На большом проекте это тысячи open+read(200000)+6 проходов
+    регулярок в потоке Flask, без таймаута — при том, что между
+    пересборками меняются единицы файлов.
+
+    Штамп (mtime, size) хранится ТОЛЬКО у .gd/.tscn: остальные записи и
+    так не читают файл с диска, собрать их заново дешевле, чем хранить
+    для них лишние байты в индексе. size рядом с mtime не из паранойи —
+    на Windows гранулярность mtime грубая (та же причина, что и у
+    отпечатка самого файла индекса в _MEM_CACHE).
+    """
+    if not can_read_project_path(rel, root):
+        return None
+    old = prev.get(rel)
+    if isinstance(old, dict) and "mtime" in old and "size" in old:
+        st = _file_stamp(os.path.join(root, rel.replace("/", os.sep)))
+        if st is not None and old.get("mtime") == st[0] and old.get("size") == st[1]:
+            return old
+    return _build_entry(root, rel)
+
+
+def _build_entry(root, rel):
+    """Одна запись индекса для файла rel (путь с «/» относительно root)."""
+    if not can_read_project_path(rel, root):
+        return None
+    full = os.path.join(root, rel.replace("/", os.sep))
+    ext = os.path.splitext(rel)[1].lower()
+    entry = {"path": rel, "kind": ext.lstrip("."), "symbols": []}
+    if ext in (".tscn", ".gd"):
+        # v105.15: штамп для инкрементальной пересборки (см. _reuse_or_build).
+        # Ставится только здесь — то есть ровно у тех файлов, которые
+        # действительно читаются с диска и разбираются регулярками.
+        st = _file_stamp(full)
+        if st is not None:
+            entry["mtime"] = st[0]
+            entry["size"] = st[1]
+        try:
+            # utf-8-sig: как read_project_file/search_project_text — иначе BOM
+            # ломает ^-регулярки первой строки (терялся class_name). Багфикс v105.8.
+            with open(full, "r", encoding="utf-8-sig", errors="replace") as f:
+                text = f.read(200000)
+        except OSError:
+            text = ""
+        if ext == ".tscn":
+            for m in _NODE_RE.finditer(text):
+                sym = m.group(1) + ((":" + m.group(2)) if m.group(2) else "")
+                entry["symbols"].append(sym)
+            # У сцены символы — «Имя:Тип» узла, категорий нет: режем как
+            # раньше, по порядку узлов в файле (корень идёт первым).
+            entry["symbols"] = entry["symbols"][:MAX_SYMBOLS]
+        else:
+            entry["symbols"] += ["class:" + m.group(1) for m in _CLASS_RE.finditer(text)]
+            entry["symbols"] += ["func:" + m.group(1) for m in _FUNC_RE.finditer(text)]
+            entry["symbols"] += ["signal:" + m.group(1) for m in _SIGNAL_RE.finditer(text)]
+            entry["symbols"] += ["var:" + m.group(1) for m in _VAR_RE.finditer(text)]
+            entry["symbols"] += ["const:" + m.group(1) for m in _CONST_RE.finditer(text)]
+            # v105.12 (раунд 4, п.3): члены вложенных классов (FSM-паттерн).
+            entry["symbols"] += _nested_symbols(text)
+            # Порядок сохраняем, дубли убираем: имя метода вложенного
+            # класса может совпасть с уже взятым с топ-уровня.
+            _seen_syms = set()
+            _uniq = []
+            for s in entry["symbols"]:
+                if s in _seen_syms:
+                    continue
+                _seen_syms.add(s)
+                _uniq.append(s)
+            # v105.15: было _uniq[:60] — срез по категориям, см. комментарий
+            # к _cap_symbols. Теперь квоты раздаются по кругу.
+            entry["symbols"] = _cap_symbols(_uniq, MAX_SYMBOLS)
+    return entry
+
+
+def _save(project_root, data):
+    path = _index_path(project_root)
+    # v105.15: имя временного файла УНИКАЛЬНО на вызов. Было общее
+    # path + ".tmp", а сервер поднят с threaded=True (main.py): два
+    # одновременных писателя (например, note_files_changed из /ask и
+    # пересборка по STALE_SEC из соседнего запроса) открывали ОДИН И ТОТ
+    # ЖЕ файл на запись. os.replace атомарен, но к моменту подмены в .tmp
+    # уже могла лежать смесь двух дампов — то есть битый json. Ломалось
+    # это тихо: _read_index_raw глотает ошибку разбора и возвращает None,
+    # после чего индекс молча пересобирается целиком.
+    # Теперь у каждого писателя свой файл, и os.replace просто решает,
+    # чья версия победит (последний выигрывает — расхождение затянет
+    # ближайшая пересборка).
+    tmp = "%s.%d.%d.tmp" % (path, os.getpid(), threading.get_ident())
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        # Не оставляем мусор рядом с индексом, если запись сорвалась.
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+    # v105.13 (п.2): оба писателя индекса (build_index и update_entries)
+    # ходят через _save, поэтому кэш обновляем здесь — так невозможно
+    # забыть его в новом месте записи и отдать следующему вызову старьё.
+    _cache_store(project_root, data)
+
+
+def _readable_index_data(project_root, data):
+    """Filter persisted facts against current path identities, including cache hits."""
+    if not isinstance(data, dict) or not isinstance(data.get("files"), list):
+        return None
+    files = [entry for entry in data["files"]
+             if isinstance(entry, dict) and entry.get("path")
+             and can_read_project_path(entry["path"], project_root)]
+    # Keep allowed data and its postings identity unchanged; do not mutate caches.
+    if len(files) == len(data["files"]):
+        return data
+    return dict(data, files=files)
+
+
+def _read_semantic_index(project_root):
+    # v105.16 (L7): карточка символа читает семантический индекс на КАЖДЫЙ
+    # запрос-одиночку, а файл крупный (все объявления, ссылки и строки
+    # проекта). Кэш в памяти — по тому же образцу, что _MEM_CACHE основного
+    # индекса: отпечаток (mtime, size) решает, можно ли верить записи.
+    key = _cache_key(project_root)
+    stamp = _index_stamp(_semantic_index_path(project_root))
+    if stamp is not None:
+        cached = _SEM_MEM_CACHE.get(key)
+        if isinstance(cached, dict) and cached.get("stamp") == stamp:
+            return _readable_index_data(project_root, cached.get("data"))
+    data = _read_semantic_index_raw(project_root)
+    if data is None:
+        _SEM_MEM_CACHE.pop(key, None)  # лучше без кэша, чем со старьём
+        return None
+    stamp = _index_stamp(_semantic_index_path(project_root))
+    if stamp is not None:
+        _SEM_MEM_CACHE[key] = {"stamp": stamp, "data": data}
+    return _readable_index_data(project_root, data)
+
+
+def _read_semantic_index_raw(project_root):
+    try:
+        with open(_semantic_index_path(project_root), "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        if (isinstance(data, dict) and isinstance(data.get("files"), list)
+                and data.get("root") == os.path.abspath(project_root or ".")):
+            return _readable_index_data(project_root, data)
+    except Exception:
+        pass
+    return None
+
+
+def _save_semantic_index(project_root, data):
+    path = _semantic_index_path(project_root)
+    tmp = "%s.%d.%d.tmp" % (path, os.getpid(), threading.get_ident())
+    try:
+        with open(tmp, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, path)
+        _sem_cache_store(project_root, data)  # v105.16 (L7): см. _cache_store
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _build_semantic_entry(root, rel):
+    if not can_read_project_path(rel, root):
+        return None
+    full = os.path.join(root, rel.replace("/", os.sep))
+    try:
+        with open(full, "rb") as handle:
+            raw = handle.read()
+    except OSError:
+        return None
+    text = raw.decode("utf-8-sig", errors="replace")
+    if len(text) > 200000:
+        text = text[:200000]
+    stamp = _file_stamp(full) or (0, len(text.encode("utf-8")))
+    return {"path": rel, "mtime": stamp[0], "size": stamp[1],
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "semantic": gd_semantic_parser.parse(text, rel)}
+
+
+def _refresh_semantic_index(project_root, gd_rels, complete):
+    root = os.path.abspath(project_root or ".")
+    previous = _read_semantic_index(project_root) or {}
+    old = {entry.get("path"): entry for entry in previous.get("files", [])
+           if isinstance(entry, dict) and entry.get("path")}
+    files = []
+    for rel in sorted(set(gd_rels)):
+        fresh = _build_semantic_entry(root, rel)
+        if fresh is None:
+            continue
+        prior = old.get(rel)
+        if isinstance(prior, dict) and prior.get("sha256") == fresh.get("sha256"):
+            prior["mtime"], prior["size"] = fresh["mtime"], fresh["size"]
+            files.append(prior)
+        else:
+            files.append(fresh)
+    data = {"schema_version": 1, "built": time.time(), "root": root,
+            "complete": bool(complete), "files": files}
+    _save_semantic_index(project_root, data)
+    return data
+
+
+def build_index(project_root):
+    """Обходит проект и сохраняет компактный индекс. Возвращает число файлов."""
+    with _project_lock(project_root):
+        return _build_index_locked(project_root)
+
+
+def _build_index_locked(project_root):
+    root = os.path.abspath(project_root or ".")
+    # v105.13 (п.1): раньше обход ПРЕРЫВАЛСЯ по MAX_FILES, и решение,
+    # какой файл важен, принимал порядок каталогов на диске. Сначала
+    # собираем все пути (только строки, парсинга ещё нет — дёшево),
+    # потом выбираем лучшие по приоритету и только затем читаем файлы.
+    rels = []
+    for cur, dirs, files in os.walk(root):
+        if not can_read_project_path(cur, root):
+            dirs[:] = []
+            continue
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS
+                   and can_read_project_path(os.path.join(cur, d), root)]
+        for fn in files:
+            ext = os.path.splitext(fn)[1].lower()
+            if ext not in EXTS or ext == ".import":
+                continue
+            full = os.path.join(cur, fn)
+            if not can_read_project_path(full, root):
+                continue
+            rels.append(os.path.relpath(full, root).replace(os.sep, "/"))
+    all_gd_rels = [rel for rel in rels if rel.lower().endswith(".gd")]
+    skipped = 0
+    if len(rels) > MAX_FILES:
+        skipped = len(rels) - MAX_FILES
+        # Сортировка только ДЛЯ ОТБОРА: ключ (приоритет, номер в обходе),
+        # потом выжившие возвращаются в исходный порядок обхода.
+        # Это важно для совместимости: пока лимит не сработал, содержимое
+        # и порядок files байт-в-байт такие же, как до патча.
+        order = sorted(range(len(rels)), key=lambda i: (_ext_priority(rels[i]), i))
+        rels = [rels[i] for i in sorted(order[:MAX_FILES])]
+    # v105.15: инкрементальная пересборка. Прошлый индекс — источник
+    # готовых записей для файлов, у которых совпал штамп (mtime, size):
+    # такие файлы не открываются и не парсятся вообще. Чтение прошлого
+    # индекса бесплатно — _read_index_raw отдаёт его из _MEM_CACHE
+    # (вызывающий _load_index только что его прочитал).
+    prev = {}
+    try:
+        old = _read_index_raw(project_root)
+        # Чужой индекс («мозг в папке плагина») переиспользовать нельзя:
+        # там записи ДРУГОГО проекта с такими же относительными путями.
+        # L5: индекс, собранный с ДРУГИМ лимитом символов, тоже не годится —
+        # штампы mtime/size не менялись, поэтому переиспользование вернуло бы
+        # старые урезанные записи и фикс не доехал бы до проекта.
+        if isinstance(old, dict) and old.get("root") == root \
+                and old.get("sym_limit") == MAX_SYMBOLS:
+            for e in old.get("files", []):
+                if isinstance(e, dict) and e.get("path"):
+                    prev[e["path"]] = e
+    except Exception:
+        prev = {}  # без переиспользования пересборка просто станет полной
+    entries = [_reuse_or_build(root, rel, prev) for rel in rels]
+    entries = [entry for entry in entries if entry is not None]
+    # L5: лимит символов — часть формата индекса (см. проверки в блоке
+    # переиспользования выше и в _load_index). Без этой метки поднятие
+    # лимита не доехало бы до уже построенных индексов: записи со штампом
+    # (mtime, size) переиспользовались бы вместе с урезанными символами.
+    data = {"sym_limit": MAX_SYMBOLS, "built": time.time(), "root": root,
+            "files": entries}
+
+    if skipped:
+        # Индекс — единственное место, где факт усечения известен. Ключи
+        # добавляются ТОЛЬКО при усечении: на обычном проекте формат
+        # файла индекса не меняется вообще.
+        data["truncated"] = True
+        data["skipped_files"] = skipped
+    _save(project_root, data)
+    selected_gd = [rel for rel in rels if rel.lower().endswith(".gd")]
+    _refresh_semantic_index(project_root, selected_gd,
+                            len(selected_gd) == len(all_gd_rels))
+    return len(entries)
+
+
+def _read_index_raw(project_root):
+    """Читает индекс БЕЗ проверки свежести (для микро-обновлений).
+
+    v105.13 (п.2): источник данных — сначала кэш в памяти, и только при
+    промахе — диск. Сами данные не меняются ни на байт: это тот же dict,
+    который вернул бы json.load, просто без повторного разбора."""
+    path = _index_path(project_root)
+    stamp = _index_stamp(path)
+    key = _cache_key(project_root)
+    if stamp is not None:
+        cached = _MEM_CACHE.get(key)
+        if cached is not None and cached.get("stamp") == stamp:
+            return _readable_index_data(project_root, cached.get("data"))
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("files"), list):
+            if stamp is not None:
+                _MEM_CACHE[key] = {"stamp": stamp, "data": data}
+            return _readable_index_data(project_root, data)
+    except Exception:
+        pass
+    # Битый/отсутствующий индекс — кэшировать нечего; чистим запись,
+    # чтобы не отдать её позже по совпавшему отпечатку.
+    _MEM_CACHE.pop(key, None)
+    return None
+
+
+def index_meta(project_root):
+    """v105.13 (п.1): служебные поля индекса для вызывающего кода
+    (Библиотекарь) — без доступа к внутренним _-функциям модуля.
+    Возвращает {"truncated": bool, "skipped_files": int}; если индекса нет
+    или он от ДРУГОГО проекта («мозг в папке плагина») — пустое
+    состояние, чтобы не предупреждать об усечении чужого индекса.
+    Чтение идёт через кэш (п.2), то есть лишнего разбора json нет."""
+    try:
+        data = _read_index_raw(project_root)
+        if not isinstance(data, dict):
+            return {"truncated": False, "skipped_files": 0}
+        if data.get("root") != os.path.abspath(project_root or "."):
+            return {"truncated": False, "skipped_files": 0}
+        return {"truncated": bool(data.get("truncated")),
+                "skipped_files": int(data.get("skipped_files") or 0)}
+    except Exception:
+        return {"truncated": False, "skipped_files": 0}
+
+
+def _load_index(project_root, auto_build=True):
+    data = _read_index_raw(project_root)
+    # Багфикс v105.8: при «мозге в папке плагина» (set_storage_base) индексы
+    # всех проектов живут в ОДНОМ файле. Сверяем root: чужой индекс считаем
+    # отсутствующим, иначе проект B получит карту проекта A.
+    if data is not None and data.get("root") != os.path.abspath(project_root or "."):
+        data = None
+    # L5: индекс, собранный с ДРУГИМ лимитом символов, считаем устаревшим.
+    # Иначе он живёт ещё STALE_SEC и отдаёт поиску записи, из которых имена
+    # уже выброшены лимитом, — то есть фикс приходил бы с задержкой и не
+    # сразу после пересборки.
+    if data is not None and data.get("sym_limit") != MAX_SYMBOLS:
+        data = None
+    if data is not None and time.time() - float(data.get("built", 0)) < STALE_SEC:
+        return data
+    if auto_build:
+        build_index(project_root)
+        return _load_index(project_root, auto_build=False)
+    return data or {"files": []}
+
+
+def _norm_rel(rel):
+    return str(rel or "").replace("res://", "").replace("\\", "/").strip("/")
+
+
+def update_entries(project_root, changed_rels=(), deleted_rels=()):
+    """v105: точечное обновление индекса без полной пересборки.
+
+    Возвращает True, если индекс существовал и был обновлён; False — если
+    индекса ещё нет (он построится лениво при первом поиске, отдельно
+    строить не нужно). Метка built сохраняется прежней, чтобы страховочная
+    полная пересборка по STALE_SEC работала как раньше."""
+    with _project_lock(project_root):
+        return _update_entries_locked(project_root, changed_rels, deleted_rels)
+
+
+def _update_entries_locked(project_root, changed_rels=(), deleted_rels=()):
+    data = _read_index_raw(project_root)
+    if data is None:
+        return False
+    root = os.path.abspath(project_root or ".")
+    if data.get("root") != root:
+        # Багфикс v105.8: чужой индекс (общая папка плагина) — не смешиваем
+        # записи двух проектов; индекс пересоберётся лениво при первом поиске.
+        return False
+    by_path = {}
+    for e in data.get("files", []):
+        if isinstance(e, dict) and e.get("path"):
+            by_path[e["path"]] = e
+    for rel in deleted_rels or ():
+        by_path.pop(_norm_rel(rel), None)
+    skipped_now = 0
+    # v105.13 (п.1): тот же приоритет, что и в build_index. Раньше при упоре
+    # в потолок выигрывал тот, кто раньше оказался в списке изменённых,
+    # то есть случайность: новый .md мог занять последний слот и вытеснить
+    # новый скрипт. Сортировка устойчивая и влияет только на порядок
+    # ОБРАБОТКИ: итоговый files всё равно сортируется по path ниже.
+    for rel in sorted(changed_rels or (), key=lambda r: _ext_priority(_norm_rel(r))):
+        nrel = _norm_rel(rel)
+        if not can_read_project_path(rel, root):
+            by_path.pop(nrel, None)
+            continue
+        if not nrel:
+            continue
+        ext = os.path.splitext(nrel)[1].lower()
+        if ext not in EXTS or ext == ".import":
+            continue
+        if any(part in SKIP_DIRS for part in nrel.split("/")[:-1]):
+            continue
+        full = os.path.join(root, nrel.replace("/", os.sep))
+        if os.path.isfile(full):
+            if nrel not in by_path and len(by_path) >= MAX_FILES:
+                skipped_now += 1
+                continue  # потолок индекса — как в build_index
+            fresh = _build_entry(root, nrel)
+            if fresh is None:
+                by_path.pop(nrel, None)
+            else:
+                by_path[nrel] = fresh
+        else:
+            by_path.pop(nrel, None)
+    data["files"] = sorted(by_path.values(), key=lambda e: e.get("path", ""))
+    data["root"] = root
+    if skipped_now:
+        # v105.13 (п.1): микро-обновление тоже умеет терять файлы по лимиту,
+        # и раньше делало это молча. Счётчик накапливается: полная
+        # пересборка по STALE_SEC пересчитает его точно.
+        data["truncated"] = True
+        data["skipped_files"] = int(data.get("skipped_files") or 0) + skipped_now
+    _save(project_root, data)
+    semantic = _read_semantic_index(project_root)
+    if semantic is not None:
+        semantic_by_path = {entry.get("path"): entry for entry in semantic.get("files", [])
+                            if isinstance(entry, dict) and entry.get("path")}
+        for rel in deleted_rels or ():
+            semantic_by_path.pop(_norm_rel(rel), None)
+        for rel in changed_rels or ():
+            nrel = _norm_rel(rel)
+            if not can_read_project_path(rel, root):
+                semantic_by_path.pop(nrel, None)
+                continue
+            if not nrel.lower().endswith(".gd"):
+                continue
+            fresh = _build_semantic_entry(root, nrel)
+            if fresh is None:
+                semantic_by_path.pop(nrel, None)
+            else:
+                semantic_by_path[nrel] = fresh
+        semantic["files"] = sorted(semantic_by_path.values(),
+                                   key=lambda entry: entry.get("path", ""))
+        semantic["built"] = time.time()
+        if skipped_now:
+            semantic["complete"] = False
+        _save_semantic_index(project_root, semantic)
+    return True
+
+
+def _tokens(text):
+    """Токены + подтокены: snake_case и camelCase дополнительно разбиваются
+    (take_damage -> take_damage, take, damage), чтобы запрос "damage"
+    находил take_damage (v105)."""
+    out = set()
+    # v105.10: \W+ — юникод целиком (был ручной диапазон только для кириллицы)
+    for raw in re.split(r"\W+", str(text or ""), flags=re.U):
+        if not raw:
+            continue
+        low = raw.lower()
+        if len(low) >= 2:
+            out.add(low)
+        for part in _CAMEL_RE.sub(" ", raw).replace("_", " ").split():
+            pl = part.lower()
+            if len(pl) >= 2:
+                out.add(pl)
+    return out
+
+
+def _phrase_key(query):
+    """Запрос как имя объявления: «act completed» -> «act_completed» (L4)."""
+    text = re.sub(r"\W+", "_", str(query or "").strip().lower(), flags=re.U)
+    return text.strip("_")
+
+
+def _phrase_keys(query, min_words=1):
+    """Ключи признака `phrase_name`: склейки подряд идущих слов запроса.
+
+    Вторая форма (без подчёркиваний) нужна для camelCase-объявлений:
+    `class:BossChest` и запрос «boss chest» должны встретиться, хотя
+    подчёркивания в имени нет.
+
+    `min_words` отсекает короткие склейки. Признаку в индексе (L4) нужны и
+    одиночные слова — запрос «sprite» это имя `var:sprite`, — а бонусу за
+    путь (L4c) только склейки от двух слов: по одному слову запрос
+    «slow motion effect» находил бы файл с именем `motion` и вытеснял верный
+    ответ (замер на golden-set: `rare_words` 0.867 -> 0.847).
+
+    Склейки ВСЕХ слов запроса без подчёркиваний даёт `_phrase_key`.
+    """
+    words = [w for w in re.split(r"\W+", str(query or "").lower(), flags=re.U) if w]
+    keys = []
+    for i in range(len(words)):
+        for j in range(i + min_words, len(words) + 1):
+            base = "_".join(words[i:j])
+            keys.append(base)
+            flat = base.replace("_", "")
+            if flat != base:
+                keys.append(flat)
+    return tuple(dict.fromkeys(keys))
+
+
+def _path_keys(query):
+    """Ключи бонуса за путь (L4c): запрос как есть плюс склейки слов.
+
+    Путь в проекте пишется подчёркиваниями, а запрос приходит с пробелами:
+    «boss chest» должен узнавать `.../boss_chest.tscn`, иначе верный скрипт
+    обгоняет его собственная сцена. Одиночные слова сюда НЕ берём — иначе
+    «slow motion effect» находил бы файл по слову `motion`.
+
+    Замер на golden-set полигона (150 запросов, срез `index`): mrr@8
+    0.986 -> 0.993, `intent` 0.873 -> 0.941, остальные вёдра 1.000.
+    """
+    ql = str(query or "").lower()
+    keys = [ql] if ql else []
+    for k in _phrase_keys(query, min_words=2):
+        if k not in keys:
+            keys.append(k)
+    return tuple(keys)
+
+
+# Служебные префиксы символов .gd (см. _build_entry) — НЕ токены поиска:
+# из-за них запрос со словом «class»/«func»/«var» совпадал с почти каждым
+# .gd проекта и MAP набирал шумной хвост. Багфикс v105.9 (пункт 2).
+# Символы узлов .tscn («Имя:Тип») не трогаем — там до двоеточия имя узла.
+_SYM_PREFIXES = ("class:", "func:", "signal:", "var:", "const:")
+
+
+def _symbol_search_text(sym):
+    """Текст символа для токенов поиска: известный префикс .gd срезается,
+    остальное (включая «Имя:Тип» узлов сцен) возвращается как есть."""
+    s = str(sym)
+    for p in _SYM_PREFIXES:
+        if s.startswith(p):
+            return s[len(p):]
+    return s
+
+
+# --- L4 (P2): структурный тай-брейк вместо алфавитного ---------------------
+# Было: `scored.sort(key=lambda s: (-s[0], s[1]["path"]))` — при равном score
+# порядок задавал алфавит пути, то есть релевантность подменялась сортировкой
+# строк. Замер на golden-set полигона (150 запросов, срез `index`, план §3.3)
+# показал, что так решается исход 8 промахов из 10 в слое `intent`:
+# `save_manager.gd` уступал `achievement_manager.gd`, `boss_chest.gd` — своей
+# же сцене `boss_chest.tscn`, `damage_number_pool.gd` — `base_enemy.gd`.
+# Для запроса `sprite` вперёд уходили 17 сцен с узлом `Sprite`, а четыре
+# скрипта с `var:sprite` стояли на местах 19-23.
+#
+# Тай-брейк — упорядоченный список признаков ЗАПИСИ, каждый ориентирован
+# «меньше значит раньше», поэтому ключ сортировки — просто их tuple:
+#   kind_rank  — .gd раньше .tscn и прочих: та же политика, что у слоя MAP
+#                (`librarian._KIND_WEIGHT`, `_FRAG_KIND_RANK`), и та же
+#                причина: сцена ПРИМЕНЯЕТ структуру, скрипт её ОБЪЯВЛЯЕТ.
+#                Именно поэтому признак первый: у равных по score скрипта и
+#                сцены («boss chest» -> `boss_chest.gd` против одноимённой
+#                `boss_chest.tscn`) порядок обязан решать в пользу кода;
+#   phrase_name — запрос целиком склеивается в имя объявления (`act completed`
+#                -> `act_completed`) и ищется как ОДНО имя: так запрос,
+#                собранный из слов имени, узнаёт СВОЁ объявление, а не первое
+#                совпадение по отдельному слову. 0 — имя объявлено в коде,
+#                1 — только у сцены/ресурса, 2 (`_TIE_MISS`) — точного имени
+#                нет;
+#   name_hits  — сколько токенов запроса есть в ИМЕНИ файла: файл, названный
+#                по запросу, идёт раньше того, который его лишь упоминает
+#                (`bomber_enemy.gd` против `base_enemy.gd` при равном score).
+# Последним в ключе всегда идёт путь — выдача обязана быть детерминированной,
+# а не зависеть от порядка обхода каталогов.
+#
+# Набор и порядок признаков выбраны ЗАМЕРОМ, а не на вкус: 18 вариантов на
+# том же golden-set (срез `index`, mrr@8 всего). Плато .986 держат
+# «kind_rank, phrase_name, name_hits» и все надмножества вплоть до
+# «kind_rank, phrase_name, exact_name, name_hits, path_hits, class_decl»,
+# поэтому признаки `exact_name` (совпадение с целым именем объявления),
+# `path_hits` (токены пути с папками) и `class_decl` (файл объявляет класс)
+# ИЗЪЯТЫ: замера они не дают, а кода и памяти требуют. Признак `shallow`
+# (менее вложенный файл раньше) не просто не помогал, а ВРЕДИЛ (.982): на
+# `act completed` он поднимал `scripts/main.gd` над верным
+# `scripts/autoload/map_manager.gd`. Порядок тоже из замера: «phrase_name»
+# первым даёт .979 (на «boss chest» выигрывает сцена), «name_hits» перед
+# «phrase_name» — .974 (теряются запросы-фразы).
+#
+# Признаки стоят ПОСЛЕ score и только разбивают равенство: сам скоринг
+# (сколько разных токенов совпало) L4 не трогает — это работа L3 (IDF).
+_TIE_BREAK = ("kind_rank", "phrase_name", "name_hits")
+
+# Значение признака для записей, которых он не коснулся: у счётчиков — 0,
+# у точного имени — 2 (см. `phrase_name` в комментарии выше).
+_TIE_MISS = {"phrase_name": 2}
+
+# .gd раньше .tscn и прочих: код — источник структуры, сцена — её применение.
+_KIND_RANK = {"gd": 0, "gdshader": 0, "shader": 0,
+              "tscn": 1, "scn": 1, "tres": 1, "godot": 1, "cfg": 1}
+
+
+def _post_add(index, token, i):
+    """Добавить номер записи в постинг-лист токена (без дублей).
+
+    Дубль в постинге сломал бы контракт score («сколько РАЗНЫХ токенов
+    запроса встретилось»), поэтому запись кладётся не больше одного раза
+    на токен: списки строятся по порядку записей, достаточно сверить хвост.
+    """
+    lst = index.get(token)
+    if lst is None:
+        index[token] = [i]
+    elif lst[-1] != i:
+        lst.append(i)
+
+
+# v105.15: инвертированный индекс в памяти процесса.
+# Было: search() на КАЖДЫЙ вызов заново токенизировал путь и все символы
+# каждой записи — два re.split на файл, причём второй по длинной склейке
+# всех символов. Замер на 6000 файлов: 492 мс на один search(), а
+# Библиотекарь зовёт его на каждый ask_librarian (и main.py разрешает
+# цепочку до 4 подряд). Кэш _MEM_CACHE от этого не спасал: он экономил
+# разбор json, а не токенизацию.
+# Ключ инвалидации — сам объект files (id + длина), а не отпечаток файла
+# индекса: и build_index, и update_entries кладут в data НОВЫЙ список,
+# поэтому смена содержимого всегда меняет id. Ссылку на files держим в
+# записи кэша, иначе сборщик мог бы освободить список, а его адрес занял
+# бы другой объект — и проверка по id совпала бы ложно.
+_SEARCH_MAPS = {}  # abs_root -> {"files_id", "len", "maps", "files"}
+
+
+def _build_search_maps(files):
+    """Карты поиска одной версии индекса.
+
+    postings — токен -> [номера записей] по пути и символам (скоринг);
+    paths_low — пути в нижнем регистре (бонус за подстроку в пути);
+    phrase_post/name_post — постинги признаков тай-брейка L4 (целое имя
+    объявления для запроса-фразы и токены имени файла);
+    static — признаки тай-брейка, не зависящие от запроса.
+
+    Признаки записи от запроса не зависят, поэтому считаются здесь один раз
+    на версию индекса: search() на них не тратит ни токенизации, ни регулярок.
+    """
+    postings = {}
+    phrase_post = {}
+    name_post = {}
+    paths_low = []
+    kind_rank = []
+    for i, e in enumerate(files):
+        path = e.get("path", "") if isinstance(e, dict) else ""
+        kind = str(e.get("kind", "")).lower() if isinstance(e, dict) else ""
+        paths_low.append(path.lower())
+        kind_rank.append(_KIND_RANK.get(kind, 2))
+        syms = e.get("symbols", []) if isinstance(e, dict) else []
+        hay = _tokens(path) | _tokens(
+            " ".join(_symbol_search_text(s) for s in syms))
+        for t in hay:
+            _post_add(postings, t, i)
+        # Имена объявлений — для `phrase_name`: запрос-фраза склеивается в
+        # имя и ищется как одно имя, поэтому в постинге лежит имя целиком.
+        for s in syms:
+            name = _symbol_search_text(s).strip().lower()
+            if name:
+                _post_add(phrase_post, name, i)
+                flat = name.replace("_", "")
+                if flat != name:
+                    _post_add(phrase_post, flat, i)
+        for t in _tokens(os.path.basename(path)):
+            _post_add(name_post, t, i)
+    return {"postings": postings, "paths_low": paths_low,
+            "phrase_post": phrase_post, "name_post": name_post,
+            "static": {"kind_rank": kind_rank}}
+
+
+def _search_maps(project_root, files):
+    """Карты поиска для этого списка записей — из кэша или построенные."""
+    key = _cache_key(project_root)
+    ent = _SEARCH_MAPS.get(key)
+    if (ent is not None and ent.get("files_id") == id(files)
+            and ent.get("len") == len(files)):
+        return ent["maps"]
+    maps = _build_search_maps(files)
+    _SEARCH_MAPS[key] = {"files_id": id(files), "len": len(files),
+                         "maps": maps, "files": files}
+    return maps
+
+
+def search(project_root, query, limit=8):
+    """Ищет файлы/символы по запросу. Возвращает список записей с score.
+
+    Порядок при РАВНОМ score задаёт структурный тай-брейк L4 (`_TIE_BREAK`),
+    а не алфавит пути; сам score (сколько разных токенов запроса совпало)
+    остаётся прежним.
+    """
+    data = _load_index(project_root)
+    q = _tokens(query or "")
+    if not q:
+        return []
+    files = data.get("files", [])
+    maps = _search_maps(project_root, files)
+    postings = maps["postings"]
+    paths_low = maps["paths_low"]
+    static = maps["static"]
+    # score = сколько РАЗНЫХ токенов запроса встретилось в записи. В
+    # постингах каждая запись лежит не больше одного раза на токен (они
+    # строятся из множества), поэтому счётчик даёт ровно len(q & hay) —
+    # то же число, что считал прежний полный перебор.
+    counts = {}
+    # Признак `name_hits` считается тем же проходом по постингам: отдельной
+    # токенизации записей на каждый поиск не нужно. Значения сразу
+    # ориентированы «меньше значит раньше» (со знаком минус), поэтому
+    # отсутствие записи в словаре означает ровно ноль признака.
+    name_hits = {}
+    for t in q:
+        for i in postings.get(t, ()):
+            counts[i] = counts.get(i, 0) + 1
+        for i in maps["name_post"].get(t, ()):
+            name_hits[i] = name_hits.get(i, 0) - 1
+    # Запрос целиком как имя объявления: 0 — имя объявлено в КОДЕ, 1 — имя
+    # есть только у сцены/ресурса, 2 (см. _TIE_MISS) — точного имени нет.
+    phrase_hits = {}
+    for pk in _phrase_keys(query):
+        for i in maps["phrase_post"].get(pk, ()):
+            phrase_hits[i] = 0 if static["kind_rank"][i] == 0 else 1
+    # Бонус за подстроку в пути. Отдельным проходом, потому что он может
+    # вытащить запись, у которой НИ ОДНОГО токена не совпало: раньше такая
+    # получала score=2 и попадала в выдачу — поведение сохраняем. С L4c
+    # ключей несколько: сам запрос и склейки его слов (см. _path_keys).
+    path_keys = _path_keys(query)
+    if path_keys:
+        for i, pl in enumerate(paths_low):
+            if any(k in pl for k in path_keys):
+                counts[i] = counts.get(i, 0) + 2
+    dyn = {"phrase_name": phrase_hits, "name_hits": name_hits}
+
+    def _tie_key(i):
+        """Признаки тай-брейка записи, «меньше значит раньше», затем путь."""
+        parts = []
+        for name in _TIE_BREAK:
+            by_entry = dyn.get(name)
+            if by_entry is None:
+                parts.append(static[name][i])
+            else:
+                parts.append(by_entry.get(i, _TIE_MISS.get(name, 0)))
+        parts.append(files[i].get("path", ""))
+        return tuple(parts)
+
+    scored = [(sc, i) for i, sc in counts.items() if sc > 0]
+    scored.sort(key=lambda s: (-s[0], _tie_key(s[1])))
+    return [dict(files[i], score=sc) for sc, i in scored[:limit]]
+
+
+def semantic_snapshot(project_root, refresh=False):
+    """Return current semantic files and completeness without exposing cache state."""
+    data = _read_semantic_index(project_root)
+    if refresh or data is None:
+        build_index(project_root)
+        data = _read_semantic_index(project_root)
+    data = data or {"files": [], "complete": False}
+    files = []
+    for entry in data.get("files", []):
+        if isinstance(entry.get("semantic"), dict):
+            files.append({"path": entry.get("path"), "sha256": entry.get("sha256"),
+                          "semantic": entry.get("semantic")})
+    return {"files": files,
+            "complete": bool(data.get("complete")),
+            "skipped_files": 0 if data.get("complete") else 1}
+
+
+def find_declarations(project_root, kind=None, name=None, refresh=False):
+    """Find exact semantic declarations; callers must reject multiple matches."""
+    snapshot = semantic_snapshot(project_root, refresh=refresh)
+    found = []
+    for entry in snapshot["files"]:
+        for declaration in entry["semantic"].get("declarations", []):
+            if kind is not None and declaration.get("kind") != kind:
+                continue
+            if name is not None and declaration.get("name") != name:
+                continue
+            item = dict(declaration)
+            item["path"] = "res://" + entry["path"]
+            item["sha256"] = entry.get("sha256")
+            found.append(item)
+    found.sort(key=lambda item: (item["path"], item.get("start", 0)))
+    return found
+
+
+def find_name_facts(project_root, name, refresh=False):
+    """Return declarations/references/string candidates for conservative refactors."""
+    snapshot = semantic_snapshot(project_root, refresh=refresh)
+    result = {"declarations": [], "references": [], "strings": [],
+              "complete": snapshot["complete"],
+              "skipped_files": snapshot["skipped_files"], "partial_files": []}
+    for entry in snapshot["files"]:
+        semantic = entry["semantic"]
+        path = "res://" + entry["path"]
+        if semantic.get("parse_status") != "ok":
+            result["partial_files"].append(path)
+        for key in ("declarations", "references"):
+            for fact in semantic.get(key, []):
+                if fact.get("name") == name:
+                    item = dict(fact)
+                    item["path"] = path
+                    item["sha256"] = entry.get("sha256")
+                    result[key].append(item)
+        for fact in semantic.get("strings", []):
+            value = str(fact.get("value") or "")
+            if name in value:
+                item = dict(fact)
+                item["path"] = path
+                item["sha256"] = entry.get("sha256")
+                result["strings"].append(item)
+    return result
+
+
+def describe_for_prompt(project_root, query, limit=6):
+    """Компактный текстовый блок о найденных файлах — для вставки в промпт
+    большой модели. Пустая строка, если ничего не найдено."""
+    hits = search(project_root, query, limit=limit)
+    if not hits:
+        return ""
+    lines = ["[mini-lich: найдено в проекте по запросу «%s»]" % (query or "")]
+    for h in hits:
+        syms = ", ".join(h.get("symbols", [])[:8])
+        lines.append("- res://%s%s" % (h["path"], (" (%s)" % syms) if syms else ""))
+    return "\n".join(lines)

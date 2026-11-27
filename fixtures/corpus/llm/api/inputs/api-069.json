@@ -1,0 +1,7 @@
+{
+  "kind": "stream",
+  "module": "openai_compat",
+  "chunk": 8192,
+  "wire_base64": "OiBmaXh0dXJlIGtlZXBhbGl2ZQ0KDQpkYXRhOiB7Im1vZGVsIjogImZpeHR1cmUiLCAiY2hvaWNlcyI6IFt7ImRlbHRhIjogeyJyZWFzb25pbmciOiAi0J/RgNC+0LLQtdGA0Y/RjiDOqSJ9fV19DQoNCmRhdGE6IHsiY2hvaWNlcyI6IFt7ImRlbHRhIjogeyJjb250ZW50IjogItCe0YLQstC10YI6INGR0LYg8J+mlCJ9fV19DQoNCg==",
+  "id": "api-069"
+}

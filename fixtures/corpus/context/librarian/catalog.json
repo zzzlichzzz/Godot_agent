@@ -1,0 +1,746 @@
+[
+  {
+    "id": "001-tokens",
+    "operation": "tokens",
+    "query": "take_damage"
+  },
+  {
+    "id": "002-tokens",
+    "operation": "tokens",
+    "query": "health_changed"
+  },
+  {
+    "id": "003-tokens",
+    "operation": "tokens",
+    "query": "autoload"
+  },
+  {
+    "id": "004-tokens",
+    "operation": "tokens",
+    "query": "Global"
+  },
+  {
+    "id": "005-tokens",
+    "operation": "tokens",
+    "query": "damage"
+  },
+  {
+    "id": "006-tokens",
+    "operation": "tokens",
+    "query": "injury"
+  },
+  {
+    "id": "007-tokens",
+    "operation": "tokens",
+    "query": "attack"
+  },
+  {
+    "id": "008-tokens",
+    "operation": "tokens",
+    "query": "weapon armor"
+  },
+  {
+    "id": "009-tokens",
+    "operation": "tokens",
+    "query": "HeroUnit"
+  },
+  {
+    "id": "010-tokens",
+    "operation": "tokens",
+    "query": "Equipment"
+  },
+  {
+    "id": "011-tokens",
+    "operation": "tokens",
+    "query": "equip_weapon"
+  },
+  {
+    "id": "012-tokens",
+    "operation": "tokens",
+    "query": "shared_action"
+  },
+  {
+    "id": "013-tokens",
+    "operation": "tokens",
+    "query": "func:take_damage"
+  },
+  {
+    "id": "014-tokens",
+    "operation": "tokens",
+    "query": "func:shared_action"
+  },
+  {
+    "id": "015-tokens",
+    "operation": "tokens",
+    "query": "const:MAX_HEALTH"
+  },
+  {
+    "id": "016-tokens",
+    "operation": "tokens",
+    "query": "var:health"
+  },
+  {
+    "id": "017-tokens",
+    "operation": "tokens",
+    "query": "здоровье"
+  },
+  {
+    "id": "018-tokens",
+    "operation": "tokens",
+    "query": "publik_symbol"
+  },
+  {
+    "id": "019-tokens",
+    "operation": "tokens",
+    "query": "nonexistentneedle"
+  },
+  {
+    "id": "020-tokens",
+    "operation": "tokens",
+    "query": "snake_case CamelCase foo42 healthHealth"
+  },
+  {
+    "id": "021-tokens",
+    "operation": "tokens",
+    "query": "Node2D position"
+  },
+  {
+    "id": "022-tokens",
+    "operation": "tokens",
+    "query": " signal:health_changed "
+  },
+  {
+    "id": "023-tokens",
+    "operation": "tokens",
+    "query": "boss chest"
+  },
+  {
+    "id": "024-tokens",
+    "operation": "tokens",
+    "query": "event pool act one"
+  },
+  {
+    "id": "025-tokens",
+    "operation": "tokens",
+    "query": "func:bad name"
+  },
+  {
+    "id": "026-answer",
+    "operation": "answer",
+    "query": "take_damage"
+  },
+  {
+    "id": "027-answer",
+    "operation": "answer",
+    "query": "health_changed"
+  },
+  {
+    "id": "028-answer",
+    "operation": "answer",
+    "query": "autoload"
+  },
+  {
+    "id": "029-answer",
+    "operation": "answer",
+    "query": "Global"
+  },
+  {
+    "id": "030-answer",
+    "operation": "answer",
+    "query": "damage"
+  },
+  {
+    "id": "031-answer",
+    "operation": "answer",
+    "query": "injury"
+  },
+  {
+    "id": "032-answer",
+    "operation": "answer",
+    "query": "attack"
+  },
+  {
+    "id": "033-answer",
+    "operation": "answer",
+    "query": "weapon armor"
+  },
+  {
+    "id": "034-answer",
+    "operation": "answer",
+    "query": "HeroUnit"
+  },
+  {
+    "id": "035-answer",
+    "operation": "answer",
+    "query": "Equipment"
+  },
+  {
+    "id": "036-answer",
+    "operation": "answer",
+    "query": "equip_weapon"
+  },
+  {
+    "id": "037-answer",
+    "operation": "answer",
+    "query": "shared_action"
+  },
+  {
+    "id": "038-answer",
+    "operation": "answer",
+    "query": "func:take_damage"
+  },
+  {
+    "id": "039-answer",
+    "operation": "answer",
+    "query": "func:shared_action"
+  },
+  {
+    "id": "040-answer",
+    "operation": "answer",
+    "query": "const:MAX_HEALTH"
+  },
+  {
+    "id": "041-answer",
+    "operation": "answer",
+    "query": "var:health"
+  },
+  {
+    "id": "042-answer",
+    "operation": "answer",
+    "query": "здоровье"
+  },
+  {
+    "id": "043-answer",
+    "operation": "answer",
+    "query": "publik_symbol"
+  },
+  {
+    "id": "044-answer",
+    "operation": "answer",
+    "query": "nonexistentneedle"
+  },
+  {
+    "id": "045-answer",
+    "operation": "answer",
+    "query": "snake_case CamelCase foo42 healthHealth"
+  },
+  {
+    "id": "046-answer",
+    "operation": "answer",
+    "query": ""
+  },
+  {
+    "id": "047-answer",
+    "operation": "answer",
+    "query": "   "
+  },
+  {
+    "id": "048-answer",
+    "operation": "answer",
+    "query": null
+  },
+  {
+    "id": "049-answer",
+    "operation": "answer",
+    "query": 17
+  },
+  {
+    "id": "050-answer",
+    "operation": "answer",
+    "query": []
+  },
+  {
+    "id": "051-answer",
+    "operation": "answer",
+    "query": {}
+  },
+  {
+    "id": "052-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": null
+  },
+  {
+    "id": "053-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": "bad"
+  },
+  {
+    "id": "054-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": "500"
+  },
+  {
+    "id": "055-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": -1
+  },
+  {
+    "id": "056-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 0
+  },
+  {
+    "id": "057-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 299
+  },
+  {
+    "id": "058-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 300
+  },
+  {
+    "id": "059-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 301
+  },
+  {
+    "id": "060-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 500
+  },
+  {
+    "id": "061-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 1000
+  },
+  {
+    "id": "062-answer",
+    "operation": "answer",
+    "query": "take_damage",
+    "budget": 6000
+  },
+  {
+    "id": "063-budget-boundaries",
+    "operation": "budget-boundaries",
+    "query": "take_damage"
+  },
+  {
+    "id": "064-layers",
+    "operation": "layers",
+    "query": "take_damage"
+  },
+  {
+    "id": "065-layers",
+    "operation": "layers",
+    "query": "health_changed"
+  },
+  {
+    "id": "066-layers",
+    "operation": "layers",
+    "query": "autoload"
+  },
+  {
+    "id": "067-layers",
+    "operation": "layers",
+    "query": "Global"
+  },
+  {
+    "id": "068-layers",
+    "operation": "layers",
+    "query": "damage"
+  },
+  {
+    "id": "069-layers",
+    "operation": "layers",
+    "query": "injury"
+  },
+  {
+    "id": "070-layers",
+    "operation": "layers",
+    "query": "attack"
+  },
+  {
+    "id": "071-layers",
+    "operation": "layers",
+    "query": "weapon armor"
+  },
+  {
+    "id": "072-layers",
+    "operation": "layers",
+    "query": "HeroUnit"
+  },
+  {
+    "id": "073-layers",
+    "operation": "layers",
+    "query": "Equipment"
+  },
+  {
+    "id": "074-layers",
+    "operation": "layers",
+    "query": "equip_weapon"
+  },
+  {
+    "id": "075-layers",
+    "operation": "layers",
+    "query": "shared_action"
+  },
+  {
+    "id": "076-layers",
+    "operation": "layers",
+    "query": "func:take_damage"
+  },
+  {
+    "id": "077-layers",
+    "operation": "layers",
+    "query": "func:shared_action"
+  },
+  {
+    "id": "078-layers",
+    "operation": "layers",
+    "query": "const:MAX_HEALTH"
+  },
+  {
+    "id": "079-layers",
+    "operation": "layers",
+    "query": "var:health"
+  },
+  {
+    "id": "080-layers",
+    "operation": "layers",
+    "query": "здоровье"
+  },
+  {
+    "id": "081-index",
+    "operation": "index",
+    "query": "take_damage"
+  },
+  {
+    "id": "082-index",
+    "operation": "index",
+    "query": "health_changed"
+  },
+  {
+    "id": "083-index",
+    "operation": "index",
+    "query": "Equipment"
+  },
+  {
+    "id": "084-index",
+    "operation": "index",
+    "query": "здоровье"
+  },
+  {
+    "id": "085-index",
+    "operation": "index",
+    "query": "MAX_HEALTH"
+  },
+  {
+    "id": "086-index",
+    "operation": "index",
+    "query": "bom_symbol"
+  },
+  {
+    "id": "087-index",
+    "operation": "index",
+    "query": "odd_bytes"
+  },
+  {
+    "id": "088-index",
+    "operation": "index",
+    "query": "func:"
+  },
+  {
+    "id": "089-invalidate",
+    "operation": "invalidate"
+  },
+  {
+    "id": "090-card",
+    "operation": "card",
+    "query": "func:take_damage"
+  },
+  {
+    "id": "091-card",
+    "operation": "card",
+    "query": "func:shared_action"
+  },
+  {
+    "id": "092-card",
+    "operation": "card",
+    "query": "shared_action"
+  },
+  {
+    "id": "093-card",
+    "operation": "card",
+    "query": "signal:health_changed"
+  },
+  {
+    "id": "094-card",
+    "operation": "card",
+    "query": "parameter:amount"
+  },
+  {
+    "id": "095-api",
+    "operation": "api",
+    "mode": "empty",
+    "query": "Node2D position"
+  },
+  {
+    "id": "096-api",
+    "operation": "api",
+    "mode": "empty",
+    "query": "Control MouseButton"
+  },
+  {
+    "id": "097-api",
+    "operation": "api",
+    "mode": "empty",
+    "query": "Object Object Node"
+  },
+  {
+    "id": "098-api",
+    "operation": "api",
+    "mode": "empty",
+    "query": "UnknownSyntheticClass"
+  },
+  {
+    "id": "099-api",
+    "operation": "api",
+    "mode": "malformed",
+    "query": "Node2D position"
+  },
+  {
+    "id": "100-api",
+    "operation": "api",
+    "mode": "malformed",
+    "query": "Control MouseButton"
+  },
+  {
+    "id": "101-api",
+    "operation": "api",
+    "mode": "malformed",
+    "query": "Object Object Node"
+  },
+  {
+    "id": "102-api",
+    "operation": "api",
+    "mode": "malformed",
+    "query": "UnknownSyntheticClass"
+  },
+  {
+    "id": "103-api",
+    "operation": "api",
+    "mode": "deployed",
+    "query": "Node2D position"
+  },
+  {
+    "id": "104-api",
+    "operation": "api",
+    "mode": "deployed",
+    "query": "Control MouseButton"
+  },
+  {
+    "id": "105-api",
+    "operation": "api",
+    "mode": "deployed",
+    "query": "Object Object Node"
+  },
+  {
+    "id": "106-api",
+    "operation": "api",
+    "mode": "deployed",
+    "query": "UnknownSyntheticClass"
+  },
+  {
+    "id": "107-log",
+    "operation": "log",
+    "mode": "append"
+  },
+  {
+    "id": "108-log",
+    "operation": "log",
+    "mode": "history"
+  },
+  {
+    "id": "109-log",
+    "operation": "log",
+    "mode": "fallback"
+  },
+  {
+    "id": "110-log",
+    "operation": "log",
+    "mode": "missing-parent"
+  },
+  {
+    "id": "111-log",
+    "operation": "log",
+    "mode": "missing-data"
+  },
+  {
+    "id": "112-log",
+    "operation": "log",
+    "mode": "storage-error"
+  },
+  {
+    "id": "113-log",
+    "operation": "log",
+    "mode": "rotation-262143"
+  },
+  {
+    "id": "114-log",
+    "operation": "log",
+    "mode": "rotation-262144"
+  },
+  {
+    "id": "115-log",
+    "operation": "log",
+    "mode": "rotation-262145"
+  },
+  {
+    "id": "116-policy-path",
+    "operation": "policy-path",
+    "path": "../outside/private.gd"
+  },
+  {
+    "id": "117-policy-path",
+    "operation": "policy-path",
+    "path": "..\\outside\\private.gd"
+  },
+  {
+    "id": "118-policy-path",
+    "operation": "policy-path",
+    "path": "\\\\server\\share\\private.gd"
+  },
+  {
+    "id": "119-policy-path",
+    "operation": "policy-path",
+    "path": "C:/outside/private.gd"
+  },
+  {
+    "id": "120-policy-path",
+    "operation": "policy-path",
+    "path": ".agent_history/private.gd"
+  },
+  {
+    "id": "121-policy-path",
+    "operation": "policy-path",
+    "path": "Addons/vendor/private.gd"
+  },
+  {
+    "id": "122-policy-path",
+    "operation": "policy-path",
+    "path": "scripts/player.gd"
+  },
+  {
+    "id": "123-policy-path",
+    "operation": "policy-path",
+    "path": "scripts/invalid.gd"
+  },
+  {
+    "id": "124-policy-path",
+    "operation": "policy-path",
+    "path": "data/binary.bin"
+  },
+  {
+    "id": "125-edge",
+    "operation": "edge",
+    "mode": "exact-budget-edges",
+    "query": "take_damage"
+  },
+  {
+    "id": "126-edge",
+    "operation": "edge",
+    "mode": "exact-budget-edges",
+    "query": "health_changed"
+  },
+  {
+    "id": "127-edge",
+    "operation": "edge",
+    "mode": "ranking",
+    "query": "take damage"
+  },
+  {
+    "id": "128-edge",
+    "operation": "edge",
+    "mode": "ranking",
+    "query": "take_damage"
+  },
+  {
+    "id": "129-edge",
+    "operation": "edge",
+    "mode": "ranking",
+    "query": "health"
+  },
+  {
+    "id": "130-edge",
+    "operation": "edge",
+    "mode": "ranking",
+    "query": "unrelated"
+  },
+  {
+    "id": "131-edge",
+    "operation": "edge",
+    "mode": "quotas",
+    "query": "take_damage"
+  },
+  {
+    "id": "132-edge",
+    "operation": "edge",
+    "mode": "quotas",
+    "query": "health_changed"
+  },
+  {
+    "id": "133-edge",
+    "operation": "edge",
+    "mode": "quotas",
+    "query": "Global"
+  },
+  {
+    "id": "134-edge",
+    "operation": "edge",
+    "mode": "quotas",
+    "query": "health"
+  },
+  {
+    "id": "135-edge",
+    "operation": "edge",
+    "mode": "incomplete-index",
+    "query": "take_damage"
+  },
+  {
+    "id": "136-edge",
+    "operation": "edge",
+    "mode": "incomplete-index",
+    "query": "unmatched_value"
+  },
+  {
+    "id": "137-edge",
+    "operation": "edge",
+    "mode": "symbol-round-robin",
+    "query": ""
+  },
+  {
+    "id": "138-edge",
+    "operation": "edge",
+    "mode": "grep-budgets",
+    "query": "damage health speed inventory"
+  },
+  {
+    "id": "139-edge",
+    "operation": "edge",
+    "mode": "card-caps",
+    "query": "big_card"
+  },
+  {
+    "id": "140-edge",
+    "operation": "edge",
+    "mode": "cached-search",
+    "query": "take_damage"
+  },
+  {
+    "id": "141-edge",
+    "operation": "edge",
+    "mode": "cached-search",
+    "query": "health_changed"
+  }
+]

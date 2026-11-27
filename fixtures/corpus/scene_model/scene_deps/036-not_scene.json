@@ -1,0 +1,17 @@
+{
+  "id": "036-not_scene",
+  "tool": "scene_deps",
+  "fixture": "../corpus/scene_model/scene_deps/project/036-not_scene",
+  "note": "not_scene",
+  "args": {
+    "path": "res://main.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "plain non-scene text\n",
+      "added": [],
+      "notes": []
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "003-extract-one",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Одна функция: snippet дословно (табуляция тела), start_line/end_line с 1",
+  "args": {
+    "path": "res://scripts/player.gd",
+    "names": [
+      "take_damage"
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/player.gd",
+      "functions": [
+        {
+          "name": "take_damage",
+          "snippet": "func take_damage(amount: int) -> void:\n\thealth = max(0, health - amount)\n\tif health == 0:\n\t\tdie()",
+          "start_line": 14,
+          "end_line": 17
+        }
+      ],
+      "missing": []
+    }
+  }
+}

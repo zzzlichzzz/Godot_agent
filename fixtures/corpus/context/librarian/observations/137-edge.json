@@ -1,0 +1,405 @@
+{
+  "before": {
+    "files": {
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJTeW50aGV0aWMgbGlicmFyaWFuIgpbYXV0b2xvYWRdCkdsb2JhbD0iKnJlczovL3NjcmlwdHMvZ2xvYmFsLmdkIgpQcml2YXRlPSIqcmVzOi8vLi4vb3V0c2lkZS9wcml2YXRlLmdkIgo="
+      },
+      ".agent_history/private.gd": {
+        "base64": "ZnVuYyBwcml2YXRlX2hpc3Rvcnlfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "Addons/vendor/private.gd": {
+        "base64": "ZnVuYyB2ZW5kb3Jfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "data/binary.bin": {
+        "base64": "AP8Ac3ludGhldGljX2JpbmFyeQ=="
+      },
+      "docs/readme.md": {
+        "base64": "IyBTeW50aGV0aWMKQXR0YWNrIGNhdXNlcyBkYW1hZ2U7IHRha2VfZGFtYWdlIGRvY3VtZW50YXRpb24gb25seS4K"
+      },
+      "scenes/player.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbbm9kZSBuYW1lPSJIZXJvVW5pdCIgdHlwZT0iTm9kZTJEIl0KW25vZGUgbmFtZT0iSGVhbHRoQmFyIiB0eXBlPSJDb250cm9sIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9ImhlYWx0aF9jaGFuZ2VkIiBmcm9tPSIuIiB0bz0iSGVhbHRoQmFyIiBtZXRob2Q9Il9vbl9oZWFsdGhfY2hhbmdlZCJdCg=="
+      },
+      "scripts/bom.gd": {
+        "base64": "77u/ZXh0ZW5kcyBOb2RlCmZ1bmMgYm9tX3N5bWJvbCgpOgoJcmV0dXJuIDEK"
+      },
+      "scripts/enemy.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMgYXR0YWNrKHRhcmdldCk6Cgl0YXJnZXQudGFrZV9kYW1hZ2UoMikKCXRhcmdldC5jYWxsKCJ0YWtlX2RhbWFnZSIsIDMpCgl0YXJnZXQudGFrZV9kYW1hZ2UuYmluZCg0KS5jYWxsKCkKCXRhcmdldC5oZWFsdGhfY2hhbmdlZC5jb25uZWN0KF9vbl9oZWFsdGhfY2hhbmdlZCkKCWF3YWl0IHRhcmdldC5oZWFsdGhfY2hhbmdlZApmdW5jIF9vbl9oZWFsdGhfY2hhbmdlZCh2YWx1ZSk6CglwcmludCh2YWx1ZSkKZnVuYyBzaGFyZWRfYWN0aW9uKCk6CglyZXR1cm4gMgo="
+      },
+      "scripts/global.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBjb2lucz0wCmZ1bmMgY29sbGVjdF9yZXdhcmQoKToKCWNvaW5zICs9IDEK"
+      },
+      "scripts/invalid.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCiMgaW52YWxpZCD/CmZ1bmMgb2RkX2J5dGVzKCk6CglyZXR1cm4gMQo="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgSGVyb1VuaXQKc2lnbmFsIGhlYWx0aF9jaGFuZ2VkKHZhbHVlKQpjb25zdCBNQVhfSEVBTFRIPTEwMAp2YXIgaGVhbHRoPTEwMApmdW5jIHRha2VfZGFtYWdlKGFtb3VudDogaW50ID0gMSk6Cgl2YXIgcmVtYWluaW5nID0gaGVhbHRoIC0gYW1vdW50CgloZWFsdGggPSByZW1haW5pbmcKCWhlYWx0aF9jaGFuZ2VkLmVtaXQoaGVhbHRoKQoJcmV0dXJuIHJlbWFpbmluZwpmdW5jIHNoYXJlZF9hY3Rpb24oKToKCXJldHVybiAxCmNsYXNzIEVxdWlwbWVudDoKCXZhciBhcm1vcj0yCglmdW5jIGVxdWlwX3dlYXBvbihpdGVtKToKCQlyZXR1cm4gaXRlbQo="
+      },
+      "scripts/unicode.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMg0LfQtNC+0YDQvtCy0YzQtSgpOgoJcmV0dXJuICLQv9GA0LjQstC10YIiCg=="
+      }
+    },
+    "dirs": [
+      ".agent_history",
+      "Addons",
+      "Addons/vendor",
+      "data",
+      "docs",
+      "scenes",
+      "scripts"
+    ]
+  },
+  "result": {
+    "capped": [
+      "class:C",
+      "signal:changed"
+    ],
+    "entry": {
+      "path": "scripts/player.gd",
+      "kind": "gd",
+      "symbols": [
+        "class:HeroUnit",
+        "signal:health_changed"
+      ],
+      "mtime": 1000.0,
+      "size": 335
+    },
+    "semantic": {
+      "path": "scripts/player.gd",
+      "mtime": 1000.0,
+      "size": 335,
+      "sha256": "18b33133d11c75154864436dd733e40b4c810466221536d3fc2d1395cace5d9d",
+      "semantic": {
+        "parse_status": "ok",
+        "errors": [],
+        "declarations": [
+          {
+            "id": "gd:scripts/player.gd#script:class_name@24",
+            "kind": "class_name",
+            "name": "HeroUnit",
+            "owner": "script",
+            "start": 24,
+            "end": 32,
+            "line": 2,
+            "column": 12
+          },
+          {
+            "id": "gd:scripts/player.gd#script:signal@40",
+            "kind": "signal",
+            "name": "health_changed",
+            "owner": "script",
+            "start": 40,
+            "end": 54,
+            "line": 3,
+            "column": 8
+          },
+          {
+            "id": "gd:scripts/player.gd#script:constant@68",
+            "kind": "constant",
+            "name": "MAX_HEALTH",
+            "owner": "script",
+            "start": 68,
+            "end": 78,
+            "line": 4,
+            "column": 7
+          },
+          {
+            "id": "gd:scripts/player.gd#script:variable@87",
+            "kind": "variable",
+            "name": "health",
+            "owner": "script",
+            "start": 87,
+            "end": 93,
+            "line": 5,
+            "column": 5
+          },
+          {
+            "id": "gd:scripts/player.gd#script:function@103",
+            "kind": "function",
+            "name": "take_damage",
+            "owner": "script",
+            "start": 103,
+            "end": 114,
+            "line": 6,
+            "column": 6
+          },
+          {
+            "id": "gd:scripts/player.gd#gd:scripts/player.gd#script:function@103:parameter@115",
+            "kind": "parameter",
+            "name": "amount",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "start": 115,
+            "end": 121,
+            "line": 6,
+            "column": 18
+          },
+          {
+            "id": "gd:scripts/player.gd#gd:scripts/player.gd#script:function@103:variable@138",
+            "kind": "variable",
+            "name": "remaining",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "start": 138,
+            "end": 147,
+            "line": 7,
+            "column": 6
+          },
+          {
+            "id": "gd:scripts/player.gd#script:function@238",
+            "kind": "function",
+            "name": "shared_action",
+            "owner": "script",
+            "start": 238,
+            "end": 251,
+            "line": 11,
+            "column": 6
+          },
+          {
+            "id": "gd:scripts/player.gd#script:class@271",
+            "kind": "class",
+            "name": "Equipment",
+            "owner": "script",
+            "start": 271,
+            "end": 280,
+            "line": 13,
+            "column": 7
+          },
+          {
+            "id": "gd:scripts/player.gd#gd:scripts/player.gd#script:class@271:variable@287",
+            "kind": "variable",
+            "name": "armor",
+            "owner": "gd:scripts/player.gd#script:class@271",
+            "start": 287,
+            "end": 292,
+            "line": 14,
+            "column": 6
+          },
+          {
+            "id": "gd:scripts/player.gd#gd:scripts/player.gd#script:class@271:function@301",
+            "kind": "function",
+            "name": "equip_weapon",
+            "owner": "gd:scripts/player.gd#script:class@271",
+            "start": 301,
+            "end": 313,
+            "line": 15,
+            "column": 7
+          },
+          {
+            "id": "gd:scripts/player.gd#gd:scripts/player.gd#gd:scripts/player.gd#script:class@271:function@301:parameter@314",
+            "kind": "parameter",
+            "name": "item",
+            "owner": "gd:scripts/player.gd#gd:scripts/player.gd#script:class@271:function@301",
+            "start": 314,
+            "end": 318,
+            "line": 15,
+            "column": 20
+          }
+        ],
+        "references": [
+          {
+            "name": "extends",
+            "owner": "script",
+            "context": "identifier",
+            "start": 0,
+            "end": 7,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "name": "Node",
+            "owner": "script",
+            "context": "type",
+            "start": 8,
+            "end": 12,
+            "line": 1,
+            "column": 9
+          },
+          {
+            "name": "value",
+            "owner": "script",
+            "context": "identifier",
+            "start": 55,
+            "end": 60,
+            "line": 3,
+            "column": 23
+          },
+          {
+            "name": "int",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "type",
+            "start": 123,
+            "end": 126,
+            "line": 6,
+            "column": 26
+          },
+          {
+            "name": "health",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 150,
+            "end": 156,
+            "line": 7,
+            "column": 18
+          },
+          {
+            "name": "amount",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 159,
+            "end": 165,
+            "line": 7,
+            "column": 27
+          },
+          {
+            "name": "health",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 167,
+            "end": 173,
+            "line": 8,
+            "column": 2
+          },
+          {
+            "name": "remaining",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 176,
+            "end": 185,
+            "line": 8,
+            "column": 11
+          },
+          {
+            "name": "health_changed",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 187,
+            "end": 201,
+            "line": 9,
+            "column": 2
+          },
+          {
+            "name": "emit",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "member",
+            "start": 202,
+            "end": 206,
+            "line": 9,
+            "column": 17
+          },
+          {
+            "name": "health",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 207,
+            "end": 213,
+            "line": 9,
+            "column": 22
+          },
+          {
+            "name": "return",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 216,
+            "end": 222,
+            "line": 10,
+            "column": 2
+          },
+          {
+            "name": "remaining",
+            "owner": "gd:scripts/player.gd#script:function@103",
+            "context": "identifier",
+            "start": 223,
+            "end": 232,
+            "line": 10,
+            "column": 9
+          },
+          {
+            "name": "return",
+            "owner": "gd:scripts/player.gd#script:function@238",
+            "context": "identifier",
+            "start": 256,
+            "end": 262,
+            "line": 12,
+            "column": 2
+          },
+          {
+            "name": "return",
+            "owner": "gd:scripts/player.gd#gd:scripts/player.gd#script:class@271:function@301",
+            "context": "identifier",
+            "start": 323,
+            "end": 329,
+            "line": 16,
+            "column": 3
+          },
+          {
+            "name": "item",
+            "owner": "gd:scripts/player.gd#gd:scripts/player.gd#script:class@271:function@301",
+            "context": "identifier",
+            "start": 330,
+            "end": 334,
+            "line": 16,
+            "column": 10
+          }
+        ],
+        "strings": []
+      }
+    }
+  },
+  "project_after": {
+    "files": {
+      "project.godot": {
+        "base64": "Y29uZmlnX3ZlcnNpb249NQpbYXBwbGljYXRpb25dCmNvbmZpZy9uYW1lPSJTeW50aGV0aWMgbGlicmFyaWFuIgpbYXV0b2xvYWRdCkdsb2JhbD0iKnJlczovL3NjcmlwdHMvZ2xvYmFsLmdkIgpQcml2YXRlPSIqcmVzOi8vLi4vb3V0c2lkZS9wcml2YXRlLmdkIgo="
+      },
+      ".agent_history/private.gd": {
+        "base64": "ZnVuYyBwcml2YXRlX2hpc3Rvcnlfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "Addons/vendor/private.gd": {
+        "base64": "ZnVuYyB2ZW5kb3Jfc2VjcmV0KCk6CglyZXR1cm4gMQo="
+      },
+      "data/binary.bin": {
+        "base64": "AP8Ac3ludGhldGljX2JpbmFyeQ=="
+      },
+      "docs/readme.md": {
+        "base64": "IyBTeW50aGV0aWMKQXR0YWNrIGNhdXNlcyBkYW1hZ2U7IHRha2VfZGFtYWdlIGRvY3VtZW50YXRpb24gb25seS4K"
+      },
+      "scenes/player.tscn": {
+        "base64": "W2dkX3NjZW5lIGZvcm1hdD0zXQpbbm9kZSBuYW1lPSJIZXJvVW5pdCIgdHlwZT0iTm9kZTJEIl0KW25vZGUgbmFtZT0iSGVhbHRoQmFyIiB0eXBlPSJDb250cm9sIiBwYXJlbnQ9Ii4iXQpbY29ubmVjdGlvbiBzaWduYWw9ImhlYWx0aF9jaGFuZ2VkIiBmcm9tPSIuIiB0bz0iSGVhbHRoQmFyIiBtZXRob2Q9Il9vbl9oZWFsdGhfY2hhbmdlZCJdCg=="
+      },
+      "scripts/bom.gd": {
+        "base64": "77u/ZXh0ZW5kcyBOb2RlCmZ1bmMgYm9tX3N5bWJvbCgpOgoJcmV0dXJuIDEK"
+      },
+      "scripts/enemy.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMgYXR0YWNrKHRhcmdldCk6Cgl0YXJnZXQudGFrZV9kYW1hZ2UoMikKCXRhcmdldC5jYWxsKCJ0YWtlX2RhbWFnZSIsIDMpCgl0YXJnZXQudGFrZV9kYW1hZ2UuYmluZCg0KS5jYWxsKCkKCXRhcmdldC5oZWFsdGhfY2hhbmdlZC5jb25uZWN0KF9vbl9oZWFsdGhfY2hhbmdlZCkKCWF3YWl0IHRhcmdldC5oZWFsdGhfY2hhbmdlZApmdW5jIF9vbl9oZWFsdGhfY2hhbmdlZCh2YWx1ZSk6CglwcmludCh2YWx1ZSkKZnVuYyBzaGFyZWRfYWN0aW9uKCk6CglyZXR1cm4gMgo="
+      },
+      "scripts/global.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCnZhciBjb2lucz0wCmZ1bmMgY29sbGVjdF9yZXdhcmQoKToKCWNvaW5zICs9IDEK"
+      },
+      "scripts/invalid.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCiMgaW52YWxpZCD/CmZ1bmMgb2RkX2J5dGVzKCk6CglyZXR1cm4gMQo="
+      },
+      "scripts/player.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmNsYXNzX25hbWUgSGVyb1VuaXQKc2lnbmFsIGhlYWx0aF9jaGFuZ2VkKHZhbHVlKQpjb25zdCBNQVhfSEVBTFRIPTEwMAp2YXIgaGVhbHRoPTEwMApmdW5jIHRha2VfZGFtYWdlKGFtb3VudDogaW50ID0gMSk6Cgl2YXIgcmVtYWluaW5nID0gaGVhbHRoIC0gYW1vdW50CgloZWFsdGggPSByZW1haW5pbmcKCWhlYWx0aF9jaGFuZ2VkLmVtaXQoaGVhbHRoKQoJcmV0dXJuIHJlbWFpbmluZwpmdW5jIHNoYXJlZF9hY3Rpb24oKToKCXJldHVybiAxCmNsYXNzIEVxdWlwbWVudDoKCXZhciBhcm1vcj0yCglmdW5jIGVxdWlwX3dlYXBvbihpdGVtKToKCQlyZXR1cm4gaXRlbQo="
+      },
+      "scripts/unicode.gd": {
+        "base64": "ZXh0ZW5kcyBOb2RlCmZ1bmMg0LfQtNC+0YDQvtCy0YzQtSgpOgoJcmV0dXJuICLQv9GA0LjQstC10YIiCg=="
+      }
+    },
+    "dirs": [
+      ".agent_history",
+      "Addons",
+      "Addons/vendor",
+      "data",
+      "docs",
+      "scenes",
+      "scripts"
+    ]
+  },
+  "addon_after": {
+    "files": {},
+    "dirs": [
+      "minilich_brain"
+    ]
+  },
+  "history_after": {
+    "files": {},
+    "dirs": []
+  }
+}

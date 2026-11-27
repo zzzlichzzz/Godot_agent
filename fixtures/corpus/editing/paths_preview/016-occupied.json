@@ -1,0 +1,14 @@
+{
+  "id": "016-occupied",
+  "tool": "paths_preview",
+  "fixture": "corpus/editing/paths_preview/basic",
+  "args": {
+    "old_path": "res://assets/item.gd",
+    "new_path": "res://assets/other.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  },
+  "expected_message": "Целевой файл уже существует: res://assets/other.gd"
+}

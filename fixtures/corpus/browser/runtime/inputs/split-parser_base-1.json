@@ -1,0 +1,6 @@
+{
+  "id": "split-parser_base-1",
+  "op": "split",
+  "text": "```agent_action\n{\"action\":\"done\"}\n```\n```agent_action\n{\"action\":\"read_file\",\"path\":\"res://a\"}\n```",
+  "parser": "parser_base"
+}

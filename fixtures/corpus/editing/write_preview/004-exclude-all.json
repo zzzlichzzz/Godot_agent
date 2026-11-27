@@ -1,0 +1,26 @@
+{
+  "id": "004-exclude-all",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Сняты все ссылки: отказ all_usages_excluded, плана нет",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://src/hero.gd:6",
+    "mode": "probable",
+    "allow_unverified": true,
+    "exclude": [
+      "res://src/enemy.gd:4",
+      "res://src/enemy.gd:7",
+      "res://src/enemy.gd:10",
+      "res://src/hero.gd:11",
+      "res://src/party.gd:6",
+      "res://src/party.gd:9"
+    ]
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

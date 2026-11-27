@@ -1,0 +1,87 @@
+{
+  "id": "cache-011-invalid-79",
+  "input": {
+    "group": "cache",
+    "action": "read",
+    "raw": "7b22676f646f745f76657273696f6e223a372c22636c6173736573223a22696e76616c6964227d",
+    "storage": "user"
+  },
+  "expected": {
+    "before": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        }
+      },
+      "dirs": [
+        "config",
+        "project"
+      ]
+    },
+    "result": {
+      "version": 7,
+      "has_cache": true,
+      "class": {
+        "error": "AttributeError",
+        "message": "'str' object has no attribute 'get'",
+        "errno": null,
+        "winerror": null
+      },
+      "chain": {
+        "error": "AttributeError",
+        "message": "'str' object has no attribute 'get'",
+        "errno": null,
+        "winerror": null
+      },
+      "members": {
+        "error": "AttributeError",
+        "message": "'str' object has no attribute 'get'",
+        "errno": null,
+        "winerror": null
+      },
+      "signatures": {
+        "error": "AttributeError",
+        "message": "'str' object has no attribute 'get'",
+        "errno": null,
+        "winerror": null
+      }
+    },
+    "after": {
+      "files": {
+        "project/A.txt": {
+          "bytes": 26,
+          "sha256": "da7829856f4bf24e7b623eb1c513fb3eda29c43642c10a905f778aa6c13c2a8e"
+        },
+        "project/B.txt": {
+          "bytes": 10,
+          "sha256": "91c42cd2028c694c1d895b0ab0676cfebac36a109e711c9eda85558f9d4b3b55"
+        },
+        "project/project.godot": {
+          "bytes": 73,
+          "sha256": "13b32029d777e06efcdb62fcb1efd6f55dcfde14f9395b00d0f3f7efb781d8c8"
+        },
+        "user/agent_history/godot_api_cache.json": {
+          "bytes": 39,
+          "sha256": "2a32011fd501e7daeaa2082f93746815b0dc874d273e05e9905365b6460ebe3a"
+        }
+      },
+      "dirs": [
+        "addon",
+        "config",
+        "project",
+        "user",
+        "user/agent_history",
+        "user/agent_history/snapshots"
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "006-max-results-1",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "квота 1: одно совпадение, truncated=true",
+  "args": {
+    "query": "health",
+    "max_results": 1
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://scripts/player.gd",
+          "line": 4,
+          "snippet": "2: \n3: ## Игрок: запас сил, урон, смерть.\n4: var health := 100\n5: var health_max := 100\n6: var speed := 300.0\n7: "
+        }
+      ],
+      "truncated": true
+    }
+  }
+}

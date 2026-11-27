@@ -1,0 +1,12 @@
+{
+  "id": "040-missing_arg",
+  "tool": "split_gd_scan",
+  "fixture": "corpus/editing/split_gd/refusals",
+  "args": {},
+  "reference_result": null,
+  "contract_refusal": "New path/policy/size boundary, not an old scan_refs result.",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

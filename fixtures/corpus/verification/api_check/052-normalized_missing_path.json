@@ -1,0 +1,21 @@
+{
+  "id": "052-normalized_missing_path",
+  "tool": "api_check",
+  "fixture": "corpus/verification/api_check/api",
+  "note": "normalized_missing_path",
+  "args": {
+    "path": "res://scripts/./missing.gd",
+    "content": "extends Node2D\nfunc run():\n\tself.one(1)\n"
+  },
+  "reference_result": [],
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://scripts/missing.gd",
+      "problems": [],
+      "base_class": "Node2D",
+      "checked": true,
+      "unavailable": []
+    }
+  }
+}

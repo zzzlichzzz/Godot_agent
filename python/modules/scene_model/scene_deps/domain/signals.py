@@ -1,0 +1,22 @@
+"""Literal known-signal candidates table from scene_deps.py:32-63."""
+_BUTTONS=('Button','BaseButton','TextureButton','CheckBox','CheckButton','MenuButton',
+          'OptionButton','LinkButton','TouchScreenButton')
+_AREAS=('Area2D','Area3D')
+_RIGID=('RigidBody2D','RigidBody3D')
+KNOWN_SIGNALS={
+    'body_entered':_AREAS+_RIGID,'body_exited':_AREAS+_RIGID,
+    'area_entered':_AREAS,'area_exited':_AREAS,
+    'body_shape_entered':_AREAS+_RIGID,'body_shape_exited':_AREAS+_RIGID,
+    'area_shape_entered':_AREAS,'area_shape_exited':_AREAS,
+    'pressed':_BUTTONS,'toggled':_BUTTONS,'timeout':('Timer',),
+    'animation_finished':('AnimationPlayer','AnimatedSprite2D','AnimatedSprite3D'),
+    'animation_started':('AnimationPlayer',),
+    'finished':('AudioStreamPlayer','AudioStreamPlayer2D','AudioStreamPlayer3D','GPUParticles2D','GPUParticles3D'),
+    'screen_entered':('VisibleOnScreenNotifier2D','VisibleOnScreenNotifier3D'),
+    'screen_exited':('VisibleOnScreenNotifier2D','VisibleOnScreenNotifier3D'),
+    'text_changed':('LineEdit','TextEdit','CodeEdit'),'text_submitted':('LineEdit',),
+    'value_changed':('HSlider','VSlider','SpinBox','HScrollBar','VScrollBar'),
+    'item_selected':('OptionButton','ItemList'),'item_activated':('ItemList',),
+    'id_pressed':('PopupMenu',),'frame_changed':('AnimatedSprite2D','AnimatedSprite3D','Sprite2D'),
+    'wait_time_changed':(),
+}

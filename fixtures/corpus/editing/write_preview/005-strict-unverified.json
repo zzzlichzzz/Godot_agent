@@ -1,0 +1,16 @@
+{
+  "id": "005-strict-unverified",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "strict без allow_unverified: отказ unverified_references",
+  "args": {
+    "kind": "variable",
+    "old_name": "hp",
+    "new_name": "health",
+    "declaration": "res://src/hero.gd:4"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "conflict"
+  }
+}

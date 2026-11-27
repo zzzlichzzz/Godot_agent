@@ -1,0 +1,28 @@
+{
+  "id": "003",
+  "tool": "write_rollback",
+  "fixture": "rename",
+  "note": "откат после исключения места",
+  "scenario": "preview_apply_rollback",
+  "args": {
+    "kind": "variable",
+    "old_name": "hp",
+    "new_name": "health",
+    "declaration": "res://src/hero.gd:4",
+    "mode": "probable",
+    "allow_unverified": true,
+    "exclude": [
+      "res://src/party.gd:6"
+    ],
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "files": {
+        "src/hero.gd": "80c26e1077670a8d91d586b0a032d09744783f4d8a8b93844babb66bab1fa88d",
+        "src/party.gd": "43baaf139ab8873866cf0af834cc0e826bbee1dba9c5818f5e7bddb60b65a3d7"
+      }
+    }
+  }
+}

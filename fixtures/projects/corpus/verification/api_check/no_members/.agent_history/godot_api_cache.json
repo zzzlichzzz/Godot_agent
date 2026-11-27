@@ -1,0 +1,8 @@
+{
+  "godot_version": "4.6-fixture",
+  "classes": {
+    "Empty": {
+      "inherits": null
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "043-resource.tres",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "resource.tres: '.'",
+  "args": {
+    "path": "res://scenes/resource.tres",
+    "node": "."
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "node работает только со сценами .tscn/.scn: res://scenes/resource.tres"
+  }
+}

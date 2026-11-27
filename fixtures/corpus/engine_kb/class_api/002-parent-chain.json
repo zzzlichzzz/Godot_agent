@@ -1,0 +1,132 @@
+{
+  "id": "002-parent-chain",
+  "tool": "api",
+  "fixture": "corpus/engine_kb/class_api/chain",
+  "args": {
+    "class_name": "CanvasItem"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "class_name": "CanvasItem",
+      "found": true,
+      "cache_version": "4.6.3",
+      "inherits": [
+        "CanvasItem",
+        "Node",
+        "Object"
+      ],
+      "methods": [
+        {
+          "name": "draw",
+          "min_args": 0,
+          "max_args": 1,
+          "signature": "draw(width: float = 1.0) -> void"
+        },
+        {
+          "name": "free",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "queue_free",
+          "min_args": 0,
+          "max_args": 0,
+          "signature": ""
+        },
+        {
+          "name": "shared",
+          "min_args": 8,
+          "max_args": 9,
+          "signature": "shared(parent: String) -> void"
+        }
+      ],
+      "properties": [
+        "name",
+        "position",
+        "visible"
+      ],
+      "signals": [
+        "changed",
+        "drawn",
+        "ready"
+      ],
+      "unavailable": []
+    }
+  },
+  "oracle_class_name": "CanvasItem",
+  "reference_result": {
+    "has_cache": true,
+    "version": "4.6.3",
+    "record": {
+      "inherits": "Node",
+      "methods": {
+        "draw": [
+          0,
+          1
+        ],
+        "shared": [
+          8,
+          9
+        ]
+      },
+      "properties": [
+        "visible",
+        "position"
+      ],
+      "signals": [
+        "drawn"
+      ],
+      "signatures": {
+        "draw": "draw(width: float = 1.0) -> void",
+        "shared": "shared(parent: String) -> void"
+      }
+    },
+    "chain": [
+      "CanvasItem",
+      "Node",
+      "Object"
+    ],
+    "members": [
+      {
+        "draw": [
+          0,
+          1
+        ],
+        "shared": [
+          8,
+          9
+        ],
+        "queue_free": [
+          0,
+          0
+        ],
+        "free": [
+          0,
+          0
+        ]
+      },
+      [
+        "name",
+        "position",
+        "visible"
+      ],
+      [
+        "changed",
+        "drawn",
+        "ready"
+      ]
+    ],
+    "signatures": {
+      "draw": "draw(width: float = 1.0) -> void",
+      "shared": "shared(parent: String) -> void"
+    }
+  },
+  "reference_effects": {
+    "changed_files": [],
+    "created_directories": [
+      ".agent_history/snapshots"
+    ]
+  }
+}

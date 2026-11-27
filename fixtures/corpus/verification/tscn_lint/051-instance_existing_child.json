@@ -1,0 +1,23 @@
+{
+  "id": "051-instance_existing_child",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://child.tscn\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Inst\" parent=\".\" instance=ExtResource(\"1\")]\n[node name=\"Kid\" parent=\"Inst\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://child.tscn\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Inst\" parent=\".\" instance=ExtResource(\"1\")]\n[node name=\"Kid\" parent=\"Inst\"]\n",
+      "changed": false,
+      "problems": []
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[ext_resource type=\"PackedScene\" path=\"res://child.tscn\" id=\"1\"]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"Inst\" parent=\".\" instance=ExtResource(\"1\")]\n[node name=\"Kid\" parent=\"Inst\"]\n",
+    "changed": false,
+    "problems": []
+  },
+  "reference_api_classes": null
+}

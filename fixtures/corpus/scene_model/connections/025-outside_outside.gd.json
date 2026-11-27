@@ -1,0 +1,15 @@
+{
+  "id": "025-outside_outside.gd",
+  "tool": "connections",
+  "fixture": "../corpus/scene_model/connections/project",
+  "note": "outside_outside.gd",
+  "args": {
+    "path": "../outside.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Путь вне проекта отклонен: ../outside.gd",
+    "reference_exception": "ValueError"
+  }
+}

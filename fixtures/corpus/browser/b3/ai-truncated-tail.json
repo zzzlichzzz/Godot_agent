@@ -1,0 +1,8 @@
+{
+  "id": "ai-truncated-tail",
+  "kind": "decode",
+  "native_case_source": "test_v88_0_aistudio.py:136-212; new minimal model/part protocol data",
+  "monitor": "ai",
+  "body_b64": "W1tbW1tbW251bGwsICLQn9GA0L7QstC10YDRj9GOIM6pIiwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgbnVsbCwgMV1dLCAibW9kZWwiXV1dLCBudWxsXSwgW1tbW1tbbnVsbCwgItCe0YLQstC10YI6ICJdXSwgIm1vZGVsIl1dXSwgbnVsbF0sIFtbW1tbW251bGwsICLRkdC2IPCfppQiXV0sICJtb2RlbCJdXV0sIG51bGxdLCBbW1tbW1tbbnVsbCwgIiJdXSwgIm1vZGVsIl0sIDFdXV0=",
+  "step": 3
+}

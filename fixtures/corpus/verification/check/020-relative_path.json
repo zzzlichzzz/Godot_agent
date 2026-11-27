@@ -1,0 +1,25 @@
+{
+  "id": "020-relative_path",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "clean.gd"
+  },
+  "reference_result": {
+    "path": "clean.gd",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "contract_refusal": "relative_path",
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

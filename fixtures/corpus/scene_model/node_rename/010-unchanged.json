@@ -1,0 +1,17 @@
+{
+  "id": "010-unchanged",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/010-unchanged",
+  "note": "unchanged",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Arm",
+    "new_name": "Arm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Новое имя узла совпадает со старым: Arm",
+    "reference_exception": "NodeRefactorError"
+  }
+}

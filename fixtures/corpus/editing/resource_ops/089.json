@@ -1,0 +1,36 @@
+{
+  "id": "expanded-property0",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "property должен быть строкой до 160 символов",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "196bebfe969413609f7a9494ad4f735b59376ff9ddd48002cb2b151e5accccff"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "014-parent-traversal",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Выход за корень проекта (..): политика путей отказывает -> denied, не internal",
+  "args": {
+    "path": "../outside.gd"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

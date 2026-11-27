@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_keys",
+  "function": "mask",
+  "args": [
+    "123456789"
+  ],
+  "kwargs": {},
+  "id": "api-030"
+}

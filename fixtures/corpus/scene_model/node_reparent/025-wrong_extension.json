@@ -1,0 +1,16 @@
+{
+  "id": "025-wrong_extension",
+  "tool": "node_reparent_preview",
+  "fixture": "../corpus/scene_model/node_reparent/project/025-wrong_extension",
+  "note": "actual-old prepare-only: wrong_extension",
+  "args": {
+    "path": "res://main.tres",
+    "node": "Old",
+    "new_parent": "New"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "scene должен быть res:// путём к .tscn: res://main.tres"
+  }
+}

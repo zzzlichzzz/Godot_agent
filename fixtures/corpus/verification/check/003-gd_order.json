@@ -1,0 +1,49 @@
+{
+  "id": "003-gd_order",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://many.gd"
+  },
+  "reference_result": {
+    "path": "res://many.gd",
+    "problems": [
+      "строка 2: переменной типа int присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)",
+      "строка 3: переменной типа bool присваивается целое число (int) — Godot выдаст ошибку типов (Type Mismatch)"
+    ],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://many.gd",
+      "problems": [
+        "строка 2: переменной типа int присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)",
+        "строка 3: переменной типа bool присваивается целое число (int) — Godot выдаст ошибку типов (Type Mismatch)"
+      ],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "gd",
+        "api"
+      ],
+      "unavailable": [
+        {
+          "kind": "api_cache",
+          "reason": "no_cache"
+        },
+        {
+          "kind": "headless",
+          "reason": ".gd проверяется только настоящим Godot, а проверка отключена (--validation off) — файл НЕ проверен"
+        }
+      ]
+    }
+  }
+}

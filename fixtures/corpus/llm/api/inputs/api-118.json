@@ -1,0 +1,11 @@
+{
+  "kind": "call",
+  "module": "providers",
+  "function": "transport_for",
+  "args": [
+    "openrouter",
+    "fixture"
+  ],
+  "kwargs": {},
+  "id": "api-118"
+}

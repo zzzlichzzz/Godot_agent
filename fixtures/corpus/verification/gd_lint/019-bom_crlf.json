@@ -1,0 +1,61 @@
+{
+  "id": "019-bom_crlf",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "bom_crlf",
+  "args": {
+    "path": "res://scripts/bom_crlf.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "missing_colon",
+          "line": 1,
+          "message": "строка 1: похоже, пропущено двоеточие в конце объявления"
+        },
+        {
+          "code": "type_mismatch",
+          "line": 2,
+          "message": "строка 2: переменной типа bool присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 40
+    }
+  },
+  "reference_text_messages": [
+    "строка 2: переменной типа bool присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+  ],
+  "previous_expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "type_mismatch",
+          "line": 2,
+          "message": "строка 2: переменной типа bool присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 40
+    }
+  },
+  "reference_result": {
+    "path": "res://scripts/bom_crlf.gd",
+    "problems": [
+      "строка 1: похоже, пропущено двоеточие в конце объявления",
+      "строка 2: переменной типа bool присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+    ],
+    "auto_fixable": false,
+    "headless": {
+      "status": "skipped",
+      "mode": "off",
+      "new_diagnostics": [],
+      "pre_existing_diagnostics": []
+    },
+    "checked": true
+  },
+  "f1_revision": "User-approved file decoding via read_project_file utf-8-sig; original pure-text oracle retained"
+}

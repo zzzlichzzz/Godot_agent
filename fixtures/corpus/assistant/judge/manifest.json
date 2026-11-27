@@ -1,0 +1,546 @@
+{
+  "module": "assistant.judge",
+  "stage": "B/public-native-before-code",
+  "oracle_runs": 2,
+  "oracle_differences": 0,
+  "case_count": 74,
+  "case_ids": [
+    "plain-done",
+    "plain-unfinished",
+    "plain-marker-only",
+    "broken-fence",
+    "broken-json",
+    "incomplete-ref",
+    "read-exact",
+    "read-gd",
+    "read-missing",
+    "read-escape",
+    "read-addon",
+    "read-no-paths",
+    "read-wrong-paths",
+    "read-function",
+    "read-function-names",
+    "librarian-hits",
+    "librarian-no-hits",
+    "librarian-empty",
+    "gather-context",
+    "gather-context-lower",
+    "gather-context-upper",
+    "gather-context-wrong",
+    "gather-context-bool",
+    "inspect-runtime",
+    "inspect-runtime-bad",
+    "run-check",
+    "run-check-bad",
+    "list-scenes",
+    "list-scene-missing",
+    "list-files",
+    "search",
+    "search-empty",
+    "unknown",
+    "read-extra-data",
+    "patch-good",
+    "patch-missing",
+    "patch-crlf",
+    "patch-no-search",
+    "patch-multiple",
+    "create-valid",
+    "create-broken",
+    "create-content-wrong",
+    "create-escape",
+    "move-valid",
+    "move-conflict",
+    "scene-raw-create",
+    "scene-raw-patch",
+    "scene-raw-move",
+    "scene-edit",
+    "scene-bad-node",
+    "scene-create",
+    "settings-valid",
+    "settings-invalid",
+    "resource-valid",
+    "resource-invalid",
+    "transaction-valid",
+    "transaction-protected",
+    "transaction-noop",
+    "transaction-noop-check",
+    "transaction-overlay",
+    "rename-valid",
+    "rename-locator",
+    "rename-class_name",
+    "rename-signal",
+    "rename-variable",
+    "high-atomic",
+    "high-invalid",
+    "high-component",
+    "high-unknown",
+    "plan-overlay",
+    "plan-missing",
+    "plan-wrong-step",
+    "content-ref",
+    "multi-fences"
+  ],
+  "observations": {
+    "plain-done": {
+      "bytes": 5604,
+      "sha256": "ed390a87e595795eb64a2cb8711d3cc5ea7537db3210ca70d3dd09bf48c41aab",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "plain-unfinished": {
+      "bytes": 5757,
+      "sha256": "3fda01105db845ee4424fb8885abf3299a573fce16152a13af3030936b3e45e7",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "plain-marker-only": {
+      "bytes": 5604,
+      "sha256": "af4541e7ad73ac73ec3801ece8078802f326f90de8db4f10a924c5ecead1a289",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "broken-fence": {
+      "bytes": 5604,
+      "sha256": "8941ca98de21b99b5d9472abc5b3da9a6cb6207caf0e92687ba0a0624ab6a262",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "broken-json": {
+      "bytes": 5618,
+      "sha256": "31ac154fa0a3502f2c6b6ea1ed956713a2b373ef7606c512c5d741ddce5bbe39",
+      "LF": 135,
+      "CRLF": 0
+    },
+    "incomplete-ref": {
+      "bytes": 5949,
+      "sha256": "0fb0f376174d9781038dd9a92469a8d1482389d6c26a5a64166a37c7f3566ad8",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "read-exact": {
+      "bytes": 5621,
+      "sha256": "c8dfbb742488bd677caa449336032aec96196cd6aae452118df2201fd0bc9ac7",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "read-gd": {
+      "bytes": 5627,
+      "sha256": "91b8c53d35e19f020d2991d77f156405094f4c15bdd1d9a41a1febc2247b71ba",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "read-missing": {
+      "bytes": 5737,
+      "sha256": "667b8966bc81ea7454e803ce765ad3706fb0f646cc88e239f5822eca40bde6ac",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "read-escape": {
+      "bytes": 5740,
+      "sha256": "8e94562a561af7c6be8dddd371c3631bd25bc6cf40a3834a65262875605810f3",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "read-addon": {
+      "bytes": 5766,
+      "sha256": "b8f78ab9fccfc9f01440b36077a9a94aafd514f8351e063aa30d553d4101d51d",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "read-no-paths": {
+      "bytes": 5633,
+      "sha256": "e4611d5e5a3feeebbd01c3e214e20bfe4cb3ce4b3d0b7ac55ba6784ec5c2610f",
+      "LF": 135,
+      "CRLF": 0
+    },
+    "read-wrong-paths": {
+      "bytes": 5621,
+      "sha256": "cdd82baf6520f6517e50acc35d83e49319d3959aa8e1ccff06bf0a963e8b4955",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "read-function": {
+      "bytes": 5727,
+      "sha256": "a913f7b31242c8e59389d0e0e45008080f3df99abc521fc7679d8d5b43c0149c",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "read-function-names": {
+      "bytes": 5705,
+      "sha256": "df6e5da8ed78afbde9a98ecd433de6a16998921b3d1404550987a82b29551ba6",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "librarian-hits": {
+      "bytes": 5605,
+      "sha256": "820478f28b864d05c63299812671af094de12e198b18345ead84f54a300ae9a8",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "librarian-no-hits": {
+      "bytes": 5700,
+      "sha256": "45bde416e6214203c28fededfe6e405872e93b11ee730ec37f87c0b7ef0a4af0",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "librarian-empty": {
+      "bytes": 5677,
+      "sha256": "2c50e0dff0d2dc7587fe64a74adbb4aec18ec754ba216b2e4c5e8b248ae671fa",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "gather-context": {
+      "bytes": 5757,
+      "sha256": "8e30b72c2a12dcf5af1da573f859c595ccbd5de4ae10e1c30a183867f51f7bf8",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "gather-context-lower": {
+      "bytes": 5605,
+      "sha256": "f8ec6c6a583022bd2f61a623ef15c827b42a1bc68b9f26d2e2b9e6de9486a966",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "gather-context-upper": {
+      "bytes": 5606,
+      "sha256": "b995becefa7d505682a95f263b53966fdf3728d6481d95f6000482629bcc550a",
+      "LF": 132,
+      "CRLF": 0
+    },
+    "gather-context-wrong": {
+      "bytes": 5893,
+      "sha256": "7ab14c68d608360fcc036560151438853d30ce0c3eb7c29263a655ae9ff49339",
+      "LF": 142,
+      "CRLF": 0
+    },
+    "gather-context-bool": {
+      "bytes": 5689,
+      "sha256": "bb650824fab2cdd9932ddae98b7437c9fab1f48c004746c0d75196908c2c967b",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "inspect-runtime": {
+      "bytes": 5714,
+      "sha256": "f59fe2e20b5a8feb7bcabf3266fd44d63471e36f559bf08aece876bd8e8683f4",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "inspect-runtime-bad": {
+      "bytes": 5903,
+      "sha256": "0ff124fce160faab5859a0aace516933cbbf9ba89078364b163f5829cadd9e21",
+      "LF": 147,
+      "CRLF": 0
+    },
+    "run-check": {
+      "bytes": 5831,
+      "sha256": "434593e6594a4f5bb06bba9a91308e555fe08bbfbc7d0ce10aa29edf4bc58848",
+      "LF": 143,
+      "CRLF": 0
+    },
+    "run-check-bad": {
+      "bytes": 5908,
+      "sha256": "ae55632ffba6366472320888c02cccd72248252f2912af046d033b8a01a16a56",
+      "LF": 145,
+      "CRLF": 0
+    },
+    "list-scenes": {
+      "bytes": 5669,
+      "sha256": "7122a2cd6694d361b6a0a2a2fe571813a6599eea64790e484a2280346ede6a4c",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "list-scene-missing": {
+      "bytes": 5671,
+      "sha256": "411dcad34a48e7c3ef602dbed43de617de9635892f1dc0158ef10a3df03b4b6d",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "list-files": {
+      "bytes": 5521,
+      "sha256": "053b5c2d38b2bc9d9e0d54eadfe225fd97d460d132c3660840d7ef4fd7cf5947",
+      "LF": 130,
+      "CRLF": 0
+    },
+    "search": {
+      "bytes": 5527,
+      "sha256": "ab75e7542c0c6971938cdcef2400fc268954ba9051d4dcfcee56dbf5f5acb320",
+      "LF": 130,
+      "CRLF": 0
+    },
+    "search-empty": {
+      "bytes": 5665,
+      "sha256": "d83d93510104768cc16797fca7fd5b4e81769fc0eb75b7c5a1a1df780e36d6ec",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "unknown": {
+      "bytes": 5720,
+      "sha256": "68a4b579669e68aa6e59f2719af988b3d503f4e84822578f7117dd9216ea345d",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "read-extra-data": {
+      "bytes": 5682,
+      "sha256": "df9fc11ca47206d5b2940b039f6d2b242942607d551f67c11a13ef4d5d7b390b",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "patch-good": {
+      "bytes": 5687,
+      "sha256": "8a7bad83196b32ec6e9a7c8548aee6ca7f27dc724832c14900022e94bfe5121e",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "patch-missing": {
+      "bytes": 5839,
+      "sha256": "de440d8da818924e756c3d973db5121b5d234ef3fc69498e40727d70489ce010",
+      "LF": 140,
+      "CRLF": 0
+    },
+    "patch-crlf": {
+      "bytes": 5674,
+      "sha256": "35d80ece4219b6e2540e2b9c2abfe50263a7e609c6bcb8a58c1960a5c1975326",
+      "LF": 134,
+      "CRLF": 0
+    },
+    "patch-no-search": {
+      "bytes": 5783,
+      "sha256": "806297a6784a683893d802a2ac598deddac3addd482887d0db18338b1db5419a",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "patch-multiple": {
+      "bytes": 5820,
+      "sha256": "45b2b9e249a02fba2b46bdd2e41871f2162e4ee9f5d0ddbede80d4d9e961915d",
+      "LF": 140,
+      "CRLF": 0
+    },
+    "create-valid": {
+      "bytes": 5623,
+      "sha256": "92dac1dd6b5ea0b6c4ac1ed388369116fab12b97e401b3fe3ab7d609ad82694b",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "create-broken": {
+      "bytes": 5864,
+      "sha256": "f78f74937028475c61ff7b65e99b7e2a250c4224f14a6f9594a0fea39c3e88ae",
+      "LF": 141,
+      "CRLF": 0
+    },
+    "create-content-wrong": {
+      "bytes": 5759,
+      "sha256": "2dcd98084c27b705a9b050d849e1eedfc1fdc0f323256555e442447e7a308f18",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "create-escape": {
+      "bytes": 5794,
+      "sha256": "792eef13de46b1409a7777cf6956f15a20981007829191d1b3bbec42dc568b11",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "move-valid": {
+      "bytes": 5660,
+      "sha256": "14612d8fdf82af8dae721d70e6b980b839a2d2466b0dacf3e7d9b6c0688536c9",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "move-conflict": {
+      "bytes": 5787,
+      "sha256": "153d9e69646550be269a0ff0f0d906094c2e69d41e93664395930e5f3467023b",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "scene-raw-create": {
+      "bytes": 5760,
+      "sha256": "64790b7e1ab3385b7b2bff63c4f9c5b2af59557ebb453d85513945f07c0af5bf",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "scene-raw-patch": {
+      "bytes": 5796,
+      "sha256": "b479a42b56038c13d3d8da834c3bd79d10ec2f307a1b29a02485fe5cfa94712a",
+      "LF": 140,
+      "CRLF": 0
+    },
+    "scene-raw-move": {
+      "bytes": 5787,
+      "sha256": "cba13055913016e3a2e70e34e7fd3d1ca8d667be4191bd1392a99b8b3026ab44",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "scene-edit": {
+      "bytes": 5774,
+      "sha256": "9cb44d450a6a6420d7dcc8434fd60322a392aa4d4e59b38d78e0c8878250ea4f",
+      "LF": 140,
+      "CRLF": 0
+    },
+    "scene-bad-node": {
+      "bytes": 5971,
+      "sha256": "f375f8f9cd6bb4991ac311b81c839a7823a7206c96c99f58a3162464bc45f47b",
+      "LF": 147,
+      "CRLF": 0
+    },
+    "scene-create": {
+      "bytes": 5702,
+      "sha256": "8f0137962f1fe4151e5db7c3e4f2f4559436c56609905c06ade682c1329fe25f",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "settings-valid": {
+      "bytes": 5721,
+      "sha256": "caae5e90d620e45904336d5954329989f7afb2c2d70993978fd2b98f81a0150c",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "settings-invalid": {
+      "bytes": 5811,
+      "sha256": "2b06b7d45dbe7e8d07689a499e9069775c01a3ccc6f14efa3193703d6fb700c6",
+      "LF": 141,
+      "CRLF": 0
+    },
+    "resource-valid": {
+      "bytes": 5855,
+      "sha256": "5e0fa339fbf52959c7253cf6a9f6d9b77a56b2bd2c1cf28cd76b8c2b83aaf804",
+      "LF": 143,
+      "CRLF": 0
+    },
+    "resource-invalid": {
+      "bytes": 5981,
+      "sha256": "8c692fc0a7f18b1e5d6d005330566fc095fa1a6a614ac7bcae379b209dd98c48",
+      "LF": 147,
+      "CRLF": 0
+    },
+    "transaction-valid": {
+      "bytes": 5931,
+      "sha256": "b119730b5226eaecd28779afa4da4b4f1ebe111c1a781eeb128d7ed37bd12b77",
+      "LF": 144,
+      "CRLF": 0
+    },
+    "transaction-protected": {
+      "bytes": 5870,
+      "sha256": "638ad0d15cb8160b4b4bf3dcfe143a2727672ed9d340ffce83d80d347cbf9de7",
+      "LF": 142,
+      "CRLF": 0
+    },
+    "transaction-noop": {
+      "bytes": 6002,
+      "sha256": "b344122dc868fd1f4852246683ee501e52dc502f1de0b32c7944f11edd57cba3",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "transaction-noop-check": {
+      "bytes": 6138,
+      "sha256": "0f8425294907aa33e31d02abd5fae08d28915016670d7a68e960a22c5c843f85",
+      "LF": 144,
+      "CRLF": 0
+    },
+    "transaction-overlay": {
+      "bytes": 5913,
+      "sha256": "49a0057614c46f82361d67cbd02c5afdd1e46fe0c412e72fe539eba108c4ff39",
+      "LF": 144,
+      "CRLF": 0
+    },
+    "rename-valid": {
+      "bytes": 5864,
+      "sha256": "d9b123d37e895407d0b046ed6a1558af657cfa01f4010ad1474b89105c421031",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "rename-locator": {
+      "bytes": 6093,
+      "sha256": "98cd8b8013ff5fa39dec22069e5406982bdf0bddd369300a3efd28755af9d021",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "rename-class_name": {
+      "bytes": 5818,
+      "sha256": "9cdad27c3c11b61388b65f91aab97fdd543fbc092b68c6adb7f84dca53c0b4bb",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "rename-signal": {
+      "bytes": 5804,
+      "sha256": "cbc1a938edd3d8c0fe9ec571d27eb3d85a3f11ff0a050a72b7a48c9e6e26ded0",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "rename-variable": {
+      "bytes": 5804,
+      "sha256": "95ff99e473ef89c4c1c9d0a1c78ab80f7d2c0754f8c2c5ea807450fb03996c90",
+      "LF": 137,
+      "CRLF": 0
+    },
+    "high-atomic": {
+      "bytes": 5955,
+      "sha256": "0c1caf7a7de777c2bca8294677be7db40cd2d9ea7625148673ad02702a9922c3",
+      "LF": 143,
+      "CRLF": 0
+    },
+    "high-invalid": {
+      "bytes": 6104,
+      "sha256": "fea7f76c5aa63e482b20efece0ca365ec93570433ebb33bea52a87f8950797ac",
+      "LF": 148,
+      "CRLF": 0
+    },
+    "high-component": {
+      "bytes": 5853,
+      "sha256": "10d579b2506e6228b9b7198bf0b6a2841dcb6201b285ec25f49f84098815c930",
+      "LF": 139,
+      "CRLF": 0
+    },
+    "high-unknown": {
+      "bytes": 5765,
+      "sha256": "8865f30e994f5eb57572d7a8ee7700bd47cd0c28f7c54f007a6da953d5bdc8da",
+      "LF": 138,
+      "CRLF": 0
+    },
+    "plan-overlay": {
+      "bytes": 5941,
+      "sha256": "766898f7c59a8740fb5aeccf8b910233205466ff8b7381c84c80ebc35e2a8ecc",
+      "LF": 145,
+      "CRLF": 0
+    },
+    "plan-missing": {
+      "bytes": 5645,
+      "sha256": "886c719b6e840ce348702a230ea7e29e69380b6a2c7ea93137d0dd3324586e25",
+      "LF": 136,
+      "CRLF": 0
+    },
+    "plan-wrong-step": {
+      "bytes": 5825,
+      "sha256": "b363c5e64c4ab67bf8ea926e391ad25f2e41f52840d8bc41177bd0716fc7f7c8",
+      "LF": 144,
+      "CRLF": 0
+    },
+    "content-ref": {
+      "bytes": 5619,
+      "sha256": "36b344f6cdf104900df0a42527100434eced3ce946d324abcbf039b204ffea6c",
+      "LF": 133,
+      "CRLF": 0
+    },
+    "multi-fences": {
+      "bytes": 5989,
+      "sha256": "ac6b73f03aa523b4bb5ae0b35148db5df99c5c7d8abf671e2c797c83ab08a286",
+      "LF": 146,
+      "CRLF": 0
+    }
+  },
+  "catalog": {
+    "bytes": 76832,
+    "sha256": "00b347bb1cfe28f4ca6ffad54c808b4247f8c11a08f5e35289b19e1ca5818ff6",
+    "LF": 2983,
+    "CRLF": 0
+  },
+  "source": {
+    "bytes": 25313,
+    "sha256": "545639a905fdb2b05c97d25bc720c4835956d997dc0ee27dc9cd817cf1fc0bbc",
+    "LF": 492,
+    "CRLF": 0
+  },
+  "normalization": "JSON tuple/list; owned project path prefix -> res://; snapshot bytes base64 only",
+  "public_replay": "ordinary snapshot_diff route, actual build_agent -> agent.call; no shared normalizer change",
+  "opaque_action": "Native parsed JSON retained as inert data, including unknown fields; never executed",
+  "no_project_writes": true,
+  "old_tests_case_sources_only": true
+}

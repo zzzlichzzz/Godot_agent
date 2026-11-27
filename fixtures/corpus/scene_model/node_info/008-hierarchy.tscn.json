@@ -1,0 +1,43 @@
+{
+  "id": "008-hierarchy.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "hierarchy.tscn: 'Main/Arm/End'",
+  "args": {
+    "path": "res://scenes/hierarchy.tscn",
+    "node": "Main/Arm/End"
+  },
+  "reference_node": {
+    "name": "End",
+    "parent": "Main/Arm",
+    "type": "Marker2D",
+    "path": "Main/Arm/End",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      143,
+      194
+    ],
+    "body_span": [
+      194,
+      195
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "End",
+      "type": "Marker2D",
+      "parent": "Main/Arm",
+      "path": "Main/Arm/End",
+      "depth": 3,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": "..",
+      "children": [
+        "Main/Arm/End/Tip"
+      ]
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "_status": "skeleton",
+  "kinds": ["invalid_input", "not_found", "denied", "stale_plan", "conflict",
+            "engine_down", "unavailable", "internal", "unknown_tool"]
+}

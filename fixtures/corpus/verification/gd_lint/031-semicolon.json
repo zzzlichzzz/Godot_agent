@@ -1,0 +1,23 @@
+{
+  "id": "031-semicolon",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "semicolon",
+  "args": {
+    "path": "res://scripts/semicolon.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "type_mismatch",
+          "line": 1,
+          "message": "строка 1: переменной типа int присваивается строковый литерал — Godot выдаст ошибку типов (Type Mismatch)"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 36
+    }
+  }
+}

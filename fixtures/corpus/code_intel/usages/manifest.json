@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "corpus": "fixtures/corpus/code_intel/usages",
+  "captured_at": "2026-10-27",
+  "reference": {
+    "source": "godot_tools/symbol_refactor.py:find_references",
+    "sha256": "4889c9b118cad3b072375eb0b0f35710efc87851dc2bbb7d921b1d98b87677a4"
+  },
+  "fixture_root": "fixtures/projects",
+  "cases": [
+    {
+      "id": "001-function-declaration-and-calls",
+      "file": "001-function-declaration-and-calls.json",
+      "fixture": "usages",
+      "sha256": "3ec81a8e7ecddb34f87bbfe5724043ed46b7ce93580f649269d309dc54558686"
+    },
+    {
+      "id": "002-only-declaration",
+      "file": "002-only-declaration.json",
+      "fixture": "usages",
+      "sha256": "8de5311bf016cba0d562112dabd7bd05fdc88cfcab7afa1ddb90e45780e7a862"
+    },
+    {
+      "id": "003-by-link-and-counters",
+      "file": "003-by-link-and-counters.json",
+      "fixture": "usages",
+      "sha256": "4bc65be209403410791c33f56b06eb3261834626f542784287b20ad1f2551179"
+    },
+    {
+      "id": "004-comment-is-not-a-usage",
+      "file": "004-comment-is-not-a-usage.json",
+      "fixture": "usages",
+      "sha256": "c4cf201c8a54cd4880efa680611e1db5891f9f5e48a46cf7df4b391bf82c7c28"
+    },
+    {
+      "id": "005-local-shadow-excluded",
+      "file": "005-local-shadow-excluded.json",
+      "fixture": "usages",
+      "sha256": "607a8169f8a00022f62b0851eb47e350408aa57b8a19b02b3e50f23d4ff75ce8"
+    },
+    {
+      "id": "006-probable-dynamic-receiver",
+      "file": "006-probable-dynamic-receiver.json",
+      "fixture": "usages",
+      "sha256": "eda2e52ddf94382dcd0d482969a7807b41c15db95f369a51300ea70a72619299"
+    },
+    {
+      "id": "007-string-literal-dynamic",
+      "file": "007-string-literal-dynamic.json",
+      "fixture": "usages",
+      "sha256": "704687049e04bdcb1304cd45c75c154fa7cc99303111f8de4c2e599a9363e182"
+    },
+    {
+      "id": "008-locator-syntax",
+      "file": "008-locator-syntax.json",
+      "fixture": "usages",
+      "sha256": "9c953e711266aa4e164c0a1b5b16cdfc18728db54d669e3d05dfacbca7b60e6f"
+    },
+    {
+      "id": "009-locator-without-declaration",
+      "file": "009-locator-without-declaration.json",
+      "fixture": "usages",
+      "sha256": "c278ee1231b4572a21a48c3cef28a29a41da2d09d9b25b6baae63009e59f2359"
+    },
+    {
+      "id": "010-unknown-kind",
+      "file": "010-unknown-kind.json",
+      "fixture": "usages",
+      "sha256": "d1d14a6d8e686e0ded81ea3064648420666efece2e1e3b25f8212e1011524ec1"
+    },
+    {
+      "id": "011-old-name-keyword",
+      "file": "011-old-name-keyword.json",
+      "fixture": "usages",
+      "sha256": "eb0dedc8cfc59a1032e9f535a0f847c80ccf3ca86d0cf5a893b8295b480d6662"
+    },
+    {
+      "id": "012-override-in-subclass",
+      "file": "012-override-in-subclass.json",
+      "fixture": "usages",
+      "sha256": "35397b903ac1557681fd1da157ac321ef797f3032dff516f8c4f18327f5da659"
+    },
+    {
+      "id": "013-enum-member",
+      "file": "013-enum-member.json",
+      "fixture": "usages",
+      "sha256": "9657ed80275214d3f0ee5a803fc1df86ba80d7c14a823c1b56ea000db0522d7e"
+    },
+    {
+      "id": "014-class-name-hierarchy",
+      "file": "014-class-name-hierarchy.json",
+      "fixture": "usages",
+      "sha256": "7240cbd500194102975899fd3c22364b31af66d8ffc95c4f0991dd94745e6338"
+    },
+    {
+      "id": "015-path-outside",
+      "file": "015-path-outside.json",
+      "fixture": "usages",
+      "sha256": "6399bdb97b1c69f078fc965f35599d7db2eafd78e4c88ae2ffcf88c0f558e293"
+    },
+    {
+      "id": "016-addon-hidden",
+      "file": "016-addon-hidden.json",
+      "fixture": "usages",
+      "sha256": "1f83f7e487d7995a609f307e6899fe7119148bccb573184a476db713f94ded4f"
+    },
+    {
+      "id": "017-empty-project",
+      "file": "017-empty-project.json",
+      "fixture": "usages_empty",
+      "sha256": "e34315c2b95f92ca1f5a0e9f7389ceef8eedf3b08d522f7382135cb10a3d5c93"
+    },
+    {
+      "id": "018-new-name-echo",
+      "file": "018-new-name-echo.json",
+      "fixture": "usages",
+      "sha256": "d18db8dee298c74b7a2efafc172294de5f7f52317ea55679970774c0d529eecd"
+    }
+  ]
+}

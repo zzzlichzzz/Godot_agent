@@ -1,0 +1,42 @@
+{
+  "id": "expanded-operation-refusal-14",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "theme_set_item",
+        "data_type": "wrong",
+        "theme_type": "Button",
+        "name": "font_color",
+        "value": {
+          "type": "Color",
+          "value": [
+            1,
+            0.5,
+            0,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Неподдерживаемый тип Theme item",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "a0ddf7dbe3258521ac956882e69971a7ea5f0e7e7842a79339c9d68d0eb6b5a0"
+}

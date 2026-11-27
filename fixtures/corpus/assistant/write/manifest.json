@@ -1,0 +1,8 @@
+{
+  "module": "assistant.write",
+  "reference_only": false,
+  "cases": 4,
+  "source": "native main confirmation and 13 independent native prepare cases x2",
+  "native_reference": "reference.json",
+  "real_provider_calls": false
+}

@@ -1,0 +1,22 @@
+{
+  "id": "001",
+  "tool": "write_rollback",
+  "fixture": "rename",
+  "note": "откат одного файла: байты до применения",
+  "scenario": "preview_apply_rollback",
+  "args": {
+    "kind": "function",
+    "old_name": "strike",
+    "new_name": "punch",
+    "declaration": "res://src/hero.gd:10",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "files": {
+        "src/hero.gd": "80c26e1077670a8d91d586b0a032d09744783f4d8a8b93844babb66bab1fa88d"
+      }
+    }
+  }
+}

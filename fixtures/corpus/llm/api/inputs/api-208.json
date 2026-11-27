@@ -1,0 +1,10 @@
+{
+  "kind": "call",
+  "module": "api_history",
+  "function": "_safe_id",
+  "args": [
+    "safe_id-1"
+  ],
+  "kwargs": {},
+  "id": "api-208"
+}

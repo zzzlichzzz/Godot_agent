@@ -1,0 +1,36 @@
+{
+  "id": "expanded-resource0",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": false,
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "resource должен быть строкой до 500 символов",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "a245110c59fa600173d4f25c9c1dc3abf3fbeddc9458be4679661e053ee61a26"
+}

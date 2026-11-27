@@ -1,0 +1,36 @@
+{
+  "id": "expanded-value6",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "float",
+          "value": "1"
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "float требует конечное число",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "1be9e47844945fcffa68f56126c0ee2f76af7fbc2e486b9d7cbe9a0e05e609e0"
+}

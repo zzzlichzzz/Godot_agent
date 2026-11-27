@@ -1,0 +1,4 @@
+{"post": ["r1", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}
+{"post": ["r2", "https://chat.qwen.ai/static/logo.png", "GET"]}
+{"post": ["r3", "https://chat.qwen.ai/api/v2/chat/completions", "GET"]}
+{"post": ["r4", "https://chat.qwen.ai/api/v2/chat/completions", "POST"]}

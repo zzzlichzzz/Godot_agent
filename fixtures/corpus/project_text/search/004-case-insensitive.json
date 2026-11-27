@@ -1,0 +1,54 @@
+{
+  "id": "004-case-insensitive",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "case_insensitive=true: health/Health/HealthChanged, квота 8 срабатывает",
+  "args": {
+    "query": "health",
+    "case_insensitive": true,
+    "max_results": 8
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://notes/здоровье.md",
+          "line": 4,
+          "snippet": "2: \n3: Здоровье игрока — целое число от 0 до 100.\n4: Полоса здоровья обновляется по сигналу HealthChanged.\n5: Ниже нуля здоровье не опускается.\n6: "
+        },
+        {
+          "path": "res://scripts/health_hud.gd",
+          "line": 1,
+          "snippet": "1: class_name HealthHud\n2: extends Control\n3: "
+        },
+        {
+          "path": "res://scripts/health_hud.gd",
+          "line": 4,
+          "snippet": "2: extends Control\n3: \n4: signal HealthChanged(value: int)\n5: \n6: @onready var label: Label = $Label"
+        },
+        {
+          "path": "res://scripts/health_hud.gd",
+          "line": 9,
+          "snippet": "7: \n8: \n9: func set_Health(value: int) -> void:\n10: \tlabel.text = \"HP: %d\" % value\n11: \tHealthChanged.emit(value)\n12: "
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 4,
+          "snippet": "2: \n3: ## Игрок: запас сил, урон, смерть.\n4: var health := 100\n5: var health_max := 100\n6: var speed := 300.0\n7: "
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 10,
+          "snippet": "8: \n9: func _ready() -> void:\n10: \thealth = health_max\n11: \tposition = Vector2.ZERO\n12: "
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 15,
+          "snippet": "13: \n14: func take_damage(amount: int) -> void:\n15: \thealth = max(0, health - amount)\n16: \tif health == 0:\n17: \t\tdie()\n18: "
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

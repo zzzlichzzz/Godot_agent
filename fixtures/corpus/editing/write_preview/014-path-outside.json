@@ -1,0 +1,16 @@
+{
+  "id": "014-path-outside",
+  "tool": "write_preview",
+  "fixture": "rename",
+  "note": "Путь вне проекта: denied",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "apply_damage",
+    "declaration": "res://../outside.gd:1"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied"
+  }
+}

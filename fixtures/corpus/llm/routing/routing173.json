@@ -1,0 +1,87 @@
+{
+  "input": {
+    "id": "routing173",
+    "label": "unavailable provider no request",
+    "kind": "send",
+    "responses": [],
+    "record": {
+      "provider": "agentrouter"
+    },
+    "keys": 1
+  },
+  "expect": {
+    "result": {
+      "reply": {
+        "text": "[Провайдер недоступен]: «AgentRouter» — сервис принимает запросы только от программ из своего списка, и Godot Agent в него пока не входит — мы просим разрешение на добавление. Ключ тут не поможет: обходить это ограничение чужим именем клиента значит подставлять под блокировку ваш аккаунт. Создайте новый чат с другим провайдером: модель закреплена за чатом и здесь её не сменить.",
+        "action": null,
+        "raw": "",
+        "usage": null,
+        "finish_reason": "error",
+        "model": "fixture/model"
+      },
+      "requests": [],
+      "deltas": [],
+      "progress": [],
+      "messages_built": [],
+      "saved_messages": [],
+      "files": {
+        "runtime/config/api_keys.json": {
+          "version": 2,
+          "providers": {
+            "agentrouter": {
+              "keys": [
+                {
+                  "key": "fixture-routing-key-0001",
+                  "cooldown_until": 0.0,
+                  "cooldown_reason": ""
+                }
+              ],
+              "model": "not-the-chat-model",
+              "base_url": "http://127.0.0.1:1/v1"
+            }
+          },
+          "defaults": {
+            "provider": "",
+            "model": ""
+          },
+          "proxy": {
+            "enabled": false,
+            "host": "",
+            "port": 0,
+            "user": "",
+            "password": ""
+          },
+          "dns": {
+            "enabled": false,
+            "url": ""
+          },
+          "provider_stats": {},
+          "catalog": {
+            "enabled": false
+          },
+          "recent": []
+        }
+      },
+      "rate_status": [
+        null,
+        null
+      ],
+      "retry_after": [
+        null,
+        null
+      ],
+      "usable_key_indices": [
+        0
+      ],
+      "description": "agentrouter / fixture/model"
+    },
+    "stdout": "--> Ключ провайдера agentrouter сохранён (fixtur...0001)\n<-- API agentrouter / fixture/model: [Провайдер недоступен]: «AgentRouter» — сервис принимает запросы только от программ из своего списка, и Godot Agent в него пока не входит — мы просим разрешение на добавление. Ключ тут не поможет: обходить это ограничение чужим именем клиента значит подставлять под блокировку ваш аккаунт. Создайте новый чат с другим провайдером: модель закреплена за чатом и здесь её не сменить.\n"
+  },
+  "provenance": {
+    "source": "backends/api_backend.py",
+    "source_sha256": "93d22fb580b66e882a87bcfbff10218e583f8c6d091d69b75e4e15a1a8890943",
+    "function": "ApiBackend.send",
+    "case_source": "python/tests/test_api_backend.py + inspected native branches",
+    "strategy": "synthetic cases; old tests neither copied nor executed"
+  }
+}

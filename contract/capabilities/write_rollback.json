@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "module_id": "editing.rollback",
+  "capability_id": "editing.rollback",
+  "tool_name": "write_rollback",
+  "description": "Откатить применённый план по `entry_id` из `write_apply`: каждый файл восстанавливается из бэкапа сырых байтов и сверяется с `expected` побайтово, квитанции идут от последней к первой. Если файл правили после `apply` — `conflict`, файл не трогается. Повторный откат — `conflict` (`already_rolled_back`).",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "entry_id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "`<plan_id>#<n>` из ответа `write_apply`."
+      }
+    },
+    "required": [
+      "entry_id"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "entry_id": {
+        "type": "string"
+      },
+      "state": {
+        "type": "string",
+        "enum": [
+          "ROLLED_BACK"
+        ]
+      },
+      "plan_id": {
+        "type": "string"
+      },
+      "restored": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Файл: `res://path.gd`."
+            },
+            "hash": {
+              "type": "string",
+              "description": "sha256 восстановленных байтов."
+            }
+          },
+          "required": [
+            "path",
+            "hash"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "removed": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "files_count": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "entry_id",
+      "state",
+      "plan_id",
+      "restored",
+      "removed",
+      "files_count"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "write"
+  ],
+  "idempotent": true,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "conflict",
+    "denied",
+    "internal"
+  ],
+  "availability": "*",
+  "cost": "heavy",
+  "limits": {}
+}

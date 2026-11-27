@@ -1,0 +1,1291 @@
+{
+ "annotations.gd": {
+  "declarations": [
+   {
+    "column": 13,
+    "end": 67,
+    "export_annotation": "export",
+    "id": "gd:annotations.gd#script:variable@62",
+    "is_export": true,
+    "kind": "variable",
+    "line": 5,
+    "name": "speed",
+    "owner": "script",
+    "start": 62
+   },
+   {
+    "column": 6,
+    "end": 125,
+    "id": "gd:annotations.gd#script:function@121",
+    "kind": "function",
+    "line": 8,
+    "name": "ping",
+    "owner": "script",
+    "start": 121
+   },
+   {
+    "column": 11,
+    "end": 130,
+    "id": "gd:annotations.gd#gd:annotations.gd#script:function@121:parameter@126",
+    "kind": "parameter",
+    "line": 8,
+    "name": "peer",
+    "owner": "gd:annotations.gd#script:function@121",
+    "start": 126
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 5,
+    "line": 1,
+    "name": "tool",
+    "owner": "script",
+    "start": 1
+   },
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 14,
+    "line": 2,
+    "name": "extends",
+    "owner": "script",
+    "start": 7
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 19,
+    "line": 2,
+    "name": "Node",
+    "owner": "script",
+    "start": 15
+   },
+   {
+    "column": 2,
+    "context": "call",
+    "end": 36,
+    "line": 4,
+    "name": "export_group",
+    "owner": "script",
+    "start": 24
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 57,
+    "line": 5,
+    "name": "export",
+    "owner": "script",
+    "start": 51
+   },
+   {
+    "column": 20,
+    "context": "type",
+    "end": 74,
+    "line": 5,
+    "name": "float",
+    "owner": "script",
+    "start": 69
+   },
+   {
+    "column": 2,
+    "context": "call",
+    "end": 88,
+    "line": 7,
+    "name": "rpc",
+    "owner": "script",
+    "start": 85
+   },
+   {
+    "column": 17,
+    "context": "type",
+    "end": 135,
+    "line": 8,
+    "name": "int",
+    "owner": "gd:annotations.gd#script:function@121",
+    "start": 132
+   },
+   {
+    "column": 25,
+    "context": "type",
+    "end": 144,
+    "line": 8,
+    "name": "void",
+    "owner": "gd:annotations.gd#script:function@121",
+    "start": 140
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 152,
+    "line": 9,
+    "name": "pass",
+    "owner": "gd:annotations.gd#script:function@121",
+    "start": 148
+   }
+  ],
+  "strings": [
+   {
+    "column": 15,
+    "end": 47,
+    "line": 4,
+    "start": 37,
+    "value": "\"Movement\""
+   },
+   {
+    "column": 6,
+    "end": 99,
+    "line": 7,
+    "start": 89,
+    "value": "\"any_peer\""
+   },
+   {
+    "column": 18,
+    "end": 113,
+    "line": 7,
+    "start": 101,
+    "value": "\"call_local\""
+   }
+  ]
+ },
+ "bom.gd": {
+  "declarations": [
+   {
+    "column": 6,
+    "end": 31,
+    "id": "gd:bom.gd#script:function@25",
+    "kind": "function",
+    "line": 3,
+    "name": "bom_ok",
+    "owner": "script",
+    "start": 25
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 7,
+    "line": 1,
+    "name": "extends",
+    "owner": "script",
+    "start": 0
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 18,
+    "line": 1,
+    "name": "RefCounted",
+    "owner": "script",
+    "start": 8
+   },
+   {
+    "column": 18,
+    "context": "type",
+    "end": 41,
+    "line": 3,
+    "name": "bool",
+    "owner": "gd:bom.gd#script:function@25",
+    "start": 37
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 50,
+    "line": 4,
+    "name": "return",
+    "owner": "gd:bom.gd#script:function@25",
+    "start": 44
+   },
+   {
+    "column": 9,
+    "context": "identifier",
+    "end": 55,
+    "line": 4,
+    "name": "true",
+    "owner": "gd:bom.gd#script:function@25",
+    "start": 51
+   }
+  ],
+  "strings": []
+ },
+ "comments.gd": {
+  "declarations": [
+   {
+    "column": 6,
+    "end": 60,
+    "id": "gd:comments.gd#script:function@56",
+    "kind": "function",
+    "line": 6,
+    "name": "real",
+    "owner": "script",
+    "start": 56
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 7,
+    "line": 1,
+    "name": "extends",
+    "owner": "script",
+    "start": 0
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 12,
+    "line": 1,
+    "name": "Node",
+    "owner": "script",
+    "start": 8
+   },
+   {
+    "column": 16,
+    "context": "type",
+    "end": 70,
+    "line": 6,
+    "name": "void",
+    "owner": "gd:comments.gd#script:function@56",
+    "start": 66
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 110,
+    "line": 8,
+    "name": "pass",
+    "owner": "gd:comments.gd#script:function@56",
+    "start": 106
+   }
+  ],
+  "strings": []
+ },
+ "crlf.gd": {
+  "declarations": [
+   {
+    "column": 6,
+    "end": 27,
+    "id": "gd:crlf.gd#script:function@21",
+    "kind": "function",
+    "line": 3,
+    "name": "_ready",
+    "owner": "script",
+    "start": 21
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 7,
+    "line": 1,
+    "name": "extends",
+    "owner": "script",
+    "start": 0
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 12,
+    "line": 1,
+    "name": "Node",
+    "owner": "script",
+    "start": 8
+   },
+   {
+    "column": 18,
+    "context": "type",
+    "end": 37,
+    "line": 3,
+    "name": "void",
+    "owner": "gd:crlf.gd#script:function@21",
+    "start": 33
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 45,
+    "line": 4,
+    "name": "pass",
+    "owner": "gd:crlf.gd#script:function@21",
+    "start": 41
+   }
+  ],
+  "strings": []
+ },
+ "declarations.gd": {
+  "declarations": [
+   {
+    "column": 12,
+    "end": 15,
+    "id": "gd:declarations.gd#script:class_name@11",
+    "kind": "class_name",
+    "line": 1,
+    "name": "Unit",
+    "owner": "script",
+    "start": 11
+   },
+   {
+    "column": 8,
+    "end": 44,
+    "id": "gd:declarations.gd#script:signal@40",
+    "kind": "signal",
+    "line": 4,
+    "name": "died",
+    "owner": "script",
+    "start": 40
+   },
+   {
+    "column": 7,
+    "end": 73,
+    "id": "gd:declarations.gd#script:constant@67",
+    "kind": "constant",
+    "line": 6,
+    "name": "MAX_HP",
+    "owner": "script",
+    "start": 67
+   },
+   {
+    "column": 13,
+    "end": 98,
+    "export_annotation": "export",
+    "id": "gd:declarations.gd#script:variable@93",
+    "is_export": true,
+    "kind": "variable",
+    "line": 7,
+    "name": "speed",
+    "owner": "script",
+    "start": 93
+   },
+   {
+    "column": 26,
+    "end": 143,
+    "export_annotation": "export_range",
+    "id": "gd:declarations.gd#script:variable@138",
+    "is_export": true,
+    "kind": "variable",
+    "line": 8,
+    "name": "armor",
+    "owner": "script",
+    "start": 138
+   },
+   {
+    "column": 12,
+    "end": 173,
+    "id": "gd:declarations.gd#script:variable@165",
+    "kind": "variable",
+    "line": 9,
+    "name": "registry",
+    "owner": "script",
+    "start": 165
+   },
+   {
+    "column": 5,
+    "end": 202,
+    "id": "gd:declarations.gd#script:variable@196",
+    "kind": "variable",
+    "line": 10,
+    "name": "roster",
+    "owner": "script",
+    "start": 196
+   },
+   {
+    "column": 6,
+    "end": 249,
+    "id": "gd:declarations.gd#script:enum@244",
+    "kind": "enum",
+    "line": 12,
+    "name": "State",
+    "owner": "script",
+    "start": 244
+   },
+   {
+    "column": 14,
+    "end": 256,
+    "id": "gd:declarations.gd#gd:declarations.gd#script:enum@244:enum_member@252",
+    "kind": "enum_member",
+    "line": 12,
+    "name": "IDLE",
+    "owner": "gd:declarations.gd#script:enum@244",
+    "start": 252
+   },
+   {
+    "column": 20,
+    "end": 261,
+    "id": "gd:declarations.gd#gd:declarations.gd#script:enum@244:enum_member@258",
+    "kind": "enum_member",
+    "line": 12,
+    "name": "RUN",
+    "owner": "gd:declarations.gd#script:enum@244",
+    "start": 258
+   },
+   {
+    "column": 29,
+    "end": 271,
+    "id": "gd:declarations.gd#gd:declarations.gd#script:enum@244:enum_member@267",
+    "kind": "enum_member",
+    "line": 12,
+    "name": "JUMP",
+    "owner": "gd:declarations.gd#script:enum@244",
+    "start": 267
+   },
+   {
+    "column": 6,
+    "end": 288,
+    "id": "gd:declarations.gd#script:function@282",
+    "kind": "function",
+    "line": 14,
+    "name": "_ready",
+    "owner": "script",
+    "start": 282
+   },
+   {
+    "column": 6,
+    "end": 310,
+    "id": "gd:declarations.gd#gd:declarations.gd#script:function@282:variable@306",
+    "kind": "variable",
+    "line": 15,
+    "name": "unit",
+    "owner": "gd:declarations.gd#script:function@282",
+    "start": 306
+   },
+   {
+    "column": 13,
+    "end": 365,
+    "id": "gd:declarations.gd#script:function@361",
+    "kind": "function",
+    "line": 18,
+    "name": "make",
+    "owner": "script",
+    "start": 361,
+    "static": true
+   },
+   {
+    "column": 18,
+    "end": 371,
+    "id": "gd:declarations.gd#gd:declarations.gd#script:function@361:parameter@366",
+    "kind": "parameter",
+    "line": 18,
+    "name": "speed",
+    "owner": "gd:declarations.gd#script:function@361",
+    "start": 366
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 24,
+    "line": 2,
+    "name": "extends",
+    "owner": "script",
+    "start": 17
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 29,
+    "line": 2,
+    "name": "Node",
+    "owner": "script",
+    "start": 25
+   },
+   {
+    "column": 13,
+    "context": "identifier",
+    "end": 48,
+    "line": 4,
+    "name": "who",
+    "owner": "script",
+    "start": 45
+   },
+   {
+    "column": 18,
+    "context": "type",
+    "end": 56,
+    "line": 4,
+    "name": "String",
+    "owner": "script",
+    "start": 50
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 88,
+    "line": 7,
+    "name": "export",
+    "owner": "script",
+    "start": 82
+   },
+   {
+    "column": 20,
+    "context": "type",
+    "end": 105,
+    "line": 7,
+    "name": "float",
+    "owner": "script",
+    "start": 100
+   },
+   {
+    "column": 2,
+    "context": "call",
+    "end": 126,
+    "line": 8,
+    "name": "export_range",
+    "owner": "script",
+    "start": 114
+   },
+   {
+    "column": 33,
+    "context": "type",
+    "end": 148,
+    "line": 8,
+    "name": "int",
+    "owner": "script",
+    "start": 145
+   },
+   {
+    "column": 22,
+    "context": "type",
+    "end": 185,
+    "line": 9,
+    "name": "Dictionary",
+    "owner": "script",
+    "start": 175
+   },
+   {
+    "column": 13,
+    "context": "type",
+    "end": 214,
+    "line": 10,
+    "name": "Dictionary",
+    "owner": "script",
+    "start": 204
+   },
+   {
+    "column": 24,
+    "context": "type",
+    "end": 221,
+    "line": 10,
+    "name": "String",
+    "owner": "script",
+    "start": 215
+   },
+   {
+    "column": 32,
+    "context": "type",
+    "end": 229,
+    "line": 10,
+    "name": "Player",
+    "owner": "script",
+    "start": 223
+   },
+   {
+    "column": 6,
+    "context": "identifier",
+    "end": 249,
+    "line": 12,
+    "name": "State",
+    "owner": "script",
+    "start": 244
+   },
+   {
+    "column": 18,
+    "context": "type",
+    "end": 298,
+    "line": 14,
+    "name": "void",
+    "owner": "gd:declarations.gd#script:function@282",
+    "start": 294
+   },
+   {
+    "column": 12,
+    "context": "type",
+    "end": 316,
+    "line": 15,
+    "name": "Unit",
+    "owner": "gd:declarations.gd#script:function@282",
+    "start": 312
+   },
+   {
+    "column": 19,
+    "context": "identifier",
+    "end": 323,
+    "line": 15,
+    "name": "self",
+    "owner": "gd:declarations.gd#script:function@282",
+    "start": 319
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 330,
+    "line": 16,
+    "name": "unit",
+    "owner": "gd:declarations.gd#script:function@282",
+    "start": 326
+   },
+   {
+    "column": 7,
+    "context": "member",
+    "end": 342,
+    "line": 16,
+    "name": "take_damage",
+    "owner": "gd:declarations.gd#script:function@282",
+    "start": 331
+   },
+   {
+    "column": 25,
+    "context": "type",
+    "end": 378,
+    "line": 18,
+    "name": "float",
+    "owner": "gd:declarations.gd#script:function@361",
+    "start": 373
+   },
+   {
+    "column": 35,
+    "context": "type",
+    "end": 387,
+    "line": 18,
+    "name": "Unit",
+    "owner": "gd:declarations.gd#script:function@361",
+    "start": 383
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 397,
+    "line": 19,
+    "name": "return",
+    "owner": "gd:declarations.gd#script:function@361",
+    "start": 391
+   },
+   {
+    "column": 9,
+    "context": "identifier",
+    "end": 402,
+    "line": 19,
+    "name": "Unit",
+    "owner": "gd:declarations.gd#script:function@361",
+    "start": 398
+   },
+   {
+    "column": 14,
+    "context": "member",
+    "end": 406,
+    "line": 19,
+    "name": "new",
+    "owner": "gd:declarations.gd#script:function@361",
+    "start": 403
+   }
+  ],
+  "strings": []
+ },
+ "inner_class.gd": {
+  "declarations": [
+   {
+    "column": 7,
+    "end": 27,
+    "id": "gd:inner_class.gd#script:class@22",
+    "kind": "class",
+    "line": 3,
+    "name": "Inner",
+    "owner": "script",
+    "start": 22
+   },
+   {
+    "column": 6,
+    "end": 59,
+    "id": "gd:inner_class.gd#gd:inner_class.gd#script:class@22:variable@54",
+    "kind": "variable",
+    "line": 4,
+    "name": "value",
+    "owner": "gd:inner_class.gd#script:class@22",
+    "start": 54
+   },
+   {
+    "column": 7,
+    "end": 82,
+    "id": "gd:inner_class.gd#gd:inner_class.gd#script:class@22:function@78",
+    "kind": "function",
+    "line": 6,
+    "name": "bump",
+    "owner": "gd:inner_class.gd#script:class@22",
+    "start": 78
+   },
+   {
+    "column": 6,
+    "end": 141,
+    "id": "gd:inner_class.gd#script:function@131",
+    "kind": "function",
+    "line": 10,
+    "name": "make_inner",
+    "owner": "script",
+    "start": 131
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 7,
+    "line": 1,
+    "name": "extends",
+    "owner": "script",
+    "start": 0
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 12,
+    "line": 1,
+    "name": "Node",
+    "owner": "script",
+    "start": 8
+   },
+   {
+    "column": 13,
+    "context": "identifier",
+    "end": 35,
+    "line": 3,
+    "name": "extends",
+    "owner": "gd:inner_class.gd#script:class@22",
+    "start": 28
+   },
+   {
+    "column": 21,
+    "context": "type",
+    "end": 46,
+    "line": 3,
+    "name": "RefCounted",
+    "owner": "gd:inner_class.gd#script:class@22",
+    "start": 36
+   },
+   {
+    "column": 13,
+    "context": "type",
+    "end": 64,
+    "line": 4,
+    "name": "int",
+    "owner": "gd:inner_class.gd#script:class@22",
+    "start": 61
+   },
+   {
+    "column": 17,
+    "context": "type",
+    "end": 91,
+    "line": 6,
+    "name": "int",
+    "owner": "gd:inner_class.gd#gd:inner_class.gd#script:class@22:function@78",
+    "start": 88
+   },
+   {
+    "column": 3,
+    "context": "identifier",
+    "end": 101,
+    "line": 7,
+    "name": "value",
+    "owner": "gd:inner_class.gd#gd:inner_class.gd#script:class@22:function@78",
+    "start": 96
+   },
+   {
+    "column": 3,
+    "context": "identifier",
+    "end": 116,
+    "line": 8,
+    "name": "return",
+    "owner": "gd:inner_class.gd#gd:inner_class.gd#script:class@22:function@78",
+    "start": 110
+   },
+   {
+    "column": 10,
+    "context": "identifier",
+    "end": 122,
+    "line": 8,
+    "name": "value",
+    "owner": "gd:inner_class.gd#gd:inner_class.gd#script:class@22:function@78",
+    "start": 117
+   },
+   {
+    "column": 22,
+    "context": "type",
+    "end": 152,
+    "line": 10,
+    "name": "Inner",
+    "owner": "gd:inner_class.gd#script:function@131",
+    "start": 147
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 162,
+    "line": 11,
+    "name": "return",
+    "owner": "gd:inner_class.gd#script:function@131",
+    "start": 156
+   },
+   {
+    "column": 9,
+    "context": "identifier",
+    "end": 168,
+    "line": 11,
+    "name": "Inner",
+    "owner": "gd:inner_class.gd#script:function@131",
+    "start": 163
+   },
+   {
+    "column": 15,
+    "context": "member",
+    "end": 172,
+    "line": 11,
+    "name": "new",
+    "owner": "gd:inner_class.gd#script:function@131",
+    "start": 169
+   }
+  ],
+  "strings": []
+ },
+ "strings.gd": {
+  "declarations": [
+   {
+    "column": 6,
+    "end": 35,
+    "id": "gd:strings.gd#script:function@27",
+    "kind": "function",
+    "line": 3,
+    "name": "describe",
+    "owner": "script",
+    "start": 27
+   },
+   {
+    "column": 15,
+    "end": 40,
+    "id": "gd:strings.gd#gd:strings.gd#script:function@27:parameter@36",
+    "kind": "parameter",
+    "line": 3,
+    "name": "path",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 36
+   },
+   {
+    "column": 5,
+    "end": 165,
+    "id": "gd:strings.gd#script:variable@159",
+    "kind": "variable",
+    "line": 11,
+    "name": "broken",
+    "owner": "script",
+    "start": 159
+   }
+  ],
+  "errors": [
+   "line 11: unclosed string"
+  ],
+  "parse_status": "partial",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 7,
+    "line": 1,
+    "name": "extends",
+    "owner": "script",
+    "start": 0
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 18,
+    "line": 1,
+    "name": "RefCounted",
+    "owner": "script",
+    "start": 8
+   },
+   {
+    "column": 21,
+    "context": "type",
+    "end": 48,
+    "line": 3,
+    "name": "String",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 42
+   },
+   {
+    "column": 32,
+    "context": "type",
+    "end": 59,
+    "line": 3,
+    "name": "String",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 53
+   },
+   {
+    "column": 2,
+    "context": "call",
+    "end": 68,
+    "line": 4,
+    "name": "print",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 63
+   },
+   {
+    "column": 2,
+    "context": "call",
+    "end": 85,
+    "line": 5,
+    "name": "print",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 80
+   },
+   {
+    "column": 2,
+    "context": "call",
+    "end": 112,
+    "line": 6,
+    "name": "print",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 107
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 131,
+    "line": 7,
+    "name": "return",
+    "owner": "gd:strings.gd#script:function@27",
+    "start": 125
+   }
+  ],
+  "strings": [
+   {
+    "column": 8,
+    "end": 76,
+    "line": 4,
+    "start": 69,
+    "value": "\"plain\""
+   },
+   {
+    "column": 8,
+    "end": 103,
+    "line": 5,
+    "start": 86,
+    "value": "\"with \\\"escape\\\"\""
+   },
+   {
+    "column": 8,
+    "end": 121,
+    "line": 6,
+    "start": 113,
+    "value": "'single'"
+   },
+   {
+    "column": 9,
+    "end": 151,
+    "line": 7,
+    "start": 132,
+    "value": "\"\"\"\r\nmulti\r\nline\"\"\""
+   },
+   {
+    "column": 15,
+    "end": 177,
+    "line": 11,
+    "start": 169,
+    "value": "\"no end\r"
+   }
+  ]
+ },
+ "typing.gd": {
+  "declarations": [
+   {
+    "column": 6,
+    "end": 26,
+    "id": "gd:typing.gd#script:function@21",
+    "kind": "function",
+    "line": 3,
+    "name": "check",
+    "owner": "script",
+    "start": 21
+   },
+   {
+    "column": 12,
+    "end": 32,
+    "id": "gd:typing.gd#gd:typing.gd#script:function@21:parameter@27",
+    "kind": "parameter",
+    "line": 3,
+    "name": "value",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 27
+   },
+   {
+    "column": 28,
+    "end": 48,
+    "id": "gd:typing.gd#gd:typing.gd#script:function@21:parameter@43",
+    "kind": "parameter",
+    "line": 3,
+    "name": "other",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 43
+   },
+   {
+    "column": 6,
+    "end": 113,
+    "id": "gd:typing.gd#gd:typing.gd#script:function@21:variable@107",
+    "kind": "variable",
+    "line": 6,
+    "name": "casted",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 107
+   },
+   {
+    "column": 6,
+    "end": 142,
+    "id": "gd:typing.gd#gd:typing.gd#script:function@21:variable@138",
+    "kind": "variable",
+    "line": 7,
+    "name": "list",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 138
+   },
+   {
+    "column": 6,
+    "end": 172,
+    "id": "gd:typing.gd#gd:typing.gd#script:function@21:variable@169",
+    "kind": "variable",
+    "line": 8,
+    "name": "map",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 169
+   }
+  ],
+  "errors": [],
+  "parse_status": "ok",
+  "references": [
+   {
+    "column": 1,
+    "context": "identifier",
+    "end": 7,
+    "line": 1,
+    "name": "extends",
+    "owner": "script",
+    "start": 0
+   },
+   {
+    "column": 9,
+    "context": "type",
+    "end": 12,
+    "line": 1,
+    "name": "Node",
+    "owner": "script",
+    "start": 8
+   },
+   {
+    "column": 19,
+    "context": "type",
+    "end": 41,
+    "line": 3,
+    "name": "Variant",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 34
+   },
+   {
+    "column": 38,
+    "context": "type",
+    "end": 57,
+    "line": 3,
+    "name": "bool",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 53
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 63,
+    "line": 4,
+    "name": "if",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 61
+   },
+   {
+    "column": 5,
+    "context": "identifier",
+    "end": 69,
+    "line": 4,
+    "name": "value",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 64
+   },
+   {
+    "column": 11,
+    "context": "identifier",
+    "end": 72,
+    "line": 4,
+    "name": "is",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 70
+   },
+   {
+    "column": 14,
+    "context": "type",
+    "end": 76,
+    "line": 4,
+    "name": "not",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 73
+   },
+   {
+    "column": 18,
+    "context": "identifier",
+    "end": 83,
+    "line": 4,
+    "name": "Player",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 77
+   },
+   {
+    "column": 3,
+    "context": "identifier",
+    "end": 94,
+    "line": 5,
+    "name": "return",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 88
+   },
+   {
+    "column": 10,
+    "context": "identifier",
+    "end": 100,
+    "line": 5,
+    "name": "false",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 95
+   },
+   {
+    "column": 15,
+    "context": "identifier",
+    "end": 121,
+    "line": 6,
+    "name": "value",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 116
+   },
+   {
+    "column": 21,
+    "context": "identifier",
+    "end": 124,
+    "line": 6,
+    "name": "as",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 122
+   },
+   {
+    "column": 24,
+    "context": "type",
+    "end": 131,
+    "line": 6,
+    "name": "Player",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 125
+   },
+   {
+    "column": 12,
+    "context": "type",
+    "end": 149,
+    "line": 7,
+    "name": "Array",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 144
+   },
+   {
+    "column": 18,
+    "context": "type",
+    "end": 156,
+    "line": 7,
+    "name": "Player",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 150
+   },
+   {
+    "column": 11,
+    "context": "type",
+    "end": 184,
+    "line": 8,
+    "name": "Dictionary",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 174
+   },
+   {
+    "column": 22,
+    "context": "type",
+    "end": 191,
+    "line": 8,
+    "name": "String",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 185
+   },
+   {
+    "column": 30,
+    "context": "type",
+    "end": 198,
+    "line": 8,
+    "name": "Array",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 193
+   },
+   {
+    "column": 36,
+    "context": "type",
+    "end": 205,
+    "line": 8,
+    "name": "Player",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 199
+   },
+   {
+    "column": 2,
+    "context": "identifier",
+    "end": 221,
+    "line": 9,
+    "name": "return",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 215
+   },
+   {
+    "column": 9,
+    "context": "identifier",
+    "end": 228,
+    "line": 9,
+    "name": "casted",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 222
+   },
+   {
+    "column": 19,
+    "context": "identifier",
+    "end": 237,
+    "line": 9,
+    "name": "other",
+    "owner": "gd:typing.gd#script:function@21",
+    "start": 232
+   }
+  ],
+  "strings": []
+ }
+}

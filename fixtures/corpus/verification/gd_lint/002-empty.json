@@ -1,0 +1,23 @@
+{
+  "id": "002-empty",
+  "tool": "gd_lint",
+  "fixture": "../corpus/verification/gd_lint/project",
+  "note": "empty",
+  "args": {
+    "path": "res://scripts/empty.gd"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "findings": [
+        {
+          "code": "empty_file",
+          "line": null,
+          "message": "итоговый файл получился пустым"
+        }
+      ],
+      "truncated": false,
+      "checked_bytes": 0
+    }
+  }
+}

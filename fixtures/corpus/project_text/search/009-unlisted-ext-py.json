@@ -1,0 +1,16 @@
+{
+  "id": "009-unlisted-ext-py",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "файл вне допустимых расширений (.py) не читается",
+  "args": {
+    "query": "token_unlisted_ext"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

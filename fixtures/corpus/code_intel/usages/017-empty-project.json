@@ -1,0 +1,15 @@
+{
+  "id": "017-empty-project",
+  "tool": "usages",
+  "fixture": "usages_empty",
+  "note": "Пустой проект (нет .gd): типизированный not_found, без падения",
+  "args": {
+    "kind": "function",
+    "old_name": "anything",
+    "declaration": "res://src/none.gd:1"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  }
+}

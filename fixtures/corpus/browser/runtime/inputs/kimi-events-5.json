@@ -1,0 +1,9 @@
+{
+  "id": "kimi-events-5",
+  "op": "kimi",
+  "events": [
+    null,
+    "ignored"
+  ],
+  "reset": false
+}

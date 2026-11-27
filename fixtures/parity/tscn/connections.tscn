@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[node name="Root" type="Node2D"]
+
+[node name="Gun" type="Node2D" parent="."]
+
+[node name="Muzzle" type="Marker2D" parent="Gun"]
+
+[connection signal="fired" from="Gun" to="." method="_on_gun_fired"]
+[connection signal="sparked" from="Gun/Muzzle" to="Gun" method="_on_sparked" flags=3]
+[connection signal="ready" from="." to="Gun/Muzzle" method="_on_root_ready"]

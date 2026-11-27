@@ -1,0 +1,6 @@
+[sub_resource type="RectangleShape2D" id="Shape_1"]
+size=Vector2(8,8)
+[gd_scene format=3]
+[node name="Root" type="Node2D"]
+shape=SubResource("Shape_1")
+[sub_resource id=late]

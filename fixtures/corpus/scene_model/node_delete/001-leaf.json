@@ -1,0 +1,161 @@
+{
+  "id": "001-leaf",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/001-leaf",
+  "note": "actual-old prepare-only: leaf",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Old/Tip/End"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "action": "delete_node",
+      "scene": "res://main.tscn",
+      "target_node": "End",
+      "target_node_path": "Old/Tip/End",
+      "deleted_nodes": [
+        "Old/Tip/End"
+      ],
+      "files": [
+        {
+          "action": "patch_file",
+          "path": "res://main.tscn",
+          "before_hash": "ceab30799a83d486fa17f4e16578f2261df70c15fd739686e933302ab339bfb7",
+          "before_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NSBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9yb290LmdkIiBpZD0icm9vdCJdCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9icmFuY2guZ2QiIGlkPSJicmFuY2giXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vdGlwLmdkIiBpZD0idGlwIl0KCltzdWJfcmVzb3VyY2UgdHlwZT0iQW5pbWF0aW9uIiBpZD0iQW5pbWF0aW9uX2EiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIk9sZC9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiT2xkOnJvdGF0aW9uIikKdHJhY2tzLzIvcGF0aCA9IE5vZGVQYXRoKCIlVGlwOnNjYWxlIikKdHJhY2tzLzMvcGF0aCA9IE5vZGVQYXRoKCJPbGQvVGlwL0VuZDpwb3NpdGlvbiIpCnRyYWNrcy80L3BhdGggPSBOb2RlUGF0aCgiT2xkaXNoOnBvc2l0aW9uIikKCltub2RlIG5hbWU9IlJvb3QiIHR5cGU9Ik5vZGUiXQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgicm9vdCIpCgpbbm9kZSBuYW1lPSJOZXciIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCJicmFuY2giKQoKW25vZGUgbmFtZT0iT2xkIiB0eXBlPSJOb2RlIiBwYXJlbnQ9Ii4iXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKc2NyaXB0ID0gRXh0UmVzb3VyY2UoInRpcCIpCgpbbm9kZSBuYW1lPSJUaXAiIHR5cGU9Ik5vZGUiIHBhcmVudD0iT2xkIl0KdW5pcXVlX25hbWVfaW5fb3duZXIgPSB0cnVlCgpbbm9kZSBuYW1lPSJFbmQiIHR5cGU9Ik5vZGUiIHBhcmVudD0iT2xkL1RpcCJdCgpbbm9kZSBuYW1lPSJPbGRpc2giIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCgpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJPbGQiIHRvPSJPbGQvVGlwIiBtZXRob2Q9Il9yZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZC9UaXAiIHRvPSJOZXciIG1ldGhvZD0iX3JlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iTmV3IiB0bz0iT2xkIiBtZXRob2Q9Il9yZWFkeSJdCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZGlzaCIgdG89Ik5ldyIgbWV0aG9kPSJfcmVhZHkiXQo=",
+          "after_bytes": "W2dkX3NjZW5lIGxvYWRfc3RlcHM9NSBmb3JtYXQ9M10KCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9yb290LmdkIiBpZD0icm9vdCJdCltleHRfcmVzb3VyY2UgdHlwZT0iU2NyaXB0IiBwYXRoPSJyZXM6Ly9icmFuY2guZ2QiIGlkPSJicmFuY2giXQpbZXh0X3Jlc291cmNlIHR5cGU9IlNjcmlwdCIgcGF0aD0icmVzOi8vdGlwLmdkIiBpZD0idGlwIl0KCltzdWJfcmVzb3VyY2UgdHlwZT0iQW5pbWF0aW9uIiBpZD0iQW5pbWF0aW9uX2EiXQp0cmFja3MvMC9wYXRoID0gTm9kZVBhdGgoIk9sZC9UaXA6cG9zaXRpb246eCIpCnRyYWNrcy8xL3BhdGggPSBOb2RlUGF0aCgiT2xkOnJvdGF0aW9uIikKdHJhY2tzLzIvcGF0aCA9IE5vZGVQYXRoKCIlVGlwOnNjYWxlIikKdHJhY2tzLzQvcGF0aCA9IE5vZGVQYXRoKCJPbGRpc2g6cG9zaXRpb24iKQoKW25vZGUgbmFtZT0iUm9vdCIgdHlwZT0iTm9kZSJdCnNjcmlwdCA9IEV4dFJlc291cmNlKCJyb290IikKCltub2RlIG5hbWU9Ik5ldyIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0Kc2NyaXB0ID0gRXh0UmVzb3VyY2UoImJyYW5jaCIpCgpbbm9kZSBuYW1lPSJPbGQiIHR5cGU9Ik5vZGUiIHBhcmVudD0iLiJdCnVuaXF1ZV9uYW1lX2luX293bmVyID0gdHJ1ZQpzY3JpcHQgPSBFeHRSZXNvdXJjZSgidGlwIikKCltub2RlIG5hbWU9IlRpcCIgdHlwZT0iTm9kZSIgcGFyZW50PSJPbGQiXQp1bmlxdWVfbmFtZV9pbl9vd25lciA9IHRydWUKCltub2RlIG5hbWU9Ik9sZGlzaCIgdHlwZT0iTm9kZSIgcGFyZW50PSIuIl0KCltjb25uZWN0aW9uIHNpZ25hbD0icmVhZHkiIGZyb209Ik9sZCIgdG89Ik9sZC9UaXAiIG1ldGhvZD0iX3JlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iT2xkL1RpcCIgdG89Ik5ldyIgbWV0aG9kPSJfcmVhZHkiXQpbY29ubmVjdGlvbiBzaWduYWw9InJlYWR5IiBmcm9tPSJOZXciIHRvPSJPbGQiIG1ldGhvZD0iX3JlYWR5Il0KW2Nvbm5lY3Rpb24gc2lnbmFsPSJyZWFkeSIgZnJvbT0iT2xkaXNoIiB0bz0iTmV3IiBtZXRob2Q9Il9yZWFkeSJdCg==",
+          "diff": {
+            "lines": [
+              [
+                "@",
+                8,
+                8,
+                "@@ -8,7 +8,6 @@"
+              ],
+              [
+                " ",
+                8,
+                8,
+                "tracks/0/path = NodePath(\"Old/Tip:position:x\")"
+              ],
+              [
+                " ",
+                9,
+                9,
+                "tracks/1/path = NodePath(\"Old:rotation\")"
+              ],
+              [
+                " ",
+                10,
+                10,
+                "tracks/2/path = NodePath(\"%Tip:scale\")"
+              ],
+              [
+                "-",
+                11,
+                null,
+                "tracks/3/path = NodePath(\"Old/Tip/End:position\")"
+              ],
+              [
+                " ",
+                12,
+                11,
+                "tracks/4/path = NodePath(\"Oldish:position\")"
+              ],
+              [
+                " ",
+                13,
+                12,
+                ""
+              ],
+              [
+                " ",
+                14,
+                13,
+                "[node name=\"Root\" type=\"Node\"]"
+              ],
+              [
+                "@",
+                24,
+                23,
+                "@@ -24,8 +23,6 @@"
+              ],
+              [
+                " ",
+                24,
+                23,
+                "[node name=\"Tip\" type=\"Node\" parent=\"Old\"]"
+              ],
+              [
+                " ",
+                25,
+                24,
+                "unique_name_in_owner = true"
+              ],
+              [
+                " ",
+                26,
+                25,
+                ""
+              ],
+              [
+                "-",
+                27,
+                null,
+                "[node name=\"End\" type=\"Node\" parent=\"Old/Tip\"]"
+              ],
+              [
+                "-",
+                28,
+                null,
+                ""
+              ],
+              [
+                " ",
+                29,
+                26,
+                "[node name=\"Oldish\" type=\"Node\" parent=\".\"]"
+              ],
+              [
+                " ",
+                30,
+                27,
+                ""
+              ],
+              [
+                " ",
+                31,
+                28,
+                "[connection signal=\"ready\" from=\"Old\" to=\"Old/Tip\" method=\"_ready\"]"
+              ]
+            ],
+            "added": 0,
+            "removed": 3,
+            "truncated": false,
+            "path": "res://main.tscn",
+            "action": "patch_file"
+          },
+          "occurrences": 2
+        }
+      ],
+      "reference_count": 2,
+      "affected_paths": [
+        "res://main.tscn"
+      ],
+      "warnings": [
+        {
+          "file": "res://root.gd",
+          "line": 4,
+          "code": "@onready var end = get_node_or_null('Old/Tip/End')",
+          "message": "Ссылка на удаляемый узел 'End' в res://root.gd:4: @onready var end = get_node_or_null('Old/Tip/End')"
+        },
+        {
+          "file": "res://branch.gd",
+          "line": 4,
+          "code": "@onready var end = get_node_or_null(\"../Old/Tip/End\")",
+          "message": "Ссылка на удаляемый узел 'End' в res://branch.gd:4: @onready var end = get_node_or_null(\"../Old/Tip/End\")"
+        }
+      ]
+    }
+  }
+}

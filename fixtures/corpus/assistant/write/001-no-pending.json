@@ -1,0 +1,13 @@
+{
+  "id": "001-no-pending",
+  "tool": "assistant_confirm",
+  "args": {
+    "plan_id": "missing",
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "approved": true
+  },
+  "expect": {
+    "ok": false,
+    "kind": "not_found"
+  }
+}

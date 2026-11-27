@@ -1,0 +1,44 @@
+{
+  "id": "012-context-zero",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "context_lines=0: соседние совпадения НЕ склеиваются в один сниппет",
+  "args": {
+    "query": "health",
+    "context_lines": 0,
+    "max_results": 10
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [
+        {
+          "path": "res://scripts/player.gd",
+          "line": 4,
+          "snippet": "4: var health := 100"
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 5,
+          "snippet": "5: var health_max := 100"
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 10,
+          "snippet": "10: \thealth = health_max"
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 15,
+          "snippet": "15: \thealth = max(0, health - amount)"
+        },
+        {
+          "path": "res://scripts/player.gd",
+          "line": 16,
+          "snippet": "16: \tif health == 0:"
+        }
+      ],
+      "truncated": false
+    }
+  }
+}

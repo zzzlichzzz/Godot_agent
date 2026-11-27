@@ -1,0 +1,16 @@
+{
+  "id": "011-addon-hidden",
+  "tool": "search",
+  "fixture": "minimal",
+  "note": "политика путей: содержимое addons/ скрыто по умолчанию",
+  "args": {
+    "query": "addon_hidden_token"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "matches": [],
+      "truncated": false
+    }
+  }
+}

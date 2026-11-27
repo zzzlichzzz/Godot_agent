@@ -1,0 +1,13 @@
+{
+  "id": "012-not-gd-script",
+  "tool": "functions",
+  "fixture": "minimal",
+  "note": "Путь не .gd: старый мост отказывал («functions works only for .gd scripts»), класс отказа — invalid_input",
+  "args": {
+    "path": "res://scenes/player.tscn"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input"
+  }
+}

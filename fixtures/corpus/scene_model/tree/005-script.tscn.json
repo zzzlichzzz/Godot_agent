@@ -1,0 +1,47 @@
+{
+  "id": "005-script.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/script.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Root (Node2D)  [скрипт: res://scripts/root.gd]\n  - Child  [скрипт: res://scripts/root.gd]\n\nРесурсы (id/uid для точных ссылок в ExtResource/SubResource):\n- ext id=1_script Script: res://scripts/root.gd",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Root",
+          "type": "Node2D",
+          "script": "res://scripts/root.gd",
+          "instance": null,
+          "parent": null,
+          "path": "."
+        },
+        {
+          "depth": 1,
+          "name": "Child",
+          "type": "",
+          "script": "res://scripts/root.gd",
+          "instance": null,
+          "parent": ".",
+          "path": "Child"
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [
+          {
+            "id": "1_script",
+            "type": "Script",
+            "path": "res://scripts/root.gd",
+            "uid": null
+          }
+        ],
+        "sub": []
+      }
+    }
+  }
+}

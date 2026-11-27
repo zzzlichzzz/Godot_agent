@@ -1,0 +1,262 @@
+{
+  "id": "expanded-counter32",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "NewSubresource",
+          "class": "Gradient",
+          "properties": [
+            {
+              "property": "p0",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p1",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p2",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p3",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p4",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p5",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p6",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p7",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p8",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p9",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p10",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p11",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p12",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p13",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p14",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p15",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p16",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p17",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p18",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p19",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p20",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p21",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p22",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p23",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p24",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p25",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p26",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p27",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p28",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p29",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p30",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            },
+            {
+              "property": "p31",
+              "value": {
+                "type": "NewSubresource",
+                "class": "Gradient"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Одно действие не может создавать более 32 subresource",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "f3a9e06db02d75c238dc2d38348d24527186792f5fdc41d670129301cf5745e8"
+}

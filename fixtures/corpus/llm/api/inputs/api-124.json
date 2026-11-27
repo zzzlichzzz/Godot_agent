@@ -1,0 +1,163 @@
+{
+  "kind": "state",
+  "operations": [
+    {
+      "module": "api_keys",
+      "function": "set_key",
+      "args": [
+        "fixture",
+        "fixture-alpha-key-000000000001"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "add_key",
+      "args": [
+        "fixture",
+        "fixture-beta-key-000000000002"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "add_key",
+      "args": [
+        "fixture",
+        "fixture-beta-key-000000000002"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "usable_keys",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "note_key_exhausted",
+      "args": [
+        "fixture",
+        0,
+        "synthetic quota"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "usable_keys",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "keys_state",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "note_key_exhausted",
+      "args": [
+        "fixture",
+        1,
+        "synthetic quota",
+        120
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "usable_keys",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "resolve_key",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "clock": 1121
+    },
+    {
+      "module": "api_keys",
+      "function": "usable_keys",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "clear_key_cooldowns",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "delete_key_at",
+      "args": [
+        "fixture",
+        -1
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "delete_key_at",
+      "args": [
+        "fixture",
+        0
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "redact",
+      "args": [
+        "fixture-alpha-key-000000000001 fixture-beta-key-000000000002"
+      ],
+      "kwargs": {},
+      "base": false
+    },
+    {
+      "module": "api_keys",
+      "function": "delete_key",
+      "args": [
+        "fixture"
+      ],
+      "kwargs": {},
+      "base": false
+    }
+  ],
+  "id": "api-124"
+}

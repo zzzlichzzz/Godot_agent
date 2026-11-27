@@ -1,0 +1,17 @@
+{
+  "id": "012-missing_unique",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/012-missing_unique",
+  "note": "missing_unique",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "%Wing",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Уникальный узел %Wing не найден в сцене",
+    "reference_exception": "NodeRefactorError"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "012-cfg_clean",
+  "tool": "verify",
+  "fixture": "../corpus/verification/check/project/common",
+  "args": {
+    "path": "res://clean.cfg"
+  },
+  "reference_result": {
+    "path": "res://clean.cfg",
+    "problems": [],
+    "auto_fixable": false,
+    "headless": null,
+    "checked": true
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "path": "res://clean.cfg",
+      "problems": [],
+      "checked": true,
+      "auto_fixable": false,
+      "kinds": [
+        "cfg"
+      ],
+      "unavailable": []
+    }
+  }
+}

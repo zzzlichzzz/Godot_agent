@@ -1,0 +1,44 @@
+{
+  "id": "025-exact_wins.tscn",
+  "tool": "node",
+  "fixture": "../corpus/scene_model/node_info/project",
+  "note": "exact_wins.tscn: '.'",
+  "args": {
+    "path": "res://scenes/exact_wins.tscn",
+    "node": "."
+  },
+  "reference_node": {
+    "name": "Root",
+    "parent": null,
+    "type": "Node",
+    "path": ".",
+    "unique_name": false,
+    "script_id": null,
+    "header_span": [
+      20,
+      50
+    ],
+    "body_span": [
+      50,
+      51
+    ]
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "name": "Root",
+      "type": "Node",
+      "parent": null,
+      "path": ".",
+      "depth": 0,
+      "script": null,
+      "instance": null,
+      "unique_name": false,
+      "parent_path": null,
+      "children": [
+        "Branch",
+        "Leaf"
+      ]
+    }
+  }
+}

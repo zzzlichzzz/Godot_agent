@@ -1,0 +1,27 @@
+{
+  "id": "004-odd_quote_early_return",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene load_steps=9 format=3 uid=\"uid://dummy\"]\n[node name=\"Root\" type=\"Node\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene load_steps=9 format=3 uid=\"uid://dummy\"]\n[node name=\"Root\" type=\"Node\n",
+      "changed": false,
+      "problems": [
+        "строка 2: заголовок секции «[node name=\"Root\" type=\"Node» не закрыт «]» на своей строке — Godot откажется открыть такой файл с ошибкой «Unexpected end of file». Заверши заголовок символом «]» на той же строке."
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene load_steps=9 format=3 uid=\"uid://dummy\"]\n[node name=\"Root\" type=\"Node\n",
+    "changed": false,
+    "problems": [
+      "строка 2: заголовок секции «[node name=\"Root\" type=\"Node» не закрыт «]» на своей строке — Godot откажется открыть такой файл с ошибкой «Unexpected end of file». Заверши заголовок символом «]» на той же строке."
+    ]
+  },
+  "reference_api_classes": null
+}

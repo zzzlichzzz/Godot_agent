@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "module_id": "assistant.chat",
+  "capability_id": "assistant.chat",
+  "tool_name": "chat",
+  "description": "Диалог read-only агента: модель, чтение проекта, native judge и ограниченные ходы.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80000
+      },
+      "max_turns": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 8,
+        "default": 8
+      },
+      "budget_chars": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 80000,
+        "default": 80000
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "additionalProperties": false
+  },
+  "result_schema": {
+    "type": "object",
+    "properties": {
+      "text": {
+        "type": "string"
+      },
+      "turns_used": {
+        "type": "integer"
+      },
+      "actions_executed": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "judge_summary": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "text",
+      "turns_used",
+      "actions_executed",
+      "judge_summary"
+    ],
+    "additionalProperties": false
+  },
+  "effects": [
+    "read"
+  ],
+  "idempotent": false,
+  "requires_preview": false,
+  "errors": [
+    "invalid_input",
+    "not_found",
+    "denied"
+  ],
+  "availability": "*",
+  "cost": "heavy",
+  "limits": {
+    "max_turns": 8,
+    "text_chars": 80000,
+    "budget_chars": 80000,
+    "reply_chars": 200000,
+    "read_files": 5,
+    "read_file_chars": 30000
+  }
+}

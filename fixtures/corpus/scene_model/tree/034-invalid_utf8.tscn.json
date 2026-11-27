@@ -1,0 +1,31 @@
+{
+  "id": "034-invalid_utf8.tscn",
+  "tool": "scene",
+  "fixture": "../corpus/scene_model/tree/project",
+  "args": {
+    "path": "res://scenes/invalid_utf8.tscn"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "text": "- Bad� (Node)",
+      "truncated": false,
+      "nodes": [
+        {
+          "depth": 0,
+          "name": "Bad�",
+          "type": "Node",
+          "script": null,
+          "instance": null,
+          "parent": null,
+          "path": "."
+        }
+      ],
+      "connections": [],
+      "resources": {
+        "ext": [],
+        "sub": []
+      }
+    }
+  }
+}

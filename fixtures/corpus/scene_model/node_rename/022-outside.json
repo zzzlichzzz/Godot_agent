@@ -1,0 +1,17 @@
+{
+  "id": "022-outside",
+  "tool": "node_rename_preview",
+  "fixture": "../corpus/scene_model/node_rename/project/022-outside",
+  "note": "outside",
+  "args": {
+    "path": "res://../outside.tscn",
+    "node": "Arm",
+    "new_name": "LongArm"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Сцена защищена текущей политикой доступа",
+    "reference_exception": "NodeRefactorError"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "trusted-self-0-1",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://addons/godot_agent/private.tres",
+    "operations": [
+      {
+        "op": "set_property",
+        "target": [],
+        "property": "value",
+        "value": {
+          "type": "int",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "kwargs": {
+    "allow_addons": false,
+    "allow_self_edit": true
+  },
+  "expect": {
+    "ok": false,
+    "kind": "denied",
+    "message": "Ресурсы аддонов разрешены только по явному запросу и текущей политике доступа",
+    "hint": ""
+  },
+  "oracle": "D16 trusted addon edits не портированы",
+  "raw_sha256": "a92ea0f1753654d572164a2c0d66035531240976d72a41782370d6221247c7d7"
+}

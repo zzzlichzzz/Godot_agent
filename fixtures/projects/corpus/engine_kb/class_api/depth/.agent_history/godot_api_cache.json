@@ -1,0 +1,320 @@
+{
+  "godot_version": "4.6",
+  "classes": {
+    "C00": {
+      "inherits": "C01",
+      "methods": {
+        "m00": [
+          0,
+          0
+        ]
+      }
+    },
+    "C01": {
+      "inherits": "C02",
+      "methods": {
+        "m01": [
+          0,
+          0
+        ]
+      }
+    },
+    "C02": {
+      "inherits": "C03",
+      "methods": {
+        "m02": [
+          0,
+          0
+        ]
+      }
+    },
+    "C03": {
+      "inherits": "C04",
+      "methods": {
+        "m03": [
+          0,
+          0
+        ]
+      }
+    },
+    "C04": {
+      "inherits": "C05",
+      "methods": {
+        "m04": [
+          0,
+          0
+        ]
+      }
+    },
+    "C05": {
+      "inherits": "C06",
+      "methods": {
+        "m05": [
+          0,
+          0
+        ]
+      }
+    },
+    "C06": {
+      "inherits": "C07",
+      "methods": {
+        "m06": [
+          0,
+          0
+        ]
+      }
+    },
+    "C07": {
+      "inherits": "C08",
+      "methods": {
+        "m07": [
+          0,
+          0
+        ]
+      }
+    },
+    "C08": {
+      "inherits": "C09",
+      "methods": {
+        "m08": [
+          0,
+          0
+        ]
+      }
+    },
+    "C09": {
+      "inherits": "C10",
+      "methods": {
+        "m09": [
+          0,
+          0
+        ]
+      }
+    },
+    "C10": {
+      "inherits": "C11",
+      "methods": {
+        "m10": [
+          0,
+          0
+        ]
+      }
+    },
+    "C11": {
+      "inherits": "C12",
+      "methods": {
+        "m11": [
+          0,
+          0
+        ]
+      }
+    },
+    "C12": {
+      "inherits": "C13",
+      "methods": {
+        "m12": [
+          0,
+          0
+        ]
+      }
+    },
+    "C13": {
+      "inherits": "C14",
+      "methods": {
+        "m13": [
+          0,
+          0
+        ]
+      }
+    },
+    "C14": {
+      "inherits": "C15",
+      "methods": {
+        "m14": [
+          0,
+          0
+        ]
+      }
+    },
+    "C15": {
+      "inherits": "C16",
+      "methods": {
+        "m15": [
+          0,
+          0
+        ]
+      }
+    },
+    "C16": {
+      "inherits": "C17",
+      "methods": {
+        "m16": [
+          0,
+          0
+        ]
+      }
+    },
+    "C17": {
+      "inherits": "C18",
+      "methods": {
+        "m17": [
+          0,
+          0
+        ]
+      }
+    },
+    "C18": {
+      "inherits": "C19",
+      "methods": {
+        "m18": [
+          0,
+          0
+        ]
+      }
+    },
+    "C19": {
+      "inherits": "C20",
+      "methods": {
+        "m19": [
+          0,
+          0
+        ]
+      }
+    },
+    "C20": {
+      "inherits": "C21",
+      "methods": {
+        "m20": [
+          0,
+          0
+        ]
+      }
+    },
+    "C21": {
+      "inherits": "C22",
+      "methods": {
+        "m21": [
+          0,
+          0
+        ]
+      }
+    },
+    "C22": {
+      "inherits": "C23",
+      "methods": {
+        "m22": [
+          0,
+          0
+        ]
+      }
+    },
+    "C23": {
+      "inherits": "C24",
+      "methods": {
+        "m23": [
+          0,
+          0
+        ]
+      }
+    },
+    "C24": {
+      "inherits": "C25",
+      "methods": {
+        "m24": [
+          0,
+          0
+        ]
+      }
+    },
+    "C25": {
+      "inherits": "C26",
+      "methods": {
+        "m25": [
+          0,
+          0
+        ]
+      }
+    },
+    "C26": {
+      "inherits": "C27",
+      "methods": {
+        "m26": [
+          0,
+          0
+        ]
+      }
+    },
+    "C27": {
+      "inherits": "C28",
+      "methods": {
+        "m27": [
+          0,
+          0
+        ]
+      }
+    },
+    "C28": {
+      "inherits": "C29",
+      "methods": {
+        "m28": [
+          0,
+          0
+        ]
+      }
+    },
+    "C29": {
+      "inherits": "C30",
+      "methods": {
+        "m29": [
+          0,
+          0
+        ]
+      }
+    },
+    "C30": {
+      "inherits": "C31",
+      "methods": {
+        "m30": [
+          0,
+          0
+        ]
+      }
+    },
+    "C31": {
+      "inherits": "C32",
+      "methods": {
+        "m31": [
+          0,
+          0
+        ]
+      }
+    },
+    "C32": {
+      "inherits": "C33",
+      "methods": {
+        "m32": [
+          0,
+          0
+        ]
+      }
+    },
+    "C33": {
+      "inherits": "C34",
+      "methods": {
+        "m33": [
+          0,
+          0
+        ]
+      }
+    },
+    "C34": {
+      "inherits": null,
+      "methods": {
+        "m34": [
+          0,
+          0
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "input": {
+    "module": "editor_context",
+    "function": "format_editor_snapshot",
+    "args": [
+      {
+        "schema_version": 1,
+        "selection": {
+          "nodes": [
+            null,
+            {},
+            {
+              "path": "a\u0000b",
+              "type": "Node2D",
+              "script": "res://player.gd",
+              "groups": [
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x",
+                "x"
+              ],
+              "properties": {
+                "hp": 10,
+                "bad": {}
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "kwargs": {},
+    "id": "context-113"
+  },
+  "expect": [
+    "[Godot editor context v1; snapshot at send time, user request has priority]\nSelected nodes:\n- ab (Node2D); script=res://player.gd; groups=x,x,x,x,x,x,x,x; properties=hp=10\n[/Godot editor context]",
+    {
+      "selection": 95,
+      "total": 195
+    }
+  ],
+  "provenance": {
+    "source": "server/editor_context.py",
+    "source_sha256": "32613d28449674134888ecf8e1b9088ff9b30f30c9baeecacf1fe799f6349362",
+    "function": "format_editor_snapshot",
+    "case_source": "test_editor_context.py",
+    "kind": "synthetic source-branch input; native tests not executed/copied"
+  }
+}

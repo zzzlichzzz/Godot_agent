@@ -1,0 +1,25 @@
+{
+  "id": "003",
+  "tool": "write_apply",
+  "fixture": "rename",
+  "note": "probable без allow_unverified: отказ unverified",
+  "scenario": "write_apply",
+  "args": {
+    "kind": "function",
+    "old_name": "take_damage",
+    "new_name": "hurt",
+    "declaration": "res://src/hero.gd:6",
+    "mode": "probable",
+    "project_root": "<PROJECT>"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "files": {
+        "src/enemy.gd": "1397340dcc3131da87a0d1e664c49279dc101d76ee83e26ea3765f1eb0c79da6",
+        "src/hero.gd": "6246d7d6180e87acc3dd83116579e94fd07ba1b2d1cc0e51dbe4e945ffb2312a",
+        "src/party.gd": "43baaf139ab8873866cf0af834cc0e826bbee1dba9c5818f5e7bddb60b65a3d7"
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "expanded-op4-missing-theme_type",
+  "native_call": {
+    "module": "resource_actions",
+    "function": "normalize_action"
+  },
+  "internal_call": {
+    "module_id": "editing.resource_ops",
+    "entrypoint": "normalize_action"
+  },
+  "fixture": "schema",
+  "input": {
+    "action": "edit_resource",
+    "resource": "res://data.tres",
+    "operations": [
+      {
+        "op": "theme_set_item",
+        "data_type": "color",
+        "name": "font_color",
+        "value": {
+          "type": "Color",
+          "value": [
+            1,
+            0.5,
+            0,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "kwargs": {},
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Не хватает полей: theme_type",
+    "hint": ""
+  },
+  "oracle": "native",
+  "raw_sha256": "b9d30b53832e856db37b0c0cb3a54293d0c59a2be147c547939199e52994f116"
+}

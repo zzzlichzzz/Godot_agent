@@ -1,0 +1,15 @@
+{
+  "id": "018-missing_node",
+  "tool": "node_delete_preview",
+  "fixture": "../corpus/scene_model/node_delete/project/018-missing_node",
+  "note": "actual-old prepare-only: missing_node",
+  "args": {
+    "path": "res://main.tscn",
+    "node": "Absent"
+  },
+  "expect": {
+    "ok": false,
+    "kind": "invalid_input",
+    "message": "Узел 'Absent' не найден в сцене"
+  }
+}

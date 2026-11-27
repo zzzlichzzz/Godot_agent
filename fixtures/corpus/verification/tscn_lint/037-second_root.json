@@ -1,0 +1,27 @@
+{
+  "id": "037-second_root",
+  "tool": "check",
+  "fixture": "../corpus/verification/tscn_lint/project/common",
+  "args": {
+    "path": "res://candidate.tscn",
+    "content": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"OtherRoot\" type=\"Node\"]\n"
+  },
+  "expect": {
+    "ok": true,
+    "result": {
+      "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"OtherRoot\" type=\"Node\"]\n",
+      "changed": false,
+      "problems": [
+        "узел «OtherRoot» без parent= и это не первый узел в файле — так быть не должно"
+      ]
+    }
+  },
+  "reference_result": {
+    "fixed": "[gd_scene format=3]\n[node name=\"Root\" type=\"Node\"]\n[node name=\"OtherRoot\" type=\"Node\"]\n",
+    "changed": false,
+    "problems": [
+      "узел «OtherRoot» без parent= и это не первый узел в файле — так быть не должно"
+    ]
+  },
+  "reference_api_classes": null
+}

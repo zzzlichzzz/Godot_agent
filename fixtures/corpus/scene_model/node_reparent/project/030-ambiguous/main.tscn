@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://root.gd" id="root"]
+[ext_resource type="Script" path="res://branch.gd" id="branch"]
+[ext_resource type="Script" path="res://tip.gd" id="tip"]
+
+[sub_resource type="Animation" id="Animation_a"]
+tracks/0/path = NodePath("New/Old/Tip:position:x")
+tracks/1/path = NodePath("New/Old:rotation")
+tracks/2/path = NodePath("%Tip:scale")
+tracks/3/path = NodePath("New/Old/Tip/End:position")
+tracks/4/path = NodePath("Oldish:position")
+
+[node name="Root" type="Node"]
+script = ExtResource("root")
+
+[node name="New" type="Node" parent="."]
+script = ExtResource("branch")
+
+[node name="Old" type="Node" parent="New"]
+unique_name_in_owner = true
+script = ExtResource("tip")
+
+[node name="Tip" type="Node" parent="New/Old"]
+unique_name_in_owner = true
+
+[node name="End" type="Node" parent="New/Old/Tip"]
+
+[node name="Oldish" type="Node" parent="."]
+
+[connection signal="ready" from="New/Old" to="New/Old/Tip" method="_ready"]
+[connection signal="ready" from="New/Old/Tip" to="New" method="_ready"]
+[connection signal="ready" from="New" to="New/Old" method="_ready"]
+[connection signal="ready" from="Oldish" to="New" method="_ready"]
+
+[node name="Other" parent="."]
+[node name="Old" parent="Other"]
