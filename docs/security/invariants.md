@@ -2,7 +2,7 @@
 
 Каждая строка — обещание с проверкой. `P` — проверяется автоматически (`tools/security_audit.py`
 или тест), `T` — тестом в `tests/py/security/`, `R` — ревью (временная мера, подлежит
-автоматизации). Инвариант без проверки — не инвариант.
+автоматизации). Общие запреты ниже дополняются узкими разрешениями для конкретных адаптеров, перечисленными после таблицы. [Снимок до очистки](https://github.com/zzzlichzzz/Godot_agent/blob/e0e0758bd58da147c0f8eca818fde26f3514fcca/docs/security/invariants.md) хранит протоколы приёмки и номера старых ADR.
 
 | ID | Инвариант | Проверка |
 |---|---|---|
@@ -27,11 +27,8 @@
 | SEC-19 | Браузерная ветка правит только `visibilityState`/`hidden` и только у сайтов, где ответ читается из DOM; `hasFocus`, `toString`, `navigator.*` не подменяются | P: `security_audit` (запрещённые техники + D30 literal site flags) + T: `test_sec19_site_flags.py` + R: ревью спуф-скрипта |
 | SEC-20 | Chrome запускается обычным процессом, selenium только подключается (`debuggerAddress`); `--enable-automation`/`--headless` запрещены; `navigator.webdriver` остаётся `false` и не подменяется; `needs_visibility_spoof` не поднимается с `false` | P: `security_audit` (сверка с `contract/browser_stealth.json`, D30 AST для multiline flags) + T: `test_sec19_site_flags.py` |
 | SEC-21 | Создание и удаление файлов проекта выполняет только общая WAL-воронка: `create` требует отсутствующую цель, `delete` — обычный файл с точным raw sha256; каталог не удаляется, а rollback/recovery возвращает дерево побайтово | T: `tests/py/security/test_split_apply_write.py` + C.20 integration |
-
 | SEC-22 | C.22 transfer проверяет оба endpoint до эффекта; addons case-insensitive и agent-tree запрещены даже с flags, project.godot нельзя переносить, root plugin.cfg можно; move/dir_case/replace_raw только через общую WAL-воронку, durable EFFECT_INTENT до эффекта и RECEIPT до следующего, raw-byte rollback/recovery не трогает чужую правку | T: `tests/py/security/test_file_refactor_write.py` + C.22 integration |
-
 | SEC-23 | C.23 prepare-only: target и dependency проходят одинаковую module-local resolved-identity/casefold политику до подготовки; addons/**, .agent_history, project.godot и escape запрещены независимо от регистра/trusted flags; root plugin.cfg допускается только read-dependency. Реальный fs containment обязателен, generic guards неизменны и остаются вторым барьером. Нет apply, файловых эффектов, transformed/raw bytes или absolute paths в публичном ответе; trusted addon edits не портированы. C.24 отдельно утверждает write/transformer boundary | T: `tests/py/security/test_resource_ops_policy.py` + C.23 integration/corpus |
-
 | SEC-24 | C.24 D18/D19: BOM отказ invalid_input/load_failed без эффекта; target и все dependencies сохраняют SEC-23 resolved/casefold/real containment до WAL, повторное raw-чтение проверяет policy до IO; resource bytes только pure span transformer и существующая replace_raw WAL-воронка, raw SHA guard/stale repeat apply, one step per target, reverse raw compensation, чужая poststate не перезаписывается; public bytes/abs нет. R-06 cohesion area допускает только warning (8000,8400], >8400 error во всех areas без feature/per-file исключений; остальные hard limits неизменны | T: новые `tests/py/security/test_resource_apply_security.py`, `tests/py/integration/test_resource_ops_apply.py`, `tests/py/integration/test_resource_ops_apply_safety.py`, `tests/py/formats/test_resource_transform.py`, `tests/py/contract/test_resource_ops_area_limits.py`, `tests/py/contract/test_resource_write_client.py`; R-22 mutations |
 
 ## Как это встроено в работу
@@ -59,7 +56,7 @@ WinError1314 требует `pytest.skip("symlink unsupported: WinError 1314")`,
 
 - `python tools/security_audit.py` — статическая часть; входит в `selfcheck` (R-18).
 - `tests/py/security/` — атакующие тесты; пополняются вместе с механикой.
-- Модуль с `effects != read` не получает `ported` без своих строк в этой таблице.
+- До добавления инструмента с `effects != read` запишите его инвариант и добавьте регрессионный тест в `tests/py/security/`.
 - Новый инвариант добавляется при появлении новой поверхности (браузер, git-операции,
   сеть, установка плагинов), а не «после инцидента».
 
@@ -72,10 +69,9 @@ WinError1314 требует `pytest.skip("symlink unsupported: WinError 1314")`,
   job objects) — возможное улучшение, но не замена инвариантам.
 
 
-## J1b D62–D64 — дополнение SEC-03/SEC-04 (2026-11-14)
+## SEC-03/SEC-04 — запуск headless-проверки
 
-Граница санкционирована; доказательства реализации записываются после red/green,
-не утверждаются этой спецификацией. ADR-0018 и новые tests/py/security/test_headless_process_pin.py.
+Разрешение относится только к закреплённой реализации. Проверка: `tests/py/security/test_headless_process_pin.py`.
 - SEC-03/D62: один конкретный byte-offset subprocess.run в exact verification/headless path,
   настоящий одиночный bare top-level import subprocess; argv List строк/str(Name) и
   только уточнённого пользователем str(Attribute(Name(proc), pid)); без shell/kwargs spread,
@@ -90,24 +86,9 @@ WinError1314 требует `pytest.skip("symlink unsupported: WinError 1314")`,
   бизнес-логики или изменения _MEIPASS. Проверки default/explicit + byte-pin обязательны.
 
 
-### J1b / A1 фактическая проверка (2026-11-14)
+### SEC-J1 — проверка предложения не даёт права записи
 
-D62/D63 implemented с exact-path/byte-offset AST-исключениями, B-1/PROC_ALLOWED сохранены; D64 exact1701 B/default+explicit green. Genuine red192 collected/135failed/57passed/0errors → 192 same-ID green, все прежние121 failure ID зелёные; native118×2/canonical118×2/0diff. Real Godot4.6:4 own-sandbox default-harness probes/8 engine processes/0diff/no source writes. Mutants:15 checker+2 D64 killed/0survivors, exact SHA/EOL restore/same-ID green. Full non-live×2:7400passed/2 historical WinError1314 skips; frozen230/API253/project288×2, gates×2 и post-resource gates0. Actual selfcheck assistant.judge fail/exit1 (missing MODULE), probe unknown_tool/exit1; context.ask ok/exit0,104unit/213corpus. Aliases0, MODULE/D59/D60/A2 не implemented. A1 reference mini-seal готовится, MODULE не ported, independent acceptance pending. Все rejected setup/invocation/scope records сохранены, native originals/NN/browser-live/production HTTP нетронуты.
-
-Подэтап reference не закрывает historical verification.check/live fate или assistant.judge MODULE. Frozen230 membership сохранён: browser141 + B-1 AST72 + B217; D51 detector34 дополнительно в full/security/mutations. Мини-seal — integrity, не самостоятельная приёмка.
-Следующее действие: После A1 mini-seal: A2 native cases/corpus×2 для scene/editing/actions; D60 genuine red exact-six caps перед переносом.
-
-
-### J1 / A2 private reference, no new public effects (2026-11-15)
-
-A2 reference-read/prepare проверен, не public MODULE. Six sources152941 B/EOL byte-exact; native214+supp1 ×2/canonical214+supp1 ×2/0diff, full snapshots no-write. Genuine A2220/221 red → same221green, D6013/26 red → same26green; restored all249green. 6 A2+4 D60 mutants killed/0final survivors, exact bytes/SHA/LF/CRLF restore/same-ID green. Первый ambiguity survivor сохранён: wrongly named old negative-case не создавал candidates; gap закрыт новым genuine native supplement×2 и теми же mutant bytes, frozen214 не переписан. Full non-live7649passed ×2 + ровно два historical WinError1314 skips, no added skips/xfails; collected7651 и executed IDs/order exact. Frozen230/API253/project288 ×2, все288 manifest IDs. Gates/security ×2 green. Real Godot4.6:4 native/canonical reference probes/8 processes, default harness,0diff/no source writes/owned validation leftovers0; это headless structural validation, не semantic editor apply/rollback и не public judge probes. Actual selfcheck assistant.judge fail/exit1 (missing MODULE) ×2; actual probe judge unknown_tool/exit1 ×2. Actual context.ask selfcheck ok/exit0 ×2,104unit/213corpus. D60 exact-six caps реализованы minimal two-insertion checker delta, old constants/caps сохранены; D59/A3/B/+15 aliases/MODULE/public corpus не реализованы. Rejected baseline assumptions, freeze path, pytest basetemp setup, outer120s partial canonical capture, singular collected-item receipt, double-q collect verbosity и initial survivor сохранены, не засчитаны как successful evidence. A1 accepted record read-only; mini-seal/ZIP фиксируют integrity, не самостоятельную приёмку.
-
-Legacy apply/materialize/sync functions are inert private references, not registered public tools. Judge may not bypass the existing write funnel. NN/browser masking/HTTP unchanged.
-Досье: C:/Users/Lich/AppData/Local/Temp/opencode/c8_audit/answer-judge-J1-A2-20261114/
-Следующее действие: После A2 mini-seal/ZIP: A3 symbol_refactor native cases/observations ×2 до missing-code red; затем B/D59/adapter/MODULE.
-
-
-### SEC-J1 — public deterministic read judge (2026-11-15)
+Старые функции apply/materialize/sync — приватный эталон, а не публичные инструменты. Проверяющий модуль не может обходить штатную воронку записи.
 
 Project bytes/metadata/dirs/links не меняются, candidate actions остаются inert data. Data/history/API/index storage только вне проекта внутри profile; guard до активации, shared lock, finally restoration на return/Exception/BaseException. Raw parser sample sink временно no-op только в JudgeRead; native parser неизменён. Tests: test_judge_read_boundaries.py, test_judge_parser_privacy.py, judge_j1/test_adapter.py/test_binding.py, contract/test_judge_disabled.py;14 critical final killed/0survivors, four actual CLI no-write proofs. SEC03/B-1/PROC_ALLOWED/SEC06/browser spoof/NN/HTTP не расширены.
 ### SEC-K1 — публичный read-only chat (2026-11-20)
@@ -162,7 +143,7 @@ write/turn cases и `assistant/write/tests/test_core.py`; no network/credentials
   executor/model never authorizes project effects. Stop remains available.
 - SEC-T1-LOCAL-03: Session-scoped native/profile overrides restore in finally;
   accepted aliases and foreign browsers never adopted. No stealth increase.
-- SEC-T1-LOCAL-04: Owned random loopback listener only; endpoint cleanup proves
+- SEC-T1-LOCAL-04: Own loopback listener only (panel: port 5000; explicit project/state: allocated port by default); endpoint cleanup proves
   identity and complete raw bytes; finally closes only the session gateway's owned
   facade, never a global foreign browser. No native unowned-orphan killing.
 - SEC-T1-LOCAL-05: MCP finite depth64/newline1,000,000; malformed record cannot
@@ -194,13 +175,13 @@ write/turn cases и `assistant/write/tests/test_core.py`; no network/credentials
   Tests: tests/py/security/test_t1_overlay_security.py,
    tests/py/editor_t1/test_structural_overlay.py and test_native_gd_security.py.
 
-## SEC-TF — frozen-panel HTTP adapters (specification before code)
+## SEC-TF — подтверждение и состояние HTTP-панели
 
 - All 27 added routes use ProjectAuth before JSON/dispatch; Host/Origin and
   project binding remain strict. HTTP payload cannot elevate startup policy.
 - Native approved-only confirmation binds to one pending server plan with
   nonempty exact digest; mismatched IDs/digests fail closed. Exclusion/editor
-  proof cannot silently replace that plan. No automatic approval.
+   proof cannot silently replace that plan. Только пользователь может включить автоматическое согласие для текущего чата; оно не отменяет проверку плана и журнала ([ADR-0099](../adr/0099-chat-action-consent.md)).
 - Explicit native refactor `/apply` is a separate button contract: exact prior
   action/options AND still-pending preview identity only, translated to assistant_confirm with immutable server
   plan_id/digest and boolean approval. No native apply/direct write_apply;
@@ -324,7 +305,7 @@ tests/py/security/test_http_control_envelope.py; synthetic keys, no provider tra
 `tests/py/security/test_panel_tf_security.py`,
 `tests/py/panel_tf/test_chat_prompt_and_live_input.py`,
 `tests/py/live/test_scene_uids_and_policy_live.py`.
-# SEC-HTTP-READ-CONSENT (D122)
+## SEC-HTTP-READ-CONSENT — одноразовое разрешение чтения
 
 Модель не авторизует собственное чтение. До разрешения панель не отправляет
 проектные данные модели. Решение относится к одному серверному действию и чату;

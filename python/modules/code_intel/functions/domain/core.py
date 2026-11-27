@@ -6,9 +6,7 @@
 `#`-комментарии и `@`-аннотации входят в сниппет. Ни `os`, ни `pathlib`, ни
 диска: на вход текст, на выходе данные.
 
-Единый парсер `.gd` (`formats/gdscript.py`) ещё не перенесён, поэтому логика
-живёт здесь; переезд — отдельный рефакторинг с двойным прогоном корпуса
-(решение записано в `docs/porting/code_intel.functions.md`).
+При изменении границ сниппета сравнивай результат с корпусом `code_intel.functions`.
 """
 
 import re
@@ -91,4 +89,3 @@ def _spans(lines):
             spans[name] = (start, last_body)
         index = body if body > index else index + 1
     return spans
-

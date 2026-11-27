@@ -75,8 +75,7 @@ def test_reported_monaco_cards_and_fallback_vote(local_studio,cold_tf6,tmp_path)
     from pathlib import Path
     from python.substrate.llm.parsers.qwen_choices import QwenChoices, _DOM
     from parser_base import split_net_text_and_action
-    sample=Path(__file__).resolve().parents[3]/'docs/elements.txt'
-    if not sample.is_file():pytest.skip('Original Qwen Elements capture not provided')
+    sample=Path(__file__).resolve().parents[3]/'fixtures/browser/qwen-monaco-cards.html'
     driver=local_studio;driver.get('about:blank'); choices=QwenChoices(driver,tmp_path,None)
     driver.execute_script('document.body.innerHTML=arguments[0];',sample.read_text('utf-8'))
     rows=driver.execute_script(_DOM+'return rows(lists().at(-1));')

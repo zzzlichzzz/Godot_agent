@@ -1,142 +1,48 @@
-# Godot Agent — rebuild
+# Godot Agent
 
-Рабочий Python-agent, тонкий Godot-плагин и локальные CLI/HTTP/MCP каналы.
-Правила проекта: `RULES.md` (R-01…R-22); архитектура — `docs/architecture.md`.
-`ToolSpec` — источник контракта; `contract/` генерируется, не редактируется вручную.
+ИИ-помощник для редактора **Godot 4.6**. В доке можно попросить модель найти, где вызывается функция, объяснить чужой скрипт или подготовить правку в нескольких файлах. Перед записью агент показывает, **какие файлы и строки изменятся**. Принятую правку можно откатить из чата.
 
-## Возможности и границы
+## Что можно попросить
 
-- K1: independently accepted read-only `chat`; native parser/API/judge и 50 bindings
-  сохранены. K1 не даёт разрешения на запись.
-- Отдельные `assistant_plan`, `assistant_confirm`, `assistant_rollback`,
-  `assistant_turn` имеют effects=`write`. Plan/turn лишь готовят preview.
-  Разрешение выдаёт только явный confirm с `plan_id`, `digest` и `--approve`:
-  `USER_CONFIRMED` → единственный executor → WAL/journal → rollback.
-  `--reject` не записывает проект. Для отката нужны `plan_id` и `entry_id`.
-  Изменившиеся/чужие байты и identity дают конфликт, а не перезапись.
-- Безопасные create/edit scene, text resource и project settings: native SDK
-  prepare/execute в отдельном внешнем Godot-overlay; в проект возвращается raw
-  delta для того же подтверждаемого B-funnel. Отказы native, float32, UID,
-  пустой staged_hash и восстановление при отказе сохранены.
-- HTTP и MCP вызывают один Agent. HTTP — только собственный случайный порт
-  `127.0.0.1`, external token, Host/Origin/bounds; MCP — JSON-RPC stdio.
-- Плагин показывает чат/preview/approve/reject/rollback и сохраняет принятый
-  bridge/lifecycle. Native UI/host/updater/config остаются неактивными reference,
-  кроме трёх SDK, допускаемых лишь в owned overlay. Это не второй executor.
+| Задача | Пример запроса |
+|---|---|
+| Разобраться в проекте | «Найди, где начисляются монеты. Покажи объявление функции и места её вызова». Агент умеет искать по тексту, читать функции и несколько диапазонов строк за один запрос. |
+| Переименовать символ | «Переименуй `add_coin` в `gain_coin` и покажи, какие ссылки точно относятся к этой функции, а какие — только предположительно». |
+| Изменить файлы | «Создай скрипт и внеси связанные правки одним планом». Можно создавать, точечно править и перемещать файлы, а затем откатывать группу изменений. |
+| Поработать с Godot | «Создай сцену `Pickup` с корнем `Node2D` и дочерним `Marker2D`». Можно также изменить свойство текстового ресурса `.tres` или добавить действие в **Input Map**. |
 
-**Ограничения:** скриптовые ресурсы, autoload, binary resource dependencies и
-escaped/external/protected references в структурном overlay fail closed, не
-подменяются заглушками. Обычные file/WAL операции остаются отдельным механизмом.
-Консервативный фильтр может также отклонить допустимые строковые settings,
-parent-node paths и строки с `.cfg`/code suffix (ADR0089); это явный safety/parity gap.
-Headless editor/dock и captured UI transport не являются доказательством
-визуальной desktop-проверки. Offline fixtures не являются доказательством provider/browser live.
-Browser recorded-протокол отдельно от live; Qwen live-дефект отложен пользователем.
-NN, training/weights, `doh.py`, `n8n/scripts` исключены. Две исторические
-WinError1314 symlink-проверки остаются privilege coverage gap, не успехом.
-При сборке D130 обнаруживаются 33 действующих манифеста и 13 заготовок; опубликовано 36 контрактов. Как добавить модуль и проверить отказ его зависимости — в [архитектуре](docs/architecture.md) и [примерах проверки](tests/py/integration/test_module_composition.py).
-T1: independent_acceptance=false до отдельного аудита; seal/ZIP — целостность,
-не самостоятельное принятие.
+Структурные правки имеют границу: если для обработки самой сцены или её зависимостей пришлось бы загрузить пользовательский скрипт, агент откажется до записи. Наличие скрипта в другой, не связанной с целью сцене само по себе не мешает.
 
-## Установка и external state
+## Установка из исходников на Windows
 
-Python 3.11+, Godot 4.6. Пакет не устанавливает зависимости/браузеры автоматически.
-Для тестов нужен pytest; для opt-in HTTP нужен Flask (runtime dependencies сейчас
-не объявлены в pyproject). Установка — отдельное действие пользователя:
+Нужны **Godot 4.6** (проверено на 4.6.3) и **Python 3.11+** для сборки сервера. Для общения через сайт нужен ещё **Google Chrome**; для работы по API-ключу браузер не требуется.
 
-```powershell
-python -m pip install pytest Flask
-```
+1. В корне вашего Godot-проекта, рядом с `project.godot`, откройте PowerShell. Скачайте версию из ветки `development`:
 
-Проект и addon должны быть доступны в PYTHONPATH/cwd. Секреты, profile, WAL,
-token/endpoint и runtime logs хранятся вне проекта и addon. Панель передаёт серверу путь
-к запущенному Godot автоматически. После такого запуска `python/dist/godot_agent_server.exe`
-можно открывать из Проводника: он запоминает редактор для этого проекта в профиле Windows.
-Если это первый самостоятельный запуск и Godot не найден, вставьте в окне сервера полный путь к редактору `.exe`.
-Для CLI/MCP задайте путь к Godot 4.6 (GUI или console):
+   ```powershell
+   git clone --branch development https://github.com/zzzlichzzz/Godot_agent.git addons/godot_agent
+   ```
 
-```powershell
-$env:GODOT_AGENT_GODOT_BIN = "D:\Godot\Godot_v4.6-stable_win64_console.exe"
-$env:GODOT_AGENT_STATE_DIR = "C:\Users\<USER>\AppData\Local\godot_agent_state"
-```
+   Можно вместо Git скачать ZIP этой ветки и распаковать его содержимое в `addons/godot_agent`. В результате файл должен находиться **точно** по пути `res://addons/godot_agent/plugin.cfg`.
 
-Для чтения и изменения файлов используется `FileAccess`/`DirAccess` в отдельном
-Godot без запуска игры. Если переменная не задана, файловый порт ищет `godot4`
-или `godot` в PATH. Если движок недоступен, операция возвращает `unavailable`.
-Подтверждение, атомарная публикация и откат описаны в [ADR-0100](docs/adr/0100-project-file-io.md).
-Provider credentials задаются только внешней конфигурацией/разрешёнными
-GODOT_AGENT_* env; ключи не помещаются в проект, fixtures, отчёты или примеры.
-Сам факт наличия переменной не является разрешением агенту на live-сетевой тест.
+2. Соберите сервер. Готовый EXE в Git не хранится. Сборке нужен **новый** временный каталог вне проекта:
 
-## CLI
+   ```powershell
+   cd addons/godot_agent
+   python -m pip install Flask selenium pyinstaller
+   $work = Join-Path $env:TEMP ("godot-agent-" + [guid]::NewGuid())
+   python tools/build_http_exe.py --work "$work"
+   ```
 
-Запускайте из папки addon. Замените `<PROJECT>`, `<EXTERNAL_STATE>` и остальные
-placeholders. Все команды одного plan/confirm/rollback цикла используют один
-проект, один state и один channel/profile; чужой план не переносится между profiles.
+   После сборки появится `python/dist/godot_agent_server.exe`.
 
-```powershell
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" health
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" tools list
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" chat "Объясни структуру проекта"
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" repl
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" turn "Подготовь изменение"
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" plan --action-file "<ACTION_JSON>"
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" confirm "<PLAN_ID>" "<DIGEST>" --approve
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" confirm "<PLAN_ID>" "<DIGEST>" --reject
-python -m python.channels.cli.main --project "<PROJECT>" --state-dir "<EXTERNAL_STATE>" rollback "<PLAN_ID>" "<ENTRY_ID>"
-```
+3. В Godot откройте **Проект → Настройки проекта → Плагины**, включите **Godot Agent** и откройте док агента. Панель сама запускает локальный сервер для этого проекта на `127.0.0.1:5000` и передаёт ему путь к редактору.
 
-`chat` не пишет проект. `turn` может вернуть pending confirmation, но не применяет
-его сам. Action JSON — данные, не команды. `python tools/probe.py <tool> --args
-'{...}'` показывает реальную typed envelope; ошибки/needs_live не считаются pass.
+## Первый диалог
 
-## Local HTTP, MCP и Godot UI
+- **«Работа через браузер»** → выберите сайт, например Qwen → войдите в открытом агентом Chrome и выберите модель на сайте. У агента отдельный профиль браузера; API-ключ не нужен. Пока идёт диалог, оставьте это окно открытым.
+- **«Работа по API-ключу»** → выберите провайдера и модель, укажите ключ и нажмите **«Начать чат по API»**. Ключ хранится вне папки проекта. В обоих режимах выбранная модель получает запрос и те данные проекта, чтение которых вы разрешили.
 
-```powershell
-python -m python.channels.http --project "<PROJECT>" --state "<EXTERNAL_STATE>"
-python -m python.channels.mcp --project "<PROJECT>" --state "<EXTERNAL_STATE>"
-```
+Начните с вопроса без записи: *«Какие сцены есть в этом проекте?»* Проверьте пути в карточке чтения и нажмите **«Разрешить»**. Затем попросите небольшую правку: сравните строки в предпросмотре и решите, применять ли его. **«Разрешить всё»** включает автоматическое разрешение и чтений, и правок в текущем чате. Для первого знакомства удобнее подтверждать их по одной. Если после применения файл изменился вручную, агент сообщит о конфликте вместо того, чтобы затереть вашу работу откатом.
 
-HTTP по умолчанию выбирает порт0 (собственный random loopback listener). Реальный
-порт находится в external `http_endpoint.json`; не используйте hardcoded endpoint,
-не запускайте сервер на публичном интерфейсе. MCP пишет protocol frames в stdout,
-не запускает listener. `--state` у HTTP/MCP и `--state-dir` у CLI — разные реальные
-parser flags. Token не копируется в проект и не печатается для настройки UI.
-
-Для UI задайте `GODOT_AGENT_STATE_DIR` тому Godot-процессу, который откроет проект,
-на тот external HTTP profile, где лежат endpoint/token. Запустите HTTP отдельно,
-включите `Godot Agent` в Project Settings → Plugins. Корневой `plugin.cfg` по-прежнему
-использует `plugin.gd`; native `agent_entry`/updater не включаются. Без корректного
-external profile панель отказывает локально до token IO; confirm/reject передают
-оба preview identifiers. Ошибка rollback не выдаётся за успешное восстановление.
-
-Принятый Godot bridge отдельно использует `user://godot_agent/port.json`, не HTTP
-state. Для UI выделите отдельный Godot user-data namespace в Project Settings;
-не запускайте параллельно проекты, делящие этот namespace. Новые live-пробы
-использовали заранее отсутствующий namespace; прежний global profile не объявлен
-проверенным или автоматически восстановленным. HTTP endpoint/token туда не копируются.
-
-## Проверка и доказательства
-
-```powershell
-python tools/selfcheck.py assistant.write
-python tools/security_audit.py
-python tools/lint_arch.py
-python tools/check_limits.py
-python tools/gen_contract.py --check
-python -m pytest tests/py python/modules --ignore=tests/py/live
-```
-
-Для accepted K1 offline-корпуса требуется полный sealed helper/config, описанный
-в WORKLOG (independent acceptance 2026-11-20, строки10746–10764). Запуск без него
-и без отдельно разрешённого provider не воспроизводит offline verdict; это не
-основание менять native parser/goldens или выдавать failed corpus за pass.
-Сопоставление native/generated identities нормализует только доказанные новые
-UID/unique_id и соответствующие заранее проверенные raw hashes, не удаляет поля.
-
-Точные package paths, paired counts, текущие восстановленные mutants и sealed
-hashes: `docs/porting/T1-godot-tools.md`, `docs/porting/T1-write.md`,
-`docs/porting/T1-channels.md`, `docs/porting/T1-editor.md`, `docs/porting/T1-final.md`,
-`docs/PROGRESS.md`, `docs/parity.md`, `docs/tests-map.md`, append-only WORKLOG.
-Accepted A/K1/B/C/D evidence не перезаписывается; rejected attempts остаются видимы.
-Финальный T1 передаётся независимому аудитору, а не объявляется принятым самим agent.
+**Другие способы работы:** [подключение MCP-клиента, CLI и локальный HTTP](docs/clients.md). Если сервер не запускается или ответ завис — [диагностика панели](docs/panel-diagnostics.md). Для участия в разработке — [карта проекта и проверки](docs/README.md).
