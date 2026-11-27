@@ -510,6 +510,12 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		panel._on_server_state_changed(true)
 		if panel._pagewait_timer: panel._pagewait_timer.stop()
 		panel._chat_navigation_generation += 1
+		panel._live_chat = "" if json.get("kind") == "api" or panel._history_only else panel._current_chat_id
+		panel._live_retry = 0
+		panel._live_retry_at = 0
+		panel._live_force_send = true
+		panel._live_dirty = true
+		if panel._live_note: panel._live_note.hide()
 		# Не стираем новый draft, набранный пока запрос навигации был в пути.
 		# Очищаем только действительно пустое/старое визуальное состояние.
 		if panel.input_field == null or panel.input_field.text.is_empty():

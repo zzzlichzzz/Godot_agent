@@ -406,6 +406,7 @@ static func _set_ui_busy(panel, busy: bool) -> void:
 	panel.send_button.text = panel._t("sending") if busy else panel._t("send")
 	# Живая трансляция: опрашиваем статус только пока идёт запрос.
 	if busy:
+		if panel._live_note: panel._live_note.hide()
 		if panel._view:
 			panel._view.reset_live()
 		if panel._progress_timer and panel._progress_timer.is_stopped():
@@ -576,10 +577,16 @@ static func _on_input_field_gui_input(panel, event: InputEvent) -> void:
 static func _on_live_input_changed(panel) -> void:
 	if panel._live_enabled:
 		panel._live_dirty = true
+		panel._live_retry = 0
+		panel._live_retry_at = 0
+		if panel.input_field.text.is_empty() and panel._live_note: panel._live_note.hide()
 
 static func _on_live_input_tick(panel) -> void:
-	if panel._history_only or panel._needs_reopen or panel._server_down or panel._current_chat_id == "": return
+	if panel._history_only or panel._needs_reopen or panel._server_down: return
+	if panel._live_chat == "" or panel._live_chat != panel._current_chat_id: return
 	if not panel._live_enabled or not panel._live_dirty or panel._live_inflight: return
+	if not panel.get_node("VBoxContainer").visible: return
+	if Time.get_ticks_msec() < panel._live_retry_at: return
 	if panel._is_network_busy: return  # идёт обмен — конвейер сам вставит финальный промпт
 	if panel.input_field == null or panel._link == null: return
 	var txt: String = panel.input_field.text
@@ -591,14 +598,39 @@ static func _on_live_input_tick(panel) -> void:
 	if not panel._link.post_now("live_input", LIVE_INPUT_URL, panel._policy_json(body)):
 		return  # сервер занят/недоступен — молча попробуем на следующем тике
 	panel._live_inflight = true
-	panel._live_last_sent = txt
+	panel._live_request = {"generation": panel._chat_navigation_generation, "chat": panel._live_chat, "text": txt, "seq": panel._live_seq}
 	panel._live_force_send = false
 	panel._live_dirty = false
 
-static func _on_live_input_response(panel, _result: int, _code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
-	# Ошибки молча игнорируем: зеркалирование — best effort, отправке оно
-	# не мешает (конвейер v88.4 сам вставляет и сверяет финальный промпт).
+static func _on_live_input_response(panel, result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	var sent: Dictionary = panel._live_request
+	panel._live_request = {}
 	panel._live_inflight = false
+	if (sent.is_empty() or sent.generation != panel._chat_navigation_generation
+			or sent.chat != panel._current_chat_id or sent.seq != panel._live_seq): return
+	if panel._is_network_busy or panel._history_only or panel._needs_reopen or panel._server_down: return
+	var reply = JSON.parse_string(body.get_string_from_utf8()) if result == HTTPRequest.RESULT_SUCCESS and code == 200 else null
+	if reply is Dictionary and reply.get("ok") == true and reply.get("applied") == true:
+		panel._live_last_sent = sent.text
+		panel._live_retry = 0
+		panel._live_retry_at = 0
+		panel._live_note.hide()
+		return
+	# A failed write also invalidates the previous acknowledgement: the page may have rerendered.
+	panel._live_force_send = true
+	if panel.input_field.text != sent.text:
+		panel._live_dirty = true
+		return
+	var reason: String = str(reply.get("reason", "")) if reply is Dictionary else ""
+	var transient: bool = reason in ["busy", "no_browser", "no_input_field", "Mirror unavailable"] or code == 0 or code >= 500
+	var retry: bool = transient and panel._live_retry < 5
+	panel._live_dirty = retry
+	if retry:
+		panel._live_retry_at = Time.get_ticks_msec() + mini(8000, 700 << int(panel._live_retry))
+		panel._live_retry += 1
+	var note := "live_draft_retry" if retry else ("live_draft_reopen" if reason in ["history_only", "chat_changed"] else "live_draft_local")
+	panel._live_note.text = panel._t(note)
+	panel._live_note.visible = not sent.text.is_empty()
 
 static func _on_live_input_toggled(panel, pressed: bool) -> void:
 	panel._live_enabled = pressed

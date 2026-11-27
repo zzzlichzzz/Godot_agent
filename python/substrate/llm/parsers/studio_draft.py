@@ -26,7 +26,8 @@ while (roots.length) {
     const root = roots.pop();
     for (const el of root.querySelectorAll('*')) {
         if (el.shadowRoot) roots.push(el.shadowRoot);
-        if (el.tagName !== 'TEXTAREA' || el.matches(':disabled,[readonly]') || !el.checkVisibility()) continue;
+        if (el.tagName !== 'TEXTAREA' || el.matches(':disabled,[readonly]') ||
+            !el.checkVisibility({opacityProperty:true, visibilityProperty:true})) continue;
         let inside = false, blocked = false;
         for (let n = el; n; n = n.getRootNode().host) {
             inside ||= !!n.closest(box); blocked ||= !!n.closest(excluded);
@@ -62,6 +63,7 @@ el.setRangeText(change,from,to,'end');
 el.dispatchEvent(new InputEvent('input',event));
 return el.isConnected && el.value===desired;
 '''
+_READBACK = _COMPOSER + 'return !!el && location.href === arguments[0] && el.value === arguments[1];'
 
 
 class StudioDraft:
@@ -72,5 +74,8 @@ class StudioDraft:
         expected=studio_route(prefer_url)
         if not expected:return False
         actual=driver.current_url
-        return studio_route(actual)==expected and driver.execute_script(
-            _EDIT,actual,text.replace('\r\n','\n').replace('\r','\n'))
+        desired=text.replace('\r\n','\n').replace('\r','\n')
+        if studio_route(actual)!=expected or not driver.execute_script(_EDIT,actual,desired):return False
+        # A reactive page can replace/reset its textarea after the input handler returns.
+        # Read the current visible composer in a separate browser command, without typing again.
+        return driver.execute_script(_READBACK,actual,desired)

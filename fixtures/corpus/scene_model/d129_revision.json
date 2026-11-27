@@ -1,0 +1,110 @@
+{
+  "editor/native/agent_locale.gd": {
+    "before": [
+      86732,
+      "366867f2283312c7d88e5ca4931e7052d877c5044ead3ee3e6e9d4a2203a1823"
+    ],
+    "after": [
+      87351,
+      "89f8f958fe40b0e9c533a0d1525aa0ba59fb5b5d205c52bef4acfff23ede75c4"
+    ],
+    "reverse": [
+      [
+        270,
+        273,
+        ""
+      ],
+      [
+        725,
+        728,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel.gd": {
+    "before": [
+      82977,
+      "870a7e0a25aaf3504969383f207de487cf5058cd0955be95fa1ddb7cb2f13fd0"
+    ],
+    "after": [
+      83470,
+      "9afe98234cdbb273d61433e6c91a2dc3d02896696b2bd6a010b7fbefa2a8d330"
+    ],
+    "reverse": [
+      [
+        249,
+        256,
+        "var _live_seq: int = 0\n"
+      ],
+      [
+        539,
+        545,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part1.gd": {
+    "before": [
+      62492,
+      "afd66119d0745cbfd07c5754e01b2d53c96f5042085b63d566e1c1a0b63b15c7"
+    ],
+    "after": [
+      64214,
+      "2f84bea37fa90f8cae035e6a0b3441e0c76218d341d68e6882debf67ea758309"
+    ],
+    "reverse": [
+      [
+        408,
+        409,
+        ""
+      ],
+      [
+        579,
+        582,
+        ""
+      ],
+      [
+        584,
+        586,
+        "\tif panel._history_only or panel._needs_reopen or panel._server_down or panel._current_chat_id == \"\": return\n"
+      ],
+      [
+        587,
+        589,
+        ""
+      ],
+      [
+        600,
+        601,
+        "\tpanel._live_last_sent = txt\n"
+      ],
+      [
+        604,
+        607,
+        "static func _on_live_input_response(panel, _result: int, _code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:\n\t# Ошибки молча игнорируем: зеркалирование — best effort, отправке оно\n\t# не мешает (конвейер v88.4 сам вставляет и сверяет финальный промпт).\n"
+      ],
+      [
+        608,
+        633,
+        ""
+      ]
+    ]
+  },
+  "editor/native/agent_panel_part3.gd": {
+    "before": [
+      58891,
+      "d45cdd599e5b90209b980f285477543de796b57750de969d6c82aab94a6027dc"
+    ],
+    "after": [
+      59152,
+      "af9e1c426655083ff3df81cca703987d6da4905bedfb21942cc8f09d7355a5f4"
+    ],
+    "reverse": [
+      [
+        512,
+        518,
+        ""
+      ]
+    ]
+  }
+}

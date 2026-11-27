@@ -247,7 +247,13 @@ var _live_toggle: CheckBox = null
 var _live_enabled: bool = true
 var _live_dirty: bool = false
 var _live_inflight: bool = false
-var _live_seq: int = 0
+# The server can outlive this dock; don't restart its sequence from zero on reload.
+var _live_seq: int = int(Time.get_unix_time_from_system() * 1000000)
+var _live_chat: String = ""
+var _live_request: Dictionary = {}
+var _live_retry: int = 0
+var _live_retry_at: int = 0
+var _live_note: Label
 var _live_last_sent: String = ""
 var _live_force_send: bool = false
 var _progress_timer: Timer = null
@@ -531,6 +537,12 @@ func _ready() -> void:
 		_live_timer.start()
 	if input_field and not input_field.text_changed.is_connected(_on_live_input_changed):
 		input_field.text_changed.connect(_on_live_input_changed)
+	if input_field and _live_note == null:
+		_live_note = Label.new()
+		_live_note.hide()
+		_live_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var composer := input_field.get_parent()
+		composer.add_sibling(_live_note)
 	if advanced_box and _live_toggle == null:
 		_live_toggle = CheckBox.new()
 		_live_toggle.text = _t("live_input_toggle")

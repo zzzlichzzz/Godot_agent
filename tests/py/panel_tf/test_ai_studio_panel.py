@@ -34,7 +34,7 @@ def test_ai_studio_instructions_survive_list_and_provider_error(client,cold_tf6,
 
 
 def test_panel_draft_is_delivered_only_to_selected_studio_prompt(client,cold_tf6,monkeypatch):
-    from python.substrate.llm.parsers.studio_draft import _EDIT
+    from python.substrate.llm.parsers.studio_draft import _EDIT, _READBACK
     http,headers,state,_,app=_setup_browser_chat(client,cold_tf6,monkeypatch,'aistudio')
     refs=app.extensions['native_references'];gateway=app.extensions['godot_session'].gateway
     url='https://aistudio.google.com/prompts/new_chat';calls=[]
@@ -48,7 +48,7 @@ def test_panel_draft_is_delivered_only_to_selected_studio_prompt(client,cold_tf6
         return response.json
     assert draft(10,'draft')['applied'] and not draft(9,'old')['applied']
     driver.current_url=url.replace('new_chat','other');driver.window_handles=[]
-    assert not draft(11,'wrong tab')['applied'] and calls==[(_EDIT,url,'draft')]
+    assert not draft(11,'wrong tab')['applied'] and calls==[(_EDIT,url,'draft'),(_READBACK,url,'draft')]
 
 
 def test_five_approved_reads_and_actual_librarian_outcome(client,cold_tf6,monkeypatch):

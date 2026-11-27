@@ -4,7 +4,7 @@ from tests.py.panel_tf.source_inputs import (
     BUG_REGISTER_REVISIONS,D116_REVISIONS,D122_REVISIONS,PANEL_PATH,PATH,revised_bug_register_fact,
     D123_REVISIONS,revised_dock_fact,revised_d116_fact,revised_fact,revised_panel_fact,
     D124_TRANSCRIPT,revised_transcript_fact,
-    D124_VISUAL,revised_workspace_fact,D126_CHAT,revised_chat_fact,D128,before_d128,
+    D124_VISUAL,revised_workspace_fact,D126_CHAT,revised_chat_fact,D128,D129,before_d128,
 )
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -34,10 +34,11 @@ def pytest_collection_modifyitems(items):
             item.callspec.params['fact']=revised_transcript_fact(fact,current)
         elif fact['path'] in D122_REVISIONS:
             item.callspec.params['fact']=revised_bug_register_fact(fact,current,D122_REVISIONS)
-        if path in D128:
-            prior=item.callspec.params['fact']
-            assert [prior['bytes'],prior['sha256']]==D128[path]['before']
-            size,sha=D128[path]['after'];item.callspec.params['fact']=dict(prior,bytes=size,sha256=sha)
+        for revisions in (D128,D129):
+            if path in revisions:
+                prior=item.callspec.params['fact']
+                assert [prior['bytes'],prior['sha256']]==revisions[path]['before']
+                size,sha=revisions[path]['after'];item.callspec.params['fact']=dict(prior,bytes=size,sha256=sha)
     assert revised<=1,'D90 observer input must not be duplicated'
     assert revised_panel<=1,'D112 panel input must not be duplicated'
     assert revised_d116<=len(D116_REVISIONS),'D116 panel/locale inputs must not be duplicated'
