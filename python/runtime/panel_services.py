@@ -117,6 +117,9 @@ class PanelServices:
             elif selected['id']=='kimi':
                 from python.substrate.llm.parsers.kimi_delivery import KimiDelivery
                 parser=KimiDelivery(selected,driver)
+            elif selected['id'] in ('arena','arena_battle'):
+                from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
+                parser=ArenaDelivery(selected,driver,url)
             else:
                 module=import_module('python.substrate.llm.parsers.'+selected['parser'])
                 parser=getattr(module,'PARSER',module)

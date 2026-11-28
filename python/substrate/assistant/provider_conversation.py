@@ -5,8 +5,7 @@ from python.kernel.errors import AppError
 from python.substrate.llm.browser.page_origin import kimi_provisional, permanent, route
 
 _INPUT = {'qwen':'textarea.message-input-textarea,textarea#chat-input,[contenteditable="true"]',
-          'deepseek':'textarea#chat-input,textarea[name="search"]', 'kimi':'.chat-input-editor[contenteditable="true"]',
-          'arena':'textarea[name="message"]', 'arena_battle':'textarea[name="message"]'}
+          'deepseek':'textarea#chat-input,textarea[name="search"]', 'kimi':'.chat-input-editor[contenteditable="true"]'}
 
 
 def save_unique(store, base, cid, site, url):
@@ -19,6 +18,9 @@ def save_unique(store, base, cid, site, url):
 
 
 def ready(driver, site):
+    if site['id'] in ('arena', 'arena_battle'):
+        from python.substrate.llm.parsers.arena_composer import composer
+        return bool(composer(driver))
     return driver.execute_script('return [...document.querySelectorAll(arguments[0])].some(el => '
                                  'el.checkVisibility({opacityProperty:true,visibilityProperty:true}) && '
                                  '!el.matches(":disabled,[readonly]") && !el.closest("[inert],[role=dialog],[aria-hidden=true]"))', _INPUT[site['id']]) is True

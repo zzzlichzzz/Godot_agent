@@ -147,10 +147,10 @@ class InteractiveGateway(ChatGateway):
             parser.rank=self.judge.select
         elif site['id']=='kimi':
             from python.substrate.llm.parsers.kimi_delivery import KimiDelivery
-            parser=KimiDelivery(site,driver)
+            parser=KimiDelivery(site,driver,request=text)
         elif site['id'] in ('arena','arena_battle'):
             from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
-            parser=ArenaDelivery(self.judge)
+            parser=ArenaDelivery(site,driver,url,self.judge)
         elif site['id']=='aistudio':
             from python.substrate.llm.parsers.studio_delivery import StudioDelivery
             studio=StudioDelivery(driver,url)
