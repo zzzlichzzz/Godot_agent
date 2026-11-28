@@ -10,7 +10,7 @@ class PanelServices:
         self.project=str(project);self.state=Path(state)
         self.reader=NativePlanner(project,self.state/'rebuild_state',Path(__file__).parents[2])
         self.files=ExternalPanelState(state,project)
-        self._mirror=None;self._mirror_target=None
+        self._mirror=None;self._mirror_target=None;self._reload_fences={}
 
     def cache(self,classes=None,version=''):
         with self.reader._references():
@@ -90,7 +90,7 @@ class PanelServices:
             result['file_count']=len(native['files']);result['diffs']=[item['diff'] for item in native['files']]
             return result
 
-    def selected_page(self, chat_id, session, *, reload=False):
+    def selected_page(self, chat_id, session, *, reload=False, seq=None):
         from python.substrate.context.librarian_read import _LOCK
         busy = AppError('conflict', 'Браузер занят. Дождитесь окончания операции.')
         if not session.lock.acquire(blocking=False): raise busy
@@ -103,8 +103,12 @@ class PanelServices:
                 if not chat_id or not record or record.get('id') != chat_id or record.get('kind') == 'api':
                     raise AppError('conflict', 'Выберите открытый браузерный чат.')
                 driver = gateway.current_driver()
-                if not reload: return dict(ready=page.composer_ready(record, driver))
+                if not reload: return page.page_status(record, driver)
                 page.reload(record, driver)
+                if type(seq) is int and seq >= 0 and record.get('site_id') in ('arena','arena_battle'):
+                    # Only edits made after this explicit navigation may reach the fresh document.
+                    self._reload_fences[chat_id] = max(seq, self._reload_fences.get(chat_id, 0))
+                    gateway._mirror_held.discard(chat_id)
                 return dict(ok=True)
             finally: _LOCK.release()
         finally: session.lock.release()
@@ -122,6 +126,8 @@ class PanelServices:
             rec=(selection() if callable(selection) else getattr(gateway,'_record',None)) or {}
             if not rec or rec.get('kind')=='api':return skipped('no_parser')
             if data.get('chat_id') and data['chat_id'] != rec.get('id'):return skipped('chat_changed')
+            fence=self._reload_fences.get(rec.get('id'))
+            if fence is not None and (type(data.get('seq')) is not int or data['seq'] <= fence):return skipped('stale_seq')
             if getattr(gateway,'selected_page',None):
                 try:gateway.selected_page.require(rec,driver)
                 except AppError:return skipped('history_only')

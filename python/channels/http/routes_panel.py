@@ -79,7 +79,8 @@ def register_panel_routes(app,agent,session,services):
         return jsonify(services.live_input(request.get_json(),session))
     @bp.post('/browser/reload')
     def reload_page():
-        try: return jsonify(services.selected_page(request.get_json().get('chat_id'), session, reload=True))
+        data=request.get_json()
+        try: return jsonify(services.selected_page(data.get('chat_id'), session, reload=True, seq=data.get('seq')))
         except AppError as error:
             return jsonify(ok=False, kind=error.kind, error=error.message), 503 if error.kind=='unavailable' else 409
     @bp.post('/browser/page_status')

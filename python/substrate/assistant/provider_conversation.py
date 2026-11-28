@@ -27,13 +27,17 @@ def ready(driver, site):
 
 
 def open_launch(driver, site, navigate):
+    from selenium.common.exceptions import WebDriverException
+    from urllib3.exceptions import HTTPError
     from python.substrate.llm.parsers import studio_navigation
-    window, home = driver.current_window_handle, site['new_chat_url']
-    if not navigate(driver, home): return False
-    if site['id'] == 'aistudio': return studio_navigation.open_blank(driver, window, home)
-    # The site may require login before the first send. Never save its redirect
-    # (or the previous conversation) as the newly created chat's destination.
-    return driver.current_window_handle == window and route(site, driver.current_url) == home
+    try:
+        window, home = driver.current_window_handle, site['new_chat_url']
+        if not navigate(driver, home): return False
+        if site['id'] == 'aistudio': return studio_navigation.open_blank(driver, window, home)
+        # The site may require login before the first send. Never save its redirect.
+        return driver.current_window_handle == window and route(site, driver.current_url) == home
+    except (WebDriverException, HTTPError):
+        return False  # The user may close the window during navigation too.
 
 
 class FirstReply:

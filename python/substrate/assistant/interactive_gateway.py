@@ -96,7 +96,15 @@ class InteractiveGateway(ChatGateway):
         except (RuntimeError,TypeError):return None
 
     def wait_driver(self,timeout=90.0):
-        try:driver=self._ensure_browser(timeout=timeout)
+        from .chat_navigation import prepare_window
+        try:
+            previous=self.current_driver()
+            driver=self._ensure_browser(timeout=timeout)
+            if previous is not None and driver is previous:
+                page=getattr(self,'selected_page',None)
+                bound=page.window if page and page.driver is driver else None
+                if not prepare_window(self._owned_browser,driver,bound):
+                    self.close();driver=self._ensure_browser(timeout=timeout)
         except AppError as error:
             raise RuntimeError(error.message) from None
         except Exception as error:

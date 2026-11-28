@@ -276,6 +276,7 @@ var _sync_new: String = ""
 var _sync_is_folder: bool = false
 var _pagewait_timer: Timer = null
 var _pagewait_left: int = 0
+var _pagewait_dialog := false
 var _pending_view: String = ""
 var _loc = null                      # скрипт локализации agent_locale.gd
 var _bar_btn_new: Button = null

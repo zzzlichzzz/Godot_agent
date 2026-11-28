@@ -35,36 +35,38 @@ def local_studio(tmp_path, request):
                 '--disable-extensions','--proxy-server=127.0.0.1:1',f'--user-data-dir={tmp_path}/browser'):opts.add_argument(opt)
     with webdriver.Chrome(service=Service(driver),options=opts) as browser:
         browser.set_page_load_timeout(8)
-        debugger=browser.capabilities['goog:chromeOptions']['debuggerAddress']
         # Only the temporary browser's two test tabs receive this local document.
         # The closed proxy prevents any fallback to a real account or network.
-        from websocket import create_connection, WebSocketConnectionClosedException
         documents = getattr(request, 'param', {'https://'+HOST+'/prompts/*': PAGE})
-        def intercept():
-            opener=build_opener(ProxyHandler({}))
-            with opener.open('http://'+debugger+'/json/list',timeout=3) as r: targets=json.load(r)
-            target=next(t for t in targets if t['id']==browser.current_window_handle)
-            ws=create_connection(target['webSocketDebuggerUrl'],suppress_origin=True,timeout=3)
-            ws.send(json.dumps(dict(id=1,method='Fetch.enable',params={'patterns':[{'urlPattern':p,'resourceType':'Document'} for p in documents]})))
-            assert json.loads(ws.recv())['id']==1
-            ws.settimeout(None)
-            def serve():
-                i=1
-                try:
-                    while raw:=ws.recv():
-                        event=json.loads(raw)
-                        if event.get('method')!='Fetch.requestPaused': continue
-                        i+=1
-                        url=event['params']['request']['url']; page=next(v for k,v in documents.items() if url.startswith(k.rstrip('*')))
-                        ws.send(json.dumps(dict(id=i,method='Fetch.fulfillRequest',params={
-                            'requestId':event['params']['requestId'],'responseCode':200,
-                            'responseHeaders':[{'name':'Content-Type','value':'text/html; charset=utf-8'}],
-                            'body':base64.b64encode(page.encode()).decode()})))
-                except (WebSocketConnectionClosedException,OSError): pass
-            Thread(target=serve,daemon=True).start()
-        intercept()
-        browser.switch_to.new_window('tab');intercept()
+        serve_document(browser,documents)
+        browser.switch_to.new_window('tab');serve_document(browser,documents)
         yield browser
+
+
+def serve_document(browser,documents):
+    from websocket import create_connection, WebSocketConnectionClosedException
+    debugger=browser.capabilities['goog:chromeOptions']['debuggerAddress']
+    opener=build_opener(ProxyHandler({}))
+    with opener.open('http://'+debugger+'/json/list',timeout=3) as r: targets=json.load(r)
+    target=next(t for t in targets if t['id']==browser.current_window_handle)
+    ws=create_connection(target['webSocketDebuggerUrl'],suppress_origin=True,timeout=3)
+    ws.send(json.dumps(dict(id=1,method='Fetch.enable',params={'patterns':[{'urlPattern':p,'resourceType':'Document'} for p in documents]})))
+    assert json.loads(ws.recv())['id']==1
+    ws.settimeout(None)
+    def serve():
+        i=1
+        try:
+            while raw:=ws.recv():
+                event=json.loads(raw)
+                if event.get('method')!='Fetch.requestPaused': continue
+                i+=1
+                url=event['params']['request']['url']; page=next(v for k,v in documents.items() if url.startswith(k.rstrip('*')))
+                ws.send(json.dumps(dict(id=i,method='Fetch.fulfillRequest',params={
+                    'requestId':event['params']['requestId'],'responseCode':200,
+                    'responseHeaders':[{'name':'Content-Type','value':'text/html; charset=utf-8'}],
+                    'body':base64.b64encode(page.encode()).decode()})))
+        except (WebSocketConnectionClosedException,OSError): pass
+    Thread(target=serve,daemon=True).start()
 
 
 @pytest.mark.needs_live

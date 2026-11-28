@@ -1,11 +1,10 @@
 """Keep Arena's native branch protocol, evaluating only a Godot-read project view."""
 import time
 from selenium.common.exceptions import StaleElementReferenceException, WebDriverException
-from selenium.webdriver.common.keys import Keys
 
 from python.kernel.errors import AppError
 from python.substrate.llm.browser.page_origin import route
-from .arena_composer import composer, draft_text, mirror_draft
+from .arena_composer import composer, draft_text, mirror_draft, page_status, select_draft
 from .arena_choices import ArenaChoices
 from .parser_base import ParserCancelled
 
@@ -44,6 +43,8 @@ class ArenaDelivery(ArenaChoices):
 
     def send_message_and_get_response(self, driver, prompt, **kwargs):
         self.switch_to_site_window(driver)
+        if page_status(driver).get('reason') == 'dialog':
+            raise AppError('unavailable', 'Arena: закройте диалог на вкладке сайта и нажмите «Отправить» в панели. Сообщение не отправлено.')
         if self._ensure_monitor(driver) is None:
             raise AppError('unavailable', 'Arena: нет связи с вкладкой для чтения ответа. Сообщение не отправлено. Заново откройте чат из панели.')
         self._stage, self._expected = 'field', prompt
@@ -101,10 +102,8 @@ class ArenaDelivery(ArenaChoices):
     def _write_field(self, driver, el, prompt):
         if self.find_input(driver) != el:
             raise AppError('conflict', 'Поле ввода Arena изменилось.')
-        el.click()
-        el.send_keys(Keys.CONTROL, 'a')
-        if not driver.execute_script('return document.activeElement === arguments[0]', el):
-            raise AppError('conflict', 'Поле ввода Arena потеряло фокус.')
+        if not select_draft(driver, el):
+            raise AppError('conflict', 'Arena: не удалось выделить черновик. Сообщение не отправлено.')
         driver.execute_cdp_cmd('Input.insertText', {'text':prompt})
 
     def submit(self, driver, el):

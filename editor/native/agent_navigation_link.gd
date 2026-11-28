@@ -9,6 +9,7 @@ func _fire(kind: String, extra: Dictionary, allow_autostart: bool = true) -> voi
 	var url := AgentServer.URL_BROWSER_PAGE_STATUS if kind == "status" else AgentServer.URL_BROWSER_RELOAD
 	var body := {"user_data_dir": OS.get_user_data_dir(), "project_root": ProjectSettings.globalize_path("res://"),
 		"chat_id": extra.get("chat_id", "")}
+	if kind == "reload": body["seq"] = extra.seq
 	_kind = kind
 	_extra = extra
 	_autostart_ok = false

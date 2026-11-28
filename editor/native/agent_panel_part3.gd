@@ -828,7 +828,18 @@ static func reload_page(panel) -> void:
 	panel._live_dirty = false
 	panel._live_force_send = true
 	panel._on_server_state_changed(true)
-	panel._request_chats("reload", {"chat_id": panel._current_chat_id}, false)
+	var target := {"chat_id": panel._current_chat_id, "seq": panel._live_seq}
+	if panel._live_inflight:
+		# The last mirror owns the browser until its short request finishes.
+		var generation: int = panel._chat_navigation_generation
+		await panel._link.short_response
+		if not is_instance_valid(panel): return
+		if (generation != panel._chat_navigation_generation or target.chat_id != panel._current_chat_id
+				or not panel.get_node("VBoxContainer").visible or panel._server_down or panel._needs_reopen or panel._is_network_busy):
+			panel._reloading_page = false
+			panel._on_server_state_changed(not panel._server_down)
+			return
+	panel._request_chats("reload", target, false)
 
 static func _enter_chat_ui(panel) -> void:
 	if panel._start_screen:
@@ -977,6 +988,7 @@ static func _begin_page_wait(panel) -> void:
 	if panel._view:
 		panel._view.add_navigation_notice(panel._t("page_wait"))
 	panel._pagewait_left = 40
+	panel._pagewait_dialog = false
 	if panel._pagewait_timer == null:
 		panel._pagewait_timer = Timer.new()
 		panel._pagewait_timer.wait_time = 1.0
@@ -1003,6 +1015,10 @@ static func _on_browser_status(panel, json: Dictionary) -> void:
 		panel._pagewait_timer.stop()
 		if panel._view:
 			panel._view.add_navigation_notice(panel._t("page_ready"))
+	elif json.get("reason") == "dialog":
+		panel._pagewait_left = 40  # The user decides when to dismiss the site's dialog.
+		if not panel._pagewait_dialog and panel._view: panel._view.add_navigation_notice(panel._t("page_dialog"))
+		panel._pagewait_dialog = true
 
 static func _on_api_tab_requested(panel) -> void:
 	panel._pending_view = "api"

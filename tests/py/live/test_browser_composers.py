@@ -73,7 +73,12 @@ def test_arena_accepts_logical_paragraphs_on_first_send(local_studio,cold_tf6,mo
     monkeypatch.setattr(ArenaDelivery,'extract_answer_snapshot',lambda *_:{})
     monkeypatch.setattr(ArenaDelivery,'wait_for_new_answer',lambda *a,**kw:{'text':'Ответ. ===DONE==='})
     monkeypatch.setattr(ArenaDelivery,'_set_clipboard_text',lambda *_:pytest.fail('used system clipboard'))
-    cid=post('/chats/new',site_id='arena')['current_id'];request='первая\n\nпоследняя'
+    cid=post('/chats/new',site_id='arena')['current_id'];request='первая\n\nпоследняя' if remount else 'привет'
+    assert post('/chat/live_input',chat_id=cid,seq=1,text=request)['applied']
+    # A lost select-all shortcut can arrive as a literal 'a' after the mirrored draft.
+    browser.execute_script('''pastes.length=0;field.addEventListener('keydown',e=>{
+      if(e.code==='KeyA'){e.preventDefault();document.execCommand('insertText',false,'a')}
+    });''')
     if remount:
         # A SPA replaces its field while committing the paste. The logical document
         # is intact; innerText now includes a non-document decoration as well.
@@ -89,7 +94,8 @@ def test_arena_accepts_logical_paragraphs_on_first_send(local_studio,cold_tf6,mo
     reply=post('/chat',chat_id=cid,prompt=request);assert reply['ok'],reply
     pastes,sent=browser.execute_script('return [pastes,sent]');assert len(pastes)==len(sent)==1
     logical,rendered=sent[0];assert logical==pastes[0] and rendered!=logical
-    assert 'agent_action' in logical and logical.endswith(request) and browser.current_url.endswith('/c/first')
+    assert 'agent_action' in logical and logical.endswith(request) and logical.count(request)==1
+    assert browser.current_url.endswith('/c/first')
 
 
 @pytest.mark.needs_live

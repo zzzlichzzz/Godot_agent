@@ -113,12 +113,15 @@ class SavedPage:
                 pass
         raise AppError('conflict','Страница диалога не подтверждена. Откройте чат из списка сохранённых.')
 
-    def composer_ready(self, rec, driver):
+    def page_status(self, rec, driver):
         self.require(rec, driver)
         site = site_for_record(rec)
+        if site['id'] in ('arena','arena_battle'):
+            from python.substrate.llm.parsers.arena_composer import page_status
+            return page_status(driver)
         if site['id'] == 'aistudio':
-            return driver.execute_script(_READY, driver.current_url, False) is True
-        return provider_ready(driver, site)
+            return dict(ready=driver.execute_script(_READY, driver.current_url, False) is True)
+        return dict(ready=provider_ready(driver, site))
 
     def reload(self, rec, driver):
         from selenium.common.exceptions import TimeoutException, WebDriverException
