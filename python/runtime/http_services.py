@@ -108,6 +108,7 @@ def build_http_agent(project,state,session,refs=None):
                                progress=session.report_progress,approved_read=session.approved_read,bind_chat=session.bind_turn_chat)
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
     gateway.report_read=session.report_read
+    gateway.report_arena=session.report_arena
     gateway.judge=ports['librarian']
     gateway.turn_cancelled=session.turns.cancelled
     session.timing_writer=TimingLog(state,project).append

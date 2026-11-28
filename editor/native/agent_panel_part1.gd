@@ -626,7 +626,7 @@ static func _on_live_input_response(panel, result: int, code: int, _headers: Pac
 	panel._live_inflight = false
 	if (sent.is_empty() or sent.generation != panel._chat_navigation_generation
 			or sent.chat != panel._current_chat_id or sent.seq != panel._live_seq): return
-	if panel._is_network_busy or panel._history_only or panel._needs_reopen or panel._server_down: return
+	if not panel._live_enabled or panel._is_network_busy or panel._history_only or panel._needs_reopen or panel._server_down: return
 	var reply = JSON.parse_string(body.get_string_from_utf8()) if result == HTTPRequest.RESULT_SUCCESS and code == 200 else null
 	if reply is Dictionary and reply.get("ok") == true and reply.get("applied") == true:
 		panel._live_last_sent = sent.text
@@ -653,11 +653,16 @@ static func _on_live_input_response(panel, result: int, code: int, _headers: Pac
 static func _on_live_input_toggled(panel, pressed: bool) -> void:
 	panel._live_enabled = pressed
 	panel._save_live_input_setting(pressed)
-	if pressed:
-		panel._live_dirty = true  # сразу дослать текущий текст поля
+	panel._live_dirty = pressed
+	panel._live_force_send = pressed
+	panel._live_retry = 0
+	panel._live_retry_at = 0
+	if not pressed and panel._live_note: panel._live_note.hide()
 
-static func _load_live_input_setting(panel) -> bool:
-	return true  # живой ввод всегда активен по стандарту для анонимности в браузере
+static func _load_live_input_setting(_panel) -> bool:
+	if not FileAccess.file_exists(LIVE_INPUT_SETTING_FILE): return true
+	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.READ)
+	return f == null or f.get_as_text().strip_edges() != "0"
 
 static func _save_live_input_setting(panel, enabled: bool) -> void:
 	var f = FileAccess.open(LIVE_INPUT_SETTING_FILE, FileAccess.WRITE)

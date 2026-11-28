@@ -150,6 +150,7 @@ static func _show_battle_choice_summary(panel, data: Dictionary) -> void:
 		return
 	var selected := str(data.get("selected", "A"))
 	var message = panel._t("battle_choice_scores") % [
+		"Direct" if data.get("mode") == "direct" else "Battle",
 		selected,
 		int(data.get("score_a", 0)),
 		int(data.get("score_b", 0)),

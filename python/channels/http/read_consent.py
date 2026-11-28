@@ -21,11 +21,10 @@ def register_turns(bp, session, invoke, preview_diffs):
         finally:
             cancelled=session.turns.finish(token)
             if cancelled:outcome='stopped'
-            session.finish_turn(outcome)
+            extra=session.finish_turn(outcome)
             session.approved_read.reset(consent);session.turn_context.reset(turn)
         if cancelled:return jsonify(error='Ожидание остановлено.',kind='conflict',stopped=True),409
         if isinstance(result,tuple):return result
-        extra={}
         if result['state']=='pending_read':
             # An implicit first chat becomes an explicit destination before we offer data.
             if not owner:return jsonify(error='Выберите чат для чтения'),409

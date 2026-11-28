@@ -5,6 +5,7 @@ from time import monotonic, time
 class TurnClock:
     def __init__(self, continued):
         self.start = monotonic()
+        self.choice = None
         self.data = dict(kind='read' if continued else 'message', utc_s=int(time()),
                          first_text_ms=None, visible_done_ms=None, verify_ms=None, chars=0)
 

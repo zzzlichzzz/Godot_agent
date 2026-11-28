@@ -150,7 +150,7 @@ class InteractiveGateway(ChatGateway):
             parser=KimiDelivery(site,driver,request=text)
         elif site['id'] in ('arena','arena_battle'):
             from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
-            parser=ArenaDelivery(site,driver,url,self.judge)
+            parser=ArenaDelivery(site,driver,url,self.judge,getattr(self,'valid_read_proposal',None))
         elif site['id']=='aistudio':
             from python.substrate.llm.parsers.studio_delivery import StudioDelivery
             studio=StudioDelivery(driver,url)
@@ -189,6 +189,8 @@ class InteractiveGateway(ChatGateway):
                 raise
             finally:
                 if delivery and delivery.composer_touched:self._mirror_held.add(self._record['id'])
+                if site['id'] in ('arena','arena_battle') and getattr(self,'report_arena',None):
+                    self.report_arena(parser.events, parser.stream_posts())
             remember(response)
             return response
         try:

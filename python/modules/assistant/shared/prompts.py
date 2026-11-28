@@ -14,7 +14,7 @@ READ_GUIDE = {
     'ask_librarian': 'query (code terms), budget_chars',
     'list_scene': 'path (alias scene), max_chars',
     'gather_context': 'sections, path; project/tools metadata or available editor/runtime/architecture sections',
-    'find_symbol_usages': 'kind, old_name; optional exact declaration or declaration_path (ambiguity is rejected)',
+    'find_symbol_usages': 'kind (function, signal, variable, const, enum, enum_member, class_name), old_name; optional exact declaration or declaration_path',
     'analyze_rename': 'kind, old_name, new_name; optional declaration or declaration_path, mode, allow_unverified',
 }
 
@@ -49,6 +49,9 @@ Use a standalone .tres, not .import or binary .res. Scene/resource targets and t
 For a settings smoke test propose one add_input_action. Other settings ops include add_input_event, set_layer_name,
 set_main_scene and set_display_settings. Do not search game files or ask_librarian for the tool protocol.
 For rename_symbol use kind, old_name, new_name and the exact declaration from a read.
+For a rename smoke test use one concrete symbol. Reuse its declaration in analyze_rename;
+if asked to test rename_symbol too, propose its preview once analysis permits it. If only analysis
+was requested, stop there. Do not enumerate unrelated symbols or run negative cases unless asked.
 Strict mode can refuse ambiguous uses. To propose including them, request a preview with
 mode="probable" and allow_unverified=true. A risk warning is not a refusal: report the
 outcome of this particular proposal from the server receipt, not a previous attempt.

@@ -41,6 +41,12 @@ class HttpSession:
     def report_read(self,tool,outcomes):
         if self.clock:self.clock.data.update(read_tool=tool,read_results=outcomes)
 
+    def report_arena(self, events, observed_posts):
+        if self.clock:
+            self.clock.data.setdefault('arena', []).extend(events)
+            self.clock.data.setdefault('arena_posts', []).append(observed_posts)
+            self.clock.choice = events[-1] if events and 'selected' in events[-1] else None
+
     def start_turn(self, continued):
         self.clock=TurnClock(continued);self.progress={};self.busy=True
 
@@ -51,3 +57,4 @@ class HttpSession:
         if self.timing_writer:
             try:self.timing_writer(clock.finish(outcome))
             except (AppError, OSError, ValueError, RuntimeError):pass  # Diagnostic IO never retries a model turn.
+        return {'battle_choice':clock.choice} if clock.choice else {}

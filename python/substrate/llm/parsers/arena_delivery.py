@@ -4,15 +4,17 @@ from selenium.webdriver.common.keys import Keys
 from python.kernel.errors import AppError
 from python.substrate.llm.browser.page_origin import route
 from .arena_composer import composer, draft_text
-from .arena_parser import ArenaParser
+from .arena_choices import ArenaChoices
 
 
-class ArenaDelivery(ArenaParser):
+class ArenaDelivery(ArenaChoices):
     PASTE_PLAN_A = False
 
-    def __init__(self, site, driver, url, judge=None):
+    def __init__(self, site, driver, url, judge=None, valid_read=None):
         super().__init__()
-        self.judge = judge
+        self.judge, self.valid_read = judge, valid_read
+        self.events, self._ranked = [], []
+        self._frame = self._number = self._decision = self._before = None
         self.site, self.window, self.target = site, driver.current_window_handle, route(site, url)
         self._pasted_field = None
 
@@ -53,15 +55,3 @@ class ArenaDelivery(ArenaParser):
             driver.execute_cdp_cmd('Input.insertText', {'text':prompt})
         else:
             el.send_keys(Keys.BACKSPACE)
-
-    def _project_judgments(self, mon):
-        return self.judge.select(mon.branch_variants()) if mon.branch_count() >= 2 else None
-
-    def _judge_single_current_answer(self, mon):
-        return self.judge.judge(mon.current_text())
-
-    def send_message_and_get_response(self, *args, **kwargs):
-        reply = super().send_message_and_get_response(*args, **kwargs)
-        if isinstance(reply, dict) and ArenaParser._last_choice_summary:
-            return dict(reply, battle_choice=dict(ArenaParser._last_choice_summary))
-        return reply

@@ -2,6 +2,7 @@
 import time
 
 from python.kernel.errors import AppError
+from .panel_read_judgment import panel_read_judgment
 from .qwen_rename import rename_block
 
 
@@ -107,15 +108,10 @@ class QwenChoices:
                 readable=list(canonical.items())
                 key,text,judgment,judgments = ((self.rank(readable) if self.rank else select_best_project_answer(self.project,readable,addon_dir=self.addon))
                                                if readable else (0,None,None,[]))
-                # The frozen Arena judge predates panel symbol reads. Only a single
-                # unknown-action finding may be resolved by the active READ schema.
                 eligible=[]
                 for i,j in judgments:
-                    action=j['action'] or {}; issues=j['blocking']
-                    if j['acceptable'] and not issues: eligible.append((i,j))
-                    elif (self.valid_read and len(issues)==1 and issues[0]['category']=='schema'
-                          and issues[0]['message']=='unknown action: '+str(action.get('action')) and self.valid_read(action)):
-                        eligible.append((i,dict(j,score=80)))
+                    j=panel_read_judgment(j,self.valid_read)
+                    if j['acceptable'] and not j['blocking']: eligible.append((i,j))
                 if eligible:
                     key,judgment=max(eligible,key=lambda row:row[1]['score'])
                 text=options[key][1]  # Confirm the exact visible card, not a normalized copy.

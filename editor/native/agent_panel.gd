@@ -528,8 +528,7 @@ func _ready() -> void:
 		add_child(_progress_timer)
 		_progress_timer.timeout.connect(_on_progress_tick)
 	# v88.11: живой ввод — зеркалирование текста в браузер по мере набора.
-	# Всегда активен по стандарту для анонимности в чатах браузера.
-	_live_enabled = true
+	_live_enabled = _load_live_input_setting()
 	if _live_timer == null:
 		_live_timer = Timer.new()
 		_live_timer.wait_time = 0.35
@@ -549,8 +548,7 @@ func _ready() -> void:
 		_live_toggle = CheckBox.new()
 		_live_toggle.text = _t("live_input_toggle")
 		_live_toggle.tooltip_text = _t("live_input_tip")
-		_live_toggle.button_pressed = true
-		_live_toggle.visible = false  # Функция всегда активна по стандарту, переключатель скрыт для анонимности
+		_live_toggle.button_pressed = _live_enabled
 		advanced_box.add_child(_live_toggle)
 		_live_toggle.toggled.connect(_on_live_input_toggled)
 	_safe_rename_enabled = _load_safe_rename_setting()

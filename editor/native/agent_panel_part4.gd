@@ -173,7 +173,8 @@ static func _on_settings_pressed(panel) -> void:
 	if panel._safe_node_rename_button:
 		panel._safe_node_rename_button.visible = false
 	if panel._live_toggle:
-		panel._live_toggle.visible = false
+		panel._live_toggle.text = panel._t("live_input_toggle")
+		panel._live_toggle.tooltip_text = panel._t("live_input_tip")
 	panel._settings_exp_header.text = panel._t("experimental_hdr") + ":"
 	panel._minilich_check.text = panel._t("minilich_toggle")
 	panel._minilich_train_check.text = panel._t("train_mode_toggle")

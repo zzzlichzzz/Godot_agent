@@ -42,7 +42,11 @@ def test_bounded_history_and_untrusted_prior_rows(tmp_path):
     rows=json.loads(path.read_text());assert len(rows)==64 and rows[-1]['utc_s']==456
     assert rows[:-1]==[row]*63
     before=path.read_bytes()
+    event=dict(variants=1,decision='single',mode='direct')
     for extra in (dict(stream='PRIVATE'), dict(read_tool='PRIVATE', read_results=['ok']),
+                  dict(arena=[dict(event,answer='private')], arena_posts=[1]),
+                  dict(arena=[dict(event,decision='private')], arena_posts=[1]),
+                  dict(arena=[event],arena_posts=['private']),
                   dict(read_tool='read', read_results=['res://private']), dict(read_tool='read', read_results=['ok']*6)):
         with pytest.raises(ValueError):writer.append(dict(row,**extra))
     assert path.read_bytes()==before
