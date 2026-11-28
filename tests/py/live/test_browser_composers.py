@@ -16,7 +16,7 @@ document.execCommand('defaultParagraphSeparator',false,'p'); window.pastes=[];wi
 field.onbeforeinput=e=>{if(e.inputType==='insertText')pastes.push(e.data)};
 field.oninput=()=>field.querySelectorAll('p > br:only-child').forEach(n=>n.className='ProseMirror-trailingBreak');
 field.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();
- const logical=[...field.children].map(n=>n.textContent).join('\n');sent.push([logical,field.innerText]);
+ const logical=[...field.childNodes].map(n=>n.textContent).join('\n');sent.push([logical,field.innerText]);
  const user=document.createElement('div');user.className='user-message';user.textContent=logical;document.body.append(user);
  field.replaceChildren();history.pushState({},'', '/c/first');}};</script>'''
 KIMI = '''<div class="chat-input-editor" contenteditable="true"></div><div class="send-button-container"></div>

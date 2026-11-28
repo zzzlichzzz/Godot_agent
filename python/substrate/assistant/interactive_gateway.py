@@ -151,6 +151,7 @@ class InteractiveGateway(ChatGateway):
         elif site['id'] in ('arena','arena_battle'):
             from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
             parser=ArenaDelivery(site,driver,url,self.judge,getattr(self,'valid_read_proposal',None))
+            self._mirror_held.add(chat_id)  # A late draft cannot overwrite an unresolved send.
         elif site['id']=='aistudio':
             from python.substrate.llm.parsers.studio_delivery import StudioDelivery
             studio=StudioDelivery(driver,url)
@@ -203,7 +204,7 @@ class InteractiveGateway(ChatGateway):
             if result_text.startswith('[Ошибка]'):
                 return self._redact(dict(text=result_text[:200000],raw='',action=None,
                     done=False,finish_reason='error',parse_error=None),api_keys.redact)
-            if delivery and (result_text.strip() or action):self._mirror_held.discard(self._record['id'])
+            if (delivery or site['id'] in ('arena','arena_battle')) and (result_text.strip() or action):self._mirror_held.discard(chat_id)
             raw=str(capture[-1]) if capture else result_text
             if site['id']=='qwen' and getattr(parser,'choices',None) and parser.choices.frame:
                 raw=parser.choices.text

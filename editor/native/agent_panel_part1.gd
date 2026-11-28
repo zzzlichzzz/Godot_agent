@@ -427,7 +427,11 @@ static func _set_ui_busy(panel, busy: bool) -> void:
 static func _clear_chat_input(panel, reset_live: bool = true) -> void:
 	if panel.input_field == null:
 		return
+	# Clearing after Send is a local UI change; the sender owns the browser field.
+	var was_blocked: bool = panel.input_field.is_blocking_signals()
+	if not reset_live: panel.input_field.set_block_signals(true)
 	panel.input_field.clear()
+	if not reset_live: panel.input_field.set_block_signals(was_blocked)
 	panel.input_field.set_caret_line(0)
 	panel.input_field.set_caret_column(0)
 	if panel.input_field.has_method("deselect"):
@@ -435,10 +439,9 @@ static func _clear_chat_input(panel, reset_live: bool = true) -> void:
 	panel.input_field.scroll_vertical = 0
 	panel.input_field.scroll_horizontal = 0
 	panel.input_field.queue_redraw()
-	if reset_live:
-		panel._live_seq += 1
-		panel._live_force_send = true
-		panel._live_dirty = true
+	panel._live_seq += 1
+	panel._live_force_send = true
+	panel._live_dirty = reset_live
 	if not panel._is_network_busy and panel.input_field.is_visible_in_tree():
 		panel.input_field.call_deferred("grab_focus")
 
@@ -446,11 +449,14 @@ static func _restore_chat_draft(panel) -> void:
 	if panel.input_field == null or panel._pending_chat_prompt.is_empty():
 		return
 	if panel.input_field.text.is_empty():
+		var was_blocked: bool = panel.input_field.is_blocking_signals()
+		panel.input_field.set_block_signals(true)
 		panel.input_field.text = panel._pending_chat_prompt
+		panel.input_field.set_block_signals(was_blocked)
 		panel.input_field.set_caret_line(max(0, panel.input_field.get_line_count() - 1))
 		panel.input_field.set_caret_column(panel.input_field.get_line(panel.input_field.get_caret_line()).length())
 		panel.input_field.queue_redraw()
-	panel._live_dirty = true
+		panel._live_dirty = false
 	panel.input_field.call_deferred("grab_focus")
 
 static func _finish_chat_send(panel) -> void:
@@ -864,7 +870,7 @@ static func _on_send_pressed(panel) -> void:
 		return
 	var user_text = panel.input_field.text
 	if user_text.strip_edges().is_empty(): return
-	panel._clear_chat_input(true)
+	panel._clear_chat_input(false)
 	panel._rollback_force_next = false
 	panel._view.add_user_message(user_text)
 	panel._view.add_pending_system(panel._t("analyzing"))

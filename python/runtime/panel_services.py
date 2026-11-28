@@ -110,9 +110,9 @@ class PanelServices:
             selected=site_for_record(rec)
             if not selected:return skipped('no_parser')
             url=rec.get('url') or selected['new_chat_url']
+            if rec.get('id') in getattr(gateway,'_mirror_held',()):return skipped('send_unresolved')
             if selected['id']=='deepseek':
                 from python.substrate.llm.parsers.deepseek_delivery import DeepSeekDelivery
-                if rec.get('id') in getattr(gateway,'_mirror_held',()):return skipped('send_unresolved')
                 parser=DeepSeekDelivery(driver)
             elif selected['id']=='kimi':
                 from python.substrate.llm.parsers.kimi_delivery import KimiDelivery
@@ -133,6 +133,7 @@ class PanelServices:
                     get_parser=lambda:self._mirror_target[1],busy_fn=lambda:session.busy,
                     prefer_url_fn=lambda:self._mirror_target[2])
             result=self._mirror.apply(data.get('seq'),data.get('text',''))
+            if not result['applied'] and getattr(parser,'draft_local',False):return skipped('draft_local')
             if result['ok']:return result
         except (AppError,OSError,RuntimeError,ValueError):
             pass
