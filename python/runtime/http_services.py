@@ -107,6 +107,12 @@ def build_http_agent(project,state,session,refs=None):
     gateway=InteractiveGateway(project,state,Path(__file__).parents[2],selection=selected,
                                progress=session.report_progress,approved_read=session.approved_read,bind_chat=session.bind_turn_chat)
     gateway.storage_base=state;ports['interactive_gateway']=gateway;session.gateway=gateway
+    from .panel_markup import answer_renderer
+    def present_answer(cid,text):
+        record=gateway._record or {}
+        render=answer_renderer(record) if cid and cid==record.get('id') else None
+        return render(text) if render else text
+    session.present_answer=present_answer
     gateway.report_read=session.report_read
     gateway.report_arena=session.report_arena
     gateway.judge=ports['librarian']

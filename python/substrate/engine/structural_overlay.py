@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from python.kernel.errors import AppError
 from python.kernel.paths import PathPolicy, normalize_rel
+from .overlay_plugins import OverlaySettings
 
 SKIP = {'.godot', '.git', 'addons', '.agent_history', 'node_modules', '__pycache__', '_t1_overlay'}
 CODES = ('.gd', '.gdc', '.cs', '.res', '.scn', '.gdextension', '.pck')
@@ -61,6 +62,7 @@ class EngineOverlay:
 
     def _references(self, rel, raw):
         suffix = Path(rel).suffix.lower()
+        if rel == 'project.godot': raw = OverlaySettings.capture(raw).project
         if suffix in ('.tscn', '.tres') and CODE.search(raw):
             raise AppError('denied', 'Сцена или зависимость содержит скрипт или экранированное поле: res://'+rel+'. Выберите сцену или ресурс без скрипта.')
         if rel == 'project.godot' and re.search(rb'(?im)^\s*\[autoload\]', raw):
@@ -121,13 +123,15 @@ class EngineOverlay:
         before = self._capture(action,rel)
         if 'project.godot' not in before: raise AppError('invalid_input', 'project.godot отсутствует')
         if action['action'] != 'create_scene' and rel not in before: raise AppError('invalid_input', 'structural target отсутствует')
+        settings = OverlaySettings.capture(before['project.godot'])
+        inputs = dict(before, **{'project.godot': settings.project})
         target = self.project / rel; plain(target)
         exists=lambda: self.files.exists(rel) if self.files else target.exists()
         if action['action'] == 'create_scene' and exists(): raise AppError('conflict', 'create_scene target уже существует')
         self.state.mkdir(parents=True, exist_ok=True); plain(self.state); self.last_report = None
         with tempfile.TemporaryDirectory(prefix='structural-', dir=self.state) as folder:
             scratch = Path(folder); project = scratch / 'project'; project.mkdir()
-            for name, raw in before.items():
+            for name, raw in inputs.items():
                 copied = project / name; copied.parent.mkdir(parents=True, exist_ok=True); copied.write_bytes(raw)
             internal = project / '_t1_overlay'; internal.mkdir()
             # The resource witness extends its SDK by canonical res:// path. Install
@@ -154,7 +158,7 @@ class EngineOverlay:
             if not isinstance(report, dict) or not isinstance(report.get('preview'), dict) or not isinstance(report.get('result'), dict):
                 raise AppError('unavailable', 'некорректная structural envelope')
             preview, result = report['preview'], report['result']
-            for name, raw in before.items():
+            for name, raw in inputs.items():
                 if name != rel and (not (project / name).is_file() or (project / name).read_bytes() != raw):
                     raise AppError('conflict', 'неожиданный structural asset effect')
             if preview.get('ok') is not True or result.get('ok') is not True:
@@ -166,5 +170,6 @@ class EngineOverlay:
             after = output.read_bytes(); digest = hashlib.sha256(after).hexdigest()
             key = 'resource_hash' if native['action'] == 'edit_resource' else 'project_hash' if native['action'] == 'edit_project_settings' else 'scene_hash'
             if result.get(key) != digest: raise AppError('conflict', 'native target hash не подтверждён')
+            if rel == 'project.godot': after = settings.restore(after)
             files = [] if before.get(rel) == after else [dict(path='res://' + rel, before_bytes=before.get(rel), after_bytes=after)]
             return files, []

@@ -41,6 +41,8 @@ def create_app(project_root,state_dir,agent=None,native_routes=True):
     if refs:
         app.extensions['native_references']=refs
         refs.auth.install(app,jsonify)
+        from .routes_panel import present_history
+        refs.routes.chats_bp.after_request(present_history)
         app.register_blueprint(refs.routes.chats_bp)
         @app.get('/dashboard')
         def dashboard_page():return app.response_class(refs.dashboard.DASHBOARD_HTML,mimetype='text/html')

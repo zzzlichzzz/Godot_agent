@@ -793,7 +793,7 @@ static func _render_transcript(panel, entries) -> void:
 		if role == "user":
 			panel._view.add_user_message(text, int(e.get("ts", 0)))
 		elif role == "agent":
-			panel._view.add_agent_message(text)
+			panel._view.add_agent_message(str(e.get("display_text", text)))
 		else:
 			panel._view.add_system(text)
 

@@ -45,9 +45,11 @@ def register_turns(bp, session, invoke, preview_diffs):
                 if url: session.pending['rename_report']=(url,{k:result['action'][k] for k in ('old_name','new_name')})
         entries=[] if approved is not None else [('user',text)]
         extra.update(session.remember(owner, entries+[('agent',result['text'])]))
+        panel=panel_chat_reply(result,preview_diffs)
+        panel['answer']=session.present_answer(owner,result['text'])
         return jsonify(dict(result,ok=True,result=result['text'],response=result['text'],action=None,
                             preview=result['plan'],pending_confirmation=result['state']=='pending_confirmation',
-                            **panel_chat_reply(result,preview_diffs),**extra))
+                            **panel,**extra))
 
     @bp.post('/chat')
     def chat():

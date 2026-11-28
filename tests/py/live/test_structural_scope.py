@@ -10,7 +10,8 @@ from tests.py.transfer_t1.test_write import client, physical
 def test_scoped_scene_material_and_settings(client,cold_tf6,monkeypatch):
     from python.substrate.llm.browser.backends.browser_backend import BrowserBackend
     _,root,_=client
-    (root/'project.godot').write_text('config_version=5\n[application]\nconfig/name="T1"\nrun/main_scene="res://level.tscn"\n','utf-8')
+    plugins=b'[editor_plugins]\n\nenabled=PackedStringArray("res://addons/godot_agent/plugin.cfg", "res://addons/another/plugin.cfg")\n'
+    (root/'project.godot').write_bytes(b'config_version=5\n[application]\nconfig/name="T1"\nrun/main_scene="res://level.tscn"\n\n'+plugins)
     (root/'level.tscn').write_text('[gd_scene format=3]\n[ext_resource type="Script" path="res://hero.gd" id="1"]\n[node name="Hero" type="Node"]\nscript = ExtResource("1")\n','utf-8')
     (root/'material.tres').write_bytes(b'[gd_resource type="StandardMaterial3D" format=3 uid="uid://cyncsb"]\n\n[resource]\nroughness = 0.8\n')
     app,cid,post=setup(client,cold_tf6,monkeypatch)
@@ -24,6 +25,7 @@ def test_scoped_scene_material_and_settings(client,cold_tf6,monkeypatch):
         receipt=post('/chat/confirm_action',chat_id=cid,approved=True).json
         assert receipt['state']=='COMMITTED' and receipt['changed_paths']==[path]
         disk=physical(root); changed=path[6:]
+        assert plugins in disk['project.godot']
         assert after in disk[changed] and {k:v for k,v in disk.items() if k!=changed}=={k:v for k,v in before.items() if k!=changed}
         return before,receipt
     def undo(saved):

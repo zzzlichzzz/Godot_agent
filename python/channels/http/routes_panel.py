@@ -4,6 +4,17 @@ from flask import Blueprint,current_app,jsonify,request
 from python.kernel.errors import AppError
 from .rename_report import offer
 
+def present_history(response):
+    if request.path!='/chats/open' or response.status_code!=200: return response
+    from python.runtime.panel_markup import answer_renderer
+    data=response.get_json(); render=answer_renderer(data)
+    if render:
+        for row in data.get('transcript', ()):
+            if isinstance(row,dict) and row.get('role')=='agent' and isinstance(row.get('text'),str):
+                row['display_text']=render(row['text'])
+        response.set_data(current_app.json.dumps(data))
+    return response
+
 def rename_label(action):
     return ('Переименование %s → %s' % (action['old_name'],action['new_name'])
             if action and action.get('action')=='rename_symbol' else '')

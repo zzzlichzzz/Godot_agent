@@ -13,6 +13,22 @@ PAGE='''<ms-prompt-box><textarea name="message" class="message-input-textarea" i
 }</script>'''
 PAGES={'https://'+host+'/*':PAGE for host in ['aistudio.google.com','chat.deepseek.com','chat.qwen.ai','www.kimi.ai','www.kimi.com','arena.ai']}
 
+
+@pytest.mark.needs_live
+@pytest.mark.parametrize('local_studio',[PAGES],indirect=True)
+def test_reopen_warm_arena_conversation_without_a_second_get(local_studio,cold_tf6,monkeypatch):
+    from .test_browser_composers import bind
+    browser=local_studio; post=bind(browser,cold_tf6,monkeypatch)
+    cid=post('/chats/new',site_id='arena')['current_id']; url='https://arena.ai/c/already-open'
+    http,headers,state,_,(_,_,app)=cold_tf6;store=app.extensions['native_references'].routes.chat_store
+    store.update_chat(str(state),cid,url=url,primed=True)
+    # The provider assigned this permanent route in-page. A fresh GET requires login again.
+    browser.execute_script("history.replaceState({},'',arguments[0]);document.querySelector('textarea').value='unsent'",url)
+    browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument',{'source':"if(location.pathname.startsWith('/c/'))location.replace('/login')"})
+    opened=post('/chats/open',id=cid)
+    assert not opened['history_only'],opened.get('warning')
+    assert browser.current_url==url and browser.execute_script('return document.querySelector("textarea").value')=='unsent'
+
 @pytest.mark.needs_live
 @pytest.mark.parametrize('local_studio',[PAGES],indirect=True,ids=['six-modes'])
 def test_reopen_all_sites_and_repair_legacy_qwen(local_studio,cold_tf6,monkeypatch):

@@ -99,6 +99,26 @@ def test_relative_editor_plugin_reference_is_checked_before_engine(tmp_path,refe
     assert caught.value.kind=='denied' and not calls
 
 
+def test_enabled_editor_plugin_is_not_copied_or_enabled_in_scratch(tmp_path):
+    adapter,project,_=fixture(tmp_path)
+    plugin=project/'addons/example'; plugin.mkdir(parents=True)
+    cfg=plugin/'plugin.cfg'; cfg.write_bytes(b'[plugin]\nscript="editor.gd"\n')
+    script=plugin/'editor.gd'; script.write_bytes(b'@tool\nextends EditorPlugin\n')
+    settings=project/'project.godot'
+    settings.write_bytes(b'config_version=5\r\n[editor_plugins]\r\nenabled=PackedStringArray("res://addons/example/plugin.cfg")\r\n[application]\r\nconfig/name="T1"\r\n')
+    before={p:p.read_bytes() for p in (settings,cfg,script)}
+    inspected=[]
+    def inspect(argv,**options):
+        scratch=Path(argv[argv.index('--path')+1]); inspected.append(scratch)
+        assert scratch!=project and not (scratch/'addons/example').exists()
+        assert (scratch/'project.godot').read_bytes()==b'config_version=5\r\n[application]\r\nconfig/name="T1"\r\n'
+        return type('Result',(),dict(returncode=1))()
+    adapter.runner=inspect
+    with pytest.raises(AppError) as caught: adapter.prepare(action())
+    assert caught.value.kind=='unavailable' and len(inspected)==1
+    assert before=={p:p.read_bytes() for p in before}
+
+
 @pytest.mark.parametrize('extension',['gd','gdc'])
 def test_relative_executable_resource_reference_is_checked_before_engine(tmp_path,extension):
     adapter,project,calls=fixture(tmp_path)

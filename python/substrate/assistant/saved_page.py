@@ -28,6 +28,7 @@ class SavedPage:
 
     def restore(self, rec, wait_driver, navigate, site, timeout=6, *, current_driver=None, save_url=None):
         cid, url = rec['id'], rec.get('url') or ''
+        bound_driver, bound_window = (self.driver, self.window) if self.cid == cid else (None, None)
         self.select(cid)
         studio = site and site['id'] == 'aistudio'
         history = (rec.get('primed') or rec.get('transcript_trimmed') or
@@ -71,8 +72,10 @@ class SavedPage:
         window, previous = None, None
         try:
             window = driver.current_window_handle
-            previous = driver.current_url if studio else None
-            if navigate(driver, target):
+            previous = driver.current_url
+            same_document = (not studio and route(site, previous) == target and
+                             (permanent(site, previous) or (driver is bound_driver and window == bound_window and window)))
+            if same_document or navigate(driver, target):
                 window = window or driver.current_window_handle
                 end = time.monotonic() + timeout
                 while True:
@@ -85,7 +88,7 @@ class SavedPage:
                             ready = driver.execute_script(_READY, actual, bool(history))
                         else:
                             ready = provider_ready(driver, site)
-                        if ready:
+                        if ready and driver.current_window_handle == window and route(site, driver.current_url) == target:
                             if studio and target != url and save_url and not save_url(target):
                                 break
                             self.select(cid, driver, restored=True)
