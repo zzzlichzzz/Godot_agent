@@ -114,6 +114,9 @@ class PanelServices:
                 from python.substrate.llm.parsers.deepseek_delivery import DeepSeekDelivery
                 if rec.get('id') in getattr(gateway,'_mirror_held',()):return skipped('send_unresolved')
                 parser=DeepSeekDelivery(driver)
+            elif selected['id']=='kimi':
+                from python.substrate.llm.parsers.kimi_delivery import KimiDelivery
+                parser=KimiDelivery(selected,driver)
             else:
                 module=import_module('python.substrate.llm.parsers.'+selected['parser'])
                 parser=getattr(module,'PARSER',module)

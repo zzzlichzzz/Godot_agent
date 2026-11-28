@@ -9,9 +9,13 @@ from .provider_conversation import permanent, ready as provider_ready, recover_q
 
 
 def site_for_record(rec):
-    if rec.get('site_id'):
-        return sites.get_site(rec['site_id'])
-    return sites.detect_site(rec.get('url') or '')
+    url = rec.get('url') or ''
+    site = sites.get_site(rec['site_id']) if rec.get('site_id') else sites.detect_site(url)
+    if site and site['id'] == 'kimi':
+        # A saved conversation belongs to its original account and origin.
+        legacy = dict(site, new_chat_url='https://www.kimi.com/')
+        if permanent(legacy, url): return legacy
+    return site
 
 
 class SavedPage:

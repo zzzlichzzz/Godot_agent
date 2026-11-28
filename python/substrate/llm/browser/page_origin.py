@@ -28,6 +28,13 @@ def matches_saved_origin(site, url):
     return bool(site and page.scheme == 'https' and page.netloc == urlsplit(site['new_chat_url']).netloc)
 
 
+def kimi_provisional(site, url):
+    try:
+        return site['id'] == 'kimi' and matches_saved_origin(site, url) and urlsplit(url).path.rstrip('/') == '/chat/provisional'
+    except (TypeError, ValueError):
+        return False
+
+
 def route(site, url):
     try:
         if not matches_saved_origin(site, url): return None

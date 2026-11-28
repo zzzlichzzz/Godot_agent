@@ -25,7 +25,14 @@ PINS = {
 def test_fixed_native_byte_pin(filename):
     path = reference.TARGET / filename
     assert path.is_file(), 'verbatim reference missing: ' + filename
-    assert hashlib.sha256(path.read_bytes()).hexdigest() == PINS[filename]
+    raw = path.read_bytes()
+    if filename == 'sites.py':
+        # Reverse only the two deliberate Kimi registry fields; keep the historical pin.
+        current = b'"https://www.kimi.ai/?chat_enter_method=new_chat",\r\n        "match": ["kimi.ai", "kimi.com"]'
+        previous = b'"https://www.kimi.com/",\r\n        "match": ["kimi.com"]'
+        assert raw.count(current) == 1
+        raw = raw.replace(current, previous)
+    assert hashlib.sha256(raw).hexdigest() == PINS[filename]
 
 
 @pytest.mark.parametrize('entry', MANIFEST['cases'], ids=lambda entry: entry['id'])
@@ -35,7 +42,12 @@ def test_native_observation_corpus(entry):
     assert hashlib.sha256(raw).hexdigest() == entry['sha256']
     case = json.loads(raw)
     assert case['id'] == entry['id']
-    assert reference.observe(case) == entry['expected']
+    observed = reference.observe(case)
+    if case['id'] == 'sites-flags-hosts':
+        kimi = next(site for site in observed['list'] if site['id'] == 'kimi')
+        assert kimi['new_chat_url'] == 'https://www.kimi.ai/?chat_enter_method=new_chat'
+        kimi['new_chat_url'] = 'https://www.kimi.com/'  # compare the rest against the immutable corpus
+    assert observed == entry['expected']
 
 
 @pytest.mark.parametrize(('module', 'missing'), [

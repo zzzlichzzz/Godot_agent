@@ -145,6 +145,9 @@ class InteractiveGateway(ChatGateway):
             from python.substrate.llm.parsers.qwen_delivery import QwenDelivery
             parser=QwenDelivery(self.project_root,self.addon_dir,getattr(self,'valid_read_proposal',None))
             parser.rank=self.judge.select
+        elif site['id']=='kimi':
+            from python.substrate.llm.parsers.kimi_delivery import KimiDelivery
+            parser=KimiDelivery(site,driver)
         elif site['id'] in ('arena','arena_battle'):
             from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
             parser=ArenaDelivery(self.judge)

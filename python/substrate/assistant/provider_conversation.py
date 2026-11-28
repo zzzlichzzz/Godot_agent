@@ -2,7 +2,7 @@
 import time
 
 from python.kernel.errors import AppError
-from python.substrate.llm.browser.page_origin import permanent, route
+from python.substrate.llm.browser.page_origin import kimi_provisional, permanent, route
 
 _INPUT = {'qwen':'textarea.message-input-textarea,textarea#chat-input,[contenteditable="true"]',
           'deepseek':'textarea#chat-input,textarea[name="search"]', 'kimi':'.chat-input-editor[contenteditable="true"]',
@@ -47,7 +47,7 @@ class FirstReply:
             # Some SPA routers publish the id after the final response event.
             deadline = time.monotonic()+2.5
             while (window == self.window and time.monotonic() < deadline and
-                   (actual == self.start or site['id']=='kimi' and driver.current_url==self.start+'chat/provisional')):
+                   (actual == self.start or kimi_provisional(site, driver.current_url))):
                 if check: check()
                 time.sleep(.12)
                 actual, window = route(site,driver.current_url), driver.current_window_handle

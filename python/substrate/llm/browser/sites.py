@@ -63,8 +63,8 @@ SITES = [
     {
         "id": "kimi",
         "name": "Kimi",
-        "new_chat_url": "https://www.kimi.com/",
-        "match": ["kimi.com"],
+        "new_chat_url": "https://www.kimi.ai/?chat_enter_method=new_chat",
+        "match": ["kimi.ai", "kimi.com"],
         "parser": "kimi_parser",
         "builtin": True,
         # DOM нужен только для печати и отправки, ответ читается ЦЕЛИКОМ из сети
