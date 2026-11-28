@@ -112,3 +112,23 @@ class SavedPage:
             except Exception:
                 pass
         raise AppError('conflict','Страница диалога не подтверждена. Откройте чат из списка сохранённых.')
+
+    def composer_ready(self, rec, driver):
+        self.require(rec, driver)
+        site = site_for_record(rec)
+        if site['id'] == 'aistudio':
+            return driver.execute_script(_READY, driver.current_url, False) is True
+        return provider_ready(driver, site)
+
+    def reload(self, rec, driver):
+        from selenium.common.exceptions import TimeoutException, WebDriverException
+        self.require(rec, driver)
+        try:
+            previous = driver.timeouts.page_load
+            driver.set_page_load_timeout(10)
+            try: driver.refresh()
+            except TimeoutException: pass  # The dock polls the composer separately.
+            finally: driver.set_page_load_timeout(previous)
+            self.require(rec, driver)
+        except WebDriverException:
+            raise AppError('unavailable', 'Не удалось перезагрузить вкладку чата. Проверьте браузер.') from None

@@ -9,7 +9,7 @@ from tests.py.transfer_t1.conftest import isolated_chat_native_generation, extra
 from tests.py.transfer_t1.test_write import client, physical
 
 PATHS = ('/sites/list', '/api/providers', '/api/settings/set', '/api/models/refresh',
-         '/api/models/scan', '/api/test', '/browser/status', '/chats/list', '/chats/new',
+         '/api/models/scan', '/api/test', '/browser/status', '/browser/reload', '/browser/page_status', '/chats/list', '/chats/new',
          '/chats/open', '/chats/model', '/chats/rename', '/chats/delete', '/project/api_cache_status')
 POLICY = ('allow_addons', 'allow_self_edit', 'addon_dir', 'rename_mode', 'rename_unverified')
 TOKEN = 'SYNTHETIC-CONTROL-UNIT-TOKEN-NOT-A-REAL-SECRET'

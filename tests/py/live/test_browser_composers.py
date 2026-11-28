@@ -60,7 +60,8 @@ def test_panel_drafts_in_direct_and_battle(local_studio,cold_tf6,monkeypatch):
 
 @pytest.mark.needs_live
 @pytest.mark.parametrize('local_studio',[{'https://arena.ai/*':ARENA_SEND}],indirect=True)
-def test_arena_accepts_logical_paragraphs_on_first_send(local_studio,cold_tf6,monkeypatch):
+@pytest.mark.parametrize('remount',[False, True])
+def test_arena_accepts_logical_paragraphs_on_first_send(local_studio,cold_tf6,monkeypatch,remount):
     from types import SimpleNamespace
     from python.substrate.llm.parsers.arena_delivery import ArenaDelivery
     browser=local_studio;post=bind(browser,cold_tf6,monkeypatch)
@@ -73,6 +74,18 @@ def test_arena_accepts_logical_paragraphs_on_first_send(local_studio,cold_tf6,mo
     monkeypatch.setattr(ArenaDelivery,'wait_for_new_answer',lambda *a,**kw:{'text':'Ответ. ===DONE==='})
     monkeypatch.setattr(ArenaDelivery,'_set_clipboard_text',lambda *_:pytest.fail('used system clipboard'))
     cid=post('/chats/new',site_id='arena')['current_id'];request='первая\n\nпоследняя'
+    if remount:
+        # A SPA replaces its field while committing the paste. The logical document
+        # is intact; innerText now includes a non-document decoration as well.
+        browser.execute_script('''field.addEventListener('input',()=>{const next=field.cloneNode(true);
+          next.onkeydown=e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault();
+            const value=next.editor.getText({blockSeparator:'\\n'});sent.push([value,next.innerText]);
+            const user=document.createElement('div');user.className='user-message';user.textContent=value;
+            document.body.append(user);next.replaceChildren();history.pushState({},'', '/c/first')}};
+          const text=[...next.childNodes].map(n=>n.textContent).join('\\n');
+          const note=document.createElement('span');note.contentEditable='false';note.textContent='Decoration';next.append(note);
+          next.editor={view:{dom:next},getText:()=>text};field.replaceWith(next);
+        },{once:true})''')
     reply=post('/chat',chat_id=cid,prompt=request);assert reply['ok'],reply
     pastes,sent=browser.execute_script('return [pastes,sent]');assert len(pastes)==len(sent)==1
     logical,rendered=sent[0];assert logical==pastes[0] and rendered!=logical

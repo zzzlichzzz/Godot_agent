@@ -16,6 +16,10 @@ def draft_text(driver, field):
     return driver.execute_script(r'''
       const el = arguments[0];
       if (el.tagName === 'TEXTAREA') return el.value;
+      // TipTap decorations are visible DOM, but are not part of the message.
+      const editor = el.editor;
+      if (editor && !editor.isDestroyed && editor.view?.dom === el && typeof editor.getText === 'function')
+        return editor.getText({blockSeparator:'\n'});
       // Chrome can leave the first line as bare text when replacing a draft.
       const nodes = [...el.childNodes], first = nodes.findIndex(n => n.nodeName === 'P');
       if (first < 0 || nodes.slice(0,first).some(n => n.nodeType !== Node.TEXT_NODE) ||

@@ -48,6 +48,8 @@ const ROUTES := {
 	"/api/settings/set": "api_set",
 	"/api/test": "api_test",
 	"/browser/status": "browser_status",
+	"/browser/page_status": "page_status",
+	"/browser/reload": "reload_page",
 	"/chats/delete": "chats_delete",
 	"/chats/list": "chats_list",
 	"/chats/model": "chats_model",
@@ -103,6 +105,8 @@ const URL_API_PROVIDERS := BASE + "/api/providers"
 const URL_API_SETTINGS_SET := BASE + "/api/settings/set"
 const URL_API_TEST := BASE + "/api/test"
 const URL_BROWSER_STATUS := BASE + "/browser/status"
+const URL_BROWSER_PAGE_STATUS := BASE + "/browser/page_status"
+const URL_BROWSER_RELOAD := BASE + "/browser/reload"
 const URL_CHATS_DELETE := BASE + "/chats/delete"
 const URL_CHATS_LIST := BASE + "/chats/list"
 const URL_CHATS_MODEL := BASE + "/chats/model"

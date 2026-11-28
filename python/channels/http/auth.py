@@ -6,7 +6,7 @@ from python.kernel.errors import AppError
 
 # Exact control-plane routes: saved panel flags are metadata, not authority.
 _CONTROL_POSTS=frozenset(('/sites/list','/api/providers','/api/settings/set',
-    '/api/models/refresh','/api/models/scan','/api/test','/browser/status',
+    '/api/models/refresh','/api/models/scan','/api/test','/browser/status','/browser/reload','/browser/page_status',
     '/chats/list','/chats/new','/chats/open','/chats/model','/chats/rename',
     '/chats/delete','/project/api_cache_status'))
 _PROJECT_POLICY_FIELDS=('allow_addons','allow_self_edit','addon_dir','rename_mode','rename_unverified')

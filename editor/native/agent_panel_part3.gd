@@ -457,7 +457,14 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		panel._on_minilich_payload(kind, json)
 		return
 	if kind == "status":
-		panel._on_browser_status(json)
+		if extra.get("chat_id") == panel._current_chat_id: panel._on_browser_status(json)
+		return
+	if kind == "reload":
+		panel._reloading_page = false
+		panel._on_server_state_changed(not panel._server_down)
+		if extra.get("chat_id") == panel._current_chat_id and panel.get_node("VBoxContainer").visible:
+			if json.get("ok") == true: panel._begin_page_wait()
+			else: panel._notify(str(json.get("error", panel._t("srv_no_response"))), "error")
 		return
 	if kind == "chat_model":
 		# Смена модели у ОТКРЫТОГО чата. Обрабатывается до общего хвоста: чат
@@ -481,6 +488,11 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		panel._on_api_payload(kind, json)
 		return
 	if kind == "sites":
+		if json.has("error") and panel._pending_view == "sites":
+			panel._pending_view = ""
+			panel._on_link_hide_loading()
+			panel._notify(str(json.error), "error")
+			return
 		if panel._start_screen:
 			panel._start_screen.set_sites(json.get("sites", []))
 			if panel._pending_view == "sites":
@@ -489,12 +501,16 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		return
 	if json.has("error"):
 		if kind == "list":
-			# Фоновое обновление списка чатов во время выполнения задачи не должно спамить ошибкой
+			if panel._pending_view == "chats":
+				panel._pending_view = ""
+				panel._on_link_hide_loading()
+				panel._notify(str(json.error), "error")
 			return
 		var message = str(json.get("error", panel._t("srv_no_response")))
 		panel._log_error(message)
 		panel._notify(message, "error")
 		if kind == "open" or kind == "new":
+			panel._on_link_hide_loading()
 			panel._site_resend_envelope = {}
 			panel._restore_chat_draft()
 		return
@@ -514,6 +530,7 @@ static func _on_chats_payload(panel, kind: String, json: Dictionary, extra: Dict
 		if panel._pagewait_timer: panel._pagewait_timer.stop()
 		panel._chat_navigation_generation += 1
 		panel._live_chat = "" if json.get("kind") == "api" or panel._history_only else panel._current_chat_id
+		panel._bar_btn_reload.visible = panel._live_chat != ""
 		panel._live_retry = 0
 		panel._live_retry_at = 0
 		panel._live_force_send = true
@@ -785,6 +802,7 @@ static func _on_editor_script_changed(panel, scr: Script) -> void:
 		panel._hl.on_editor_script_changed(scr)
 
 static func _show_start_ui(panel) -> void:
+	if panel._pagewait_timer: panel._pagewait_timer.stop()
 	if panel._view:
 		panel._view.set_battle_scope(false)
 	if panel._start_screen:
@@ -792,6 +810,25 @@ static func _show_start_ui(panel) -> void:
 		panel._start_screen.show_home()
 	if panel.has_node("VBoxContainer"):
 		panel.get_node("VBoxContainer").visible = false
+
+static func leave_loading(panel) -> void:
+	panel._link.leave_loading()
+	panel._pending_view = ""
+	panel._site_resend_envelope = {}
+	panel._restore_chat_draft()
+	panel._show_start_ui()
+
+static func reload_page(panel) -> void:
+	if panel._reloading_page or panel._is_network_busy or panel._server_down or panel._needs_reopen: return
+	if panel._live_chat == "" or panel._current_chat_id != panel._live_chat: return
+	if panel._pagewait_timer: panel._pagewait_timer.stop()
+	panel._reloading_page = true
+	panel._site_resend_envelope = {}
+	panel._live_seq += 1
+	panel._live_dirty = false
+	panel._live_force_send = true
+	panel._on_server_state_changed(true)
+	panel._request_chats("reload", {"chat_id": panel._current_chat_id}, false)
 
 static func _enter_chat_ui(panel) -> void:
 	if panel._start_screen:
@@ -803,6 +840,7 @@ static func _enter_chat_ui(panel) -> void:
 		panel.input_field.queue_redraw()
 
 static func _apply_chatbar_texts(panel) -> void:
+	if panel._bar_btn_reload: panel._bar_btn_reload.tooltip_text = panel._t("reload_page")
 	if panel._bar_btn_new:
 		panel._bar_btn_new.tooltip_text = panel._t("tip_new")
 	if panel._bar_btn_ren:
@@ -956,7 +994,7 @@ static func _on_pagewait_tick(panel) -> void:
 	panel._pagewait_left -= 1
 	if panel._link and panel._link.is_inflight():
 		return
-	panel._request_chats("status", {})
+	panel._request_chats("status", {"chat_id": panel._current_chat_id}, false)
 
 static func _on_browser_status(panel, json: Dictionary) -> void:
 	if panel._pagewait_timer == null or panel._pagewait_timer.is_stopped():

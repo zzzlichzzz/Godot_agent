@@ -13,6 +13,7 @@ extends Control
 
 signal new_chat_requested(site_id)
 signal load_chat_requested(chat_id)
+signal loading_menu_requested()
 signal delete_chat_requested(chat_id)
 signal sites_tab_requested()
 signal chats_tab_requested()
@@ -690,6 +691,13 @@ func _build() -> void:
 	_loading_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_loading_label.add_theme_color_override("font_color", _color("text"))
 	_loading_view.add_child(_loading_label)
+	var menu := Button.new()
+	menu.name = "LoadingMenu"
+	menu.text = _t("menu")
+	menu.size_flags_horizontal = SIZE_SHRINK_CENTER
+	menu.pressed.connect(func(): loading_menu_requested.emit())
+	if T: T.style_button(menu, "neutral")
+	_loading_view.add_child(menu)
 	# v41: дубликат кнопки ручного запуска сервера — прямо на экране ожидания.
 	# Верхняя строка (server_row, рядом с языком) в некоторых случаях не была замечена
 	# пользователем/не успевала обновиться до первого сигнала от сервера, из-за чего

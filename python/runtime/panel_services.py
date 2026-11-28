@@ -90,6 +90,25 @@ class PanelServices:
             result['file_count']=len(native['files']);result['diffs']=[item['diff'] for item in native['files']]
             return result
 
+    def selected_page(self, chat_id, session, *, reload=False):
+        from python.substrate.context.librarian_read import _LOCK
+        busy = AppError('conflict', 'Браузер занят. Дождитесь окончания операции.')
+        if not session.lock.acquire(blocking=False): raise busy
+        try:
+            if session.busy or not _LOCK.acquire(blocking=False): raise busy
+            try:
+                gateway = getattr(session, 'gateway', None)
+                page = getattr(gateway, 'selected_page', None)
+                record = gateway._selection() if page else None
+                if not chat_id or not record or record.get('id') != chat_id or record.get('kind') == 'api':
+                    raise AppError('conflict', 'Выберите открытый браузерный чат.')
+                driver = gateway.current_driver()
+                if not reload: return dict(ready=page.composer_ready(record, driver))
+                page.reload(record, driver)
+                return dict(ok=True)
+            finally: _LOCK.release()
+        finally: session.lock.release()
+
     def live_input(self,data,session):
         from python.substrate.context.librarian_read import _LOCK
         def skipped(reason):return dict(ok=True,applied=False,reason=reason)

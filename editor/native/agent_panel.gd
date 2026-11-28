@@ -282,6 +282,8 @@ var _bar_btn_new: Button = null
 var _bar_btn_ren: Button = null
 var _bar_btn_del: Button = null
 var _bar_btn_home: Button = null
+var _bar_btn_reload: Button
+var _reloading_page := false
 var _chat_select: OptionButton = null
 var _rename_edit: LineEdit = null  # inline-правка названия в строке чатов
 var _current_chat_id: String = ""
@@ -599,7 +601,7 @@ func _ready() -> void:
 		if has_node("ServerLink"):
 			_link = get_node("ServerLink")
 		else:
-			var link_script = load(get_script().resource_path.get_base_dir() + "/agent_server_link.gd")
+			var link_script = load(get_script().resource_path.get_base_dir() + "/agent_navigation_link.gd")
 			_link = link_script.new()
 			_link.name = "ServerLink"
 			add_child(_link)
@@ -709,6 +711,17 @@ func _ready() -> void:
 		_apply_chatbar_texts()
 		$VBoxContainer.add_child(bar)
 		$VBoxContainer.move_child(bar, 0)
+	var chat_bar := $VBoxContainer/ChatsBar as HBoxContainer
+	_bar_btn_reload = chat_bar.get_node_or_null("ReloadPage") as Button
+	if not _bar_btn_reload:
+		_bar_btn_reload = Button.new()
+		_bar_btn_reload.name = "ReloadPage"
+		_bar_btn_reload.text = "↻"
+		chat_bar.add_child(_bar_btn_reload)
+		chat_bar.move_child(_bar_btn_reload, 5)
+	_bar_btn_reload.visible = _live_chat != ""
+	_bar_btn_reload.tooltip_text = _t("reload_page")
+	if not _bar_btn_reload.pressed.is_connected(_reload_page): _bar_btn_reload.pressed.connect(_reload_page)
 	if _updater == null:
 		if has_node("AgentUpdater"):
 			_updater = get_node("AgentUpdater")
@@ -747,6 +760,7 @@ func _ready() -> void:
 		add_child(_start_screen)
 		_start_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_start_screen.new_chat_requested.connect(_on_start_new_chat)
+		_start_screen.loading_menu_requested.connect(func(): AgentPanelPart3.leave_loading(self))
 		_start_screen.load_chat_requested.connect(_on_start_load_chat)
 		_start_screen.delete_chat_requested.connect(_on_start_delete_chat)
 		_start_screen.sites_tab_requested.connect(_on_sites_tab_requested)
@@ -1560,6 +1574,9 @@ func _on_pagewait_tick() -> void:
 # split_gd: тело — agent_panel_part3.gd
 func _on_browser_status(json: Dictionary) -> void:
 	AgentPanelPart3._on_browser_status(self, json)
+
+func _reload_page() -> void:
+	AgentPanelPart3.reload_page(self)
 
 
 # ---------------------------------------------------------------------------

@@ -397,7 +397,8 @@ static func _escape_bbcode(panel, text: String) -> String:
 
 static func _set_ui_busy(panel, busy: bool) -> void:
 	panel._is_network_busy = busy
-	panel.send_button.disabled = busy or panel._history_only or panel._needs_reopen or panel._server_down
+	panel.send_button.disabled = busy or panel._reloading_page or panel._history_only or panel._needs_reopen or panel._server_down
+	if panel._bar_btn_reload: panel._bar_btn_reload.disabled = panel.send_button.disabled
 	panel.reinit_button.disabled = busy
 	if panel._log_errors_button: panel._log_errors_button.disabled = busy
 	if panel._api_export_button: panel._api_export_button.disabled = busy
@@ -493,7 +494,8 @@ static func _on_server_state_changed(panel, running: bool) -> void:
 		panel._recover_button.visible = not running or panel._needs_reopen or panel._history_only
 		panel._recover_button.text = panel._t("srv_resume_chat" if running else "srv_restart_chat")
 	if panel.send_button:
-		panel.send_button.disabled = panel._is_network_busy or not running or panel._needs_reopen or panel._history_only
+		panel.send_button.disabled = panel._is_network_busy or panel._reloading_page or not running or panel._needs_reopen or panel._history_only
+		if panel._bar_btn_reload: panel._bar_btn_reload.disabled = panel.send_button.disabled
 	if panel._start_screen and panel._start_screen.has_method("set_server_running"):
 		panel._start_screen.set_server_running(running)
 
@@ -606,7 +608,7 @@ static func _on_live_input_changed(panel) -> void:
 		if panel.input_field.text.is_empty() and panel._live_note: panel._live_note.hide()
 
 static func _on_live_input_tick(panel) -> void:
-	if panel._history_only or panel._needs_reopen or panel._server_down: return
+	if panel._reloading_page or panel._history_only or panel._needs_reopen or panel._server_down: return
 	if panel._live_chat == "" or panel._live_chat != panel._current_chat_id: return
 	if not panel._live_enabled or not panel._live_dirty or panel._live_inflight: return
 	if not panel.get_node("VBoxContainer").visible: return
@@ -864,7 +866,7 @@ static func _on_reinit_pressed(panel) -> void:
 	panel.http_request.request(INIT_URL, headers, HTTPClient.METHOD_POST, panel._policy_json(body))
 
 static func _on_send_pressed(panel) -> void:
-	if panel._is_network_busy or panel._history_only or panel._needs_reopen or panel._server_down: return
+	if panel._is_network_busy or panel._reloading_page or panel._history_only or panel._needs_reopen or panel._server_down: return
 	if panel._has_pending_action():
 		panel._log_error(panel._t("resolve_action_first"))
 		return

@@ -1,6 +1,7 @@
 """Native panel control payloads over the authenticated server-owned session."""
 import re
 from flask import Blueprint,current_app,jsonify,request
+from python.kernel.errors import AppError
 from .rename_report import offer
 
 def rename_label(action):
@@ -76,6 +77,15 @@ def register_panel_routes(app,agent,session,services):
     @bp.post('/chat/live_input')
     def live_input():
         return jsonify(services.live_input(request.get_json(),session))
+    @bp.post('/browser/reload')
+    def reload_page():
+        try: return jsonify(services.selected_page(request.get_json().get('chat_id'), session, reload=True))
+        except AppError as error:
+            return jsonify(ok=False, kind=error.kind, error=error.message), 503 if error.kind=='unavailable' else 409
+    @bp.post('/browser/page_status')
+    def page_status():
+        try: return jsonify(services.selected_page(request.get_json().get('chat_id'), session))
+        except AppError: return jsonify(ready=False)
     @bp.post('/minilich/github_fetch')
     @bp.post('/minilich/set')
     @bp.post('/minilich/status')
